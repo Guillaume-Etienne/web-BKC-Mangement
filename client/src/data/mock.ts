@@ -22,18 +22,20 @@ export const mockRooms: Room[] = [
 ]
 
 export const mockClients: Client[] = [
-  { id: 'c1', first_name: 'Jean', last_name: 'Dupont', email: 'jean@mail.com', phone: null, notes: null },
-  { id: 'c2', first_name: 'Marie', last_name: 'Martin', email: null, phone: '+33612345678', notes: null },
-  { id: 'c3', first_name: 'Pierre', last_name: 'Durand', email: 'pierre@mail.com', phone: null, notes: 'Client régulier' },
+  { id: 'c1', first_name: 'Jean', last_name: 'Dupont', email: 'jean@mail.com', phone: null, notes: null, nationality: 'France', passport_number: 'AB123456', birth_date: '1990-05-15', kite_level: 'intermediate' },
+  { id: 'c2', first_name: 'Marie', last_name: 'Martin', email: null, phone: '+33612345678', notes: null, nationality: 'Belgique', passport_number: 'BE789012', birth_date: '1985-08-22', kite_level: 'beginner' },
+  { id: 'c3', first_name: 'Pierre', last_name: 'Durand', email: 'pierre@mail.com', phone: null, notes: 'Client régulier', nationality: 'Allemagne', passport_number: 'DE345678', birth_date: '1988-03-10', kite_level: 'advanced' },
+  { id: 'c4', first_name: 'Sophie', last_name: 'Laurent', email: 'sophie@mail.com', phone: '+33698765432', notes: null, nationality: 'France', passport_number: 'AB234567', birth_date: '1992-12-05', kite_level: 'intermediate' },
+  { id: 'c5', first_name: 'Luc', last_name: 'Müller', email: 'luc.muller@mail.com', phone: null, notes: 'Aime les bungalows', nationality: 'Suisse', passport_number: 'CH567890', birth_date: '1995-07-20', kite_level: 'beginner' },
 ]
 
 export const mockBookings: Booking[] = [
-  { id: 'bk1', client_id: 'c1', check_in: '2026-02-05', check_out: '2026-02-12', status: 'confirmed', notes: null, num_lessons: 3, num_equipment_rentals: 2, client: mockClients[0] },
-  { id: 'bk2', client_id: 'c2', check_in: '2026-02-10', check_out: '2026-02-18', status: 'provisional', notes: null, num_lessons: 2, num_equipment_rentals: 3, client: mockClients[1] },
-  { id: 'bk3', client_id: 'c3', check_in: '2026-02-15', check_out: '2026-02-22', status: 'confirmed', notes: null, num_lessons: 4, num_equipment_rentals: 1, client: mockClients[2] },
-  { id: 'bk4', client_id: 'c1', check_in: '2026-02-20', check_out: '2026-02-28', status: 'cancelled', notes: 'Annulé par le client', num_lessons: 0, num_equipment_rentals: 0, client: mockClients[0] },
-  { id: 'bk5', client_id: 'c2', check_in: '2026-02-01', check_out: '2026-02-08', status: 'confirmed', notes: null, num_lessons: 2, num_equipment_rentals: 2, client: mockClients[1] },
-  { id: 'bk6', client_id: 'c3', check_in: '2026-03-01', check_out: '2026-03-10', status: 'provisional', notes: null, num_lessons: 1, num_equipment_rentals: 4, client: mockClients[2] },
+  { id: 'bk1', client_id: 'c1', check_in: '2026-02-05', check_out: '2026-02-12', status: 'confirmed', notes: null, num_lessons: 3, num_equipment_rentals: 2, client: mockClients[0], arrival_time: '14:30', departure_time: '10:00', luggage_count: 2, boardbag_count: 1, taxi_arrival: true, taxi_departure: true, has_couple: true, children_count: 0, amount_paid: 500 },
+  { id: 'bk2', client_id: 'c2', check_in: '2026-02-10', check_out: '2026-02-18', status: 'provisional', notes: null, num_lessons: 2, num_equipment_rentals: 3, client: mockClients[1], arrival_time: '16:00', departure_time: '11:00', luggage_count: 1, boardbag_count: 2, taxi_arrival: false, taxi_departure: true, has_couple: false, children_count: 2, amount_paid: 450 },
+  { id: 'bk3', client_id: 'c3', check_in: '2026-02-15', check_out: '2026-02-22', status: 'confirmed', notes: null, num_lessons: 4, num_equipment_rentals: 1, client: mockClients[2], arrival_time: '13:15', departure_time: '09:00', luggage_count: 3, boardbag_count: 1, taxi_arrival: true, taxi_departure: false, has_couple: false, children_count: 1, amount_paid: 600 },
+  { id: 'bk4', client_id: 'c1', check_in: '2026-02-20', check_out: '2026-02-28', status: 'cancelled', notes: 'Annulé par le client', num_lessons: 0, num_equipment_rentals: 0, client: mockClients[0], arrival_time: null, departure_time: null, luggage_count: 0, boardbag_count: 0, taxi_arrival: false, taxi_departure: false, has_couple: false, children_count: 0, amount_paid: 0 },
+  { id: 'bk5', client_id: 'c2', check_in: '2026-02-01', check_out: '2026-02-08', status: 'confirmed', notes: null, num_lessons: 2, num_equipment_rentals: 2, client: mockClients[1], arrival_time: '15:45', departure_time: '10:30', luggage_count: 2, boardbag_count: 0, taxi_arrival: true, taxi_departure: true, has_couple: true, children_count: 0, amount_paid: 400 },
+  { id: 'bk6', client_id: 'c3', check_in: '2026-03-01', check_out: '2026-03-10', status: 'provisional', notes: null, num_lessons: 1, num_equipment_rentals: 4, client: mockClients[2], arrival_time: '12:00', departure_time: '12:00', luggage_count: 1, boardbag_count: 3, taxi_arrival: false, taxi_departure: false, has_couple: false, children_count: 0, amount_paid: 300 },
 ]
 
 export const mockBookingRooms: BookingRoom[] = [

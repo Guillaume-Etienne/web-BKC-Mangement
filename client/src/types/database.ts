@@ -23,6 +23,10 @@ export interface Client {
   email: string | null
   phone: string | null
   notes: string | null
+  nationality: string | null
+  passport_number: string | null
+  birth_date: string | null
+  kite_level: 'beginner' | 'intermediate' | 'advanced' | null
 }
 
 export interface Booking {
@@ -35,6 +39,15 @@ export interface Booking {
   num_lessons: number // nombre de cours
   num_equipment_rentals: number // nombre de locations de matériel
   client?: Client
+  arrival_time: string | null
+  departure_time: string | null
+  luggage_count: number
+  boardbag_count: number
+  taxi_arrival: boolean
+  taxi_departure: boolean
+  has_couple: boolean
+  children_count: number
+  amount_paid: number
 }
 
 export interface BookingRoom {

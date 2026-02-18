@@ -48,6 +48,15 @@ export default function BookingsPage() {
         notes: '',
         num_lessons: 0,
         num_equipment_rentals: 0,
+        arrival_time: null,
+        departure_time: null,
+        luggage_count: 0,
+        boardbag_count: 0,
+        taxi_arrival: false,
+        taxi_departure: false,
+        has_couple: false,
+        children_count: 0,
+        amount_paid: 0,
       })
       setSelectedBooking(null)
     }
@@ -83,6 +92,15 @@ export default function BookingsPage() {
         num_lessons: formData.num_lessons || 0,
         num_equipment_rentals: formData.num_equipment_rentals || 0,
         client: mockClients.find(c => c.id === formData.client_id),
+        arrival_time: formData.arrival_time || null,
+        departure_time: formData.departure_time || null,
+        luggage_count: formData.luggage_count || 0,
+        boardbag_count: formData.boardbag_count || 0,
+        taxi_arrival: formData.taxi_arrival || false,
+        taxi_departure: formData.taxi_departure || false,
+        has_couple: formData.has_couple || false,
+        children_count: formData.children_count || 0,
+        amount_paid: formData.amount_paid || 0,
       }
       setBookings(prev => [...prev, newBooking])
     }
@@ -199,11 +217,20 @@ export default function BookingsPage() {
         {/* Form Modal */}
         {showForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">
-                {selectedBooking ? 'Éditer réservation' : 'Nouvelle réservation'}
-              </h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white">
+                <h2 className="text-xl font-bold text-gray-800">
+                  {selectedBooking ? 'Éditer réservation' : 'Nouvelle réservation'}
+                </h2>
+                <button
+                  onClick={closeForm}
+                  className="text-2xl text-gray-500 hover:text-gray-800 font-bold w-8 h-8 flex items-center justify-center"
+                  title="Fermer"
+                >
+                  ✕
+                </button>
+              </div>
+              <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 p-6 flex flex-col">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
                   <select
@@ -271,6 +298,110 @@ export default function BookingsPage() {
                     <option value="cancelled">Annulé</option>
                   </select>
                 </div>
+
+                {/* Section Logistique */}
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-3">Logistique</h3>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Heure arrivée</label>
+                      <input
+                        type="time"
+                        value={formData.arrival_time || ''}
+                        onChange={(e) => setFormData({ ...formData, arrival_time: e.target.value || null })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Heure départ</label>
+                      <input
+                        type="time"
+                        value={formData.departure_time || ''}
+                        onChange={(e) => setFormData({ ...formData, departure_time: e.target.value || null })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Bagages</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.luggage_count || 0}
+                        onChange={(e) => setFormData({ ...formData, luggage_count: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Boardbags</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.boardbag_count || 0}
+                        onChange={(e) => setFormData({ ...formData, boardbag_count: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 mt-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.taxi_arrival || false}
+                        onChange={(e) => setFormData({ ...formData, taxi_arrival: e.target.checked })}
+                        className="w-4 h-4 border border-gray-300 rounded"
+                      />
+                      <span className="text-sm text-gray-700">Taxi arrivée</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.taxi_departure || false}
+                        onChange={(e) => setFormData({ ...formData, taxi_departure: e.target.checked })}
+                        className="w-4 h-4 border border-gray-300 rounded"
+                      />
+                      <span className="text-sm text-gray-700">Taxi départ</span>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.has_couple || false}
+                        onChange={(e) => setFormData({ ...formData, has_couple: e.target.checked })}
+                        className="w-4 h-4 border border-gray-300 rounded"
+                      />
+                      <span className="text-sm text-gray-700">Couple</span>
+                    </label>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Enfants</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.children_count || 0}
+                        onChange={(e) => setFormData({ ...formData, children_count: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Montant payé (€)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.amount_paid || 0}
+                      onChange={(e) => setFormData({ ...formData, amount_paid: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                   <textarea
@@ -280,7 +411,7 @@ export default function BookingsPage() {
                     rows={2}
                   />
                 </div>
-                <div className="flex gap-3 pt-4">
+                <div className="flex gap-3 pt-4 border-t mt-auto sticky bottom-0 bg-white">
                   <button
                     type="button"
                     onClick={closeForm}

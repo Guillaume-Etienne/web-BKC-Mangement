@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
 interface NavigationProps {
-  currentPage: 'home' | 'planning' | 'bookings'
-  onNavigate: (page: 'home' | 'planning' | 'bookings') => void
+  currentPage: 'home' | 'planning' | 'bookings' | 'clients'
+  onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients') => void
 }
 
 export default function Navigation({ currentPage, onNavigate }: NavigationProps) {
@@ -10,11 +10,12 @@ export default function Navigation({ currentPage, onNavigate }: NavigationProps)
 
   const navItems = [
     { id: 'home', label: 'Accueil', icon: '🏠' },
+    { id: 'clients', label: 'Clients', icon: '👥' },
     { id: 'planning', label: 'Planning', icon: '📅' },
     { id: 'bookings', label: 'Réservations', icon: '📋' },
   ] as const
 
-  const handleNavigate = (page: 'home' | 'planning' | 'bookings') => {
+  const handleNavigate = (page: 'home' | 'planning' | 'bookings' | 'clients') => {
     onNavigate(page)
     setMobileMenuOpen(false)
   }
