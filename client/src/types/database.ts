@@ -87,6 +87,8 @@ export interface Lesson {
   duration_hours: number
   type: LessonType
   notes: string | null
+  kite_id: string | null
+  board_id: string | null
   instructor?: Instructor
   client?: Client
 }
@@ -152,4 +154,32 @@ export interface TaxiMargin {
   driver_cost: number
   center_margin: number
   driver_margin: number
+}
+
+// Equipment
+export type EquipmentCategory = 'kite' | 'board' | 'surfboard' | 'foilboard'
+export type EquipmentCondition = 'new' | 'good' | 'fair' | 'damaged' | 'retired'
+export type RentalSlot = 'morning' | 'afternoon' | 'full_day'
+
+export interface Equipment {
+  id: string
+  name: string
+  category: EquipmentCategory
+  brand: string | null
+  size: string | null
+  year: number | null
+  condition: EquipmentCondition
+  notes: string | null
+  is_active: boolean
+}
+
+export interface EquipmentRental {
+  id: string
+  equipment_id: string
+  booking_id: string | null
+  client_id: string | null
+  date: string
+  slot: RentalSlot
+  price: number
+  notes: string | null
 }

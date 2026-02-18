@@ -1,4 +1,4 @@
-import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity, TaxiDriver, TaxiTrip } from '../types/database'
+import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity, TaxiDriver, TaxiTrip, Equipment, EquipmentRental } from '../types/database'
 
 export const mockAccommodations: Accommodation[] = [
   { id: 'h1', name: 'Maison 1', type: 'house', total_rooms: 2, is_active: true },
@@ -55,12 +55,12 @@ export const mockInstructors: Instructor[] = [
 ]
 
 export const mockLessons: Lesson[] = [
-  { id: 'l1', booking_id: 'bk1', instructor_id: 'i1', client_id: 'c1', date: '2026-02-05', start_time: '09:00', duration_hours: 1, type: 'private', notes: null },
-  { id: 'l2', booking_id: 'bk1', instructor_id: 'i2', client_id: 'c1', date: '2026-02-07', start_time: '14:00', duration_hours: 1.5, type: 'private', notes: 'Vagues!' },
-  { id: 'l3', booking_id: 'bk1', instructor_id: 'i1', client_id: 'c1', date: '2026-02-10', start_time: '10:00', duration_hours: 1, type: 'group', notes: null },
-  { id: 'l4', booking_id: 'bk2', instructor_id: 'i3', client_id: 'c2', date: '2026-02-12', start_time: '15:00', duration_hours: 2, type: 'private', notes: 'Freestyle basics' },
-  { id: 'l5', booking_id: 'bk3', instructor_id: 'i2', client_id: 'c3', date: '2026-02-18', start_time: '09:30', duration_hours: 1.5, type: 'supervision', notes: null },
-  { id: 'l6', booking_id: 'bk3', instructor_id: 'i1', client_id: 'c3', date: '2026-02-20', start_time: '16:00', duration_hours: 1, type: 'private', notes: null },
+  { id: 'l1', booking_id: 'bk1', instructor_id: 'i1', client_id: 'c1', date: '2026-02-05', start_time: '09:00', duration_hours: 1, type: 'private', notes: null, kite_id: 'eq1', board_id: 'eq4' },
+  { id: 'l2', booking_id: 'bk1', instructor_id: 'i2', client_id: 'c1', date: '2026-02-07', start_time: '14:00', duration_hours: 1.5, type: 'private', notes: 'Vagues!', kite_id: 'eq2', board_id: null },
+  { id: 'l3', booking_id: 'bk1', instructor_id: 'i1', client_id: 'c1', date: '2026-02-10', start_time: '10:00', duration_hours: 1, type: 'group', notes: null, kite_id: null, board_id: null },
+  { id: 'l4', booking_id: 'bk2', instructor_id: 'i3', client_id: 'c2', date: '2026-02-12', start_time: '15:00', duration_hours: 2, type: 'private', notes: 'Freestyle basics', kite_id: 'eq3', board_id: 'eq6' },
+  { id: 'l5', booking_id: 'bk3', instructor_id: 'i2', client_id: 'c3', date: '2026-02-18', start_time: '09:30', duration_hours: 1.5, type: 'supervision', notes: null, kite_id: 'eq1', board_id: 'eq5' },
+  { id: 'l6', booking_id: 'bk3', instructor_id: 'i1', client_id: 'c3', date: '2026-02-20', start_time: '16:00', duration_hours: 1, type: 'private', notes: null, kite_id: null, board_id: 'eq4' },
 ]
 
 export const mockPriceItems: PriceItem[] = [
@@ -104,4 +104,34 @@ export const mockTaxiTrips: TaxiTrip[] = [
   { id: 'trp4', date: '2026-02-12', start_time: '08:30', type: 'center-to-aero', taxi_driver_id: 'td3', booking_id: 'bk2', nb_persons: 1, nb_luggage: 1, nb_boardbags: 0, notes: null, price_paid_by_client: 40, price_cost_to_driver: 28, taxi_manager_margin: 3, center_margin: 9 },
   { id: 'trp5', date: '2026-02-18', start_time: '13:00', type: 'aero-to-center', taxi_driver_id: 'td1', booking_id: 'bk3', nb_persons: 3, nb_luggage: 2, nb_boardbags: 1, notes: 'Très volumineux', price_paid_by_client: 55, price_cost_to_driver: 38, taxi_manager_margin: 5, center_margin: 12 },
   { id: 'trp6', date: '2026-02-20', start_time: '11:00', type: 'center-to-town', taxi_driver_id: null, booking_id: 'bk3', nb_persons: 1, nb_luggage: 0, nb_boardbags: 0, notes: null, price_paid_by_client: 15, price_cost_to_driver: 10, taxi_manager_margin: 2, center_margin: 3 },
+]
+
+export const mockEquipment: Equipment[] = [
+  // Kites
+  { id: 'eq1', name: 'Kite 9m - Best Kahoona #2', category: 'kite', brand: 'Best', size: '9m', year: 2022, condition: 'good', notes: 'Excellent pour débutants', is_active: true },
+  { id: 'eq2', name: 'Kite 12m - Cabrinha Apex', category: 'kite', brand: 'Cabrinha', size: '12m', year: 2023, condition: 'new', notes: null, is_active: true },
+  { id: 'eq3', name: 'Kite 7m - Slingshot RPM', category: 'kite', brand: 'Slingshot', size: '7m', year: 2021, condition: 'good', notes: 'Wave riding', is_active: true },
+  { id: 'eq4', name: 'Kite 14m - North Rebel', category: 'kite', brand: 'North', size: '14m', year: 2020, condition: 'fair', notes: 'Léger accroc réparé', is_active: true },
+  { id: 'eq5', name: 'Kite 10m - Liquid Waverunner', category: 'kite', brand: 'Liquid', size: '10m', year: 2022, condition: 'good', notes: null, is_active: true },
+  // Twintip boards
+  { id: 'eq6', name: 'Board 138x41 - Liquid Rookie', category: 'board', brand: 'Liquid', size: '138x41cm', year: 2023, condition: 'new', notes: 'Débutants', is_active: true },
+  { id: 'eq7', name: 'Board 136x39 - Best Pro', category: 'board', brand: 'Best', size: '136x39cm', year: 2021, condition: 'good', notes: null, is_active: true },
+  { id: 'eq8', name: 'Board 141x43 - Cabrinha Big Air', category: 'board', brand: 'Cabrinha', size: '141x43cm', year: 2022, condition: 'fair', notes: 'Usure normale', is_active: true },
+  { id: 'eq9', name: 'Board 135x40 - Slingshot Reflex', category: 'board', brand: 'Slingshot', size: '135x40cm', year: 2020, condition: 'fair', notes: null, is_active: true },
+  // Surfboards
+  { id: 'eq10', name: 'Surfboard 5\'2" - Ozone Wave', category: 'surfboard', brand: 'Ozone', size: '5\'2"', year: 2022, condition: 'good', notes: 'Vagues petites-moyennes', is_active: true },
+  { id: 'eq11', name: 'Surfboard 5\'10" - Liquid Shredder', category: 'surfboard', brand: 'Liquid', size: '5\'10"', year: 2023, condition: 'new', notes: null, is_active: true },
+  // Foilboard
+  { id: 'eq12', name: 'Foilboard 90L - Best Aero', category: 'foilboard', brand: 'Best', size: '90L', year: 2023, condition: 'good', notes: 'Foil en excellent état', is_active: true },
+]
+
+export const mockEquipmentRentals: EquipmentRental[] = [
+  { id: 'er1', equipment_id: 'eq1', booking_id: 'bk1', client_id: null, date: '2026-02-05', slot: 'morning', price: 25, notes: null },
+  { id: 'er2', equipment_id: 'eq6', booking_id: 'bk1', client_id: null, date: '2026-02-05', slot: 'morning', price: 15, notes: null },
+  { id: 'er3', equipment_id: 'eq2', booking_id: 'bk2', client_id: null, date: '2026-02-10', slot: 'full_day', price: 45, notes: null },
+  { id: 'er4', equipment_id: 'eq7', booking_id: 'bk2', client_id: null, date: '2026-02-10', slot: 'full_day', price: 30, notes: null },
+  { id: 'er5', equipment_id: 'eq10', booking_id: 'bk3', client_id: null, date: '2026-02-18', slot: 'afternoon', price: 20, notes: null },
+  { id: 'er6', equipment_id: 'eq1', booking_id: null, client_id: 'c4', date: '2026-02-15', slot: 'morning', price: 25, notes: null },
+  { id: 'er7', equipment_id: 'eq12', booking_id: null, client_id: 'c5', date: '2026-02-16', slot: 'full_day', price: 50, notes: 'Foil trial' },
+  { id: 'er8', equipment_id: 'eq3', booking_id: 'bk1', client_id: null, date: '2026-02-07', slot: 'afternoon', price: 25, notes: null },
 ]

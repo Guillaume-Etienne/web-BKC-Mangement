@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Lesson, DayActivity, DaySlot, LessonType, Booking } from '../../types/database'
-import { mockInstructors, mockClients } from '../../data/mock'
+import { mockInstructors, mockClients, mockEquipment } from '../../data/mock'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -49,6 +49,8 @@ interface AddForm {
   start_time: string
   duration_hours: number
   notes: string
+  kite_id: string | null
+  board_id: string | null
   // activity fields
   name: string
   actNotes: string
@@ -82,7 +84,7 @@ export default function LessonWeekView({
   const emptyForm = (date: string, slot: Slot, kind: 'lesson' | 'activity'): AddForm => ({
     date, slot, kind,
     type: 'private', client_id: mockClients[0]?.id ?? '', instructor_id: mockInstructors[0]?.id ?? '',
-    start_time: SLOT_CONFIG[slot].defaultTime, duration_hours: 1, notes: '',
+    start_time: SLOT_CONFIG[slot].defaultTime, duration_hours: 1, notes: '', kite_id: null, board_id: null,
     name: '', actNotes: '',
   })
 
@@ -136,6 +138,8 @@ export default function LessonWeekView({
         duration_hours: addForm.duration_hours,
         type: addForm.type,
         notes: addForm.notes || null,
+        kite_id: addForm.kite_id,
+        board_id: addForm.board_id,
       }
       onLessonsChange(prev => [...prev, newLesson])
     } else {
@@ -431,6 +435,29 @@ export default function LessonWeekView({
                                 onChange={e => setAddForm(f => f && { ...f, notes: e.target.value })}
                                 className="w-full text-xs border rounded px-1 py-1"
                               />
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-gray-600">Matériel (optionnel)</label>
+                                <select
+                                  value={addForm?.kite_id || ''}
+                                  onChange={e => setAddForm(f => f && { ...f, kite_id: e.target.value || null })}
+                                  className="w-full text-xs border rounded px-1 py-1"
+                                >
+                                  <option value="">Aucun kite</option>
+                                  {mockEquipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
+                                    <option key={e.id} value={e.id}>{e.name}</option>
+                                  ))}
+                                </select>
+                                <select
+                                  value={addForm?.board_id || ''}
+                                  onChange={e => setAddForm(f => f && { ...f, board_id: e.target.value || null })}
+                                  className="w-full text-xs border rounded px-1 py-1"
+                                >
+                                  <option value="">Aucune planche</option>
+                                  {mockEquipment.filter(e => e.category !== 'kite' && e.is_active).map(e => (
+                                    <option key={e.id} value={e.id}>{e.name}</option>
+                                  ))}
+                                </select>
+                              </div>
                             </>
                           ) : (
                             <>
@@ -614,6 +641,32 @@ export default function LessonWeekView({
                   onChange={e => setEditData(d => ({ ...d, notes: e.target.value || null }))}
                   className="w-full text-sm border rounded px-2 py-1.5"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Kite (optionnel)</label>
+                <select
+                  value={editData.kite_id || ''}
+                  onChange={e => setEditData(d => ({ ...d, kite_id: e.target.value || null }))}
+                  className="w-full text-sm border rounded px-2 py-1.5"
+                >
+                  <option value="">Aucun</option>
+                  {mockEquipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Planche (optionnel)</label>
+                <select
+                  value={editData.board_id || ''}
+                  onChange={e => setEditData(d => ({ ...d, board_id: e.target.value || null }))}
+                  className="w-full text-sm border rounded px-2 py-1.5"
+                >
+                  <option value="">Aucune</option>
+                  {mockEquipment.filter(e => e.category !== 'kite' && e.is_active).map(e => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex gap-2 pt-2 border-t">
                 <button
