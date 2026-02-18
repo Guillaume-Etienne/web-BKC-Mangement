@@ -138,17 +138,17 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
             </div>
 
             {/* Desktop Table */}
-            <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">
-              <table className="w-full">
+            <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto">
+              <table className="w-full min-w-[640px]">
                 <thead className="bg-gray-100 border-b">
                   <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Nom complet</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Nationalité</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Niveau</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Tél</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Réservations</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Nom complet</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Nationalité</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Niveau</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Email</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Tél</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Rés.</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -163,17 +163,17 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                           setDetailTab('info')
                         }}
                       >
-                        <td className="px-6 py-4 text-sm font-medium text-gray-800">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-800 whitespace-nowrap">
                           {client.first_name} {client.last_name}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{client.nationality || '-'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
+                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{client.nationality || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                           {client.kite_level ? kiteLinelLabels[client.kite_level] : '-'}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{client.email || '-'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{client.phone || '-'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{bookingCount}</td>
-                        <td className="px-6 py-4 text-sm space-x-2" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-4 py-3 text-sm text-gray-600">{client.email || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{client.phone || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 text-center">{bookingCount}</td>
+                        <td className="px-4 py-3 text-sm space-x-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() => openForm(client)}
                             className="text-blue-600 hover:text-blue-800 font-medium"

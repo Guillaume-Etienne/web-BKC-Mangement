@@ -60,3 +60,55 @@ export interface RoomWithBookings extends Room {
   accommodation: Accommodation
   bookings: Booking[]
 }
+
+// Instructors & Lessons
+export type LessonType = 'private' | 'group' | 'supervision'
+
+export interface Instructor {
+  id: string
+  first_name: string
+  last_name: string
+  email: string | null
+  phone: string | null
+  specialties: string[]
+  rate_private: number
+  rate_group: number
+  rate_supervision: number
+  notes: string | null
+}
+
+export interface Lesson {
+  id: string
+  booking_id: string
+  instructor_id: string
+  client_id: string
+  date: string
+  start_time: string
+  duration_hours: number
+  type: LessonType
+  notes: string | null
+  instructor?: Instructor
+  client?: Client
+}
+
+// Pricing
+export type DaySlot = 'morning' | 'afternoon' | 'evening'
+
+export interface DayActivity {
+  id: string
+  date: string
+  slot: DaySlot
+  name: string
+  notes: string | null
+}
+
+export type PriceCategory = 'lesson' | 'activity' | 'rental' | 'taxi'
+
+export interface PriceItem {
+  id: string
+  category: PriceCategory
+  name: string
+  description: string | null
+  price: number
+  unit: string | null
+}

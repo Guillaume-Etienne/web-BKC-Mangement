@@ -1,4 +1,4 @@
-import type { Accommodation, Room, Booking, BookingRoom, Client } from '../types/database'
+import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity } from '../types/database'
 
 export const mockAccommodations: Accommodation[] = [
   { id: 'h1', name: 'Maison 1', type: 'house', total_rooms: 2, is_active: true },
@@ -46,4 +46,47 @@ export const mockBookingRooms: BookingRoom[] = [
   { booking_id: 'bk4', room_id: 'r7' },
   { booking_id: 'bk5', room_id: 'r8' },
   { booking_id: 'bk6', room_id: 'r9' },
+]
+
+export const mockInstructors: Instructor[] = [
+  { id: 'i1', first_name: 'Théo', last_name: 'Renard', email: 'theo@mail.com', phone: '+33612345678', specialties: ['beginner', 'intermediate'], rate_private: 50, rate_group: 35, rate_supervision: 25, notes: 'Excellent avec débutants' },
+  { id: 'i2', first_name: 'Amélie', last_name: 'Blanc', email: 'amelie@mail.com', phone: '+33698765432', specialties: ['intermediate', 'advanced', 'wave'], rate_private: 55, rate_group: 40, rate_supervision: 30, notes: 'Spécialiste vagues' },
+  { id: 'i3', first_name: 'Lucas', last_name: 'Moreau', email: 'lucas@mail.com', phone: null, specialties: ['beginner', 'freestyle'], rate_private: 45, rate_group: 30, rate_supervision: 20, notes: 'Freestyle expert' },
+]
+
+export const mockLessons: Lesson[] = [
+  { id: 'l1', booking_id: 'bk1', instructor_id: 'i1', client_id: 'c1', date: '2026-02-05', start_time: '09:00', duration_hours: 1, type: 'private', notes: null },
+  { id: 'l2', booking_id: 'bk1', instructor_id: 'i2', client_id: 'c1', date: '2026-02-07', start_time: '14:00', duration_hours: 1.5, type: 'private', notes: 'Vagues!' },
+  { id: 'l3', booking_id: 'bk1', instructor_id: 'i1', client_id: 'c1', date: '2026-02-10', start_time: '10:00', duration_hours: 1, type: 'group', notes: null },
+  { id: 'l4', booking_id: 'bk2', instructor_id: 'i3', client_id: 'c2', date: '2026-02-12', start_time: '15:00', duration_hours: 2, type: 'private', notes: 'Freestyle basics' },
+  { id: 'l5', booking_id: 'bk3', instructor_id: 'i2', client_id: 'c3', date: '2026-02-18', start_time: '09:30', duration_hours: 1.5, type: 'supervision', notes: null },
+  { id: 'l6', booking_id: 'bk3', instructor_id: 'i1', client_id: 'c3', date: '2026-02-20', start_time: '16:00', duration_hours: 1, type: 'private', notes: null },
+]
+
+export const mockPriceItems: PriceItem[] = [
+  // Cours
+  { id: 'p1', category: 'lesson', name: 'Cours privé 1h', description: 'Leçon privée 1 heure', price: 50, unit: '/ heure' },
+  { id: 'p2', category: 'lesson', name: 'Cours privé 2h', description: 'Leçon privée 2 heures', price: 95, unit: '/ 2 heures' },
+  { id: 'p3', category: 'lesson', name: 'Cours groupe 1h', description: 'Cours collectif 1 heure', price: 35, unit: '/ heure' },
+  { id: 'p4', category: 'lesson', name: 'Supervision 1h', description: 'Supervision 1 heure', price: 25, unit: '/ heure' },
+  // Activités
+  { id: 'p5', category: 'activity', name: 'Sortie découverte', description: null, price: 60, unit: '/ personne' },
+  { id: 'p6', category: 'activity', name: 'Cours théorie', description: null, price: 20, unit: '/ personne' },
+  // Locations
+  { id: 'p7', category: 'rental', name: 'Planche + kite', description: null, price: 40, unit: '/ jour' },
+  { id: 'p8', category: 'rental', name: 'Kite seul', description: null, price: 20, unit: '/ jour' },
+  { id: 'p9', category: 'rental', name: 'Harnais', description: null, price: 10, unit: '/ jour' },
+  { id: 'p10', category: 'rental', name: 'Combinaison', description: null, price: 8, unit: '/ jour' },
+  // Taxis
+  { id: 'p11', category: 'taxi', name: 'Aéroport aller', description: null, price: 35, unit: 'aller simple' },
+  { id: 'p12', category: 'taxi', name: 'Aéroport retour', description: null, price: 35, unit: 'retour simple' },
+  { id: 'p13', category: 'taxi', name: 'Ville centre', description: null, price: 15, unit: 'aller/retour' },
+]
+
+export const mockDayActivities: DayActivity[] = [
+  { id: 'a1', date: '2026-02-05', slot: 'morning', name: 'Sortie découverte plage', notes: null },
+  { id: 'a2', date: '2026-02-07', slot: 'evening', name: 'BBQ & soirée beach', notes: 'Prévoir boissons' },
+  { id: 'a3', date: '2026-02-10', slot: 'morning', name: 'Cours théorie vent', notes: null },
+  { id: 'a4', date: '2026-02-18', slot: 'evening', name: 'Projection vidéo kite', notes: null },
+  { id: 'a5', date: '2026-02-20', slot: 'morning', name: 'Sortie bateau', notes: '8 personnes max' },
 ]
