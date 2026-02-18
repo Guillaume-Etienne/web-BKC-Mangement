@@ -112,3 +112,44 @@ export interface PriceItem {
   price: number
   unit: string | null
 }
+
+// Taxis
+export type TaxiTripType = 'aero-to-center' | 'center-to-aero' | 'aero-to-spot' | 'spot-to-aero' | 'center-to-town' | 'town-to-center' | 'other'
+
+export interface TaxiDriver {
+  id: string
+  name: string
+  phone: string | null
+  email: string | null
+  vehicle: string | null // marque/modèle
+  notes: string | null
+  margin_percent: number // % marge du driver (ex: 30 pour 30%)
+}
+
+export interface TaxiTrip {
+  id: string
+  date: string // ISO date
+  start_time: string // HH:MM
+  type: TaxiTripType
+  taxi_driver_id: string | null // null si non assigné
+  booking_id: string | null
+  nb_persons: number
+  nb_luggage: number
+  nb_boardbags: number
+  notes: string | null
+  // Financial
+  price_paid_by_client: number
+  price_cost_to_driver: number // ce qu'on paie au driver
+  taxi_manager_margin: number // marge du responsable taxis
+  center_margin: number // notre marge centre (calculée: client - driver - manager)
+}
+
+export interface TaxiMargin {
+  id: string
+  trip_id: string
+  driver_id: string
+  client_price: number
+  driver_cost: number
+  center_margin: number
+  driver_margin: number
+}

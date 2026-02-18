@@ -1,4 +1,4 @@
-import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity } from '../types/database'
+import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity, TaxiDriver, TaxiTrip } from '../types/database'
 
 export const mockAccommodations: Accommodation[] = [
   { id: 'h1', name: 'Maison 1', type: 'house', total_rooms: 2, is_active: true },
@@ -49,9 +49,9 @@ export const mockBookingRooms: BookingRoom[] = [
 ]
 
 export const mockInstructors: Instructor[] = [
-  { id: 'i1', first_name: 'Théo', last_name: 'Renard', email: 'theo@mail.com', phone: '+33612345678', specialties: ['beginner', 'intermediate'], rate_private: 50, rate_group: 35, rate_supervision: 25, notes: 'Excellent avec débutants' },
-  { id: 'i2', first_name: 'Amélie', last_name: 'Blanc', email: 'amelie@mail.com', phone: '+33698765432', specialties: ['intermediate', 'advanced', 'wave'], rate_private: 55, rate_group: 40, rate_supervision: 30, notes: 'Spécialiste vagues' },
-  { id: 'i3', first_name: 'Lucas', last_name: 'Moreau', email: 'lucas@mail.com', phone: null, specialties: ['beginner', 'freestyle'], rate_private: 45, rate_group: 30, rate_supervision: 20, notes: 'Freestyle expert' },
+  { id: 'i1', first_name: 'Pierrot', last_name: 'Renard', email: 'theo@mail.com', phone: '+33612345678', specialties: ['beginner', 'intermediate'], rate_private: 50, rate_group: 35, rate_supervision: 25, notes: 'Excellent avec débutants' },
+  { id: 'i2', first_name: 'Mouss', last_name: 'Blanc', email: 'amelie@mail.com', phone: '+33698765432', specialties: ['intermediate', 'advanced', 'wave'], rate_private: 55, rate_group: 40, rate_supervision: 30, notes: 'Spécialiste vagues' },
+  { id: 'i3', first_name: 'Tere', last_name: 'Moreau', email: 'lucas@mail.com', phone: null, specialties: ['beginner', 'freestyle'], rate_private: 45, rate_group: 30, rate_supervision: 20, notes: 'Freestyle expert' },
 ]
 
 export const mockLessons: Lesson[] = [
@@ -89,4 +89,19 @@ export const mockDayActivities: DayActivity[] = [
   { id: 'a3', date: '2026-02-10', slot: 'morning', name: 'Cours théorie vent', notes: null },
   { id: 'a4', date: '2026-02-18', slot: 'evening', name: 'Projection vidéo kite', notes: null },
   { id: 'a5', date: '2026-02-20', slot: 'morning', name: 'Sortie bateau', notes: '8 personnes max' },
+]
+
+export const mockTaxiDrivers: TaxiDriver[] = [
+  { id: 'td1', name: 'Hamid Koné', phone: '+225701234567', email: 'hamid@taxi.local', vehicle: 'Toyota Corolla blanc', notes: 'Fiable, parle français/anglais', margin_percent: 30 },
+  { id: 'td2', name: 'Koffi Mensah', phone: '+225702345678', email: 'koffi@taxi.local', vehicle: 'Peugeot 307 grise', notes: 'Disponible WE', margin_percent: 25 },
+  { id: 'td3', name: 'Bah Ousmane', phone: '+225703456789', email: null, vehicle: 'Nissan Almera bleu', notes: 'Nouveau', margin_percent: 35 },
+]
+
+export const mockTaxiTrips: TaxiTrip[] = [
+  { id: 'trp1', date: '2026-02-05', start_time: '14:30', type: 'aero-to-center', taxi_driver_id: 'td1', booking_id: 'bk1', nb_persons: 2, nb_luggage: 2, nb_boardbags: 1, notes: null, price_paid_by_client: 50, price_cost_to_driver: 35, taxi_manager_margin: 5, center_margin: 10 },
+  { id: 'trp2', date: '2026-02-07', start_time: '10:00', type: 'center-to-aero', taxi_driver_id: 'td2', booking_id: 'bk1', nb_persons: 2, nb_luggage: 2, nb_boardbags: 1, notes: 'Dépêche-toi!', price_paid_by_client: 50, price_cost_to_driver: 35, taxi_manager_margin: 4, center_margin: 11 },
+  { id: 'trp3', date: '2026-02-10', start_time: '16:00', type: 'aero-to-spot', taxi_driver_id: null, booking_id: 'bk2', nb_persons: 4, nb_luggage: 3, nb_boardbags: 2, notes: 'Appel confirmé', price_paid_by_client: 70, price_cost_to_driver: 45, taxi_manager_margin: 8, center_margin: 17 },
+  { id: 'trp4', date: '2026-02-12', start_time: '08:30', type: 'center-to-aero', taxi_driver_id: 'td3', booking_id: 'bk2', nb_persons: 1, nb_luggage: 1, nb_boardbags: 0, notes: null, price_paid_by_client: 40, price_cost_to_driver: 28, taxi_manager_margin: 3, center_margin: 9 },
+  { id: 'trp5', date: '2026-02-18', start_time: '13:00', type: 'aero-to-center', taxi_driver_id: 'td1', booking_id: 'bk3', nb_persons: 3, nb_luggage: 2, nb_boardbags: 1, notes: 'Très volumineux', price_paid_by_client: 55, price_cost_to_driver: 38, taxi_manager_margin: 5, center_margin: 12 },
+  { id: 'trp6', date: '2026-02-20', start_time: '11:00', type: 'center-to-town', taxi_driver_id: null, booking_id: 'bk3', nb_persons: 1, nb_luggage: 0, nb_boardbags: 0, notes: null, price_paid_by_client: 15, price_cost_to_driver: 10, taxi_manager_margin: 2, center_margin: 3 },
 ]

@@ -6,8 +6,9 @@ import PlanningView from './components/planning/PlanningView'
 import BookingsPage from './pages/BookingsPage'
 import ClientsPage from './pages/ClientsPage'
 import ManagementPage from './pages/ManagementPage'
+import TaxiPage from './pages/TaxiPage'
 
-type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management'
+type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis'
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home')
@@ -21,6 +22,7 @@ function App() {
         {currentPage === 'bookings' && <BookingsPage />}
         {currentPage === 'clients' && <ClientsPage onNavigate={setCurrentPage} />}
         {currentPage === 'management' && <ManagementPage />}
+        {currentPage === 'taxis' && <TaxiPage />}
       </main>
     </div>
   )
