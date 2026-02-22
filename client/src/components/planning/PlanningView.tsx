@@ -3,6 +3,7 @@ import PlanningRow from './PlanningRow'
 import TotalsRow from './TotalsRow'
 import LessonWeekView from './LessonWeekView'
 import NowView from './NowView'
+import ForecastView from './ForecastView'
 import { mockAccommodations, mockRooms, mockBookings as initialBookings, mockBookingRooms as initialBookingRooms, mockLessons as initialLessons, mockDayActivities as initialActivities } from '../../data/mock'
 import type { Booking, BookingRoom, Lesson, DayActivity } from '../../types/database'
 import { useBookingDrag, CELL_W, type DragMode } from '../../hooks/useBookingDrag'
@@ -116,7 +117,7 @@ export default function PlanningView() {
   const [dayActivities, setDayActivities] = useState<DayActivity[]>([...initialActivities])
 
   // ── Tabs / lesson view ───────────────────────────────────────────
-  const [planningTab, setPlanningTab] = useState<'accommodations' | 'lessons' | 'now'>('accommodations')
+  const [planningTab, setPlanningTab] = useState<'accommodations' | 'lessons' | 'now' | 'forecast'>('accommodations')
   const [lessonView, setLessonView] = useState<'by-instructor' | 'by-client'>('by-instructor')
   const [weekStart, setWeekStart] = useState<Date>(() => getMondayOfWeek(new Date()))
 
@@ -176,7 +177,10 @@ export default function PlanningView() {
         {/* Page header */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 md:mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
-            {planningTab === 'accommodations' ? 'Accommodation Planning' : planningTab === 'lessons' ? 'Lesson Planning' : 'Now'}
+            {planningTab === 'accommodations' ? 'Accommodation Planning'
+              : planningTab === 'lessons' ? 'Daily Planning'
+              : planningTab === 'forecast' ? 'Forecast'
+              : 'Now'}
           </h1>
 
           {planningTab === 'accommodations' && (
@@ -213,13 +217,19 @@ export default function PlanningView() {
             onClick={() => setPlanningTab('lessons')}
             className={`px-4 py-2 font-medium transition-colors ${planningTab === 'lessons' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
           >
-            🏄 Lessons
+            🗓️ Daily
           </button>
           <button
             onClick={() => setPlanningTab('now')}
             className={`px-4 py-2 font-medium transition-colors ${planningTab === 'now' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
           >
             🍽️ Now
+          </button>
+          <button
+            onClick={() => setPlanningTab('forecast')}
+            className={`px-4 py-2 font-medium transition-colors ${planningTab === 'forecast' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+          >
+            📋 Forecast
           </button>
         </div>
 
@@ -312,6 +322,14 @@ export default function PlanningView() {
         {/* ── NOW TAB ── */}
         {planningTab === 'now' && (
           <NowView bookings={bookings} bookingRooms={bookingRooms} />
+        )}
+
+        {/* ── FORECAST TAB ── */}
+        {planningTab === 'forecast' && (
+          <ForecastView
+            lessons={lessons}
+            onLessonsChange={setLessons}
+          />
         )}
 
         {/* ── LESSONS TAB ── */}

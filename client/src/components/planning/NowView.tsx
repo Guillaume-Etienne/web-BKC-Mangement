@@ -391,10 +391,10 @@ export default function NowView({ bookings, bookingRooms }: NowViewProps) {
           <div className="p-4">
             {view === 'table' ? (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className={`text-sm ${isMenu ? 'w-full' : 'md:w-auto w-full'}`}>
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Name</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 w-56">Name</th>
                       <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500">✓</th>
                       {isMenu && MENU_FIELDS.map(f => (
                         <th key={f.key} className="px-1 py-2 text-left text-xs font-semibold text-gray-500 min-w-[90px]">{f.label}</th>
