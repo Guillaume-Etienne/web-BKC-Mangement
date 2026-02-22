@@ -1,151 +1,736 @@
 import { useState } from 'react'
-import { mockBookings as initialBookings, mockClients, mockBookingRooms, mockRooms, mockAccommodations } from '../data/mock'
-import type { Booking, Participant } from '../types/database'
+import {
+  mockBookings as initialBookings,
+  mockClients as initialClients,
+  mockBookingRooms as initialBookingRooms,
+  mockRooms,
+  mockAccommodations,
+} from '../data/mock'
+import type { Booking, BookingStatus, Client, Participant } from '../types/database'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface WizardData {
+  // Step 1 – Client
+  client_id: string
+  // new client inline
+  new_client_first_name: string
+  new_client_last_name: string
+  new_client_email: string
+  new_client_phone: string
+  new_client_nationality: string
+  new_client_kite_level: 'beginner' | 'intermediate' | 'advanced' | ''
+  // Step 2 – Stay
+  check_in: string
+  check_out: string
+  room_id: string
+  status: BookingStatus
+  // Step 3 – Guests
+  participants: Participant[]
+  couples_count: number
+  children_count: number
+  // Step 4 – Transport
+  arrival_time: string
+  departure_time: string
+  taxi_arrival: boolean
+  taxi_departure: boolean
+  luggage_count: number
+  boardbag_count: number
+  // Step 5 – KiteCenter
+  num_lessons: number        // persons wanting lessons
+  num_equipment_rentals: number // persons wanting equipment rental
+  num_center_access: number  // persons using center only (no lesson/rental)
+  // Step 6 – Payment
+  amount_paid: number
+  notes: string
+}
+
+const EMPTY_WIZARD: WizardData = {
+  client_id: '',
+  new_client_first_name: '', new_client_last_name: '', new_client_email: '',
+  new_client_phone: '', new_client_nationality: '', new_client_kite_level: '',
+  check_in: '', check_out: '', room_id: '', status: 'provisional',
+  participants: [], couples_count: 0, children_count: 0,
+  arrival_time: '', departure_time: '',
+  taxi_arrival: false, taxi_departure: false,
+  luggage_count: 0, boardbag_count: 0,
+  num_lessons: 0, num_equipment_rentals: 0, num_center_access: 0,
+  amount_paid: 0, notes: '',
+}
+
+// ─── Step indicator ───────────────────────────────────────────────────────────
+
+const STEPS = [
+  { n: 1, icon: '👤', label: 'Client' },
+  { n: 2, icon: '🏠', label: 'Stay' },
+  { n: 3, icon: '👥', label: 'Guests' },
+  { n: 4, icon: '🚕', label: 'Transport' },
+  { n: 5, icon: '🏄', label: 'KiteCenter' },
+  { n: 6, icon: '💰', label: 'Payment' },
+]
+
+interface StepBarProps { current: number; onGoto: (n: number) => void; maxReached: number }
+function StepBar({ current, onGoto, maxReached }: StepBarProps) {
+  return (
+    <div className="flex items-center gap-1 overflow-x-auto pb-1">
+      {STEPS.map((s, i) => {
+        const done = s.n < current
+        const active = s.n === current
+        const reachable = s.n <= maxReached
+        return (
+          <div key={s.n} className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => reachable && onGoto(s.n)}
+              className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors
+                ${active ? 'bg-blue-600 text-white' : done ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : reachable ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-gray-50 text-gray-300 cursor-default'}`}
+            >
+              <span>{done ? '✓' : s.icon}</span>
+              <span className="hidden sm:block">{s.label}</span>
+            </button>
+            {i < STEPS.length - 1 && <div className={`w-3 h-px ${done ? 'bg-blue-300' : 'bg-gray-200'}`} />}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Field helpers ────────────────────────────────────────────────────────────
+
+function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      {children}
+      {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
+    </div>
+  )
+}
+
+const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
+const numCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-center'
+
+function Counter({ value, onChange, min = 0 }: { value: number; onChange: (v: number) => void; min?: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <button type="button" onClick={() => onChange(Math.max(min, value - 1))}
+        className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 font-bold text-lg leading-none flex items-center justify-center">−</button>
+      <span className="w-8 text-center font-semibold text-gray-800">{value}</span>
+      <button type="button" onClick={() => onChange(value + 1)}
+        className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 font-bold text-lg leading-none flex items-center justify-center">+</button>
+    </div>
+  )
+}
+
+// ─── Wizard component (top-level for focus safety) ────────────────────────────
+
+interface WizardProps {
+  initial: WizardData
+  clients: Client[]
+  isEditing: boolean
+  onCancel: () => void
+  onSave: (data: WizardData, isNew: boolean) => void
+}
+
+function BookingWizard({ initial, clients, isEditing, onCancel, onSave }: WizardProps) {
+  const [step, setStep] = useState(1)
+  const [maxReached, setMaxReached] = useState(isEditing ? 6 : 1)
+  const [d, setD] = useState<WizardData>(initial)
+  const [creatingClient, setCreatingClient] = useState(false)
+  const [clientSearch, setClientSearch] = useState('')
+
+  function update(patch: Partial<WizardData>) { setD(prev => ({ ...prev, ...patch })) }
+
+  function goTo(n: number) {
+    setStep(n)
+    if (n > maxReached) setMaxReached(n)
+  }
+  function next() { goTo(Math.min(6, step + 1)) }
+  function back() { setStep(s => Math.max(1, s - 1)) }
+
+  // Nights count
+  const nights = d.check_in && d.check_out
+    ? Math.max(0, (new Date(d.check_out).getTime() - new Date(d.check_in).getTime()) / 86400000)
+    : 0
+
+  const filteredClients = clients.filter(c =>
+    `${c.first_name} ${c.last_name} ${c.email ?? ''}`
+      .toLowerCase()
+      .includes(clientSearch.toLowerCase())
+  )
+
+  // Participant helpers
+  function addParticipant() {
+    update({ participants: [...d.participants, { id: `p${Date.now()}`, first_name: '', last_name: '', passport_number: '' }] })
+  }
+  function updateParticipant(i: number, field: keyof Participant, val: string) {
+    const parts = [...d.participants]
+    parts[i] = { ...parts[i], [field]: val }
+    update({ participants: parts })
+  }
+  function removeParticipant(i: number) {
+    update({ participants: d.participants.filter((_, idx) => idx !== i) })
+  }
+
+  // Rooms grouped by accommodation
+  const roomsByAcco = mockAccommodations.map(acc => ({
+    acc,
+    rooms: mockRooms.filter(r => r.accommodation_id === acc.id),
+  })).filter(g => g.rooms.length > 0)
+
+  const canProceed: Record<number, boolean> = {
+    1: creatingClient
+      ? !!(d.new_client_first_name && d.new_client_last_name)
+      : !!d.client_id,
+    2: !!(d.check_in && d.check_out && d.check_in < d.check_out),
+    3: true,
+    4: true,
+    5: true,
+    6: true,
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+      <div className="bg-white w-full sm:max-w-xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[95dvh] sm:max-h-[90vh]">
+
+        {/* Header */}
+        <div className="px-5 pt-5 pb-3 border-b">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-gray-800">
+              {isEditing ? 'Edit booking' : 'New booking'}
+            </h2>
+            <button onClick={onCancel} className="text-gray-400 hover:text-gray-700 font-bold text-xl w-8 h-8 flex items-center justify-center">✕</button>
+          </div>
+          <StepBar current={step} onGoto={goTo} maxReached={maxReached} />
+        </div>
+
+        {/* Step content */}
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+
+          {/* ── Step 1: Client ──────────────────────────────────────────── */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">Who is booking? Select an existing client or create a new one.</p>
+
+              {!creatingClient ? (
+                <>
+                  <Field label="Search client">
+                    <input type="text" placeholder="Name or email…" value={clientSearch}
+                      onChange={e => setClientSearch(e.target.value)} className={inputCls} />
+                  </Field>
+                  <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                    {filteredClients.map(c => (
+                      <button key={c.id} type="button"
+                        onClick={() => update({ client_id: c.id })}
+                        className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-colors
+                          ${d.client_id === c.id ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-gray-200 hover:border-gray-300 bg-white text-gray-800'}`}
+                      >
+                        <div className="font-medium">{c.first_name} {c.last_name}</div>
+                        <div className="text-xs text-gray-400">{c.email ?? c.phone ?? c.nationality ?? '—'}</div>
+                      </button>
+                    ))}
+                    {filteredClients.length === 0 && (
+                      <p className="text-sm text-gray-400 italic px-1">No client found.</p>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => { setCreatingClient(true); update({ client_id: '' }) }}
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    + Create new client
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    This client will be added to the client list on save.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="First name *">
+                      <input type="text" value={d.new_client_first_name}
+                        onChange={e => update({ new_client_first_name: e.target.value })} className={inputCls} />
+                    </Field>
+                    <Field label="Last name *">
+                      <input type="text" value={d.new_client_last_name}
+                        onChange={e => update({ new_client_last_name: e.target.value })} className={inputCls} />
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Email">
+                      <input type="email" value={d.new_client_email}
+                        onChange={e => update({ new_client_email: e.target.value })} className={inputCls} />
+                    </Field>
+                    <Field label="Phone">
+                      <input type="tel" value={d.new_client_phone}
+                        onChange={e => update({ new_client_phone: e.target.value })} className={inputCls} />
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Nationality">
+                      <input type="text" value={d.new_client_nationality}
+                        onChange={e => update({ new_client_nationality: e.target.value })} className={inputCls} />
+                    </Field>
+                    <Field label="Kite level">
+                      <select value={d.new_client_kite_level}
+                        onChange={e => update({ new_client_kite_level: e.target.value as WizardData['new_client_kite_level'] })}
+                        className={inputCls}>
+                        <option value="">— unknown —</option>
+                        <option value="beginner">Beginner</option>
+                        <option value="intermediate">Intermediate</option>
+                        <option value="advanced">Advanced</option>
+                      </select>
+                    </Field>
+                  </div>
+                  <button type="button" onClick={() => setCreatingClient(false)}
+                    className="text-sm text-gray-500 hover:text-gray-700">← Back to list</button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── Step 2: Stay ────────────────────────────────────────────── */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Check-in *">
+                  <input type="date" value={d.check_in}
+                    onChange={e => update({ check_in: e.target.value })} className={inputCls} />
+                </Field>
+                <Field label="Check-out *">
+                  <input type="date" value={d.check_out}
+                    onChange={e => update({ check_out: e.target.value })} className={inputCls} />
+                </Field>
+              </div>
+              {nights > 0 && (
+                <p className="text-sm text-blue-700 bg-blue-50 rounded-lg px-3 py-2 font-medium">
+                  {nights} night{nights > 1 ? 's' : ''}
+                </p>
+              )}
+
+              <Field label="Room" hint="Optional — can be assigned later in the planning view">
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  <button type="button" onClick={() => update({ room_id: '' })}
+                    className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors
+                      ${d.room_id === '' ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-gray-200 hover:border-gray-300 text-gray-600'}`}>
+                    Not assigned yet
+                  </button>
+                  {roomsByAcco.map(({ acc, rooms }) => (
+                    <div key={acc.id}>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1 mb-1">{acc.name}</p>
+                      <div className="space-y-1">
+                        {rooms.map(r => (
+                          <button key={r.id} type="button" onClick={() => update({ room_id: r.id })}
+                            className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors
+                              ${d.room_id === r.id ? 'border-blue-500 bg-blue-50 text-blue-800 font-medium' : 'border-gray-200 hover:border-gray-300 text-gray-700'}`}>
+                            {acc.name} / {r.name}
+                            <span className="text-xs text-gray-400 ml-2">capacity {r.capacity}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Field>
+
+              <Field label="Status">
+                <div className="flex gap-2">
+                  {(['provisional', 'confirmed', 'cancelled'] as BookingStatus[]).map(s => (
+                    <button key={s} type="button" onClick={() => update({ status: s })}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium capitalize border transition-colors
+                        ${d.status === s
+                          ? s === 'confirmed' ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                            : s === 'cancelled' ? 'bg-gray-200 text-gray-700 border-gray-400'
+                            : 'bg-amber-100 text-amber-800 border-amber-300'
+                          : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            </div>
+          )}
+
+          {/* ── Step 3: Guests ──────────────────────────────────────────── */}
+          {step === 3 && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">
+                Add each person staying — their names and passport numbers are needed for the visa document.
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Couples">
+                  <Counter value={d.couples_count} onChange={v => update({ couples_count: v })} />
+                </Field>
+                <Field label="Children">
+                  <Counter value={d.children_count} onChange={v => update({ children_count: v })} />
+                </Field>
+              </div>
+
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-800">
+                    Participants
+                    <span className="ml-2 font-normal text-gray-400">{d.participants.length} person{d.participants.length !== 1 ? 's' : ''}</span>
+                  </h3>
+                  <button type="button" onClick={addParticipant}
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium">+ Add</button>
+                </div>
+
+                {d.participants.length === 0 && (
+                  <p className="text-xs text-gray-400 italic">No participants yet. Add them for visa document generation.</p>
+                )}
+
+                <div className="space-y-2">
+                  {d.participants.map((p, i) => (
+                    <div key={p.id} className="flex gap-1.5 items-start">
+                      <div className="flex-1 grid grid-cols-3 gap-1">
+                        <input placeholder="First name" value={p.first_name}
+                          onChange={e => updateParticipant(i, 'first_name', e.target.value)}
+                          className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        <input placeholder="Last name" value={p.last_name}
+                          onChange={e => updateParticipant(i, 'last_name', e.target.value)}
+                          className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        <input placeholder="Passport #" value={p.passport_number}
+                          onChange={e => updateParticipant(i, 'passport_number', e.target.value)}
+                          className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                      </div>
+                      <button type="button" onClick={() => removeParticipant(i)}
+                        className="shrink-0 text-red-400 hover:text-red-600 text-lg leading-none px-0.5 mt-1">✕</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 4: Transport ───────────────────────────────────────── */}
+          {step === 4 && (
+            <div className="space-y-5">
+              {/* Arrival */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">✈️ Arrival</h3>
+                <div className="space-y-3">
+                  <Field label="Arrival time">
+                    <input type="time" value={d.arrival_time}
+                      onChange={e => update({ arrival_time: e.target.value })} className={inputCls} />
+                  </Field>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={d.taxi_arrival}
+                      onChange={e => update({ taxi_arrival: e.target.checked })}
+                      className="w-4 h-4 rounded border-gray-300" />
+                    <span className="text-sm text-gray-700">🚕 Taxi needed on arrival</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Departure */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">🛫 Departure</h3>
+                <div className="space-y-3">
+                  <Field label="Departure time">
+                    <input type="time" value={d.departure_time}
+                      onChange={e => update({ departure_time: e.target.value })} className={inputCls} />
+                  </Field>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={d.taxi_departure}
+                      onChange={e => update({ taxi_departure: e.target.checked })}
+                      className="w-4 h-4 rounded border-gray-300" />
+                    <span className="text-sm text-gray-700">🚕 Taxi needed on departure</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Baggage */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">🧳 Baggage</h3>
+                <div className="grid grid-cols-2 gap-6">
+                  <Field label="Suitcases / bags">
+                    <Counter value={d.luggage_count} onChange={v => update({ luggage_count: v })} />
+                  </Field>
+                  <Field label="Boardbags">
+                    <Counter value={d.boardbag_count} onChange={v => update({ boardbag_count: v })} />
+                  </Field>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 5: KiteCenter ──────────────────────────────────────── */}
+          {step === 5 && (
+            <div className="space-y-5">
+              <p className="text-sm text-gray-500">
+                How many people in this group want each service? Each is billed separately.
+              </p>
+
+              <div className="space-y-4">
+                {/* Lessons */}
+                <div className="flex items-center justify-between p-4 bg-purple-50 border border-purple-200 rounded-xl">
+                  <div>
+                    <p className="font-semibold text-purple-900 text-sm">📚 Lessons</p>
+                    <p className="text-xs text-purple-600 mt-0.5">Persons wanting kite lessons</p>
+                  </div>
+                  <Counter value={d.num_lessons} onChange={v => update({ num_lessons: v })} />
+                </div>
+
+                {/* Rentals */}
+                <div className="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                  <div>
+                    <p className="font-semibold text-amber-900 text-sm">🪁 Equipment rental</p>
+                    <p className="text-xs text-amber-600 mt-0.5">Persons renting kite, board, etc.</p>
+                  </div>
+                  <Counter value={d.num_equipment_rentals} onChange={v => update({ num_equipment_rentals: v })} />
+                </div>
+
+                {/* Center access only */}
+                <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                  <div>
+                    <p className="font-semibold text-blue-900 text-sm">🏖️ Center access</p>
+                    <p className="text-xs text-blue-600 mt-0.5">Persons using the center only (no lesson, no rental)</p>
+                  </div>
+                  <Counter value={d.num_center_access} onChange={v => update({ num_center_access: v })} />
+                </div>
+              </div>
+
+              {(d.num_lessons + d.num_equipment_rentals + d.num_center_access) > 0 && (
+                <p className="text-sm text-gray-500 text-right">
+                  Total: <span className="font-semibold text-gray-700">{d.num_lessons + d.num_equipment_rentals + d.num_center_access} person{(d.num_lessons + d.num_equipment_rentals + d.num_center_access) > 1 ? 's' : ''}</span> using the center
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ── Step 6: Payment ─────────────────────────────────────────── */}
+          {step === 6 && (
+            <div className="space-y-4">
+              <Field label="Amount already paid (€)">
+                <input type="number" min="0" value={d.amount_paid || ''}
+                  onChange={e => update({ amount_paid: parseFloat(e.target.value) || 0 })}
+                  placeholder="0" className={numCls} />
+              </Field>
+
+              {/* Summary */}
+              <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-2 text-sm">
+                <p className="font-semibold text-gray-700 mb-2">Summary</p>
+                <div className="flex justify-between text-gray-600">
+                  <span>Status</span>
+                  <span className={`font-medium capitalize ${d.status === 'confirmed' ? 'text-emerald-700' : d.status === 'cancelled' ? 'text-gray-500' : 'text-amber-700'}`}>{d.status}</span>
+                </div>
+                {d.check_in && d.check_out && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Stay</span>
+                    <span>{d.check_in} → {d.check_out} ({nights}n)</span>
+                  </div>
+                )}
+                {d.room_id && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Room</span>
+                    <span>{(() => {
+                      const r = mockRooms.find(r => r.id === d.room_id)
+                      const a = mockAccommodations.find(a => a.id === r?.accommodation_id)
+                      return r ? `${a?.name} / ${r.name}` : '—'
+                    })()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-gray-600">
+                  <span>Participants</span>
+                  <span>{d.participants.length} person{d.participants.length !== 1 ? 's' : ''}</span>
+                </div>
+                {(d.taxi_arrival || d.taxi_departure) && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Taxis</span>
+                    <span>{[d.taxi_arrival && 'arrival', d.taxi_departure && 'departure'].filter(Boolean).join(' + ')}</span>
+                  </div>
+                )}
+                {(d.luggage_count > 0 || d.boardbag_count > 0) && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Baggage</span>
+                    <span>{d.luggage_count} bag{d.luggage_count !== 1 ? 's' : ''}{d.boardbag_count > 0 ? ` · ${d.boardbag_count} boardbag${d.boardbag_count !== 1 ? 's' : ''}` : ''}</span>
+                  </div>
+                )}
+                {(d.num_lessons > 0 || d.num_equipment_rentals > 0 || d.num_center_access > 0) && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>KiteCenter</span>
+                    <span>
+                      {[
+                        d.num_lessons > 0 && `${d.num_lessons} lesson${d.num_lessons > 1 ? 's' : ''}`,
+                        d.num_equipment_rentals > 0 && `${d.num_equipment_rentals} rental${d.num_equipment_rentals > 1 ? 's' : ''}`,
+                        d.num_center_access > 0 && `${d.num_center_access} access`,
+                      ].filter(Boolean).join(' · ')}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <Field label="Internal notes">
+                <textarea value={d.notes} onChange={e => update({ notes: e.target.value })}
+                  rows={3} placeholder="Allergies, special requests, Google Form reference…" className={inputCls} />
+              </Field>
+            </div>
+          )}
+
+        </div>
+
+        {/* Footer nav */}
+        <div className="px-5 py-4 border-t flex gap-3 bg-white">
+          {step > 1 && (
+            <button type="button" onClick={back}
+              className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-sm">
+              ← Back
+            </button>
+          )}
+          <div className="flex-1" />
+          {step < 6 ? (
+            <button type="button" onClick={next} disabled={!canProceed[step]}
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-lg font-semibold text-sm transition-colors">
+              Next →
+            </button>
+          ) : (
+            <button type="button" onClick={() => onSave(d, !isEditing)}
+              className="px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors">
+              ✓ Save booking
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main page ─────────────────────────────────────────────────────────────────
+
+const statusLabel: Record<BookingStatus, string> = {
+  confirmed: 'Confirmed', provisional: 'Provisional', cancelled: 'Cancelled',
+}
+const statusColor: Record<BookingStatus, string> = {
+  confirmed: 'bg-emerald-100 text-emerald-800',
+  provisional: 'bg-amber-100 text-amber-800',
+  cancelled: 'bg-gray-100 text-gray-800',
+}
 
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([...initialBookings])
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
-  const [showForm, setShowForm] = useState(false)
-  const [formData, setFormData] = useState<Partial<Booking>>({})
+  const [clients, setClients] = useState<Client[]>([...initialClients])
+  const [bookingRooms, setBookingRooms] = useState([...initialBookingRooms])
+  const [wizard, setWizard] = useState<{ open: boolean; editing: Booking | null }>({ open: false, editing: null })
 
-  const getClientName = (clientId: string) => {
-    const client = mockClients.find(c => c.id === clientId)
-    return client ? `${client.first_name} ${client.last_name}` : '?'
+  const getClientName = (id: string) => {
+    const c = clients.find(c => c.id === id)
+    return c ? `${c.first_name} ${c.last_name}` : '?'
   }
 
-  const getRoomName = (bookingId: string) => {
-    const br = mockBookingRooms.find(b => b.booking_id === bookingId)
-    if (!br) return '-'
-    const room = mockRooms.find(r => r.id === br.room_id)
-    const acc = mockAccommodations.find(a => a.id === room?.accommodation_id)
-    return room ? `${acc?.name} - ${room.name}` : '-'
+  const getRoomLabel = (bookingId: string) => {
+    const br = bookingRooms.find(b => b.booking_id === bookingId)
+    if (!br) return '—'
+    const r = mockRooms.find(r => r.id === br.room_id)
+    const a = mockAccommodations.find(a => a.id === r?.accommodation_id)
+    return r ? `${a?.name} / ${r.name}` : '—'
   }
 
-  const statusLabel: Record<string, string> = {
-    confirmed: 'Confirmed',
-    provisional: 'Provisional',
-    cancelled: 'Cancelled',
-  }
+  function openNew() { setWizard({ open: true, editing: null }) }
 
-  const statusColor: Record<string, string> = {
-    confirmed: 'bg-emerald-100 text-emerald-800',
-    provisional: 'bg-amber-100 text-amber-800',
-    cancelled: 'bg-gray-100 text-gray-800',
-  }
+  function openEdit(b: Booking) { setWizard({ open: true, editing: b }) }
 
-  const openForm = (booking?: Booking) => {
-    if (booking) {
-      setFormData({ ...booking })
-      setSelectedBooking(booking)
-    } else {
-      setFormData({
-        client_id: '',
-        check_in: '',
-        check_out: '',
-        status: 'provisional',
-        notes: '',
-        num_lessons: 0,
-        num_equipment_rentals: 0,
-        arrival_time: null,
-        departure_time: null,
-        luggage_count: 0,
-        boardbag_count: 0,
-        taxi_arrival: false,
-        taxi_departure: false,
-        couples_count: 0,
-        children_count: 0,
-        participants: [],
-        amount_paid: 0,
-      })
-      setSelectedBooking(null)
-    }
-    setShowForm(true)
-  }
+  function closeWizard() { setWizard({ open: false, editing: null }) }
 
-  const closeForm = () => {
-    setShowForm(false)
-    setFormData({})
-    setSelectedBooking(null)
-  }
+  function handleSave(data: WizardData, isNew: boolean) {
+    let clientId = data.client_id
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (selectedBooking) {
-      setBookings(prev =>
-        prev.map(b => b.id === selectedBooking.id ? { ...b, ...formData } : b)
-      )
-    } else {
-      const newBooking: Booking = {
-        id: `bk${Date.now()}`,
-        client_id: formData.client_id || '',
-        check_in: formData.check_in || '',
-        check_out: formData.check_out || '',
-        status: formData.status || 'provisional',
-        notes: formData.notes || null,
-        num_lessons: formData.num_lessons || 0,
-        num_equipment_rentals: formData.num_equipment_rentals || 0,
-        client: mockClients.find(c => c.id === formData.client_id),
-        arrival_time: formData.arrival_time || null,
-        departure_time: formData.departure_time || null,
-        luggage_count: formData.luggage_count || 0,
-        boardbag_count: formData.boardbag_count || 0,
-        taxi_arrival: formData.taxi_arrival || false,
-        taxi_departure: formData.taxi_departure || false,
-        couples_count: formData.couples_count || 0,
-        children_count: formData.children_count || 0,
-        participants: formData.participants || [],
-        amount_paid: formData.amount_paid || 0,
+    // Create new client if needed
+    if (!clientId && data.new_client_first_name) {
+      const newClient: Client = {
+        id: `c${Date.now()}`,
+        first_name: data.new_client_first_name,
+        last_name: data.new_client_last_name,
+        email: data.new_client_email || null,
+        phone: data.new_client_phone || null,
+        notes: null,
+        nationality: data.new_client_nationality || null,
+        passport_number: null,
+        birth_date: null,
+        kite_level: data.new_client_kite_level || null,
       }
-      setBookings(prev => [...prev, newBooking])
+      setClients(prev => [...prev, newClient])
+      clientId = newClient.id
     }
-    closeForm()
-  }
 
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure?')) {
-      setBookings(prev => prev.filter(b => b.id !== id))
+    const booking: Booking = {
+      id: isNew ? `bk${Date.now()}` : (wizard.editing?.id ?? `bk${Date.now()}`),
+      client_id: clientId,
+      check_in: data.check_in,
+      check_out: data.check_out,
+      status: data.status,
+      notes: data.notes || null,
+      num_lessons: data.num_lessons,
+      num_equipment_rentals: data.num_equipment_rentals,
+      num_center_access: data.num_center_access,
+      arrival_time: data.arrival_time || null,
+      departure_time: data.departure_time || null,
+      luggage_count: data.luggage_count,
+      boardbag_count: data.boardbag_count,
+      taxi_arrival: data.taxi_arrival,
+      taxi_departure: data.taxi_departure,
+      couples_count: data.couples_count,
+      children_count: data.children_count,
+      participants: data.participants,
+      amount_paid: data.amount_paid,
     }
-  }
 
-  // Participant helpers
-  const addParticipant = () => {
-    const newP: Participant = { id: `p${Date.now()}`, first_name: '', last_name: '', passport_number: '' }
-    setFormData(prev => ({ ...prev, participants: [...(prev.participants || []), newP] }))
-  }
+    if (isNew) {
+      setBookings(prev => [...prev, booking])
+    } else {
+      setBookings(prev => prev.map(b => b.id === booking.id ? booking : b))
+    }
 
-  const updateParticipant = (idx: number, field: keyof Participant, value: string) => {
-    setFormData(prev => {
-      const parts = [...(prev.participants || [])]
-      parts[idx] = { ...parts[idx], [field]: value }
-      return { ...prev, participants: parts }
+    // Update room assignment
+    setBookingRooms(prev => {
+      const filtered = prev.filter(br => br.booking_id !== booking.id)
+      if (data.room_id) return [...filtered, { booking_id: booking.id, room_id: data.room_id }]
+      return filtered
     })
+
+    closeWizard()
   }
 
-  const removeParticipant = (idx: number) => {
-    setFormData(prev => ({
-      ...prev,
-      participants: (prev.participants || []).filter((_, i) => i !== idx),
-    }))
+  function handleDelete(id: string) {
+    if (confirm('Delete this booking?')) {
+      setBookings(prev => prev.filter(b => b.id !== id))
+      setBookingRooms(prev => prev.filter(br => br.booking_id !== id))
+    }
+  }
+
+  function bookingToWizard(b: Booking): WizardData {
+    const br = bookingRooms.find(r => r.booking_id === b.id)
+    return {
+      ...EMPTY_WIZARD,
+      client_id: b.client_id,
+      check_in: b.check_in, check_out: b.check_out,
+      room_id: br?.room_id ?? '',
+      status: b.status,
+      participants: b.participants,
+      couples_count: b.couples_count, children_count: b.children_count,
+      arrival_time: b.arrival_time ?? '', departure_time: b.departure_time ?? '',
+      taxi_arrival: b.taxi_arrival, taxi_departure: b.taxi_departure,
+      luggage_count: b.luggage_count, boardbag_count: b.boardbag_count,
+      num_lessons: b.num_lessons, num_equipment_rentals: b.num_equipment_rentals, num_center_access: b.num_center_access,
+      amount_paid: b.amount_paid, notes: b.notes ?? '',
+    }
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header */}
+
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-gray-800">Bookings</h1>
-            <p className="text-gray-600 mt-2">Manage all bookings</p>
+            <p className="text-gray-600 mt-2">{bookings.length} booking{bookings.length !== 1 ? 's' : ''}</p>
           </div>
-          <button
-            onClick={() => openForm()}
-            className="w-full md:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors"
-          >
+          <button onClick={openNew}
+            className="w-full md:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors">
             + New booking
           </button>
         </div>
 
-        {/* Bookings Table - Desktop */}
+        {/* Desktop table */}
         <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-100 border-b">
@@ -154,29 +739,31 @@ export default function BookingsPage() {
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Room</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Dates</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Guests</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Lessons</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Rentals</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Transport</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {bookings.map((booking) => (
-                <tr key={booking.id} className="border-b hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm text-gray-800">{getClientName(booking.client_id)}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{getRoomName(booking.id)}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{booking.check_in} → {booking.check_out}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{booking.participants.length}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{booking.num_lessons}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{booking.num_equipment_rentals}</td>
+              {bookings.map(b => (
+                <tr key={b.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => openEdit(b)}>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-800">{getClientName(b.client_id)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{getRoomLabel(b.id)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{b.check_in} → {b.check_out}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {b.participants.length > 0 ? `${b.participants.length} pax` : '—'}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {[b.taxi_arrival && '🚕↓', b.taxi_departure && '🚕↑'].filter(Boolean).join(' ') || '—'}
+                  </td>
                   <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColor[booking.status]}`}>
-                      {statusLabel[booking.status]}
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColor[b.status]}`}>
+                      {statusLabel[b.status]}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm space-x-2">
-                    <button onClick={() => openForm(booking)} className="text-blue-600 hover:text-blue-800 font-medium">✏️</button>
-                    <button onClick={() => handleDelete(booking.id)} className="text-red-600 hover:text-red-800 font-medium">🗑️</button>
+                  <td className="px-6 py-4 text-sm space-x-2 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                    <button onClick={() => openEdit(b)} className="text-blue-600 hover:text-blue-800">✏️</button>
+                    <button onClick={() => handleDelete(b.id)} className="text-red-600 hover:text-red-800">🗑️</button>
                   </td>
                 </tr>
               ))}
@@ -184,312 +771,46 @@ export default function BookingsPage() {
           </table>
         </div>
 
-        {/* Bookings Cards - Mobile */}
+        {/* Mobile cards */}
         <div className="md:hidden space-y-4">
-          {bookings.map((booking) => (
-            <div key={booking.id} className="bg-white rounded-lg shadow p-4">
-              <div className="flex justify-between items-start mb-3">
+          {bookings.map(b => (
+            <div key={b.id} className="bg-white rounded-lg shadow p-4" onClick={() => openEdit(b)}>
+              <div className="flex justify-between items-start mb-2">
                 <div>
-                  <p className="font-bold text-gray-800">{getClientName(booking.client_id)}</p>
-                  <p className="text-sm text-gray-600">{getRoomName(booking.id)}</p>
+                  <p className="font-bold text-gray-800">{getClientName(b.client_id)}</p>
+                  <p className="text-sm text-gray-500">{getRoomLabel(b.id)}</p>
                 </div>
-                <span className={`px-2 py-1 rounded text-xs font-semibold ${statusColor[booking.status]}`}>
-                  {statusLabel[booking.status]}
+                <span className={`px-2 py-1 rounded text-xs font-semibold ${statusColor[b.status]}`}>
+                  {statusLabel[b.status]}
                 </span>
               </div>
               <div className="text-sm text-gray-600 space-y-1 mb-3">
-                <p>{booking.check_in} → {booking.check_out}</p>
-                <p>👥 {booking.participants.length} guest{booking.participants.length !== 1 ? 's' : ''} · 📚 {booking.num_lessons} lessons · 🏄 {booking.num_equipment_rentals} rentals</p>
+                <p>📅 {b.check_in} → {b.check_out}</p>
+                <p>👥 {b.participants.length} pax · 📚 {b.num_lessons} lessons
+                  {(b.taxi_arrival || b.taxi_departure) && ` · 🚕`}
+                </p>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => openForm(booking)}
-                  className="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded font-medium text-sm hover:bg-blue-200"
-                >
-                  ✏️ Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(booking.id)}
-                  className="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded font-medium text-sm hover:bg-red-200"
-                >
-                  🗑️ Delete
-                </button>
+              <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                <button onClick={() => openEdit(b)}
+                  className="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded font-medium text-sm hover:bg-blue-200">✏️ Edit</button>
+                <button onClick={() => handleDelete(b.id)}
+                  className="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded font-medium text-sm hover:bg-red-200">🗑️ Delete</button>
               </div>
             </div>
           ))}
         </div>
-
-        {/* Form Modal */}
-        {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-lg max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
-              <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white">
-                <h2 className="text-xl font-bold text-gray-800">
-                  {selectedBooking ? 'Edit booking' : 'New booking'}
-                </h2>
-                <button
-                  onClick={closeForm}
-                  className="text-2xl text-gray-500 hover:text-gray-800 font-bold w-8 h-8 flex items-center justify-center"
-                  title="Close"
-                >
-                  ✕
-                </button>
-              </div>
-              <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 p-6 flex flex-col">
-
-                {/* Client */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
-                  <select
-                    value={formData.client_id || ''}
-                    onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select a client</option>
-                    {mockClients.map(c => (
-                      <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Dates */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Check-in</label>
-                    <input
-                      type="date"
-                      value={formData.check_in || ''}
-                      onChange={(e) => setFormData({ ...formData, check_in: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Check-out</label>
-                    <input
-                      type="date"
-                      value={formData.check_out || ''}
-                      onChange={(e) => setFormData({ ...formData, check_out: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Lessons / Rentals */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Lessons</label>
-                    <input
-                      type="number" min="0"
-                      value={formData.num_lessons || 0}
-                      onChange={(e) => setFormData({ ...formData, num_lessons: parseInt(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Rentals</label>
-                    <input
-                      type="number" min="0"
-                      value={formData.num_equipment_rentals || 0}
-                      onChange={(e) => setFormData({ ...formData, num_equipment_rentals: parseInt(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Status */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={formData.status || 'provisional'}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="confirmed">Confirmed</option>
-                    <option value="provisional">Provisional</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </div>
-
-                {/* Logistics */}
-                <div className="border-t pt-4">
-                  <h3 className="text-sm font-semibold text-gray-800 mb-3">Logistics</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Arrival time</label>
-                      <input
-                        type="time"
-                        value={formData.arrival_time || ''}
-                        onChange={(e) => setFormData({ ...formData, arrival_time: e.target.value || null })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Departure time</label>
-                      <input
-                        type="time"
-                        value={formData.departure_time || ''}
-                        onChange={(e) => setFormData({ ...formData, departure_time: e.target.value || null })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 mt-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Luggage</label>
-                      <input
-                        type="number" min="0"
-                        value={formData.luggage_count || 0}
-                        onChange={(e) => setFormData({ ...formData, luggage_count: parseInt(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Boardbags</label>
-                      <input
-                        type="number" min="0"
-                        value={formData.boardbag_count || 0}
-                        onChange={(e) => setFormData({ ...formData, boardbag_count: parseInt(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 mt-3">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.taxi_arrival || false}
-                        onChange={(e) => setFormData({ ...formData, taxi_arrival: e.target.checked })}
-                        className="w-4 h-4 border border-gray-300 rounded"
-                      />
-                      <span className="text-sm text-gray-700">Taxi arrival</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.taxi_departure || false}
-                        onChange={(e) => setFormData({ ...formData, taxi_departure: e.target.checked })}
-                        className="w-4 h-4 border border-gray-300 rounded"
-                      />
-                      <span className="text-sm text-gray-700">Taxi departure</span>
-                    </label>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 mt-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Couples</label>
-                      <input
-                        type="number" min="0"
-                        value={formData.couples_count || 0}
-                        onChange={(e) => setFormData({ ...formData, couples_count: parseInt(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Children</label>
-                      <input
-                        type="number" min="0"
-                        value={formData.children_count || 0}
-                        onChange={(e) => setFormData({ ...formData, children_count: parseInt(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Amount paid (€)</label>
-                    <input
-                      type="number" min="0"
-                      value={formData.amount_paid || 0}
-                      onChange={(e) => setFormData({ ...formData, amount_paid: parseInt(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Participants */}
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-gray-800">
-                      Participants
-                      <span className="ml-2 text-gray-500 font-normal">
-                        {formData.participants?.length || 0} person{(formData.participants?.length || 0) !== 1 ? 's' : ''}
-                      </span>
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={addParticipant}
-                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      + Add
-                    </button>
-                  </div>
-                  {(formData.participants || []).length === 0 && (
-                    <p className="text-xs text-gray-400 italic">No participants added yet.</p>
-                  )}
-                  {(formData.participants || []).map((p, idx) => (
-                    <div key={p.id} className="flex gap-1 mb-2 items-center">
-                      <div className="flex-1 grid grid-cols-3 gap-1">
-                        <input
-                          placeholder="First name"
-                          value={p.first_name}
-                          onChange={(e) => updateParticipant(idx, 'first_name', e.target.value)}
-                          className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        />
-                        <input
-                          placeholder="Last name"
-                          value={p.last_name}
-                          onChange={(e) => updateParticipant(idx, 'last_name', e.target.value)}
-                          className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        />
-                        <input
-                          placeholder="Passport #"
-                          value={p.passport_number}
-                          onChange={(e) => updateParticipant(idx, 'passport_number', e.target.value)}
-                          className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeParticipant(idx)}
-                        className="shrink-0 text-red-400 hover:text-red-600 px-1 text-lg leading-none"
-                        title="Remove"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                  <textarea
-                    value={formData.notes || ''}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value || null })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={2}
-                  />
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-3 pt-4 border-t mt-auto sticky bottom-0 bg-white">
-                  <button
-                    type="button"
-                    onClick={closeForm}
-                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                  >
-                    Save
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Wizard */}
+      {wizard.open && (
+        <BookingWizard
+          initial={wizard.editing ? bookingToWizard(wizard.editing) : EMPTY_WIZARD}
+          clients={clients}
+          isEditing={!!wizard.editing}
+          onCancel={closeWizard}
+          onSave={handleSave}
+        />
+      )}
     </div>
   )
 }

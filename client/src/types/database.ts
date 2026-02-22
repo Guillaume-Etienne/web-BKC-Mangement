@@ -43,8 +43,9 @@ export interface Booking {
   check_out: string // date ISO
   status: BookingStatus
   notes: string | null
-  num_lessons: number
-  num_equipment_rentals: number
+  num_lessons: number        // nb persons wanting lessons
+  num_equipment_rentals: number // nb persons wanting equipment rental
+  num_center_access: number  // nb persons using center services only (no lesson/rental)
   client?: Client
   arrival_time: string | null
   departure_time: string | null
@@ -117,7 +118,7 @@ export interface Lesson {
   id: string
   booking_id: string
   instructor_id: string
-  client_id: string
+  client_ids: string[]   // array — 1 for private/supervision, N for group
   date: string
   start_time: string
   duration_hours: number
@@ -126,7 +127,7 @@ export interface Lesson {
   kite_id: string | null
   board_id: string | null
   instructor?: Instructor
-  client?: Client
+  clients?: Client[]
 }
 
 // Pricing
@@ -190,6 +191,20 @@ export interface TaxiMargin {
   driver_cost: number
   center_margin: number
   driver_margin: number
+}
+
+// Shared public links
+export type SharedLinkType = 'forecast'
+
+export interface SharedLink {
+  id: string
+  token: string
+  type: SharedLinkType
+  label: string
+  params: Record<string, string> // e.g. { date: '2026-02-23' }
+  created_at: string             // ISO date
+  expires_at: string | null      // ISO date, null = never
+  is_active: boolean
 }
 
 // Equipment

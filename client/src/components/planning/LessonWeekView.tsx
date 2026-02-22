@@ -60,7 +60,7 @@ interface AddForm {
   kind: 'lesson' | 'activity' | 'rental'
   // lesson fields
   type: LessonType
-  client_id: string
+  client_ids: string[]
   instructor_id: string
   start_time: string
   duration_hours: number
@@ -108,7 +108,7 @@ export default function LessonWeekView({
   // ── Inline add form ────────────────────────────────────────────────────────
   const emptyForm = (date: string, slot: Slot, kind: 'lesson' | 'activity' | 'rental'): AddForm => ({
     date, slot, kind,
-    type: 'private', client_id: mockClients[0]?.id ?? '', instructor_id: mockInstructors[0]?.id ?? '',
+    type: 'private', client_ids: [mockClients[0]?.id ?? ''], instructor_id: mockInstructors[0]?.id ?? '',
     start_time: SLOT_CONFIG[slot].defaultTime, duration_hours: 1, notes: '', kite_id: null, board_id: null,
     name: '', actNotes: '',
     rental_client_id: mockClients[0]?.id ?? '',
@@ -167,7 +167,7 @@ export default function LessonWeekView({
         id: newId('l'),
         booking_id: 'bk1', // placeholder
         instructor_id: addForm.instructor_id,
-        client_id: addForm.client_id,
+        client_ids: addForm.client_ids,
         date: addForm.date,
         start_time: addForm.start_time,
         duration_hours: addForm.duration_hours,
@@ -291,8 +291,9 @@ export default function LessonWeekView({
         <div className="mb-4 flex items-center gap-3 px-4 py-2 bg-amber-50 border border-amber-300 rounded-lg text-sm">
           <span>📋 Lesson copied:</span>
           <span className="font-semibold">
-            {mockClients.find(c => c.id === clipboard.client_id)?.first_name}{' '}
-            {mockClients.find(c => c.id === clipboard.client_id)?.last_name}
+            {mockClients.find(c => c.id === clipboard.client_ids[0])?.first_name}{' '}
+            {mockClients.find(c => c.id === clipboard.client_ids[0])?.last_name}
+            {clipboard.client_ids.length > 1 && ` +${clipboard.client_ids.length - 1}`}
             {' · '}{LESSON_TYPE_CFG[clipboard.type].label}{' · '}{clipboard.start_time}
           </span>
           <span className="text-gray-500 text-xs">→ Click "Paste" in a slot</span>
@@ -358,7 +359,8 @@ export default function LessonWeekView({
 
                       {/* Lessons */}
                       {slotLessons.map(lesson => {
-                        const client = mockClients.find(c => c.id === lesson.client_id)
+                        const lessonClients = lesson.client_ids.map(id => mockClients.find(c => c.id === id)).filter(Boolean)
+                        const firstClient = lessonClients[0]
                         const instructor = mockInstructors.find(i => i.id === lesson.instructor_id)
                         const tc = LESSON_TYPE_CFG[lesson.type]
                         const isDragging = drag?.lessonId === lesson.id
@@ -400,13 +402,19 @@ export default function LessonWeekView({
                             </div>
                             {lessonView === 'by-instructor' ? (
                               <>
-                                <div className="font-semibold truncate">{client?.first_name} {client?.last_name}</div>
+                                <div className="font-semibold truncate">
+                                  {firstClient?.first_name} {firstClient?.last_name}
+                                  {lessonClients.length > 1 && <span className="ml-1 text-[10px] font-normal opacity-70">+{lessonClients.length - 1}</span>}
+                                </div>
                                 <div className="opacity-60 truncate">↳ {instructor?.first_name} {instructor?.last_name}</div>
                               </>
                             ) : (
                               <>
                                 <div className="font-semibold truncate">{instructor?.first_name} {instructor?.last_name}</div>
-                                <div className="opacity-60 truncate">↳ {client?.first_name} {client?.last_name}</div>
+                                <div className="opacity-60 truncate">
+                                  ↳ {firstClient?.first_name} {firstClient?.last_name}
+                                  {lessonClients.length > 1 && ` +${lessonClients.length - 1}`}
+                                </div>
                               </>
                             )}
                           </div>
@@ -557,7 +565,11 @@ export default function LessonWeekView({
                               <div className="flex gap-1">
                                 <select
                                   value={addForm?.type}
-                                  onChange={e => setAddForm(f => f && { ...f, type: e.target.value as LessonType })}
+                                  onChange={e => setAddForm(f => f && {
+                                    ...f,
+                                    type: e.target.value as LessonType,
+                                    client_ids: [f.client_ids[0] ?? mockClients[0]?.id ?? ''],
+                                  })}
                                   className="flex-1 text-xs border rounded px-1 py-1"
                                 >
                                   <option value="private">Private</option>
@@ -565,15 +577,48 @@ export default function LessonWeekView({
                                   <option value="supervision">Supervision</option>
                                 </select>
                               </div>
-                              <select
-                                value={addForm?.client_id}
-                                onChange={e => setAddForm(f => f && { ...f, client_id: e.target.value })}
-                                className="w-full text-xs border rounded px-1 py-1"
-                              >
-                                {mockClients.map(c => (
-                                  <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
-                                ))}
-                              </select>
+                              {/* Client(s) — single for private/supervision, dynamic list for group */}
+                              {addForm?.type !== 'group' ? (
+                                <select
+                                  value={addForm?.client_ids[0] ?? ''}
+                                  onChange={e => setAddForm(f => f && { ...f, client_ids: [e.target.value] })}
+                                  className="w-full text-xs border rounded px-1 py-1"
+                                >
+                                  {mockClients.map(c => (
+                                    <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <div className="space-y-1">
+                                  {(addForm?.client_ids ?? ['']).map((cid, idx) => (
+                                    <div key={idx} className="flex gap-1">
+                                      <select
+                                        value={cid}
+                                        onChange={e => setAddForm(f => {
+                                          if (!f) return f
+                                          const ids = [...f.client_ids]; ids[idx] = e.target.value
+                                          return { ...f, client_ids: ids }
+                                        })}
+                                        className="flex-1 text-xs border rounded px-1 py-1"
+                                      >
+                                        {mockClients.map(c => (
+                                          <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
+                                        ))}
+                                      </select>
+                                      {(addForm?.client_ids.length ?? 0) > 1 && (
+                                        <button type="button"
+                                          onClick={() => setAddForm(f => f && { ...f, client_ids: f.client_ids.filter((_, i) => i !== idx) })}
+                                          className="text-red-400 hover:text-red-600 px-1 text-xs">✕</button>
+                                      )}
+                                    </div>
+                                  ))}
+                                  <button type="button"
+                                    onClick={() => setAddForm(f => f && { ...f, client_ids: [...f.client_ids, mockClients[0]?.id ?? ''] })}
+                                    className="text-xs text-green-700 hover:text-green-900 border border-dashed border-green-400 rounded px-2 py-0.5 w-full">
+                                    + Add client
+                                  </button>
+                                </div>
+                              )}
                               <select
                                 value={addForm?.instructor_id}
                                 onChange={e => setAddForm(f => f && { ...f, instructor_id: e.target.value })}
@@ -772,16 +817,49 @@ export default function LessonWeekView({
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Client</label>
-                <select
-                  value={editData.client_id || ''}
-                  onChange={e => setEditData(d => ({ ...d, client_id: e.target.value }))}
-                  className="w-full text-sm border rounded px-2 py-1.5"
-                >
-                  {mockClients.map(c => (
-                    <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
-                  ))}
-                </select>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  {editData.type === 'group' ? 'Clients' : 'Client'}
+                </label>
+                {editData.type !== 'group' ? (
+                  <select
+                    value={editData.client_ids?.[0] ?? ''}
+                    onChange={e => setEditData(d => ({ ...d, client_ids: [e.target.value] }))}
+                    className="w-full text-sm border rounded px-2 py-1.5"
+                  >
+                    {mockClients.map(c => (
+                      <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="space-y-1">
+                    {(editData.client_ids ?? ['']).map((cid, idx) => (
+                      <div key={idx} className="flex gap-1">
+                        <select
+                          value={cid}
+                          onChange={e => setEditData(d => {
+                            const ids = [...(d.client_ids ?? [])]; ids[idx] = e.target.value
+                            return { ...d, client_ids: ids }
+                          })}
+                          className="flex-1 text-sm border rounded px-2 py-1.5"
+                        >
+                          {mockClients.map(c => (
+                            <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
+                          ))}
+                        </select>
+                        {(editData.client_ids?.length ?? 0) > 1 && (
+                          <button type="button"
+                            onClick={() => setEditData(d => ({ ...d, client_ids: (d.client_ids ?? []).filter((_, i) => i !== idx) }))}
+                            className="text-red-400 hover:text-red-600 px-1">✕</button>
+                        )}
+                      </div>
+                    ))}
+                    <button type="button"
+                      onClick={() => setEditData(d => ({ ...d, client_ids: [...(d.client_ids ?? []), mockClients[0]?.id ?? ''] }))}
+                      className="text-xs text-green-700 hover:text-green-900 border border-dashed border-green-400 rounded px-2 py-1 w-full">
+                      + Add client
+                    </button>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Instructor</label>

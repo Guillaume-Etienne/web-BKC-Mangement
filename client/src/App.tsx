@@ -8,11 +8,27 @@ import ClientsPage from './pages/ClientsPage'
 import ManagementPage from './pages/ManagementPage'
 import TaxiPage from './pages/TaxiPage'
 import EquipmentPage from './pages/EquipmentPage'
+import ForecastSharePage from './pages/ForecastSharePage'
+import { mockSharedLinks } from './data/mock'
 
 type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment'
 
+// Check for a share token in the URL query string
+const urlParams = new URLSearchParams(window.location.search)
+const shareToken = urlParams.get('share')
+const sharedLink = shareToken
+  ? mockSharedLinks.find(l => l.token === shareToken && l.is_active)
+  : null
+
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home')
+
+  // Public share view — render without navigation
+  if (sharedLink) {
+    if (sharedLink.type === 'forecast') {
+      return <ForecastSharePage />
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

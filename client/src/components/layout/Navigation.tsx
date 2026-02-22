@@ -9,12 +9,12 @@ export default function Navigation({ currentPage, onNavigate }: NavigationProps)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const navItems = [
-    { id: 'home', label: 'Accueil', icon: '🏠' },
+    { id: 'home', label: 'Home', icon: '🏠' },
     { id: 'clients', label: 'Clients', icon: '👥' },
     { id: 'planning', label: 'Planning', icon: '📅' },
-    { id: 'bookings', label: 'Réservations', icon: '📋' },
-    { id: 'management', label: 'Gestion', icon: '⚙️' },
-    { id: 'equipment', label: 'Matériel', icon: '🎿' },
+    { id: 'bookings', label: 'Bookings', icon: '📋' },
+    { id: 'management', label: 'Management', icon: '⚙️' },
+    { id: 'equipment', label: 'Equipment', icon: '🎿' },
     { id: 'taxis', label: 'Taxis', icon: '🚕' },
   ] as const
 
