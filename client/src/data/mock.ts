@@ -1,24 +1,24 @@
 import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity, TaxiDriver, TaxiTrip, Equipment, EquipmentRental } from '../types/database'
 
 export const mockAccommodations: Accommodation[] = [
-  { id: 'h1', name: 'Maison 1', type: 'house', total_rooms: 2, is_active: true },
-  { id: 'h2', name: 'Maison 2', type: 'house', total_rooms: 2, is_active: true },
-  { id: 'h3', name: 'Maison 3', type: 'house', total_rooms: 2, is_active: true },
-  { id: 'b1', name: 'Bungalow 1', type: 'bungalow', total_rooms: 1, is_active: true },
-  { id: 'b2', name: 'Bungalow 2', type: 'bungalow', total_rooms: 1, is_active: true },
-  { id: 'b3', name: 'Bungalow 3', type: 'bungalow', total_rooms: 1, is_active: true },
+  { id: 'h1', name: 'H-1', type: 'house', total_rooms: 2, is_active: true },
+  { id: 'h2', name: 'H-2', type: 'house', total_rooms: 2, is_active: true },
+  { id: 'h3', name: 'H-3', type: 'house', total_rooms: 2, is_active: true },
+  { id: 'b1', name: 'B-1', type: 'bungalow', total_rooms: 1, is_active: true },
+  { id: 'b2', name: 'B-2', type: 'bungalow', total_rooms: 1, is_active: true },
+  { id: 'b3', name: 'B-3', type: 'bungalow', total_rooms: 1, is_active: true },
 ]
 
 export const mockRooms: Room[] = [
-  { id: 'r1', accommodation_id: 'h1', name: 'Chambre 1', capacity: 2 },
-  { id: 'r2', accommodation_id: 'h1', name: 'Chambre 2', capacity: 2 },
-  { id: 'r3', accommodation_id: 'h2', name: 'Chambre 1', capacity: 2 },
-  { id: 'r4', accommodation_id: 'h2', name: 'Chambre 2', capacity: 3 },
-  { id: 'r5', accommodation_id: 'h3', name: 'Chambre 1', capacity: 2 },
-  { id: 'r6', accommodation_id: 'h3', name: 'Chambre 2', capacity: 2 },
-  { id: 'r7', accommodation_id: 'b1', name: 'Chambre', capacity: 2 },
-  { id: 'r8', accommodation_id: 'b2', name: 'Chambre', capacity: 2 },
-  { id: 'r9', accommodation_id: 'b3', name: 'Chambre', capacity: 3 },
+  { id: 'r1', accommodation_id: 'h1', name: 'F', capacity: 2 },
+  { id: 'r2', accommodation_id: 'h1', name: 'B', capacity: 2 },
+  { id: 'r3', accommodation_id: 'h2', name: 'F', capacity: 2 },
+  { id: 'r4', accommodation_id: 'h2', name: 'B', capacity: 3 },
+  { id: 'r5', accommodation_id: 'h3', name: 'F', capacity: 2 },
+  { id: 'r6', accommodation_id: 'h3', name: 'B', capacity: 2 },
+  { id: 'r7', accommodation_id: 'b1', name: 'Room', capacity: 2 },
+  { id: 'r8', accommodation_id: 'b2', name: 'Room', capacity: 2 },
+  { id: 'r9', accommodation_id: 'b3', name: 'Room', capacity: 3 },
 ]
 
 export const mockClients: Client[] = [

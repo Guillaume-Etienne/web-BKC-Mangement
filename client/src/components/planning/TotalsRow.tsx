@@ -5,7 +5,7 @@ interface TotalsRowProps {
   daysInMonth: number
   bookings: Booking[]
   monthStart: Date
-  type: 'lessons' | 'equipment'
+  type: 'lessons' | 'equipment' | 'guests'
 }
 
 export default function TotalsRow({ label, daysInMonth, bookings, monthStart, type }: TotalsRowProps) {
@@ -23,7 +23,11 @@ export default function TotalsRow({ label, daysInMonth, bookings, monthStart, ty
     const startOffset = Math.floor((visStart.getTime() - monthStart.getTime()) / 86400000)
     const endOffset = Math.floor((visEnd.getTime() - monthStart.getTime()) / 86400000)
 
-    const value = type === 'lessons' ? booking.num_lessons : booking.num_equipment_rentals
+    const value = type === 'lessons'
+      ? booking.num_lessons
+      : type === 'equipment'
+        ? booking.num_equipment_rentals
+        : (booking.has_couple ? 2 : 1) + booking.children_count
 
     for (let i = Math.max(0, startOffset); i < Math.min(daysInMonth, endOffset); i++) {
       dailyTotals[i] += value
@@ -33,7 +37,7 @@ export default function TotalsRow({ label, daysInMonth, bookings, monthStart, ty
   return (
     <div className="flex border-b border-gray-200 bg-gray-50 font-semibold text-xs">
       {/* Label */}
-      <div className="w-32 md:w-40 min-w-[128px] md:min-w-40 px-2 py-2 text-xs md:text-sm font-bold bg-gray-100 border-r border-gray-200 flex items-center truncate">
+      <div className="sticky left-0 z-10 w-20 min-w-[80px] px-2 py-2 text-xs font-bold bg-gray-100 border-r border-gray-200 flex items-center truncate">
         {label}
       </div>
       {/* Days totals */}

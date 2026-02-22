@@ -39,7 +39,7 @@ export default function PlanningRow({ roomId, label, daysInMonth, bookings, mont
       data-room-id={roomId}
     >
       {/* Label */}
-      <div className="w-32 md:w-40 min-w-[128px] md:min-w-40 px-2 py-2 text-xs md:text-sm font-medium bg-gray-50 border-r border-gray-200 flex items-center truncate">
+      <div className="sticky left-0 z-10 w-20 min-w-[80px] px-2 py-2 text-xs font-medium bg-gray-50 border-r border-gray-200 flex items-center truncate">
         {label}
       </div>
       {/* Days grid */}

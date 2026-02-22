@@ -7,12 +7,12 @@ import type { Booking, BookingRoom, Lesson, DayActivity } from '../../types/data
 import { useBookingDrag, type DragMode } from '../../hooks/useBookingDrag'
 
 const MONTH_NAMES = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-const DAY_NAMES = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
-const MONTH_SHORT = ['jan', 'fév', 'mar', 'avr', 'mai', 'juin', 'juil', 'août', 'sep', 'oct', 'nov', 'déc']
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + 'T00:00:00')
@@ -123,7 +123,7 @@ export default function PlanningView() {
         {/* Header */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 md:mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
-            {planningTab === 'accommodations' ? 'Planning des hébergements' : 'Planning des cours'}
+            {planningTab === 'accommodations' ? 'Accommodation Planning' : 'Lesson Planning'}
           </h1>
           {planningTab === 'accommodations' && (
             <div className="flex items-center gap-2 md:gap-3">
@@ -146,7 +146,7 @@ export default function PlanningView() {
                 : 'text-gray-600 hover:text-gray-800'
             }`}
           >
-            🏠 Hébergements
+            🏠 Accommodations
           </button>
           <button
             onClick={() => setPlanningTab('lessons')}
@@ -156,7 +156,7 @@ export default function PlanningView() {
                 : 'text-gray-600 hover:text-gray-800'
             }`}
           >
-            🏄 Cours
+            🏄 Lessons
           </button>
         </div>
 
@@ -164,9 +164,9 @@ export default function PlanningView() {
           <>
             {/* Legend */}
             <div className="flex flex-wrap gap-3 md:gap-4 mb-4 md:mb-6 text-xs md:text-sm">
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> Confirmé</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-400 inline-block" /> Provisoire</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-300 inline-block" /> Annulé</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> Confirmed</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-400 inline-block" /> Provisional</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-300 inline-block" /> Cancelled</span>
             </div>
 
             {/* Grid */}
@@ -177,8 +177,8 @@ export default function PlanningView() {
             >
               {/* Day headers */}
               <div className="flex border-b border-gray-300 bg-gray-100">
-                <div className="w-32 md:w-40 min-w-[128px] md:min-w-40 px-2 py-2 md:py-1 text-xs font-semibold border-r border-gray-200">
-                  Hébergement
+                <div className="sticky left-0 z-20 w-20 min-w-[80px] px-2 py-2 md:py-1 text-xs font-semibold border-r border-gray-200 bg-gray-100">
+                  Where
                 </div>
                 <div className="flex flex-1">
                   {Array.from({ length: daysInMonth }, (_, i) => {
@@ -222,14 +222,21 @@ export default function PlanningView() {
                 })}
                 {/* Totals rows */}
                 <TotalsRow
-                  label="Total cours"
+                  label="Tot Guest"
+                  daysInMonth={daysInMonth}
+                  bookings={bookings}
+                  monthStart={monthStart}
+                  type="guests"
+                />
+                <TotalsRow
+                  label="Tot less"
                   daysInMonth={daysInMonth}
                   bookings={bookings}
                   monthStart={monthStart}
                   type="lessons"
                 />
                 <TotalsRow
-                  label="Total locations"
+                  label="Tot rent"
                   daysInMonth={daysInMonth}
                   bookings={bookings}
                   monthStart={monthStart}
