@@ -29,6 +29,13 @@ export interface Client {
   kite_level: 'beginner' | 'intermediate' | 'advanced' | null
 }
 
+export interface Participant {
+  id: string
+  first_name: string
+  last_name: string
+  passport_number: string
+}
+
 export interface Booking {
   id: string
   client_id: string
@@ -36,8 +43,8 @@ export interface Booking {
   check_out: string // date ISO
   status: BookingStatus
   notes: string | null
-  num_lessons: number // nombre de cours
-  num_equipment_rentals: number // nombre de locations de matériel
+  num_lessons: number
+  num_equipment_rentals: number
   client?: Client
   arrival_time: string | null
   departure_time: string | null
@@ -45,8 +52,9 @@ export interface Booking {
   boardbag_count: number
   taxi_arrival: boolean
   taxi_departure: boolean
-  has_couple: boolean
+  couples_count: number
   children_count: number
+  participants: Participant[]
   amount_paid: number
 }
 

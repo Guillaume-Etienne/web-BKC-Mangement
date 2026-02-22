@@ -27,7 +27,7 @@ export default function TotalsRow({ label, daysInMonth, bookings, monthStart, ty
       ? booking.num_lessons
       : type === 'equipment'
         ? booking.num_equipment_rentals
-        : (booking.has_couple ? 2 : 1) + booking.children_count
+        : booking.participants.length
 
     for (let i = Math.max(0, startOffset); i < Math.min(daysInMonth, endOffset); i++) {
       dailyTotals[i] += value
@@ -35,13 +35,13 @@ export default function TotalsRow({ label, daysInMonth, bookings, monthStart, ty
   }
 
   return (
-    <div className="flex border-b border-gray-200 bg-gray-50 font-semibold text-xs">
+    <div className="flex min-w-max border-b border-gray-200 bg-gray-50 font-semibold text-xs">
       {/* Label */}
-      <div className="sticky left-0 z-10 w-20 min-w-[80px] px-2 py-2 text-xs font-bold bg-gray-100 border-r border-gray-200 flex items-center truncate">
+      <div className="sticky left-0 z-10 shrink-0 w-20 px-2 py-2 text-xs font-bold bg-gray-100 border-r border-gray-200 flex items-center truncate">
         {label}
       </div>
       {/* Days totals */}
-      <div className="flex-1 relative" style={{ minHeight: '32px' }}>
+      <div className="shrink-0" style={{ width: `${daysInMonth * 32}px`, minHeight: '32px' }}>
         <div className="flex h-full">
           {Array.from({ length: daysInMonth }, (_, i) => {
             const isWeekend =
@@ -50,7 +50,7 @@ export default function TotalsRow({ label, daysInMonth, bookings, monthStart, ty
             return (
               <div
                 key={i}
-                className={`flex-1 min-w-[32px] md:min-w-[36px] text-center text-xs py-1 border-r border-gray-100 flex items-center justify-center ${
+                className={`shrink-0 w-8 text-center text-xs py-1 border-r border-gray-100 flex items-center justify-center ${
                   isWeekend ? 'bg-blue-50' : ''
                 } ${total > 0 ? 'text-emerald-700' : 'text-gray-400'}`}
               >

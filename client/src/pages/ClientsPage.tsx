@@ -367,7 +367,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                                 {booking.boardbag_count > 0 && <p>📦 {booking.boardbag_count} boardbags</p>}
                                 {booking.taxi_arrival && <p>🚕 Taxi à l'arrivée</p>}
                                 {booking.taxi_departure && <p>🚕 Taxi au départ</p>}
-                                {booking.has_couple && <p>💑 Chambre double</p>}
+                                {booking.couples_count > 0 && <p>💑 {booking.couples_count} couple{booking.couples_count > 1 ? 's' : ''}</p>}
                                 {booking.children_count > 0 && <p>👶 {booking.children_count} enfant{booking.children_count > 1 ? 's' : ''}</p>}
                                 {booking.amount_paid > 0 && <p>💰 Payé: {booking.amount_paid}€</p>}
                               </div>

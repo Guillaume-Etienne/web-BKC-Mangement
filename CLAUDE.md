@@ -34,4 +34,4 @@ React SPA                              PostgreSQL + Auth + RLS + Realtime
 
 ## Language
 
-Project communication and UI are in **French**.
+Project communication and UI are in **English**.
