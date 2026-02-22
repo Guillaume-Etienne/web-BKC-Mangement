@@ -1,5 +1,6 @@
 import type { Booking } from '../../types/database'
 import type { DragState, DragMode } from '../../hooks/useBookingDrag'
+import { CELL_W } from '../../hooks/useBookingDrag'
 
 const statusColors: Record<string, string> = {
   confirmed: 'bg-emerald-500',
@@ -10,25 +11,21 @@ const statusColors: Record<string, string> = {
 interface PlanningRowProps {
   roomId: string
   label: string
-  daysInMonth: number
+  totalDays: number
+  seasonStart: Date
   bookings: Booking[]
-  monthStart: Date
   dragState: DragState | null
   onPointerDown: (e: React.PointerEvent, bookingId: string, roomId: string, mode: DragMode) => void
 }
 
-export default function PlanningRow({ roomId, label, daysInMonth, bookings, monthStart, dragState, onPointerDown }: PlanningRowProps) {
-  const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
-
+export default function PlanningRow({ roomId, label, totalDays, seasonStart, bookings, dragState, onPointerDown }: PlanningRowProps) {
   const isDropTarget = dragState && dragState.targetRoomId === roomId && dragState.roomId !== roomId
 
   const segments = bookings.map((b) => {
     const bStart = new Date(b.check_in + 'T00:00:00')
     const bEnd = new Date(b.check_out + 'T00:00:00')
-    const visStart = bStart < monthStart ? monthStart : bStart
-    const visEnd = bEnd > monthEnd ? new Date(monthEnd.getTime() + 86400000) : bEnd
-    const startOffset = Math.floor((visStart.getTime() - monthStart.getTime()) / 86400000)
-    const endOffset = Math.floor((visEnd.getTime() - monthStart.getTime()) / 86400000)
+    const startOffset = Math.max(0, Math.round((bStart.getTime() - seasonStart.getTime()) / 86400000))
+    const endOffset = Math.min(totalDays, Math.round((bEnd.getTime() - seasonStart.getTime()) / 86400000))
     const clientName = b.client ? `${b.client.first_name} ${b.client.last_name}` : '?'
     const label = [
       clientName,
@@ -37,8 +34,8 @@ export default function PlanningRow({ roomId, label, daysInMonth, bookings, mont
       b.num_equipment_rentals > 0 ? `${b.num_equipment_rentals}R` : null,
       b.notes || null,
     ].filter(Boolean).join(' · ')
-    return { booking: b, startOffset, endOffset: Math.min(endOffset, daysInMonth), label }
-  }).filter(s => s.endOffset > 0 && s.startOffset < daysInMonth)
+    return { booking: b, startOffset, endOffset, label }
+  }).filter(s => s.endOffset > 0 && s.startOffset < totalDays)
 
   return (
     <div
@@ -50,18 +47,21 @@ export default function PlanningRow({ roomId, label, daysInMonth, bookings, mont
         {label}
       </div>
       {/* Days grid */}
-      <div className="relative shrink-0" style={{ width: `${daysInMonth * 32}px`, minHeight: '32px' }}>
+      <div className="relative shrink-0" style={{ width: `${totalDays * CELL_W}px`, minHeight: '32px' }}>
         <div className="flex h-full">
-          {Array.from({ length: daysInMonth }, (_, i) => (
-            <div
-              key={i}
-              className={`shrink-0 w-8 border-r border-gray-100 ${
-                new Date(monthStart.getFullYear(), monthStart.getMonth(), i + 1).getDay() === 0
-                  ? 'bg-blue-50'
-                  : ''
-              }`}
-            />
-          ))}
+          {Array.from({ length: totalDays }, (_, i) => {
+            const d = new Date(seasonStart.getTime() + i * 86400000)
+            const dow = d.getDay()
+            return (
+              <div
+                key={i}
+                className={`shrink-0 border-r ${
+                  dow === 0 ? 'border-r-gray-300' : 'border-r-gray-100'
+                } ${dow === 0 || dow === 6 ? 'bg-blue-50' : ''}`}
+                style={{ width: CELL_W }}
+              />
+            )
+          })}
         </div>
         {/* Booking bars */}
         {segments.map((seg) => {
@@ -80,35 +80,28 @@ export default function PlanningRow({ roomId, label, daysInMonth, bookings, mont
             }
           }
 
-          const leftPct = (startOffset / daysInMonth) * 100
-          const widthPct = ((endOffset - startOffset) / daysInMonth) * 100
+          const leftPx = startOffset * CELL_W
+          const widthPx = Math.max((endOffset - startOffset) * CELL_W, 0)
 
           return (
             <div
               key={seg.booking.id}
-              className={`absolute top-0.5 md:top-1 h-6 md:h-7 rounded ${statusColors[seg.booking.status]} text-white text-xs flex items-center overflow-hidden whitespace-nowrap ${
+              className={`absolute top-0.5 h-6 rounded ${statusColors[seg.booking.status]} text-white text-xs flex items-center overflow-hidden whitespace-nowrap ${
                 isDragging ? 'opacity-70 shadow-lg z-10' : ''
               }`}
-              style={{
-                left: `${leftPct}%`,
-                width: `${Math.max(widthPct, 0)}%`,
-                cursor: isDragging ? 'grabbing' : 'grab',
-              }}
+              style={{ left: `${leftPx}px`, width: `${widthPx}px`, cursor: isDragging ? 'grabbing' : 'grab' }}
               title={seg.label}
             >
-              {/* Resize handle left */}
               <div
                 className="absolute left-0 top-0 w-2 h-full cursor-col-resize"
                 onPointerDown={(e) => onPointerDown(e, seg.booking.id, roomId, 'resize-left')}
               />
-              {/* Center drag area */}
               <div
                 className="flex-1 px-1.5 truncate"
                 onPointerDown={(e) => onPointerDown(e, seg.booking.id, roomId, 'move')}
               >
                 {seg.label}
               </div>
-              {/* Resize handle right */}
               <div
                 className="absolute right-0 top-0 w-2 h-full cursor-col-resize"
                 onPointerDown={(e) => onPointerDown(e, seg.booking.id, roomId, 'resize-right')}

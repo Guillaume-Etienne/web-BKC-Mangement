@@ -63,6 +63,34 @@ export interface BookingRoom {
   room_id: string
 }
 
+// Dining events ("Now" tab)
+export type EventType = 'count' | 'menu'
+
+export interface EventAttendee {
+  id: string
+  person_id: string
+  person_type: 'instructor' | 'client' | 'extra'
+  person_name: string
+  room_label: string      // e.g. "H-1/F" for clients, "" for instructors
+  is_attending: boolean
+  price_override?: number // overrides event-level price_per_person if set
+  starter: string
+  main: string
+  side: string
+  dessert: string
+}
+
+export interface DiningEvent {
+  id: string
+  name: string
+  date: string            // ISO date
+  time: string
+  type: EventType
+  price_per_person: number
+  notes: string
+  attendees: EventAttendee[]
+}
+
 // Type enrichi pour le planning
 export interface RoomWithBookings extends Room {
   accommodation: Accommodation

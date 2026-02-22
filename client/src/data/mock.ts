@@ -138,3 +138,36 @@ export const mockEquipmentRentals: EquipmentRental[] = [
   { id: 'er7', equipment_id: 'eq12', booking_id: null, client_id: 'c5', date: '2026-02-16', slot: 'full_day', price: 50, notes: 'Foil trial' },
   { id: 'er8', equipment_id: 'eq3', booking_id: 'bk1', client_id: null, date: '2026-02-07', slot: 'afternoon', price: 25, notes: null },
 ]
+
+
+export const mockDiningEvents: import('../types/database').DiningEvent[] = [
+  {
+    id: 'ev1',
+    name: 'Beach BBQ',
+    date: '2026-02-18',
+    time: '19:30',
+    type: 'count',
+    price_per_person: 15,
+    notes: 'Bring your own drinks',
+    attendees: [
+      { id: 'ea1', person_id: 'i1', person_type: 'instructor', person_name: 'Pierrot Renard', room_label: '', is_attending: true, starter: '', main: '', side: '', dessert: '' },
+      { id: 'ea2', person_id: 'i2', person_type: 'instructor', person_name: 'Mouss Blanc', room_label: '', is_attending: true, starter: '', main: '', side: '', dessert: '' },
+      { id: 'ea3', person_id: 'p1a', person_type: 'client', person_name: 'Jean Dupont', room_label: 'H-1/F', is_attending: true, starter: '', main: '', side: '', dessert: '' },
+      { id: 'ea4', person_id: 'p1b', person_type: 'client', person_name: 'Camille Dupont', room_label: 'H-1/F', is_attending: false, starter: '', main: '', side: '', dessert: '' },
+    ],
+  },
+  {
+    id: 'ev2',
+    name: 'Restaurant Al-Farouk',
+    date: '2026-02-10',
+    time: '20:00',
+    type: 'menu',
+    price_per_person: 28,
+    notes: 'Order by 17:00',
+    attendees: [
+      { id: 'eb1', person_id: 'i1', person_type: 'instructor', person_name: 'Pierrot Renard', room_label: '', is_attending: true, starter: 'Soup', main: 'Grilled fish', side: 'Rice', dessert: 'Cake' },
+      { id: 'eb2', person_id: 'i3', person_type: 'instructor', person_name: 'Tere Moreau', room_label: '', is_attending: true, starter: 'Salad', main: 'Chicken', side: 'Fries', dessert: '' },
+      { id: 'eb3', person_id: 'p2a', person_type: 'client', person_name: 'Marie Martin', room_label: 'H-2/F', is_attending: true, starter: '', main: 'Lamb', side: 'Couscous', dessert: 'Ice cream' },
+    ],
+  },
+]
