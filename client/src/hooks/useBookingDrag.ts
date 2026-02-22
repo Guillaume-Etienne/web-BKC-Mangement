@@ -14,12 +14,11 @@ interface UseBookingDragOptions {
   onBookingUpdate: (bookingId: string, dayDelta: number, mode: DragMode) => void
   onBookingMove: (bookingId: string, fromRoomId: string, toRoomId: string) => void
   gridRef: React.RefObject<HTMLDivElement | null>
-  roomOrder: string[]
 }
 
 export const CELL_W = 32 // px — matches w-8 in Tailwind, shared by all planning components
 
-export function useBookingDrag({ onBookingUpdate, onBookingMove, gridRef, roomOrder }: UseBookingDragOptions) {
+export function useBookingDrag({ onBookingUpdate, onBookingMove, gridRef }: UseBookingDragOptions) {
   const [dragState, setDragState] = useState<DragState | null>(null)
   const startX = useRef(0)
 

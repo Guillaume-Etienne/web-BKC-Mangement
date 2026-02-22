@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cd /c/gui/web/2026/Claude-Code-Projet/client && npx tsc --noEmit 2>&1)"
+      "Bash(cd /c/gui/web/2026/Claude-Code-Projet/client && npx tsc --noEmit 2>&1)",
+      "Bash(tail:*)"
     ]
   }
 }

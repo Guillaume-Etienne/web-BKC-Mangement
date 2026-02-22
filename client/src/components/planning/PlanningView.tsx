@@ -166,7 +166,7 @@ export default function PlanningView() {
   }, [])
 
   const { dragState, onPointerDown, onPointerMove, onPointerUp } = useBookingDrag({
-    onBookingUpdate, onBookingMove, gridRef, roomOrder,
+    onBookingUpdate, onBookingMove, gridRef,
   })
 
   return (
