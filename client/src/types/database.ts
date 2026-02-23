@@ -38,9 +38,12 @@ export interface Participant {
 
 export interface Booking {
   id: string
+  booking_number: number     // sequential booking number, displayed as #001
   client_id: string
-  check_in: string // date ISO
-  check_out: string // date ISO
+  check_in: string           // actual kite center check-in (ISO date)
+  check_out: string          // actual kite center check-out (ISO date)
+  visa_entry_date: string | null  // Mozambique entry date for visa letter
+  visa_exit_date: string | null   // Mozambique exit date for visa letter
   status: BookingStatus
   notes: string | null
   num_lessons: number        // nb persons wanting lessons
