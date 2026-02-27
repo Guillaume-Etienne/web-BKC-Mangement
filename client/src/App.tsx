@@ -8,10 +8,11 @@ import ClientsPage from './pages/ClientsPage'
 import ManagementPage from './pages/ManagementPage'
 import TaxiPage from './pages/TaxiPage'
 import EquipmentPage from './pages/EquipmentPage'
+import DocumentsPage from './pages/DocumentsPage'
 import ForecastSharePage from './pages/ForecastSharePage'
 import { mockSharedLinks } from './data/mock'
 
-type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment'
+type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents'
 
 // Check for a share token in the URL query string
 const urlParams = new URLSearchParams(window.location.search)
@@ -41,6 +42,7 @@ function App() {
         {currentPage === 'management' && <ManagementPage />}
         {currentPage === 'equipment' && <EquipmentPage />}
         {currentPage === 'taxis' && <TaxiPage />}
+        {currentPage === 'documents' && <DocumentsPage />}
       </main>
     </div>
   )

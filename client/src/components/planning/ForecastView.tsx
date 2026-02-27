@@ -286,6 +286,7 @@ function RentalsPanel({ rentals, onDelete, onAdd, date }: RentalsPanelProps) {
   const [equipType, setEquipType] = useState('kite')
   const [slot, setSlot] = useState<'morning' | 'afternoon' | 'full_day'>('full_day')
   const [price, setPrice] = useState(40)
+  const [otherDesc, setOtherDesc] = useState('')
 
   const DEFAULT_PRICES: Record<string, number> = { kite: 40, board: 20, full: 55, surfboard: 25, foilboard: 35, free: 0 }
 
@@ -306,8 +307,9 @@ function RentalsPanel({ rentals, onDelete, onAdd, date }: RentalsPanelProps) {
       date,
       slot,
       price,
-      notes: null,
+      notes: equipType === 'free' ? (otherDesc || null) : null,
     })
+    setOtherDesc('')
     setShowForm(false)
   }
 
@@ -333,6 +335,15 @@ function RentalsPanel({ rentals, onDelete, onAdd, date }: RentalsPanelProps) {
               <option key={k} value={k}>{v.icon} {v.label}</option>
             ))}
           </select>
+          {equipType === 'free' && (
+            <input
+              type="text"
+              value={otherDesc}
+              onChange={e => setOtherDesc(e.target.value)}
+              placeholder="What is being rented?"
+              className="w-full text-xs border rounded px-1 py-1"
+            />
+          )}
           <div className="flex gap-1">
             <select value={slot} onChange={e => setSlot(e.target.value as typeof slot)}
               className="flex-1 text-xs border rounded px-1 py-1">
@@ -369,6 +380,7 @@ function RentalsPanel({ rentals, onDelete, onAdd, date }: RentalsPanelProps) {
                   <div key={r.id} className="group/r flex items-start justify-between bg-amber-50 border border-amber-200 rounded px-2 py-1.5 text-xs">
                     <div>
                       <div className="font-semibold text-amber-900">{rt.icon} {rt.label}</div>
+                      {r.notes && <div className="text-amber-800 text-[10px] italic truncate">{r.notes}</div>}
                       <div className="text-amber-700 truncate">{client?.first_name} {client?.last_name}</div>
                       <div className="text-amber-600 font-medium">€{r.price}</div>
                     </div>
