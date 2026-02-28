@@ -15,23 +15,16 @@ function fmtVisa(iso: string | null): string {
   return `<strong style="text-decoration:underline;">${d}/${m}/${y}</strong>`
 }
 
-function participantRow(index: number, p: { first_name: string; last_name: string; passport_number: string } | null): string {
-  if (p) {
-    return `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5pt solid #eee;">
-        <span>${index + 1}&nbsp;&nbsp;<strong>${p.first_name.toUpperCase()} ${p.last_name.toUpperCase()}</strong></span>
-        <span style="color:#555;">Passport no &nbsp; <strong>${p.passport_number}</strong></span>
-      </div>`
-  }
+function participantRow(index: number, p: { first_name: string; last_name: string; passport_number: string }): string {
   return `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5pt solid #eee;color:#ccc;">
-      <span>${index + 1} &nbsp; .</span><span>.</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5pt solid #eee;">
+      <span>${index + 1}&nbsp;&nbsp;<strong>${p.first_name.toUpperCase()} ${p.last_name.toUpperCase()}</strong></span>
+      <span style="color:#555;">Passport no &nbsp; <strong>${p.passport_number}</strong></span>
     </div>`
 }
 
 export function printVisaLetter(booking: Booking): void {
-  const MAX_SLOTS = 6
-  const slots = Array.from({ length: MAX_SLOTS }, (_, i) => booking.participants[i] ?? null)
+  const slots = booking.participants
 
   const html = `<!DOCTYPE html>
 <html lang="pt">
@@ -116,6 +109,7 @@ export function printVisaLetter(booking: Booking): void {
   <!-- ── Participants ───────────────────────────────────────────────── -->
   <div style="margin-bottom:24px;">
     ${slots.map((p, i) => participantRow(i, p)).join('')}
+    ${slots.length === 0 ? '<p style="color:#dc2626;font-style:italic;">⚠ No participants listed</p>' : ''}
   </div>
 
   <!-- ── Travel info ────────────────────────────────────────────────── -->
@@ -139,12 +133,12 @@ export function printVisaLetter(booking: Booking): void {
   </p>
 
   <!-- ── Signature ──────────────────────────────────────────────────── -->
-  <div style="text-align:center;margin-bottom:8px;">
-    <img src="${SIGN_URL}" alt="Signature" style="width:120px;height:auto;" onerror="this.style.display='none'" />
-  </div>
-  <div style="display:flex;justify-content:space-between;font-style:italic;color:#666;font-size:9pt;">
-    <span>David Pereira &nbsp; Guatura Praia do Bilene</span>
-    <span>${todayFmt()}</span>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+    <img src="${SIGN_URL}" alt="Signature" style="width:130px;height:auto;" onerror="this.style.display='none'" />
+    <div style="font-style:italic;color:#555;font-size:9pt;text-align:center;line-height:1.6;">
+      <span>David Pereira &nbsp; Guatura Praia do Bilene</span><br>
+      <span>${todayFmt()}</span>
+    </div>
   </div>
 
   <script>

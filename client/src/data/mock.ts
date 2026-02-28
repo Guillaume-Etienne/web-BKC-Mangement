@@ -52,8 +52,8 @@ export const mockBookingRooms: BookingRoom[] = [
 ]
 
 export const mockInstructors: Instructor[] = [
-  { id: 'i1', first_name: 'Pierrot', last_name: 'Renard', email: 'theo@mail.com', phone: '+33612345678', specialties: ['beginner', 'intermediate'], rate_private: 50, rate_group: 35, rate_supervision: 25, notes: 'Excellent avec débutants' },
-  { id: 'i2', first_name: 'Mouss', last_name: 'Blanc', email: 'amelie@mail.com', phone: '+33698765432', specialties: ['intermediate', 'advanced', 'wave'], rate_private: 55, rate_group: 40, rate_supervision: 30, notes: 'Spécialiste vagues' },
+  { id: 'i1', first_name: 'Pierrot', last_name: 'Don Perro', email: 'theo@mail.com', phone: '+33612345678', specialties: ['beginner', 'intermediate'], rate_private: 50, rate_group: 35, rate_supervision: 25, notes: 'Excellent avec débutants' },
+  { id: 'i2', first_name: 'Mouss', last_name: 'Adeline', email: 'amelie@mail.com', phone: '+33698765432', specialties: ['intermediate', 'advanced', 'wave'], rate_private: 55, rate_group: 40, rate_supervision: 30, notes: 'Spécialiste vagues' },
   { id: 'i3', first_name: 'Tere', last_name: 'Moreau', email: 'lucas@mail.com', phone: null, specialties: ['beginner', 'freestyle'], rate_private: 45, rate_group: 30, rate_supervision: 20, notes: 'Freestyle expert' },
 ]
 
@@ -95,9 +95,9 @@ export const mockDayActivities: DayActivity[] = [
 ]
 
 export const mockTaxiDrivers: TaxiDriver[] = [
-  { id: 'td1', name: 'Hamid Koné', phone: '+225701234567', email: 'hamid@taxi.local', vehicle: 'Toyota Corolla blanc', notes: 'Fiable, parle français/anglais', margin_percent: 30 },
-  { id: 'td2', name: 'Koffi Mensah', phone: '+225702345678', email: 'koffi@taxi.local', vehicle: 'Peugeot 307 grise', notes: 'Disponible WE', margin_percent: 25 },
-  { id: 'td3', name: 'Bah Ousmane', phone: '+225703456789', email: null, vehicle: 'Nissan Almera bleu', notes: 'Nouveau', margin_percent: 35 },
+  { id: 'td1', name: 'Ruiz', phone: '+225701234567', email: 'hamid@taxi.local', vehicle: 'Toyota Corolla blanc', notes: 'Fiable, parle français/anglais', margin_percent: 30 },
+  { id: 'td2', name: 'Taxi-2', phone: '+225702345678', email: 'koffi@taxi.local', vehicle: 'Peugeot 307 grise', notes: 'Disponible WE', margin_percent: 25 },
+  { id: 'td3', name: 'Big Taxi', phone: '+225703456789', email: null, vehicle: 'Nissan Almera bleu', notes: 'Nouveau', margin_percent: 35 },
 ]
 
 export const mockTaxiTrips: TaxiTrip[] = [

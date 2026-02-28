@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import type { TaxiTrip, TaxiDriver } from '../../types/database'
-import { mockTaxiDrivers } from '../../data/mock'
+import { mockTaxiDrivers, mockBookings } from '../../data/mock'
+
+function guestName(bookingId: string | null): string {
+  if (!bookingId) return '—'
+  const b = mockBookings.find(b => b.id === bookingId)
+  return b?.client ? `${b.client.first_name} ${b.client.last_name}` : '—'
+}
 
 const TRIP_TYPE_LABELS: Record<string, string> = {
   'aero-to-center': '✈️ Aéro → Centre',
@@ -195,6 +201,7 @@ export default function TaxiListView({ trips, drivers, onTripsChange }: TaxiList
                 <th className="px-3 py-2 text-left font-semibold text-gray-700">Type</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-700">Taxi</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">Booking</th>
+                <th className="px-3 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">Guest</th>
                 <th className="px-3 py-2 text-center font-semibold text-gray-700 whitespace-nowrap">Pers</th>
                 <th className="px-3 py-2 text-center font-semibold text-gray-700 whitespace-nowrap">Bag</th>
                 <th className="px-3 py-2 text-center font-semibold text-gray-700 whitespace-nowrap">BB</th>
@@ -209,7 +216,7 @@ export default function TaxiListView({ trips, drivers, onTripsChange }: TaxiList
             <tbody>
               {sortedTrips.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="px-4 py-8 text-center text-gray-500 italic">
+                  <td colSpan={15} className="px-4 py-8 text-center text-gray-500 italic">
                     Aucun trajet
                   </td>
                 </tr>
@@ -283,6 +290,9 @@ export default function TaxiListView({ trips, drivers, onTripsChange }: TaxiList
                         placeholder="—"
                         className="px-2 py-1 text-xs border border-transparent hover:border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer w-full"
                       />
+                    </td>
+                    <td className="px-3 py-2 text-xs text-gray-700 whitespace-nowrap">
+                      {guestName(trip.booking_id)}
                     </td>
                     <td className="px-3 py-2 text-center">
                       <input

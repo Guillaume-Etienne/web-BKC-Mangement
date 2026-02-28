@@ -55,8 +55,8 @@ function TravelGuideEditor({
           <div className={`flex items-center gap-3 px-4 py-3 ${sec.is_active ? 'bg-teal-50' : 'bg-gray-50'}`}>
             {/* Toggle */}
             <button onClick={() => toggle(sec.id)}
-              className={`relative w-10 h-5 rounded-full transition-colors ${sec.is_active ? 'bg-teal-500' : 'bg-gray-300'}`}>
-              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${sec.is_active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              className={`relative shrink-0 w-10 h-5 rounded-full transition-colors ${sec.is_active ? 'bg-teal-500' : 'bg-gray-300'}`}>
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${sec.is_active ? 'translate-x-5' : 'translate-x-0'}`} />
             </button>
             <span className="font-medium text-sm text-gray-800 flex-1">{sec.title.en}</span>
             <button onClick={() => setEditingId(editingId === sec.id ? null : sec.id)}

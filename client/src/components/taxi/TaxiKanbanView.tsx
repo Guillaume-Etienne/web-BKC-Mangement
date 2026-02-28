@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import type { TaxiTrip, TaxiDriver } from '../../types/database'
-import { mockClients, mockTaxiDrivers } from '../../data/mock'
+import { mockClients, mockTaxiDrivers, mockBookings } from '../../data/mock'
+
+function guestName(bookingId: string | null): string {
+  if (!bookingId) return ''
+  const b = mockBookings.find(b => b.id === bookingId)
+  return b?.client ? `${b.client.first_name} ${b.client.last_name}` : ''
+}
 
 const TRIP_TYPE_LABELS: Record<string, string> = {
   'aero-to-center': '✈️ Aéro → Centre',
@@ -216,6 +222,9 @@ export default function TaxiKanbanView({ trips, drivers, onTripsChange }: TaxiKa
                           <div className="font-medium">{TRIP_TYPE_LABELS[trip.type]}</div>
                           {trip.booking_id && (
                             <div className="text-gray-600">📌 {trip.booking_id}</div>
+                          )}
+                          {guestName(trip.booking_id) && (
+                            <div className="font-semibold text-gray-800">👤 {guestName(trip.booking_id)}</div>
                           )}
                         </div>
 
