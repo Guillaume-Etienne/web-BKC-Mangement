@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { mockClients as initialClients, mockBookings } from '../data/mock'
+import { mockClients as initialClients, mockBookings as initialBookings } from '../data/mock'
 import type { Client, Booking } from '../types/database'
+import ImportCSVModal from '../components/clients/ImportCSVModal'
 
 interface ClientsPageProps {
   onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients') => void
@@ -32,6 +33,8 @@ const bookingStatusColor: Record<string, string> = {
 
 export default function ClientsPage({ onNavigate }: ClientsPageProps) {
   const [clients, setClients] = useState<Client[]>([...initialClients])
+  const [bookings, setBookings] = useState<Booking[]>([...initialBookings])
+  const [showImport, setShowImport] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterLevel, setFilterLevel] = useState<'' | 'beginner' | 'intermediate' | 'advanced'>('')
   const [filterNationality, setFilterNationality] = useState('')
@@ -53,7 +56,20 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
   })
 
   const getClientBookings = (clientId: string): Booking[] =>
-    mockBookings.filter(b => b.client_id === clientId)
+    bookings.filter(b => b.client_id === clientId)
+
+  const handleImport = (newClients: Client[], newBookings: Booking[]) => {
+    setClients(prev => {
+      const updated = [...prev]
+      for (const nc of newClients) {
+        const idx = updated.findIndex(c => c.id === nc.id)
+        if (idx >= 0) updated[idx] = nc
+        else updated.push(nc)
+      }
+      return updated
+    })
+    setBookings(prev => [...prev, ...newBookings])
+  }
 
   const openForm = (client?: Client) => {
     if (client) {
@@ -98,6 +114,11 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
         passport_number: formData.passport_number || null,
         birth_date: formData.birth_date || null,
         kite_level: formData.kite_level || null,
+        import_id: null,
+        emergency_contact_name: null,
+        emergency_contact_phone: null,
+        emergency_contact_email: null,
+        emergency_contact_relation: null,
       }
       setClients(prev => [...prev, newClient])
     }
@@ -127,12 +148,20 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
             <h1 className="text-3xl md:text-4xl font-bold text-gray-800">Clients</h1>
             <p className="text-gray-500 mt-1">{clients.length} total · {filteredClients.length} shown</p>
           </div>
-          <button
-            onClick={() => openForm()}
-            className="w-full md:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors"
-          >
-            + New client
-          </button>
+          <div className="flex gap-2 w-full md:w-auto">
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex-1 md:flex-none px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold transition-colors border border-gray-300"
+            >
+              ⬆ Import CSV
+            </button>
+            <button
+              onClick={() => openForm()}
+              className="flex-1 md:flex-none px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors"
+            >
+              + New client
+            </button>
+          </div>
         </div>
 
         {/* Search + Filters */}
@@ -390,6 +419,17 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
             </div>
           )}
         </div>
+
+        {/* Import CSV Modal */}
+        {showImport && (
+          <ImportCSVModal
+            existingClients={clients}
+            existingBookings={bookings}
+            nextBookingNumber={bookings.reduce((max, b) => Math.max(max, b.booking_number), 0) + 1}
+            onImport={handleImport}
+            onClose={() => setShowImport(false)}
+          />
+        )}
 
         {/* Form Modal */}
         {showForm && (

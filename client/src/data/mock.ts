@@ -1,4 +1,4 @@
-import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity, TaxiDriver, TaxiTrip, Equipment, EquipmentRental, Participant, SharedLink } from '../types/database'
+import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity, TaxiDriver, TaxiTrip, Equipment, EquipmentRental, Participant, SharedLink, Season, RoomRate, BookingRoomPrice, ExternalAccommodation, ExternalAccommodationBooking, Payment, InstructorDebt, InstructorPayment, LessonRateOverride, Expense, PalmeirasRent, PalmeirasReversal } from '../types/database'
 
 export const mockAccommodations: Accommodation[] = [
   { id: 'h1', name: 'H-1', type: 'house', total_rooms: 2, is_active: true },
@@ -21,24 +21,28 @@ export const mockRooms: Room[] = [
   { id: 'r9', accommodation_id: 'b3', name: 'Room', capacity: 3 },
 ]
 
+const nullEmergency = { import_id: null, emergency_contact_name: null, emergency_contact_phone: null, emergency_contact_email: null, emergency_contact_relation: null }
+
 export const mockClients: Client[] = [
-  { id: 'c1', first_name: 'Jean', last_name: 'Dupont', email: 'jean@mail.com', phone: null, notes: null, nationality: 'France', passport_number: 'AB123456', birth_date: '1990-05-15', kite_level: 'intermediate' },
-  { id: 'c2', first_name: 'Marie', last_name: 'Martin', email: null, phone: '+33612345678', notes: null, nationality: 'Belgique', passport_number: 'BE789012', birth_date: '1985-08-22', kite_level: 'beginner' },
-  { id: 'c3', first_name: 'Pierre', last_name: 'Durand', email: 'pierre@mail.com', phone: null, notes: 'Client régulier', nationality: 'Allemagne', passport_number: 'DE345678', birth_date: '1988-03-10', kite_level: 'advanced' },
-  { id: 'c4', first_name: 'Sophie', last_name: 'Laurent', email: 'sophie@mail.com', phone: '+33698765432', notes: null, nationality: 'France', passport_number: 'AB234567', birth_date: '1992-12-05', kite_level: 'intermediate' },
-  { id: 'c5', first_name: 'Luc', last_name: 'Müller', email: 'luc.muller@mail.com', phone: null, notes: 'Aime les bungalows', nationality: 'Suisse', passport_number: 'CH567890', birth_date: '1995-07-20', kite_level: 'beginner' },
+  { id: 'c1', first_name: 'Jean', last_name: 'Dupont', email: 'jean@mail.com', phone: null, notes: null, nationality: 'France', passport_number: 'AB123456', birth_date: '1990-05-15', kite_level: 'intermediate', ...nullEmergency },
+  { id: 'c2', first_name: 'Marie', last_name: 'Martin', email: null, phone: '+33612345678', notes: null, nationality: 'Belgique', passport_number: 'BE789012', birth_date: '1985-08-22', kite_level: 'beginner', ...nullEmergency },
+  { id: 'c3', first_name: 'Pierre', last_name: 'Durand', email: 'pierre@mail.com', phone: null, notes: 'Client régulier', nationality: 'Allemagne', passport_number: 'DE345678', birth_date: '1988-03-10', kite_level: 'advanced', ...nullEmergency },
+  { id: 'c4', first_name: 'Sophie', last_name: 'Laurent', email: 'sophie@mail.com', phone: '+33698765432', notes: null, nationality: 'France', passport_number: 'AB234567', birth_date: '1992-12-05', kite_level: 'intermediate', ...nullEmergency },
+  { id: 'c5', first_name: 'Luc', last_name: 'Müller', email: 'luc.muller@mail.com', phone: null, notes: 'Aime les bungalows', nationality: 'Suisse', passport_number: 'CH567890', birth_date: '1995-07-20', kite_level: 'beginner', ...nullEmergency },
 ]
 
 const p = (id: string, first_name: string, last_name: string, passport_number: string): Participant =>
   ({ id, first_name, last_name, passport_number })
 
+const nullBookingImport = { import_id: null, emergency_contact_name: null, emergency_contact_phone: null, emergency_contact_email: null }
+
 export const mockBookings: Booking[] = [
-  { id: 'bk1', booking_number: 1, client_id: 'c1', check_in: '2026-02-05', check_out: '2026-02-12', visa_entry_date: '2026-02-04', visa_exit_date: '2026-02-13', status: 'confirmed', notes: null, num_lessons: 3, num_equipment_rentals: 2, num_center_access: 0, client: mockClients[0], arrival_time: '14:30', departure_time: '10:00', luggage_count: 2, boardbag_count: 1, taxi_arrival: true, taxi_departure: true, couples_count: 1, children_count: 0, amount_paid: 500, participants: [p('p1a', 'Jean', 'Dupont', 'AB123456'), p('p1b', 'Camille', 'Dupont', 'AB123457')] },
-  { id: 'bk2', booking_number: 2, client_id: 'c2', check_in: '2026-02-10', check_out: '2026-02-18', visa_entry_date: '2026-02-09', visa_exit_date: '2026-02-19', status: 'provisional', notes: null, num_lessons: 2, num_equipment_rentals: 3, num_center_access: 1, client: mockClients[1], arrival_time: '16:00', departure_time: '11:00', luggage_count: 1, boardbag_count: 2, taxi_arrival: false, taxi_departure: true, couples_count: 0, children_count: 2, amount_paid: 450, participants: [p('p2a', 'Marie', 'Martin', 'BE789012')] },
-  { id: 'bk3', booking_number: 3, client_id: 'c3', check_in: '2026-02-15', check_out: '2026-02-22', visa_entry_date: null, visa_exit_date: null, status: 'confirmed', notes: null, num_lessons: 4, num_equipment_rentals: 1, num_center_access: 0, client: mockClients[2], arrival_time: '13:15', departure_time: '09:00', luggage_count: 3, boardbag_count: 1, taxi_arrival: true, taxi_departure: false, couples_count: 0, children_count: 1, amount_paid: 600, participants: [p('p3a', 'Pierre', 'Durand', 'DE345678')] },
-  { id: 'bk4', booking_number: 4, client_id: 'c1', check_in: '2026-02-20', check_out: '2026-02-28', visa_entry_date: null, visa_exit_date: null, status: 'cancelled', notes: 'Cancelled by client', num_lessons: 0, num_equipment_rentals: 0, num_center_access: 0, client: mockClients[0], arrival_time: null, departure_time: null, luggage_count: 0, boardbag_count: 0, taxi_arrival: false, taxi_departure: false, couples_count: 0, children_count: 0, amount_paid: 0, participants: [] },
-  { id: 'bk5', booking_number: 5, client_id: 'c2', check_in: '2026-02-01', check_out: '2026-02-08', visa_entry_date: '2026-01-31', visa_exit_date: '2026-02-09', status: 'confirmed', notes: null, num_lessons: 2, num_equipment_rentals: 2, num_center_access: 0, client: mockClients[1], arrival_time: '15:45', departure_time: '10:30', luggage_count: 2, boardbag_count: 0, taxi_arrival: true, taxi_departure: true, couples_count: 1, children_count: 0, amount_paid: 400, participants: [p('p5a', 'Marie', 'Martin', 'BE789012'), p('p5b', 'Tom', 'Martin', 'BE789013')] },
-  { id: 'bk6', booking_number: 6, client_id: 'c3', check_in: '2026-03-01', check_out: '2026-03-10', visa_entry_date: '2026-02-28', visa_exit_date: '2026-03-12', status: 'provisional', notes: null, num_lessons: 1, num_equipment_rentals: 4, num_center_access: 2, client: mockClients[2], arrival_time: '12:00', departure_time: '12:00', luggage_count: 1, boardbag_count: 3, taxi_arrival: false, taxi_departure: false, couples_count: 0, children_count: 0, amount_paid: 300, participants: [p('p6a', 'Pierre', 'Durand', 'DE345678')] },
+  { id: 'bk1', booking_number: 1, client_id: 'c1', check_in: '2026-02-05', check_out: '2026-02-12', visa_entry_date: '2026-02-04', visa_exit_date: '2026-02-13', status: 'confirmed', notes: null, num_lessons: 3, num_equipment_rentals: 2, num_center_access: 0, client: mockClients[0], arrival_time: '14:30', departure_time: '10:00', luggage_count: 2, boardbag_count: 1, taxi_arrival: true, taxi_departure: true, couples_count: 1, children_count: 0, amount_paid: 500, participants: [p('p1a', 'Jean', 'Dupont', 'AB123456'), p('p1b', 'Camille', 'Dupont', 'AB123457')], ...nullBookingImport },
+  { id: 'bk2', booking_number: 2, client_id: 'c2', check_in: '2026-02-10', check_out: '2026-02-18', visa_entry_date: '2026-02-09', visa_exit_date: '2026-02-19', status: 'provisional', notes: null, num_lessons: 2, num_equipment_rentals: 3, num_center_access: 1, client: mockClients[1], arrival_time: '16:00', departure_time: '11:00', luggage_count: 1, boardbag_count: 2, taxi_arrival: false, taxi_departure: true, couples_count: 0, children_count: 2, amount_paid: 450, participants: [p('p2a', 'Marie', 'Martin', 'BE789012')], ...nullBookingImport },
+  { id: 'bk3', booking_number: 3, client_id: 'c3', check_in: '2026-02-15', check_out: '2026-02-22', visa_entry_date: null, visa_exit_date: null, status: 'confirmed', notes: null, num_lessons: 4, num_equipment_rentals: 1, num_center_access: 0, client: mockClients[2], arrival_time: '13:15', departure_time: '09:00', luggage_count: 3, boardbag_count: 1, taxi_arrival: true, taxi_departure: false, couples_count: 0, children_count: 1, amount_paid: 600, participants: [p('p3a', 'Pierre', 'Durand', 'DE345678')], ...nullBookingImport },
+  { id: 'bk4', booking_number: 4, client_id: 'c1', check_in: '2026-02-20', check_out: '2026-02-28', visa_entry_date: null, visa_exit_date: null, status: 'cancelled', notes: 'Cancelled by client', num_lessons: 0, num_equipment_rentals: 0, num_center_access: 0, client: mockClients[0], arrival_time: null, departure_time: null, luggage_count: 0, boardbag_count: 0, taxi_arrival: false, taxi_departure: false, couples_count: 0, children_count: 0, amount_paid: 0, participants: [], ...nullBookingImport },
+  { id: 'bk5', booking_number: 5, client_id: 'c2', check_in: '2026-02-01', check_out: '2026-02-08', visa_entry_date: '2026-01-31', visa_exit_date: '2026-02-09', status: 'confirmed', notes: null, num_lessons: 2, num_equipment_rentals: 2, num_center_access: 0, client: mockClients[1], arrival_time: '15:45', departure_time: '10:30', luggage_count: 2, boardbag_count: 0, taxi_arrival: true, taxi_departure: true, couples_count: 1, children_count: 0, amount_paid: 400, participants: [p('p5a', 'Marie', 'Martin', 'BE789012'), p('p5b', 'Tom', 'Martin', 'BE789013')], ...nullBookingImport },
+  { id: 'bk6', booking_number: 6, client_id: 'c3', check_in: '2026-03-01', check_out: '2026-03-10', visa_entry_date: '2026-02-28', visa_exit_date: '2026-03-12', status: 'provisional', notes: null, num_lessons: 1, num_equipment_rentals: 4, num_center_access: 2, client: mockClients[2], arrival_time: '12:00', departure_time: '12:00', luggage_count: 1, boardbag_count: 3, taxi_arrival: false, taxi_departure: false, couples_count: 0, children_count: 0, amount_paid: 300, participants: [p('p6a', 'Pierre', 'Durand', 'DE345678')], ...nullBookingImport },
 ]
 
 export const mockBookingRooms: BookingRoom[] = [
@@ -183,4 +187,99 @@ export const mockSharedLinks: SharedLink[] = [
     expires_at: null,
     is_active: true,
   },
+]
+
+// ─── Accounting mocks ─────────────────────────────────────────────────────────
+
+export const mockSeasons: Season[] = [
+  { id: 's1', label: '2024-2025', start_date: '2024-09-15', end_date: '2025-03-15' },
+  { id: 's2', label: '2025-2026', start_date: '2025-09-20', end_date: '2026-03-20' },
+]
+
+// Base nightly rates — 'full_h1' = full house H-1, etc.
+export const mockRoomRates: RoomRate[] = [
+  { id: 'rr1', room_id: 'r1', price_per_night: 70, notes: 'Sea-view' },   // H-1/F
+  { id: 'rr2', room_id: 'r2', price_per_night: 50, notes: 'Back room' },  // H-1/B
+  { id: 'rr3', room_id: 'r3', price_per_night: 70, notes: 'Sea-view' },   // H-2/F
+  { id: 'rr4', room_id: 'r4', price_per_night: 50, notes: 'Back room' },  // H-2/B
+  { id: 'rr5', room_id: 'r5', price_per_night: 70, notes: 'Sea-view' },   // H-3/F
+  { id: 'rr6', room_id: 'r6', price_per_night: 50, notes: 'Back room' },  // H-3/B
+  { id: 'rr7', room_id: 'r7', price_per_night: 60, notes: 'Bungalow' },   // B-1
+  { id: 'rr8', room_id: 'r8', price_per_night: 60, notes: 'Bungalow' },   // B-2
+  { id: 'rr9', room_id: 'r9', price_per_night: 60, notes: 'Bungalow' },   // B-3
+  // Full house rates
+  { id: 'rr10', room_id: 'full_h1', price_per_night: 100, notes: 'Full H-1' },
+  { id: 'rr11', room_id: 'full_h2', price_per_night: 100, notes: 'Full H-2' },
+  { id: 'rr12', room_id: 'full_h3', price_per_night: 100, notes: 'Full H-3' },
+]
+
+// Snapshot prices at time of booking
+export const mockBookingRoomPrices: BookingRoomPrice[] = [
+  { booking_id: 'bk1', room_id: 'r1', price_per_night: 70, override_note: null },
+  { booking_id: 'bk2', room_id: 'r3', price_per_night: 65, override_note: 'Promo fidélité client' },
+  { booking_id: 'bk3', room_id: 'r5', price_per_night: 70, override_note: null },
+  { booking_id: 'bk3', room_id: 'r6', price_per_night: 50, override_note: null },
+  { booking_id: 'bk5', room_id: 'r8', price_per_night: 60, override_note: null },
+  { booking_id: 'bk6', room_id: 'r9', price_per_night: 60, override_note: null },
+]
+
+export const mockExternalAccommodations: ExternalAccommodation[] = [
+  { id: 'ea1', name: 'Bungalow Palmeiras #1', provider: 'palmeiras', cost_per_night: 45, sell_price_per_night: 70, notes: 'Vue jardin', is_active: true },
+  { id: 'ea2', name: 'Bungalow Palmeiras #2', provider: 'palmeiras', cost_per_night: 55, sell_price_per_night: 85, notes: 'Vue piscine', is_active: true },
+  { id: 'ea3', name: 'Hotel Varanda do Mar', provider: 'other', cost_per_night: 80, sell_price_per_night: 110, notes: 'À 5min du spot', is_active: true },
+]
+
+export const mockExternalAccommodationBookings: ExternalAccommodationBooking[] = [
+  { id: 'eab1', booking_id: 'bk4', external_accommodation_id: 'ea1', check_in: '2026-02-20', check_out: '2026-02-28', cost_per_night: 45, sell_price_per_night: 70, notes: null },
+]
+
+export const mockPayments: Payment[] = [
+  { id: 'pay1', booking_id: 'bk1', date: '2025-12-10', amount: 200, method: 'transfer',        is_deposit: true,  notes: 'Acompte 30%' },
+  { id: 'pay2', booking_id: 'bk1', date: '2026-02-05', amount: 300, method: 'cash_eur',         is_deposit: false, notes: 'Solde à l\'arrivée' },
+  { id: 'pay3', booking_id: 'bk2', date: '2026-01-15', amount: 150, method: 'transfer',        is_deposit: true,  notes: 'Acompte' },
+  { id: 'pay4', booking_id: 'bk3', date: '2026-01-20', amount: 180, method: 'transfer',        is_deposit: true,  notes: 'Acompte' },
+  { id: 'pay5', booking_id: 'bk3', date: '2026-02-15', amount: 420, method: 'card_palmeiras',  is_deposit: false, notes: null },
+  { id: 'pay6', booking_id: 'bk5', date: '2025-11-30', amount: 120, method: 'transfer',        is_deposit: true,  notes: 'Acompte min 120€' },
+  { id: 'pay7', booking_id: 'bk5', date: '2026-02-01', amount: 280, method: 'cash_mzn',        is_deposit: false, notes: '~20000 MZN' },
+]
+
+export const mockInstructorDebts: InstructorDebt[] = [
+  { id: 'id1', instructor_id: 'i1', date: '2026-02-05', amount: 28,  description: 'Dîner restaurant Al-Farouk' },
+  { id: 'id2', instructor_id: 'i1', date: '2026-02-12', amount: 15,  description: 'Boissons soirée beach' },
+  { id: 'id3', instructor_id: 'i2', date: '2026-02-10', amount: 28,  description: 'Dîner restaurant Al-Farouk' },
+  { id: 'id4', instructor_id: 'i3', date: '2026-02-08', amount: 45,  description: 'Avance matériel personnel' },
+  { id: 'id5', instructor_id: 'i2', date: '2026-02-20', amount: 60,  description: 'Sortie bateau excursion' },
+]
+
+export const mockInstructorPayments: InstructorPayment[] = [
+  { id: 'ip1', instructor_id: 'i1', date: '2026-02-15', amount: 200, method: 'cash_eur', notes: 'Acompte salaire' },
+  { id: 'ip2', instructor_id: 'i2', date: '2026-02-15', amount: 150, method: 'cash_eur', notes: null },
+  { id: 'ip3', instructor_id: 'i3', date: '2026-02-10', amount: 100, method: 'transfer', notes: 'Virement partiel' },
+]
+
+export const mockLessonRateOverrides: LessonRateOverride[] = [
+  { id: 'lro1', lesson_id: 'l2', rate: 60, note: 'Session exceptionnelle vagues, tarif spécial convenu' },
+]
+
+export const mockExpenses: Expense[] = [
+  { id: 'exp1', date: '2026-01-15', category: 'equipment',    amount: 320,  description: 'Réparation aile kite 12m',          palmeiras_related: false },
+  { id: 'exp2', date: '2026-01-28', category: 'maintenance',  amount: 80,   description: 'Peinture barrières centre',          palmeiras_related: false },
+  { id: 'exp3', date: '2026-02-03', category: 'transport',    amount: 45,   description: 'Carburant bateau secours',            palmeiras_related: false },
+  { id: 'exp4', date: '2026-02-10', category: 'other',        amount: 200,  description: 'Dépôt de garantie bungalow saison',  palmeiras_related: true  },
+  { id: 'exp5', date: '2026-02-18', category: 'equipment',    amount: 150,  description: 'Nouvelles lignes kite + chicken loop',palmeiras_related: false },
+]
+
+export const mockPalmeirasRents: PalmeirasRent[] = [
+  { id: 'pr1', month: '2025-10', amount: 850, notes: null },
+  { id: 'pr2', month: '2025-11', amount: 850, notes: null },
+  { id: 'pr3', month: '2025-12', amount: 850, notes: 'Inclus fêtes' },
+  { id: 'pr4', month: '2026-01', amount: 850, notes: null },
+  { id: 'pr5', month: '2026-02', amount: 850, notes: null },
+]
+
+export const mockPalmeirasReversals: PalmeirasReversal[] = [
+  { id: 'prev1', month: '2025-11', gross_amount: 4200, percent: 15, net_amount: 630,  notes: 'Bonne saison début' },
+  { id: 'prev2', month: '2025-12', gross_amount: 6800, percent: 15, net_amount: 1020, notes: 'Fêtes de fin d\'année' },
+  { id: 'prev3', month: '2026-01', gross_amount: 5100, percent: 15, net_amount: 765,  notes: null },
+  { id: 'prev4', month: '2026-02', gross_amount: 4900, percent: 15, net_amount: 735,  notes: null },
 ]

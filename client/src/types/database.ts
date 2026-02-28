@@ -27,6 +27,11 @@ export interface Client {
   passport_number: string | null
   birth_date: string | null
   kite_level: 'beginner' | 'intermediate' | 'advanced' | null
+  import_id: string | null                   // Google Forms row timestamp (dedup key)
+  emergency_contact_name: string | null
+  emergency_contact_phone: string | null
+  emergency_contact_email: string | null
+  emergency_contact_relation: string | null
 }
 
 export interface Participant {
@@ -60,6 +65,10 @@ export interface Booking {
   children_count: number
   participants: Participant[]
   amount_paid: number
+  import_id: string | null                   // Google Forms row timestamp (dedup key)
+  emergency_contact_name: string | null
+  emergency_contact_phone: string | null
+  emergency_contact_email: string | null
 }
 
 export interface BookingRoom {
@@ -235,5 +244,140 @@ export interface EquipmentRental {
   date: string
   slot: RentalSlot
   price: number
+  notes: string | null
+}
+
+// ─── Accounting ───────────────────────────────────────────────────────────────
+
+// Season (mid-Sept → mid-March, one per year, variable dates)
+export interface Season {
+  id: string
+  label: string        // e.g. "2025-2026"
+  start_date: string   // ISO date
+  end_date: string     // ISO date
+}
+
+// Base nightly rates per room (or full house)
+// room_id = actual room id, or 'full_{accommodation_id}' for full-house rate
+export interface RoomRate {
+  id: string
+  room_id: string
+  price_per_night: number
+  notes: string | null
+}
+
+// Snapshot of price at time of booking (allows overrides / promos)
+export interface BookingRoomPrice {
+  booking_id: string
+  room_id: string
+  price_per_night: number
+  override_note: string | null
+}
+
+// External accommodation (Palmeiras bungalows, other hotels)
+export type ExternalAccommodationProvider = 'palmeiras' | 'other'
+
+export interface ExternalAccommodation {
+  id: string
+  name: string
+  provider: ExternalAccommodationProvider
+  cost_per_night: number        // what we pay
+  sell_price_per_night: number  // what we charge the client
+  notes: string | null
+  is_active: boolean
+}
+
+// Booking using an external accommodation
+export interface ExternalAccommodationBooking {
+  id: string
+  booking_id: string
+  external_accommodation_id: string
+  check_in: string
+  check_out: string
+  cost_per_night: number        // snapshot at time of booking
+  sell_price_per_night: number  // snapshot at time of booking
+  notes: string | null
+}
+
+// Client payments (deposit + balance payments, any method)
+export type PaymentMethod = 'cash_eur' | 'cash_mzn' | 'transfer' | 'card_palmeiras'
+
+export interface Payment {
+  id: string
+  booking_id: string
+  date: string
+  amount: number                // always in EUR
+  method: PaymentMethod
+  is_deposit: boolean
+  notes: string | null
+}
+
+// Per-participant consumption tracking (optional, for detailed breakdowns)
+export type ConsumptionType = 'lesson' | 'rental' | 'activity' | 'center_access'
+
+export interface ParticipantConsumption {
+  id: string
+  booking_id: string
+  participant_id: string        // references Participant.id
+  type: ConsumptionType
+  quantity: number
+  unit_price: number
+  notes: string | null
+}
+
+// Instructor payroll — debt (advance on dinner, outing, etc.)
+export interface InstructorDebt {
+  id: string
+  instructor_id: string
+  date: string
+  amount: number
+  description: string
+}
+
+// Instructor payroll — payment from centre to instructor
+export interface InstructorPayment {
+  id: string
+  instructor_id: string
+  date: string
+  amount: number
+  method: PaymentMethod
+  notes: string | null
+}
+
+// Override on a specific lesson rate (for accounting purposes)
+export interface LessonRateOverride {
+  id: string
+  lesson_id: string
+  rate: number
+  note: string                  // required — must justify override
+}
+
+// Manual expenses (equipment purchase, repairs, etc.)
+export type ExpenseCategory = 'equipment' | 'maintenance' | 'accommodation' | 'transport' | 'other'
+
+export interface Expense {
+  id: string
+  date: string
+  category: ExpenseCategory
+  amount: number
+  description: string
+  palmeiras_related: boolean
+}
+
+// Palmeiras — monthly rent we pay them
+export interface PalmeirasRent {
+  id: string
+  month: string                 // YYYY-MM
+  amount: number
+  notes: string | null
+}
+
+// Palmeiras — monthly % reversal they owe us on direct bookings
+export interface PalmeirasReversal {
+  id: string
+  month: string                 // YYYY-MM
+  gross_amount: number          // total Palmeiras collected
+  percent: number               // % owed to us
+  net_amount: number            // calculated: gross × percent / 100
   notes: string | null
 }

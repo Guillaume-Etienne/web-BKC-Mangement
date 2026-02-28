@@ -1,25 +1,26 @@
 import { useState } from 'react'
 
 interface NavigationProps {
-  currentPage: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents'
-  onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents') => void
+  currentPage: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting'
+  onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting') => void
 }
 
 export default function Navigation({ currentPage, onNavigate }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const navItems = [
-    { id: 'home', label: 'Home', icon: '🏠' },
-    { id: 'clients', label: 'Clients', icon: '👥' },
-    { id: 'planning', label: 'Planning', icon: '📅' },
-    { id: 'bookings', label: 'Bookings', icon: '📋' },
-    { id: 'documents', label: 'Documents', icon: '📄' },
+    { id: 'home',       label: 'Home',       icon: '🏠' },
+    { id: 'clients',    label: 'Clients',    icon: '👥' },
+    { id: 'planning',   label: 'Planning',   icon: '📅' },
+    { id: 'bookings',   label: 'Bookings',   icon: '📋' },
+    { id: 'accounting', label: 'Accounting', icon: '💰' },
+    { id: 'documents',  label: 'Documents',  icon: '📄' },
     { id: 'management', label: 'Management', icon: '⚙️' },
-    { id: 'equipment', label: 'Equipment', icon: '🎿' },
-    { id: 'taxis', label: 'Taxis', icon: '🚕' },
+    { id: 'equipment',  label: 'Equipment',  icon: '🎿' },
+    { id: 'taxis',      label: 'Taxis',      icon: '🚕' },
   ] as const
 
-  const handleNavigate = (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents') => {
+  const handleNavigate = (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting') => {
     onNavigate(page)
     setMobileMenuOpen(false)
   }

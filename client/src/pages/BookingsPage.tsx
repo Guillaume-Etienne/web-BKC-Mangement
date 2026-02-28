@@ -717,6 +717,11 @@ export default function BookingsPage() {
         passport_number: null,
         birth_date: null,
         kite_level: data.new_client_kite_level || null,
+        import_id: null,
+        emergency_contact_name: null,
+        emergency_contact_phone: null,
+        emergency_contact_email: null,
+        emergency_contact_relation: null,
       }
       setClients(prev => [...prev, newClient])
       clientId = newClient.id
@@ -747,6 +752,10 @@ export default function BookingsPage() {
       children_count: data.children_count,
       participants: data.participants,
       amount_paid: data.amount_paid,
+      import_id: null,
+      emergency_contact_name: null,
+      emergency_contact_phone: null,
+      emergency_contact_email: null,
     }
 
     if (isNew) {
