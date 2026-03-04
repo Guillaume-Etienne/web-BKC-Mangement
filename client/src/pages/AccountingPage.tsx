@@ -4,7 +4,7 @@ import {
   mockBookingRoomPrices, mockExternalAccommodationBookings, mockExternalAccommodations,
   mockLessons, mockInstructors, mockEquipmentRentals, mockTaxiTrips,
   mockPayments, mockInstructorDebts, mockInstructorPayments, mockLessonRateOverrides,
-  mockExpenses, mockPalmeirasRents, mockPalmeirasReversals, mockSeasons,
+  mockExpenses, mockPalmeirasRents, mockPalmeirasReversals, mockPalmeirasEntries, mockPalmeirasSubLets, mockSeasons,
 } from '../data/mock'
 import AccountingDashboard  from '../components/accounting/AccountingDashboard'
 import BookingFinances      from '../components/accounting/BookingFinances'
@@ -14,7 +14,7 @@ import CashFlow             from '../components/accounting/CashFlow'
 import ExpensesTab          from '../components/accounting/ExpensesTab'
 import type {
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
-  Expense, PalmeirasRent, PalmeirasReversal,
+  Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSubLet,
 } from '../types/database'
 
 type Tab = 'dashboard' | 'bookings' | 'instructors' | 'palmeiras' | 'cashflow' | 'expenses'
@@ -39,6 +39,8 @@ export default function AccountingPage() {
   const [expenses,             setExpenses]             = useState<Expense[]>([...mockExpenses])
   const [palmeirasRents,       setPalmeirasRents]       = useState<PalmeirasRent[]>([...mockPalmeirasRents])
   const [palmeirasReversals,   setPalmeirasReversals]   = useState<PalmeirasReversal[]>([...mockPalmeirasReversals])
+  const [palmeirasEntries,     setPalmeirasEntries]     = useState<PalmeirasEntry[]>([...mockPalmeirasEntries])
+  const [palmeirasSubLets,     setPalmeirasSubLets]     = useState<PalmeirasSubLet[]>([...mockPalmeirasSubLets])
 
   // ── Shared computed data passed down to tabs ──────────────────────────────
   const sharedData = {
@@ -61,6 +63,8 @@ export default function AccountingPage() {
     expenses,
     palmeirasRents,
     palmeirasReversals,
+    palmeirasEntries,
+    palmeirasSubLets,
   }
 
   const handlers = {
@@ -80,8 +84,13 @@ export default function AccountingPage() {
     deleteExpense:         (id: string)              => setExpenses(prev => prev.filter(x => x.id !== id)),
     addPalmeirasRent:      (r: PalmeirasRent)        => setPalmeirasRents(prev => [...prev, r]),
     updatePalmeirasRent:   (r: PalmeirasRent)        => setPalmeirasRents(prev => prev.map(x => x.id === r.id ? r : x)),
-    addPalmeirasReversal:  (r: PalmeirasReversal)    => setPalmeirasReversals(prev => [...prev, r]),
-    updatePalmeirasReversal:(r: PalmeirasReversal)   => setPalmeirasReversals(prev => prev.map(x => x.id === r.id ? r : x)),
+    addPalmeirasReversal:   (r: PalmeirasReversal) => setPalmeirasReversals(prev => [...prev, r]),
+    updatePalmeirasReversal:(r: PalmeirasReversal) => setPalmeirasReversals(prev => prev.map(x => x.id === r.id ? r : x)),
+    addPalmeirasEntry:      (e: PalmeirasEntry)    => setPalmeirasEntries(prev => [...prev, e]),
+    deletePalmeirasEntry:   (id: string)           => setPalmeirasEntries(prev => prev.filter(x => x.id !== id)),
+    addPalmeirasSubLet:     (s: PalmeirasSubLet)   => setPalmeirasSubLets(prev => [...prev, s]),
+    updatePalmeirasSubLet:  (s: PalmeirasSubLet)   => setPalmeirasSubLets(prev => prev.map(x => x.id === s.id ? s : x)),
+    deletePalmeirasSubLet:  (id: string)           => setPalmeirasSubLets(prev => prev.filter(x => x.id !== id)),
   }
 
   return (

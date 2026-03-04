@@ -14,6 +14,7 @@ const priceCategoryLabels: Record<PriceCategory, string> = {
 
 const LINK_TYPE_LABELS: Record<SharedLinkType, { icon: string; label: string }> = {
   forecast: { icon: '📋', label: 'Forecast' },
+  taxi:     { icon: '🚕', label: 'Taxi Schedule' },
 }
 
 function generateToken(type: SharedLinkType) {

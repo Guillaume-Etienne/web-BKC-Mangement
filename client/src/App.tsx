@@ -11,6 +11,7 @@ import EquipmentPage from './pages/EquipmentPage'
 import DocumentsPage from './pages/DocumentsPage'
 import AccountingPage from './pages/AccountingPage'
 import ForecastSharePage from './pages/ForecastSharePage'
+import TaxiSharePage from './pages/TaxiSharePage'
 import { mockSharedLinks } from './data/mock'
 
 type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting'
@@ -27,9 +28,8 @@ function App() {
 
   // Public share view — render without navigation
   if (sharedLink) {
-    if (sharedLink.type === 'forecast') {
-      return <ForecastSharePage />
-    }
+    if (sharedLink.type === 'forecast') return <ForecastSharePage />
+    if (sharedLink.type === 'taxi')     return <TaxiSharePage />
   }
 
   return (

@@ -1,4 +1,4 @@
-import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity, TaxiDriver, TaxiTrip, Equipment, EquipmentRental, Participant, SharedLink, Season, RoomRate, BookingRoomPrice, ExternalAccommodation, ExternalAccommodationBooking, Payment, InstructorDebt, InstructorPayment, LessonRateOverride, Expense, PalmeirasRent, PalmeirasReversal } from '../types/database'
+import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity, TaxiDriver, TaxiTrip, Equipment, EquipmentRental, Participant, SharedLink, Season, RoomRate, BookingRoomPrice, ExternalAccommodation, ExternalAccommodationBooking, Payment, InstructorDebt, InstructorPayment, LessonRateOverride, Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSubLet } from '../types/database'
 
 export const mockAccommodations: Accommodation[] = [
   { id: 'h1', name: 'H-1', type: 'house', total_rooms: 2, is_active: true },
@@ -187,6 +187,16 @@ export const mockSharedLinks: SharedLink[] = [
     expires_at: null,
     is_active: true,
   },
+  {
+    id: 'sl2',
+    token: 'taxi_def456uvw',
+    type: 'taxi',
+    label: 'Planning Taxis – Chauffeurs',
+    params: {},
+    created_at: '2026-03-04',
+    expires_at: null,
+    is_active: true,
+  },
 ]
 
 // ─── Accounting mocks ─────────────────────────────────────────────────────────
@@ -262,11 +272,18 @@ export const mockLessonRateOverrides: LessonRateOverride[] = [
 ]
 
 export const mockExpenses: Expense[] = [
-  { id: 'exp1', date: '2026-01-15', category: 'equipment',    amount: 320,  description: 'Réparation aile kite 12m',          palmeiras_related: false },
-  { id: 'exp2', date: '2026-01-28', category: 'maintenance',  amount: 80,   description: 'Peinture barrières centre',          palmeiras_related: false },
-  { id: 'exp3', date: '2026-02-03', category: 'transport',    amount: 45,   description: 'Carburant bateau secours',            palmeiras_related: false },
-  { id: 'exp4', date: '2026-02-10', category: 'other',        amount: 200,  description: 'Dépôt de garantie bungalow saison',  palmeiras_related: true  },
-  { id: 'exp5', date: '2026-02-18', category: 'equipment',    amount: 150,  description: 'Nouvelles lignes kite + chicken loop',palmeiras_related: false },
+  { id: 'exp1', date: '2025-10-12', category: 'Equipment',    amount: 480,  description: 'Achat aile kite 9m neuve' },
+  { id: 'exp2', date: '2025-11-05', category: 'Maintenance',  amount: 120,  description: 'Révision moteur bateau' },
+  { id: 'exp3', date: '2025-11-20', category: 'Equipment',    amount: 320,  description: 'Réparation aile kite 12m' },
+  { id: 'exp4', date: '2025-12-03', category: 'Staff',        amount: 200,  description: 'Formation secourisme instructeurs' },
+  { id: 'exp5', date: '2026-01-15', category: 'Maintenance',  amount: 80,   description: 'Peinture barrières centre' },
+  { id: 'exp6', date: '2026-01-28', category: 'Transport',    amount: 45,   description: 'Carburant bateau secours' },
+  { id: 'exp7', date: '2026-02-10', category: 'Admin',        amount: 200,  description: 'Dépôt de garantie bungalow saison' },
+  { id: 'exp8', date: '2026-02-18', category: 'Equipment',    amount: 150,  description: 'Nouvelles lignes kite + chicken loop' },
+]
+
+export const mockExpenseCategories: string[] = [
+  'Equipment', 'Maintenance', 'Transport', 'Staff', 'Admin', 'Other',
 ]
 
 export const mockPalmeirasRents: PalmeirasRent[] = [
@@ -282,4 +299,18 @@ export const mockPalmeirasReversals: PalmeirasReversal[] = [
   { id: 'prev2', month: '2025-12', gross_amount: 6800, percent: 15, net_amount: 1020, notes: 'Fêtes de fin d\'année' },
   { id: 'prev3', month: '2026-01', gross_amount: 5100, percent: 15, net_amount: 765,  notes: null },
   { id: 'prev4', month: '2026-02', gross_amount: 4900, percent: 15, net_amount: 735,  notes: null },
+]
+
+export const mockPalmeirasEntries: PalmeirasEntry[] = [
+  { id: 'pe1', month: '2025-12', type: 'expense', description: 'Réparation piscine Palmeiras',    amount: 120 },
+  { id: 'pe2', month: '2026-01', type: 'income',  description: 'Remboursement avance matériel',   amount: 80  },
+  { id: 'pe3', month: '2026-02', type: 'expense', description: 'Nettoyage fin de séjour extra',   amount: 45  },
+  { id: 'pe4', month: '2026-02', type: 'income',  description: 'Partage coût excursion clients',  amount: 60  },
+]
+
+export const mockPalmeirasSubLets: PalmeirasSubLet[] = [
+  { id: 'psl1', month: '2025-11', bungalow: 'Bungalow 1', check_in: '2025-11-10', check_out: '2025-11-17', nights: 7,  cost_per_night: 45, sell_per_night: 70, booking_ref: 'Martin famille', notes: null },
+  { id: 'psl2', month: '2025-12', bungalow: 'Bungalow 2', check_in: '2025-12-20', check_out: '2025-12-27', nights: 7,  cost_per_night: 55, sell_per_night: 85, booking_ref: 'Dupont',         notes: 'Fêtes' },
+  { id: 'psl3', month: '2026-01', bungalow: 'Bungalow 1', check_in: '2026-01-05', check_out: '2026-01-12', nights: 7,  cost_per_night: 45, sell_per_night: 70, booking_ref: null,             notes: null },
+  { id: 'psl4', month: '2026-02', bungalow: 'Bungalow 3', check_in: '2026-02-01', check_out: '2026-02-08', nights: 7,  cost_per_night: 50, sell_per_night: 75, booking_ref: 'BK-5',           notes: null },
 ]

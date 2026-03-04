@@ -3,7 +3,7 @@ import type {
   ExternalAccommodationBooking, ExternalAccommodation,
   Lesson, Instructor, EquipmentRental, TaxiTrip, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
-  Expense, PalmeirasRent, PalmeirasReversal,
+  Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSubLet,
 } from '../../types/database'
 
 export interface SharedAccountingData {
@@ -26,22 +26,29 @@ export interface SharedAccountingData {
   expenses:                  Expense[]
   palmeirasRents:            PalmeirasRent[]
   palmeirasReversals:        PalmeirasReversal[]
+  palmeirasEntries:          PalmeirasEntry[]
+  palmeirasSubLets:          PalmeirasSubLet[]
 }
 
 export interface AccountingHandlers {
-  addPayment:              (p: Payment)           => void
-  updatePayment:           (p: Payment)           => void
-  deletePayment:           (id: string)           => void
-  addInstructorDebt:       (d: InstructorDebt)    => void
-  deleteInstructorDebt:    (id: string)           => void
-  addInstructorPayment:    (p: InstructorPayment) => void
-  deleteInstructorPayment: (id: string)           => void
-  setLessonOverride:       (o: LessonRateOverride)=> void
-  removeLessonOverride:    (lesson_id: string)    => void
-  addExpense:              (e: Expense)           => void
-  deleteExpense:           (id: string)           => void
-  addPalmeirasRent:        (r: PalmeirasRent)     => void
-  updatePalmeirasRent:     (r: PalmeirasRent)     => void
-  addPalmeirasReversal:    (r: PalmeirasReversal) => void
-  updatePalmeirasReversal: (r: PalmeirasReversal) => void
+  addPayment:              (p: Payment)            => void
+  updatePayment:           (p: Payment)            => void
+  deletePayment:           (id: string)            => void
+  addInstructorDebt:       (d: InstructorDebt)     => void
+  deleteInstructorDebt:    (id: string)            => void
+  addInstructorPayment:    (p: InstructorPayment)  => void
+  deleteInstructorPayment: (id: string)            => void
+  setLessonOverride:       (o: LessonRateOverride) => void
+  removeLessonOverride:    (lesson_id: string)     => void
+  addExpense:              (e: Expense)            => void
+  deleteExpense:           (id: string)            => void
+  addPalmeirasRent:        (r: PalmeirasRent)      => void
+  updatePalmeirasRent:     (r: PalmeirasRent)      => void
+  addPalmeirasReversal:    (r: PalmeirasReversal)  => void
+  updatePalmeirasReversal: (r: PalmeirasReversal)  => void
+  addPalmeirasEntry:       (e: PalmeirasEntry)     => void
+  deletePalmeirasEntry:    (id: string)            => void
+  addPalmeirasSubLet:      (s: PalmeirasSubLet)    => void
+  updatePalmeirasSubLet:   (s: PalmeirasSubLet)    => void
+  deletePalmeirasSubLet:   (id: string)            => void
 }

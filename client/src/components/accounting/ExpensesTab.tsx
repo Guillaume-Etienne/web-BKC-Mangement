@@ -1,50 +1,44 @@
 import { useState, useMemo } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
-import type { Expense, ExpenseCategory } from '../../types/database'
-import { fmtEur } from './utils'
+import type { Expense } from '../../types/database'
+import { mockExpenseCategories } from '../../data/mock'
+import { fmtEur, fmtMonth } from './utils'
 
 interface Props {
   data:     SharedAccountingData
   handlers: AccountingHandlers
 }
 
-const CATEGORIES: { id: ExpenseCategory; label: string; color: string; bg: string }[] = [
-  { id: 'equipment',     label: 'Equipment',     color: 'text-blue-700',    bg: 'bg-blue-100' },
-  { id: 'maintenance',   label: 'Maintenance',   color: 'text-orange-700',  bg: 'bg-orange-100' },
-  { id: 'accommodation', label: 'Accommodation', color: 'text-purple-700',  bg: 'bg-purple-100' },
-  { id: 'transport',     label: 'Transport',     color: 'text-emerald-700', bg: 'bg-emerald-100' },
-  { id: 'other',         label: 'Other',         color: 'text-gray-700',    bg: 'bg-gray-100' },
+type View = 'list' | 'summary'
+
+// Palette de couleurs cyclique pour les catégories
+const PALETTE = [
+  '#60a5fa', '#34d399', '#f97316', '#a78bfa', '#facc15',
+  '#f472b6', '#38bdf8', '#4ade80', '#fb923c', '#c084fc',
 ]
 
-// ── Add form (module-scope to avoid focus loss) ──────────────────────────────
+// ── Add expense form (module-scope) ──────────────────────────────────────────
 interface AddFormProps {
+  categories: string[]
   onAdd: (e: Expense) => void
   onCancel: () => void
 }
-function AddExpenseForm({ onAdd, onCancel }: AddFormProps) {
+function AddExpenseForm({ categories, onAdd, onCancel }: AddFormProps) {
   const [date,        setDate]        = useState(new Date().toISOString().slice(0, 10))
-  const [category,   setCategory]    = useState<ExpenseCategory>('equipment')
+  const [category,   setCategory]    = useState(categories[0] ?? 'Other')
   const [amount,     setAmount]      = useState('')
   const [description,setDescription] = useState('')
-  const [palmeiras,  setPalmeiras]   = useState(false)
 
   const submit = () => {
     const amt = parseFloat(amount)
     if (!date || !description.trim() || isNaN(amt) || amt <= 0) return
-    onAdd({
-      id: crypto.randomUUID(),
-      date,
-      category,
-      amount: amt,
-      description: description.trim(),
-      palmeiras_related: palmeiras,
-    })
+    onAdd({ id: crypto.randomUUID(), date, category, amount: amt, description: description.trim() })
   }
 
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-4">
       <p className="font-semibold text-blue-800">New expense</p>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div>
           <label className="block text-xs text-gray-500 mb-1">Date</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
@@ -52,9 +46,9 @@ function AddExpenseForm({ onAdd, onCancel }: AddFormProps) {
         </div>
         <div>
           <label className="block text-xs text-gray-500 mb-1">Category</label>
-          <select value={category} onChange={e => setCategory(e.target.value as ExpenseCategory)}
+          <select value={category} onChange={e => setCategory(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-            {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div>
@@ -62,13 +56,6 @@ function AddExpenseForm({ onAdd, onCancel }: AddFormProps) {
           <input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
             placeholder="0.00"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-        </div>
-        <div className="flex items-end pb-0.5">
-          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
-            <input type="checkbox" checked={palmeiras} onChange={e => setPalmeiras(e.target.checked)}
-              className="w-4 h-4 rounded" />
-            Palmeiras-related
-          </label>
         </div>
       </div>
       <div>
@@ -91,172 +78,345 @@ function AddExpenseForm({ onAdd, onCancel }: AddFormProps) {
   )
 }
 
+// ── Add category form (module-scope) ─────────────────────────────────────────
+interface AddCatProps { onAdd: (name: string) => void; onCancel: () => void }
+function AddCategoryForm({ onAdd, onCancel }: AddCatProps) {
+  const [name, setName] = useState('')
+  return (
+    <div className="flex items-center gap-2">
+      <input type="text" value={name} onChange={e => setName(e.target.value)}
+        placeholder="Category name…"
+        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-44" />
+      <button onClick={() => { if (name.trim()) { onAdd(name.trim()); } }}
+        className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+        Add
+      </button>
+      <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ExpensesTab({ data, handlers }: Props) {
-  const { expenses } = data
+  const { expenses, seasons } = data
+  const currentSeason = seasons[seasons.length - 1]
 
-  const [showForm,      setShowForm]      = useState(false)
-  const [filterCat,     setFilterCat]     = useState<ExpenseCategory | 'all'>('all')
-  const [filterPalm,    setFilterPalm]    = useState<'all' | 'yes' | 'no'>('all')
-  const [filterMonth,   setFilterMonth]   = useState('')
-  const [search,        setSearch]        = useState('')
+  const [view,        setView]        = useState<View>('list')
+  const [categories,  setCategories]  = useState<string[]>(mockExpenseCategories)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [showAddCat,  setShowAddCat]  = useState(false)
 
-  // ── Filtered list ─────────────────────────────────────────────────────────
-  const filtered = useMemo(() => {
-    return expenses
-      .filter(e => filterCat === 'all'  || e.category === filterCat)
-      .filter(e => filterPalm === 'all' || (filterPalm === 'yes' ? e.palmeiras_related : !e.palmeiras_related))
-      .filter(e => !filterMonth         || e.date.startsWith(filterMonth))
-      .filter(e => !search              || e.description.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => b.date.localeCompare(a.date))
-  }, [expenses, filterCat, filterPalm, filterMonth, search])
+  // List filters
+  const [filterCat,   setFilterCat]   = useState<string>('all')
+  const [filterMonth, setFilterMonth] = useState('')
+  const [search,      setSearch]      = useState('')
 
-  // ── Totals ────────────────────────────────────────────────────────────────
-  const grandTotal = filtered.reduce((s, e) => s + e.amount, 0)
+  // Summary period
+  type SummaryPeriod = 'all' | 'season' | 'custom'
+  const [sumPeriod,   setSumPeriod]   = useState<SummaryPeriod>('season')
+  const [sumFrom,     setSumFrom]     = useState(currentSeason?.start_date.slice(0, 7) ?? '')
+  const [sumTo,       setSumTo]       = useState(currentSeason?.end_date.slice(0, 7) ?? '')
 
-  const byCategory = useMemo(() => {
-    const map: Record<string, number> = {}
-    for (const e of expenses) {
-      map[e.category] = (map[e.category] ?? 0) + e.amount
-    }
-    return map
-  }, [expenses])
-  const grandAll = Object.values(byCategory).reduce((s, v) => s + v, 0) || 1
-
-  const handleAdd = (e: Expense) => {
-    handlers.addExpense(e)
-    setShowForm(false)
+  // Color map for categories
+  const colorOf = (cat: string) => {
+    const idx = categories.indexOf(cat)
+    return PALETTE[(idx >= 0 ? idx : categories.length) % PALETTE.length]
   }
 
-  const catInfo = (id: ExpenseCategory) => CATEGORIES.find(c => c.id === id)!
+  // ── Category management ───────────────────────────────────────────────────
+  const addCategory = (name: string) => {
+    if (!categories.includes(name)) setCategories(prev => [...prev, name])
+    setShowAddCat(false)
+  }
+  const removeCategory = (name: string) => {
+    if (expenses.some(e => e.category === name)) return // used
+    setCategories(prev => prev.filter(c => c !== name))
+  }
+
+  // ── Filtered list ─────────────────────────────────────────────────────────
+  const filtered = useMemo(() => expenses
+    .filter(e => filterCat === 'all' || e.category === filterCat)
+    .filter(e => !filterMonth || e.date.startsWith(filterMonth))
+    .filter(e => !search || e.description.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => b.date.localeCompare(a.date))
+  , [expenses, filterCat, filterMonth, search])
+
+  // ── Summary data ──────────────────────────────────────────────────────────
+  const summaryExpenses = useMemo(() => {
+    if (sumPeriod === 'season' && currentSeason) {
+      const from = currentSeason.start_date.slice(0, 7)
+      const to   = currentSeason.end_date.slice(0, 7)
+      return expenses.filter(e => e.date.slice(0, 7) >= from && e.date.slice(0, 7) <= to)
+    }
+    if (sumPeriod === 'custom' && sumFrom && sumTo) {
+      return expenses.filter(e => e.date.slice(0, 7) >= sumFrom && e.date.slice(0, 7) <= sumTo)
+    }
+    return expenses
+  }, [expenses, sumPeriod, currentSeason, sumFrom, sumTo])
+
+  // months × categories matrix
+  const summaryMatrix = useMemo(() => {
+    const months = [...new Set(summaryExpenses.map(e => e.date.slice(0, 7)))].sort()
+    const cats   = [...new Set(summaryExpenses.map(e => e.category))]
+    // totals[month][cat] = amount
+    const totals: Record<string, Record<string, number>> = {}
+    for (const e of summaryExpenses) {
+      const m = e.date.slice(0, 7)
+      if (!totals[m]) totals[m] = {}
+      totals[m][e.category] = (totals[m][e.category] ?? 0) + e.amount
+    }
+    const monthTotals = months.map(m => Object.values(totals[m] ?? {}).reduce((s, v) => s + v, 0))
+    const catTotals: Record<string, number> = {}
+    for (const c of cats) {
+      catTotals[c] = summaryExpenses.filter(e => e.category === c).reduce((s, e) => s + e.amount, 0)
+    }
+    const grandTotal = summaryExpenses.reduce((s, e) => s + e.amount, 0)
+    return { months, cats, totals, monthTotals, catTotals, grandTotal }
+  }, [summaryExpenses])
+
+  // ── Grand totals for list ─────────────────────────────────────────────────
+  const listTotal = filtered.reduce((s, e) => s + e.amount, 0)
+
+  // ── Totals by category (all time, for breakdown bar) ─────────────────────
+  const allByCat = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const e of expenses) m[e.category] = (m[e.category] ?? 0) + e.amount
+    return m
+  }, [expenses])
+  const allTotal = Object.values(allByCat).reduce((s, v) => s + v, 0) || 1
 
   return (
     <div className="space-y-6">
 
-      {/* Category breakdown */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-base font-semibold text-gray-700 mb-4">Expenses by category (all time)</h2>
-        <div className="space-y-3">
-          {CATEGORIES.map(c => {
-            const val = byCategory[c.id] ?? 0
-            const pct = val / grandAll * 100
+      {/* View toggle */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex gap-1 bg-white rounded-lg border border-gray-200 p-1">
+          {(['list', 'summary'] as View[]).map(v => (
+            <button key={v} onClick={() => setView(v)}
+              className={`px-4 py-1.5 rounded text-sm font-medium transition-colors capitalize ${
+                view === v ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+              }`}>
+              {v === 'list' ? '📋 List' : '📊 Summary'}
+            </button>
+          ))}
+        </div>
+
+        {/* Category manager */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {categories.map(c => {
+            const used = expenses.some(e => e.category === c)
             return (
-              <div key={c.id} className="flex items-center gap-3">
-                <button
-                  onClick={() => setFilterCat(filterCat === c.id ? 'all' : c.id)}
-                  className={`w-28 text-left text-sm px-2 py-0.5 rounded-full font-medium transition-colors ${
-                    filterCat === c.id ? `${c.bg} ${c.color} ring-2 ring-offset-1 ring-current` : 'text-gray-500 hover:bg-gray-100'
-                  }`}>
-                  {c.label}
-                </button>
-                <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
-                  <div className={`h-full ${c.bg} rounded-full transition-all`} style={{ width: `${pct}%` }} />
-                </div>
-                <p className="w-24 text-right text-sm font-semibold text-gray-700">{fmtEur(val)}</p>
-              </div>
+              <span key={c} className="flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium"
+                style={{ backgroundColor: colorOf(c) + '33', color: colorOf(c) }}>
+                {c}
+                {!used && (
+                  <button onClick={() => removeCategory(c)} className="opacity-50 hover:opacity-100 leading-none">×</button>
+                )}
+              </span>
             )
           })}
-          <p className="text-right text-xs text-gray-400 pt-1">
-            Total all time: <strong className="text-gray-600">{fmtEur(grandAll)}</strong>
-          </p>
+          {showAddCat
+            ? <AddCategoryForm onAdd={addCategory} onCancel={() => setShowAddCat(false)} />
+            : <button onClick={() => setShowAddCat(true)}
+                className="text-xs px-2 py-1 border border-dashed border-gray-300 rounded-full text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors">
+                + category
+              </button>
+          }
         </div>
       </div>
 
-      {/* Filters + Add button */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <input
-          type="text" value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search description…"
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-52" />
+      {/* ── LIST VIEW ─────────────────────────────────────────────────────── */}
+      {view === 'list' && (<>
 
-        <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-
-        <select value={filterPalm} onChange={e => setFilterPalm(e.target.value as typeof filterPalm)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-          <option value="all">All (Palmeiras or not)</option>
-          <option value="yes">Palmeiras-related</option>
-          <option value="no">Non-Palmeiras</option>
-        </select>
-
-        {(filterCat !== 'all' || filterPalm !== 'all' || filterMonth || search) && (
-          <button onClick={() => { setFilterCat('all'); setFilterPalm('all'); setFilterMonth(''); setSearch('') }}
-            className="text-xs text-blue-600 hover:underline">
-            Clear filters
-          </button>
-        )}
-
-        <div className="ml-auto">
-          <button onClick={() => setShowForm(v => !v)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-            <span>+</span> Add expense
-          </button>
+        {/* Category breakdown bar */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
+          <p className="text-sm font-semibold text-gray-600">All-time breakdown</p>
+          {Object.entries(allByCat).sort((a, b) => b[1] - a[1]).map(([cat, val]) => (
+            <div key={cat} className="flex items-center gap-3">
+              <button onClick={() => setFilterCat(filterCat === cat ? 'all' : cat)}
+                className={`w-28 text-left text-xs px-2 py-0.5 rounded-full font-semibold truncate transition-all ${
+                  filterCat === cat ? 'ring-2 ring-offset-1' : 'opacity-70 hover:opacity-100'
+                }`}
+                style={{ backgroundColor: colorOf(cat) + '33', color: colorOf(cat),
+                         ...(filterCat === cat ? { ringColor: colorOf(cat) } : {}) }}>
+                {cat}
+              </button>
+              <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${(val / allTotal) * 100}%`, backgroundColor: colorOf(cat) }} />
+              </div>
+              <p className="w-24 text-right text-sm font-semibold text-gray-700">{fmtEur(val)}</p>
+            </div>
+          ))}
         </div>
-      </div>
 
-      {showForm && (
-        <AddExpenseForm onAdd={handleAdd} onCancel={() => setShowForm(false)} />
-      )}
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3 items-center">
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search…"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-48" />
+          <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <option value="all">All categories</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          {(filterCat !== 'all' || filterMonth || search) && (
+            <button onClick={() => { setFilterCat('all'); setFilterMonth(''); setSearch('') }}
+              className="text-xs text-blue-600 hover:underline">Clear</button>
+          )}
+          <div className="ml-auto">
+            <button onClick={() => setShowAddForm(v => !v)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+              + Add expense
+            </button>
+          </div>
+        </div>
 
-      {/* Expense list */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm min-w-[640px]">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600">Date</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600">Category</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600">Description</th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-400">Palmeiras</th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500">Amount</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && (
+        {showAddForm && <AddExpenseForm categories={categories} onAdd={e => { handlers.addExpense(e); setShowAddForm(false) }} onCancel={() => setShowAddForm(false)} />}
+
+        {/* Table */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+          <table className="w-full text-sm min-w-[540px]">
+            <thead className="bg-gray-50 border-b">
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">No expenses match the current filters.</td>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600">Date</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600">Category</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600">Description</th>
+                <th className="px-4 py-3 text-right font-semibold text-red-500">Amount</th>
+                <th className="px-4 py-3" />
               </tr>
-            )}
-            {filtered.map(e => {
-              const cat = catInfo(e.category)
-              return (
+            </thead>
+            <tbody>
+              {filtered.length === 0 && (
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">No expenses match the current filters.</td></tr>
+              )}
+              {filtered.map(e => (
                 <tr key={e.id} className="border-b hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{e.date}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cat.bg} ${cat.color}`}>
-                      {cat.label}
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                      style={{ backgroundColor: colorOf(e.category) + '33', color: colorOf(e.category) }}>
+                      {e.category}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-800">{e.description}</td>
-                  <td className="px-4 py-3 text-center">
-                    {e.palmeiras_related
-                      ? <span className="text-purple-500 text-xs font-medium">🏨 Yes</span>
-                      : <span className="text-gray-300 text-xs">—</span>}
-                  </td>
                   <td className="px-4 py-3 text-right font-semibold text-red-600">− {fmtEur(e.amount)}</td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => handlers.deleteExpense(e.id)}
-                      className="text-gray-300 hover:text-red-500 transition-colors text-lg leading-none">
-                      ×
-                    </button>
+                      className="text-gray-300 hover:text-red-500 transition-colors text-lg leading-none">×</button>
                   </td>
                 </tr>
-              )
-            })}
-          </tbody>
-          {filtered.length > 0 && (
-            <tfoot className="bg-gray-50 border-t">
-              <tr className="font-semibold">
-                <td colSpan={4} className="px-4 py-3 text-gray-600">
-                  {filtered.length} expense{filtered.length !== 1 ? 's' : ''} shown
-                </td>
-                <td className="px-4 py-3 text-right text-red-600">− {fmtEur(grandTotal)}</td>
-                <td />
-              </tr>
-            </tfoot>
+              ))}
+            </tbody>
+            {filtered.length > 0 && (
+              <tfoot className="bg-gray-50 border-t font-semibold">
+                <tr>
+                  <td colSpan={3} className="px-4 py-3 text-gray-600">{filtered.length} expense{filtered.length !== 1 ? 's' : ''}</td>
+                  <td className="px-4 py-3 text-right text-red-600">− {fmtEur(listTotal)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </>)}
+
+      {/* ── SUMMARY VIEW ──────────────────────────────────────────────────── */}
+      {view === 'summary' && (<>
+
+        {/* Period selector */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex gap-1 bg-white rounded-lg border border-gray-200 p-1">
+            {([
+              { id: 'all',    label: 'All time' },
+              { id: 'season', label: `Season ${currentSeason?.label ?? ''}` },
+              { id: 'custom', label: 'Custom' },
+            ] as { id: SummaryPeriod; label: string }[]).map(opt => (
+              <button key={opt.id} onClick={() => setSumPeriod(opt.id)}
+                className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                  sumPeriod === opt.id ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                }`}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          {sumPeriod === 'custom' && (
+            <div className="flex items-center gap-2 text-sm">
+              <input type="month" value={sumFrom} onChange={e => setSumFrom(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <span className="text-gray-400">→</span>
+              <input type="month" value={sumTo} onChange={e => setSumTo(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
           )}
-        </table>
-      </div>
+        </div>
+
+        {/* KPI cards by category */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {summaryMatrix.cats.sort((a, b) => (summaryMatrix.catTotals[b] ?? 0) - (summaryMatrix.catTotals[a] ?? 0)).map(cat => (
+            <div key={cat} className="rounded-xl border p-4"
+              style={{ borderColor: colorOf(cat) + '66', backgroundColor: colorOf(cat) + '11' }}>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: colorOf(cat) }}>{cat}</p>
+              <p className="text-xl font-bold text-gray-800">− {fmtEur(summaryMatrix.catTotals[cat] ?? 0)}</p>
+            </div>
+          ))}
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Total</p>
+            <p className="text-xl font-bold text-red-700">− {fmtEur(summaryMatrix.grandTotal)}</p>
+          </div>
+        </div>
+
+        {/* Month × Category table */}
+        {summaryMatrix.months.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">Month</th>
+                  {summaryMatrix.cats.map(cat => (
+                    <th key={cat} className="px-4 py-3 text-right font-semibold whitespace-nowrap"
+                      style={{ color: colorOf(cat) }}>
+                      {cat}
+                    </th>
+                  ))}
+                  <th className="px-4 py-3 text-right font-semibold text-gray-600">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...summaryMatrix.months].reverse().map((m, mi) => {
+                  const monthTotal = summaryMatrix.monthTotals[summaryMatrix.months.length - 1 - mi]
+                  return (
+                    <tr key={m} className="border-b hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">{fmtMonth(m)}</td>
+                      {summaryMatrix.cats.map(cat => {
+                        const val = summaryMatrix.totals[m]?.[cat] ?? 0
+                        return (
+                          <td key={cat} className="px-4 py-3 text-right text-gray-500">
+                            {val ? `− ${fmtEur(val)}` : '–'}
+                          </td>
+                        )
+                      })}
+                      <td className="px-4 py-3 text-right font-semibold text-red-600">− {fmtEur(monthTotal)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t font-semibold">
+                <tr>
+                  <td className="px-4 py-3 text-gray-600">Total</td>
+                  {summaryMatrix.cats.map(cat => (
+                    <td key={cat} className="px-4 py-3 text-right" style={{ color: colorOf(cat) }}>
+                      − {fmtEur(summaryMatrix.catTotals[cat] ?? 0)}
+                    </td>
+                  ))}
+                  <td className="px-4 py-3 text-right text-red-700">− {fmtEur(summaryMatrix.grandTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </>)}
     </div>
   )
 }

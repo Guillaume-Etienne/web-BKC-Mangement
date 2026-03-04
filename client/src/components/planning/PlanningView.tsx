@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import PlanningRow from './PlanningRow'
 import TotalsRow from './TotalsRow'
 import LessonWeekView from './LessonWeekView'
@@ -68,6 +68,18 @@ export default function PlanningView() {
   }, [seasonStart, seasonEnd])
 
   // ── Month nav ────────────────────────────────────────────────────
+  const currentMonthIdx = useMemo(() => {
+    const m = now.getMonth()
+    const y = now.getFullYear()
+    // Iterate by calendar month to avoid DST millisecond drift
+    const cursor = new Date(seasonStart.getFullYear(), seasonStart.getMonth(), 1)
+    for (let i = 0; i < monthGroups.length; i++) {
+      if (cursor.getMonth() === m && cursor.getFullYear() === y) return i
+      cursor.setMonth(cursor.getMonth() + 1)
+    }
+    return 0
+  }, [monthGroups, seasonStart])
+
   const [navMonthIdx, setNavMonthIdx] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -76,19 +88,6 @@ export default function PlanningView() {
       scrollRef.current.scrollLeft = monthGroups[idx].colStart * CELL_W
     }
   }, [monthGroups])
-
-  // On mount: scroll to current month
-  useEffect(() => {
-    const m = now.getMonth()
-    const y = now.getFullYear()
-    const idx = monthGroups.findIndex(g => {
-      const d = new Date(seasonStart.getTime() + g.colStart * 86400000)
-      return d.getMonth() === m && d.getFullYear() === y
-    })
-    const target = Math.max(0, idx)
-    setNavMonthIdx(target)
-    scrollToMonthIdx(target)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const prevMonth = () => {
     const newIdx = Math.max(0, navMonthIdx - 1)
@@ -99,6 +98,10 @@ export default function PlanningView() {
     const newIdx = Math.min(monthGroups.length - 1, navMonthIdx + 1)
     setNavMonthIdx(newIdx)
     scrollToMonthIdx(newIdx)
+  }
+  const goToNow = () => {
+    setNavMonthIdx(currentMonthIdx)
+    scrollToMonthIdx(currentMonthIdx)
   }
 
   const changeSeason = (delta: number) => {
@@ -201,6 +204,7 @@ export default function PlanningView() {
                 </span>
                 <button onClick={nextMonth} disabled={navMonthIdx === monthGroups.length - 1} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 text-sm">→</button>
               </div>
+              <button onClick={goToNow} className="px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">Now</button>
             </div>
           )}
         </div>

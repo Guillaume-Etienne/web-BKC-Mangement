@@ -206,7 +206,7 @@ export interface TaxiMargin {
 }
 
 // Shared public links
-export type SharedLinkType = 'forecast'
+export type SharedLinkType = 'forecast' | 'taxi'
 
 export interface SharedLink {
   id: string
@@ -352,16 +352,13 @@ export interface LessonRateOverride {
   note: string                  // required — must justify override
 }
 
-// Manual expenses (equipment purchase, repairs, etc.)
-export type ExpenseCategory = 'equipment' | 'maintenance' | 'accommodation' | 'transport' | 'other'
-
+// Manual expenses — category is a free string, managed in UI
 export interface Expense {
   id: string
   date: string
-  category: ExpenseCategory
+  category: string
   amount: number
   description: string
-  palmeiras_related: boolean
 }
 
 // Palmeiras — monthly rent we pay them
@@ -379,5 +376,28 @@ export interface PalmeirasReversal {
   gross_amount: number          // total Palmeiras collected
   percent: number               // % owed to us
   net_amount: number            // calculated: gross × percent / 100
+  notes: string | null
+}
+
+// Free expense or income line for a given month
+export interface PalmeirasEntry {
+  id: string
+  month: string       // YYYY-MM
+  type: 'expense' | 'income'
+  description: string
+  amount: number
+}
+
+// Bungalow we sub-let to a client (we pay Palmeiras cost, client pays sell price)
+export interface PalmeirasSubLet {
+  id: string
+  month: string          // YYYY-MM (derived from check_in, for filtering)
+  bungalow: string       // e.g. "Bungalow 1", "#3"
+  check_in: string       // YYYY-MM-DD
+  check_out: string      // YYYY-MM-DD
+  nights: number
+  cost_per_night: number // what we pay Palmeiras
+  sell_per_night: number // what we charge the client
+  booking_ref: string | null  // optional booking number / name
   notes: string | null
 }
