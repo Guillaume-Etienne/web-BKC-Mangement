@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { TaxiTrip, TaxiDriver } from '../../types/database'
-import { mockTaxiDrivers, mockBookings } from '../../data/mock'
+import { mockBookings } from '../../data/mock'
 
 function guestName(bookingId: string | null): string {
   if (!bookingId) return '—'
@@ -16,10 +16,6 @@ const TRIP_TYPE_LABELS: Record<string, string> = {
   'center-to-town': '🏠 Centre → Ville',
   'town-to-center': '🏢 Ville → Centre',
   'other':          '❓ Autre',
-}
-
-function newId(prefix: string): string {
-  return `${prefix}${Date.now()}${Math.random().toString(36).slice(2, 6)}`
 }
 
 // ── Edit modal — module scope to avoid focus loss on re-render ──────────────
@@ -159,10 +155,12 @@ function EditModal({ trip, drivers, onChange, onSave, onDelete, onClose }: EditM
 interface TaxiListViewProps {
   trips: TaxiTrip[]
   drivers: TaxiDriver[]
-  onTripsChange: (fn: (prev: TaxiTrip[]) => TaxiTrip[]) => void
+  onAddTrip:    (trip: Omit<TaxiTrip, 'id'>) => Promise<TaxiTrip | null>
+  onUpdateTrip: (trip: TaxiTrip) => Promise<void>
+  onDeleteTrip: (id: string) => Promise<void>
 }
 
-export default function TaxiListView({ trips, drivers, onTripsChange }: TaxiListViewProps) {
+export default function TaxiListView({ trips, drivers, onAddTrip, onUpdateTrip, onDeleteTrip }: TaxiListViewProps) {
   const [sortBy, setSortBy]           = useState<'date' | 'driver' | 'type'>('date')
   const [filterDriver, setFilterDriver] = useState<string>('all')
   const [editTrip, setEditTrip]       = useState<TaxiTrip | null>(null)
@@ -179,9 +177,8 @@ export default function TaxiListView({ trips, drivers, onTripsChange }: TaxiList
       return a.type.localeCompare(b.type)
     })
 
-  function addNewTrip() {
-    const t: TaxiTrip = {
-      id: newId('trp'),
+  async function addNewTrip() {
+    const created = await onAddTrip({
       date: new Date().toISOString().slice(0, 10),
       start_time: '10:00',
       type: 'aero-to-center',
@@ -195,29 +192,27 @@ export default function TaxiListView({ trips, drivers, onTripsChange }: TaxiList
       price_cost_to_driver: 35,
       taxi_manager_margin: 5,
       center_margin: 10,
-    }
-    onTripsChange(prev => [...prev, t])
-    setEditTrip(t)
+    })
+    if (created) setEditTrip(created)
   }
 
   function handleEditChange(data: Partial<TaxiTrip>) {
     if (!editTrip) return
     const updated = { ...editTrip, ...data }
-    // Keep center_margin live in the modal display
     updated.center_margin = updated.price_paid_by_client - updated.price_cost_to_driver - updated.taxi_manager_margin
     setEditTrip(updated)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!editTrip) return
-    onTripsChange(prev => prev.map(t => t.id === editTrip.id ? editTrip : t))
+    await onUpdateTrip(editTrip)
     setEditTrip(null)
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!editTrip) return
     if (confirm('Supprimer ce trajet ?')) {
-      onTripsChange(prev => prev.filter(t => t.id !== editTrip.id))
+      await onDeleteTrip(editTrip.id)
       setEditTrip(null)
     }
   }
@@ -271,7 +266,7 @@ export default function TaxiListView({ trips, drivers, onTripsChange }: TaxiList
             className="text-sm border rounded px-3 py-1.5 bg-white">
             <option value="all">Tous</option>
             <option value="unassigned">À assigner</option>
-            {mockTaxiDrivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
         <div className="ml-auto">

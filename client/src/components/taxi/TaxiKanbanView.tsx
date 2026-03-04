@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { TaxiTrip, TaxiDriver } from '../../types/database'
-import { mockClients, mockTaxiDrivers, mockBookings } from '../../data/mock'
+import { mockBookings } from '../../data/mock'
 
 function guestName(bookingId: string | null): string {
   if (!bookingId) return ''
@@ -18,10 +18,6 @@ const TRIP_TYPE_LABELS: Record<string, string> = {
   'other': '❓ Autre',
 }
 
-function newId(prefix: string): string {
-  return `${prefix}${Date.now()}${Math.random().toString(36).slice(2, 6)}`
-}
-
 interface EditFormState {
   trip: TaxiTrip
   data: Partial<TaxiTrip>
@@ -30,10 +26,12 @@ interface EditFormState {
 interface TaxiKanbanViewProps {
   trips: TaxiTrip[]
   drivers: TaxiDriver[]
-  onTripsChange: (fn: (prev: TaxiTrip[]) => TaxiTrip[]) => void
+  onAddTrip:    (trip: Omit<TaxiTrip, 'id'>) => Promise<TaxiTrip | null>
+  onUpdateTrip: (trip: TaxiTrip) => Promise<void>
+  onDeleteTrip: (id: string) => Promise<void>
 }
 
-export default function TaxiKanbanView({ trips, drivers, onTripsChange }: TaxiKanbanViewProps) {
+export default function TaxiKanbanView({ trips, drivers, onAddTrip, onUpdateTrip, onDeleteTrip }: TaxiKanbanViewProps) {
   const [editForm, setEditForm] = useState<EditFormState | null>(null)
   const [draggedTrip, setDraggedTrip] = useState<{ id: string; fromDriverId: string | null } | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
@@ -52,27 +50,27 @@ export default function TaxiKanbanView({ trips, drivers, onTripsChange }: TaxiKa
     setEditForm({ trip, data: { ...trip } })
   }
 
-  function submitEdit(e: React.FormEvent) {
+  async function submitEdit(e: React.FormEvent) {
     e.preventDefault()
     if (!editForm) return
-    onTripsChange(prev => prev.map(t => t.id === editForm.trip.id ? { ...t, ...editForm.data } : t))
+    await onUpdateTrip({ ...editForm.trip, ...editForm.data })
     setEditForm(null)
   }
 
-  function deleteTrip(id: string) {
+  async function deleteTrip(id: string) {
     if (confirm('Supprimer ce trajet ?')) {
-      onTripsChange(prev => prev.filter(t => t.id !== id))
+      await onDeleteTrip(id)
+      if (editForm?.trip.id === id) setEditForm(null)
     }
   }
 
-  function addNewTrip(driverId: string | null) {
-    const newTrip: TaxiTrip = {
-      id: newId('trp'),
+  async function addNewTrip(driverId: string | null) {
+    const created = await onAddTrip({
       date: new Date().toISOString().slice(0, 10),
       start_time: '10:00',
       type: 'aero-to-center',
       taxi_driver_id: driverId === 'unassigned' ? null : driverId,
-      booking_id: mockClients[0]?.id ? `bk1` : null,
+      booking_id: null,
       nb_persons: 1,
       nb_luggage: 0,
       nb_boardbags: 0,
@@ -81,9 +79,8 @@ export default function TaxiKanbanView({ trips, drivers, onTripsChange }: TaxiKa
       price_cost_to_driver: 35,
       taxi_manager_margin: 5,
       center_margin: 10,
-    }
-    onTripsChange(prev => [...prev, newTrip])
-    openEdit(newTrip)
+    })
+    if (created) openEdit(created)
   }
 
   function handleDragStart(trip: TaxiTrip) {
@@ -95,12 +92,11 @@ export default function TaxiKanbanView({ trips, drivers, onTripsChange }: TaxiKa
     setDropTarget(driverId === null ? 'unassigned' : driverId)
   }
 
-  function handleDrop(e: React.DragEvent, driverId: string | null) {
+  async function handleDrop(e: React.DragEvent, driverId: string | null) {
     e.preventDefault()
     if (!draggedTrip) return
-    onTripsChange(prev => prev.map(t =>
-      t.id === draggedTrip.id ? { ...t, taxi_driver_id: driverId } : t
-    ))
+    const trip = trips.find(t => t.id === draggedTrip.id)
+    if (trip) await onUpdateTrip({ ...trip, taxi_driver_id: driverId })
     setDraggedTrip(null)
     setDropTarget(null)
   }
@@ -325,7 +321,7 @@ export default function TaxiKanbanView({ trips, drivers, onTripsChange }: TaxiKa
                     className="w-full text-sm border rounded px-2 py-1.5"
                   >
                     <option value="">Non assigné</option>
-                    {mockTaxiDrivers.map(d => (
+                    {drivers.map(d => (
                       <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
                   </select>

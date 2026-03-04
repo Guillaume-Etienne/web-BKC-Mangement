@@ -3,9 +3,10 @@ import { useState } from 'react'
 interface NavigationProps {
   currentPage: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting'
   onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting') => void
+  onLogout: () => void
 }
 
-export default function Navigation({ currentPage, onNavigate }: NavigationProps) {
+export default function Navigation({ currentPage, onNavigate, onLogout }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const navItems = [
@@ -56,6 +57,15 @@ export default function Navigation({ currentPage, onNavigate }: NavigationProps)
               </button>
             ))}
           </div>
+
+          {/* Logout */}
+          <button
+            onClick={onLogout}
+            className="hidden md:block px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            title="Sign out"
+          >
+            ⏻ Sign out
+          </button>
 
           {/* Mobile menu button */}
           <button

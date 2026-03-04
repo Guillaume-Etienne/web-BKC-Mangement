@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { mockTaxiTrips, mockTaxiDrivers, mockBookings } from '../data/mock'
+import { useTable } from '../hooks/useSupabase'
+import type { TaxiTrip, TaxiDriver } from '../types/database'
+import { mockBookings } from '../data/mock' // TODO: replace when bookings are migrated
 
 const TRIP_TYPE_LABELS: Record<string, string> = {
   'aero-to-center': '✈️ Aéro → Centre',
@@ -27,7 +29,10 @@ export default function TaxiSharePage() {
   const [showPast, setShowPast] = useState(false)
   const [filterDriver, setFilterDriver] = useState<string>('all')
 
-  const filtered = mockTaxiTrips
+  const { data: allTrips,   loading: tripsLoading   } = useTable<TaxiTrip>('taxi_trips',   { order: 'date' })
+  const { data: allDrivers                           } = useTable<TaxiDriver>('taxi_drivers', { order: 'name' })
+
+  const filtered = allTrips
     .filter(t => showPast || t.date >= today)
     .filter(t => filterDriver === 'all' || t.taxi_driver_id === filterDriver)
     .sort((a, b) => `${a.date}${a.start_time}`.localeCompare(`${b.date}${b.start_time}`))
@@ -61,7 +66,7 @@ export default function TaxiSharePage() {
             className="text-sm border rounded-lg px-3 py-2 bg-white shadow-sm"
           >
             <option value="all">Tous les chauffeurs</option>
-            {mockTaxiDrivers.map(d => (
+            {allDrivers.map(d => (
               <option key={d.id} value={d.id}>{d.name}</option>
             ))}
           </select>
@@ -82,7 +87,9 @@ export default function TaxiSharePage() {
         </div>
 
         {/* Trip list by date */}
-        {Object.keys(byDate).length === 0 ? (
+        {tripsLoading ? (
+          <div className="text-center py-16 text-gray-400">Chargement…</div>
+        ) : Object.keys(byDate).length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <p className="text-4xl mb-3">🚕</p>
             <p className="text-lg font-medium">Aucun trajet à venir</p>
@@ -115,7 +122,7 @@ export default function TaxiSharePage() {
               {/* Trip cards */}
               <div className="space-y-2">
                 {trips.map(trip => {
-                  const driver = mockTaxiDrivers.find(d => d.id === trip.taxi_driver_id)
+                  const driver = allDrivers.find(d => d.id === trip.taxi_driver_id)
                   const guest  = guestName(trip.booking_id)
 
                   return (
