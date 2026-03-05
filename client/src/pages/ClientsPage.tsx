@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { mockClients as initialClients, mockBookings as initialBookings } from '../data/mock'
+import { supabase } from '../lib/supabase'
+import { useClients } from '../hooks/useClients'
+import { useBookings } from '../hooks/useBookings'
 import type { Client, Booking } from '../types/database'
 import ImportCSVModal from '../components/clients/ImportCSVModal'
 
@@ -32,8 +34,9 @@ const bookingStatusColor: Record<string, string> = {
 }
 
 export default function ClientsPage({ onNavigate }: ClientsPageProps) {
-  const [clients, setClients] = useState<Client[]>([...initialClients])
-  const [bookings, setBookings] = useState<Booking[]>([...initialBookings])
+  const { data: clients, loading, error, refresh: refreshClients } = useClients()
+  const { data: bookings, refresh: refreshBookings } = useBookings()
+
   const [showImport, setShowImport] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterLevel, setFilterLevel] = useState<'' | 'beginner' | 'intermediate' | 'advanced'>('')
@@ -42,6 +45,8 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
   const [detailTab, setDetailTab] = useState<'info' | 'bookings'>('info')
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState<Partial<Client>>({})
+  const [saving, setSaving] = useState(false)
+  const [mutationError, setMutationError] = useState<string | null>(null)
 
   const nationalities = [...new Set(clients.map(c => c.nationality).filter(Boolean) as string[])].sort()
 
@@ -58,17 +63,62 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
   const getClientBookings = (clientId: string): Booking[] =>
     bookings.filter(b => b.client_id === clientId)
 
-  const handleImport = (newClients: Client[], newBookings: Booking[]) => {
-    setClients(prev => {
-      const updated = [...prev]
-      for (const nc of newClients) {
-        const idx = updated.findIndex(c => c.id === nc.id)
-        if (idx >= 0) updated[idx] = nc
-        else updated.push(nc)
+  const handleImport = async (newClients: Client[], newBookings: Booking[]) => {
+    const existingIds = new Set(clients.map(c => c.id))
+
+    // Split new vs updates (updates have real existing UUIDs)
+    const toInsert = newClients.filter(c => !existingIds.has(c.id))
+    const toUpdate = newClients.filter(c => existingIds.has(c.id))
+
+    // Map local temp ID → supabase UUID (for booking.client_id remapping)
+    const idMap = new Map<string, string>()
+
+    // Insert new clients
+    for (const client of toInsert) {
+      const { id: _localId, ...clientData } = client
+      const { data, error: err } = await supabase
+        .from('clients')
+        .insert(clientData)
+        .select('id')
+        .single()
+      if (err) { alert('Import error (clients): ' + err.message); return }
+      idMap.set(_localId, data.id)
+    }
+
+    // Update existing clients (conflict resolved to 'replace')
+    for (const client of toUpdate) {
+      const { id, ...updates } = client
+      await supabase.from('clients').update(updates).eq('id', id)
+      idMap.set(id, id)
+    }
+
+    // Insert bookings
+    for (const booking of newBookings) {
+      const realClientId = idMap.get(booking.client_id) ?? booking.client_id
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { participants, id: _bookingId, client: _client, ...bookingData } = booking
+
+      const { data: bData, error: bErr } = await supabase
+        .from('bookings')
+        .insert({ ...bookingData, client_id: realClientId })
+        .select('id')
+        .single()
+      if (bErr) { alert('Import error (bookings): ' + bErr.message); return }
+
+      // Insert participants
+      if (participants && participants.length > 0) {
+        const participantData = participants.map(p => ({
+          booking_id: bData.id,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          passport_number: p.passport_number,
+        }))
+        await supabase.from('participants').insert(participantData)
       }
-      return updated
-    })
-    setBookings(prev => [...prev, ...newBookings])
+    }
+
+    refreshClients()
+    refreshBookings()
   }
 
   const openForm = (client?: Client) => {
@@ -89,22 +139,32 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
       })
       setSelectedClient(null)
     }
+    setMutationError(null)
     setShowForm(true)
   }
 
   const closeForm = () => {
     setShowForm(false)
     setFormData({})
+    setMutationError(null)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSaving(true)
+    setMutationError(null)
+
     if (selectedClient) {
-      setClients(prev => prev.map(c => c.id === selectedClient.id ? { ...c, ...formData } : c))
+      // Update
+      const { error: err } = await supabase
+        .from('clients')
+        .update(formData)
+        .eq('id', selectedClient.id)
+      if (err) { setMutationError(err.message); setSaving(false); return }
       setSelectedClient(prev => prev ? { ...prev, ...formData } : null)
     } else {
-      const newClient: Client = {
-        id: `c${Date.now()}`,
+      // Insert
+      const newClient = {
         first_name: formData.first_name || '',
         last_name: formData.last_name || '',
         email: formData.email || null,
@@ -120,22 +180,48 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
         emergency_contact_email: null,
         emergency_contact_relation: null,
       }
-      setClients(prev => [...prev, newClient])
+      const { error: err } = await supabase.from('clients').insert(newClient)
+      if (err) { setMutationError(err.message); setSaving(false); return }
     }
+
+    await refreshClients()
+    setSaving(false)
     closeForm()
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm('Delete this client?')) {
-      setClients(prev => prev.filter(c => c.id !== id))
-      setSelectedClient(null)
-    }
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this client?')) return
+    const { error: err } = await supabase.from('clients').delete().eq('id', id)
+    if (err) { alert('Delete error: ' + err.message); return }
+    setSelectedClient(null)
+    refreshClients()
   }
 
   const hasFilters = !!filterLevel || !!filterNationality
   const clearFilters = () => {
     setFilterLevel('')
     setFilterNationality('')
+  }
+
+  const nextBookingNumber = bookings.reduce((max, b) => Math.max(max, b.booking_number), 0) + 1
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500">Loading clients...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <p className="text-red-700 font-semibold">Error loading clients</p>
+          <p className="text-red-600 text-sm mt-1">{error}</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -425,7 +511,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
           <ImportCSVModal
             existingClients={clients}
             existingBookings={bookings}
-            nextBookingNumber={bookings.reduce((max, b) => Math.max(max, b.booking_number), 0) + 1}
+            nextBookingNumber={nextBookingNumber}
             onImport={handleImport}
             onClose={() => setShowImport(false)}
           />
@@ -501,9 +587,14 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                     <textarea value={formData.notes || ''} onChange={(e) => setFormData({ ...formData, notes: e.target.value || null })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} />
                   </div>
+                  {mutationError && (
+                    <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">{mutationError}</p>
+                  )}
                   <div className="flex gap-3 pt-4 border-t">
                     <button type="button" onClick={closeForm} className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium">Cancel</button>
-                    <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">Save</button>
+                    <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50">
+                      {saving ? 'Saving...' : 'Save'}
+                    </button>
                   </div>
                 </form>
               </div>

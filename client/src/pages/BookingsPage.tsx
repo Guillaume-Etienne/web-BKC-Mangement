@@ -1,8 +1,8 @@
 import { useState } from 'react'
+import { supabase } from '../lib/supabase'
+import { useClients } from '../hooks/useClients'
+import { useBookings, useBookingRooms } from '../hooks/useBookings'
 import {
-  mockBookings as initialBookings,
-  mockClients as initialClients,
-  mockBookingRooms as initialBookingRooms,
   mockRooms,
   mockAccommodations,
 } from '../data/mock'
@@ -130,12 +130,13 @@ function Counter({ value, onChange, min = 0 }: { value: number; onChange: (v: nu
 interface WizardProps {
   initial: WizardData
   clients: Client[]
+  clientsLoading: boolean
   isEditing: boolean
   onCancel: () => void
   onSave: (data: WizardData, isNew: boolean) => void
 }
 
-function BookingWizard({ initial, clients, isEditing, onCancel, onSave }: WizardProps) {
+function BookingWizard({ initial, clients, clientsLoading, isEditing, onCancel, onSave }: WizardProps) {
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(isEditing ? 6 : 1)
   const [d, setD] = useState<WizardData>(initial)
@@ -222,7 +223,11 @@ function BookingWizard({ initial, clients, isEditing, onCancel, onSave }: Wizard
                       onChange={e => setClientSearch(e.target.value)} className={inputCls} />
                   </Field>
                   <div className="space-y-1.5 max-h-52 overflow-y-auto">
-                    {filteredClients.map(c => (
+                    {clientsLoading ? (
+                      <p className="text-sm text-gray-400 italic px-1 py-2">Loading clients…</p>
+                    ) : filteredClients.length === 0 ? (
+                      <p className="text-sm text-gray-400 italic px-1">No client found.</p>
+                    ) : filteredClients.map(c => (
                       <button key={c.id} type="button"
                         onClick={() => update({ client_id: c.id })}
                         className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-colors
@@ -232,9 +237,6 @@ function BookingWizard({ initial, clients, isEditing, onCancel, onSave }: Wizard
                         <div className="text-xs text-gray-400">{c.email ?? c.phone ?? c.nationality ?? '—'}</div>
                       </button>
                     ))}
-                    {filteredClients.length === 0 && (
-                      <p className="text-sm text-gray-400 italic px-1">No client found.</p>
-                    )}
                   </div>
                   <button type="button" onClick={() => { setCreatingClient(true); update({ client_id: '' }) }}
                     className="text-sm text-blue-600 hover:text-blue-800 font-medium">
@@ -640,7 +642,7 @@ function getMissingFields(b: Booking, hasRoom: boolean): MissingField[] {
   if (b.status === 'cancelled') return []
   const missing: MissingField[] = []
   if (!hasRoom) missing.push('room')
-  if (b.participants.length === 0) missing.push('participants')
+  if ((b.participants ?? []).length === 0) missing.push('participants')
   if (!b.arrival_time) missing.push('arrival_time')
   if (!b.visa_entry_date || !b.visa_exit_date) missing.push('visa_dates')
   if ((b.taxi_arrival && !b.arrival_time) || (b.taxi_departure && !b.departure_time)) missing.push('taxi_time')
@@ -676,11 +678,12 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
 export default function BookingsPage() {
-  const [bookings, setBookings] = useState<Booking[]>([...initialBookings])
-  const [clients, setClients] = useState<Client[]>([...initialClients])
-  const [bookingRooms, setBookingRooms] = useState([...initialBookingRooms])
+  const { data: bookings, loading, error, refresh: refreshBookings } = useBookings()
+  const { data: clients, loading: clientsLoading, refresh: refreshClients } = useClients()
+  const { data: bookingRooms, refresh: refreshBookingRooms } = useBookingRooms()
   const [wizard, setWizard] = useState<{ open: boolean; editing: Booking | null }>({ open: false, editing: null })
   const [filter, setFilter] = useState<FilterKey>('all')
+  const [saving, setSaving] = useState(false)
 
   const getClientName = (id: string) => {
     const c = clients.find(c => c.id === id)
@@ -696,42 +699,48 @@ export default function BookingsPage() {
   }
 
   function openNew() { setWizard({ open: true, editing: null }) }
-
   function openEdit(b: Booking) { setWizard({ open: true, editing: b }) }
-
   function closeWizard() { setWizard({ open: false, editing: null }) }
 
-  function handleSave(data: WizardData, isNew: boolean) {
+  async function handleSave(data: WizardData, isNew: boolean) {
+    setSaving(true)
     let clientId = data.client_id
 
-    // Create new client if needed
+    // 1. Create new client if needed
     if (!clientId && data.new_client_first_name) {
-      const newClient: Client = {
-        id: `c${Date.now()}`,
-        first_name: data.new_client_first_name,
-        last_name: data.new_client_last_name,
-        email: data.new_client_email || null,
-        phone: data.new_client_phone || null,
-        notes: null,
-        nationality: data.new_client_nationality || null,
-        passport_number: null,
-        birth_date: null,
-        kite_level: data.new_client_kite_level || null,
-        import_id: null,
-        emergency_contact_name: null,
-        emergency_contact_phone: null,
-        emergency_contact_email: null,
-        emergency_contact_relation: null,
+      const { data: newClientData, error: clientErr } = await supabase
+        .from('clients')
+        .insert({
+          first_name: data.new_client_first_name,
+          last_name: data.new_client_last_name,
+          email: data.new_client_email || null,
+          phone: data.new_client_phone || null,
+          nationality: data.new_client_nationality || null,
+          kite_level: data.new_client_kite_level || null,
+          notes: null, passport_number: null, birth_date: null, import_id: null,
+          emergency_contact_name: null, emergency_contact_phone: null,
+          emergency_contact_email: null, emergency_contact_relation: null,
+        })
+        .select('id')
+        .single()
+      if (clientErr) {
+        console.error('Client insert error:', clientErr)
+        alert('Error creating client: ' + clientErr.message)
+        setSaving(false)
+        return
       }
-      setClients(prev => [...prev, newClient])
-      clientId = newClient.id
+      clientId = newClientData.id
+      refreshClients()
     }
 
-    const nextNumber = isNew ? Math.max(0, ...bookings.map(b => b.booking_number)) + 1 : (wizard.editing?.booking_number ?? 1)
+    if (!clientId) {
+      alert('Please select or create a client.')
+      setSaving(false)
+      return
+    }
 
-    const booking: Booking = {
-      id: isNew ? `bk${Date.now()}` : (wizard.editing?.id ?? `bk${Date.now()}`),
-      booking_number: nextNumber,
+    // 2. Insert or update booking
+    const bookingFields = {
       client_id: clientId,
       check_in: data.check_in,
       check_out: data.check_out,
@@ -750,35 +759,73 @@ export default function BookingsPage() {
       taxi_departure: data.taxi_departure,
       couples_count: data.couples_count,
       children_count: data.children_count,
-      participants: data.participants,
       amount_paid: data.amount_paid,
-      import_id: null,
       emergency_contact_name: null,
       emergency_contact_phone: null,
       emergency_contact_email: null,
     }
 
+    let bookingId: string
     if (isNew) {
-      setBookings(prev => [...prev, booking])
+      // booking_number auto-assigned by DB sequence
+      const { data: saved, error: bookingErr } = await supabase
+        .from('bookings')
+        .insert({ ...bookingFields, import_id: null })
+        .select('id')
+        .single()
+      if (bookingErr) {
+        console.error('Booking insert error:', bookingErr)
+        alert('Error saving booking: ' + bookingErr.message)
+        setSaving(false)
+        return
+      }
+      bookingId = saved.id
     } else {
-      setBookings(prev => prev.map(b => b.id === booking.id ? booking : b))
+      const { data: saved, error: bookingErr } = await supabase
+        .from('bookings')
+        .update({ ...bookingFields, import_id: wizard.editing?.import_id ?? null })
+        .eq('id', wizard.editing!.id)
+        .select('id')
+        .single()
+      if (bookingErr) {
+        console.error('Booking update error:', bookingErr)
+        alert('Error saving booking: ' + bookingErr.message)
+        setSaving(false)
+        return
+      }
+      bookingId = saved.id
+    }
+    // 3. Participants (delete all + re-insert)
+    await supabase.from('participants').delete().eq('booking_id', bookingId)
+    if (data.participants.length > 0) {
+      await supabase.from('participants').insert(
+        data.participants.map(p => ({
+          booking_id: bookingId,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          passport_number: p.passport_number,
+        }))
+      )
     }
 
-    // Update room assignment
-    setBookingRooms(prev => {
-      const filtered = prev.filter(br => br.booking_id !== booking.id)
-      if (data.room_id) return [...filtered, { booking_id: booking.id, room_id: data.room_id }]
-      return filtered
-    })
+    // 4. Booking room (delete + re-insert)
+    await supabase.from('booking_rooms').delete().eq('booking_id', bookingId)
+    if (data.room_id) {
+      await supabase.from('booking_rooms').insert({ booking_id: bookingId, room_id: data.room_id })
+    }
 
+    refreshBookings()
+    refreshBookingRooms()
+    setSaving(false)
     closeWizard()
   }
 
-  function handleDelete(id: string) {
-    if (confirm('Delete this booking?')) {
-      setBookings(prev => prev.filter(b => b.id !== id))
-      setBookingRooms(prev => prev.filter(br => br.booking_id !== id))
-    }
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this booking?')) return
+    const { error: err } = await supabase.from('bookings').delete().eq('id', id)
+    if (err) { alert('Delete error: ' + err.message); return }
+    refreshBookings()
+    refreshBookingRooms()
   }
 
   function bookingToWizard(b: Booking): WizardData {
@@ -790,7 +837,7 @@ export default function BookingsPage() {
       visa_entry_date: b.visa_entry_date ?? '', visa_exit_date: b.visa_exit_date ?? '',
       room_id: br?.room_id ?? '',
       status: b.status,
-      participants: b.participants,
+      participants: b.participants ?? [],
       couples_count: b.couples_count, children_count: b.children_count,
       arrival_time: b.arrival_time ?? '', departure_time: b.departure_time ?? '',
       taxi_arrival: b.taxi_arrival, taxi_departure: b.taxi_departure,
@@ -819,6 +866,25 @@ export default function BookingsPage() {
       default:            return true
     }
   })
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500">Loading bookings...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <p className="text-red-700 font-semibold">Error loading bookings</p>
+          <p className="text-red-600 text-sm mt-1">{error}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -875,7 +941,7 @@ export default function BookingsPage() {
 
                 // Compact info codes
                 const codes = [
-                  b.participants.length > 0 && `${b.participants.length}G`,
+                  (b.participants ?? []).length > 0 && `${(b.participants ?? []).length}G`,
                   nights > 0 && `${nights}n`,
                   b.num_lessons > 0 && `${b.num_lessons}L`,
                   b.num_equipment_rentals > 0 && `${b.num_equipment_rentals}R`,
@@ -960,7 +1026,7 @@ export default function BookingsPage() {
               </div>
               <div className="text-sm text-gray-600 space-y-1 mb-3">
                 <p>📅 {b.check_in} → {b.check_out}</p>
-                <p>👥 {b.participants.length} pax · 📚 {b.num_lessons} lessons
+                <p>👥 {(b.participants ?? []).length} pax · 📚 {b.num_lessons} lessons
                   {(b.taxi_arrival || b.taxi_departure) && ` · 🚕`}
                 </p>
               </div>
@@ -980,10 +1046,20 @@ export default function BookingsPage() {
         <BookingWizard
           initial={wizard.editing ? bookingToWizard(wizard.editing) : EMPTY_WIZARD}
           clients={clients}
+          clientsLoading={clientsLoading}
           isEditing={!!wizard.editing}
           onCancel={closeWizard}
           onSave={handleSave}
         />
+      )}
+
+      {/* Saving overlay */}
+      {saving && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg px-8 py-5 shadow-xl">
+            <p className="text-gray-700 font-medium">Saving...</p>
+          </div>
+        </div>
       )}
     </div>
   )

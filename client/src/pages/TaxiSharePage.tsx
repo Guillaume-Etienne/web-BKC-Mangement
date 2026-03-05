@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useTable } from '../hooks/useSupabase'
-import type { TaxiTrip, TaxiDriver } from '../types/database'
-import { mockBookings } from '../data/mock' // TODO: replace when bookings are migrated
+import type { TaxiTrip, TaxiDriver, Booking, Client } from '../types/database'
 
 const TRIP_TYPE_LABELS: Record<string, string> = {
   'aero-to-center': '✈️ Aéro → Centre',
@@ -11,12 +10,6 @@ const TRIP_TYPE_LABELS: Record<string, string> = {
   'center-to-town': '🏠 Centre → Ville',
   'town-to-center': '🏢 Ville → Centre',
   'other':          '❓ Autre',
-}
-
-function guestName(bookingId: string | null): string {
-  if (!bookingId) return ''
-  const b = mockBookings.find(b => b.id === bookingId)
-  return b?.client ? `${b.client.first_name} ${b.client.last_name}` : ''
 }
 
 function fmtDate(iso: string): string {
@@ -31,6 +24,13 @@ export default function TaxiSharePage() {
 
   const { data: allTrips,   loading: tripsLoading   } = useTable<TaxiTrip>('taxi_trips',   { order: 'date' })
   const { data: allDrivers                           } = useTable<TaxiDriver>('taxi_drivers', { order: 'name' })
+  const { data: allBookings                          } = useTable<Booking & { client: Client | null }>('bookings', { select: 'id, client_id, client:clients(first_name, last_name)' })
+
+  function guestName(bookingId: string | null): string {
+    if (!bookingId) return ''
+    const b = allBookings.find(b => b.id === bookingId)
+    return b?.client ? `${b.client.first_name} ${b.client.last_name}` : ''
+  }
 
   const filtered = allTrips
     .filter(t => showPast || t.date >= today)
