@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { mockInstructors as initialInstructors, mockLessons, mockPriceItems as initialPriceItems, mockSharedLinks as initialSharedLinks } from '../data/mock'
-import type { Instructor, PriceItem, PriceCategory, SharedLink, SharedLinkType } from '../types/database'
+import { mockInstructors as initialInstructors, mockLessons, mockPriceItems as initialPriceItems, mockSharedLinks as initialSharedLinks, mockTaxiPricingDefaults } from '../data/mock'
+import type { Instructor, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults } from '../types/database'
 
 const specialtyOptions = ['Beginner', 'Intermediate', 'Advanced', 'Wave', 'Freestyle']
 const specialtyValues = ['beginner', 'intermediate', 'advanced', 'wave', 'freestyle']
@@ -41,6 +41,11 @@ export default function ManagementPage() {
   const [showPriceForm, setShowPriceForm] = useState(false)
   const [priceFormData, setPriceFormData] = useState<Partial<PriceItem>>({})
   const [selectedPriceCategory, setSelectedPriceCategory] = useState<PriceCategory>('lesson')
+
+  // Taxi pricing defaults
+  const [taxiPricingDefaults, setTaxiPricingDefaults] = useState<TaxiPricingDefaults>({ ...mockTaxiPricingDefaults })
+  const [taxiPricingForm, setTaxiPricingForm] = useState<TaxiPricingDefaults>({ ...mockTaxiPricingDefaults })
+  const [taxiPricingEditing, setTaxiPricingEditing] = useState(false)
 
   // Shared links
   const [sharedLinks, setSharedLinks] = useState<SharedLink[]>([...initialSharedLinks])
@@ -345,7 +350,8 @@ export default function ManagementPage() {
         {/* ── Pricing Tab ───────────────────────────────────────────────────── */}
         {tab === 'pricing' && (
           <div className="space-y-8">
-            {(['lesson', 'activity', 'rental', 'taxi'] as const).map((category) => {
+            {/* Generic categories: lesson, activity, rental */}
+            {(['lesson', 'activity', 'rental'] as const).map((category) => {
               const categoryPrices = priceItems.filter(p => p.category === category)
               return (
                 <div key={category}>
@@ -390,6 +396,90 @@ export default function ManagementPage() {
                 </div>
               )
             })}
+
+            {/* Taxi Pricing Defaults */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-800">🚕 Taxi Pricing Defaults</h2>
+                {!taxiPricingEditing && (
+                  <button onClick={() => { setTaxiPricingForm({ ...taxiPricingDefaults }); setTaxiPricingEditing(true) }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors text-sm">
+                    ✏️ Edit
+                  </button>
+                )}
+              </div>
+              <div className="bg-white rounded-lg shadow p-6">
+                {taxiPricingEditing ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Client price (MZN)</label>
+                        <input type="number" min="0" value={taxiPricingForm.price_client_mzn}
+                          onChange={e => setTaxiPricingForm(f => ({ ...f, price_client_mzn: parseInt(e.target.value) || 0 }))}
+                          className="w-full text-sm border rounded px-2 py-1.5 font-semibold text-blue-900" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Manager margin (MZN)</label>
+                        <input type="number" min="0" value={taxiPricingForm.margin_manager_mzn}
+                          onChange={e => setTaxiPricingForm(f => ({ ...f, margin_manager_mzn: parseInt(e.target.value) || 0 }))}
+                          className="w-full text-sm border rounded px-2 py-1.5 font-semibold text-purple-900" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Centre margin (MZN)</label>
+                        <input type="number" min="0" value={taxiPricingForm.margin_centre_mzn}
+                          onChange={e => setTaxiPricingForm(f => ({ ...f, margin_centre_mzn: parseInt(e.target.value) || 0 }))}
+                          className="w-full text-sm border rounded px-2 py-1.5 font-semibold text-green-900" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">EUR/MZN rate</label>
+                        <input type="number" min="1" step="0.01" value={taxiPricingForm.eur_mzn_rate}
+                          onChange={e => setTaxiPricingForm(f => ({ ...f, eur_mzn_rate: parseFloat(e.target.value) || 65 }))}
+                          className="w-full text-sm border rounded px-2 py-1.5" />
+                      </div>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm">
+                      <span className="font-medium text-amber-900">Driver receives: </span>
+                      <span className="font-bold text-amber-900">
+                        {taxiPricingForm.price_client_mzn - taxiPricingForm.margin_manager_mzn - taxiPricingForm.margin_centre_mzn} MZN
+                      </span>
+                      <span className="text-amber-700 ml-3">
+                        ≈ {Math.round((taxiPricingForm.price_client_mzn - taxiPricingForm.margin_manager_mzn - taxiPricingForm.margin_centre_mzn) / taxiPricingForm.eur_mzn_rate)}€
+                      </span>
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <button onClick={() => setTaxiPricingEditing(false)}
+                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium text-sm">Cancel</button>
+                      <button onClick={() => { setTaxiPricingDefaults({ ...taxiPricingForm, updated_at: new Date().toISOString() }); setTaxiPricingEditing(false) }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm">Save</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-blue-50 rounded p-3">
+                      <p className="text-xs text-blue-600 font-medium">Client price</p>
+                      <p className="text-xl font-bold text-blue-900">{taxiPricingDefaults.price_client_mzn.toLocaleString()} MZN</p>
+                      <p className="text-xs text-blue-600">≈ {Math.round(taxiPricingDefaults.price_client_mzn / taxiPricingDefaults.eur_mzn_rate)}€</p>
+                    </div>
+                    <div className="bg-purple-50 rounded p-3">
+                      <p className="text-xs text-purple-600 font-medium">Manager margin</p>
+                      <p className="text-xl font-bold text-purple-900">{taxiPricingDefaults.margin_manager_mzn.toLocaleString()} MZN</p>
+                    </div>
+                    <div className="bg-green-50 rounded p-3">
+                      <p className="text-xs text-green-600 font-medium">Centre margin</p>
+                      <p className="text-xl font-bold text-green-900">{taxiPricingDefaults.margin_centre_mzn.toLocaleString()} MZN</p>
+                    </div>
+                    <div className="bg-amber-50 rounded p-3">
+                      <p className="text-xs text-amber-600 font-medium">Driver receives</p>
+                      <p className="text-xl font-bold text-amber-900">{(taxiPricingDefaults.price_client_mzn - taxiPricingDefaults.margin_manager_mzn - taxiPricingDefaults.margin_centre_mzn).toLocaleString()} MZN</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-3 col-span-2 md:col-span-4">
+                      <p className="text-xs text-gray-600 font-medium">EUR/MZN exchange rate</p>
+                      <p className="text-lg font-bold text-gray-900">1 € = {taxiPricingDefaults.eur_mzn_rate} MZN</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

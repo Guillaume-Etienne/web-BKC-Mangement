@@ -259,7 +259,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                 {bkTaxis.map(t => (
                   <div key={t.id} className="flex justify-between text-xs text-gray-500">
                     <span>{t.date} · {t.type} · {t.nb_persons}p</span>
-                    <span>{fmtEur(t.price_paid_by_client)}</span>
+                    <span>{fmtEur(t.price_eur)}</span>
                   </div>
                 ))}
               </div>

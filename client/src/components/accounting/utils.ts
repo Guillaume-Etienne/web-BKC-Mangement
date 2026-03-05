@@ -66,7 +66,7 @@ export function computeRentalsRevenue(booking: Booking, data: SharedAccountingDa
 export function computeTaxiRevenue(booking: Booking, data: SharedAccountingData): number {
   return data.taxiTrips
     .filter(t => t.booking_id === booking.id)
-    .reduce((sum, t) => sum + t.price_paid_by_client, 0)
+    .reduce((sum, t) => sum + t.price_eur, 0)
 }
 
 /** Full computed total for a booking */

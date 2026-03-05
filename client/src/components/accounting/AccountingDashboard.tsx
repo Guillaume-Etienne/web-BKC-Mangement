@@ -55,7 +55,7 @@ export default function AccountingDashboard({ data }: Props) {
   }, 0)
 
   // ── Taxi net (centre margin only) ──────────────────────────────────────
-  const taxiNetMargin = taxiTrips.reduce((s, t) => s + t.center_margin, 0)
+  const taxiNetMargin = taxiTrips.reduce((s, t) => s + Math.round(t.margin_centre_mzn / t.exchange_rate), 0)
 
   // ── Expenses ───────────────────────────────────────────────────────────
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0)

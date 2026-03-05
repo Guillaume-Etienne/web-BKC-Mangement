@@ -165,7 +165,8 @@ export interface PriceItem {
 }
 
 // Taxis
-export type TaxiTripType = 'aero-to-center' | 'center-to-aero' | 'aero-to-spot' | 'spot-to-aero' | 'center-to-town' | 'town-to-center' | 'other'
+export type TaxiTripType   = 'aero-to-center' | 'center-to-aero' | 'aero-to-spot' | 'spot-to-aero' | 'center-to-town' | 'town-to-center' | 'other'
+export type TaxiTripStatus = 'confirmed' | 'needs_details' | 'done'
 
 export interface TaxiDriver {
   id: string
@@ -182,27 +183,29 @@ export interface TaxiTrip {
   date: string // ISO date
   start_time: string // HH:MM
   type: TaxiTripType
+  status: TaxiTripStatus
   taxi_driver_id: string | null // null si non assigné
   booking_id: string | null
   nb_persons: number
   nb_luggage: number
   nb_boardbags: number
   notes: string | null
-  // Financial
-  price_paid_by_client: number
-  price_cost_to_driver: number // ce qu'on paie au driver
-  taxi_manager_margin: number // marge du responsable taxis
-  center_margin: number // notre marge centre (calculée: client - driver - manager)
+  // Financial (all MZN integers except price_eur)
+  price_client_mzn: number    // what client pays
+  margin_manager_mzn: number  // intermediate manager cut
+  margin_centre_mzn: number   // our centre margin
+  price_driver_mzn: number    // what driver gets = client - manager - centre
+  price_eur: number           // price_client_mzn / exchange_rate (frozen at transaction)
+  exchange_rate: number       // EUR/MZN rate at time of transaction
 }
 
-export interface TaxiMargin {
+export interface TaxiPricingDefaults {
   id: string
-  trip_id: string
-  driver_id: string
-  client_price: number
-  driver_cost: number
-  center_margin: number
-  driver_margin: number
+  price_client_mzn: number    // default 8000
+  margin_manager_mzn: number  // default 1000
+  margin_centre_mzn: number   // default 1000
+  eur_mzn_rate: number        // default 65
+  updated_at: string
 }
 
 // Shared public links

@@ -3,10 +3,11 @@ import TaxiKanbanView from '../components/taxi/TaxiKanbanView'
 import TaxiListView from '../components/taxi/TaxiListView'
 import { useTaxiDrivers, useTaxiTrips } from '../hooks/useTaxis'
 import { supabase } from '../lib/supabase'
-import type { TaxiDriver, TaxiTrip } from '../types/database'
+import { mockTaxiPricingDefaults } from '../data/mock'
+import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults } from '../types/database'
 
 export default function TaxiPage() {
-  const { data: trips,   loading: tripsLoading,   error: tripsError,   refresh: refreshTrips   } = useTaxiTrips()
+  const { data: trips, loading: tripsLoading, error: tripsError, schemaOutdated, refresh: refreshTrips } = useTaxiTrips()
   const { data: drivers, loading: driversLoading, error: driversError, refresh: refreshDrivers } = useTaxiDrivers()
 
   const [tab, setTab]               = useState<'planning' | 'drivers'>('planning')
@@ -15,6 +16,11 @@ export default function TaxiPage() {
   const [showDriverForm, setShowDriverForm] = useState(false)
   const [driverFormData, setDriverFormData] = useState<Partial<TaxiDriver>>({})
   const [saving, setSaving] = useState(false)
+  const [pricingDefaults, setPricingDefaults] = useState<TaxiPricingDefaults>(mockTaxiPricingDefaults)
+
+  function updateExchangeRate(rate: number) {
+    setPricingDefaults(d => ({ ...d, eur_mzn_rate: rate, updated_at: new Date().toISOString() }))
+  }
 
   // ── Trip handlers ─────────────────────────────────────────────────────────
 
@@ -101,6 +107,21 @@ export default function TaxiPage() {
           </div>
         )}
 
+        {schemaOutdated && (
+          <div className="mt-4 bg-amber-50 border border-amber-400 text-amber-900 rounded-lg px-4 py-3 text-sm space-y-2">
+            <p className="font-bold">⚠️ Migration base de données requise</p>
+            <p>
+              La base Supabase utilise encore l'<strong>ancien schéma taxi</strong> (colonnes EUR).
+              Les données sont affichées en mode lecture dégradée — les montants sont mappés depuis
+              les anciennes colonnes mais les <strong>modifications et ajouts sont désactivés</strong> jusqu'à migration.
+            </p>
+            <p>
+              Exécute le script de migration dans le <strong>SQL Editor</strong> de ton dashboard Supabase
+              (voir le commentaire dans <code className="bg-amber-100 px-1 rounded">supabase/schema.sql</code> ou le message de chat précédent).
+            </p>
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="flex gap-4 mt-8 mb-8 border-b">
           {(['planning', 'drivers'] as const).map(t => (
@@ -129,9 +150,21 @@ export default function TaxiPage() {
             {loading ? (
               <div className="text-center py-16 text-gray-400">Chargement…</div>
             ) : planningView === 'list' ? (
-              <TaxiListView trips={trips} drivers={drivers} onAddTrip={addTrip} onUpdateTrip={updateTrip} onDeleteTrip={deleteTrip} />
+              <TaxiListView
+                trips={trips} drivers={drivers} pricingDefaults={pricingDefaults}
+                onAddTrip={schemaOutdated ? async () => { alert('Migration DB requise avant de pouvoir ajouter/modifier des trajets.'); return null } : addTrip}
+                onUpdateTrip={schemaOutdated ? async () => { alert('Migration DB requise avant de pouvoir modifier des trajets.') } : updateTrip}
+                onDeleteTrip={deleteTrip}
+                onUpdateRate={updateExchangeRate}
+              />
             ) : (
-              <TaxiKanbanView trips={trips} drivers={drivers} onAddTrip={addTrip} onUpdateTrip={updateTrip} onDeleteTrip={deleteTrip} />
+              <TaxiKanbanView
+                trips={trips} drivers={drivers} pricingDefaults={pricingDefaults}
+                onAddTrip={schemaOutdated ? async () => { alert('Migration DB requise avant de pouvoir ajouter/modifier des trajets.'); return null } : addTrip}
+                onUpdateTrip={schemaOutdated ? async () => { alert('Migration DB requise avant de pouvoir modifier des trajets.') } : updateTrip}
+                onDeleteTrip={deleteTrip}
+                onUpdateRate={updateExchangeRate}
+              />
             )}
           </>
         )}

@@ -8,7 +8,8 @@
       "Bash(cd /c/gui/web/2026/Claude-Code-Projet/client && node -e \"\nconst { createClient } = require\\('@supabase/supabase-js'\\)\nconst sb = createClient\\(\n  'https://oslsbansxaajcpwhivmx.supabase.co',\n  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zbHNiYW5zeGFhamNwd2hpdm14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDkyMDcsImV4cCI6MjA4ODIyNTIwN30.TAmrKLCrO6HSxDzIxeh_1bDSJk7lCXDtjeHGx4ho1_Q'\n\\)\nsb.from\\('accommodations'\\).select\\('count'\\).then\\(r => console.log\\(r.error ? 'ERREUR: ' + r.error.message : 'OK — ' + JSON.stringify\\(r.data\\)\\)\\)\n\" 2>&1)",
       "Bash(cat:*)",
       "Bash(grep:*)",
-      "Bash(cd /c/gui/web/2026/Claude-Code-Projet/client && npm run build 2>&1)"
+      "Bash(cd /c/gui/web/2026/Claude-Code-Projet/client && npm run build 2>&1)",
+      "WebFetch(domain:api.frankfurter.app)"
     ]
   }
 }

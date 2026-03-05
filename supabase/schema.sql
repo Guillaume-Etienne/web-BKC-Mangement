@@ -11,6 +11,7 @@ CREATE TYPE lesson_type                 AS ENUM ('private', 'group', 'supervisio
 CREATE TYPE day_slot                    AS ENUM ('morning', 'afternoon', 'evening');
 CREATE TYPE price_category              AS ENUM ('lesson', 'activity', 'rental', 'taxi');
 CREATE TYPE taxi_trip_type              AS ENUM ('aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other');
+CREATE TYPE taxi_trip_status            AS ENUM ('confirmed', 'needs_details', 'done');
 CREATE TYPE shared_link_type            AS ENUM ('forecast', 'taxi');
 CREATE TYPE equipment_category          AS ENUM ('kite', 'board', 'surfboard', 'foilboard');
 CREATE TYPE equipment_condition         AS ENUM ('new', 'good', 'fair', 'damaged', 'retired');
@@ -270,17 +271,29 @@ CREATE TABLE taxi_trips (
   date                    DATE NOT NULL,
   start_time              TEXT NOT NULL,  -- HH:MM
   type                    taxi_trip_type NOT NULL,
+  status                  taxi_trip_status NOT NULL DEFAULT 'confirmed',
   taxi_driver_id          UUID REFERENCES taxi_drivers(id) ON DELETE SET NULL,
   booking_id              UUID REFERENCES bookings(id) ON DELETE SET NULL,
   nb_persons              INTEGER NOT NULL DEFAULT 1,
   nb_luggage              INTEGER NOT NULL DEFAULT 0,
   nb_boardbags            INTEGER NOT NULL DEFAULT 0,
   notes                   TEXT,
-  price_paid_by_client    NUMERIC(8,2) NOT NULL DEFAULT 0,
-  price_cost_to_driver    NUMERIC(8,2) NOT NULL DEFAULT 0,
-  taxi_manager_margin     NUMERIC(8,2) NOT NULL DEFAULT 0,
-  center_margin           NUMERIC(8,2) NOT NULL DEFAULT 0,
+  price_client_mzn        INTEGER NOT NULL DEFAULT 8000,
+  margin_manager_mzn      INTEGER NOT NULL DEFAULT 1000,
+  margin_centre_mzn       INTEGER NOT NULL DEFAULT 1000,
+  price_driver_mzn        INTEGER NOT NULL DEFAULT 6000,
+  price_eur               NUMERIC(10,2) NOT NULL DEFAULT 0,
+  exchange_rate           NUMERIC(10,4) NOT NULL DEFAULT 65.0,
   created_at              TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE taxi_pricing_defaults (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  price_client_mzn    INTEGER NOT NULL DEFAULT 8000,
+  margin_manager_mzn  INTEGER NOT NULL DEFAULT 1000,
+  margin_centre_mzn   INTEGER NOT NULL DEFAULT 1000,
+  eur_mzn_rate        NUMERIC(10,4) NOT NULL DEFAULT 65.0,
+  updated_at          TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE INDEX idx_taxi_trips_date    ON taxi_trips(date);
