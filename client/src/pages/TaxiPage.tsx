@@ -1,11 +1,21 @@
 import { useState, useEffect } from 'react'
 import TaxiKanbanView from '../components/taxi/TaxiKanbanView'
 import TaxiListView from '../components/taxi/TaxiListView'
+import TaxiFinanceTab from '../components/taxi/TaxiFinanceTab'
 import { useTaxiDrivers, useTaxiTrips } from '../hooks/useTaxis'
 import { useTable } from '../hooks/useSupabase'
 import { supabase } from '../lib/supabase'
 
-import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults, BookingRef } from '../types/database'
+import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults, TaxiManagerPayment, BookingRef } from '../types/database'
+
+const FALLBACK_PRICING: TaxiPricingDefaults = {
+  id: '',
+  price_client_mzn:   8000,
+  margin_manager_mzn: 1000,
+  margin_centre_mzn:  1000,
+  eur_mzn_rate:       65,
+  updated_at:         new Date().toISOString(),
+}
 
 export default function TaxiPage() {
   const { data: trips, loading: tripsLoading, error: tripsError, schemaOutdated, refresh: refreshTrips } = useTaxiTrips()
@@ -16,14 +26,19 @@ export default function TaxiPage() {
     ascending: false,
   })
 
-  const [tab, setTab]               = useState<'planning' | 'drivers'>('planning')
+  const { data: paymentsData } = useTable<TaxiManagerPayment>('taxi_manager_payments', { order: 'date', ascending: false })
+  const [payments, setPayments] = useState<TaxiManagerPayment[]>([])
+
+  useEffect(() => { setPayments(paymentsData) }, [paymentsData])
+
+  const [tab, setTab]               = useState<'planning' | 'finance' | 'drivers'>('planning')
   const [planningView, setPlanningView] = useState<'kanban' | 'list'>('list')
   const [selectedDriver, setSelectedDriver] = useState<TaxiDriver | null>(null)
   const [showDriverForm, setShowDriverForm] = useState(false)
   const [driverFormData, setDriverFormData] = useState<Partial<TaxiDriver>>({})
   const [saving, setSaving] = useState(false)
   const { data: pricingDefaultsData } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults')
-  const [pricingDefaults, setPricingDefaults] = useState<TaxiPricingDefaults | null>(null)
+  const [pricingDefaults, setPricingDefaults] = useState<TaxiPricingDefaults>(FALLBACK_PRICING)
 
   useEffect(() => {
     if (pricingDefaultsData.length > 0) setPricingDefaults(pricingDefaultsData[0])
@@ -41,23 +56,39 @@ export default function TaxiPage() {
   // ── Trip handlers ─────────────────────────────────────────────────────────
 
   async function addTrip(trip: Omit<TaxiTrip, 'id'>): Promise<TaxiTrip | null> {
-    const { data, error } = await supabase.from('taxi_trips').insert([trip]).select().single()
-    if (error) { alert('Erreur : ' + error.message); return null }
+    const { data, error } = await supabase.from('taxi_trips').insert([trip]).select('id').single()
+    if (error) { alert('Error: ' + error.message); return null }
+    if (!data?.id) return null
     refreshTrips()
-    return data as TaxiTrip
+    return { ...trip, id: data.id }
   }
 
   async function updateTrip(trip: TaxiTrip): Promise<void> {
     const { id, ...fields } = trip
     const { error } = await supabase.from('taxi_trips').update(fields).eq('id', id)
-    if (error) { alert('Erreur : ' + error.message); return }
+    if (error) { alert('Error: ' + error.message); return }
     refreshTrips()
   }
 
   async function deleteTrip(id: string): Promise<void> {
     const { error } = await supabase.from('taxi_trips').delete().eq('id', id)
-    if (error) { alert('Erreur : ' + error.message); return }
+    if (error) { alert('Error: ' + error.message); return }
     refreshTrips()
+  }
+
+  // ── Manager payment handlers ──────────────────────────────────────────────
+
+  async function addManagerPayment(p: Omit<TaxiManagerPayment, 'id'>): Promise<void> {
+    const { data, error } = await supabase.from('taxi_manager_payments').insert([p]).select('id').single()
+    if (error) { alert('Error: ' + error.message); return }
+    if (!data?.id) return
+    setPayments(prev => [{ ...p, id: data.id }, ...prev])
+  }
+
+  async function deleteManagerPayment(id: string): Promise<void> {
+    const { error } = await supabase.from('taxi_manager_payments').delete().eq('id', id)
+    if (error) { alert('Error: ' + error.message); return }
+    setPayments(prev => prev.filter(p => p.id !== id))
   }
 
   // ── Driver handlers ───────────────────────────────────────────────────────
@@ -79,7 +110,7 @@ export default function TaxiPage() {
     if (selectedDriver) {
       const { id, ...fields } = { ...selectedDriver, ...driverFormData }
       const { error } = await supabase.from('taxi_drivers').update(fields).eq('id', id)
-      if (error) alert('Erreur : ' + error.message)
+      if (error) alert('Error: ' + error.message)
     } else {
       const { error } = await supabase.from('taxi_drivers').insert([{
         name:           driverFormData.name ?? '',
@@ -89,7 +120,7 @@ export default function TaxiPage() {
         notes:          driverFormData.notes ?? null,
         margin_percent: driverFormData.margin_percent ?? 30,
       }])
-      if (error) alert('Erreur : ' + error.message)
+      if (error) alert('Error: ' + error.message)
     }
     setSaving(false)
     refreshDrivers()
@@ -97,9 +128,9 @@ export default function TaxiPage() {
   }
 
   async function deleteDriver(id: string) {
-    if (!confirm('Supprimer ce chauffeur ?')) return
+    if (!confirm('Delete this driver?')) return
     const { error } = await supabase.from('taxi_drivers').delete().eq('id', id)
-    if (error) { alert('Erreur : ' + error.message); return }
+    if (error) { alert('Error: ' + error.message); return }
     setSelectedDriver(null)
     refreshDrivers()
   }
@@ -113,37 +144,37 @@ export default function TaxiPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-full mx-auto px-4 py-8">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800">🚕 Gestion des Taxis</h1>
-          <p className="text-gray-600 mt-2">Planifiez les trajets et gérez les chauffeurs</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-800">🚕 Taxi Management</h1>
+          <p className="text-gray-600 mt-2">Plan trips and manage drivers</p>
         </div>
 
         {error && (
           <div className="mt-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
-            Erreur de chargement : {error}
+            Loading error: {error}
           </div>
         )}
 
         {schemaOutdated && (
           <div className="mt-4 bg-amber-50 border border-amber-400 text-amber-900 rounded-lg px-4 py-3 text-sm space-y-2">
-            <p className="font-bold">⚠️ Migration base de données requise</p>
+            <p className="font-bold">⚠️ Database migration required</p>
             <p>
-              La base Supabase utilise encore l'<strong>ancien schéma taxi</strong> (colonnes EUR).
-              Les données sont affichées en mode lecture dégradée — les montants sont mappés depuis
-              les anciennes colonnes mais les <strong>modifications et ajouts sont désactivés</strong> jusqu'à migration.
+              The Supabase database still uses the <strong>old taxi schema</strong> (EUR columns).
+              Data is displayed in degraded read mode — amounts are mapped from old columns but
+              <strong> edits and additions are disabled</strong> until migration.
             </p>
             <p>
-              Exécute le script de migration dans le <strong>SQL Editor</strong> de ton dashboard Supabase
-              (voir le commentaire dans <code className="bg-amber-100 px-1 rounded">supabase/schema.sql</code> ou le message de chat précédent).
+              Run the migration script in the <strong>SQL Editor</strong> of your Supabase dashboard
+              (see comment in <code className="bg-amber-100 px-1 rounded">supabase/schema.sql</code>).
             </p>
           </div>
         )}
 
         {/* Tabs */}
         <div className="flex gap-4 mt-8 mb-8 border-b">
-          {(['planning', 'drivers'] as const).map(t => (
+          {(['planning', 'finance', 'drivers'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 font-medium transition-colors ${tab === t ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}>
-              {t === 'planning' ? '📅 Planning Trajets' : '👤 Chauffeurs'}
+              {t === 'planning' ? '📅 Trip Planning' : t === 'finance' ? '💰 Finance' : '👤 Drivers'}
             </button>
           ))}
         </div>
@@ -152,7 +183,7 @@ export default function TaxiPage() {
         {tab === 'planning' && (
           <>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-800">Trajets Taxis</h2>
+              <h2 className="text-lg font-semibold text-gray-800">Taxi Trips</h2>
               <div className="flex gap-2 bg-gray-200 rounded-lg p-1">
                 {(['list', 'kanban'] as const).map(v => (
                   <button key={v} onClick={() => setPlanningView(v)}
@@ -163,21 +194,21 @@ export default function TaxiPage() {
               </div>
             </div>
 
-            {loading || !pricingDefaults ? (
-              <div className="text-center py-16 text-gray-400">Chargement…</div>
+            {loading && trips.length === 0 ? (
+              <div className="text-center py-16 text-gray-400">Loading…</div>
             ) : planningView === 'list' ? (
               <TaxiListView
                 trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings}
-                onAddTrip={schemaOutdated ? async () => { alert('Migration DB requise avant de pouvoir ajouter/modifier des trajets.'); return null } : addTrip}
-                onUpdateTrip={schemaOutdated ? async () => { alert('Migration DB requise avant de pouvoir modifier des trajets.') } : updateTrip}
+                onAddTrip={schemaOutdated ? async () => { alert('Database migration required before adding/editing trips.'); return null } : addTrip}
+                onUpdateTrip={schemaOutdated ? async () => { alert('Database migration required before editing trips.') } : updateTrip}
                 onDeleteTrip={deleteTrip}
                 onUpdateRate={updateExchangeRate}
               />
             ) : (
               <TaxiKanbanView
                 trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings}
-                onAddTrip={schemaOutdated ? async () => { alert('Migration DB requise avant de pouvoir ajouter/modifier des trajets.'); return null } : addTrip}
-                onUpdateTrip={schemaOutdated ? async () => { alert('Migration DB requise avant de pouvoir modifier des trajets.') } : updateTrip}
+                onAddTrip={schemaOutdated ? async () => { alert('Database migration required before adding/editing trips.'); return null } : addTrip}
+                onUpdateTrip={schemaOutdated ? async () => { alert('Database migration required before editing trips.') } : updateTrip}
                 onDeleteTrip={deleteTrip}
                 onUpdateRate={updateExchangeRate}
               />
@@ -185,14 +216,24 @@ export default function TaxiPage() {
           </>
         )}
 
+        {/* Finance Tab */}
+        {tab === 'finance' && (
+          <TaxiFinanceTab
+            trips={trips}
+            payments={payments}
+            onAddPayment={addManagerPayment}
+            onDeletePayment={deleteManagerPayment}
+          />
+        )}
+
         {/* Drivers Tab */}
         {tab === 'drivers' && (
           <div>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-800">Liste des chauffeurs</h2>
+              <h2 className="text-xl font-semibold text-gray-800">Drivers</h2>
               <button onClick={() => openDriverForm()}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors">
-                + Nouveau chauffeur
+                + New driver
               </button>
             </div>
 
@@ -204,20 +245,20 @@ export default function TaxiPage() {
                   <div key={driver.id} className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
                     <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4">
                       <h3 className="font-bold text-lg">{driver.name}</h3>
-                      <p className="text-sm text-blue-100">{driver.vehicle || 'Véhicule non spécifié'}</p>
+                      <p className="text-sm text-blue-100">{driver.vehicle || 'Vehicle not specified'}</p>
                     </div>
                     <div className="p-4 space-y-3">
                       {driver.phone && <p className="text-sm text-gray-700">📞 {driver.phone}</p>}
                       {driver.email && <p className="text-sm text-gray-700">📧 {driver.email}</p>}
                       {driver.notes && <p className="text-sm text-gray-600 italic">💬 {driver.notes}</p>}
                       <div className="bg-amber-50 p-3 rounded border border-amber-200">
-                        <p className="text-sm font-semibold text-amber-900">Marge: <span className="text-lg">{driver.margin_percent}%</span></p>
+                        <p className="text-sm font-semibold text-amber-900">Margin: <span className="text-lg">{driver.margin_percent}%</span></p>
                       </div>
                       <div className="pt-3 border-t flex gap-2">
                         <button onClick={() => openDriverForm(driver)}
-                          className="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 font-medium text-sm">✏️ Éditer</button>
+                          className="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 font-medium text-sm">✏️ Edit</button>
                         <button onClick={() => deleteDriver(driver.id)}
-                          className="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 font-medium text-sm">🗑️ Supprimer</button>
+                          className="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 font-medium text-sm">🗑️ Delete</button>
                       </div>
                     </div>
                   </div>
@@ -234,19 +275,19 @@ export default function TaxiPage() {
           <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
             <div className="flex justify-between items-center p-6 border-b">
               <h2 className="text-xl font-bold text-gray-800">
-                {selectedDriver ? 'Éditer chauffeur' : 'Nouveau chauffeur'}
+                {selectedDriver ? 'Edit driver' : 'New driver'}
               </h2>
               <button onClick={closeDriverForm} className="text-2xl text-gray-500 hover:text-gray-800">✕</button>
             </div>
             <form onSubmit={submitDriver} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
                 <input type="text" value={driverFormData.name || ''} required
                   onChange={e => setDriverFormData(d => ({ ...d, name: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                 <input type="tel" value={driverFormData.phone || ''}
                   onChange={e => setDriverFormData(d => ({ ...d, phone: e.target.value || null }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -258,13 +299,13 @@ export default function TaxiPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Véhicule</label>
-                <input type="text" placeholder="ex: Toyota Corolla blanc" value={driverFormData.vehicle || ''}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle</label>
+                <input type="text" placeholder="e.g. White Toyota Corolla" value={driverFormData.vehicle || ''}
                   onChange={e => setDriverFormData(d => ({ ...d, vehicle: e.target.value || null }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Marge (%)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Margin (%)</label>
                 <input type="number" min="0" max="100" value={driverFormData.margin_percent ?? 30}
                   onChange={e => setDriverFormData(d => ({ ...d, margin_percent: parseFloat(e.target.value) || 30 }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -277,10 +318,10 @@ export default function TaxiPage() {
               </div>
               <div className="flex gap-3 pt-4 border-t">
                 <button type="button" onClick={closeDriverForm}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium">Annuler</button>
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium">Cancel</button>
                 <button type="submit" disabled={saving}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-60">
-                  {saving ? 'Enregistrement…' : 'Enregistrer'}
+                  {saving ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </form>

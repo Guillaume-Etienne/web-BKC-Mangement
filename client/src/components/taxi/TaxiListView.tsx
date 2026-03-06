@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef } from '../../types/database'
 
 const STATUS_CONFIG: Record<TaxiTripStatus, { label: string; row: string; badge: string }> = {
@@ -19,13 +19,13 @@ function bookingLabel(b: BookingRef): string {
 }
 
 const TRIP_TYPE_LABELS: Record<string, string> = {
-  'aero-to-center': '✈️ Aéro → Centre',
-  'center-to-aero': '🏠 Centre → Aéro',
-  'aero-to-spot':   '✈️ Aéro → Spot',
-  'spot-to-aero':   '🏄 Spot → Aéro',
-  'center-to-town': '🏠 Centre → Ville',
-  'town-to-center': '🏢 Ville → Centre',
-  'other':          '❓ Autre',
+  'aero-to-center': '✈️ Airport → Centre',
+  'center-to-aero': '🏠 Centre → Airport',
+  'aero-to-spot':   '✈️ Airport → Spot',
+  'spot-to-aero':   '🏄 Spot → Airport',
+  'center-to-town': '🏠 Centre → Town',
+  'town-to-center': '🏢 Town → Centre',
+  'other':          '❓ Other',
 }
 
 // ── Summary table — réalisés vs prévus ───────────────────────────────────────
@@ -48,8 +48,8 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
   const total   = stats(trips)
 
   const rows = [
-    { label: '✅ Réalisés', bg: 'bg-green-50',  ...done    },
-    { label: '📅 Prévus',   bg: 'bg-blue-50',   ...planned },
+    { label: '✅ Completed', bg: 'bg-green-50',  ...done    },
+    { label: '📅 Planned',   bg: 'bg-blue-50',   ...planned },
   ]
 
   return (
@@ -63,7 +63,7 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
             <th className="px-3 py-2 text-right font-semibold text-amber-700">Driver MZN</th>
             <th className="px-3 py-2 text-right font-semibold text-purple-700">Manager MZN</th>
             <th className="px-3 py-2 text-right font-semibold text-green-700">Centre MZN</th>
-            <th className="px-3 py-2 text-right font-semibold text-gray-500">Trajets</th>
+            <th className="px-3 py-2 text-right font-semibold text-gray-500">Trips</th>
           </tr>
         </thead>
         <tbody>
@@ -318,6 +318,7 @@ export default function TaxiListView({ trips, drivers, bookings, pricingDefaults
   const [sortBy, setSortBy]             = useState<'date' | 'driver' | 'type'>('date')
   const [filterDriver, setFilterDriver] = useState<string>('all')
   const [editTrip, setEditTrip]         = useState<TaxiTrip | null>(null)
+  const tableContainerRef               = useRef<HTMLDivElement>(null)
 
   const sortedTrips = [...trips]
     .filter(t => filterDriver === 'all' || t.taxi_driver_id === filterDriver || (filterDriver === 'unassigned' && !t.taxi_driver_id))
@@ -375,6 +376,19 @@ export default function TaxiListView({ trips, drivers, bookings, pricingDefaults
     setEditTrip(null)
   }
 
+  function scrollToToday() {
+    const today = new Date().toISOString().slice(0, 10)
+    const container = tableContainerRef.current
+    if (!container) return
+    const rows = container.querySelectorAll<HTMLTableRowElement>('tr[data-date]')
+    let target: HTMLTableRowElement | null = null
+    rows.forEach(row => {
+      if (!target && (row.getAttribute('data-date') ?? '') >= today) target = row
+    })
+    if (!target && rows.length > 0) target = rows[rows.length - 1]
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
   async function handleDelete() {
     if (!editTrip) return
     if (confirm('Delete this trip?')) {
@@ -408,7 +422,11 @@ export default function TaxiListView({ trips, drivers, bookings, pricingDefaults
             {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex gap-2">
+          <button onClick={scrollToToday}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold text-sm border border-gray-300">
+            📅 Today
+          </button>
           <button onClick={addNewTrip}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm">
             + Add trip
@@ -418,7 +436,7 @@ export default function TaxiListView({ trips, drivers, bookings, pricingDefaults
 
       {/* Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" ref={tableContainerRef}>
           <table className="w-full text-sm">
             <thead className="bg-gray-100 border-b sticky top-0">
               <tr>
@@ -449,7 +467,7 @@ export default function TaxiListView({ trips, drivers, bookings, pricingDefaults
                 const driver = drivers.find(d => d.id === trip.taxi_driver_id)
                 const sc = STATUS_CONFIG[trip.status]
                 return (
-                  <tr key={trip.id} className={`border-b transition-colors hover:brightness-95 ${sc.row}`}>
+                  <tr key={trip.id} data-date={trip.date} className={`border-b transition-colors hover:brightness-95 ${sc.row}`}>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-800">{trip.date}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-800">{trip.start_time}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-xs">{TRIP_TYPE_LABELS[trip.type]}</td>

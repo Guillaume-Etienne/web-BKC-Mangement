@@ -541,3 +541,16 @@ CREATE POLICY "anon_read_bookings" ON bookings
 
 CREATE POLICY "anon_read_clients" ON clients
   FOR SELECT TO anon USING (true);
+
+-- ── À exécuter dans SQL Editor (Supabase dashboard) ────────────────────────
+-- Taxi manager payments — track advances paid to the intermediate manager
+CREATE TABLE taxi_manager_payments (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date       DATE NOT NULL,
+  amount_mzn INTEGER NOT NULL,
+  notes      TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE taxi_manager_payments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "auth" ON taxi_manager_payments
+  FOR ALL USING (auth.role() = 'authenticated');

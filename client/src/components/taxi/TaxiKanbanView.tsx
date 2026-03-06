@@ -38,8 +38,8 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
   const total   = stats(trips)
 
   const rows = [
-    { label: '✅ Réalisés', bg: 'bg-green-50',  ...done    },
-    { label: '📅 Prévus',   bg: 'bg-blue-50',   ...planned },
+    { label: '✅ Completed', bg: 'bg-green-50',  ...done    },
+    { label: '📅 Planned',   bg: 'bg-blue-50',   ...planned },
   ]
 
   return (
@@ -53,7 +53,7 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
             <th className="px-3 py-2 text-right font-semibold text-amber-700">Driver MZN</th>
             <th className="px-3 py-2 text-right font-semibold text-purple-700">Manager MZN</th>
             <th className="px-3 py-2 text-right font-semibold text-green-700">Centre MZN</th>
-            <th className="px-3 py-2 text-right font-semibold text-gray-500">Trajets</th>
+            <th className="px-3 py-2 text-right font-semibold text-gray-500">Trips</th>
           </tr>
         </thead>
         <tbody>
@@ -86,13 +86,13 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
 }
 
 const TRIP_TYPE_LABELS: Record<string, string> = {
-  'aero-to-center': '✈️ Aéro → Centre',
-  'center-to-aero': '🏠 Centre → Aéro',
-  'aero-to-spot': '✈️ Aéro → Spot',
-  'spot-to-aero': '🏄 Spot → Aéro',
-  'center-to-town': '🏠 Centre → Ville',
-  'town-to-center': '🏢 Ville → Centre',
-  'other': '❓ Autre',
+  'aero-to-center': '✈️ Airport → Centre',
+  'center-to-aero': '🏠 Centre → Airport',
+  'aero-to-spot': '✈️ Airport → Spot',
+  'spot-to-aero': '🏄 Spot → Airport',
+  'center-to-town': '🏠 Centre → Town',
+  'town-to-center': '🏢 Town → Centre',
+  'other': '❓ Other',
 }
 
 interface TaxiKanbanViewProps {

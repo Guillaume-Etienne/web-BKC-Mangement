@@ -208,6 +208,13 @@ export interface TaxiPricingDefaults {
   updated_at: string
 }
 
+export interface TaxiManagerPayment {
+  id: string
+  date: string          // ISO date
+  amount_mzn: number
+  notes: string | null
+}
+
 /** Minimal booking shape used by taxi views for the booking picker */
 export interface BookingRef {
   id: string
