@@ -4,6 +4,7 @@ import { useInstructors } from '../hooks/useInstructors'
 import { useLessons } from '../hooks/useLessons'
 import { useTable } from '../hooks/useSupabase'
 import type { Instructor, Lesson, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults } from '../types/database'
+import HousesTab from '../components/management/HousesTab'
 
 const specialtyOptions = ['Beginner', 'Intermediate', 'Advanced', 'Wave', 'Freestyle']
 const specialtyValues = ['beginner', 'intermediate', 'advanced', 'wave', 'freestyle']
@@ -30,7 +31,7 @@ function getBaseUrl() {
 }
 
 export default function ManagementPage() {
-  const [tab, setTab] = useState<'instructors' | 'pricing' | 'links'>('instructors')
+  const [tab, setTab] = useState<'instructors' | 'houses' | 'pricing' | 'links'>('instructors')
 
   // ── Instructors (Supabase) ─────────────────────────────────────────────────
   const { data: instructorsData, refresh: refreshInstructors } = useInstructors()
@@ -236,12 +237,12 @@ export default function ManagementPage() {
 
         {/* Tabs */}
         <div className="flex gap-4 mt-8 mb-8 border-b">
-          {(['instructors', 'pricing', 'links'] as const).map(t => (
+          {(['instructors', 'houses', 'pricing', 'links'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 font-medium capitalize transition-colors ${
                 tab === t ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'
               }`}>
-              {t === 'instructors' ? '📚 Instructors' : t === 'pricing' ? '💰 Pricing' : '🔗 Shared Links'}
+              {t === 'instructors' ? '📚 Instructors' : t === 'houses' ? '🏠 Houses' : t === 'pricing' ? '💰 Pricing' : '🔗 Shared Links'}
             </button>
           ))}
         </div>
@@ -391,6 +392,9 @@ export default function ManagementPage() {
             )}
           </div>
         )}
+
+        {/* ── Houses Tab ────────────────────────────────────────────────────── */}
+        {tab === 'houses' && <HousesTab />}
 
         {/* ── Pricing Tab ───────────────────────────────────────────────────── */}
         {tab === 'pricing' && (

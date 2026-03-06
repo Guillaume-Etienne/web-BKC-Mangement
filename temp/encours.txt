@@ -1,0 +1,80 @@
+toto
+Plan d'action — Maisons (Houses)                                                                                       
+        point                   décision 
+  ├────────────────────┼───────────────────────────────────────────────────────────────┤
+  │ Loyer              │ Durée libre (start/end date) + montant total en €             │
+  ├────────────────────┼───────────────────────────────────────────────────────────────┤
+  │ Planning           │ Toujours visible, cells grisées si pas de période de location │
+  ├────────────────────┼───────────────────────────────────────────────────────────────┤
+  │ Full-house booking │ Option explicite dans le wizard, prix bundle distinct         │
+  ├────────────────────┼───────────────────────────────────────────────────────────────┤
+  │ Compta             │ Section dédiée "Houses" (comme Palmeiras)                     │
+  ├────────────────────┼───────────────────────────────────────────────────────────────┤
+  │ Labels chambres    │ On garde F et B                                               │
+  └────────────────────┴───────────────────────────────────────────────────────────────┘
+
+  ---
+  Bloc 1 — DB : nouvelle table house_rentals
+
+  CREATE TABLE house_rentals (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    accommodation_id UUID NOT NULL REFERENCES accommodations(id) ON DELETE CASCADE,
+    start_date       DATE NOT NULL,
+    end_date         DATE NOT NULL,
+    total_cost       INTEGER NOT NULL,  -- EUR
+    notes            TEXT,
+    created_at       TIMESTAMPTZ DEFAULT now()
+  );
+  -- RLS + policy auth
+  (À exécuter dans le SQL Editor Supabase)
+
+  ---
+  Bloc 2 — Management → onglet "Houses"
+
+  Nouvel onglet entre "Instructors" et "Pricing" :
+  - Liste des maisons (type='house' dans accommodations) : nom, statut active/inactive, bouton edit
+  - Créer une maison : crée l'entrée dans accommodations + auto-crée 2 chambres F et B dans rooms
+  - Panneau détail par maison :
+    - Tarifs nuit (F price/nuit, B price/nuit, full-house price/nuit) → room_rates
+    - Périodes de location (start → end, montant €) → house_rentals
+
+  ---
+  Bloc 3 — Planning : grisage des chambres indisponibles
+
+  Dans PlanningView, pour les maisons de type 'house' :
+  - Si la cellule d'un jour n'est couverte par aucune house_rental de cette maison → afficher la cell grisée (style      
+  "unavailable", pas bookable visuellement)
+  - Aucun blocage DB — juste visuel
+
+  ---
+  Bloc 4 — Booking wizard : option "Full house"
+
+  Dans le wizard step "Stay" :
+  - Pour chaque maison disponible, ajouter un choix "Full house (F+B)" en plus de "Sea-view (F)" et "Back room (B)"      
+  - Sélectionner "Full house" → ajoute les 2 room IDs dans booking_rooms
+  - Prix : full_house_rate/2 sur la chambre F + 0 sur B avec override_note = 'Full house bundle'
+  - Ainsi la compta donne le bon total, et le planning bloque bien les 2 lignes
+
+  ---
+  Bloc 5 — Compta : section "Houses"
+
+  Nouvel onglet dans AccountingPage (à côté de Palmeiras) :
+  - Vue par maison (une card par maison) :
+    - Périodes de location + coût total
+    - Revenus générés par les bookings sur cette maison (depuis bookingRoomPrices)
+    - Balance = Revenus − Coût loyers
+  - Cashflow global : les coûts de loyers s'ajoutent aux dépenses
+
+  ---
+  Ordre de développement conseillé
+
+  1. Bloc 1 — SQL (toi, SQL Editor)
+  2. Bloc 2 — Management Houses tab (CRUD maisons + chambres + tarifs + périodes)
+  3. Bloc 5 — Compta Houses section
+  4. Bloc 3 — Planning unavailable cells
+  5. Bloc 4 — Booking wizard full-house (le plus impactant côté existant)
+
+  ---
+  Question finale avant de lancer : Est-ce que tu veux qu'on attaque dans cet ordre, ou tu veux ajuster quelque chose    
+  dans le plan ? En particulier le Bloc 4 (wizard) touche du code existant complexe — on peut le laisser pour un second  
+  sprint.

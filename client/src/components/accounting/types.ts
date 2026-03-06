@@ -1,12 +1,14 @@
 import type {
-  Booking, Client, Room, BookingRoom, BookingRoomPrice,
+  Accommodation, Booking, Client, Room, BookingRoom, BookingRoomPrice,
   ExternalAccommodationBooking, ExternalAccommodation,
-  Lesson, Instructor, EquipmentRental, TaxiTrip, Season,
+  HouseRental, Lesson, Instructor, EquipmentRental, TaxiTrip, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSubLet,
 } from '../../types/database'
 
 export interface SharedAccountingData {
+  accommodations:            Accommodation[]
+  houseRentals:              HouseRental[]
   bookings:                  Booking[]
   clients:                   Client[]
   rooms:                     Room[]

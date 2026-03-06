@@ -16,9 +16,10 @@ interface PlanningRowProps {
   bookings: Booking[]
   dragState: DragState | null
   onPointerDown: (e: React.PointerEvent, bookingId: string, roomId: string, mode: DragMode) => void
+  unavailableDays?: Set<number>
 }
 
-export default function PlanningRow({ roomId, label, totalDays, seasonStart, bookings, dragState, onPointerDown }: PlanningRowProps) {
+export default function PlanningRow({ roomId, label, totalDays, seasonStart, bookings, dragState, onPointerDown, unavailableDays }: PlanningRowProps) {
   const isDropTarget = dragState && dragState.targetRoomId === roomId && dragState.roomId !== roomId
 
   const segments = bookings.map((b) => {
@@ -52,12 +53,15 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
           {Array.from({ length: totalDays }, (_, i) => {
             const d = new Date(seasonStart.getTime() + i * 86400000)
             const dow = d.getDay()
+            const isUnavailable = unavailableDays?.has(i) ?? false
+            const isWeekend = dow === 0 || dow === 6
             return (
               <div
                 key={i}
+                title={isUnavailable ? 'Not rented this period' : undefined}
                 className={`shrink-0 border-r ${
                   dow === 0 ? 'border-r-gray-300' : 'border-r-gray-100'
-                } ${dow === 0 || dow === 6 ? 'bg-blue-50' : ''}`}
+                } ${isUnavailable ? 'bg-gray-200' : isWeekend ? 'bg-blue-50' : ''}`}
                 style={{ width: CELL_W }}
               />
             )

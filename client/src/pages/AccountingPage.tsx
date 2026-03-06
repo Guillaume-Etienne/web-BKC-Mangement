@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useBookings, useBookingRooms, useBookingRoomPrices, usePayments } from '../hooks/useBookings'
 import { useClients } from '../hooks/useClients'
-import { useRooms } from '../hooks/useAccommodations'
+import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useLessons } from '../hooks/useLessons'
 import { useInstructors } from '../hooks/useInstructors'
 import { useEquipmentRentals } from '../hooks/useEquipment'
@@ -12,20 +12,22 @@ import AccountingDashboard  from '../components/accounting/AccountingDashboard'
 import BookingFinances      from '../components/accounting/BookingFinances'
 import InstructorPayroll    from '../components/accounting/InstructorPayroll'
 import PalmeirasTab         from '../components/accounting/PalmeirasTab'
+import HousesTab            from '../components/accounting/HousesTab'
 import CashFlow             from '../components/accounting/CashFlow'
 import ExpensesTab          from '../components/accounting/ExpensesTab'
 import type {
-  ExternalAccommodation, ExternalAccommodationBooking, Season,
+  ExternalAccommodation, ExternalAccommodationBooking, HouseRental, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSubLet,
 } from '../types/database'
 
-type Tab = 'dashboard' | 'bookings' | 'instructors' | 'palmeiras' | 'cashflow' | 'expenses'
+type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'cashflow' | 'expenses'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'dashboard',   label: 'Dashboard',   icon: '📊' },
   { id: 'bookings',    label: 'Bookings',    icon: '📋' },
   { id: 'instructors', label: 'Instructors', icon: '🏄' },
+  { id: 'houses',      label: 'Houses',      icon: '🏠' },
   { id: 'palmeiras',   label: 'Palmeiras',   icon: '🏨' },
   { id: 'cashflow',    label: 'Cash Flow',   icon: '💸' },
   { id: 'expenses',    label: 'Expenses',    icon: '🧾' },
@@ -35,6 +37,8 @@ export default function AccountingPage() {
   const [tab, setTab] = useState<Tab>('dashboard')
 
   // ── Read-only data (Supabase hooks) ───────────────────────────────────────
+  const { data: accommodations }           = useAccommodations()
+  const { data: houseRentals }             = useTable<HouseRental>('house_rentals', { order: 'start_date', ascending: true })
   const { data: bookings }                 = useBookings()
   const { data: clients }                  = useClients()
   const { data: rooms }                    = useRooms()
@@ -81,6 +85,8 @@ export default function AccountingPage() {
 
   // ── Shared computed data passed down to tabs ──────────────────────────────
   const sharedData = {
+    accommodations,
+    houseRentals,
     bookings,
     clients,
     rooms,
@@ -236,6 +242,7 @@ export default function AccountingPage() {
         {tab === 'dashboard'   && <AccountingDashboard data={sharedData} />}
         {tab === 'bookings'    && <BookingFinances     data={sharedData} handlers={handlers} />}
         {tab === 'instructors' && <InstructorPayroll   data={sharedData} handlers={handlers} />}
+        {tab === 'houses'      && <HousesTab            data={sharedData} />}
         {tab === 'palmeiras'   && <PalmeirasTab        data={sharedData} handlers={handlers} />}
         {tab === 'cashflow'    && <CashFlow            data={sharedData} />}
         {tab === 'expenses'    && <ExpensesTab         data={sharedData} handlers={handlers} />}

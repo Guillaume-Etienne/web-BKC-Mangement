@@ -279,6 +279,15 @@ export interface Season {
   end_date: string     // ISO date
 }
 
+export interface HouseRental {
+  id: string
+  accommodation_id: string
+  start_date: string   // ISO date
+  end_date: string     // ISO date
+  total_cost: number   // EUR
+  notes: string | null
+}
+
 // Base nightly rates per room (or full house)
 // room_id = actual room id, or 'full_{accommodation_id}' for full-house rate
 export interface RoomRate {

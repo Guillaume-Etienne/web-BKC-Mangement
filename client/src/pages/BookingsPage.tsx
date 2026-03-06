@@ -3,7 +3,8 @@ import { supabase } from '../lib/supabase'
 import { useClients } from '../hooks/useClients'
 import { useBookings, useBookingRooms } from '../hooks/useBookings'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
-import type { Booking, BookingStatus, Client, Participant, Room, Accommodation } from '../types/database'
+import { useTable } from '../hooks/useSupabase'
+import type { Booking, BookingStatus, Client, Participant, Room, Accommodation, HouseRental } from '../types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,7 +23,7 @@ interface WizardData {
   check_out: string
   visa_entry_date: string
   visa_exit_date: string
-  room_id: string
+  room_ids: string[]
   status: BookingStatus
   // Step 3 – Guests
   participants: Participant[]
@@ -48,7 +49,7 @@ const EMPTY_WIZARD: WizardData = {
   client_id: '',
   new_client_first_name: '', new_client_last_name: '', new_client_email: '',
   new_client_phone: '', new_client_nationality: '', new_client_kite_level: '',
-  check_in: '', check_out: '', visa_entry_date: '', visa_exit_date: '', room_id: '', status: 'provisional',
+  check_in: '', check_out: '', visa_entry_date: '', visa_exit_date: '', room_ids: [], status: 'provisional',
   participants: [], couples_count: 0, children_count: 0,
   arrival_time: '', departure_time: '',
   taxi_arrival: false, taxi_departure: false,
@@ -130,12 +131,13 @@ interface WizardProps {
   clientsLoading: boolean
   rooms: Room[]
   accommodations: Accommodation[]
+  houseRentals: HouseRental[]
   isEditing: boolean
   onCancel: () => void
   onSave: (data: WizardData, isNew: boolean) => void
 }
 
-function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, isEditing, onCancel, onSave }: WizardProps) {
+function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, houseRentals, isEditing, onCancel, onSave }: WizardProps) {
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(isEditing ? 6 : 1)
   const [d, setD] = useState<WizardData>(initial)
@@ -180,6 +182,29 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
     acc,
     rooms: rooms.filter(r => r.accommodation_id === acc.id),
   })).filter(g => g.rooms.length > 0)
+
+  // Room selection helpers
+  function toggleRoom(roomId: string) {
+    update({
+      room_ids: d.room_ids.includes(roomId)
+        ? d.room_ids.filter(id => id !== roomId)
+        : [...d.room_ids, roomId],
+    })
+  }
+  function toggleFullHouse(accRoomIds: string[]) {
+    const allSelected = accRoomIds.every(id => d.room_ids.includes(id))
+    update({
+      room_ids: allSelected
+        ? d.room_ids.filter(id => !accRoomIds.includes(id))
+        : [...d.room_ids.filter(id => !accRoomIds.includes(id)), ...accRoomIds],
+    })
+  }
+  function isHouseAvailable(accId: string): boolean | null {
+    if (!d.check_in || !d.check_out) return null
+    const rentals = houseRentals.filter(r => r.accommodation_id === accId)
+    if (rentals.length === 0) return false
+    return rentals.some(r => r.start_date <= d.check_in && r.end_date >= d.check_out)
+  }
 
   const canProceed: Record<number, boolean> = {
     1: creatingClient
@@ -329,28 +354,47 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                 </div>
               </div>
 
-              <Field label="Room" hint="Optional — can be assigned later in the planning view">
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  <button type="button" onClick={() => update({ room_id: '' })}
-                    className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors
-                      ${d.room_id === '' ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-gray-200 hover:border-gray-300 text-gray-600'}`}>
-                    Not assigned yet
-                  </button>
-                  {roomsByAcco.map(({ acc, rooms }) => (
-                    <div key={acc.id}>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1 mb-1">{acc.name}</p>
-                      <div className="space-y-1">
-                        {rooms.map(r => (
-                          <button key={r.id} type="button" onClick={() => update({ room_id: r.id })}
-                            className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors
-                              ${d.room_id === r.id ? 'border-blue-500 bg-blue-50 text-blue-800 font-medium' : 'border-gray-200 hover:border-gray-300 text-gray-700'}`}>
-                            {acc.name} / {r.name}
-                            <span className="text-xs text-gray-400 ml-2">capacity {r.capacity}</span>
-                          </button>
-                        ))}
+              <Field label="Rooms" hint="Optional — can be assigned later in the planning view">
+                <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
+                  {d.room_ids.length === 0 && (
+                    <p className="text-xs text-gray-400 italic px-1">No room selected — click to assign.</p>
+                  )}
+                  {roomsByAcco.map(({ acc, rooms: accRooms }) => {
+                    const isHouse = acc.type === 'house'
+                    const accRoomIds = accRooms.map(r => r.id)
+                    const allSelected = accRoomIds.every(id => d.room_ids.includes(id))
+                    const availability = isHouse ? isHouseAvailable(acc.id) : null
+                    return (
+                      <div key={acc.id}>
+                        <div className="flex items-center gap-2 px-1 mb-1">
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{acc.name}</p>
+                          {isHouse && availability === false && (
+                            <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">Not rented</span>
+                          )}
+                          {isHouse && availability === true && (
+                            <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">Available</span>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          {isHouse && accRooms.length === 2 && (
+                            <button type="button" onClick={() => toggleFullHouse(accRoomIds)}
+                              className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors font-medium
+                                ${allSelected ? 'border-purple-500 bg-purple-50 text-purple-800' : 'border-gray-200 hover:border-gray-300 text-gray-700'}`}>
+                              🏠 Full house (F + B)
+                            </button>
+                          )}
+                          {accRooms.map(r => (
+                            <button key={r.id} type="button" onClick={() => toggleRoom(r.id)}
+                              className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors
+                                ${d.room_ids.includes(r.id) ? 'border-blue-500 bg-blue-50 text-blue-800 font-medium' : 'border-gray-200 hover:border-gray-300 text-gray-700'}`}>
+                              {acc.name} / {r.name}
+                              <span className="text-xs text-gray-400 ml-2">capacity {r.capacity}</span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </Field>
 
@@ -549,14 +593,14 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                     <span>{d.visa_entry_date || '?'} → {d.visa_exit_date || '?'}</span>
                   </div>
                 )}
-                {d.room_id && (
+                {d.room_ids.length > 0 && (
                   <div className="flex justify-between text-gray-600">
-                    <span>Room</span>
-                    <span>{(() => {
-                      const r = rooms.find(r => r.id === d.room_id)
+                    <span>Room{d.room_ids.length > 1 ? 's' : ''}</span>
+                    <span>{d.room_ids.map(rid => {
+                      const r = rooms.find(r => r.id === rid)
                       const a = accommodations.find(a => a.id === r?.accommodation_id)
-                      return r ? `${a?.name} / ${r.name}` : '—'
-                    })()}</span>
+                      return r ? `${a?.name}/${r.name}` : '—'
+                    }).join(', ')}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-gray-600">
@@ -682,6 +726,7 @@ export default function BookingsPage() {
   const { data: bookingRooms, refresh: refreshBookingRooms } = useBookingRooms()
   const { data: rooms } = useRooms()
   const { data: accommodations } = useAccommodations()
+  const { data: houseRentals } = useTable<HouseRental>('house_rentals')
   const [wizard, setWizard] = useState<{ open: boolean; editing: Booking | null }>({ open: false, editing: null })
   const [filter, setFilter] = useState<FilterKey>('all')
   const [saving, setSaving] = useState(false)
@@ -692,11 +737,13 @@ export default function BookingsPage() {
   }
 
   const getRoomLabel = (bookingId: string) => {
-    const br = bookingRooms.find(b => b.booking_id === bookingId)
-    if (!br) return '—'
-    const r = rooms.find(r => r.id === br.room_id)
-    const a = accommodations.find(a => a.id === r?.accommodation_id)
-    return r ? `${a?.name} / ${r.name}` : '—'
+    const brs = bookingRooms.filter(b => b.booking_id === bookingId)
+    if (brs.length === 0) return '—'
+    return brs.map(br => {
+      const r = rooms.find(r => r.id === br.room_id)
+      const a = accommodations.find(a => a.id === r?.accommodation_id)
+      return r ? `${a?.name}/${r.name}` : '—'
+    }).join(', ')
   }
 
   function openNew() { setWizard({ open: true, editing: null }) }
@@ -809,10 +856,12 @@ export default function BookingsPage() {
       )
     }
 
-    // 4. Booking room (delete + re-insert)
+    // 4. Booking rooms (delete all + re-insert)
     await supabase.from('booking_rooms').delete().eq('booking_id', bookingId)
-    if (data.room_id) {
-      await supabase.from('booking_rooms').insert({ booking_id: bookingId, room_id: data.room_id })
+    if (data.room_ids.length > 0) {
+      await supabase.from('booking_rooms').insert(
+        data.room_ids.map(rid => ({ booking_id: bookingId, room_id: rid }))
+      )
     }
 
     refreshBookings()
@@ -830,13 +879,13 @@ export default function BookingsPage() {
   }
 
   function bookingToWizard(b: Booking): WizardData {
-    const br = bookingRooms.find(r => r.booking_id === b.id)
+    const brs = bookingRooms.filter(r => r.booking_id === b.id)
     return {
       ...EMPTY_WIZARD,
       client_id: b.client_id,
       check_in: b.check_in, check_out: b.check_out,
       visa_entry_date: b.visa_entry_date ?? '', visa_exit_date: b.visa_exit_date ?? '',
-      room_id: br?.room_id ?? '',
+      room_ids: brs.map(r => r.room_id),
       status: b.status,
       participants: b.participants ?? [],
       couples_count: b.couples_count, children_count: b.children_count,
@@ -1050,6 +1099,7 @@ export default function BookingsPage() {
           clientsLoading={clientsLoading}
           rooms={rooms}
           accommodations={accommodations}
+          houseRentals={houseRentals}
           isEditing={!!wizard.editing}
           onCancel={closeWizard}
           onSave={handleSave}

@@ -1,18 +1,105 @@
-import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect, type JSX } from 'react'
 import PlanningRow from './PlanningRow'
 import TotalsRow from './TotalsRow'
 import LessonWeekView from './LessonWeekView'
 import NowView from './NowView'
 import ForecastView from './ForecastView'
-import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental } from '../../types/database'
+import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental } from '../../types/database'
 import { useBookingDrag, CELL_W, type DragMode } from '../../hooks/useBookingDrag'
 import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
+import { useTable } from '../../hooks/useSupabase'
 import { useBookings, useBookingRooms } from '../../hooks/useBookings'
 import { useLessons, useDayActivities } from '../../hooks/useLessons'
 import { useInstructors } from '../../hooks/useInstructors'
 import { useClients } from '../../hooks/useClients'
 import { useEquipment, useEquipmentRentals } from '../../hooks/useEquipment'
 import { supabase } from '../../lib/supabase'
+
+// ── Draft move types ──────────────────────────────────────────────────────────
+interface RoomSwap { from: string; to: string }
+interface DraftMove {
+  checkIn: string
+  checkOut: string
+  originalCheckIn: string
+  originalCheckOut: string
+  roomSwaps: RoomSwap[]
+}
+
+// ── Validate modal (module scope) ─────────────────────────────────────────────
+interface ValidateModalProps {
+  draftMoves: Map<string, DraftMove>
+  bookings: Booking[]
+  rooms: { id: string; name: string; accommodation_id: string }[]
+  accommodations: { id: string; name: string }[]
+  onConfirm: () => Promise<void>
+  onCancel: () => void
+}
+function ValidateModal({ draftMoves, bookings, rooms, accommodations, onConfirm, onCancel }: ValidateModalProps): JSX.Element {
+  const [saving, setSaving] = useState(false)
+
+  function roomLabel(roomId: string): string {
+    const room = rooms.find(r => r.id === roomId)
+    if (!room) return '?'
+    const acc = accommodations.find(a => a.id === room.accommodation_id)
+    return acc ? `${acc.name}/${room.name}` : room.name
+  }
+
+  async function handleConfirm() {
+    setSaving(true)
+    await onConfirm()
+    setSaving(false)
+  }
+
+  const entries = Array.from(draftMoves.entries()).map(([bookingId, draft]) => {
+    const booking = bookings.find(b => b.id === bookingId)
+    const clientName = booking?.client
+      ? `${booking.client.first_name} ${booking.client.last_name}`
+      : '?'
+    const bookingNum = booking ? `#${String(booking.booking_number).padStart(3, '0')}` : '?'
+    const datesChanged = draft.checkIn !== draft.originalCheckIn || draft.checkOut !== draft.originalCheckOut
+    return { bookingId, bookingNum, clientName, draft, datesChanged }
+  })
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-xl max-h-[80vh] flex flex-col">
+        <div className="flex justify-between items-center p-4 border-b">
+          <h3 className="font-bold text-gray-800">Confirm {draftMoves.size} pending move{draftMoves.size > 1 ? 's' : ''}</h3>
+          <button onClick={onCancel} className="text-gray-500 hover:text-gray-800 text-xl font-bold">✕</button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-4 space-y-3">
+          {entries.map(({ bookingId, bookingNum, clientName, draft, datesChanged }) => (
+            <div key={bookingId} className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm space-y-1">
+              <p className="font-semibold text-gray-800">{bookingNum} — {clientName}</p>
+              {datesChanged && (
+                <p className="text-gray-600">
+                  📅 <span className="line-through text-gray-400">{draft.originalCheckIn} → {draft.originalCheckOut}</span>
+                  {' '}→ <span className="font-medium text-blue-700">{draft.checkIn} → {draft.checkOut}</span>
+                </p>
+              )}
+              {draft.roomSwaps.map((s, i) => (
+                <p key={i} className="text-gray-600">
+                  🏠 <span className="line-through text-gray-400">{roomLabel(s.from)}</span>
+                  {' '}→ <span className="font-medium text-blue-700">{roomLabel(s.to)}</span>
+                </p>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-3 p-4 border-t">
+          <button onClick={onCancel}
+            className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium text-sm">
+            Cancel
+          </button>
+          <button onClick={handleConfirm} disabled={saving}
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm disabled:opacity-60">
+            {saving ? 'Saving…' : '✓ Confirm & Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -47,6 +134,7 @@ function getSeasonYear(today: Date): number {
 export default function PlanningView() {
   const { data: accommodations } = useAccommodations()
   const { data: rooms } = useRooms()
+  const { data: houseRentals } = useTable<HouseRental>('house_rentals')
   const { data: bookingsData } = useBookings()
   const { data: bookingRoomsData } = useBookingRooms()
   const { data: lessonsData } = useLessons()
@@ -142,6 +230,29 @@ export default function PlanningView() {
   useEffect(() => setDayActivities(dayActivitiesData), [dayActivitiesData])
   useEffect(() => setRentals(rentalsData), [rentalsData])
 
+  // ── Draft moves ────────────────────────────────────────────────────────────
+  const [draftMoves, setDraftMoves] = useState<Map<string, DraftMove>>(new Map())
+  const [showValidateModal, setShowValidateModal] = useState(false)
+
+  // Ref so callbacks always see latest bookings without stale closure
+  const bookingsRef = useRef(bookings)
+  useEffect(() => { bookingsRef.current = bookings }, [bookings])
+
+  // Visual positions merge draft changes on top of saved data
+  const resolvedBookings = useMemo(() =>
+    bookings.map(b => {
+      const d = draftMoves.get(b.id)
+      return d ? { ...b, check_in: d.checkIn, check_out: d.checkOut } : b
+    }), [bookings, draftMoves])
+
+  const resolvedBookingRooms = useMemo(() =>
+    bookingRooms.map(br => {
+      const d = draftMoves.get(br.booking_id)
+      if (!d) return br
+      const swap = d.roomSwaps.find(s => s.from === br.room_id)
+      return swap ? { ...br, room_id: swap.to } : br
+    }), [bookingRooms, draftMoves])
+
   // ── Tabs / lesson view ───────────────────────────────────────────
   const [planningTab, setPlanningTab] = useState<'accommodations' | 'lessons' | 'now' | 'forecast'>('accommodations')
   const [lessonView, setLessonView] = useState<'by-instructor' | 'by-client'>('by-instructor')
@@ -170,33 +281,122 @@ export default function PlanningView() {
     }
   }
 
+  // Pre-compute unavailable day-index sets for house-type accommodations.
+  // A day is unavailable if no house_rental period covers it.
+  const unavailableByAccommodation = useMemo(() => {
+    const map = new Map<string, Set<number>>()
+    for (const acc of activeAccommodations) {
+      if (acc.type !== 'house') continue
+      const rentals = houseRentals.filter((r: HouseRental) => r.accommodation_id === acc.id)
+      if (rentals.length === 0) {
+        // No rentals at all → every day unavailable
+        map.set(acc.id, new Set(Array.from({ length: totalDays }, (_, i) => i)))
+        continue
+      }
+      const unavailable = new Set<number>()
+      for (let i = 0; i < totalDays; i++) {
+        // Compute local date for day i (avoids UTC drift)
+        const d = new Date(seasonStart.getFullYear(), seasonStart.getMonth(), seasonStart.getDate() + i)
+        const dayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        const covered = rentals.some((r: HouseRental) => r.start_date <= dayStr && r.end_date >= dayStr)
+        if (!covered) unavailable.add(i)
+      }
+      map.set(acc.id, unavailable)
+    }
+    return map
+  }, [houseRentals, activeAccommodations, totalDays, seasonStart])
+
   function getBookingsForRoom(roomId: string): Booking[] {
-    const ids = bookingRooms.filter(br => br.room_id === roomId).map(br => br.booking_id)
-    return bookings.filter(b => ids.includes(b.id))
+    const ids = resolvedBookingRooms.filter(br => br.room_id === roomId).map(br => br.booking_id)
+    return resolvedBookings.filter(b => ids.includes(b.id))
+  }
+
+  async function validateDrafts() {
+    const bookingUpdates: { id: string; check_in: string; check_out: string }[] = []
+    const roomUpdates:    { booking_id: string; from: string; to: string }[] = []
+
+    for (const [bookingId, draft] of draftMoves) {
+      const booking = bookings.find(b => b.id === bookingId)
+      if (booking && (draft.checkIn !== booking.check_in || draft.checkOut !== booking.check_out)) {
+        bookingUpdates.push({ id: bookingId, check_in: draft.checkIn, check_out: draft.checkOut })
+      }
+      for (const swap of draft.roomSwaps) {
+        roomUpdates.push({ booking_id: bookingId, from: swap.from, to: swap.to })
+      }
+    }
+
+    await Promise.all([
+      ...bookingUpdates.map(u =>
+        supabase.from('bookings').update({ check_in: u.check_in, check_out: u.check_out }).eq('id', u.id)
+      ),
+      ...roomUpdates.map(u =>
+        supabase.from('booking_rooms').update({ room_id: u.to }).eq('booking_id', u.booking_id).eq('room_id', u.from)
+      ),
+    ])
+
+    // Apply changes to local state so display stays consistent
+    setBookings(prev => prev.map(b => {
+      const upd = bookingUpdates.find(u => u.id === b.id)
+      return upd ? { ...b, check_in: upd.check_in, check_out: upd.check_out } : b
+    }))
+    setBookingRooms(prev => prev.map(br => {
+      const upd = roomUpdates.find(u => u.booking_id === br.booking_id && u.from === br.room_id)
+      return upd ? { ...br, room_id: upd.to } : br
+    }))
+
+    setDraftMoves(new Map())
+    setShowValidateModal(false)
+  }
+
+  function handleTabChange(newTab: typeof planningTab) {
+    if (draftMoves.size > 0 && newTab !== planningTab) {
+      if (!confirm(`You have ${draftMoves.size} unsaved move${draftMoves.size > 1 ? 's' : ''}. Leave without saving?`)) return
+      setDraftMoves(new Map())
+    }
+    setPlanningTab(newTab)
   }
 
   const gridRef = useRef<HTMLDivElement>(null)
 
   const onBookingUpdate = useCallback((bookingId: string, dayDelta: number, mode: DragMode) => {
-    setBookings(prev => {
-      const next = prev.map(b => {
-        if (b.id !== bookingId) return b
-        if (mode === 'move') return { ...b, check_in: addDays(b.check_in, dayDelta), check_out: addDays(b.check_out, dayDelta) }
-        if (mode === 'resize-left') return { ...b, check_in: addDays(b.check_in, dayDelta) }
-        return { ...b, check_out: addDays(b.check_out, dayDelta) }
+    setDraftMoves(prev => {
+      const next = new Map(prev)
+      const existing = next.get(bookingId)
+      const booking = bookingsRef.current.find(b => b.id === bookingId)
+      if (!booking) return prev
+      const curIn  = existing?.checkIn  ?? booking.check_in
+      const curOut = existing?.checkOut ?? booking.check_out
+      let newIn = curIn, newOut = curOut
+      if (mode === 'move')         { newIn = addDays(curIn, dayDelta); newOut = addDays(curOut, dayDelta) }
+      else if (mode === 'resize-left')  { newIn = addDays(curIn, dayDelta) }
+      else                              { newOut = addDays(curOut, dayDelta) }
+      next.set(bookingId, {
+        checkIn: newIn, checkOut: newOut,
+        originalCheckIn:  booking.check_in,
+        originalCheckOut: booking.check_out,
+        roomSwaps: existing?.roomSwaps ?? [],
       })
-      const updated = next.find(b => b.id === bookingId)
-      if (updated) supabase.from('bookings').update({ check_in: updated.check_in, check_out: updated.check_out }).eq('id', bookingId)
       return next
     })
   }, [])
 
   const onBookingMove = useCallback((bookingId: string, fromRoomId: string, toRoomId: string) => {
-    setBookingRooms(prev => {
-      const next = prev.map(br =>
-        br.booking_id === bookingId && br.room_id === fromRoomId ? { ...br, room_id: toRoomId } : br
-      )
-      supabase.from('booking_rooms').update({ room_id: toRoomId }).eq('booking_id', bookingId).eq('room_id', fromRoomId)
+    setDraftMoves(prev => {
+      const next = new Map(prev)
+      const existing = next.get(bookingId)
+      const booking = bookingsRef.current.find(b => b.id === bookingId)
+      if (!booking) return prev
+      const newSwap: RoomSwap = { from: fromRoomId, to: toRoomId }
+      const roomSwaps = existing
+        ? existing.roomSwaps.filter(s => s.from !== fromRoomId).concat(newSwap)
+        : [newSwap]
+      next.set(bookingId, {
+        checkIn:  existing?.checkIn  ?? booking.check_in,
+        checkOut: existing?.checkOut ?? booking.check_out,
+        originalCheckIn:  booking.check_in,
+        originalCheckOut: booking.check_out,
+        roomSwaps,
+      })
       return next
     })
   }, [])
@@ -286,25 +486,25 @@ export default function PlanningView() {
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b">
           <button
-            onClick={() => setPlanningTab('accommodations')}
+            onClick={() => handleTabChange('accommodations')}
             className={`px-4 py-2 font-medium transition-colors ${planningTab === 'accommodations' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
           >
             🏠 Accommodations
           </button>
           <button
-            onClick={() => setPlanningTab('lessons')}
+            onClick={() => handleTabChange('lessons')}
             className={`px-4 py-2 font-medium transition-colors ${planningTab === 'lessons' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
           >
             🗓️ Daily
           </button>
           <button
-            onClick={() => setPlanningTab('now')}
+            onClick={() => handleTabChange('now')}
             className={`px-4 py-2 font-medium transition-colors ${planningTab === 'now' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
           >
             🍽️ Now
           </button>
           <button
-            onClick={() => setPlanningTab('forecast')}
+            onClick={() => handleTabChange('forecast')}
             className={`px-4 py-2 font-medium transition-colors ${planningTab === 'forecast' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
           >
             📋 Forecast
@@ -314,11 +514,31 @@ export default function PlanningView() {
         {/* ── ACCOMMODATIONS TAB ── */}
         {planningTab === 'accommodations' && (
           <>
+            {/* Draft banner */}
+            {draftMoves.size > 0 && (
+              <div className="sticky top-0 z-30 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 mb-4 flex items-center justify-between shadow-sm">
+                <span className="text-amber-800 font-medium text-sm">
+                  ⚠️ {draftMoves.size} pending move{draftMoves.size > 1 ? 's' : ''} — not saved yet
+                </span>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowValidateModal(true)}
+                    className="px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold text-sm">
+                    ✓ Validate changes
+                  </button>
+                  <button onClick={() => setDraftMoves(new Map())}
+                    className="px-4 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 font-medium text-sm">
+                    ↺ Reset to saved
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Legend */}
             <div className="flex flex-wrap gap-3 md:gap-4 mb-4 text-xs md:text-sm">
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> Confirmed</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-400 inline-block" /> Provisional</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-300 inline-block" /> Cancelled</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-200 border border-gray-300 inline-block" /> Not rented</span>
             </div>
 
             {/* Grid */}
@@ -372,6 +592,7 @@ export default function PlanningView() {
               <div ref={gridRef}>
                 {activeAccommodations.map((acc) => {
                   const accRooms = rooms.filter(r => r.accommodation_id === acc.id)
+                  const unavailableDays = unavailableByAccommodation.get(acc.id)
                   return (
                     <div key={acc.id}>
                       {accRooms.map((room) => (
@@ -384,14 +605,15 @@ export default function PlanningView() {
                           bookings={getBookingsForRoom(room.id)}
                           dragState={dragState}
                           onPointerDown={onPointerDown}
+                          unavailableDays={unavailableDays}
                         />
                       ))}
                     </div>
                   )
                 })}
-                <TotalsRow label="Tot Guest" totalDays={totalDays} seasonStart={seasonStart} bookings={bookings} type="guests" />
-                <TotalsRow label="Tot less" totalDays={totalDays} seasonStart={seasonStart} bookings={bookings} type="lessons" />
-                <TotalsRow label="Tot rent" totalDays={totalDays} seasonStart={seasonStart} bookings={bookings} type="equipment" />
+                <TotalsRow label="Tot Guest" totalDays={totalDays} seasonStart={seasonStart} bookings={resolvedBookings} type="guests" />
+                <TotalsRow label="Tot less" totalDays={totalDays} seasonStart={seasonStart} bookings={resolvedBookings} type="lessons" />
+                <TotalsRow label="Tot rent" totalDays={totalDays} seasonStart={seasonStart} bookings={resolvedBookings} type="equipment" />
               </div>
             </div>
           </>
@@ -469,6 +691,18 @@ export default function PlanningView() {
           </>
         )}
       </div>
+
+      {/* Validate modal */}
+      {showValidateModal && (
+        <ValidateModal
+          draftMoves={draftMoves}
+          bookings={bookings}
+          rooms={rooms}
+          accommodations={accommodations}
+          onConfirm={validateDrafts}
+          onCancel={() => setShowValidateModal(false)}
+        />
+      )}
     </div>
   )
 }
