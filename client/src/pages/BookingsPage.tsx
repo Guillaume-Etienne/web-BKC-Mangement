@@ -2,11 +2,8 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useClients } from '../hooks/useClients'
 import { useBookings, useBookingRooms } from '../hooks/useBookings'
-import {
-  mockRooms,
-  mockAccommodations,
-} from '../data/mock'
-import type { Booking, BookingStatus, Client, Participant } from '../types/database'
+import { useAccommodations, useRooms } from '../hooks/useAccommodations'
+import type { Booking, BookingStatus, Client, Participant, Room, Accommodation } from '../types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -131,12 +128,14 @@ interface WizardProps {
   initial: WizardData
   clients: Client[]
   clientsLoading: boolean
+  rooms: Room[]
+  accommodations: Accommodation[]
   isEditing: boolean
   onCancel: () => void
   onSave: (data: WizardData, isNew: boolean) => void
 }
 
-function BookingWizard({ initial, clients, clientsLoading, isEditing, onCancel, onSave }: WizardProps) {
+function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, isEditing, onCancel, onSave }: WizardProps) {
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(isEditing ? 6 : 1)
   const [d, setD] = useState<WizardData>(initial)
@@ -177,9 +176,9 @@ function BookingWizard({ initial, clients, clientsLoading, isEditing, onCancel, 
   }
 
   // Rooms grouped by accommodation
-  const roomsByAcco = mockAccommodations.map(acc => ({
+  const roomsByAcco = accommodations.map(acc => ({
     acc,
-    rooms: mockRooms.filter(r => r.accommodation_id === acc.id),
+    rooms: rooms.filter(r => r.accommodation_id === acc.id),
   })).filter(g => g.rooms.length > 0)
 
   const canProceed: Record<number, boolean> = {
@@ -554,8 +553,8 @@ function BookingWizard({ initial, clients, clientsLoading, isEditing, onCancel, 
                   <div className="flex justify-between text-gray-600">
                     <span>Room</span>
                     <span>{(() => {
-                      const r = mockRooms.find(r => r.id === d.room_id)
-                      const a = mockAccommodations.find(a => a.id === r?.accommodation_id)
+                      const r = rooms.find(r => r.id === d.room_id)
+                      const a = accommodations.find(a => a.id === r?.accommodation_id)
                       return r ? `${a?.name} / ${r.name}` : '—'
                     })()}</span>
                   </div>
@@ -681,6 +680,8 @@ export default function BookingsPage() {
   const { data: bookings, loading, error, refresh: refreshBookings } = useBookings()
   const { data: clients, loading: clientsLoading, refresh: refreshClients } = useClients()
   const { data: bookingRooms, refresh: refreshBookingRooms } = useBookingRooms()
+  const { data: rooms } = useRooms()
+  const { data: accommodations } = useAccommodations()
   const [wizard, setWizard] = useState<{ open: boolean; editing: Booking | null }>({ open: false, editing: null })
   const [filter, setFilter] = useState<FilterKey>('all')
   const [saving, setSaving] = useState(false)
@@ -693,8 +694,8 @@ export default function BookingsPage() {
   const getRoomLabel = (bookingId: string) => {
     const br = bookingRooms.find(b => b.booking_id === bookingId)
     if (!br) return '—'
-    const r = mockRooms.find(r => r.id === br.room_id)
-    const a = mockAccommodations.find(a => a.id === r?.accommodation_id)
+    const r = rooms.find(r => r.id === br.room_id)
+    const a = accommodations.find(a => a.id === r?.accommodation_id)
     return r ? `${a?.name} / ${r.name}` : '—'
   }
 
@@ -1047,6 +1048,8 @@ export default function BookingsPage() {
           initial={wizard.editing ? bookingToWizard(wizard.editing) : EMPTY_WIZARD}
           clients={clients}
           clientsLoading={clientsLoading}
+          rooms={rooms}
+          accommodations={accommodations}
           isEditing={!!wizard.editing}
           onCancel={closeWizard}
           onSave={handleSave}

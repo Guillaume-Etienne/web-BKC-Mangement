@@ -1,11 +1,13 @@
-import { useState } from 'react'
-import {
-  mockBookings, mockClients, mockRooms, mockBookingRooms,
-  mockBookingRoomPrices, mockExternalAccommodationBookings, mockExternalAccommodations,
-  mockLessons, mockInstructors, mockEquipmentRentals, mockTaxiTrips,
-  mockPayments, mockInstructorDebts, mockInstructorPayments, mockLessonRateOverrides,
-  mockExpenses, mockPalmeirasRents, mockPalmeirasReversals, mockPalmeirasEntries, mockPalmeirasSubLets, mockSeasons,
-} from '../data/mock'
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+import { useBookings, useBookingRooms, useBookingRoomPrices, usePayments } from '../hooks/useBookings'
+import { useClients } from '../hooks/useClients'
+import { useRooms } from '../hooks/useAccommodations'
+import { useLessons } from '../hooks/useLessons'
+import { useInstructors } from '../hooks/useInstructors'
+import { useEquipmentRentals } from '../hooks/useEquipment'
+import { useTaxiTrips } from '../hooks/useTaxis'
+import { useTable } from '../hooks/useSupabase'
 import AccountingDashboard  from '../components/accounting/AccountingDashboard'
 import BookingFinances      from '../components/accounting/BookingFinances'
 import InstructorPayroll    from '../components/accounting/InstructorPayroll'
@@ -13,6 +15,7 @@ import PalmeirasTab         from '../components/accounting/PalmeirasTab'
 import CashFlow             from '../components/accounting/CashFlow'
 import ExpensesTab          from '../components/accounting/ExpensesTab'
 import type {
+  ExternalAccommodation, ExternalAccommodationBooking, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSubLet,
 } from '../types/database'
@@ -31,31 +34,65 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 export default function AccountingPage() {
   const [tab, setTab] = useState<Tab>('dashboard')
 
-  // ── Mutable state (mock — will be Supabase later) ─────────────────────────
-  const [payments,             setPayments]             = useState<Payment[]>([...mockPayments])
-  const [instructorDebts,      setInstructorDebts]      = useState<InstructorDebt[]>([...mockInstructorDebts])
-  const [instructorPayments,   setInstructorPayments]   = useState<InstructorPayment[]>([...mockInstructorPayments])
-  const [lessonRateOverrides,  setLessonRateOverrides]  = useState<LessonRateOverride[]>([...mockLessonRateOverrides])
-  const [expenses,             setExpenses]             = useState<Expense[]>([...mockExpenses])
-  const [palmeirasRents,       setPalmeirasRents]       = useState<PalmeirasRent[]>([...mockPalmeirasRents])
-  const [palmeirasReversals,   setPalmeirasReversals]   = useState<PalmeirasReversal[]>([...mockPalmeirasReversals])
-  const [palmeirasEntries,     setPalmeirasEntries]     = useState<PalmeirasEntry[]>([...mockPalmeirasEntries])
-  const [palmeirasSubLets,     setPalmeirasSubLets]     = useState<PalmeirasSubLet[]>([...mockPalmeirasSubLets])
+  // ── Read-only data (Supabase hooks) ───────────────────────────────────────
+  const { data: bookings }                 = useBookings()
+  const { data: clients }                  = useClients()
+  const { data: rooms }                    = useRooms()
+  const { data: bookingRooms }             = useBookingRooms()
+  const { data: bookingRoomPrices }        = useBookingRoomPrices()
+  const { data: externalAccommodations }   = useTable<ExternalAccommodation>('external_accommodations')
+  const { data: externalAccommodationBkgs }= useTable<ExternalAccommodationBooking>('external_accommodation_bookings')
+  const { data: lessons }                  = useLessons()
+  const { data: instructors }              = useInstructors()
+  const { data: equipmentRentals }         = useEquipmentRentals()
+  const { data: taxiTrips }                = useTaxiTrips()
+  const { data: seasons }                  = useTable<Season>('seasons')
+
+  // ── Mutable state (Supabase) ──────────────────────────────────────────────
+  const { data: paymentsData }           = usePayments()
+  const { data: instructorDebtsData }    = useTable<InstructorDebt>('instructor_debts', { order: 'date', ascending: false })
+  const { data: instructorPaymentsData } = useTable<InstructorPayment>('instructor_payments', { order: 'date', ascending: false })
+  const { data: lessonOverridesData }    = useTable<LessonRateOverride>('lesson_rate_overrides')
+  const { data: expensesData }           = useTable<Expense>('expenses', { order: 'date', ascending: false })
+  const { data: palmeirasRentsData }     = useTable<PalmeirasRent>('palmeiras_rents', { order: 'month', ascending: false })
+  const { data: palmeirasReversalsData } = useTable<PalmeirasReversal>('palmeiras_reversals', { order: 'date', ascending: false })
+  const { data: palmeirasEntriesData }   = useTable<PalmeirasEntry>('palmeiras_entries', { order: 'date', ascending: false })
+  const { data: palmeirasSubLetsData }   = useTable<PalmeirasSubLet>('palmeiras_sub_lets', { order: 'month', ascending: false })
+
+  const [payments,           setPayments]           = useState<Payment[]>([])
+  const [instructorDebts,    setInstructorDebts]    = useState<InstructorDebt[]>([])
+  const [instructorPayments, setInstructorPayments] = useState<InstructorPayment[]>([])
+  const [lessonRateOverrides,setLessonRateOverrides]= useState<LessonRateOverride[]>([])
+  const [expenses,           setExpenses]           = useState<Expense[]>([])
+  const [palmeirasRents,     setPalmeirasRents]     = useState<PalmeirasRent[]>([])
+  const [palmeirasReversals, setPalmeirasReversals] = useState<PalmeirasReversal[]>([])
+  const [palmeirasEntries,   setPalmeirasEntries]   = useState<PalmeirasEntry[]>([])
+  const [palmeirasSubLets,   setPalmeirasSubLets]   = useState<PalmeirasSubLet[]>([])
+
+  useEffect(() => setPayments(paymentsData),                   [paymentsData])
+  useEffect(() => setInstructorDebts(instructorDebtsData),     [instructorDebtsData])
+  useEffect(() => setInstructorPayments(instructorPaymentsData),[instructorPaymentsData])
+  useEffect(() => setLessonRateOverrides(lessonOverridesData), [lessonOverridesData])
+  useEffect(() => setExpenses(expensesData),                   [expensesData])
+  useEffect(() => setPalmeirasRents(palmeirasRentsData),       [palmeirasRentsData])
+  useEffect(() => setPalmeirasReversals(palmeirasReversalsData),[palmeirasReversalsData])
+  useEffect(() => setPalmeirasEntries(palmeirasEntriesData),   [palmeirasEntriesData])
+  useEffect(() => setPalmeirasSubLets(palmeirasSubLetsData),   [palmeirasSubLetsData])
 
   // ── Shared computed data passed down to tabs ──────────────────────────────
   const sharedData = {
-    bookings:                    mockBookings,
-    clients:                     mockClients,
-    rooms:                       mockRooms,
-    bookingRooms:                mockBookingRooms,
-    bookingRoomPrices:           mockBookingRoomPrices,
-    externalAccommodationBkgs:   mockExternalAccommodationBookings,
-    externalAccommodations:      mockExternalAccommodations,
-    lessons:                     mockLessons,
-    instructors:                 mockInstructors,
-    equipmentRentals:            mockEquipmentRentals,
-    taxiTrips:                   mockTaxiTrips,
-    seasons:                     mockSeasons,
+    bookings,
+    clients,
+    rooms,
+    bookingRooms,
+    bookingRoomPrices,
+    externalAccommodationBkgs,
+    externalAccommodations,
+    lessons,
+    instructors,
+    equipmentRentals,
+    taxiTrips,
+    seasons,
     payments,
     instructorDebts,
     instructorPayments,
@@ -67,30 +104,104 @@ export default function AccountingPage() {
     palmeirasSubLets,
   }
 
+  // ── Handlers (optimistic local update + Supabase fire-and-forget) ─────────
   const handlers = {
-    addPayment:            (p: Payment)              => setPayments(prev => [...prev, p]),
-    updatePayment:         (p: Payment)              => setPayments(prev => prev.map(x => x.id === p.id ? p : x)),
-    deletePayment:         (id: string)              => setPayments(prev => prev.filter(x => x.id !== id)),
-    addInstructorDebt:     (d: InstructorDebt)       => setInstructorDebts(prev => [...prev, d]),
-    deleteInstructorDebt:  (id: string)              => setInstructorDebts(prev => prev.filter(x => x.id !== id)),
-    addInstructorPayment:  (p: InstructorPayment)    => setInstructorPayments(prev => [...prev, p]),
-    deleteInstructorPayment:(id: string)             => setInstructorPayments(prev => prev.filter(x => x.id !== id)),
-    setLessonOverride:     (o: LessonRateOverride)   => setLessonRateOverrides(prev => {
-      const idx = prev.findIndex(x => x.lesson_id === o.lesson_id)
-      return idx >= 0 ? prev.map((x, i) => i === idx ? o : x) : [...prev, o]
-    }),
-    removeLessonOverride:  (lesson_id: string)       => setLessonRateOverrides(prev => prev.filter(x => x.lesson_id !== lesson_id)),
-    addExpense:            (e: Expense)              => setExpenses(prev => [...prev, e]),
-    deleteExpense:         (id: string)              => setExpenses(prev => prev.filter(x => x.id !== id)),
-    addPalmeirasRent:      (r: PalmeirasRent)        => setPalmeirasRents(prev => [...prev, r]),
-    updatePalmeirasRent:   (r: PalmeirasRent)        => setPalmeirasRents(prev => prev.map(x => x.id === r.id ? r : x)),
-    addPalmeirasReversal:   (r: PalmeirasReversal) => setPalmeirasReversals(prev => [...prev, r]),
-    updatePalmeirasReversal:(r: PalmeirasReversal) => setPalmeirasReversals(prev => prev.map(x => x.id === r.id ? r : x)),
-    addPalmeirasEntry:      (e: PalmeirasEntry)    => setPalmeirasEntries(prev => [...prev, e]),
-    deletePalmeirasEntry:   (id: string)           => setPalmeirasEntries(prev => prev.filter(x => x.id !== id)),
-    addPalmeirasSubLet:     (s: PalmeirasSubLet)   => setPalmeirasSubLets(prev => [...prev, s]),
-    updatePalmeirasSubLet:  (s: PalmeirasSubLet)   => setPalmeirasSubLets(prev => prev.map(x => x.id === s.id ? s : x)),
-    deletePalmeirasSubLet:  (id: string)           => setPalmeirasSubLets(prev => prev.filter(x => x.id !== id)),
+    addPayment: (p: Payment) => {
+      setPayments(prev => [...prev, p])
+      const { id, ...fields } = p
+      supabase.from('payments').insert([{ id, ...fields }])
+    },
+    updatePayment: (p: Payment) => {
+      setPayments(prev => prev.map(x => x.id === p.id ? p : x))
+      const { id, ...fields } = p
+      supabase.from('payments').update(fields).eq('id', id)
+    },
+    deletePayment: (id: string) => {
+      setPayments(prev => prev.filter(x => x.id !== id))
+      supabase.from('payments').delete().eq('id', id)
+    },
+
+    addInstructorDebt: (d: InstructorDebt) => {
+      setInstructorDebts(prev => [...prev, d])
+      supabase.from('instructor_debts').insert([d])
+    },
+    deleteInstructorDebt: (id: string) => {
+      setInstructorDebts(prev => prev.filter(x => x.id !== id))
+      supabase.from('instructor_debts').delete().eq('id', id)
+    },
+
+    addInstructorPayment: (p: InstructorPayment) => {
+      setInstructorPayments(prev => [...prev, p])
+      supabase.from('instructor_payments').insert([p])
+    },
+    deleteInstructorPayment: (id: string) => {
+      setInstructorPayments(prev => prev.filter(x => x.id !== id))
+      supabase.from('instructor_payments').delete().eq('id', id)
+    },
+
+    setLessonOverride: (o: LessonRateOverride) => {
+      setLessonRateOverrides(prev => {
+        const idx = prev.findIndex(x => x.lesson_id === o.lesson_id)
+        return idx >= 0 ? prev.map((x, i) => i === idx ? o : x) : [...prev, o]
+      })
+      supabase.from('lesson_rate_overrides').upsert([o])
+    },
+    removeLessonOverride: (lesson_id: string) => {
+      setLessonRateOverrides(prev => prev.filter(x => x.lesson_id !== lesson_id))
+      supabase.from('lesson_rate_overrides').delete().eq('lesson_id', lesson_id)
+    },
+
+    addExpense: (e: Expense) => {
+      setExpenses(prev => [...prev, e])
+      supabase.from('expenses').insert([e])
+    },
+    deleteExpense: (id: string) => {
+      setExpenses(prev => prev.filter(x => x.id !== id))
+      supabase.from('expenses').delete().eq('id', id)
+    },
+
+    addPalmeirasRent: (r: PalmeirasRent) => {
+      setPalmeirasRents(prev => [...prev, r])
+      supabase.from('palmeiras_rents').insert([r])
+    },
+    updatePalmeirasRent: (r: PalmeirasRent) => {
+      setPalmeirasRents(prev => prev.map(x => x.id === r.id ? r : x))
+      const { id, ...fields } = r
+      supabase.from('palmeiras_rents').update(fields).eq('id', id)
+    },
+
+    addPalmeirasReversal: (r: PalmeirasReversal) => {
+      setPalmeirasReversals(prev => [...prev, r])
+      supabase.from('palmeiras_reversals').insert([r])
+    },
+    updatePalmeirasReversal: (r: PalmeirasReversal) => {
+      setPalmeirasReversals(prev => prev.map(x => x.id === r.id ? r : x))
+      const { id, ...fields } = r
+      supabase.from('palmeiras_reversals').update(fields).eq('id', id)
+    },
+
+    addPalmeirasEntry: (e: PalmeirasEntry) => {
+      setPalmeirasEntries(prev => [...prev, e])
+      supabase.from('palmeiras_entries').insert([e])
+    },
+    deletePalmeirasEntry: (id: string) => {
+      setPalmeirasEntries(prev => prev.filter(x => x.id !== id))
+      supabase.from('palmeiras_entries').delete().eq('id', id)
+    },
+
+    addPalmeirasSubLet: (s: PalmeirasSubLet) => {
+      setPalmeirasSubLets(prev => [...prev, s])
+      supabase.from('palmeiras_sub_lets').insert([s])
+    },
+    updatePalmeirasSubLet: (s: PalmeirasSubLet) => {
+      setPalmeirasSubLets(prev => prev.map(x => x.id === s.id ? s : x))
+      const { id, ...fields } = s
+      supabase.from('palmeiras_sub_lets').update(fields).eq('id', id)
+    },
+    deletePalmeirasSubLet: (id: string) => {
+      setPalmeirasSubLets(prev => prev.filter(x => x.id !== id))
+      supabase.from('palmeiras_sub_lets').delete().eq('id', id)
+    },
   }
 
   return (

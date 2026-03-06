@@ -208,8 +208,20 @@ export interface TaxiPricingDefaults {
   updated_at: string
 }
 
+/** Minimal booking shape used by taxi views for the booking picker */
+export interface BookingRef {
+  id: string
+  booking_number: number
+  check_in: string
+  check_out: string
+  luggage_count: number
+  boardbag_count: number
+  participants?: { id: string }[]
+  client?: { first_name: string; last_name: string } | null
+}
+
 // Shared public links
-export type SharedLinkType = 'forecast' | 'taxi'
+export type SharedLinkType = 'forecast' | 'taxi' | 'client'
 
 export interface SharedLink {
   id: string

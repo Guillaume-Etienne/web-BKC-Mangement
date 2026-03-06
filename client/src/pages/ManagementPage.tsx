@@ -1,6 +1,9 @@
-import { useState } from 'react'
-import { mockInstructors as initialInstructors, mockLessons, mockPriceItems as initialPriceItems, mockSharedLinks as initialSharedLinks, mockTaxiPricingDefaults } from '../data/mock'
-import type { Instructor, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults } from '../types/database'
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+import { useInstructors } from '../hooks/useInstructors'
+import { useLessons } from '../hooks/useLessons'
+import { useTable } from '../hooks/useSupabase'
+import type { Instructor, Lesson, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults } from '../types/database'
 
 const specialtyOptions = ['Beginner', 'Intermediate', 'Advanced', 'Wave', 'Freestyle']
 const specialtyValues = ['beginner', 'intermediate', 'advanced', 'wave', 'freestyle']
@@ -15,6 +18,7 @@ const priceCategoryLabels: Record<PriceCategory, string> = {
 const LINK_TYPE_LABELS: Record<SharedLinkType, { icon: string; label: string }> = {
   forecast: { icon: '📋', label: 'Forecast' },
   taxi:     { icon: '🚕', label: 'Taxi Schedule' },
+  client:   { icon: '👤', label: 'Client Account' },
 }
 
 function generateToken(type: SharedLinkType) {
@@ -28,32 +32,52 @@ function getBaseUrl() {
 export default function ManagementPage() {
   const [tab, setTab] = useState<'instructors' | 'pricing' | 'links'>('instructors')
 
-  // Instructors
-  const [instructors, setInstructors] = useState<Instructor[]>([...initialInstructors])
+  // ── Instructors (Supabase) ─────────────────────────────────────────────────
+  const { data: instructorsData, refresh: refreshInstructors } = useInstructors()
+  const [instructors, setInstructors] = useState<Instructor[]>([])
   const [selectedInstructor, setSelectedInstructor] = useState<Instructor | null>(null)
   const [showInstructorForm, setShowInstructorForm] = useState(false)
   const [instructorFormData, setInstructorFormData] = useState<Partial<Instructor>>({})
   const [instructorDetailTab, setInstructorDetailTab] = useState<'info' | 'lessons'>('info')
   const [searchInstructor, setSearchInstructor] = useState('')
 
-  // Pricing
-  const [priceItems, setPriceItems] = useState<PriceItem[]>([...initialPriceItems])
+  useEffect(() => { setInstructors(instructorsData) }, [instructorsData])
+
+  // ── Lessons (Supabase, read-only here) ────────────────────────────────────
+  const { data: lessons } = useLessons()
+
+  // ── Pricing (Supabase) ────────────────────────────────────────────────────
+  const { data: priceItemsData, refresh: refreshPriceItems } = useTable<PriceItem>('price_items')
+  const [priceItems, setPriceItems] = useState<PriceItem[]>([])
   const [showPriceForm, setShowPriceForm] = useState(false)
   const [priceFormData, setPriceFormData] = useState<Partial<PriceItem>>({})
   const [selectedPriceCategory, setSelectedPriceCategory] = useState<PriceCategory>('lesson')
 
-  // Taxi pricing defaults
-  const [taxiPricingDefaults, setTaxiPricingDefaults] = useState<TaxiPricingDefaults>({ ...mockTaxiPricingDefaults })
-  const [taxiPricingForm, setTaxiPricingForm] = useState<TaxiPricingDefaults>({ ...mockTaxiPricingDefaults })
+  useEffect(() => { setPriceItems(priceItemsData) }, [priceItemsData])
+
+  // ── Taxi pricing defaults (Supabase) ──────────────────────────────────────
+  const { data: taxiDefaultsData } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults')
+  const [taxiPricingDefaults, setTaxiPricingDefaults] = useState<TaxiPricingDefaults | null>(null)
+  const [taxiPricingForm, setTaxiPricingForm] = useState<TaxiPricingDefaults | null>(null)
   const [taxiPricingEditing, setTaxiPricingEditing] = useState(false)
 
-  // Shared links
-  const [sharedLinks, setSharedLinks] = useState<SharedLink[]>([...initialSharedLinks])
+  useEffect(() => {
+    if (taxiDefaultsData.length > 0) {
+      setTaxiPricingDefaults(taxiDefaultsData[0])
+      setTaxiPricingForm(taxiDefaultsData[0])
+    }
+  }, [taxiDefaultsData])
+
+  // ── Shared links (Supabase) ───────────────────────────────────────────────
+  const { data: sharedLinksData, refresh: refreshSharedLinks } = useTable<SharedLink>('shared_links')
+  const [sharedLinks, setSharedLinks] = useState<SharedLink[]>([])
   const [showLinkForm, setShowLinkForm] = useState(false)
-  const [linkFormData, setLinkFormData] = useState<{ label: string; type: SharedLinkType; expires_at: string }>({
-    label: '', type: 'forecast', expires_at: '',
+  const [linkFormData, setLinkFormData] = useState<{ label: string; type: SharedLinkType; expires_at: string; booking_number: string }>({
+    label: '', type: 'forecast', expires_at: '', booking_number: '',
   })
   const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  useEffect(() => { setSharedLinks(sharedLinksData) }, [sharedLinksData])
 
   const filteredInstructors = instructors.filter(i =>
     `${i.first_name} ${i.last_name}`.toLowerCase().includes(searchInstructor.toLowerCase()) ||
@@ -61,7 +85,8 @@ export default function ManagementPage() {
     (i.phone?.includes(searchInstructor))
   )
 
-  const getInstructorLessons = (instructorId: string) => mockLessons.filter(l => l.instructor_id === instructorId)
+  const getInstructorLessons = (instructorId: string): Lesson[] =>
+    lessons.filter(l => l.instructor_id === instructorId)
 
   // ── Instructor handlers ───────────────────────────────────────────────────
 
@@ -78,33 +103,37 @@ export default function ManagementPage() {
 
   const closeInstructorForm = () => { setShowInstructorForm(false); setInstructorFormData({}) }
 
-  const handleInstructorSubmit = (e: React.FormEvent) => {
+  const handleInstructorSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedInstructor) {
-      setInstructors(prev => prev.map(i => i.id === selectedInstructor.id ? { ...i, ...instructorFormData } : i))
+      const { id, ...fields } = { ...selectedInstructor, ...instructorFormData }
+      const { error } = await supabase.from('instructors').update(fields).eq('id', id)
+      if (error) { alert('Error: ' + error.message); return }
       setSelectedInstructor(prev => prev ? { ...prev, ...instructorFormData } : null)
     } else {
-      const newInstructor: Instructor = {
-        id: `i${Date.now()}`,
+      const { error } = await supabase.from('instructors').insert([{
         first_name: instructorFormData.first_name || '',
-        last_name: instructorFormData.last_name || '',
-        email: instructorFormData.email || null,
-        phone: instructorFormData.phone || null,
-        specialties: instructorFormData.specialties || [],
-        rate_private: instructorFormData.rate_private || 50,
-        rate_group: instructorFormData.rate_group || 35,
-        rate_supervision: instructorFormData.rate_supervision || 25,
-        notes: instructorFormData.notes || null,
-      }
-      setInstructors(prev => [...prev, newInstructor])
+        last_name:  instructorFormData.last_name  || '',
+        email:      instructorFormData.email      || null,
+        phone:      instructorFormData.phone      || null,
+        specialties:     instructorFormData.specialties     || [],
+        rate_private:    instructorFormData.rate_private    || 50,
+        rate_group:      instructorFormData.rate_group      || 35,
+        rate_supervision:instructorFormData.rate_supervision|| 25,
+        notes:      instructorFormData.notes      || null,
+      }])
+      if (error) { alert('Error: ' + error.message); return }
     }
+    refreshInstructors()
     closeInstructorForm()
   }
 
-  const handleDeleteInstructor = (id: string) => {
+  const handleDeleteInstructor = async (id: string) => {
     if (confirm('Delete this instructor?')) {
-      setInstructors(prev => prev.filter(i => i.id !== id))
+      const { error } = await supabase.from('instructors').delete().eq('id', id)
+      if (error) { alert('Error: ' + error.message); return }
       setSelectedInstructor(null)
+      refreshInstructors()
     }
   }
 
@@ -122,54 +151,70 @@ export default function ManagementPage() {
 
   const closePriceForm = () => { setShowPriceForm(false); setPriceFormData({}) }
 
-  const handlePriceSubmit = (e: React.FormEvent) => {
+  const handlePriceSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (priceFormData.id) {
-      setPriceItems(prev => prev.map(p => p.id === priceFormData.id ? { ...p, ...priceFormData } : p))
+      const { id, ...fields } = priceFormData as PriceItem
+      const { error } = await supabase.from('price_items').update(fields).eq('id', id)
+      if (error) { alert('Error: ' + error.message); return }
     } else {
-      const newPriceItem: PriceItem = {
-        id: `p${Date.now()}`,
-        category: priceFormData.category || selectedPriceCategory,
-        name: priceFormData.name || '',
+      const { error } = await supabase.from('price_items').insert([{
+        category:    priceFormData.category    || selectedPriceCategory,
+        name:        priceFormData.name        || '',
         description: priceFormData.description || null,
-        price: priceFormData.price || 0,
-        unit: priceFormData.unit || null,
-      }
-      setPriceItems(prev => [...prev, newPriceItem])
+        price:       priceFormData.price       || 0,
+        unit:        priceFormData.unit        || null,
+      }])
+      if (error) { alert('Error: ' + error.message); return }
     }
+    refreshPriceItems()
     closePriceForm()
   }
 
-  const handleDeletePrice = (id: string) => {
-    if (confirm('Delete this price entry?')) setPriceItems(prev => prev.filter(p => p.id !== id))
+  const handleDeletePrice = async (id: string) => {
+    if (confirm('Delete this price entry?')) {
+      const { error } = await supabase.from('price_items').delete().eq('id', id)
+      if (error) { alert('Error: ' + error.message); return }
+      refreshPriceItems()
+    }
   }
 
   // ── Shared link handlers ──────────────────────────────────────────────────
 
-  const handleCreateLink = (e: React.FormEvent) => {
+  const handleCreateLink = async (e: React.FormEvent) => {
     e.preventDefault()
-    const newLink: SharedLink = {
-      id: `sl${Date.now()}`,
-      token: generateToken(linkFormData.type),
-      type: linkFormData.type,
-      label: linkFormData.label || LINK_TYPE_LABELS[linkFormData.type].label,
-      params: {},
+    const params: Record<string, string> = {}
+    if (linkFormData.type === 'client' && linkFormData.booking_number)
+      params.booking_number = linkFormData.booking_number
+
+    const { error } = await supabase.from('shared_links').insert([{
+      token:      generateToken(linkFormData.type),
+      type:       linkFormData.type,
+      label:      linkFormData.label || LINK_TYPE_LABELS[linkFormData.type].label,
+      params,
       created_at: new Date().toISOString().slice(0, 10),
       expires_at: linkFormData.expires_at || null,
-      is_active: true,
-    }
-    setSharedLinks(prev => [...prev, newLink])
+      is_active:  true,
+    }])
+    if (error) { alert('Error: ' + error.message); return }
+    refreshSharedLinks()
     setShowLinkForm(false)
-    setLinkFormData({ label: '', type: 'forecast', expires_at: '' })
+    setLinkFormData({ label: '', type: 'forecast', expires_at: '', booking_number: '' })
   }
 
-  const toggleLinkActive = (id: string) => {
-    setSharedLinks(prev => prev.map(l => l.id === id ? { ...l, is_active: !l.is_active } : l))
+  const toggleLinkActive = async (id: string) => {
+    const link = sharedLinks.find(l => l.id === id)
+    if (!link) return
+    const { error } = await supabase.from('shared_links').update({ is_active: !link.is_active }).eq('id', id)
+    if (error) { alert('Error: ' + error.message); return }
+    refreshSharedLinks()
   }
 
-  const deleteLink = (id: string) => {
+  const deleteLink = async (id: string) => {
     if (confirm('Delete this link? Anyone using it will lose access.')) {
-      setSharedLinks(prev => prev.filter(l => l.id !== id))
+      const { error } = await supabase.from('shared_links').delete().eq('id', id)
+      if (error) { alert('Error: ' + error.message); return }
+      refreshSharedLinks()
     }
   }
 
@@ -401,7 +446,7 @@ export default function ManagementPage() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-800">🚕 Taxi Pricing Defaults</h2>
-                {!taxiPricingEditing && (
+                {taxiPricingDefaults && !taxiPricingEditing && (
                   <button onClick={() => { setTaxiPricingForm({ ...taxiPricingDefaults }); setTaxiPricingEditing(true) }}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors text-sm">
                     ✏️ Edit
@@ -409,31 +454,33 @@ export default function ManagementPage() {
                 )}
               </div>
               <div className="bg-white rounded-lg shadow p-6">
-                {taxiPricingEditing ? (
+                {!taxiPricingDefaults ? (
+                  <p className="text-sm text-gray-400">Loading…</p>
+                ) : taxiPricingEditing && taxiPricingForm ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Client price (MZN)</label>
                         <input type="number" min="0" value={taxiPricingForm.price_client_mzn}
-                          onChange={e => setTaxiPricingForm(f => ({ ...f, price_client_mzn: parseInt(e.target.value) || 0 }))}
+                          onChange={e => setTaxiPricingForm(f => f ? ({ ...f, price_client_mzn: parseInt(e.target.value) || 0 }) : f)}
                           className="w-full text-sm border rounded px-2 py-1.5 font-semibold text-blue-900" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Manager margin (MZN)</label>
                         <input type="number" min="0" value={taxiPricingForm.margin_manager_mzn}
-                          onChange={e => setTaxiPricingForm(f => ({ ...f, margin_manager_mzn: parseInt(e.target.value) || 0 }))}
+                          onChange={e => setTaxiPricingForm(f => f ? ({ ...f, margin_manager_mzn: parseInt(e.target.value) || 0 }) : f)}
                           className="w-full text-sm border rounded px-2 py-1.5 font-semibold text-purple-900" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Centre margin (MZN)</label>
                         <input type="number" min="0" value={taxiPricingForm.margin_centre_mzn}
-                          onChange={e => setTaxiPricingForm(f => ({ ...f, margin_centre_mzn: parseInt(e.target.value) || 0 }))}
+                          onChange={e => setTaxiPricingForm(f => f ? ({ ...f, margin_centre_mzn: parseInt(e.target.value) || 0 }) : f)}
                           className="w-full text-sm border rounded px-2 py-1.5 font-semibold text-green-900" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">EUR/MZN rate</label>
                         <input type="number" min="1" step="0.01" value={taxiPricingForm.eur_mzn_rate}
-                          onChange={e => setTaxiPricingForm(f => ({ ...f, eur_mzn_rate: parseFloat(e.target.value) || 65 }))}
+                          onChange={e => setTaxiPricingForm(f => f ? ({ ...f, eur_mzn_rate: parseFloat(e.target.value) || 65 }) : f)}
                           className="w-full text-sm border rounded px-2 py-1.5" />
                       </div>
                     </div>
@@ -449,7 +496,20 @@ export default function ManagementPage() {
                     <div className="flex gap-3 pt-2">
                       <button onClick={() => setTaxiPricingEditing(false)}
                         className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium text-sm">Cancel</button>
-                      <button onClick={() => { setTaxiPricingDefaults({ ...taxiPricingForm, updated_at: new Date().toISOString() }); setTaxiPricingEditing(false) }}
+                      <button onClick={async () => {
+                        if (!taxiPricingForm) return
+                        const updated = { ...taxiPricingForm, updated_at: new Date().toISOString() }
+                        const { error } = await supabase.from('taxi_pricing_defaults').update({
+                          price_client_mzn:   updated.price_client_mzn,
+                          margin_manager_mzn: updated.margin_manager_mzn,
+                          margin_centre_mzn:  updated.margin_centre_mzn,
+                          eur_mzn_rate:       updated.eur_mzn_rate,
+                          updated_at:         updated.updated_at,
+                        }).eq('id', updated.id)
+                        if (error) { alert('Error: ' + error.message); return }
+                        setTaxiPricingDefaults(updated)
+                        setTaxiPricingEditing(false)
+                      }}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm">Save</button>
                     </div>
                   </div>
@@ -511,6 +571,16 @@ export default function ManagementPage() {
                     ))}
                   </select>
                 </div>
+                {linkFormData.type === 'client' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Booking number *</label>
+                    <input type="number" min="1" value={linkFormData.booking_number}
+                      onChange={e => setLinkFormData(d => ({ ...d, booking_number: e.target.value }))}
+                      placeholder="e.g. 42"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Label (optional)</label>
                   <input type="text" value={linkFormData.label}

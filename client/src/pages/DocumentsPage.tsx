@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { mockBookings, mockBookingRooms, mockRooms, mockAccommodations } from '../data/mock'
+import { useBookings, useBookingRooms } from '../hooks/useBookings'
+import { useAccommodations, useRooms } from '../hooks/useAccommodations'
+import type { Room, Accommodation } from '../types/database'
 import { defaultTravelGuideSections } from '../data/travelGuide'
 import type { TravelGuideSection } from '../data/travelGuide'
 import { printVisaLetter } from '../utils/printVisaLetter'
@@ -9,12 +11,12 @@ import type { Booking } from '../types/database'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function getRoomLabels(bookingId: string): string[] {
-  return mockBookingRooms
+function getRoomLabels(bookingId: string, bookingRooms: { booking_id: string; room_id: string }[], rooms: Room[], accommodations: Accommodation[]): string[] {
+  return bookingRooms
     .filter(br => br.booking_id === bookingId)
     .map(br => {
-      const room = mockRooms.find(r => r.id === br.room_id)
-      const acc  = room ? mockAccommodations.find(a => a.id === room.accommodation_id) : null
+      const room = rooms.find(r => r.id === br.room_id)
+      const acc  = room ? accommodations.find(a => a.id === room.accommodation_id) : null
       return acc && room ? `${acc.name}/${room.name}` : '?'
     })
 }
@@ -23,8 +25,6 @@ function bookingLabel(b: Booking): string {
   const name = b.client ? `${b.client.first_name} ${b.client.last_name}` : 'Unknown'
   return `#${String(b.booking_number).padStart(3, '0')} — ${name}  (${b.check_in} → ${b.check_out})`
 }
-
-const ACTIVE_BOOKINGS = mockBookings.filter(b => b.status !== 'cancelled')
 
 // ── Travel Guide Editor ────────────────────────────────────────────────────────
 
@@ -100,22 +100,27 @@ function TravelGuideEditor({
 type Tab = 'visa' | 'summary' | 'guide'
 
 export default function DocumentsPage() {
+  const { data: allBookings, loading } = useBookings()
+  const { data: bookingRooms } = useBookingRooms()
+  const { data: rooms } = useRooms()
+  const { data: accommodations } = useAccommodations()
+
   const [tab, setTab] = useState<Tab>('visa')
-
-  // Visa letter
-  const [visaBookingId, setVisaBookingId] = useState(ACTIVE_BOOKINGS[0]?.id ?? '')
-
-  // Booking summary
-  const [summaryBookingId, setSummaryBookingId] = useState(ACTIVE_BOOKINGS[0]?.id ?? '')
+  const [visaBookingId, setVisaBookingId]     = useState('')
+  const [summaryBookingId, setSummaryBookingId] = useState('')
   const [lang, setLang]                         = useState<Lang>('en')
   const [totalAmountStr, setTotalAmountStr]      = useState('')
+  const [guideSections, setGuideSections]        = useState<TravelGuideSection[]>(defaultTravelGuideSections)
 
-  // Travel guide (shared between summary tab + guide editor tab)
-  const [guideSections, setGuideSections] = useState<TravelGuideSection[]>(defaultTravelGuideSections)
+  const activeBookings = allBookings.filter(b => b.status !== 'cancelled')
 
-  const visaBooking    = mockBookings.find(b => b.id === visaBookingId)
-  const summaryBooking = mockBookings.find(b => b.id === summaryBookingId)
-  const summaryRooms   = getRoomLabels(summaryBookingId)
+  // Auto-select first booking once loaded
+  const effectiveVisaId    = visaBookingId    || activeBookings[0]?.id || ''
+  const effectiveSummaryId = summaryBookingId || activeBookings[0]?.id || ''
+
+  const visaBooking    = activeBookings.find(b => b.id === effectiveVisaId)
+  const summaryBooking = activeBookings.find(b => b.id === effectiveSummaryId)
+  const summaryRooms   = getRoomLabels(effectiveSummaryId, bookingRooms, rooms, accommodations)
   const totalAmount    = totalAmountStr !== '' ? parseFloat(totalAmountStr) : null
   const activeSections = guideSections.filter(s => s.is_active)
 
@@ -124,6 +129,15 @@ export default function DocumentsPage() {
     { id: 'summary', label: '📄 Booking Summary' },
     { id: 'guide',   label: '✏️ Travel Guide' },
   ]
+
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-6">📄 Documents</h1>
+        <p className="text-gray-500">Loading bookings…</p>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
@@ -153,10 +167,15 @@ export default function DocumentsPage() {
 
           <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
             <h2 className="font-semibold text-gray-700">Select booking</h2>
-            <select value={visaBookingId} onChange={e => setVisaBookingId(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
-              {ACTIVE_BOOKINGS.map(b => <option key={b.id} value={b.id}>{bookingLabel(b)}</option>)}
-            </select>
+
+            {activeBookings.length === 0 ? (
+              <p className="text-sm text-gray-400 italic">No active bookings found.</p>
+            ) : (
+              <select value={effectiveVisaId} onChange={e => setVisaBookingId(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+                {activeBookings.map(b => <option key={b.id} value={b.id}>{bookingLabel(b)}</option>)}
+              </select>
+            )}
 
             {visaBooking && (
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -173,11 +192,11 @@ export default function DocumentsPage() {
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded p-3 col-span-2">
-                  <div className="text-xs text-gray-500 mb-1">Participants ({visaBooking.participants.length})</div>
-                  <div className={`font-semibold text-sm ${visaBooking.participants.length === 0 ? 'text-red-500' : ''}`}>
-                    {visaBooking.participants.length === 0
+                  <div className="text-xs text-gray-500 mb-1">Participants ({(visaBooking.participants ?? []).length})</div>
+                  <div className={`font-semibold text-sm ${(visaBooking.participants ?? []).length === 0 ? 'text-red-500' : ''}`}>
+                    {(visaBooking.participants ?? []).length === 0
                       ? '⚠ No participants listed'
-                      : visaBooking.participants.map(p => `${p.first_name} ${p.last_name}`).join(', ')}
+                      : (visaBooking.participants ?? []).map(p => `${p.first_name} ${p.last_name}`).join(', ')}
                   </div>
                 </div>
               </div>
@@ -205,10 +224,14 @@ export default function DocumentsPage() {
             {/* Booking */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Booking</label>
-              <select value={summaryBookingId} onChange={e => setSummaryBookingId(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
-                {ACTIVE_BOOKINGS.map(b => <option key={b.id} value={b.id}>{bookingLabel(b)}</option>)}
-              </select>
+              {activeBookings.length === 0 ? (
+                <p className="text-sm text-gray-400 italic">No active bookings found.</p>
+              ) : (
+                <select value={effectiveSummaryId} onChange={e => setSummaryBookingId(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+                  {activeBookings.map(b => <option key={b.id} value={b.id}>{bookingLabel(b)}</option>)}
+                </select>
+              )}
             </div>
 
             {/* Language */}

@@ -1,14 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import TaxiKanbanView from '../components/taxi/TaxiKanbanView'
 import TaxiListView from '../components/taxi/TaxiListView'
 import { useTaxiDrivers, useTaxiTrips } from '../hooks/useTaxis'
+import { useTable } from '../hooks/useSupabase'
 import { supabase } from '../lib/supabase'
-import { mockTaxiPricingDefaults } from '../data/mock'
-import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults } from '../types/database'
+
+import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults, BookingRef } from '../types/database'
 
 export default function TaxiPage() {
   const { data: trips, loading: tripsLoading, error: tripsError, schemaOutdated, refresh: refreshTrips } = useTaxiTrips()
   const { data: drivers, loading: driversLoading, error: driversError, refresh: refreshDrivers } = useTaxiDrivers()
+  const { data: bookings } = useTable<BookingRef>('bookings', {
+    select: 'id, booking_number, check_in, check_out, luggage_count, boardbag_count, participants(id), client:clients(first_name, last_name)',
+    order: 'check_in',
+    ascending: false,
+  })
 
   const [tab, setTab]               = useState<'planning' | 'drivers'>('planning')
   const [planningView, setPlanningView] = useState<'kanban' | 'list'>('list')
@@ -16,10 +22,20 @@ export default function TaxiPage() {
   const [showDriverForm, setShowDriverForm] = useState(false)
   const [driverFormData, setDriverFormData] = useState<Partial<TaxiDriver>>({})
   const [saving, setSaving] = useState(false)
-  const [pricingDefaults, setPricingDefaults] = useState<TaxiPricingDefaults>(mockTaxiPricingDefaults)
+  const { data: pricingDefaultsData } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults')
+  const [pricingDefaults, setPricingDefaults] = useState<TaxiPricingDefaults | null>(null)
+
+  useEffect(() => {
+    if (pricingDefaultsData.length > 0) setPricingDefaults(pricingDefaultsData[0])
+  }, [pricingDefaultsData])
 
   function updateExchangeRate(rate: number) {
-    setPricingDefaults(d => ({ ...d, eur_mzn_rate: rate, updated_at: new Date().toISOString() }))
+    setPricingDefaults(d => {
+      if (!d) return d
+      const updated = { ...d, eur_mzn_rate: rate, updated_at: new Date().toISOString() }
+      supabase.from('taxi_pricing_defaults').update({ eur_mzn_rate: rate, updated_at: updated.updated_at }).eq('id', d.id)
+      return updated
+    })
   }
 
   // ── Trip handlers ─────────────────────────────────────────────────────────
@@ -147,11 +163,11 @@ export default function TaxiPage() {
               </div>
             </div>
 
-            {loading ? (
+            {loading || !pricingDefaults ? (
               <div className="text-center py-16 text-gray-400">Chargement…</div>
             ) : planningView === 'list' ? (
               <TaxiListView
-                trips={trips} drivers={drivers} pricingDefaults={pricingDefaults}
+                trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings}
                 onAddTrip={schemaOutdated ? async () => { alert('Migration DB requise avant de pouvoir ajouter/modifier des trajets.'); return null } : addTrip}
                 onUpdateTrip={schemaOutdated ? async () => { alert('Migration DB requise avant de pouvoir modifier des trajets.') } : updateTrip}
                 onDeleteTrip={deleteTrip}
@@ -159,7 +175,7 @@ export default function TaxiPage() {
               />
             ) : (
               <TaxiKanbanView
-                trips={trips} drivers={drivers} pricingDefaults={pricingDefaults}
+                trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings}
                 onAddTrip={schemaOutdated ? async () => { alert('Migration DB requise avant de pouvoir ajouter/modifier des trajets.'); return null } : addTrip}
                 onUpdateTrip={schemaOutdated ? async () => { alert('Migration DB requise avant de pouvoir modifier des trajets.') } : updateTrip}
                 onDeleteTrip={deleteTrip}

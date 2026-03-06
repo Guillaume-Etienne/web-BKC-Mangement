@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import type { Lesson, LessonType, EquipmentRental } from '../types/database'
-import { mockInstructors, mockClients, mockEquipment, mockLessons, mockEquipmentRentals } from '../data/mock'
+import type { Lesson, LessonType, EquipmentRental, Instructor, Client, Equipment } from '../types/database'
+import { useTable } from '../hooks/useSupabase'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -49,8 +49,11 @@ export default function ForecastSharePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(() => addDays(today, 1))
   const [mobileInstrIdx, setMobileInstrIdx] = useState(0)
 
-  const lessons: Lesson[] = mockLessons
-  const rentals: EquipmentRental[] = mockEquipmentRentals
+  const { data: lessons } = useTable<Lesson>('lessons', { order: 'date' })
+  const { data: rentals } = useTable<EquipmentRental>('equipment_rentals', { order: 'date' })
+  const { data: instructors } = useTable<Instructor>('instructors', { order: 'last_name' })
+  const { data: clients } = useTable<Client>('clients', { order: 'last_name' })
+  const { data: equipment } = useTable<Equipment>('equipment', { order: 'name' })
 
   const iso = dateToISO(selectedDate)
   const startHour = 8
@@ -96,15 +99,15 @@ export default function ForecastSharePage() {
             className="w-8 h-8 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 font-bold text-sm"
           >←</button>
           <div className="text-center">
-            <div className="font-bold text-gray-800">{mockInstructors[mobileInstrIdx]?.first_name} {mockInstructors[mobileInstrIdx]?.last_name}</div>
+            <div className="font-bold text-gray-800">{instructors[mobileInstrIdx]?.first_name} {instructors[mobileInstrIdx]?.last_name}</div>
             {(() => {
-              const count = dayLessons.filter(l => l.instructor_id === mockInstructors[mobileInstrIdx]?.id).length
+              const count = dayLessons.filter(l => l.instructor_id === instructors[mobileInstrIdx]?.id).length
               return count > 0 ? <div className="text-xs text-blue-600 font-medium">{count} lesson{count > 1 ? 's' : ''}</div> : null
             })()}
           </div>
           <button
-            onClick={() => setMobileInstrIdx(i => Math.min(mockInstructors.length - 1, i + 1))}
-            disabled={mobileInstrIdx === mockInstructors.length - 1}
+            onClick={() => setMobileInstrIdx(i => Math.min(instructors.length - 1, i + 1))}
+            disabled={mobileInstrIdx === instructors.length - 1}
             className="w-8 h-8 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 font-bold text-sm"
           >→</button>
         </div>
@@ -116,7 +119,7 @@ export default function ForecastSharePage() {
             {/* Instructor headers — desktop */}
             <div className="hidden md:flex border-b border-gray-200 bg-white sticky top-0 z-20">
               <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200" />
-              {mockInstructors.map(instr => (
+              {instructors.map(instr => (
                 <div key={instr.id} className="flex-1 min-w-[130px] px-2 py-2 text-center border-r border-gray-200 last:border-r-0">
                   <div className="text-sm font-bold text-gray-800 truncate">{instr.first_name}</div>
                   <div className="text-xs text-gray-500 truncate">{instr.last_name}</div>
@@ -152,7 +155,7 @@ export default function ForecastSharePage() {
                 </div>
 
                 {/* Instructor columns */}
-                {mockInstructors.map((instr, idx) => {
+                {instructors.map((instr, idx) => {
                   const isMobileHidden = idx !== mobileInstrIdx
                   const instrLessons = dayLessons.filter(l => l.instructor_id === instr.id)
 
@@ -178,7 +181,7 @@ export default function ForecastSharePage() {
                         const top = slot * SLOT_H
                         const height = dur * SLOT_H
                         const cfg = LESSON_CFG[lesson.type]
-                        const lessonClients = lesson.client_ids.map(id => mockClients.find(c => c.id === id)).filter(Boolean)
+                        const lessonClients = lesson.client_ids.map(id => clients.find(c => c.id === id)).filter(Boolean)
                         const firstClient = lessonClients[0]
 
                         return (
@@ -224,8 +227,8 @@ export default function ForecastSharePage() {
                   <div className="text-xs font-semibold text-gray-500 mb-1">{slotLabel}</div>
                   <div className="space-y-1">
                     {items.map(r => {
-                      const client = mockClients.find(c => c.id === r.client_id)
-                      const equip = mockEquipment.find(e => e.id === r.equipment_id)
+                      const client = clients.find(c => c.id === r.client_id)
+                      const equip = equipment.find(e => e.id === r.equipment_id)
                       const rt = RENTAL_TYPE_LABELS[equip?.category ?? r.equipment_id] ?? RENTAL_TYPE_LABELS.free
                       return (
                         <div key={r.id} className="flex items-start justify-between bg-amber-50 border border-amber-200 rounded px-2 py-1.5 text-xs">

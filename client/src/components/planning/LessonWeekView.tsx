@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import type { Lesson, DayActivity, DaySlot, LessonType, Booking, EquipmentRental } from '../../types/database'
-import { mockInstructors, mockClients, mockEquipment, mockEquipmentRentals } from '../../data/mock'
+import type { Lesson, DayActivity, DaySlot, LessonType, Booking, EquipmentRental, Instructor, Client, Equipment } from '../../types/database'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -50,7 +49,6 @@ function getSlotForTime(time: string): Slot {
   return 'evening'
 }
 
-function newId(prefix: string): string { return `${prefix}${Date.now()}${Math.random().toString(36).slice(2, 6)}` }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -92,26 +90,37 @@ interface LessonWeekViewProps {
   dayActivities: DayActivity[]
   bookings: Booking[]
   lessonView: 'by-instructor' | 'by-client'
-  onLessonsChange: (fn: (prev: Lesson[]) => Lesson[]) => void
-  onActivitiesChange: (fn: (prev: DayActivity[]) => DayActivity[]) => void
-  onRentalsChange?: (fn: (prev: EquipmentRental[]) => EquipmentRental[]) => void
+  instructors: Instructor[]
+  clients: Client[]
+  equipment: Equipment[]
+  rentals: EquipmentRental[]
+  onAddLesson: (l: Omit<Lesson, 'id'>) => void
+  onUpdateLesson: (l: Lesson) => void
+  onDeleteLesson: (id: string) => void
+  onAddActivity: (a: Omit<DayActivity, 'id'>) => void
+  onDeleteActivity: (id: string) => void
+  onAddRental: (r: Omit<EquipmentRental, 'id'>) => void
+  onDeleteRental: (id: string) => void
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function LessonWeekView({
   weekDays, lessons, dayActivities, lessonView,
-  onLessonsChange, onActivitiesChange, onRentalsChange,
+  instructors, clients, equipment, rentals,
+  onAddLesson, onUpdateLesson, onDeleteLesson,
+  onAddActivity, onDeleteActivity,
+  onAddRental, onDeleteRental,
 }: LessonWeekViewProps) {
   const today = dateToISO(new Date())
 
   // ── Inline add form ────────────────────────────────────────────────────────
   const emptyForm = (date: string, slot: Slot, kind: 'lesson' | 'activity' | 'rental'): AddForm => ({
     date, slot, kind,
-    type: 'private', client_ids: [mockClients[0]?.id ?? ''], instructor_id: mockInstructors[0]?.id ?? '',
+    type: 'private', client_ids: [clients[0]?.id ?? ''], instructor_id: instructors[0]?.id ?? '',
     start_time: SLOT_CONFIG[slot].defaultTime, duration_hours: 1, notes: '', kite_id: null, board_id: null,
     name: '', actNotes: '',
-    rental_client_id: mockClients[0]?.id ?? '',
+    rental_client_id: clients[0]?.id ?? '',
     rental_slot: slot === 'morning' ? 'morning' : slot === 'afternoon' ? 'afternoon' : 'full_day',
     rental_type: 'kite' as RentalType,
     rental_price: DEFAULT_RENTAL_PRICES.kite,
@@ -144,15 +153,12 @@ export default function LessonWeekView({
     return dayActivities.filter(a => a.date === date && a.slot === slot)
   }
 
-  const [rentals, setRentals] = useState<EquipmentRental[]>(mockEquipmentRentals)
-
   function rentalsForSlot(date: string, slot: 'morning' | 'afternoon' | 'full_day') {
     return rentals.filter(r => r.date === date && (r.slot === slot || r.slot === 'full_day'))
   }
 
   function deleteRental(id: string) {
-    setRentals(prev => prev.filter(r => r.id !== id))
-    if (onRentalsChange) onRentalsChange(prev => prev.filter(r => r.id !== id))
+    onDeleteRental(id)
   }
 
   // ── Add handlers ──────────────────────────────────────────────────────────
@@ -163,9 +169,8 @@ export default function LessonWeekView({
   function submitAdd() {
     if (!addForm) return
     if (addForm.kind === 'lesson') {
-      const newLesson: Lesson = {
-        id: newId('l'),
-        booking_id: 'bk1', // placeholder
+      onAddLesson({
+        booking_id: '', // TODO: link to booking
         instructor_id: addForm.instructor_id,
         client_ids: addForm.client_ids,
         date: addForm.date,
@@ -175,17 +180,14 @@ export default function LessonWeekView({
         notes: addForm.notes || null,
         kite_id: addForm.kite_id,
         board_id: addForm.board_id,
-      }
-      onLessonsChange(prev => [...prev, newLesson])
+      })
     } else if (addForm.kind === 'activity') {
-      const newAct: DayActivity = {
-        id: newId('a'),
+      onAddActivity({
         date: addForm.date,
         slot: addForm.slot,
         name: addForm.name,
         notes: addForm.actNotes || null,
-      }
-      onActivitiesChange(prev => [...prev, newAct])
+      })
     } else {
       // Use specific equipment id if chosen, otherwise fall back to the type key as virtual id
       const equipId = (
@@ -194,8 +196,7 @@ export default function LessonWeekView({
         addForm.rental_type === 'full'  ? (addForm.rental_kite_id ?? addForm.rental_board_id) :
         null
       ) ?? addForm.rental_type
-      const newRental: EquipmentRental = {
-        id: newId('r'),
+      onAddRental({
         equipment_id: equipId,
         booking_id: null,
         client_id: addForm.rental_client_id,
@@ -203,9 +204,7 @@ export default function LessonWeekView({
         slot: addForm.rental_slot,
         price: addForm.rental_price,
         notes: addForm.rental_notes || null,
-      }
-      setRentals(prev => [...prev, newRental])
-      if (onRentalsChange) onRentalsChange(prev => [...prev, newRental])
+      })
     }
     setAddForm(null)
   }
@@ -219,19 +218,19 @@ export default function LessonWeekView({
   function submitEdit(e: React.FormEvent) {
     e.preventDefault()
     if (!editLesson) return
-    onLessonsChange(prev => prev.map(l => l.id === editLesson.id ? { ...l, ...editData } : l))
+    onUpdateLesson({ ...editLesson, ...editData } as Lesson)
     setEditLesson(null)
   }
 
   function deleteLesson(id: string) {
     if (confirm('Delete this lesson?')) {
-      onLessonsChange(prev => prev.filter(l => l.id !== id))
+      onDeleteLesson(id)
       if (editLesson?.id === id) setEditLesson(null)
     }
   }
 
   function deleteActivity(id: string) {
-    onActivitiesChange(prev => prev.filter(a => a.id !== id))
+    onDeleteActivity(id)
   }
 
   // ── Copy / paste ──────────────────────────────────────────────────────────
@@ -241,13 +240,9 @@ export default function LessonWeekView({
 
   function pasteLesson(date: string, slot: Slot) {
     if (!clipboard) return
-    const newLesson: Lesson = {
-      ...clipboard,
-      id: newId('l'),
-      date,
-      start_time: SLOT_CONFIG[slot].defaultTime,
-    }
-    onLessonsChange(prev => [...prev, newLesson])
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id: _id, ...rest } = clipboard
+    onAddLesson({ ...rest, date, start_time: SLOT_CONFIG[slot].defaultTime })
   }
 
   // ── Drag handlers ─────────────────────────────────────────────────────────
@@ -271,9 +266,7 @@ export default function LessonWeekView({
     if (!lesson) return
     const slotChanged = getSlotForTime(lesson.start_time) !== slot
     const newTime = slotChanged ? SLOT_CONFIG[slot].defaultTime : lesson.start_time
-    onLessonsChange(prev => prev.map(l =>
-      l.id === drag.lessonId ? { ...l, date, start_time: newTime } : l
-    ))
+    onUpdateLesson({ ...lesson, date, start_time: newTime })
     setDrag(null)
     setDropTarget(null)
   }
@@ -291,8 +284,8 @@ export default function LessonWeekView({
         <div className="mb-4 flex items-center gap-3 px-4 py-2 bg-amber-50 border border-amber-300 rounded-lg text-sm">
           <span>📋 Lesson copied:</span>
           <span className="font-semibold">
-            {mockClients.find(c => c.id === clipboard.client_ids[0])?.first_name}{' '}
-            {mockClients.find(c => c.id === clipboard.client_ids[0])?.last_name}
+            {clients.find(c => c.id === clipboard.client_ids[0])?.first_name}{' '}
+            {clients.find(c => c.id === clipboard.client_ids[0])?.last_name}
             {clipboard.client_ids.length > 1 && ` +${clipboard.client_ids.length - 1}`}
             {' · '}{LESSON_TYPE_CFG[clipboard.type].label}{' · '}{clipboard.start_time}
           </span>
@@ -359,9 +352,9 @@ export default function LessonWeekView({
 
                       {/* Lessons */}
                       {slotLessons.map(lesson => {
-                        const lessonClients = lesson.client_ids.map(id => mockClients.find(c => c.id === id)).filter(Boolean)
+                        const lessonClients = lesson.client_ids.map(id => clients.find(c => c.id === id)).filter(Boolean)
                         const firstClient = lessonClients[0]
-                        const instructor = mockInstructors.find(i => i.id === lesson.instructor_id)
+                        const instructor = instructors.find(i => i.id === lesson.instructor_id)
                         const tc = LESSON_TYPE_CFG[lesson.type]
                         const isDragging = drag?.lessonId === lesson.id
 
@@ -441,8 +434,8 @@ export default function LessonWeekView({
 
                       {/* Rentals */}
                       {slotRentals.map(r => {
-                        const client = mockClients.find(c => c.id === r.client_id)
-                        const equip = mockEquipment.find(e => e.id === r.equipment_id)
+                        const client = clients.find(c => c.id === r.client_id)
+                        const equip = equipment.find(e => e.id === r.equipment_id)
                         // Resolve display type: specific equip category → rental type key or fallback
                         const rt = RENTAL_TYPES.find(t => t.key === (equip?.category ?? r.equipment_id))
                         return (
@@ -479,7 +472,7 @@ export default function LessonWeekView({
                                 className="w-full text-xs border rounded px-1 py-1"
                                 autoFocus
                               >
-                                {mockClients.map(c => (
+                                {clients.map(c => (
                                   <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
                                 ))}
                               </select>
@@ -514,7 +507,7 @@ export default function LessonWeekView({
                                   className="w-full text-xs border rounded px-1 py-1"
                                 >
                                   <option value="">🪁 Kite — not specified</option>
-                                  {mockEquipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
+                                  {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
                                     <option key={e.id} value={e.id}>{e.name}</option>
                                   ))}
                                 </select>
@@ -526,7 +519,7 @@ export default function LessonWeekView({
                                   className="w-full text-xs border rounded px-1 py-1"
                                 >
                                   <option value="">🏄 Board — not specified</option>
-                                  {mockEquipment.filter(e => e.category === 'board' && e.is_active).map(e => (
+                                  {equipment.filter(e => e.category === 'board' && e.is_active).map(e => (
                                     <option key={e.id} value={e.id}>{e.name}</option>
                                   ))}
                                 </select>
@@ -568,7 +561,7 @@ export default function LessonWeekView({
                                   onChange={e => setAddForm(f => f && {
                                     ...f,
                                     type: e.target.value as LessonType,
-                                    client_ids: [f.client_ids[0] ?? mockClients[0]?.id ?? ''],
+                                    client_ids: [f.client_ids[0] ?? clients[0]?.id ?? ''],
                                   })}
                                   className="flex-1 text-xs border rounded px-1 py-1"
                                 >
@@ -584,7 +577,7 @@ export default function LessonWeekView({
                                   onChange={e => setAddForm(f => f && { ...f, client_ids: [e.target.value] })}
                                   className="w-full text-xs border rounded px-1 py-1"
                                 >
-                                  {mockClients.map(c => (
+                                  {clients.map(c => (
                                     <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
                                   ))}
                                 </select>
@@ -601,7 +594,7 @@ export default function LessonWeekView({
                                         })}
                                         className="flex-1 text-xs border rounded px-1 py-1"
                                       >
-                                        {mockClients.map(c => (
+                                        {clients.map(c => (
                                           <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
                                         ))}
                                       </select>
@@ -613,7 +606,7 @@ export default function LessonWeekView({
                                     </div>
                                   ))}
                                   <button type="button"
-                                    onClick={() => setAddForm(f => f && { ...f, client_ids: [...f.client_ids, mockClients[0]?.id ?? ''] })}
+                                    onClick={() => setAddForm(f => f && { ...f, client_ids: [...f.client_ids, clients[0]?.id ?? ''] })}
                                     className="text-xs text-green-700 hover:text-green-900 border border-dashed border-green-400 rounded px-2 py-0.5 w-full">
                                     + Add client
                                   </button>
@@ -624,7 +617,7 @@ export default function LessonWeekView({
                                 onChange={e => setAddForm(f => f && { ...f, instructor_id: e.target.value })}
                                 className="w-full text-xs border rounded px-1 py-1"
                               >
-                                {mockInstructors.map(i => (
+                                {instructors.map(i => (
                                   <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>
                                 ))}
                               </select>
@@ -660,7 +653,7 @@ export default function LessonWeekView({
                                   className="w-full text-xs border rounded px-1 py-1"
                                 >
                                   <option value="">No kite</option>
-                                  {mockEquipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
+                                  {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
                                     <option key={e.id} value={e.id}>{e.name}</option>
                                   ))}
                                 </select>
@@ -670,7 +663,7 @@ export default function LessonWeekView({
                                   className="w-full text-xs border rounded px-1 py-1"
                                 >
                                   <option value="">No board</option>
-                                  {mockEquipment.filter(e => e.category !== 'kite' && e.is_active).map(e => (
+                                  {equipment.filter(e => e.category !== 'kite' && e.is_active).map(e => (
                                     <option key={e.id} value={e.id}>{e.name}</option>
                                   ))}
                                 </select>
@@ -741,7 +734,7 @@ export default function LessonWeekView({
                 const dayLessons = lessons.filter(l => l.date === iso)
                 const dayRentals = rentals.filter(r => r.date === iso)
                 const lessonTotal = dayLessons.reduce((sum, l) => {
-                  const instr = mockInstructors.find(i => i.id === l.instructor_id)
+                  const instr = instructors.find(i => i.id === l.instructor_id)
                   const rate = l.type === 'private' ? (instr?.rate_private ?? 0)
                              : l.type === 'group'   ? (instr?.rate_group ?? 0)
                              : (instr?.rate_supervision ?? 0)
@@ -826,7 +819,7 @@ export default function LessonWeekView({
                     onChange={e => setEditData(d => ({ ...d, client_ids: [e.target.value] }))}
                     className="w-full text-sm border rounded px-2 py-1.5"
                   >
-                    {mockClients.map(c => (
+                    {clients.map(c => (
                       <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
                     ))}
                   </select>
@@ -842,7 +835,7 @@ export default function LessonWeekView({
                           })}
                           className="flex-1 text-sm border rounded px-2 py-1.5"
                         >
-                          {mockClients.map(c => (
+                          {clients.map(c => (
                             <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
                           ))}
                         </select>
@@ -854,7 +847,7 @@ export default function LessonWeekView({
                       </div>
                     ))}
                     <button type="button"
-                      onClick={() => setEditData(d => ({ ...d, client_ids: [...(d.client_ids ?? []), mockClients[0]?.id ?? ''] }))}
+                      onClick={() => setEditData(d => ({ ...d, client_ids: [...(d.client_ids ?? []), clients[0]?.id ?? ''] }))}
                       className="text-xs text-green-700 hover:text-green-900 border border-dashed border-green-400 rounded px-2 py-1 w-full">
                       + Add client
                     </button>
@@ -868,7 +861,7 @@ export default function LessonWeekView({
                   onChange={e => setEditData(d => ({ ...d, instructor_id: e.target.value }))}
                   className="w-full text-sm border rounded px-2 py-1.5"
                 >
-                  {mockInstructors.map(i => (
+                  {instructors.map(i => (
                     <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>
                   ))}
                 </select>
@@ -911,7 +904,7 @@ export default function LessonWeekView({
                   className="w-full text-sm border rounded px-2 py-1.5"
                 >
                   <option value="">None</option>
-                  {mockEquipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
+                  {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
                     <option key={e.id} value={e.id}>{e.name}</option>
                   ))}
                 </select>
@@ -924,7 +917,7 @@ export default function LessonWeekView({
                   className="w-full text-sm border rounded px-2 py-1.5"
                 >
                   <option value="">None</option>
-                  {mockEquipment.filter(e => e.category !== 'kite' && e.is_active).map(e => (
+                  {equipment.filter(e => e.category !== 'kite' && e.is_active).map(e => (
                     <option key={e.id} value={e.id}>{e.name}</option>
                   ))}
                 </select>

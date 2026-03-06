@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus } from '../../types/database'
-import { mockBookings } from '../../data/mock'
+import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef } from '../../types/database'
 
 const STATUS_CONFIG: Record<TaxiTripStatus, { label: string; row: string; badge: string }> = {
   confirmed:    { label: 'Confirmed',     row: '',            badge: 'bg-gray-100 text-gray-600' },
@@ -8,10 +7,15 @@ const STATUS_CONFIG: Record<TaxiTripStatus, { label: string; row: string; badge:
   done:         { label: 'Done',          row: 'bg-green-50', badge: 'bg-green-100 text-green-700' },
 }
 
-function guestName(bookingId: string | null): string {
+function guestName(bookingId: string | null, bookings: BookingRef[]): string {
   if (!bookingId) return '—'
-  const b = mockBookings.find(b => b.id === bookingId)
+  const b = bookings.find(b => b.id === bookingId)
   return b?.client ? `${b.client.first_name} ${b.client.last_name}` : '—'
+}
+
+function bookingLabel(b: BookingRef): string {
+  const name = b.client ? `${b.client.first_name} ${b.client.last_name}` : 'Unknown'
+  return `#${String(b.booking_number).padStart(3, '0')} — ${name} (${b.check_in} → ${b.check_out})`
 }
 
 const TRIP_TYPE_LABELS: Record<string, string> = {
@@ -95,6 +99,7 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
 interface EditModalProps {
   trip: TaxiTrip
   drivers: TaxiDriver[]
+  bookings: BookingRef[]
   pricingDefaults: TaxiPricingDefaults
   onChange: (data: Partial<TaxiTrip>) => void
   onSave: (updateRate?: number) => void
@@ -102,7 +107,7 @@ interface EditModalProps {
   onClose: () => void
 }
 
-function EditModal({ trip, drivers, pricingDefaults, onChange, onSave, onDelete, onClose }: EditModalProps) {
+function EditModal({ trip, drivers, bookings, pricingDefaults, onChange, onSave, onDelete, onClose }: EditModalProps) {
   const [updateRateChecked, setUpdateRateChecked] = useState(false)
   const [newRate, setNewRate] = useState(pricingDefaults.eur_mzn_rate)
 
@@ -177,9 +182,26 @@ function EditModal({ trip, drivers, pricingDefaults, onChange, onSave, onDelete,
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Booking</label>
-              <input type="text" placeholder="ex: bk1" value={trip.booking_id || ''}
-                onChange={e => onChange({ booking_id: e.target.value || null })}
-                className="w-full text-sm border rounded px-2 py-1.5" />
+              <select
+                value={trip.booking_id || ''}
+                onChange={e => {
+                  const id = e.target.value || null
+                  const b = bookings.find(b => b.id === id)
+                  onChange({
+                    booking_id: id,
+                    ...(b ? {
+                      nb_persons:   (b.participants ?? []).length || 1,
+                      nb_luggage:   b.luggage_count,
+                      nb_boardbags: b.boardbag_count,
+                    } : {}),
+                  })
+                }}
+                className="w-full text-sm border rounded px-2 py-1.5 bg-white">
+                <option value="">— Not linked —</option>
+                {bookings.map(b => (
+                  <option key={b.id} value={b.id}>{bookingLabel(b)}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -284,6 +306,7 @@ function EditModal({ trip, drivers, pricingDefaults, onChange, onSave, onDelete,
 interface TaxiListViewProps {
   trips: TaxiTrip[]
   drivers: TaxiDriver[]
+  bookings: BookingRef[]
   pricingDefaults: TaxiPricingDefaults
   onAddTrip:    (trip: Omit<TaxiTrip, 'id'>) => Promise<TaxiTrip | null>
   onUpdateTrip: (trip: TaxiTrip) => Promise<void>
@@ -291,7 +314,7 @@ interface TaxiListViewProps {
   onUpdateRate: (rate: number) => void
 }
 
-export default function TaxiListView({ trips, drivers, pricingDefaults, onAddTrip, onUpdateTrip, onDeleteTrip, onUpdateRate }: TaxiListViewProps) {
+export default function TaxiListView({ trips, drivers, bookings, pricingDefaults, onAddTrip, onUpdateTrip, onDeleteTrip, onUpdateRate }: TaxiListViewProps) {
   const [sortBy, setSortBy]             = useState<'date' | 'driver' | 'type'>('date')
   const [filterDriver, setFilterDriver] = useState<string>('all')
   const [editTrip, setEditTrip]         = useState<TaxiTrip | null>(null)
@@ -432,7 +455,7 @@ export default function TaxiListView({ trips, drivers, pricingDefaults, onAddTri
                     <td className="px-3 py-2 whitespace-nowrap text-xs">{TRIP_TYPE_LABELS[trip.type]}</td>
                     <td className="px-3 py-2 text-xs text-gray-500 max-w-[140px] truncate">{trip.notes ?? <span className="italic text-gray-300">—</span>}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-700">{driver?.name ?? <span className="text-red-400 italic">Unassigned</span>}</td>
-                    <td className="px-3 py-2 text-xs text-gray-700 whitespace-nowrap">{guestName(trip.booking_id)}</td>
+                    <td className="px-3 py-2 text-xs text-gray-700 whitespace-nowrap">{guestName(trip.booking_id, bookings)}</td>
                     <td className="px-3 py-2 text-center text-gray-800">{trip.nb_persons}</td>
                     <td className="px-3 py-2 text-center text-gray-800">{trip.nb_luggage}</td>
                     <td className="px-3 py-2 text-center text-gray-800">{trip.nb_boardbags}</td>
@@ -464,6 +487,7 @@ export default function TaxiListView({ trips, drivers, pricingDefaults, onAddTri
         <EditModal
           trip={editTrip}
           drivers={drivers}
+          bookings={bookings}
           pricingDefaults={pricingDefaults}
           onChange={handleEditChange}
           onSave={handleSave}

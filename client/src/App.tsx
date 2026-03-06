@@ -15,22 +15,23 @@ import DocumentsPage from './pages/DocumentsPage'
 import AccountingPage from './pages/AccountingPage'
 import ForecastSharePage from './pages/ForecastSharePage'
 import TaxiSharePage from './pages/TaxiSharePage'
-import { mockSharedLinks } from './data/mock'
+import ClientSharePage from './pages/ClientSharePage'
+import type { SharedLink } from './types/database'
 
 type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting'
 
-// ── Public share links (token in URL) ─────────────────────────────────────
-const urlParams  = new URLSearchParams(window.location.search)
-const shareToken = urlParams.get('share')
-const sharedLink = shareToken
-  ? mockSharedLinks.find(l => l.token === shareToken && l.is_active)
-  : null
+// ── Public share token from URL (sync, module scope) ──────────────────────
+const shareToken = new URLSearchParams(window.location.search).get('share')
 
 // ────────────────────────────────────────────────────────────────────────────
 
 function App() {
   const [session,     setSession]     = useState<Session | null | undefined>(undefined)
   const [currentPage, setCurrentPage] = useState<Page>('home')
+  // undefined = still checking, null = not found / no token
+  const [sharedLink, setSharedLink]   = useState<SharedLink | null | undefined>(
+    shareToken ? undefined : null
+  )
 
   useEffect(() => {
     // Get initial session
@@ -43,10 +44,31 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  useEffect(() => {
+    if (!shareToken) return
+    supabase
+      .from('shared_links')
+      .select('*')
+      .eq('token', shareToken)
+      .eq('is_active', true)
+      .single()
+      .then(({ data }) => setSharedLink(data ?? null))
+  }, [])
+
+  // Still checking share token
+  if (sharedLink === undefined) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-400 text-lg">Loading…</div>
+      </div>
+    )
+  }
+
   // Public share pages — no auth required
   if (sharedLink) {
     if (sharedLink.type === 'forecast') return <ForecastSharePage />
     if (sharedLink.type === 'taxi')     return <TaxiSharePage />
+    if (sharedLink.type === 'client')   return <ClientSharePage bookingNumber={parseInt(sharedLink.params?.booking_number ?? '0')} />
   }
 
   // Loading session

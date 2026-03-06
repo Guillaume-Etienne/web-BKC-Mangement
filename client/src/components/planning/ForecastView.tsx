@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react'
-import type { Lesson, LessonType, EquipmentRental } from '../../types/database'
-import { mockInstructors, mockClients, mockEquipment, mockEquipmentRentals } from '../../data/mock'
+import type { Lesson, LessonType, EquipmentRental, Instructor, Client, Equipment } from '../../types/database'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -27,7 +26,6 @@ const RENTAL_TYPE_LABELS: Record<string, { icon: string; label: string }> = {
 
 function dateToISO(d: Date) { return d.toISOString().slice(0, 10) }
 function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDate() + n); return r }
-function newId(p: string) { return `${p}${Date.now()}${Math.random().toString(36).slice(2, 6)}` }
 
 function timeToSlot(time: string, startHour: number): number {
   const [h, m] = time.split(':').map(Number)
@@ -51,13 +49,15 @@ interface AddLessonModalProps {
   totalSlots: number
   instructorId: string
   initialSlot: number
+  clients: Client[]
+  instructors: Instructor[]
   onConfirm: (lesson: Omit<Lesson, 'id'>) => void
   onClose: () => void
 }
 
-function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot, onConfirm, onClose }: AddLessonModalProps) {
+function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot, clients, instructors, onConfirm, onClose }: AddLessonModalProps) {
   const [type, setType]           = useState<LessonType>('private')
-  const [clientIds, setClientIds] = useState<string[]>([mockClients[0]?.id ?? ''])
+  const [clientIds, setClientIds] = useState<string[]>([clients[0]?.id ?? ''])
   const [instrId, setInstrId]     = useState(instructorId)
   const [startSlot, setStartSlot] = useState(Math.max(0, Math.min(totalSlots - 1, initialSlot)))
   const [durSlots, setDurSlots]   = useState(2)
@@ -66,7 +66,7 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     onConfirm({
-      booking_id: 'bk1',
+      booking_id: '', // TODO: link to booking
       instructor_id: instrId,
       client_ids: clientIds,
       date,
@@ -99,7 +99,7 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
             <label className="block text-xs font-medium text-gray-600 mb-1">{type === 'group' ? 'Clients' : 'Client'}</label>
             {type !== 'group' ? (
               <select value={clientIds[0] ?? ''} onChange={e => setClientIds([e.target.value])} className="w-full text-sm border rounded px-2 py-1.5">
-                {mockClients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+                {clients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
               </select>
             ) : (
               <div className="space-y-1">
@@ -107,7 +107,7 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
                   <div key={idx} className="flex gap-1">
                     <select value={cid} onChange={e => { const ids = [...clientIds]; ids[idx] = e.target.value; setClientIds(ids) }}
                       className="flex-1 text-sm border rounded px-2 py-1.5">
-                      {mockClients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
                     </select>
                     {clientIds.length > 1 && (
                       <button type="button" onClick={() => setClientIds(ids => ids.filter((_, i) => i !== idx))}
@@ -115,7 +115,7 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
                     )}
                   </div>
                 ))}
-                <button type="button" onClick={() => setClientIds(ids => [...ids, mockClients[0]?.id ?? ''])}
+                <button type="button" onClick={() => setClientIds(ids => [...ids, clients[0]?.id ?? ''])}
                   className="text-xs text-green-700 border border-dashed border-green-400 rounded px-2 py-1 w-full hover:bg-green-50">
                   + Add client
                 </button>
@@ -125,7 +125,7 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Instructor</label>
             <select value={instrId} onChange={e => setInstrId(e.target.value)} className="w-full text-sm border rounded px-2 py-1.5">
-              {mockInstructors.map(i => <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>)}
+              {instructors.map(i => <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -167,12 +167,14 @@ interface EditLessonModalProps {
   lesson: Lesson
   startHour: number
   totalSlots: number
+  clients: Client[]
+  instructors: Instructor[]
   onSave: (l: Lesson) => void
   onDelete: (id: string) => void
   onClose: () => void
 }
 
-function EditLessonModal({ lesson, startHour, totalSlots, onSave, onDelete, onClose }: EditLessonModalProps) {
+function EditLessonModal({ lesson, startHour, totalSlots, clients, instructors, onSave, onDelete, onClose }: EditLessonModalProps) {
   const [type, setType]           = useState<LessonType>(lesson.type)
   const [clientIds, setClientIds] = useState<string[]>(lesson.client_ids)
   const [instrId, setInstrId]     = useState(lesson.instructor_id)
@@ -206,7 +208,7 @@ function EditLessonModal({ lesson, startHour, totalSlots, onSave, onDelete, onCl
             <label className="block text-xs font-medium text-gray-600 mb-1">{type === 'group' ? 'Clients' : 'Client'}</label>
             {type !== 'group' ? (
               <select value={clientIds[0] ?? ''} onChange={e => setClientIds([e.target.value])} className="w-full text-sm border rounded px-2 py-1.5">
-                {mockClients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+                {clients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
               </select>
             ) : (
               <div className="space-y-1">
@@ -214,7 +216,7 @@ function EditLessonModal({ lesson, startHour, totalSlots, onSave, onDelete, onCl
                   <div key={idx} className="flex gap-1">
                     <select value={cid} onChange={e => { const ids = [...clientIds]; ids[idx] = e.target.value; setClientIds(ids) }}
                       className="flex-1 text-sm border rounded px-2 py-1.5">
-                      {mockClients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
                     </select>
                     {clientIds.length > 1 && (
                       <button type="button" onClick={() => setClientIds(ids => ids.filter((_, i) => i !== idx))}
@@ -222,7 +224,7 @@ function EditLessonModal({ lesson, startHour, totalSlots, onSave, onDelete, onCl
                     )}
                   </div>
                 ))}
-                <button type="button" onClick={() => setClientIds(ids => [...ids, mockClients[0]?.id ?? ''])}
+                <button type="button" onClick={() => setClientIds(ids => [...ids, clients[0]?.id ?? ''])}
                   className="text-xs text-green-700 border border-dashed border-green-400 rounded px-2 py-1 w-full hover:bg-green-50">
                   + Add client
                 </button>
@@ -232,7 +234,7 @@ function EditLessonModal({ lesson, startHour, totalSlots, onSave, onDelete, onCl
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Instructor</label>
             <select value={instrId} onChange={e => setInstrId(e.target.value)} className="w-full text-sm border rounded px-2 py-1.5">
-              {mockInstructors.map(i => <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>)}
+              {instructors.map(i => <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -275,14 +277,16 @@ function EditLessonModal({ lesson, startHour, totalSlots, onSave, onDelete, onCl
 
 interface RentalsPanelProps {
   rentals: EquipmentRental[]
+  clients: Client[]
+  equipment: Equipment[]
   onDelete: (id: string) => void
-  onAdd: (r: EquipmentRental) => void
+  onAdd: (r: Omit<EquipmentRental, 'id'>) => void
   date: string
 }
 
-function RentalsPanel({ rentals, onDelete, onAdd, date }: RentalsPanelProps) {
+function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: RentalsPanelProps) {
   const [showForm, setShowForm] = useState(false)
-  const [clientId, setClientId] = useState(mockClients[0]?.id ?? '')
+  const [clientId, setClientId] = useState(clients[0]?.id ?? '')
   const [equipType, setEquipType] = useState('kite')
   const [slot, setSlot] = useState<'morning' | 'afternoon' | 'full_day'>('full_day')
   const [price, setPrice] = useState(40)
@@ -298,9 +302,8 @@ function RentalsPanel({ rentals, onDelete, onAdd, date }: RentalsPanelProps) {
 
   function submitRental(e: React.FormEvent) {
     e.preventDefault()
-    const equip = mockEquipment.find(eq => eq.category === equipType && eq.is_active)
+    const equip = equipment.find(eq => eq.category === equipType && eq.is_active)
     onAdd({
-      id: newId('r'),
       equipment_id: equip?.id ?? equipType,
       booking_id: null,
       client_id: clientId,
@@ -327,7 +330,7 @@ function RentalsPanel({ rentals, onDelete, onAdd, date }: RentalsPanelProps) {
         <form onSubmit={submitRental} className="bg-amber-50 border border-amber-200 rounded-lg p-2 space-y-1.5">
           <select value={clientId} onChange={e => setClientId(e.target.value)}
             className="w-full text-xs border rounded px-1 py-1">
-            {mockClients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+            {clients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
           </select>
           <select value={equipType} onChange={e => { setEquipType(e.target.value); setPrice(DEFAULT_PRICES[e.target.value] ?? 0) }}
             className="w-full text-xs border rounded px-1 py-1">
@@ -373,8 +376,8 @@ function RentalsPanel({ rentals, onDelete, onAdd, date }: RentalsPanelProps) {
             <div className="text-xs font-semibold text-gray-500 mb-1">{g.label}</div>
             <div className="space-y-1">
               {items.map(r => {
-                const client = mockClients.find(c => c.id === r.client_id)
-                const equip = mockEquipment.find(e => e.id === r.equipment_id)
+                const client = clients.find(c => c.id === r.client_id)
+                const equip = equipment.find(e => e.id === r.equipment_id)
                 const rt = RENTAL_TYPE_LABELS[equip?.category ?? r.equipment_id] ?? RENTAL_TYPE_LABELS.free
                 return (
                   <div key={r.id} className="group/r flex items-start justify-between bg-amber-50 border border-amber-200 rounded px-2 py-1.5 text-xs">
@@ -405,15 +408,22 @@ function RentalsPanel({ rentals, onDelete, onAdd, date }: RentalsPanelProps) {
 
 interface ForecastViewProps {
   lessons: Lesson[]
-  onLessonsChange: (fn: (prev: Lesson[]) => Lesson[]) => void
+  instructors: Instructor[]
+  clients: Client[]
+  equipment: Equipment[]
+  rentals: EquipmentRental[]
+  onAddLesson: (l: Omit<Lesson, 'id'>) => void
+  onUpdateLesson: (l: Lesson) => void
+  onDeleteLesson: (id: string) => void
+  onAddRental: (r: Omit<EquipmentRental, 'id'>) => void
+  onDeleteRental: (id: string) => void
 }
 
-export default function ForecastView({ lessons, onLessonsChange }: ForecastViewProps) {
+export default function ForecastView({ lessons, instructors, clients, equipment, rentals, onAddLesson, onUpdateLesson, onDeleteLesson, onAddRental, onDeleteRental }: ForecastViewProps) {
   const today = new Date()
 
   const [selectedDate, setSelectedDate]   = useState<Date>(() => addDays(today, 1))
   const [startHour, setStartHour]         = useState(8)
-  const [rentals, setRentals]             = useState<EquipmentRental[]>(mockEquipmentRentals)
   const [dayClipboard, setDayClipboard]   = useState<Lesson[] | null>(null)
   const [mobileInstrIdx, setMobileInstrIdx] = useState(0)
 
@@ -483,14 +493,12 @@ export default function ForecastView({ lessons, onLessonsChange }: ForecastViewP
 
   function onPointerUp() {
     if (!dragLesson || !dragPreview) { setDragLesson(null); return }
-    onLessonsChange(prev => prev.map(l =>
-      l.id === dragLesson.id ? {
-        ...l,
-        start_time:     slotToTime(dragPreview.startSlot, startHour),
-        duration_hours: dragPreview.durationSlots * 0.5,
-        instructor_id:  dragPreview.instructorId,
-      } : l
-    ))
+    onUpdateLesson({
+      ...dragLesson,
+      start_time:     slotToTime(dragPreview.startSlot, startHour),
+      duration_hours: dragPreview.durationSlots * 0.5,
+      instructor_id:  dragPreview.instructorId,
+    })
     setDragLesson(null)
     setDragPreview(null)
   }
@@ -501,8 +509,11 @@ export default function ForecastView({ lessons, onLessonsChange }: ForecastViewP
 
   function pasteDay() {
     if (!dayClipboard || dayClipboard.length === 0) return
-    const newLessons = dayClipboard.map(l => ({ ...l, id: newId('l'), date: iso }))
-    onLessonsChange(prev => [...prev.filter(l => l.date !== iso), ...newLessons])
+    for (const l of dayClipboard) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id: _id, ...rest } = l
+      onAddLesson({ ...rest, date: iso })
+    }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -566,15 +577,15 @@ export default function ForecastView({ lessons, onLessonsChange }: ForecastViewP
           className="w-8 h-8 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 font-bold text-sm"
         >←</button>
         <div className="text-center">
-          <div className="font-bold text-gray-800">{mockInstructors[mobileInstrIdx]?.first_name} {mockInstructors[mobileInstrIdx]?.last_name}</div>
+          <div className="font-bold text-gray-800">{instructors[mobileInstrIdx]?.first_name} {instructors[mobileInstrIdx]?.last_name}</div>
           {(() => {
-            const count = dayLessons.filter(l => l.instructor_id === mockInstructors[mobileInstrIdx]?.id).length
+            const count = dayLessons.filter(l => l.instructor_id === instructors[mobileInstrIdx]?.id).length
             return count > 0 ? <div className="text-xs text-blue-600 font-medium">{count} lesson{count > 1 ? 's' : ''}</div> : null
           })()}
         </div>
         <button
-          onClick={() => setMobileInstrIdx(i => Math.min(mockInstructors.length - 1, i + 1))}
-          disabled={mobileInstrIdx === mockInstructors.length - 1}
+          onClick={() => setMobileInstrIdx(i => Math.min(instructors.length - 1, i + 1))}
+          disabled={mobileInstrIdx === instructors.length - 1}
           className="w-8 h-8 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 font-bold text-sm"
         >→</button>
       </div>
@@ -587,7 +598,7 @@ export default function ForecastView({ lessons, onLessonsChange }: ForecastViewP
           {/* Instructor headers — desktop only (hidden on mobile, replaced by nav above) */}
           <div className="hidden md:flex border-b border-gray-200 bg-white sticky top-0 z-20">
             <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200" />
-            {mockInstructors.map(instr => (
+            {instructors.map(instr => (
               <div key={instr.id} className="flex-1 min-w-[130px] px-2 py-2 text-center border-r border-gray-200 last:border-r-0">
                 <div className="text-sm font-bold text-gray-800 truncate">{instr.first_name}</div>
                 <div className="text-xs text-gray-500 truncate">{instr.last_name}</div>
@@ -623,7 +634,7 @@ export default function ForecastView({ lessons, onLessonsChange }: ForecastViewP
               </div>
 
               {/* Instructor columns — desktop: all | mobile: active one only */}
-              {mockInstructors.map((instr, idx) => {
+              {instructors.map((instr, idx) => {
                 const isMobileHidden = idx !== mobileInstrIdx
                 const instrLessons = dayLessons.filter(l => l.instructor_id === instr.id)
 
@@ -663,7 +674,7 @@ export default function ForecastView({ lessons, onLessonsChange }: ForecastViewP
                       const top    = displaySlot * SLOT_H
                       const height = displayDur * SLOT_H
                       const cfg    = LESSON_CFG[lesson.type]
-                      const lessonClients = lesson.client_ids.map(id => mockClients.find(c => c.id === id)).filter(Boolean)
+                      const lessonClients = lesson.client_ids.map(id => clients.find(c => c.id === id)).filter(Boolean)
                       const firstClient = lessonClients[0]
 
                       return (
@@ -720,9 +731,11 @@ export default function ForecastView({ lessons, onLessonsChange }: ForecastViewP
         <div className="w-full md:w-52 md:shrink-0">
           <RentalsPanel
             rentals={dayRentals}
+            clients={clients}
+            equipment={equipment}
             date={iso}
-            onDelete={id => setRentals(prev => prev.filter(r => r.id !== id))}
-            onAdd={r => setRentals(prev => [...prev, r])}
+            onDelete={id => onDeleteRental(id)}
+            onAdd={r => onAddRental(r)}
           />
         </div>
       </div>
@@ -735,8 +748,10 @@ export default function ForecastView({ lessons, onLessonsChange }: ForecastViewP
           totalSlots={totalSlots}
           instructorId={addModal.instructorId}
           initialSlot={addModal.slot}
+          clients={clients}
+          instructors={instructors}
           onConfirm={lesson => {
-            onLessonsChange(prev => [...prev, { ...lesson, id: newId('l') }])
+            onAddLesson(lesson)
             setAddModal(null)
           }}
           onClose={() => setAddModal(null)}
@@ -747,12 +762,14 @@ export default function ForecastView({ lessons, onLessonsChange }: ForecastViewP
           lesson={editModal}
           startHour={startHour}
           totalSlots={totalSlots}
+          clients={clients}
+          instructors={instructors}
           onSave={updated => {
-            onLessonsChange(prev => prev.map(l => l.id === updated.id ? updated : l))
+            onUpdateLesson(updated)
             setEditModal(null)
           }}
           onDelete={id => {
-            onLessonsChange(prev => prev.filter(l => l.id !== id))
+            onDeleteLesson(id)
             setEditModal(null)
           }}
           onClose={() => setEditModal(null)}

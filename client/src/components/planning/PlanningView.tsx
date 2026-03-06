@@ -1,12 +1,18 @@
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import PlanningRow from './PlanningRow'
 import TotalsRow from './TotalsRow'
 import LessonWeekView from './LessonWeekView'
 import NowView from './NowView'
 import ForecastView from './ForecastView'
-import { mockAccommodations, mockRooms, mockBookings as initialBookings, mockBookingRooms as initialBookingRooms, mockLessons as initialLessons, mockDayActivities as initialActivities } from '../../data/mock'
-import type { Booking, BookingRoom, Lesson, DayActivity } from '../../types/database'
+import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental } from '../../types/database'
 import { useBookingDrag, CELL_W, type DragMode } from '../../hooks/useBookingDrag'
+import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
+import { useBookings, useBookingRooms } from '../../hooks/useBookings'
+import { useLessons, useDayActivities } from '../../hooks/useLessons'
+import { useInstructors } from '../../hooks/useInstructors'
+import { useClients } from '../../hooks/useClients'
+import { useEquipment, useEquipmentRentals } from '../../hooks/useEquipment'
+import { supabase } from '../../lib/supabase'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -39,6 +45,16 @@ function getSeasonYear(today: Date): number {
 }
 
 export default function PlanningView() {
+  const { data: accommodations } = useAccommodations()
+  const { data: rooms } = useRooms()
+  const { data: bookingsData } = useBookings()
+  const { data: bookingRoomsData } = useBookingRooms()
+  const { data: lessonsData } = useLessons()
+  const { data: dayActivitiesData } = useDayActivities()
+  const { data: instructors } = useInstructors()
+  const { data: clients } = useClients()
+  const { data: equipment } = useEquipment()
+  const { data: rentalsData } = useEquipmentRentals()
   const now = new Date()
 
   // ── Season (Sep → Mar) ──────────────────────────────────────────
@@ -113,11 +129,18 @@ export default function PlanningView() {
     }, 0)
   }
 
-  // ── Bookings data ────────────────────────────────────────────────
-  const [bookings, setBookings] = useState<Booking[]>([...initialBookings])
-  const [bookingRooms, setBookingRooms] = useState<BookingRoom[]>([...initialBookingRooms])
-  const [lessons, setLessons] = useState<Lesson[]>([...initialLessons])
-  const [dayActivities, setDayActivities] = useState<DayActivity[]>([...initialActivities])
+  // ── Local state synced from hooks (needed for optimistic drag updates) ──────
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [bookingRooms, setBookingRooms] = useState<BookingRoom[]>([])
+  const [lessons, setLessons] = useState<Lesson[]>([])
+  const [dayActivities, setDayActivities] = useState<DayActivity[]>([])
+  const [rentals, setRentals] = useState<EquipmentRental[]>([])
+
+  useEffect(() => setBookings(bookingsData), [bookingsData])
+  useEffect(() => setBookingRooms(bookingRoomsData), [bookingRoomsData])
+  useEffect(() => setLessons(lessonsData), [lessonsData])
+  useEffect(() => setDayActivities(dayActivitiesData), [dayActivitiesData])
+  useEffect(() => setRentals(rentalsData), [rentalsData])
 
   // ── Tabs / lesson view ───────────────────────────────────────────
   const [planningTab, setPlanningTab] = useState<'accommodations' | 'lessons' | 'now' | 'forecast'>('accommodations')
@@ -139,10 +162,10 @@ export default function PlanningView() {
   const goToToday = () => setWeekStart(getMondayOfWeek(new Date()))
 
   // ── Accommodations ───────────────────────────────────────────────
-  const activeAccommodations = mockAccommodations.filter(a => a.is_active)
+  const activeAccommodations = accommodations.filter(a => a.is_active)
   const roomOrder: string[] = []
   for (const acc of activeAccommodations) {
-    for (const room of mockRooms.filter(r => r.accommodation_id === acc.id)) {
+    for (const room of rooms.filter(r => r.accommodation_id === acc.id)) {
       roomOrder.push(room.id)
     }
   }
@@ -155,18 +178,69 @@ export default function PlanningView() {
   const gridRef = useRef<HTMLDivElement>(null)
 
   const onBookingUpdate = useCallback((bookingId: string, dayDelta: number, mode: DragMode) => {
-    setBookings(prev => prev.map(b => {
-      if (b.id !== bookingId) return b
-      if (mode === 'move') return { ...b, check_in: addDays(b.check_in, dayDelta), check_out: addDays(b.check_out, dayDelta) }
-      if (mode === 'resize-left') return { ...b, check_in: addDays(b.check_in, dayDelta) }
-      return { ...b, check_out: addDays(b.check_out, dayDelta) }
-    }))
+    setBookings(prev => {
+      const next = prev.map(b => {
+        if (b.id !== bookingId) return b
+        if (mode === 'move') return { ...b, check_in: addDays(b.check_in, dayDelta), check_out: addDays(b.check_out, dayDelta) }
+        if (mode === 'resize-left') return { ...b, check_in: addDays(b.check_in, dayDelta) }
+        return { ...b, check_out: addDays(b.check_out, dayDelta) }
+      })
+      const updated = next.find(b => b.id === bookingId)
+      if (updated) supabase.from('bookings').update({ check_in: updated.check_in, check_out: updated.check_out }).eq('id', bookingId)
+      return next
+    })
   }, [])
 
   const onBookingMove = useCallback((bookingId: string, fromRoomId: string, toRoomId: string) => {
-    setBookingRooms(prev => prev.map(br =>
-      br.booking_id === bookingId && br.room_id === fromRoomId ? { ...br, room_id: toRoomId } : br
-    ))
+    setBookingRooms(prev => {
+      const next = prev.map(br =>
+        br.booking_id === bookingId && br.room_id === fromRoomId ? { ...br, room_id: toRoomId } : br
+      )
+      supabase.from('booking_rooms').update({ room_id: toRoomId }).eq('booking_id', bookingId).eq('room_id', fromRoomId)
+      return next
+    })
+  }, [])
+
+  // ── Lesson / Activity / Rental mutations ─────────────────────────
+  const onAddLesson = useCallback((lesson: Omit<Lesson, 'id'>) => {
+    const id = crypto.randomUUID()
+    const l = { ...lesson, id }
+    setLessons(prev => [...prev, l])
+    supabase.from('lessons').insert([l])
+  }, [])
+
+  const onUpdateLesson = useCallback((lesson: Lesson) => {
+    setLessons(prev => prev.map(l => l.id === lesson.id ? lesson : l))
+    supabase.from('lessons').update(lesson).eq('id', lesson.id)
+  }, [])
+
+  const onDeleteLesson = useCallback((id: string) => {
+    setLessons(prev => prev.filter(l => l.id !== id))
+    supabase.from('lessons').delete().eq('id', id)
+  }, [])
+
+  const onAddActivity = useCallback((activity: Omit<DayActivity, 'id'>) => {
+    const id = crypto.randomUUID()
+    const a = { ...activity, id }
+    setDayActivities(prev => [...prev, a])
+    supabase.from('day_activities').insert([a])
+  }, [])
+
+  const onDeleteActivity = useCallback((id: string) => {
+    setDayActivities(prev => prev.filter(a => a.id !== id))
+    supabase.from('day_activities').delete().eq('id', id)
+  }, [])
+
+  const onAddRental = useCallback((rental: Omit<EquipmentRental, 'id'>) => {
+    const id = crypto.randomUUID()
+    const r = { ...rental, id }
+    setRentals(prev => [...prev, r])
+    supabase.from('equipment_rentals').insert([r])
+  }, [])
+
+  const onDeleteRental = useCallback((id: string) => {
+    setRentals(prev => prev.filter(r => r.id !== id))
+    supabase.from('equipment_rentals').delete().eq('id', id)
   }, [])
 
   const { dragState, onPointerDown, onPointerMove, onPointerUp } = useBookingDrag({
@@ -297,14 +371,14 @@ export default function PlanningView() {
               {/* Rows */}
               <div ref={gridRef}>
                 {activeAccommodations.map((acc) => {
-                  const rooms = mockRooms.filter(r => r.accommodation_id === acc.id)
+                  const accRooms = rooms.filter(r => r.accommodation_id === acc.id)
                   return (
                     <div key={acc.id}>
-                      {rooms.map((room) => (
+                      {accRooms.map((room) => (
                         <PlanningRow
                           key={room.id}
                           roomId={room.id}
-                          label={rooms.length > 1 ? `${acc.name}/${room.name}` : acc.name}
+                          label={accRooms.length > 1 ? `${acc.name}/${room.name}` : acc.name}
                           totalDays={totalDays}
                           seasonStart={seasonStart}
                           bookings={getBookingsForRoom(room.id)}
@@ -325,14 +399,22 @@ export default function PlanningView() {
 
         {/* ── NOW TAB ── */}
         {planningTab === 'now' && (
-          <NowView bookings={bookings} bookingRooms={bookingRooms} />
+          <NowView bookings={bookings} bookingRooms={bookingRooms} rooms={rooms} accommodations={accommodations} instructors={instructors} />
         )}
 
         {/* ── FORECAST TAB ── */}
         {planningTab === 'forecast' && (
           <ForecastView
             lessons={lessons}
-            onLessonsChange={setLessons}
+            instructors={instructors}
+            clients={clients}
+            equipment={equipment}
+            rentals={rentals}
+            onAddLesson={onAddLesson}
+            onUpdateLesson={onUpdateLesson}
+            onDeleteLesson={onDeleteLesson}
+            onAddRental={onAddRental}
+            onDeleteRental={onDeleteRental}
           />
         )}
 
@@ -372,8 +454,17 @@ export default function PlanningView() {
               dayActivities={dayActivities}
               bookings={bookings}
               lessonView={lessonView}
-              onLessonsChange={setLessons}
-              onActivitiesChange={setDayActivities}
+              instructors={instructors}
+              clients={clients}
+              equipment={equipment}
+              rentals={rentals}
+              onAddLesson={onAddLesson}
+              onUpdateLesson={onUpdateLesson}
+              onDeleteLesson={onDeleteLesson}
+              onAddActivity={onAddActivity}
+              onDeleteActivity={onDeleteActivity}
+              onAddRental={onAddRental}
+              onDeleteRental={onDeleteRental}
             />
           </>
         )}

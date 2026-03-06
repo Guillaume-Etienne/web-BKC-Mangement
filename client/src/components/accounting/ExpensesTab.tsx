@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { Expense } from '../../types/database'
-import { mockExpenseCategories } from '../../data/mock'
 import { fmtEur, fmtMonth } from './utils'
+
+const DEFAULT_CATEGORIES: string[] = ['Equipment', 'Maintenance', 'Transport', 'Staff', 'Admin', 'Other']
 
 interface Props {
   data:     SharedAccountingData
@@ -102,7 +103,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
   const currentSeason = seasons[seasons.length - 1]
 
   const [view,        setView]        = useState<View>('list')
-  const [categories,  setCategories]  = useState<string[]>(mockExpenseCategories)
+  const [categories,  setCategories]  = useState<string[]>(DEFAULT_CATEGORIES)
   const [showAddForm, setShowAddForm] = useState(false)
   const [showAddCat,  setShowAddCat]  = useState(false)
 

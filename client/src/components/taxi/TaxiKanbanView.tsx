@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus } from '../../types/database'
-import { mockBookings } from '../../data/mock'
+import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef } from '../../types/database'
 
 const STATUS_CONFIG: Record<TaxiTripStatus, { label: string; card: string; badge: string }> = {
   confirmed:    { label: 'Confirmed',     card: 'from-slate-50 to-gray-50 border-gray-200',     badge: 'bg-gray-100 text-gray-600' },
@@ -8,10 +7,15 @@ const STATUS_CONFIG: Record<TaxiTripStatus, { label: string; card: string; badge
   done:         { label: 'Done',          card: 'from-green-50 to-emerald-50 border-green-300',  badge: 'bg-green-100 text-green-700' },
 }
 
-function guestName(bookingId: string | null): string {
+function guestName(bookingId: string | null, bookings: BookingRef[]): string {
   if (!bookingId) return ''
-  const b = mockBookings.find(b => b.id === bookingId)
+  const b = bookings.find(b => b.id === bookingId)
   return b?.client ? `${b.client.first_name} ${b.client.last_name}` : ''
+}
+
+function bookingLabel(b: BookingRef): string {
+  const name = b.client ? `${b.client.first_name} ${b.client.last_name}` : '?'
+  return `#${String(b.booking_number).padStart(3, '0')} — ${name} (${b.check_in} → ${b.check_out})`
 }
 
 // ── Summary table — réalisés vs prévus ───────────────────────────────────────
@@ -95,13 +99,14 @@ interface TaxiKanbanViewProps {
   trips: TaxiTrip[]
   drivers: TaxiDriver[]
   pricingDefaults: TaxiPricingDefaults
+  bookings: BookingRef[]
   onAddTrip:    (trip: Omit<TaxiTrip, 'id'>) => Promise<TaxiTrip | null>
   onUpdateTrip: (trip: TaxiTrip) => Promise<void>
   onDeleteTrip: (id: string) => Promise<void>
   onUpdateRate: (rate: number) => void
 }
 
-export default function TaxiKanbanView({ trips, drivers, pricingDefaults, onAddTrip, onUpdateTrip, onDeleteTrip, onUpdateRate }: TaxiKanbanViewProps) {
+export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookings, onAddTrip, onUpdateTrip, onDeleteTrip, onUpdateRate }: TaxiKanbanViewProps) {
   const [editTrip, setEditTrip]         = useState<TaxiTrip | null>(null)
   const [draggedTrip, setDraggedTrip]   = useState<{ id: string; fromDriverId: string | null } | null>(null)
   const [dropTarget, setDropTarget]     = useState<string | null>(null)
@@ -293,8 +298,8 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, onAddT
                             <span className="font-medium">{TRIP_TYPE_LABELS[trip.type]}</span>
                             <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${sc.badge}`}>{sc.label}</span>
                           </div>
-                          {guestName(trip.booking_id) && (
-                            <div className="font-semibold text-gray-800">👤 {guestName(trip.booking_id)}</div>
+                          {guestName(trip.booking_id, bookings) && (
+                            <div className="font-semibold text-gray-800">👤 {guestName(trip.booking_id, bookings)}</div>
                           )}
                         </div>
 
@@ -415,9 +420,25 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, onAddT
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Booking</label>
-                  <input type="text" placeholder="ex: bk1" value={editTrip.booking_id || ''}
-                    onChange={e => handleEditChange({ booking_id: e.target.value || null })}
-                    className="w-full text-sm border rounded px-2 py-1.5" />
+                  <select value={editTrip.booking_id || ''}
+                    onChange={e => {
+                      const id = e.target.value || null
+                      const b = bookings.find(b => b.id === id)
+                      handleEditChange({
+                        booking_id: id,
+                        ...(b ? {
+                          nb_persons:   (b.participants ?? []).length || 1,
+                          nb_luggage:   b.luggage_count,
+                          nb_boardbags: b.boardbag_count,
+                        } : {}),
+                      })
+                    }}
+                    className="w-full text-sm border rounded px-2 py-1.5 bg-white">
+                    <option value="">— Not linked —</option>
+                    {bookings.map(b => (
+                      <option key={b.id} value={b.id}>{bookingLabel(b)}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

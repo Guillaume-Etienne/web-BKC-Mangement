@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback } from 'react'
-import { mockInstructors, mockDiningEvents, mockRooms, mockAccommodations } from '../../data/mock'
-import type { Booking, BookingRoom, DiningEvent, EventAttendee, EventType } from '../../types/database'
+import { useState, useMemo, useCallback, useEffect } from 'react'
+import type { Booking, BookingRoom, DiningEvent, EventAttendee, EventType, Room, Accommodation, Instructor } from '../../types/database'
+import { useTable } from '../../hooks/useSupabase'
+import { supabase } from '../../lib/supabase'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -135,11 +136,11 @@ function AttendeeCard({ a, isMenu, eventPrice, onUpdate, onRemove }: AttendeePro
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getRoomLabel(bookingId: string, bookingRooms: BookingRoom[]): string {
+function getRoomLabel(bookingId: string, bookingRooms: BookingRoom[], rooms: Room[], accommodations: Accommodation[]): string {
   const br = bookingRooms.find(b => b.booking_id === bookingId)
   if (!br) return ''
-  const room = mockRooms.find(r => r.id === br.room_id)
-  const acc = room ? mockAccommodations.find(a => a.id === room.accommodation_id) : null
+  const room = rooms.find(r => r.id === br.room_id)
+  const acc = room ? accommodations.find(a => a.id === room.accommodation_id) : null
   return room && acc ? `${acc.name}/${room.name}` : ''
 }
 
@@ -156,22 +157,37 @@ function SectionLabel({ label, count }: { label: string; count: number }) {
 interface NowViewProps {
   bookings: Booking[]
   bookingRooms: BookingRoom[]
+  rooms: Room[]
+  accommodations: Accommodation[]
+  instructors: Instructor[]
 }
 
 type View = 'table' | 'cards'
 
-export default function NowView({ bookings, bookingRooms }: NowViewProps) {
+export default function NowView({ bookings, bookingRooms, rooms, accommodations, instructors }: NowViewProps) {
   const today = new Date().toISOString().slice(0, 10)
 
+  // ── Dining events from Supabase ───────────────────────────────────
+  const { data: diningEventsData } = useTable<DiningEvent>('dining_events', { order: 'date', ascending: false })
+
   // ── Instructor presence ───────────────────────────────────────────
-  const [presence, setPresence] = useState<Record<string, boolean>>(
-    Object.fromEntries(mockInstructors.map(i => [i.id, true]))
-  )
+  const [presence, setPresence] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    setPresence(prev => {
+      const added = instructors.filter(i => !(i.id in prev))
+      if (added.length === 0) return prev
+      return { ...prev, ...Object.fromEntries(added.map(i => [i.id, true])) }
+    })
+  }, [instructors])
+
   const togglePresence = (id: string) =>
     setPresence(p => ({ ...p, [id]: !p[id] }))
 
-  // ── Events ────────────────────────────────────────────────────────
-  const [events, setEvents] = useState<DiningEvent[]>([...mockDiningEvents])
+  // ── Events (local state synced from hook) ────────────────────────
+  const [events, setEvents] = useState<DiningEvent[]>([])
+
+  useEffect(() => setEvents(diningEventsData), [diningEventsData])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [view, setView] = useState<View>('table')
   const [showHistory, setShowHistory] = useState(false)
@@ -182,7 +198,7 @@ export default function NowView({ bookings, bookingRooms }: NowViewProps) {
   // ── Auto-detect present guests ────────────────────────────────────
   const buildAttendees = useCallback((): EventAttendee[] => {
     const list: EventAttendee[] = []
-    for (const inst of mockInstructors) {
+    for (const inst of instructors) {
       if (!presence[inst.id]) continue
       list.push({
         id: `new-${inst.id}-${Date.now()}`, person_id: inst.id,
@@ -192,7 +208,7 @@ export default function NowView({ bookings, bookingRooms }: NowViewProps) {
     }
     for (const b of bookings) {
       if (b.check_in > today || b.check_out <= today) continue
-      const roomLabel = getRoomLabel(b.id, bookingRooms)
+      const roomLabel = getRoomLabel(b.id, bookingRooms, rooms, accommodations)
       const people = b.participants.length > 0
         ? b.participants.map(p => ({ id: p.id, name: `${p.first_name} ${p.last_name}` }))
         : b.client ? [{ id: b.client_id, name: `${b.client.first_name} ${b.client.last_name}` }] : []
@@ -205,48 +221,60 @@ export default function NowView({ bookings, bookingRooms }: NowViewProps) {
       }
     }
     return list
-  }, [presence, bookings, bookingRooms, today])
+  }, [instructors, presence, bookings, bookingRooms, today])
 
   // ── Event mutations ───────────────────────────────────────────────
   const createEvent = () => {
     const ev: DiningEvent = {
-      id: `ev${Date.now()}`, name: '', date: today, time: '20:00',
+      id: crypto.randomUUID(), name: '', date: today, time: '20:00',
       type: 'count', price_per_person: 0, notes: '', attendees: buildAttendees(),
     }
     setEvents(prev => [ev, ...prev])
     setActiveId(ev.id)
+    supabase.from('dining_events').insert([ev])
   }
 
   const duplicateEvent = (ev: DiningEvent) => {
     const copy: DiningEvent = {
-      ...ev, id: `ev${Date.now()}`, name: `${ev.name} (copy)`,
+      ...ev, id: crypto.randomUUID(), name: `${ev.name} (copy)`,
       date: today, attendees: buildAttendees(),
     }
     setEvents(prev => [copy, ...prev])
     setActiveId(copy.id)
+    supabase.from('dining_events').insert([copy])
   }
 
   const deleteEvent = (id: string) => {
     if (!confirm('Delete this event?')) return
     setEvents(prev => prev.filter(e => e.id !== id))
     if (activeId === id) setActiveId(null)
+    supabase.from('dining_events').delete().eq('id', id)
   }
 
   const updateEvent = useCallback((changes: Partial<DiningEvent>) => {
-    setEvents(prev => prev.map(e => e.id === activeId ? { ...e, ...changes } : e))
+    setEvents(prev => prev.map(e => {
+      if (e.id !== activeId) return e
+      const updated = { ...e, ...changes }
+      supabase.from('dining_events').update(updated).eq('id', e.id)
+      return updated
+    }))
   }, [activeId])
 
   const updateAttendee = useCallback((attendeeId: string, changes: Partial<EventAttendee>) => {
     setEvents(prev => prev.map(e => {
       if (e.id !== activeId) return e
-      return { ...e, attendees: e.attendees.map(a => a.id === attendeeId ? { ...a, ...changes } : a) }
+      const updated = { ...e, attendees: e.attendees.map(a => a.id === attendeeId ? { ...a, ...changes } : a) }
+      supabase.from('dining_events').update(updated).eq('id', e.id)
+      return updated
     }))
   }, [activeId])
 
   const removeAttendee = useCallback((attendeeId: string) => {
     setEvents(prev => prev.map(e => {
       if (e.id !== activeId) return e
-      return { ...e, attendees: e.attendees.filter(a => a.id !== attendeeId) }
+      const updated = { ...e, attendees: e.attendees.filter(a => a.id !== attendeeId) }
+      supabase.from('dining_events').update(updated).eq('id', e.id)
+      return updated
     }))
   }, [activeId])
 
@@ -273,8 +301,8 @@ export default function NowView({ bookings, bookingRooms }: NowViewProps) {
     [activeEvent]
   )
 
-  const instructors = activeEvent?.attendees.filter(a => a.person_type === 'instructor') ?? []
-  const guests      = activeEvent?.attendees.filter(a => a.person_type !== 'instructor') ?? []
+  const instrAttendees = activeEvent?.attendees.filter(a => a.person_type === 'instructor') ?? []
+  const guests         = activeEvent?.attendees.filter(a => a.person_type !== 'instructor') ?? []
   const isMenu      = activeEvent?.type === 'menu'
   const eventPrice  = activeEvent?.price_per_person ?? 0
 
@@ -284,7 +312,7 @@ export default function NowView({ bookings, bookingRooms }: NowViewProps) {
       {/* ── Instructor presence ── */}
       <div className="bg-white rounded-lg border border-gray-200 px-4 py-3 flex flex-wrap items-center gap-3">
         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">Present today:</span>
-        {mockInstructors.map(i => (
+        {instructors.map(i => (
           <button
             key={i.id} onClick={() => togglePresence(i.id)}
             className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
@@ -404,12 +432,12 @@ export default function NowView({ bookings, bookingRooms }: NowViewProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {instructors.length > 0 && (
+                    {instrAttendees.length > 0 && (
                       <tr><td colSpan={99} className="pt-2 pb-1 px-3">
                         <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Instructors</span>
                       </td></tr>
                     )}
-                    {instructors.map(a => (
+                    {instrAttendees.map(a => (
                       <AttendeeTableRow key={a.id} a={a} isMenu={isMenu} eventPrice={eventPrice} onUpdate={updateAttendee} onRemove={removeAttendee} />
                     ))}
                     {guests.length > 0 && (
@@ -425,10 +453,10 @@ export default function NowView({ bookings, bookingRooms }: NowViewProps) {
               </div>
             ) : (
               <div className="space-y-2">
-                {instructors.length > 0 && <>
-                  <SectionLabel label="Instructors" count={instructors.length} />
+                {instrAttendees.length > 0 && <>
+                  <SectionLabel label="Instructors" count={instrAttendees.length} />
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {instructors.map(a => (
+                    {instrAttendees.map(a => (
                       <AttendeeCard key={a.id} a={a} isMenu={isMenu} eventPrice={eventPrice} onUpdate={updateAttendee} onRemove={removeAttendee} />
                     ))}
                   </div>
