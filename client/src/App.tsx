@@ -28,6 +28,7 @@ const shareToken = new URLSearchParams(window.location.search).get('share')
 function App() {
   const [session,     setSession]     = useState<Session | null | undefined>(undefined)
   const [currentPage, setCurrentPage] = useState<Page>('home')
+  const [pendingEditBookingId, setPendingEditBookingId] = useState<string | null>(null)
   // undefined = still checking, null = not found / no token
   const [sharedLink, setSharedLink]   = useState<SharedLink | null | undefined>(
     shareToken ? undefined : null
@@ -91,8 +92,8 @@ function App() {
       <Navigation currentPage={currentPage} onNavigate={setCurrentPage} onLogout={() => supabase.auth.signOut()} />
       <main className="w-full">
         {currentPage === 'home'       && <HomePage onNavigate={setCurrentPage} />}
-        {currentPage === 'planning'   && <PlanningView />}
-        {currentPage === 'bookings'   && <BookingsPage />}
+        {currentPage === 'planning'   && <PlanningView onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
+        {currentPage === 'bookings'   && <BookingsPage initialEditBookingId={pendingEditBookingId} onEditOpened={() => setPendingEditBookingId(null)} />}
         {currentPage === 'clients'    && <ClientsPage onNavigate={setCurrentPage} />}
         {currentPage === 'management' && <ManagementPage />}
         {currentPage === 'equipment'  && <EquipmentPage />}

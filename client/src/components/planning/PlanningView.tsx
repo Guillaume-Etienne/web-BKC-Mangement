@@ -4,7 +4,7 @@ import TotalsRow from './TotalsRow'
 import LessonWeekView from './LessonWeekView'
 import NowView from './NowView'
 import ForecastView from './ForecastView'
-import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental, PriceItem } from '../../types/database'
+import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental, PriceItem, BookingParticipant, Room, Accommodation } from '../../types/database'
 import { useBookingDrag, CELL_W, type DragMode } from '../../hooks/useBookingDrag'
 import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
 import { useTable } from '../../hooks/useSupabase'
@@ -14,6 +14,77 @@ import { useInstructors } from '../../hooks/useInstructors'
 import { useClients } from '../../hooks/useClients'
 import { useEquipment, useEquipmentRentals } from '../../hooks/useEquipment'
 import { supabase } from '../../lib/supabase'
+
+// ── Booking quick view modal ───────────────────────────────────────────────────
+
+const STATUS_LABEL: Record<string, string> = { confirmed: 'Confirmed', provisional: 'Provisional', cancelled: 'Cancelled' }
+const STATUS_COLOR: Record<string, string> = { confirmed: 'bg-emerald-100 text-emerald-800', provisional: 'bg-amber-100 text-amber-800', cancelled: 'bg-gray-100 text-gray-500' }
+
+interface BookingQuickViewProps {
+  booking: Booking
+  rooms: Room[]
+  accommodations: Accommodation[]
+  bookingRooms: BookingRoom[]
+  participants: BookingParticipant[]
+  onClose: () => void
+  onEdit: () => void
+}
+
+function BookingQuickView({ booking, rooms, accommodations, bookingRooms, participants, onClose, onEdit }: BookingQuickViewProps) {
+  const clientName = booking.client ? `${booking.client.first_name} ${booking.client.last_name}` : '?'
+  const roomLabels = bookingRooms
+    .filter(br => br.booking_id === booking.id)
+    .map(br => {
+      const room = rooms.find(r => r.id === br.room_id)
+      const acc  = room ? accommodations.find(a => a.id === room.accommodation_id) : null
+      return acc && room ? `${acc.name} / ${room.name}` : '?'
+    })
+
+  const rows: [string, string][] = [
+    ['Check-in',  booking.check_in],
+    ['Check-out', booking.check_out],
+    ['Status',    STATUS_LABEL[booking.status] ?? booking.status],
+    ['Room(s)',   roomLabels.join(', ') || '—'],
+    ['Guests',    participants.length > 0 ? participants.map(p => `${p.first_name}${p.last_name ? ` ${p.last_name}` : ''}`).join(', ') : '—'],
+    ['Lessons',   String(booking.num_lessons)],
+    ['Rentals',   String(booking.num_equipment_rentals)],
+  ]
+  if (booking.notes) rows.push(['Notes', booking.notes])
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-gray-800">
+              #{String(booking.booking_number).padStart(3, '0')} — {clientName}
+            </span>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[booking.status]}`}>
+              {STATUS_LABEL[booking.status]}
+            </span>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+        </div>
+        <div className="px-4 py-3 space-y-1.5">
+          {rows.map(([label, value]) => (
+            <div key={label} className="flex gap-2 text-sm">
+              <span className="text-gray-400 w-20 shrink-0">{label}</span>
+              <span className="text-gray-800 font-medium">{value}</span>
+            </div>
+          ))}
+        </div>
+        <div className="px-4 pb-4">
+          <button
+            onClick={onEdit}
+            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            ✏️ Edit booking
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── Draft move types ──────────────────────────────────────────────────────────
 interface RoomSwap { from: string; to: string }
@@ -131,7 +202,7 @@ function getSeasonYear(today: Date): number {
   return y                   // Apr–Aug: show upcoming season
 }
 
-export default function PlanningView() {
+export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: string) => void } = {}) {
   const { data: accommodations } = useAccommodations()
   const { data: rooms } = useRooms()
   const { data: houseRentals } = useTable<HouseRental>('house_rentals')
@@ -231,6 +302,10 @@ export default function PlanningView() {
   useEffect(() => setLessons(lessonsData), [lessonsData])
   useEffect(() => setDayActivities(dayActivitiesData), [dayActivitiesData])
   useEffect(() => setRentals(rentalsData), [rentalsData])
+
+  // ── Booking quick view ──────────────────────────────────────────────────────
+  const [quickViewBookingId, setQuickViewBookingId] = useState<string | null>(null)
+  const quickViewBooking = quickViewBookingId ? bookings.find(b => b.id === quickViewBookingId) ?? null : null
 
   // ── Draft moves ────────────────────────────────────────────────────────────
   const [draftMoves, setDraftMoves] = useState<Map<string, DraftMove>>(new Map())
@@ -469,8 +544,12 @@ export default function PlanningView() {
     supabase.from('equipment_rentals').delete().eq('id', id)
   }, [])
 
+  const onBookingTap = useCallback((bookingId: string) => {
+    setQuickViewBookingId(bookingId)
+  }, [])
+
   const { dragState, onPointerDown, onPointerMove, onPointerUp } = useBookingDrag({
-    onBookingUpdate, onBookingMove, gridRef,
+    onBookingUpdate, onBookingMove, onBookingTap, gridRef,
   })
 
   return (
@@ -721,6 +800,19 @@ export default function PlanningView() {
           </>
         )}
       </div>
+
+      {/* Booking quick view */}
+      {quickViewBooking && (
+        <BookingQuickView
+          booking={quickViewBooking}
+          rooms={rooms}
+          accommodations={accommodations}
+          bookingRooms={bookingRooms}
+          participants={bookingParticipants.filter(p => p.booking_id === quickViewBooking.id)}
+          onClose={() => setQuickViewBookingId(null)}
+          onEdit={() => { setQuickViewBookingId(null); onOpenBooking?.(quickViewBooking.id) }}
+        />
+      )}
 
       {/* Validate modal */}
       {showValidateModal && (

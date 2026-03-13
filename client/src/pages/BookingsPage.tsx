@@ -784,7 +784,12 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
-export default function BookingsPage() {
+interface BookingsPageProps {
+  initialEditBookingId?: string | null
+  onEditOpened?: () => void
+}
+
+export default function BookingsPage({ initialEditBookingId, onEditOpened }: BookingsPageProps = {}) {
   const { data: bookings, loading, error, refresh: refreshBookings } = useBookings()
   const { data: clients, loading: clientsLoading, refresh: refreshClients } = useClients()
   const { data: bookingRooms, refresh: refreshBookingRooms } = useBookingRooms()
@@ -819,6 +824,12 @@ export default function BookingsPage() {
   function openNew() { setWizard({ open: true, editing: null }) }
   function openEdit(b: Booking) { setWizard({ open: true, editing: b }) }
   function closeWizard() { setWizard({ open: false, editing: null }) }
+
+  useEffect(() => {
+    if (!initialEditBookingId || loading) return
+    const b = bookings.find(b => b.id === initialEditBookingId)
+    if (b) { openEdit(b); onEditOpened?.() }
+  }, [initialEditBookingId, bookings, loading])
 
   async function handleSave(data: WizardData, isNew: boolean) {
     setSaving(true)
