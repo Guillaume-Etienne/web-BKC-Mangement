@@ -28,11 +28,11 @@ export default function Navigation({ currentPage, onNavigate, onLogout }: Naviga
 
   return (
     <>
-      {/* Backdrop — absorbs ghost clicks when mobile menu is open */}
+      {/* Backdrop — closes mobile menu on outside tap */}
       {mobileMenuOpen && (
         <div
           className="fixed inset-0 z-40 md:hidden"
-          onPointerDown={(e) => { e.preventDefault(); setMobileMenuOpen(false) }}
+          onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
@@ -80,7 +80,7 @@ export default function Navigation({ currentPage, onNavigate, onLogout }: Naviga
 
             {/* Mobile menu button */}
             <button
-              onPointerDown={(e) => { e.preventDefault(); setMobileMenuOpen(o => !o) }}
+              onClick={() => setMobileMenuOpen(o => !o)}
               className="md:hidden p-2 rounded-lg text-gray-700 hover:bg-gray-100"
               style={{ touchAction: 'manipulation' }}
             >
@@ -99,7 +99,7 @@ export default function Navigation({ currentPage, onNavigate, onLogout }: Naviga
               {navItems.map((item) => (
                 <button
                   key={item.id}
-                  onPointerDown={(e) => { e.preventDefault(); handleNavigate(item.id) }}
+                  onClick={() => handleNavigate(item.id)}
                   style={{ touchAction: 'manipulation' }}
                   className={`w-full text-left px-4 py-2 rounded-lg font-medium transition-colors ${
                     currentPage === item.id
@@ -113,7 +113,7 @@ export default function Navigation({ currentPage, onNavigate, onLogout }: Naviga
               ))}
               <div className="border-t pt-2 mt-2">
                 <button
-                  onPointerDown={(e) => { e.preventDefault(); setMobileMenuOpen(false); onLogout() }}
+                  onClick={() => { setMobileMenuOpen(false); onLogout() }}
                   style={{ touchAction: 'manipulation' }}
                   className="w-full text-left px-4 py-2 rounded-lg font-medium text-gray-500 transition-colors hover:bg-gray-100"
                 >
