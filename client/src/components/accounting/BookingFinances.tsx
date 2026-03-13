@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
-import type { Payment, PaymentMethod, Booking } from '../../types/database'
+import type { Payment, PaymentMethod, Booking, EquipmentRental, Lesson, LessonRateOverride } from '../../types/database'
 import {
   computeBookingTotal, computeBookingPaid, computeAccommodationRevenue,
   computeLessonsRevenue, computeRentalsRevenue, computeTaxiRevenue,
+  computeDiningForBooking, getLessonRate,
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate,
 } from './utils'
 
@@ -21,6 +22,84 @@ const METHOD_COLORS: Record<PaymentMethod, string> = {
   cash_mzn:       'bg-teal-100 text-teal-800',
   transfer:       'bg-blue-100 text-blue-800',
   card_palmeiras: 'bg-purple-100 text-purple-800',
+}
+
+// ── Edit Rental Price Form (module-scope) ──────────────────────────────────
+
+interface EditRentalFormProps {
+  rental: EquipmentRental
+  onSave: (r: EquipmentRental) => void
+  onCancel: () => void
+}
+function EditRentalForm({ rental, onSave, onCancel }: EditRentalFormProps) {
+  const [price, setPrice] = useState(String(rental.price))
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const parsed = parseFloat(price)
+    if (isNaN(parsed) || parsed < 0) return
+    onSave({ ...rental, price: parsed })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex items-center gap-2 mt-1">
+      <input type="number" min="0" step="0.5" value={price} onChange={e => setPrice(e.target.value)}
+        autoFocus
+        className="w-24 px-2 py-0.5 border border-blue-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      <span className="text-xs text-gray-400">€</span>
+      <button type="submit" className="px-2 py-0.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">✓</button>
+      <button type="button" onClick={onCancel} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200">✕</button>
+    </form>
+  )
+}
+
+// ── Override Lesson Rate Form (module-scope) ────────────────────────────────
+
+interface LessonRateFormProps {
+  lesson: Lesson
+  currentRate: number
+  hasOverride: boolean
+  onSave: (o: LessonRateOverride) => void
+  onRemove: () => void
+  onCancel: () => void
+}
+function LessonRateForm({ lesson, currentRate, hasOverride, onSave, onRemove, onCancel }: LessonRateFormProps) {
+  const [rate, setRate] = useState(String(currentRate))
+  const [note, setNote] = useState('')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const parsed = parseFloat(rate)
+    if (!parsed || !note.trim()) return
+    onSave({ id: `lro_${Date.now()}`, lesson_id: lesson.id, rate: parsed, note: note.trim() })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-1 p-2 bg-amber-50 border border-amber-200 rounded space-y-1.5">
+      <div className="flex gap-2">
+        <div>
+          <label className="text-xs text-gray-500 block mb-0.5">Rate (€/h)</label>
+          <input type="number" min="0" step="0.5" value={rate} onChange={e => setRate(e.target.value)} autoFocus
+            className="w-20 px-2 py-0.5 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
+        </div>
+        <div className="flex-1">
+          <label className="text-xs text-gray-500 block mb-0.5">Reason *</label>
+          <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="Required"
+            className="w-full px-2 py-0.5 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
+        </div>
+      </div>
+      <div className="flex gap-1">
+        <button type="button" onClick={onCancel}
+          className="px-2 py-0.5 bg-white border border-gray-300 rounded text-xs text-gray-600 hover:bg-gray-50">Cancel</button>
+        {hasOverride && (
+          <button type="button" onClick={onRemove}
+            className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200">Remove override</button>
+        )}
+        <button type="submit"
+          className="flex-1 px-2 py-0.5 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700">Save</button>
+      </div>
+    </form>
+  )
 }
 
 // ── Add Payment Form (module-scope to avoid focus loss) ────────────────────
@@ -114,6 +193,8 @@ interface DetailPanelProps {
 
 function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
   const [showAddPayment, setShowAddPayment] = useState(false)
+  const [editingRentalId, setEditingRentalId] = useState<string | null>(null)
+  const [overridingLessonId, setOverridingLessonId] = useState<string | null>(null)
 
   const total        = computeBookingTotal(b, data)
   const paid         = computeBookingPaid(b.id, data.payments)
@@ -128,6 +209,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
   const lessonsRev       = computeLessonsRevenue(b, data)
   const rentalsRev       = computeRentalsRevenue(b, data)
   const taxiRev          = computeTaxiRevenue(b, data)
+  const diningRev        = computeDiningForBooking(b, data.diningEvents)
 
   // Room detail
   const bkRooms = data.bookingRooms.filter(br => br.booking_id === b.id)
@@ -216,13 +298,33 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
               <div className="px-4 py-2 space-y-1">
                 {bkLessons.map(l => {
                   const instr = data.instructors.find(i => i.id === l.instructor_id)
-                  const rate = l.type === 'private' ? (instr?.rate_private ?? 0)
-                    : l.type === 'group' ? (instr?.rate_group ?? 0)
-                    : (instr?.rate_supervision ?? 0)
+                  if (!instr) return null
+                  const override = data.lessonRateOverrides.find(o => o.lesson_id === l.id)
+                  const rate = getLessonRate(l, instr, data.lessonRateOverrides)
+                  const isOverriding = overridingLessonId === l.id
                   return (
-                    <div key={l.id} className="flex justify-between text-xs text-gray-500">
-                      <span>{l.type} · {l.duration_hours}h · {l.date} ({instr?.first_name})</span>
-                      <span>{fmtEur(rate * l.duration_hours)}</span>
+                    <div key={l.id} className="text-xs text-gray-500">
+                      <div className="flex justify-between items-center">
+                        <span>
+                          {l.type} · {l.duration_hours}h · {l.date} ({instr.first_name})
+                          {override && <span className="ml-1 text-amber-500 italic">(override)</span>}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span>{fmtEur(rate * l.duration_hours)}</span>
+                          <button onClick={() => setOverridingLessonId(isOverriding ? null : l.id)}
+                            className={`transition-colors ${override ? 'text-amber-400 hover:text-amber-600' : 'text-gray-300 hover:text-amber-500'}`}>✏️</button>
+                        </div>
+                      </div>
+                      {isOverriding && (
+                        <LessonRateForm
+                          lesson={l}
+                          currentRate={rate}
+                          hasOverride={!!override}
+                          onSave={o => { handlers.setLessonOverride(o); setOverridingLessonId(null) }}
+                          onRemove={() => { handlers.removeLessonOverride(l.id); setOverridingLessonId(null) }}
+                          onCancel={() => setOverridingLessonId(null)}
+                        />
+                      )}
                     </div>
                   )
                 })}
@@ -238,12 +340,30 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                 <span className="text-sm font-semibold text-gray-800">{fmtEur(rentalsRev)}</span>
               </div>
               <div className="px-4 py-2 space-y-1">
-                {bkRentals.map(r => (
-                  <div key={r.id} className="flex justify-between text-xs text-gray-500">
-                    <span>{r.date} · {r.slot}</span>
-                    <span>{fmtEur(r.price)}</span>
-                  </div>
-                ))}
+                {bkRentals.map(r => {
+                  const equip = data.equipment.find(e => e.id === r.equipment_id)
+                  const typeLabel = equip ? equip.category : (r.equipment_id ?? 'equipment')
+                  const isEditing = editingRentalId === r.id
+                  return (
+                    <div key={r.id} className="text-xs text-gray-500">
+                      <div className="flex justify-between items-center">
+                        <span>{r.date} · <span className="capitalize">{typeLabel}</span> · {r.slot}</span>
+                        <div className="flex items-center gap-2">
+                          <span>{fmtEur(r.price)}</span>
+                          <button onClick={() => setEditingRentalId(isEditing ? null : r.id)}
+                            className="text-gray-300 hover:text-blue-500 transition-colors">✏️</button>
+                        </div>
+                      </div>
+                      {isEditing && (
+                        <EditRentalForm
+                          rental={r}
+                          onSave={updated => { handlers.updateRental(updated); setEditingRentalId(null) }}
+                          onCancel={() => setEditingRentalId(null)}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -265,6 +385,40 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
               </div>
             </div>
           )}
+
+          {/* Dining events */}
+          {diningRev > 0 && (() => {
+            const hasParticipants = (b.participants ?? []).length > 0
+            const matchIds = new Set(
+              hasParticipants
+                ? (b.participants ?? []).map(p => p.id)
+                : [b.client_id]
+            )
+            return (
+              <div className="rounded-lg border border-gray-100 overflow-hidden">
+                <div className="flex justify-between items-center px-4 py-2 bg-gray-50">
+                  <span className="text-sm font-medium text-gray-700">🍽️ Dining events</span>
+                  <span className="text-sm font-semibold text-gray-800">{fmtEur(diningRev)}</span>
+                </div>
+                <div className="px-4 py-2 space-y-1">
+                  {data.diningEvents.filter(ev => ev.price_per_person > 0 && (ev.attendees ?? []).some(
+                    a => a.is_attending && a.person_type === 'participant' && matchIds.has(a.person_id)
+                  )).map(ev => {
+                    const attending = (ev.attendees ?? []).filter(
+                      a => a.is_attending && a.person_type === 'participant' && matchIds.has(a.person_id)
+                    )
+                    const evTotal = attending.reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
+                    return (
+                      <div key={ev.id} className="flex justify-between text-xs text-gray-500">
+                        <span>{ev.date} · {ev.name || '(unnamed)'} · {attending.length}p @ {fmtEur(ev.price_per_person)}</span>
+                        <span>{fmtEur(evTotal)}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Total line */}
           <div className="flex justify-between items-center px-4 py-2 bg-gray-800 rounded-lg text-white text-sm font-bold">

@@ -13,7 +13,7 @@ const MENU_FIELDS: { key: keyof Pick<EventAttendee, 'starter' | 'main' | 'side' 
 ]
 
 const personIcon = (type: EventAttendee['person_type']) =>
-  type === 'instructor' ? '👨‍🏫' : type === 'client' ? '🏄' : '👤'
+  type === 'instructor' ? '👨‍🏫' : type === 'participant' ? '🏄' : '👤'
 
 // ─── Top-level sub-components (MUST be outside NowView to avoid focus loss) ──
 
@@ -190,8 +190,9 @@ export default function NowView({ bookings, bookingRooms, rooms, accommodations,
   useEffect(() => setEvents(diningEventsData), [diningEventsData])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [view, setView] = useState<View>('table')
-  const [showHistory, setShowHistory] = useState(false)
+  const [showHistory, setShowHistory] = useState(true)
   const [extraName, setExtraName] = useState('')
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set())
 
   const activeEvent = useMemo(() => events.find(e => e.id === activeId) ?? null, [events, activeId])
 
@@ -215,7 +216,7 @@ export default function NowView({ bookings, bookingRooms, rooms, accommodations,
       for (const person of people) {
         list.push({
           id: `new-${person.id}-${Date.now()}`, person_id: person.id,
-          person_type: 'client', person_name: person.name,
+          person_type: 'participant', person_name: person.name,
           room_label: roomLabel, is_attending: true, starter: '', main: '', side: '', dessert: '',
         })
       }
@@ -224,24 +225,34 @@ export default function NowView({ bookings, bookingRooms, rooms, accommodations,
   }, [instructors, presence, bookings, bookingRooms, today])
 
   // ── Event mutations ───────────────────────────────────────────────
-  const createEvent = () => {
+  const createEvent = async () => {
     const ev: DiningEvent = {
       id: crypto.randomUUID(), name: '', date: today, time: '20:00',
       type: 'count', price_per_person: 0, notes: '', attendees: buildAttendees(),
     }
     setEvents(prev => [ev, ...prev])
     setActiveId(ev.id)
-    supabase.from('dining_events').insert([ev])
+    const { error } = await supabase.from('dining_events').insert([{
+      id: ev.id, name: ev.name, date: ev.date, time: ev.time,
+      type: ev.type, price_per_person: ev.price_per_person,
+      notes: ev.notes || null, attendees: ev.attendees,
+    }])
+    if (error) console.error('Create event error:', error.message)
   }
 
-  const duplicateEvent = (ev: DiningEvent) => {
+  const duplicateEvent = async (ev: DiningEvent) => {
     const copy: DiningEvent = {
       ...ev, id: crypto.randomUUID(), name: `${ev.name} (copy)`,
       date: today, attendees: buildAttendees(),
     }
     setEvents(prev => [copy, ...prev])
     setActiveId(copy.id)
-    supabase.from('dining_events').insert([copy])
+    const { error } = await supabase.from('dining_events').insert([{
+      id: copy.id, name: copy.name, date: copy.date, time: copy.time,
+      type: copy.type, price_per_person: copy.price_per_person,
+      notes: copy.notes || null, attendees: copy.attendees,
+    }])
+    if (error) console.error('Duplicate event error:', error.message)
   }
 
   const deleteEvent = (id: string) => {
@@ -254,28 +265,25 @@ export default function NowView({ bookings, bookingRooms, rooms, accommodations,
   const updateEvent = useCallback((changes: Partial<DiningEvent>) => {
     setEvents(prev => prev.map(e => {
       if (e.id !== activeId) return e
-      const updated = { ...e, ...changes }
-      supabase.from('dining_events').update(updated).eq('id', e.id)
-      return updated
+      return { ...e, ...changes }
     }))
+    if (activeId) setDirtyIds(prev => new Set(prev).add(activeId))
   }, [activeId])
 
   const updateAttendee = useCallback((attendeeId: string, changes: Partial<EventAttendee>) => {
     setEvents(prev => prev.map(e => {
       if (e.id !== activeId) return e
-      const updated = { ...e, attendees: e.attendees.map(a => a.id === attendeeId ? { ...a, ...changes } : a) }
-      supabase.from('dining_events').update(updated).eq('id', e.id)
-      return updated
+      return { ...e, attendees: e.attendees.map(a => a.id === attendeeId ? { ...a, ...changes } : a) }
     }))
+    if (activeId) setDirtyIds(prev => new Set(prev).add(activeId))
   }, [activeId])
 
   const removeAttendee = useCallback((attendeeId: string) => {
     setEvents(prev => prev.map(e => {
       if (e.id !== activeId) return e
-      const updated = { ...e, attendees: e.attendees.filter(a => a.id !== attendeeId) }
-      supabase.from('dining_events').update(updated).eq('id', e.id)
-      return updated
+      return { ...e, attendees: e.attendees.filter(a => a.id !== attendeeId) }
     }))
+    if (activeId) setDirtyIds(prev => new Set(prev).add(activeId))
   }, [activeId])
 
   const addExtra = () => {
@@ -288,6 +296,22 @@ export default function NowView({ bookings, bookingRooms, rooms, accommodations,
     updateEvent({ attendees: [...activeEvent.attendees, a] })
     setExtraName('')
   }
+
+  const saveEvent = useCallback(async (id: string) => {
+    const ev = events.find(e => e.id === id)
+    if (!ev) return
+    const { error } = await supabase.from('dining_events').update({
+      name: ev.name, date: ev.date, time: ev.time, type: ev.type,
+      price_per_person: ev.price_per_person,
+      notes: ev.notes || null, attendees: ev.attendees,
+    }).eq('id', id)
+    if (error) {
+      console.error('Save event error:', error.message)
+      alert('Error saving event: ' + error.message)
+      return
+    }
+    setDirtyIds(prev => { const n = new Set(prev); n.delete(id); return n })
+  }, [events])
 
   // ── Totals ────────────────────────────────────────────────────────
   const attending = useMemo(
@@ -346,6 +370,14 @@ export default function NowView({ bookings, bookingRooms, rooms, accommodations,
                 className="flex-1 min-w-[180px] text-lg font-bold border-0 border-b-2 border-gray-200 focus:border-blue-400 focus:outline-none px-0 py-1"
               />
               <div className="flex items-center gap-2 ml-auto">
+                {dirtyIds.has(activeEvent.id) && (
+                  <button
+                    onClick={() => saveEvent(activeEvent.id)}
+                    className="px-4 py-1.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded shadow-sm animate-pulse"
+                  >
+                    💾 Save
+                  </button>
+                )}
                 <button onClick={() => duplicateEvent(activeEvent)} className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 text-gray-600">⧉ Duplicate</button>
                 <button onClick={() => deleteEvent(activeEvent.id)} className="px-3 py-1.5 text-sm border border-red-200 rounded hover:bg-red-50 text-red-500">🗑</button>
                 <button onClick={() => setActiveId(null)} className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 text-gray-500">✕</button>
@@ -504,8 +536,9 @@ export default function NowView({ bookings, bookingRooms, rooms, accommodations,
         {showHistory && (
           <div className="mt-2 space-y-1">
             {events.map(ev => {
-              const evAttending = ev.attendees.filter(a => a.is_attending).length
-              const evTotal = ev.attendees.filter(a => a.is_attending).reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
+              const evAttendees = ev.attendees ?? []
+              const evAttending = evAttendees.filter(a => a.is_attending).length
+              const evTotal = evAttendees.filter(a => a.is_attending).reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
               return (
                 <div
                   key={ev.id}

@@ -1,13 +1,15 @@
 import type {
-  Accommodation, Booking, Client, Room, BookingRoom, BookingRoomPrice,
+  Accommodation, Booking, BookingParticipant, Client, Room, BookingRoom, BookingRoomPrice,
   ExternalAccommodationBooking, ExternalAccommodation,
-  HouseRental, Lesson, Instructor, EquipmentRental, TaxiTrip, Season,
+  HouseRental, Lesson, Instructor, Equipment, EquipmentRental, TaxiTrip, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSubLet,
+  DiningEvent,
 } from '../../types/database'
 
 export interface SharedAccountingData {
   accommodations:            Accommodation[]
+  bookingParticipants:       BookingParticipant[]
   houseRentals:              HouseRental[]
   bookings:                  Booking[]
   clients:                   Client[]
@@ -16,8 +18,10 @@ export interface SharedAccountingData {
   bookingRoomPrices:         BookingRoomPrice[]
   externalAccommodationBkgs: ExternalAccommodationBooking[]
   externalAccommodations:    ExternalAccommodation[]
+  diningEvents:              DiningEvent[]
   lessons:                   Lesson[]
   instructors:               Instructor[]
+  equipment:                 Equipment[]
   equipmentRentals:          EquipmentRental[]
   taxiTrips:                 TaxiTrip[]
   seasons:                   Season[]
@@ -33,6 +37,7 @@ export interface SharedAccountingData {
 }
 
 export interface AccountingHandlers {
+  updateRental:            (r: EquipmentRental)    => void
   addPayment:              (p: Payment)            => void
   updatePayment:           (p: Payment)            => void
   deletePayment:           (id: string)            => void

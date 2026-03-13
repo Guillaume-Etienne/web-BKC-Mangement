@@ -68,7 +68,7 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
     onConfirm({
       booking_id: '', // TODO: link to booking
       instructor_id: instrId,
-      client_ids: clientIds,
+      participant_ids: clientIds,
       date,
       start_time: slotToTime(startSlot, startHour),
       duration_hours: durSlots * 0.5,
@@ -176,7 +176,7 @@ interface EditLessonModalProps {
 
 function EditLessonModal({ lesson, startHour, totalSlots, clients, instructors, onSave, onDelete, onClose }: EditLessonModalProps) {
   const [type, setType]           = useState<LessonType>(lesson.type)
-  const [clientIds, setClientIds] = useState<string[]>(lesson.client_ids)
+  const [clientIds, setClientIds] = useState<string[]>(lesson.participant_ids)
   const [instrId, setInstrId]     = useState(lesson.instructor_id)
   const [startSlot, setStartSlot] = useState(Math.max(0, timeToSlot(lesson.start_time, startHour)))
   const [durSlots, setDurSlots]   = useState(lesson.duration_hours * 2)
@@ -184,7 +184,7 @@ function EditLessonModal({ lesson, startHour, totalSlots, clients, instructors, 
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    onSave({ ...lesson, type, client_ids: clientIds, instructor_id: instrId,
+    onSave({ ...lesson, type, participant_ids: clientIds, instructor_id: instrId,
       start_time: slotToTime(startSlot, startHour), duration_hours: durSlots * 0.5, notes: notes || null })
   }
 
@@ -306,7 +306,7 @@ function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: Re
     onAdd({
       equipment_id: equip?.id ?? equipType,
       booking_id: null,
-      client_id: clientId,
+      participant_id: null,
       date,
       slot,
       price,
@@ -376,9 +376,9 @@ function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: Re
             <div className="text-xs font-semibold text-gray-500 mb-1">{g.label}</div>
             <div className="space-y-1">
               {items.map(r => {
-                const client = clients.find(c => c.id === r.client_id)
+                const client = clients.find(c => c.id === r.participant_id)
                 const equip = equipment.find(e => e.id === r.equipment_id)
-                const rt = RENTAL_TYPE_LABELS[equip?.category ?? r.equipment_id] ?? RENTAL_TYPE_LABELS.free
+                const rt = RENTAL_TYPE_LABELS[equip?.category ?? r.equipment_id ?? ''] ?? RENTAL_TYPE_LABELS.free
                 return (
                   <div key={r.id} className="group/r flex items-start justify-between bg-amber-50 border border-amber-200 rounded px-2 py-1.5 text-xs">
                     <div>
@@ -674,7 +674,7 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
                       const top    = displaySlot * SLOT_H
                       const height = displayDur * SLOT_H
                       const cfg    = LESSON_CFG[lesson.type]
-                      const lessonClients = lesson.client_ids.map(id => clients.find(c => c.id === id)).filter(Boolean)
+                      const lessonClients = lesson.participant_ids.map(id => clients.find(c => c.id === id)).filter(Boolean)
                       const firstClient = lessonClients[0]
 
                       return (

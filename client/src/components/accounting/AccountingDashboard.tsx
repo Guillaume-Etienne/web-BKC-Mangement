@@ -3,6 +3,7 @@ import {
   computeBookingTotal, computeBookingPaid,
   computeAccommodationRevenue, computeLessonsRevenue,
   computeRentalsRevenue, computeTaxiRevenue,
+  computeDiningRevenue,
   computeInstructorBalance, fmtEur,
 } from './utils'
 
@@ -24,6 +25,7 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
 export default function AccountingDashboard({ data }: Props) {
   const {
     bookings, payments,
+    diningEvents,
     lessons, instructors, lessonRateOverrides,
     taxiTrips, expenses,
     palmeirasRents, palmeirasReversals, palmeirasSubLets, palmeirasEntries,
@@ -36,7 +38,8 @@ export default function AccountingDashboard({ data }: Props) {
   const lessonsRev = activeBookings.reduce((s, b) => s + computeLessonsRevenue(b, data), 0)
   const rentalsRev = activeBookings.reduce((s, b) => s + computeRentalsRevenue(b, data), 0)
   const taxisRev   = activeBookings.reduce((s, b) => s + computeTaxiRevenue(b, data), 0)
-  const totalRevenue = accomRev + lessonsRev + rentalsRev + taxisRev
+  const eventsRev  = computeDiningRevenue(diningEvents)
+  const totalRevenue = accomRev + lessonsRev + rentalsRev + taxisRev + eventsRev
 
   // ── Collections ────────────────────────────────────────────────────────
   const totalPaid = bookings.reduce((s, b) => s + computeBookingPaid(b.id, payments), 0)
@@ -163,6 +166,7 @@ export default function AccountingDashboard({ data }: Props) {
               { label: 'Lessons',       value: lessonsRev, color: 'bg-emerald-500' },
               { label: 'Equipment',     value: rentalsRev, color: 'bg-purple-500' },
               { label: 'Taxis',         value: taxisRev,   color: 'bg-amber-500' },
+              { label: 'Events',        value: eventsRev,  color: 'bg-rose-400' },
             ].map(c => (
               <div key={c.label} className="flex items-center gap-3">
                 <p className="w-28 text-sm text-gray-600 shrink-0">{c.label}</p>

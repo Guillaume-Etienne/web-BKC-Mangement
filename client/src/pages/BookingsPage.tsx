@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useClients } from '../hooks/useClients'
-import { useBookings, useBookingRooms } from '../hooks/useBookings'
+import { useBookings, useBookingRooms, useBookingRoomPrices, useBookingParticipants } from '../hooks/useBookings'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useTable } from '../hooks/useSupabase'
-import type { Booking, BookingStatus, Client, Participant, Room, Accommodation, HouseRental } from '../types/database'
+import type { Booking, BookingParticipant, BookingStatus, Client, Room, Accommodation, HouseRental, RoomRate } from '../types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,9 +24,10 @@ interface WizardData {
   visa_entry_date: string
   visa_exit_date: string
   room_ids: string[]
+  room_prices: Record<string, number>
   status: BookingStatus
   // Step 3 – Guests
-  participants: Participant[]
+  participants: { id: string; first_name: string; last_name: string; passport_number: string }[]
   couples_count: number
   children_count: number
   // Step 4 – Transport
@@ -49,7 +50,7 @@ const EMPTY_WIZARD: WizardData = {
   client_id: '',
   new_client_first_name: '', new_client_last_name: '', new_client_email: '',
   new_client_phone: '', new_client_nationality: '', new_client_kite_level: '',
-  check_in: '', check_out: '', visa_entry_date: '', visa_exit_date: '', room_ids: [], status: 'provisional',
+  check_in: '', check_out: '', visa_entry_date: '', visa_exit_date: '', room_ids: [], room_prices: {}, status: 'provisional',
   participants: [], couples_count: 0, children_count: 0,
   arrival_time: '', departure_time: '',
   taxi_arrival: false, taxi_departure: false,
@@ -96,6 +97,7 @@ function StepBar({ current, onGoto, maxReached }: StepBarProps) {
   )
 }
 
+
 // ─── Field helpers ────────────────────────────────────────────────────────────
 
 function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
@@ -132,12 +134,13 @@ interface WizardProps {
   rooms: Room[]
   accommodations: Accommodation[]
   houseRentals: HouseRental[]
+  roomRates: RoomRate[]
   isEditing: boolean
   onCancel: () => void
   onSave: (data: WizardData, isNew: boolean) => void
 }
 
-function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, houseRentals, isEditing, onCancel, onSave }: WizardProps) {
+function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, houseRentals, roomRates, isEditing, onCancel, onSave }: WizardProps) {
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(isEditing ? 6 : 1)
   const [d, setD] = useState<WizardData>(initial)
@@ -147,6 +150,17 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
   function update(patch: Partial<WizardData>) { setD(prev => ({ ...prev, ...patch })) }
 
   function goTo(n: number) {
+    if (n === 3 && !isEditing && d.participants.length === 0) {
+      const firstName = d.client_id
+        ? (clients.find(c => c.id === d.client_id)?.first_name ?? '')
+        : d.new_client_first_name
+      const lastName = d.client_id
+        ? (clients.find(c => c.id === d.client_id)?.last_name ?? '')
+        : d.new_client_last_name
+      if (firstName || lastName) {
+        update({ participants: [{ id: `p${Date.now()}`, first_name: firstName, last_name: lastName, passport_number: '' }] })
+      }
+    }
     setStep(n)
     if (n > maxReached) setMaxReached(n)
   }
@@ -168,7 +182,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
   function addParticipant() {
     update({ participants: [...d.participants, { id: `p${Date.now()}`, first_name: '', last_name: '', passport_number: '' }] })
   }
-  function updateParticipant(i: number, field: keyof Participant, val: string) {
+  function updateParticipant(i: number, field: 'first_name' | 'last_name' | 'passport_number', val: string) {
     const parts = [...d.participants]
     parts[i] = { ...parts[i], [field]: val }
     update({ participants: parts })
@@ -185,19 +199,31 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
 
   // Room selection helpers
   function toggleRoom(roomId: string) {
-    update({
-      room_ids: d.room_ids.includes(roomId)
-        ? d.room_ids.filter(id => id !== roomId)
-        : [...d.room_ids, roomId],
-    })
+    if (d.room_ids.includes(roomId)) {
+      const newPrices = { ...d.room_prices }
+      delete newPrices[roomId]
+      update({ room_ids: d.room_ids.filter(id => id !== roomId), room_prices: newPrices })
+    } else {
+      const baseRate = roomRates.find(r => r.room_id === roomId)?.price_per_night ?? 0
+      update({
+        room_ids: [...d.room_ids, roomId],
+        room_prices: { ...d.room_prices, [roomId]: d.room_prices[roomId] ?? baseRate },
+      })
+    }
   }
   function toggleFullHouse(accRoomIds: string[]) {
     const allSelected = accRoomIds.every(id => d.room_ids.includes(id))
-    update({
-      room_ids: allSelected
-        ? d.room_ids.filter(id => !accRoomIds.includes(id))
-        : [...d.room_ids.filter(id => !accRoomIds.includes(id)), ...accRoomIds],
-    })
+    if (allSelected) {
+      const newPrices = { ...d.room_prices }
+      accRoomIds.forEach(id => delete newPrices[id])
+      update({ room_ids: d.room_ids.filter(id => !accRoomIds.includes(id)), room_prices: newPrices })
+    } else {
+      const newPrices = { ...d.room_prices }
+      accRoomIds.forEach(id => {
+        if (!(id in newPrices)) newPrices[id] = roomRates.find(r => r.room_id === id)?.price_per_night ?? 0
+      })
+      update({ room_ids: [...d.room_ids.filter(id => !accRoomIds.includes(id)), ...accRoomIds], room_prices: newPrices })
+    }
   }
   function isHouseAvailable(accId: string): boolean | null {
     if (!d.check_in || !d.check_out) return null
@@ -324,11 +350,17 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Check-in *">
                     <input type="date" value={d.check_in}
-                      onChange={e => update({ check_in: e.target.value })} className={inputCls} />
+                      onChange={e => {
+                        const val = e.target.value
+                        update({ check_in: val, ...(d.visa_entry_date === '' || d.visa_entry_date === d.check_in ? { visa_entry_date: val } : {}) })
+                      }} className={inputCls} />
                   </Field>
                   <Field label="Check-out *">
                     <input type="date" value={d.check_out}
-                      onChange={e => update({ check_out: e.target.value })} className={inputCls} />
+                      onChange={e => {
+                        const val = e.target.value
+                        update({ check_out: val, ...(d.visa_exit_date === '' || d.visa_exit_date === d.check_out ? { visa_exit_date: val } : {}) })
+                      }} className={inputCls} />
                   </Field>
                 </div>
                 {nights > 0 && (
@@ -397,6 +429,38 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                   })}
                 </div>
               </Field>
+
+
+              {d.room_ids.length > 0 && nights > 0 && (
+                <div className="border-t pt-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">💰 Pricing</p>
+                  <div className="space-y-2">
+                    {d.room_ids.map(rid => {
+                      const room = rooms.find(r => r.id === rid)
+                      const acc = accommodations.find(a => a.id === room?.accommodation_id)
+                      return (
+                        <div key={rid} className="flex items-center gap-2">
+                          <span className="text-sm text-gray-700 flex-1 truncate">{acc?.name} / {room?.name}</span>
+                          <input
+                            type="number" min="0" step="1"
+                            value={d.room_prices[rid] ?? 0}
+                            onChange={e => update({ room_prices: { ...d.room_prices, [rid]: parseFloat(e.target.value) || 0 } })}
+                            className="w-20 px-2 py-1.5 border border-gray-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <span className="text-xs text-gray-400 shrink-0">€/night</span>
+                          <span className="text-xs text-gray-500 w-16 text-right shrink-0">= {(d.room_prices[rid] ?? 0) * nights} €</span>
+                        </div>
+                      )
+                    })}
+                    {d.room_ids.length > 1 && (
+                      <div className="flex justify-between items-center pt-2 border-t text-sm font-semibold text-gray-700">
+                        <span>Total accommodation</span>
+                        <span>{d.room_ids.reduce((s, id) => s + (d.room_prices[id] ?? 0) * nights, 0)} €</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <Field label="Status">
                 <div className="flex gap-2">
@@ -681,11 +745,11 @@ const statusColor: Record<BookingStatus, string> = {
 
 type MissingField = 'room' | 'participants' | 'arrival_time' | 'visa_dates' | 'taxi_time'
 
-function getMissingFields(b: Booking, hasRoom: boolean): MissingField[] {
+function getMissingFields(b: Booking, hasRoom: boolean, bParticipants: BookingParticipant[]): MissingField[] {
   if (b.status === 'cancelled') return []
   const missing: MissingField[] = []
   if (!hasRoom) missing.push('room')
-  if ((b.participants ?? []).length === 0) missing.push('participants')
+  if (!bParticipants.some(p => p.booking_id === b.id)) missing.push('participants')
   if (!b.arrival_time) missing.push('arrival_time')
   if (!b.visa_entry_date || !b.visa_exit_date) missing.push('visa_dates')
   if ((b.taxi_arrival && !b.arrival_time) || (b.taxi_departure && !b.departure_time)) missing.push('taxi_time')
@@ -724,9 +788,15 @@ export default function BookingsPage() {
   const { data: bookings, loading, error, refresh: refreshBookings } = useBookings()
   const { data: clients, loading: clientsLoading, refresh: refreshClients } = useClients()
   const { data: bookingRooms, refresh: refreshBookingRooms } = useBookingRooms()
+  const { data: bookingRoomPricesData } = useBookingRoomPrices()
   const { data: rooms } = useRooms()
   const { data: accommodations } = useAccommodations()
   const { data: houseRentals } = useTable<HouseRental>('house_rentals')
+  const { data: roomRatesData } = useTable<RoomRate>('room_rates')
+  const { data: participantsData } = useBookingParticipants()
+  const [bookingParticipants, setBookingParticipants] = useState<BookingParticipant[]>([])
+  useEffect(() => setBookingParticipants(participantsData), [participantsData])
+
   const [wizard, setWizard] = useState<{ open: boolean; editing: Booking | null }>({ open: false, editing: null })
   const [filter, setFilter] = useState<FilterKey>('all')
   const [saving, setSaving] = useState(false)
@@ -843,17 +913,43 @@ export default function BookingsPage() {
       }
       bookingId = saved.id
     }
-    // 3. Participants (delete all + re-insert)
-    await supabase.from('participants').delete().eq('booking_id', bookingId)
-    if (data.participants.length > 0) {
-      await supabase.from('participants').insert(
-        data.participants.map(p => ({
+    // 3. Guests — delete all + re-insert to booking_participants
+    const { error: delErr } = await supabase.from('booking_participants').delete().eq('booking_id', bookingId)
+    if (delErr) console.error('booking_participants delete error:', delErr)
+
+    // If no participants entered, auto-add the main client
+    const named = data.participants.filter(p => p.first_name.trim())
+    const autoList = named.length === 0 ? (() => {
+      const firstName = data.new_client_first_name || clients.find(c => c.id === clientId)?.first_name || ''
+      const lastName  = data.new_client_last_name  || clients.find(c => c.id === clientId)?.last_name  || ''
+      return firstName ? [{ first_name: firstName, last_name: lastName }] : []
+    })() : []
+    const participantsToInsert = [
+      ...named.map(p => ({ first_name: p.first_name.trim(), last_name: p.last_name.trim() || null, passport_number: p.passport_number.trim() || null })),
+      ...autoList.map(p => ({ ...p, passport_number: null })),
+    ]
+    if (participantsToInsert.length > 0) {
+      const { data: inserted, error: insErr } = await supabase.from('booking_participants').insert(
+        participantsToInsert.map(p => ({
           booking_id: bookingId,
           first_name: p.first_name,
-          last_name: p.last_name,
-          passport_number: p.passport_number,
+          last_name: p.last_name || null,
+          passport_number: p.passport_number || null,
+          client_id: null,
+          notes: null,
         }))
-      )
+      ).select()
+      if (insErr) {
+        console.error('booking_participants insert error:', insErr)
+        alert('Error saving guests: ' + insErr.message)
+      } else if (inserted) {
+        setBookingParticipants(prev => [
+          ...prev.filter(p => p.booking_id !== bookingId),
+          ...(inserted as BookingParticipant[]),
+        ])
+      }
+    } else {
+      setBookingParticipants(prev => prev.filter(p => p.booking_id !== bookingId))
     }
 
     // 4. Booking rooms (delete all + re-insert)
@@ -861,6 +957,19 @@ export default function BookingsPage() {
     if (data.room_ids.length > 0) {
       await supabase.from('booking_rooms').insert(
         data.room_ids.map(rid => ({ booking_id: bookingId, room_id: rid }))
+      )
+    }
+
+    // 5. Booking room prices (delete all + re-insert)
+    await supabase.from('booking_room_prices').delete().eq('booking_id', bookingId)
+    if (data.room_ids.length > 0) {
+      await supabase.from('booking_room_prices').insert(
+        data.room_ids.map(rid => ({
+          booking_id: bookingId,
+          room_id: rid,
+          price_per_night: data.room_prices[rid] ?? 0,
+          override_note: null,
+        }))
       )
     }
 
@@ -880,14 +989,32 @@ export default function BookingsPage() {
 
   function bookingToWizard(b: Booking): WizardData {
     const brs = bookingRooms.filter(r => r.booking_id === b.id)
+    const existingPrices = bookingRoomPricesData.filter(p => p.booking_id === b.id)
+    const room_prices: Record<string, number> = {}
+    brs.forEach(br => {
+      const snap = existingPrices.find(p => p.room_id === br.room_id)
+      room_prices[br.room_id] = snap?.price_per_night ?? roomRatesData.find(r => r.room_id === br.room_id)?.price_per_night ?? 0
+    })
     return {
       ...EMPTY_WIZARD,
       client_id: b.client_id,
       check_in: b.check_in, check_out: b.check_out,
       visa_entry_date: b.visa_entry_date ?? '', visa_exit_date: b.visa_exit_date ?? '',
       room_ids: brs.map(r => r.room_id),
+      room_prices,
       status: b.status,
-      participants: b.participants ?? [],
+      participants: (() => {
+        const existing = bookingParticipants.filter(p => p.booking_id === b.id).map(p => ({
+          id: p.id,
+          first_name: p.first_name,
+          last_name: p.last_name ?? '',
+          passport_number: p.passport_number ?? '',
+        }))
+        if (existing.length > 0) return existing
+        // No participants yet — pre-fill with main client
+        const c = clients.find(cl => cl.id === b.client_id)
+        return c ? [{ id: `pre_${b.id}`, first_name: c.first_name, last_name: c.last_name, passport_number: '' }] : []
+      })(),
       couples_count: b.couples_count, children_count: b.children_count,
       arrival_time: b.arrival_time ?? '', departure_time: b.departure_time ?? '',
       taxi_arrival: b.taxi_arrival, taxi_departure: b.taxi_departure,
@@ -901,7 +1028,7 @@ export default function BookingsPage() {
 
   const filteredBookings = bookings.filter(b => {
     const hasRoom = bookingRooms.some(br => br.booking_id === b.id)
-    const missing = getMissingFields(b, hasRoom)
+    const missing = getMissingFields(b, hasRoom, bookingParticipants)
     const isComplete = missing.length === 0
     const isUpcoming = b.check_in > today
     const isActive = b.check_in <= today && b.check_out > today
@@ -983,7 +1110,7 @@ export default function BookingsPage() {
             <tbody>
               {filteredBookings.map(b => {
                 const hasRoom = bookingRooms.some(br => br.booking_id === b.id)
-                const missing = getMissingFields(b, hasRoom)
+                const missing = getMissingFields(b, hasRoom, bookingParticipants)
                 const nights = getNights(b)
                 const isIncomplete = missing.length > 0
                 const isCancelled = b.status === 'cancelled'
@@ -1076,7 +1203,7 @@ export default function BookingsPage() {
               </div>
               <div className="text-sm text-gray-600 space-y-1 mb-3">
                 <p>📅 {b.check_in} → {b.check_out}</p>
-                <p>👥 {(b.participants ?? []).length} pax · 📚 {b.num_lessons} lessons
+                <p>👥 {bookingParticipants.filter(p => p.booking_id === b.id).length} pax · 📚 {b.num_lessons} lessons
                   {(b.taxi_arrival || b.taxi_departure) && ` · 🚕`}
                 </p>
               </div>
@@ -1100,6 +1227,7 @@ export default function BookingsPage() {
           rooms={rooms}
           accommodations={accommodations}
           houseRentals={houseRentals}
+          roomRates={roomRatesData}
           isEditing={!!wizard.editing}
           onCancel={closeWizard}
           onSave={handleSave}

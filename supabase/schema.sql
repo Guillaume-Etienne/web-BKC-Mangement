@@ -188,25 +188,10 @@ CREATE TABLE dining_events (
   type              TEXT NOT NULL CHECK (type IN ('count', 'menu')),
   price_per_person  NUMERIC(8,2) NOT NULL DEFAULT 0,
   notes             TEXT,
+  -- Attendees stored as JSONB array (denormalized for simplicity)
+  attendees         JSONB NOT NULL DEFAULT '[]',
   created_at        TIMESTAMPTZ DEFAULT now()
 );
-
-CREATE TABLE event_attendees (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_id        UUID NOT NULL REFERENCES dining_events(id) ON DELETE CASCADE,
-  person_id       TEXT NOT NULL,
-  person_type     event_person_type NOT NULL,
-  person_name     TEXT NOT NULL,
-  room_label      TEXT NOT NULL DEFAULT '',
-  is_attending    BOOLEAN NOT NULL DEFAULT true,
-  price_override  NUMERIC(8,2),
-  starter         TEXT NOT NULL DEFAULT '',
-  main            TEXT NOT NULL DEFAULT '',
-  side            TEXT NOT NULL DEFAULT '',
-  dessert         TEXT NOT NULL DEFAULT ''
-);
-
-CREATE INDEX idx_event_attendees_event ON event_attendees(event_id);
 
 
 -- ── Pricing ───────────────────────────────────────────────────────────────────
@@ -496,7 +481,7 @@ BEGIN
     'accommodations', 'rooms',
     'clients', 'bookings', 'booking_rooms', 'participants',
     'instructors', 'lessons', 'lesson_clients',
-    'day_activities', 'dining_events', 'event_attendees',
+    'day_activities', 'dining_events',
     'price_items',
     'equipment', 'equipment_rentals',
     'taxi_drivers', 'taxi_trips',

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { useBookings, useBookingRooms, useBookingRoomPrices, usePayments } from '../hooks/useBookings'
+import { useBookings, useBookingRooms, useBookingRoomPrices, useBookingParticipants, usePayments } from '../hooks/useBookings'
 import { useClients } from '../hooks/useClients'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useLessons } from '../hooks/useLessons'
 import { useInstructors } from '../hooks/useInstructors'
-import { useEquipmentRentals } from '../hooks/useEquipment'
+import { useEquipment, useEquipmentRentals } from '../hooks/useEquipment'
 import { useTaxiTrips } from '../hooks/useTaxis'
 import { useTable } from '../hooks/useSupabase'
 import AccountingDashboard  from '../components/accounting/AccountingDashboard'
@@ -15,13 +15,15 @@ import PalmeirasTab         from '../components/accounting/PalmeirasTab'
 import HousesTab            from '../components/accounting/HousesTab'
 import CashFlow             from '../components/accounting/CashFlow'
 import ExpensesTab          from '../components/accounting/ExpensesTab'
+import EventsTab            from '../components/accounting/EventsTab'
 import type {
   ExternalAccommodation, ExternalAccommodationBooking, HouseRental, Season,
-  Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
+  Payment, InstructorDebt, InstructorPayment, LessonRateOverride, EquipmentRental,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSubLet,
+  DiningEvent,
 } from '../types/database'
 
-type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'cashflow' | 'expenses'
+type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'cashflow' | 'expenses' | 'events'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'dashboard',   label: 'Dashboard',   icon: '📊' },
@@ -31,6 +33,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'palmeiras',   label: 'Palmeiras',   icon: '🏨' },
   { id: 'cashflow',    label: 'Cash Flow',   icon: '💸' },
   { id: 'expenses',    label: 'Expenses',    icon: '🧾' },
+  { id: 'events',      label: 'Events',      icon: '🍽️' },
 ]
 
 export default function AccountingPage() {
@@ -40,15 +43,19 @@ export default function AccountingPage() {
   const { data: accommodations }           = useAccommodations()
   const { data: houseRentals }             = useTable<HouseRental>('house_rentals', { order: 'start_date', ascending: true })
   const { data: bookings }                 = useBookings()
+  const { data: bookingParticipants }      = useBookingParticipants()
   const { data: clients }                  = useClients()
   const { data: rooms }                    = useRooms()
   const { data: bookingRooms }             = useBookingRooms()
   const { data: bookingRoomPrices }        = useBookingRoomPrices()
   const { data: externalAccommodations }   = useTable<ExternalAccommodation>('external_accommodations')
   const { data: externalAccommodationBkgs }= useTable<ExternalAccommodationBooking>('external_accommodation_bookings')
+  const { data: diningEvents }             = useTable<DiningEvent>('dining_events', { order: 'date', ascending: false })
   const { data: lessons }                  = useLessons()
   const { data: instructors }              = useInstructors()
-  const { data: equipmentRentals }         = useEquipmentRentals()
+  const { data: equipment }                = useEquipment()
+  const { data: equipmentRentalsData }     = useEquipmentRentals()
+  const [equipmentRentals, setEquipmentRentals] = useState<EquipmentRental[]>([])
   const { data: taxiTrips }                = useTaxiTrips()
   const { data: seasons }                  = useTable<Season>('seasons')
 
@@ -73,6 +80,7 @@ export default function AccountingPage() {
   const [palmeirasEntries,   setPalmeirasEntries]   = useState<PalmeirasEntry[]>([])
   const [palmeirasSubLets,   setPalmeirasSubLets]   = useState<PalmeirasSubLet[]>([])
 
+  useEffect(() => setEquipmentRentals(equipmentRentalsData),  [equipmentRentalsData])
   useEffect(() => setPayments(paymentsData),                   [paymentsData])
   useEffect(() => setInstructorDebts(instructorDebtsData),     [instructorDebtsData])
   useEffect(() => setInstructorPayments(instructorPaymentsData),[instructorPaymentsData])
@@ -86,6 +94,7 @@ export default function AccountingPage() {
   // ── Shared computed data passed down to tabs ──────────────────────────────
   const sharedData = {
     accommodations,
+    bookingParticipants,
     houseRentals,
     bookings,
     clients,
@@ -94,8 +103,10 @@ export default function AccountingPage() {
     bookingRoomPrices,
     externalAccommodationBkgs,
     externalAccommodations,
+    diningEvents,
     lessons,
     instructors,
+    equipment,
     equipmentRentals,
     taxiTrips,
     seasons,
@@ -112,6 +123,11 @@ export default function AccountingPage() {
 
   // ── Handlers (optimistic local update + Supabase fire-and-forget) ─────────
   const handlers = {
+    updateRental: (r: EquipmentRental) => {
+      setEquipmentRentals(prev => prev.map(x => x.id === r.id ? r : x))
+      const { id, ...fields } = r
+      supabase.from('equipment_rentals').update(fields).eq('id', id)
+    },
     addPayment: (p: Payment) => {
       setPayments(prev => [...prev, p])
       const { id, ...fields } = p
@@ -246,6 +262,7 @@ export default function AccountingPage() {
         {tab === 'palmeiras'   && <PalmeirasTab        data={sharedData} handlers={handlers} />}
         {tab === 'cashflow'    && <CashFlow            data={sharedData} />}
         {tab === 'expenses'    && <ExpensesTab         data={sharedData} handlers={handlers} />}
+        {tab === 'events'      && <EventsTab           data={sharedData} />}
       </div>
     </div>
   )

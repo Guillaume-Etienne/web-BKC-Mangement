@@ -1,4 +1,4 @@
-import type { Booking } from '../types/database'
+import type { Booking, BookingParticipant } from '../types/database'
 
 const LOGO_URL  = `${window.location.origin}/docs/logo-mas.png`
 const SIGN_URL  = `${window.location.origin}/docs/signature-mas.png`
@@ -15,16 +15,17 @@ function fmtVisa(iso: string | null): string {
   return `<strong style="text-decoration:underline;">${d}/${m}/${y}</strong>`
 }
 
-function participantRow(index: number, p: { first_name: string; last_name: string; passport_number: string }): string {
+function participantRow(index: number, p: BookingParticipant): string {
+  const passport = p.passport_number ?? '—'
   return `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5pt solid #eee;">
-      <span>${index + 1}&nbsp;&nbsp;<strong>${p.first_name.toUpperCase()} ${p.last_name.toUpperCase()}</strong></span>
-      <span style="color:#555;">Passport no &nbsp; <strong>${p.passport_number}</strong></span>
+      <span>${index + 1}&nbsp;&nbsp;<strong>${p.first_name.toUpperCase()} ${(p.last_name ?? '').toUpperCase()}</strong></span>
+      <span style="color:#555;">Passport no &nbsp; <strong>${passport}</strong></span>
     </div>`
 }
 
-export function printVisaLetter(booking: Booking): void {
-  const slots = booking.participants
+export function printVisaLetter(booking: Booking, participants: BookingParticipant[]): void {
+  const slots = participants
 
   const html = `<!DOCTYPE html>
 <html lang="pt">

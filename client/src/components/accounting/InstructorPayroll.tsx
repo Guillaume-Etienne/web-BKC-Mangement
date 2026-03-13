@@ -4,6 +4,7 @@ import type { Instructor, InstructorDebt, InstructorPayment, LessonRateOverride,
 import {
   computeInstructorEarned, computeInstructorDebts,
   computeInstructorPaid, computeInstructorBalance,
+  computeInstructorDiningCharges,
   getLessonRate, fmtEur,
 } from './utils'
 
@@ -188,6 +189,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
 
   const earned  = computeInstructorEarned(instructor.id, data)
   const debts   = computeInstructorDebts(instructor.id, data)
+  const dining  = computeInstructorDiningCharges(instructor.id, data.diningEvents)
   const paid    = computeInstructorPaid(instructor.id, data)
   const balance = computeInstructorBalance(instructor.id, data)
 
@@ -202,12 +204,13 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
     <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
 
       {/* Balance header */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-5 gap-3">
         {[
-          { label: 'Lessons earned', value: earned,  color: 'text-emerald-700', bg: 'bg-emerald-50' },
-          { label: 'Debts / advances', value: -debts, color: 'text-red-700',    bg: 'bg-red-50' },
-          { label: 'Already paid',   value: -paid,   color: 'text-red-700',    bg: 'bg-red-50' },
-          { label: 'To pay',         value: balance, color: balance >= 0 ? 'text-emerald-700' : 'text-red-700', bg: balance >= 0 ? 'bg-emerald-50' : 'bg-red-50' },
+          { label: 'Lessons earned',  value: earned,   color: 'text-emerald-700', bg: 'bg-emerald-50' },
+          { label: 'Debts / advances', value: -debts,  color: 'text-red-700',     bg: 'bg-red-50' },
+          { label: 'Dining charges',  value: -dining,  color: 'text-rose-700',    bg: 'bg-rose-50' },
+          { label: 'Already paid',    value: -paid,    color: 'text-red-700',     bg: 'bg-red-50' },
+          { label: 'To pay',          value: balance,  color: balance >= 0 ? 'text-emerald-700' : 'text-red-700', bg: balance >= 0 ? 'bg-emerald-50' : 'bg-red-50' },
         ].map(kpi => (
           <div key={kpi.label} className={`${kpi.bg} rounded-lg p-3 text-center`}>
             <p className="text-xs text-gray-400 mb-1">{kpi.label}</p>
@@ -233,11 +236,15 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
               const effectiveRate = getLessonRate(l, instructor, data.lessonRateOverrides)
               const total = effectiveRate * l.duration_hours
               const isOverriding = overridingLesson === l.id
+              const clientNames = (l.participant_ids ?? [])
+                .map(id => data.bookingParticipants.find(p => p.id === id)?.first_name)
+                .filter(Boolean)
+                .join(', ')
 
               return (
                 <div key={l.id} className="rounded-lg border border-gray-100 overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-2 hover:bg-gray-50">
-                    <div className="flex items-center gap-3 text-sm">
+                    <div className="flex items-center gap-3 text-sm flex-wrap">
                       <span className="text-gray-400 text-xs w-24 flex-shrink-0">{l.date}</span>
                       <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
                         l.type === 'private'    ? 'bg-blue-100 text-blue-700' :
@@ -245,6 +252,9 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
                         'bg-purple-100 text-purple-700'
                       }`}>{l.type}</span>
                       <span className="text-gray-500">{l.duration_hours}h</span>
+                      {clientNames && (
+                        <span className="text-gray-600 text-xs font-medium">{clientNames}</span>
+                      )}
                       {override ? (
                         <span className="text-amber-600 text-xs">
                           {fmtEur(effectiveRate)}/h <span className="line-through text-gray-400">{fmtEur(baseRate)}</span>
@@ -334,6 +344,37 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
         )}
       </div>
 
+      {/* Dining charges */}
+      {dining > 0 && (
+        <div>
+          <p className="text-sm font-semibold text-gray-600 mb-2">Dining charges</p>
+          <div className="space-y-1">
+            {data.diningEvents.filter(ev =>
+              ev.price_per_person > 0 &&
+              (ev.attendees ?? []).some(a => a.is_attending && a.person_type === 'instructor' && a.person_id === instructor.id)
+            ).map(ev => {
+              const attending = (ev.attendees ?? []).filter(
+                a => a.is_attending && a.person_type === 'instructor' && a.person_id === instructor.id
+              )
+              const evCharge = attending.reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
+              return (
+                <div key={ev.id} className="flex items-center justify-between bg-rose-50 rounded-lg px-4 py-2 text-sm">
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-400 text-xs">{ev.date}</span>
+                    <span className="text-gray-700">{ev.name || '(unnamed)'}</span>
+                  </div>
+                  <span className="font-semibold text-rose-700">− {fmtEur(evCharge)}</span>
+                </div>
+              )
+            })}
+            <div className="flex justify-between px-4 py-2 bg-rose-50 rounded-lg text-sm font-semibold border-t border-rose-100">
+              <span className="text-gray-600">Total dining</span>
+              <span className="text-rose-700">− {fmtEur(dining)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Payments */}
       <div>
         <div className="flex justify-between items-center mb-2">
@@ -402,7 +443,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
 
 export default function InstructorPayroll({ data, handlers }: Props) {
   const { instructors } = data
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [activeId, setActiveId] = useState<string>(instructors[0]?.id ?? '')
 
   const rows = instructors.map(i => ({
     instructor: i,
@@ -413,10 +454,15 @@ export default function InstructorPayroll({ data, handlers }: Props) {
   }))
 
   const totalOwed = rows.reduce((s, r) => s + Math.max(0, r.balance), 0)
+  const activeRow = rows.find(r => r.instructor.id === activeId)
+
+  if (instructors.length === 0) {
+    return <p className="text-sm text-gray-400 italic p-4">No instructors found.</p>
+  }
 
   return (
     <div className="space-y-4">
-      {/* Summary */}
+      {/* Summary KPIs */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
           <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total lessons</p>
@@ -432,55 +478,41 @@ export default function InstructorPayroll({ data, handlers }: Props) {
         </div>
       </div>
 
-      {/* Instructor list */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600">Instructor</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600">Rates</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-600">Earned</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-600">Debts</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-600">Paid</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-600">Balance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ instructor: i, earned, debts, paid, balance }) => {
-              const isExpanded = expandedId === i.id
-              return (
-                <>
-                  <tr
-                    key={i.id}
-                    onClick={() => setExpandedId(isExpanded ? null : i.id)}
-                    className={`border-b cursor-pointer transition-colors ${isExpanded ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                  >
-                    <td className="px-4 py-3 font-medium text-gray-800">
-                      {i.first_name} {i.last_name}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
-                      {i.rate_private}€ / {i.rate_group}€ / {i.rate_supervision}€/h
-                    </td>
-                    <td className="px-4 py-3 text-right text-emerald-700 font-medium">{fmtEur(earned)}</td>
-                    <td className="px-4 py-3 text-right text-red-600">{debts > 0 ? `− ${fmtEur(debts)}` : '–'}</td>
-                    <td className="px-4 py-3 text-right text-red-600">{paid > 0 ? `− ${fmtEur(paid)}` : '–'}</td>
-                    <td className={`px-4 py-3 text-right font-bold ${balance > 0 ? 'text-amber-600' : balance < 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                      {balance === 0 ? '✓' : fmtEur(balance)}
-                    </td>
-                  </tr>
-                  {isExpanded && (
-                    <tr key={`${i.id}-detail`}>
-                      <td colSpan={6} className="px-4 py-4 bg-gray-50 border-b">
-                        <InstructorDetailPanel instructor={i} data={data} handlers={handlers} />
-                      </td>
-                    </tr>
-                  )}
-                </>
-              )
-            })}
-          </tbody>
-        </table>
+      {/* Instructor tabs */}
+      <div className="flex gap-1 bg-white rounded-xl shadow-sm border border-gray-200 p-1 overflow-x-auto">
+        {rows.map(({ instructor: i, balance }) => (
+          <button
+            key={i.id}
+            onClick={() => setActiveId(i.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm whitespace-nowrap transition-colors flex-1 justify-center ${
+              activeId === i.id
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <span>{i.first_name} {i.last_name}</span>
+            {balance > 0 && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                activeId === i.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'
+              }`}>
+                {fmtEur(balance)}
+              </span>
+            )}
+            {balance === 0 && (
+              <span className={`text-xs ${activeId === i.id ? 'text-white/70' : 'text-emerald-500'}`}>✓</span>
+            )}
+          </button>
+        ))}
       </div>
+
+      {/* Active instructor detail */}
+      {activeRow && (
+        <InstructorDetailPanel
+          instructor={activeRow.instructor}
+          data={data}
+          handlers={handlers}
+        />
+      )}
     </div>
   )
 }

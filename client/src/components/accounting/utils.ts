@@ -1,4 +1,4 @@
-import type { Booking, Payment, Lesson, Instructor, LessonRateOverride } from '../../types/database'
+import type { Booking, Payment, Lesson, Instructor, LessonRateOverride, DiningEvent } from '../../types/database'
 import type { SharedAccountingData } from './types'
 
 /** Nightly rate for a room within a booking (snapshot → base rate fallback) */
@@ -41,17 +41,14 @@ export function computeAccommodationRevenue(booking: Booking, data: SharedAccoun
   return ownRooms + extAccomm
 }
 
-/** Lessons revenue for a booking */
+/** Lessons revenue for a booking (respects lesson_rate_overrides) */
 export function computeLessonsRevenue(booking: Booking, data: SharedAccountingData): number {
   return data.lessons
     .filter(l => l.booking_id === booking.id)
     .reduce((sum, l) => {
       const instr = data.instructors.find(i => i.id === l.instructor_id)
       if (!instr) return sum
-      const rate = l.type === 'private' ? instr.rate_private
-        : l.type === 'group'   ? instr.rate_group
-        : instr.rate_supervision
-      return sum + rate * l.duration_hours
+      return sum + getLessonRate(l, instr, data.lessonRateOverrides) * l.duration_hours
     }, 0)
 }
 
@@ -75,7 +72,8 @@ export function computeBookingTotal(booking: Booking, data: SharedAccountingData
     computeAccommodationRevenue(booking, data) +
     computeLessonsRevenue(booking, data) +
     computeRentalsRevenue(booking, data) +
-    computeTaxiRevenue(booking, data)
+    computeTaxiRevenue(booking, data) +
+    computeDiningForBooking(booking, data.diningEvents)
   )
 }
 
@@ -127,13 +125,51 @@ export function computeInstructorPaid(instructorId: string, data: SharedAccounti
     .reduce((sum, p) => sum + p.amount, 0)
 }
 
-/** Balance owed to an instructor: earned − debts − already paid */
+/** Balance owed to an instructor: earned − debts − dining charges − already paid */
 export function computeInstructorBalance(instructorId: string, data: SharedAccountingData): number {
   return (
     computeInstructorEarned(instructorId, data) -
     computeInstructorDebts(instructorId, data) -
+    computeInstructorDiningCharges(instructorId, data.diningEvents) -
     computeInstructorPaid(instructorId, data)
   )
+}
+
+/** Revenue from dining events (price_per_person × attendees, with individual overrides) */
+export function computeDiningRevenue(events: DiningEvent[]): number {
+  return events.reduce((total, ev) => {
+    if (ev.price_per_person === 0) return total
+    const attendees = ev.attendees ?? []
+    return total + attendees
+      .filter(a => a.is_attending)
+      .reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
+  }, 0)
+}
+
+/** Dining charges attributable to a booking (matches client/participant attendees) */
+export function computeDiningForBooking(booking: Booking, diningEvents: DiningEvent[]): number {
+  const hasParticipants = (booking.participants ?? []).length > 0
+  const matchIds = new Set(
+    hasParticipants
+      ? (booking.participants ?? []).map(p => p.id)
+      : [booking.client_id]
+  )
+  return diningEvents.reduce((total, ev) => {
+    if (ev.price_per_person === 0) return total
+    return total + (ev.attendees ?? [])
+      .filter(a => a.is_attending && a.person_type === 'participant' && matchIds.has(a.person_id))
+      .reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
+  }, 0)
+}
+
+/** Dining charges attributable to an instructor (deducted from their payroll) */
+export function computeInstructorDiningCharges(instructorId: string, diningEvents: DiningEvent[]): number {
+  return diningEvents.reduce((total, ev) => {
+    if (ev.price_per_person === 0) return total
+    return total + (ev.attendees ?? [])
+      .filter(a => a.is_attending && a.person_type === 'instructor' && a.person_id === instructorId)
+      .reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
+  }, 0)
 }
 
 /** Format euros */

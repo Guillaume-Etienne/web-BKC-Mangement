@@ -62,12 +62,12 @@ export const mockInstructors: Instructor[] = [
 ]
 
 export const mockLessons: Lesson[] = [
-  { id: 'l1', booking_id: 'bk1', instructor_id: 'i1', client_ids: ['c1'],            date: '2026-02-05', start_time: '09:00', duration_hours: 1,   type: 'private',    notes: null,              kite_id: 'eq1', board_id: 'eq4' },
-  { id: 'l2', booking_id: 'bk1', instructor_id: 'i2', client_ids: ['c1'],            date: '2026-02-07', start_time: '14:00', duration_hours: 1.5, type: 'private',    notes: 'Vagues!',         kite_id: 'eq2', board_id: null  },
-  { id: 'l3', booking_id: 'bk1', instructor_id: 'i1', client_ids: ['c1','c2','c3'],  date: '2026-02-10', start_time: '10:00', duration_hours: 1,   type: 'group',      notes: null,              kite_id: null,  board_id: null  },
-  { id: 'l4', booking_id: 'bk2', instructor_id: 'i3', client_ids: ['c2'],            date: '2026-02-12', start_time: '15:00', duration_hours: 2,   type: 'private',    notes: 'Freestyle basics',kite_id: 'eq3', board_id: 'eq6' },
-  { id: 'l5', booking_id: 'bk3', instructor_id: 'i2', client_ids: ['c3'],            date: '2026-02-18', start_time: '09:30', duration_hours: 1.5, type: 'supervision',notes: null,              kite_id: 'eq1', board_id: 'eq5' },
-  { id: 'l6', booking_id: 'bk3', instructor_id: 'i1', client_ids: ['c1','c3'],       date: '2026-02-20', start_time: '16:00', duration_hours: 1,   type: 'group',      notes: null,              kite_id: null,  board_id: 'eq4' },
+  { id: 'l1', booking_id: 'bk1', instructor_id: 'i1', participant_ids: ['c1'],            date: '2026-02-05', start_time: '09:00', duration_hours: 1,   type: 'private',    notes: null,              kite_id: 'eq1', board_id: 'eq4' },
+  { id: 'l2', booking_id: 'bk1', instructor_id: 'i2', participant_ids: ['c1'],            date: '2026-02-07', start_time: '14:00', duration_hours: 1.5, type: 'private',    notes: 'Vagues!',         kite_id: 'eq2', board_id: null  },
+  { id: 'l3', booking_id: 'bk1', instructor_id: 'i1', participant_ids: ['c1','c2','c3'],  date: '2026-02-10', start_time: '10:00', duration_hours: 1,   type: 'group',      notes: null,              kite_id: null,  board_id: null  },
+  { id: 'l4', booking_id: 'bk2', instructor_id: 'i3', participant_ids: ['c2'],            date: '2026-02-12', start_time: '15:00', duration_hours: 2,   type: 'private',    notes: 'Freestyle basics',kite_id: 'eq3', board_id: 'eq6' },
+  { id: 'l5', booking_id: 'bk3', instructor_id: 'i2', participant_ids: ['c3'],            date: '2026-02-18', start_time: '09:30', duration_hours: 1.5, type: 'supervision',notes: null,              kite_id: 'eq1', board_id: 'eq5' },
+  { id: 'l6', booking_id: 'bk3', instructor_id: 'i1', participant_ids: ['c1','c3'],       date: '2026-02-20', start_time: '16:00', duration_hours: 1,   type: 'group',      notes: null,              kite_id: null,  board_id: 'eq4' },
 ]
 
 export const mockPriceItems: PriceItem[] = [
@@ -142,14 +142,14 @@ export const mockEquipment: Equipment[] = [
 ]
 
 export const mockEquipmentRentals: EquipmentRental[] = [
-  { id: 'er1', equipment_id: 'eq1', booking_id: 'bk1', client_id: null, date: '2026-02-05', slot: 'morning', price: 25, notes: null },
-  { id: 'er2', equipment_id: 'eq6', booking_id: 'bk1', client_id: null, date: '2026-02-05', slot: 'morning', price: 15, notes: null },
-  { id: 'er3', equipment_id: 'eq2', booking_id: 'bk2', client_id: null, date: '2026-02-10', slot: 'full_day', price: 45, notes: null },
-  { id: 'er4', equipment_id: 'eq7', booking_id: 'bk2', client_id: null, date: '2026-02-10', slot: 'full_day', price: 30, notes: null },
-  { id: 'er5', equipment_id: 'eq10', booking_id: 'bk3', client_id: null, date: '2026-02-18', slot: 'afternoon', price: 20, notes: null },
-  { id: 'er6', equipment_id: 'eq1', booking_id: null, client_id: 'c4', date: '2026-02-15', slot: 'morning', price: 25, notes: null },
-  { id: 'er7', equipment_id: 'eq12', booking_id: null, client_id: 'c5', date: '2026-02-16', slot: 'full_day', price: 50, notes: 'Foil trial' },
-  { id: 'er8', equipment_id: 'eq3', booking_id: 'bk1', client_id: null, date: '2026-02-07', slot: 'afternoon', price: 25, notes: null },
+  { id: 'er1', equipment_id: 'eq1', booking_id: 'bk1', participant_id: null, date: '2026-02-05', slot: 'morning', price: 25, notes: null },
+  { id: 'er2', equipment_id: 'eq6', booking_id: 'bk1', participant_id: null, date: '2026-02-05', slot: 'morning', price: 15, notes: null },
+  { id: 'er3', equipment_id: 'eq2', booking_id: 'bk2', participant_id: null, date: '2026-02-10', slot: 'full_day', price: 45, notes: null },
+  { id: 'er4', equipment_id: 'eq7', booking_id: 'bk2', participant_id: null, date: '2026-02-10', slot: 'full_day', price: 30, notes: null },
+  { id: 'er5', equipment_id: 'eq10', booking_id: 'bk3', participant_id: null, date: '2026-02-18', slot: 'afternoon', price: 20, notes: null },
+  { id: 'er6', equipment_id: 'eq1', booking_id: null, participant_id: null, date: '2026-02-15', slot: 'morning', price: 25, notes: null },
+  { id: 'er7', equipment_id: 'eq12', booking_id: null, participant_id: null, date: '2026-02-16', slot: 'full_day', price: 50, notes: 'Foil trial' },
+  { id: 'er8', equipment_id: 'eq3', booking_id: 'bk1', participant_id: null, date: '2026-02-07', slot: 'afternoon', price: 25, notes: null },
 ]
 
 
@@ -165,8 +165,8 @@ export const mockDiningEvents: import('../types/database').DiningEvent[] = [
     attendees: [
       { id: 'ea1', person_id: 'i1', person_type: 'instructor', person_name: 'Pierrot Renard', room_label: '', is_attending: true, starter: '', main: '', side: '', dessert: '' },
       { id: 'ea2', person_id: 'i2', person_type: 'instructor', person_name: 'Mouss Blanc', room_label: '', is_attending: true, starter: '', main: '', side: '', dessert: '' },
-      { id: 'ea3', person_id: 'p1a', person_type: 'client', person_name: 'Jean Dupont', room_label: 'H-1/F', is_attending: true, starter: '', main: '', side: '', dessert: '' },
-      { id: 'ea4', person_id: 'p1b', person_type: 'client', person_name: 'Camille Dupont', room_label: 'H-1/F', is_attending: false, starter: '', main: '', side: '', dessert: '' },
+      { id: 'ea3', person_id: 'p1a', person_type: 'participant', person_name: 'Jean Dupont', room_label: 'H-1/F', is_attending: true, starter: '', main: '', side: '', dessert: '' },
+      { id: 'ea4', person_id: 'p1b', person_type: 'participant', person_name: 'Camille Dupont', room_label: 'H-1/F', is_attending: false, starter: '', main: '', side: '', dessert: '' },
     ],
   },
   {
@@ -180,7 +180,7 @@ export const mockDiningEvents: import('../types/database').DiningEvent[] = [
     attendees: [
       { id: 'eb1', person_id: 'i1', person_type: 'instructor', person_name: 'Pierrot Renard', room_label: '', is_attending: true, starter: 'Soup', main: 'Grilled fish', side: 'Rice', dessert: 'Cake' },
       { id: 'eb2', person_id: 'i3', person_type: 'instructor', person_name: 'Tere Moreau', room_label: '', is_attending: true, starter: 'Salad', main: 'Chicken', side: 'Fries', dessert: '' },
-      { id: 'eb3', person_id: 'p2a', person_type: 'client', person_name: 'Marie Martin', room_label: 'H-2/F', is_attending: true, starter: '', main: 'Lamb', side: 'Couscous', dessert: 'Ice cream' },
+      { id: 'eb3', person_id: 'p2a', person_type: 'participant', person_name: 'Marie Martin', room_label: 'H-2/F', is_attending: true, starter: '', main: 'Lamb', side: 'Couscous', dessert: 'Ice cream' },
     ],
   },
 ]

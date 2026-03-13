@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useBookings, useBookingRooms } from '../hooks/useBookings'
+import { useBookings, useBookingRooms, useBookingParticipants } from '../hooks/useBookings'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import type { Room, Accommodation } from '../types/database'
 import { defaultTravelGuideSections } from '../data/travelGuide'
@@ -102,6 +102,7 @@ type Tab = 'visa' | 'summary' | 'guide'
 export default function DocumentsPage() {
   const { data: allBookings, loading } = useBookings()
   const { data: bookingRooms } = useBookingRooms()
+  const { data: bookingParticipants } = useBookingParticipants()
   const { data: rooms } = useRooms()
   const { data: accommodations } = useAccommodations()
 
@@ -192,18 +193,25 @@ export default function DocumentsPage() {
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded p-3 col-span-2">
-                  <div className="text-xs text-gray-500 mb-1">Participants ({(visaBooking.participants ?? []).length})</div>
-                  <div className={`font-semibold text-sm ${(visaBooking.participants ?? []).length === 0 ? 'text-red-500' : ''}`}>
-                    {(visaBooking.participants ?? []).length === 0
-                      ? '⚠ No participants listed'
-                      : (visaBooking.participants ?? []).map(p => `${p.first_name} ${p.last_name}`).join(', ')}
-                  </div>
+                  {(() => {
+                    const parts = bookingParticipants.filter(p => p.booking_id === visaBooking.id)
+                    return (
+                      <>
+                        <div className="text-xs text-gray-500 mb-1">Guests ({parts.length})</div>
+                        <div className={`font-semibold text-sm ${parts.length === 0 ? 'text-red-500' : ''}`}>
+                          {parts.length === 0
+                            ? '⚠ No guests listed — add them in the booking wizard (step 3)'
+                            : parts.map(p => `${p.first_name}${p.last_name ? ` ${p.last_name}` : ''}${p.passport_number ? ` (${p.passport_number})` : ''}`).join(', ')}
+                        </div>
+                      </>
+                    )
+                  })()}
                 </div>
               </div>
             )}
 
             <button
-              onClick={() => visaBooking && printVisaLetter(visaBooking)}
+              onClick={() => visaBooking && printVisaLetter(visaBooking, bookingParticipants.filter(p => p.booking_id === visaBooking.id))}
               disabled={!visaBooking}
               className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors">
               🖨️ Generate Visa Letter

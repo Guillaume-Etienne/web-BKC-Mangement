@@ -41,6 +41,18 @@ export interface Participant {
   passport_number: string
 }
 
+// Participant lié à un booking (nouvelle table booking_participants)
+export interface BookingParticipant {
+  id: string
+  booking_id: string
+  first_name: string
+  last_name: string | null
+  passport_number: string | null
+  client_id: string | null   // lien optionnel vers un Client existant
+  notes: string | null
+  created_at: string
+}
+
 export interface Booking {
   id: string
   booking_number: number     // sequential booking number, displayed as #001
@@ -82,7 +94,7 @@ export type EventType = 'count' | 'menu'
 export interface EventAttendee {
   id: string
   person_id: string
-  person_type: 'instructor' | 'client' | 'extra'
+  person_type: 'instructor' | 'participant' | 'extra'
   person_name: string
   room_label: string      // e.g. "H-1/F" for clients, "" for instructors
   is_attending: boolean
@@ -130,7 +142,7 @@ export interface Lesson {
   id: string
   booking_id: string
   instructor_id: string
-  client_ids: string[]   // array — 1 for private/supervision, N for group
+  participant_ids: string[]  // array of BookingParticipant.id — 1 for private/supervision, N for group
   date: string
   start_time: string
   duration_hours: number
@@ -260,9 +272,9 @@ export interface Equipment {
 
 export interface EquipmentRental {
   id: string
-  equipment_id: string
+  equipment_id: string | null
   booking_id: string | null
-  client_id: string | null
+  participant_id: string | null  // BookingParticipant.id
   date: string
   slot: RentalSlot
   price: number

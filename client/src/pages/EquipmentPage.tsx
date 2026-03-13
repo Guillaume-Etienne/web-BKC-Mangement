@@ -435,7 +435,7 @@ export default function EquipmentPage() {
                     </td>
                     <td className="px-4 py-3">
                       <select
-                        defaultValue={rental.equipment_id}
+                        defaultValue={rental.equipment_id ?? ''}
                         onChange={e => updateRentalField(rental.id, 'equipment_id', e.target.value)}
                         className="text-sm border border-gray-300 rounded px-2 py-1"
                       >

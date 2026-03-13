@@ -181,7 +181,7 @@ export default function ForecastSharePage() {
                         const top = slot * SLOT_H
                         const height = dur * SLOT_H
                         const cfg = LESSON_CFG[lesson.type]
-                        const lessonClients = lesson.client_ids.map(id => clients.find(c => c.id === id)).filter(Boolean)
+                        const lessonClients = lesson.participant_ids.map(id => clients.find(c => c.id === id)).filter(Boolean)
                         const firstClient = lessonClients[0]
 
                         return (
@@ -227,9 +227,9 @@ export default function ForecastSharePage() {
                   <div className="text-xs font-semibold text-gray-500 mb-1">{slotLabel}</div>
                   <div className="space-y-1">
                     {items.map(r => {
-                      const client = clients.find(c => c.id === r.client_id)
+                      const client = clients.find(c => c.id === r.participant_id)
                       const equip = equipment.find(e => e.id === r.equipment_id)
-                      const rt = RENTAL_TYPE_LABELS[equip?.category ?? r.equipment_id] ?? RENTAL_TYPE_LABELS.free
+                      const rt = RENTAL_TYPE_LABELS[equip?.category ?? r.equipment_id ?? ''] ?? RENTAL_TYPE_LABELS.free
                       return (
                         <div key={r.id} className="flex items-start justify-between bg-amber-50 border border-amber-200 rounded px-2 py-1.5 text-xs">
                           <div>

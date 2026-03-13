@@ -4,11 +4,11 @@ import TotalsRow from './TotalsRow'
 import LessonWeekView from './LessonWeekView'
 import NowView from './NowView'
 import ForecastView from './ForecastView'
-import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental } from '../../types/database'
+import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental, PriceItem } from '../../types/database'
 import { useBookingDrag, CELL_W, type DragMode } from '../../hooks/useBookingDrag'
 import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
 import { useTable } from '../../hooks/useSupabase'
-import { useBookings, useBookingRooms } from '../../hooks/useBookings'
+import { useBookings, useBookingRooms, useBookingParticipants } from '../../hooks/useBookings'
 import { useLessons, useDayActivities } from '../../hooks/useLessons'
 import { useInstructors } from '../../hooks/useInstructors'
 import { useClients } from '../../hooks/useClients'
@@ -143,6 +143,8 @@ export default function PlanningView() {
   const { data: clients } = useClients()
   const { data: equipment } = useEquipment()
   const { data: rentalsData } = useEquipmentRentals()
+  const { data: priceItems } = useTable<PriceItem>('price_items')
+  const { data: bookingParticipants } = useBookingParticipants()
   const now = new Date()
 
   // ── Season (Sep → Mar) ──────────────────────────────────────────
@@ -402,16 +404,27 @@ export default function PlanningView() {
   }, [])
 
   // ── Lesson / Activity / Rental mutations ─────────────────────────
-  const onAddLesson = useCallback((lesson: Omit<Lesson, 'id'>) => {
+  const onAddLesson = useCallback(async (lesson: Omit<Lesson, 'id'>) => {
     const id = crypto.randomUUID()
     const l = { ...lesson, id }
     setLessons(prev => [...prev, l])
-    supabase.from('lessons').insert([l])
+    // Strip virtual/relation fields before sending to DB
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { instructor: _i, clients: _c, ...row } = l
+    const { error } = await supabase.from('lessons').insert([row])
+    if (error) {
+      console.error('Lesson save error:', error.message)
+      setLessons(prev => prev.filter(x => x.id !== id))
+      alert('Error saving lesson: ' + error.message)
+    }
   }, [])
 
-  const onUpdateLesson = useCallback((lesson: Lesson) => {
+  const onUpdateLesson = useCallback(async (lesson: Lesson) => {
     setLessons(prev => prev.map(l => l.id === lesson.id ? lesson : l))
-    supabase.from('lessons').update(lesson).eq('id', lesson.id)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, instructor: _i, clients: _c, ...fields } = lesson
+    const { error } = await supabase.from('lessons').update(fields).eq('id', id)
+    if (error) console.error('Lesson update error:', error.message)
   }, [])
 
   const onDeleteLesson = useCallback((id: string) => {
@@ -431,11 +444,24 @@ export default function PlanningView() {
     supabase.from('day_activities').delete().eq('id', id)
   }, [])
 
-  const onAddRental = useCallback((rental: Omit<EquipmentRental, 'id'>) => {
+  const onAddRental = useCallback(async (rental: Omit<EquipmentRental, 'id'>) => {
     const id = crypto.randomUUID()
     const r = { ...rental, id }
     setRentals(prev => [...prev, r])
-    supabase.from('equipment_rentals').insert([r])
+    const { error } = await supabase.from('equipment_rentals').insert([r])
+    if (error) {
+      console.error('Rental save error:', error.message)
+      setRentals(prev => prev.filter(x => x.id !== id))
+      alert('Error saving rental: ' + error.message)
+    }
+  }, [])
+
+  const onUpdateRental = useCallback(async (rental: EquipmentRental) => {
+    setRentals(prev => prev.map(r => r.id === rental.id ? rental : r))
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, ...fields } = rental
+    const { error } = await supabase.from('equipment_rentals').update(fields).eq('id', id)
+    if (error) console.error('Rental update error:', error.message)
   }, [])
 
   const onDeleteRental = useCallback((id: string) => {
@@ -680,12 +706,15 @@ export default function PlanningView() {
               clients={clients}
               equipment={equipment}
               rentals={rentals}
+              priceItems={priceItems}
+              bookingParticipants={bookingParticipants}
               onAddLesson={onAddLesson}
               onUpdateLesson={onUpdateLesson}
               onDeleteLesson={onDeleteLesson}
               onAddActivity={onAddActivity}
               onDeleteActivity={onDeleteActivity}
               onAddRental={onAddRental}
+              onUpdateRental={onUpdateRental}
               onDeleteRental={onDeleteRental}
             />
           </>

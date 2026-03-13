@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Lesson, DayActivity, DaySlot, LessonType, Booking, EquipmentRental, Instructor, Client, Equipment } from '../../types/database'
+import type { Lesson, DayActivity, DaySlot, LessonType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem } from '../../types/database'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -23,8 +23,8 @@ const DAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DURATION_OPTIONS = [0.5, 1, 1.5, 2, 2.5, 3]
 
-// Default rental prices per type — will come from "Gestion" settings
-const DEFAULT_RENTAL_PRICES: Record<string, number> = {
+// Fallback prices used only when price_items table has no matching entry
+const FALLBACK_RENTAL_PRICES: Record<string, number> = {
   kite: 40, board: 20, full: 55, surfboard: 25, foilboard: 35, free: 0,
 }
 
@@ -58,7 +58,7 @@ interface AddForm {
   kind: 'lesson' | 'activity' | 'rental'
   // lesson fields
   type: LessonType
-  client_ids: string[]
+  participant_ids: string[]
   instructor_id: string
   start_time: string
   duration_hours: number
@@ -69,7 +69,7 @@ interface AddForm {
   name: string
   actNotes: string
   // rental fields
-  rental_client_id: string
+  rental_participant_id: string
   rental_slot: 'morning' | 'afternoon' | 'full_day'
   rental_type: RentalType
   rental_price: number
@@ -92,14 +92,17 @@ interface LessonWeekViewProps {
   lessonView: 'by-instructor' | 'by-client'
   instructors: Instructor[]
   clients: Client[]
+  bookingParticipants: BookingParticipant[]
   equipment: Equipment[]
   rentals: EquipmentRental[]
+  priceItems: PriceItem[]
   onAddLesson: (l: Omit<Lesson, 'id'>) => void
   onUpdateLesson: (l: Lesson) => void
   onDeleteLesson: (id: string) => void
   onAddActivity: (a: Omit<DayActivity, 'id'>) => void
   onDeleteActivity: (id: string) => void
   onAddRental: (r: Omit<EquipmentRental, 'id'>) => void
+  onUpdateRental: (r: EquipmentRental) => void
   onDeleteRental: (id: string) => void
 }
 
@@ -107,27 +110,29 @@ interface LessonWeekViewProps {
 
 export default function LessonWeekView({
   weekDays, lessons, dayActivities, lessonView,
-  instructors, clients, equipment, rentals,
+  bookings, instructors, clients, bookingParticipants, equipment, rentals, priceItems,
   onAddLesson, onUpdateLesson, onDeleteLesson,
   onAddActivity, onDeleteActivity,
-  onAddRental, onDeleteRental,
+  onAddRental, onUpdateRental, onDeleteRental,
 }: LessonWeekViewProps) {
   const today = dateToISO(new Date())
 
   // ── Inline add form ────────────────────────────────────────────────────────
-  const emptyForm = (date: string, slot: Slot, kind: 'lesson' | 'activity' | 'rental'): AddForm => ({
+  const emptyForm = (date: string, slot: Slot, kind: 'lesson' | 'activity' | 'rental'): AddForm => {
+    const firstParticipant = activeParticipantsForDate(date)[0]?.id ?? ''
+    return {
     date, slot, kind,
-    type: 'private', client_ids: [clients[0]?.id ?? ''], instructor_id: instructors[0]?.id ?? '',
+    type: 'private', participant_ids: [firstParticipant], instructor_id: instructors[0]?.id ?? '',
     start_time: SLOT_CONFIG[slot].defaultTime, duration_hours: 1, notes: '', kite_id: null, board_id: null,
     name: '', actNotes: '',
-    rental_client_id: clients[0]?.id ?? '',
+    rental_participant_id: firstParticipant,
     rental_slot: slot === 'morning' ? 'morning' : slot === 'afternoon' ? 'afternoon' : 'full_day',
     rental_type: 'kite' as RentalType,
-    rental_price: DEFAULT_RENTAL_PRICES.kite,
+    rental_price: rentalPrice('kite'),
     rental_kite_id: null,
     rental_board_id: null,
     rental_notes: '',
-  })
+  }}
 
   const [addForm, setAddForm] = useState<AddForm | null>(null)
 
@@ -135,12 +140,48 @@ export default function LessonWeekView({
   const [editLesson, setEditLesson] = useState<Lesson | null>(null)
   const [editData, setEditData] = useState<Partial<Lesson>>({})
 
+  // ── Rental edit ────────────────────────────────────────────────────────────
+  const [editRental, setEditRental] = useState<EquipmentRental | null>(null)
+  const [editRentalPrice, setEditRentalPrice] = useState('')
+  const [editRentalSlot, setEditRentalSlot] = useState<'morning' | 'afternoon' | 'full_day'>('morning')
+  const [editRentalParticipantId, setEditRentalParticipantId] = useState('')
+  const [editRentalType, setEditRentalType] = useState<RentalType>('kite')
+  const [editRentalKiteId, setEditRentalKiteId] = useState<string | null>(null)
+  const [editRentalBoardId, setEditRentalBoardId] = useState<string | null>(null)
+  const [editRentalNotes, setEditRentalNotes] = useState('')
+
   // ── Clipboard ─────────────────────────────────────────────────────────────
   const [clipboard, setClipboard] = useState<Lesson | null>(null)
 
   // ── Drag state ────────────────────────────────────────────────────────────
   const [drag, setDrag] = useState<DragState | null>(null)
   const [dropTarget, setDropTarget] = useState<{ date: string; slot: Slot } | null>(null)
+
+  // ── Pricing lookup ────────────────────────────────────────────────────────
+  function rentalPrice(type: RentalType): number {
+    const item = priceItems.find(p => p.category === 'rental' && p.name.toLowerCase().trim() === type)
+    return item?.price ?? FALLBACK_RENTAL_PRICES[type] ?? 0
+  }
+
+  // ── Booking lookup ────────────────────────────────────────────────────────
+  function bookingForParticipant(participantId: string): string {
+    return bookingParticipants.find(p => p.id === participantId)?.booking_id ?? ''
+  }
+
+  function activeParticipantsForDate(date: string): BookingParticipant[] {
+    const activeIds = new Set(
+      bookings.filter(b => b.status !== 'cancelled' && b.check_in <= date && b.check_out >= date).map(b => b.id)
+    )
+    const active = bookingParticipants.filter(p => activeIds.has(p.booking_id))
+    return active.length > 0 ? active : bookingParticipants
+  }
+
+  // ── Fallback name lookup (from booking's client when no participant) ─────────
+  function bookingClient(bookingId: string | null): Client | undefined {
+    const bid = bookingId ?? ''
+    const clientId = bookings.find(b => b.id === bid)?.client_id
+    return clients.find(c => c.id === clientId)
+  }
 
   // ── Data helpers ──────────────────────────────────────────────────────────
   function lessonsForSlot(date: string, slot: Slot): Lesson[] {
@@ -158,7 +199,46 @@ export default function LessonWeekView({
   }
 
   function deleteRental(id: string) {
-    onDeleteRental(id)
+    if (confirm('Delete this rental?')) {
+      if (editRental?.id === id) setEditRental(null)
+      onDeleteRental(id)
+    }
+  }
+
+  function openEditRental(r: EquipmentRental) {
+    const equip = equipment.find(e => e.id === r.equipment_id)
+    const type = (RENTAL_TYPES.find(t => t.key === (equip?.category ?? r.equipment_id))?.key ?? 'free') as RentalType
+    setEditRental(r)
+    setEditRentalPrice(String(r.price))
+    setEditRentalSlot(r.slot as 'morning' | 'afternoon' | 'full_day')
+    setEditRentalParticipantId(r.participant_id ?? '')
+    setEditRentalType(type)
+    setEditRentalKiteId(equip?.category === 'kite' ? r.equipment_id : null)
+    setEditRentalBoardId(equip?.category !== 'kite' && equip ? r.equipment_id : null)
+    setEditRentalNotes(r.notes ?? '')
+  }
+
+  function submitEditRental(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editRental) return
+    const price = parseFloat(editRentalPrice)
+    if (isNaN(price) || price < 0) return
+    const equipId = (
+      editRentalType === 'kite'  ? editRentalKiteId :
+      editRentalType === 'board' ? editRentalBoardId :
+      editRentalType === 'full'  ? (editRentalKiteId ?? editRentalBoardId) :
+      null
+    ) ?? null
+    onUpdateRental({
+      ...editRental,
+      price,
+      slot: editRentalSlot,
+      participant_id: editRentalParticipantId || null,
+      booking_id: editRentalParticipantId ? bookingForParticipant(editRentalParticipantId) || editRental.booking_id : editRental.booking_id,
+      equipment_id: equipId,
+      notes: editRentalNotes || null,
+    })
+    setEditRental(null)
   }
 
   // ── Add handlers ──────────────────────────────────────────────────────────
@@ -170,9 +250,9 @@ export default function LessonWeekView({
     if (!addForm) return
     if (addForm.kind === 'lesson') {
       onAddLesson({
-        booking_id: '', // TODO: link to booking
+        booking_id: bookingForParticipant(addForm.participant_ids[0] ?? ''),
         instructor_id: addForm.instructor_id,
-        client_ids: addForm.client_ids,
+        participant_ids: addForm.participant_ids,
         date: addForm.date,
         start_time: addForm.start_time,
         duration_hours: addForm.duration_hours,
@@ -195,11 +275,11 @@ export default function LessonWeekView({
         addForm.rental_type === 'board' ? addForm.rental_board_id :
         addForm.rental_type === 'full'  ? (addForm.rental_kite_id ?? addForm.rental_board_id) :
         null
-      ) ?? addForm.rental_type
+      ) ?? null
       onAddRental({
         equipment_id: equipId,
-        booking_id: null,
-        client_id: addForm.rental_client_id,
+        booking_id: bookingForParticipant(addForm.rental_participant_id) || null,
+        participant_id: addForm.rental_participant_id || null,
         date: addForm.date,
         slot: addForm.rental_slot,
         price: addForm.rental_price,
@@ -284,9 +364,9 @@ export default function LessonWeekView({
         <div className="mb-4 flex items-center gap-3 px-4 py-2 bg-amber-50 border border-amber-300 rounded-lg text-sm">
           <span>📋 Lesson copied:</span>
           <span className="font-semibold">
-            {clients.find(c => c.id === clipboard.client_ids[0])?.first_name}{' '}
-            {clients.find(c => c.id === clipboard.client_ids[0])?.last_name}
-            {clipboard.client_ids.length > 1 && ` +${clipboard.client_ids.length - 1}`}
+            {bookingParticipants.find(p => p.id === clipboard.participant_ids[0])?.first_name}{' '}
+            {bookingParticipants.find(p => p.id === clipboard.participant_ids[0])?.last_name}
+            {clipboard.participant_ids.length > 1 && ` +${clipboard.participant_ids.length - 1}`}
             {' · '}{LESSON_TYPE_CFG[clipboard.type].label}{' · '}{clipboard.start_time}
           </span>
           <span className="text-gray-500 text-xs">→ Click "Paste" in a slot</span>
@@ -352,8 +432,8 @@ export default function LessonWeekView({
 
                       {/* Lessons */}
                       {slotLessons.map(lesson => {
-                        const lessonClients = lesson.client_ids.map(id => clients.find(c => c.id === id)).filter(Boolean)
-                        const firstClient = lessonClients[0]
+                        const lessonClients = lesson.participant_ids.map(id => bookingParticipants.find(p => p.id === id)).filter(Boolean)
+                        const firstClient = lessonClients[0] ?? bookingClient(lesson.booking_id)
                         const instructor = instructors.find(i => i.id === lesson.instructor_id)
                         const tc = LESSON_TYPE_CFG[lesson.type]
                         const isDragging = drag?.lessonId === lesson.id
@@ -434,7 +514,7 @@ export default function LessonWeekView({
 
                       {/* Rentals */}
                       {slotRentals.map(r => {
-                        const client = clients.find(c => c.id === r.client_id)
+                        const client = bookingParticipants.find(p => p.id === r.participant_id) ?? bookingClient(r.booking_id ?? null)
                         const equip = equipment.find(e => e.id === r.equipment_id)
                         // Resolve display type: specific equip category → rental type key or fallback
                         const rt = RENTAL_TYPES.find(t => t.key === (equip?.category ?? r.equipment_id))
@@ -443,7 +523,12 @@ export default function LessonWeekView({
                             key={r.id}
                             className="group/rental relative rounded border border-amber-200 bg-amber-50 text-amber-900 p-1.5 text-xs mb-1"
                           >
-                            <div className="absolute top-1 right-1 hidden group-hover/rental:flex">
+                            <div className="absolute top-1 right-1 hidden group-hover/rental:flex gap-0.5 bg-white/90 rounded px-0.5 shadow-sm">
+                              <button
+                                onClick={() => openEditRental(r)}
+                                className="text-gray-400 hover:text-blue-600 text-xs px-1"
+                                title="Edit"
+                              >✏️</button>
                               <button
                                 onClick={() => deleteRental(r.id)}
                                 className="text-gray-400 hover:text-red-600 text-xs px-1"
@@ -467,13 +552,13 @@ export default function LessonWeekView({
                             <>
                               {/* Rental form */}
                               <select
-                                value={addForm?.rental_client_id}
-                                onChange={e => setAddForm(f => f && { ...f, rental_client_id: e.target.value })}
+                                value={addForm?.rental_participant_id}
+                                onChange={e => setAddForm(f => f && { ...f, rental_participant_id: e.target.value })}
                                 className="w-full text-xs border rounded px-1 py-1"
                                 autoFocus
                               >
-                                {clients.map(c => (
-                                  <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
+                                {activeParticipantsForDate(addForm?.date ?? '').map(p => (
+                                  <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>
                                 ))}
                               </select>
                               {/* Type buttons */}
@@ -485,7 +570,7 @@ export default function LessonWeekView({
                                     onClick={() => setAddForm(f => f && {
                                       ...f,
                                       rental_type: rt.key,
-                                      rental_price: DEFAULT_RENTAL_PRICES[rt.key] ?? 0,
+                                      rental_price: rentalPrice(rt.key),
                                     })}
                                     className={`text-xs py-1 px-1 rounded border transition-colors text-center leading-tight ${
                                       addForm?.rental_type === rt.key
@@ -561,7 +646,7 @@ export default function LessonWeekView({
                                   onChange={e => setAddForm(f => f && {
                                     ...f,
                                     type: e.target.value as LessonType,
-                                    client_ids: [f.client_ids[0] ?? clients[0]?.id ?? ''],
+                                    participant_ids: [f.participant_ids[0] ?? activeParticipantsForDate(f.date)[0]?.id ?? ''],
                                   })}
                                   className="flex-1 text-xs border rounded px-1 py-1"
                                 >
@@ -570,45 +655,45 @@ export default function LessonWeekView({
                                   <option value="supervision">Supervision</option>
                                 </select>
                               </div>
-                              {/* Client(s) — single for private/supervision, dynamic list for group */}
+                              {/* Participant(s) — single for private/supervision, dynamic list for group */}
                               {addForm?.type !== 'group' ? (
                                 <select
-                                  value={addForm?.client_ids[0] ?? ''}
-                                  onChange={e => setAddForm(f => f && { ...f, client_ids: [e.target.value] })}
+                                  value={addForm?.participant_ids[0] ?? ''}
+                                  onChange={e => setAddForm(f => f && { ...f, participant_ids: [e.target.value] })}
                                   className="w-full text-xs border rounded px-1 py-1"
                                 >
-                                  {clients.map(c => (
-                                    <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
+                                  {activeParticipantsForDate(addForm?.date ?? '').map(p => (
+                                    <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>
                                   ))}
                                 </select>
                               ) : (
                                 <div className="space-y-1">
-                                  {(addForm?.client_ids ?? ['']).map((cid, idx) => (
+                                  {(addForm?.participant_ids ?? ['']).map((pid, idx) => (
                                     <div key={idx} className="flex gap-1">
                                       <select
-                                        value={cid}
+                                        value={pid}
                                         onChange={e => setAddForm(f => {
                                           if (!f) return f
-                                          const ids = [...f.client_ids]; ids[idx] = e.target.value
-                                          return { ...f, client_ids: ids }
+                                          const ids = [...f.participant_ids]; ids[idx] = e.target.value
+                                          return { ...f, participant_ids: ids }
                                         })}
                                         className="flex-1 text-xs border rounded px-1 py-1"
                                       >
-                                        {clients.map(c => (
-                                          <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
+                                        {activeParticipantsForDate(addForm?.date ?? '').map(p => (
+                                          <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>
                                         ))}
                                       </select>
-                                      {(addForm?.client_ids.length ?? 0) > 1 && (
+                                      {(addForm?.participant_ids.length ?? 0) > 1 && (
                                         <button type="button"
-                                          onClick={() => setAddForm(f => f && { ...f, client_ids: f.client_ids.filter((_, i) => i !== idx) })}
+                                          onClick={() => setAddForm(f => f && { ...f, participant_ids: f.participant_ids.filter((_, i) => i !== idx) })}
                                           className="text-red-400 hover:text-red-600 px-1 text-xs">✕</button>
                                       )}
                                     </div>
                                   ))}
                                   <button type="button"
-                                    onClick={() => setAddForm(f => f && { ...f, client_ids: [...f.client_ids, clients[0]?.id ?? ''] })}
+                                    onClick={() => setAddForm(f => f && { ...f, participant_ids: [...f.participant_ids, activeParticipantsForDate(f.date)[0]?.id ?? ''] })}
                                     className="text-xs text-green-700 hover:text-green-900 border border-dashed border-green-400 rounded px-2 py-0.5 w-full">
-                                    + Add client
+                                    + Add participant
                                   </button>
                                 </div>
                               )}
@@ -811,45 +896,45 @@ export default function LessonWeekView({
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                  {editData.type === 'group' ? 'Clients' : 'Client'}
+                  {editData.type === 'group' ? 'Participants' : 'Participant'}
                 </label>
                 {editData.type !== 'group' ? (
                   <select
-                    value={editData.client_ids?.[0] ?? ''}
-                    onChange={e => setEditData(d => ({ ...d, client_ids: [e.target.value] }))}
+                    value={editData.participant_ids?.[0] ?? ''}
+                    onChange={e => setEditData(d => ({ ...d, participant_ids: [e.target.value] }))}
                     className="w-full text-sm border rounded px-2 py-1.5"
                   >
-                    {clients.map(c => (
-                      <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
+                    {bookingParticipants.map(p => (
+                      <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>
                     ))}
                   </select>
                 ) : (
                   <div className="space-y-1">
-                    {(editData.client_ids ?? ['']).map((cid, idx) => (
+                    {(editData.participant_ids ?? ['']).map((pid, idx) => (
                       <div key={idx} className="flex gap-1">
                         <select
-                          value={cid}
+                          value={pid}
                           onChange={e => setEditData(d => {
-                            const ids = [...(d.client_ids ?? [])]; ids[idx] = e.target.value
-                            return { ...d, client_ids: ids }
+                            const ids = [...(d.participant_ids ?? [])]; ids[idx] = e.target.value
+                            return { ...d, participant_ids: ids }
                           })}
                           className="flex-1 text-sm border rounded px-2 py-1.5"
                         >
-                          {clients.map(c => (
-                            <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
+                          {bookingParticipants.map(p => (
+                            <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>
                           ))}
                         </select>
-                        {(editData.client_ids?.length ?? 0) > 1 && (
+                        {(editData.participant_ids?.length ?? 0) > 1 && (
                           <button type="button"
-                            onClick={() => setEditData(d => ({ ...d, client_ids: (d.client_ids ?? []).filter((_, i) => i !== idx) }))}
+                            onClick={() => setEditData(d => ({ ...d, participant_ids: (d.participant_ids ?? []).filter((_, i) => i !== idx) }))}
                             className="text-red-400 hover:text-red-600 px-1">✕</button>
                         )}
                       </div>
                     ))}
                     <button type="button"
-                      onClick={() => setEditData(d => ({ ...d, client_ids: [...(d.client_ids ?? []), clients[0]?.id ?? ''] }))}
+                      onClick={() => setEditData(d => ({ ...d, participant_ids: [...(d.participant_ids ?? []), bookingParticipants[0]?.id ?? ''] }))}
                       className="text-xs text-green-700 hover:text-green-900 border border-dashed border-green-400 rounded px-2 py-1 w-full">
-                      + Add client
+                      + Add participant
                     </button>
                   </div>
                 )}
@@ -943,6 +1028,99 @@ export default function LessonWeekView({
                 >
                   Save
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Rental edit modal ── */}
+      {editRental && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditRental(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h3 className="font-bold text-gray-800">Edit rental</h3>
+              <button onClick={() => setEditRental(null)} className="text-gray-400 hover:text-gray-700">✕</button>
+            </div>
+            <form onSubmit={submitEditRental} className="p-4 space-y-3">
+              {/* Participant */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Guest</label>
+                <select
+                  value={editRentalParticipantId}
+                  onChange={e => setEditRentalParticipantId(e.target.value)}
+                  className="w-full text-sm border rounded px-2 py-1.5"
+                >
+                  <option value="">— None —</option>
+                  {bookingParticipants.map(p => (
+                    <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Type */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                <div className="grid grid-cols-3 gap-1">
+                  {RENTAL_TYPES.map(rt => (
+                    <button key={rt.key} type="button"
+                      onClick={() => setEditRentalType(rt.key)}
+                      className={`text-xs py-1.5 px-1 rounded border text-center leading-tight transition-colors ${editRentalType === rt.key ? 'bg-amber-500 border-amber-600 text-white font-semibold' : 'bg-white border-gray-200 text-gray-600 hover:border-amber-300'}`}>
+                      <div>{rt.icon}</div>
+                      <div>{rt.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Equipment */}
+              {(editRentalType === 'kite' || editRentalType === 'full') && (
+                <select value={editRentalKiteId ?? ''} onChange={e => setEditRentalKiteId(e.target.value || null)}
+                  className="w-full text-sm border rounded px-2 py-1.5">
+                  <option value="">🪁 Kite — not specified</option>
+                  {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
+                </select>
+              )}
+              {(editRentalType === 'board' || editRentalType === 'full') && (
+                <select value={editRentalBoardId ?? ''} onChange={e => setEditRentalBoardId(e.target.value || null)}
+                  className="w-full text-sm border rounded px-2 py-1.5">
+                  <option value="">🏄 Board — not specified</option>
+                  {equipment.filter(e => e.category === 'board' && e.is_active).map(e => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
+                </select>
+              )}
+              {/* Slot + Price */}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Slot</label>
+                  <select value={editRentalSlot} onChange={e => setEditRentalSlot(e.target.value as 'morning' | 'afternoon' | 'full_day')}
+                    className="w-full text-sm border rounded px-2 py-1.5">
+                    <option value="morning">Morning</option>
+                    <option value="afternoon">Afternoon</option>
+                    <option value="full_day">Full day</option>
+                  </select>
+                </div>
+                <div className="w-24">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Price (€)</label>
+                  <input type="number" min="0" step="0.5"
+                    value={editRentalPrice} onChange={e => setEditRentalPrice(e.target.value)}
+                    className="w-full text-sm border rounded px-2 py-1.5 text-right font-semibold" />
+                </div>
+              </div>
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+                <input type="text" value={editRentalNotes} onChange={e => setEditRentalNotes(e.target.value)}
+                  placeholder="Optional" className="w-full text-sm border rounded px-2 py-1.5" />
+              </div>
+              <div className="flex gap-2 pt-2 border-t">
+                <button type="button" onClick={() => deleteRental(editRental.id)}
+                  className="px-3 py-2 bg-red-50 text-red-700 hover:bg-red-100 rounded font-medium text-sm">Delete</button>
+                <button type="button" onClick={() => setEditRental(null)}
+                  className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded font-medium text-sm">Cancel</button>
+                <button type="submit"
+                  className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm">Save</button>
               </div>
             </form>
           </div>
