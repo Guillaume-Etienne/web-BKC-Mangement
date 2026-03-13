@@ -44,10 +44,12 @@ useTable<T>(table: string, options?: {
 
 | Hook | Table | Select / Order | Returns |
 |------|-------|----------------|---------|
-| `useBookings()` | `bookings` | `'*, participants(*)'`, check_in DESC | `QueryState<Booking>` |
+| `useBookings()` | `bookings` | `'*, client:clients(first_name, last_name)'`, check_in DESC | `QueryState<Booking>` |
 | `useBookingRooms()` | `booking_rooms` | default | `QueryState<BookingRoom>` |
 | `useBookingRoomPrices()` | `booking_room_prices` | default | `QueryState<BookingRoomPrice>` |
+| `useBookingParticipants()` | `booking_participants` | created_at ASC | `QueryState<BookingParticipant>` |
 | `usePayments()` | `payments` | date DESC | `QueryState<Payment>` |
+> ⚠️ `useBookings` no longer joins `participants(*)`. Participants fetched separately via `useBookingParticipants()`.
 
 ---
 

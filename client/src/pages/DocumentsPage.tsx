@@ -287,7 +287,7 @@ export default function DocumentsPage() {
             </div>
 
             <button
-              onClick={() => summaryBooking && printBookingSummary(summaryBooking, summaryRooms, lang, totalAmount, activeSections)}
+              onClick={() => summaryBooking && printBookingSummary(summaryBooking, summaryRooms, lang, totalAmount, activeSections, bookingParticipants)}
               disabled={!summaryBooking}
               className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors">
               🖨️ Generate Booking Summary

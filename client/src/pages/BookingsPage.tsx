@@ -1118,7 +1118,7 @@ export default function BookingsPage() {
 
                 // Compact info codes
                 const codes = [
-                  (b.participants ?? []).length > 0 && `${(b.participants ?? []).length}G`,
+                  bookingParticipants.filter(p => p.booking_id === b.id).length > 0 && `${bookingParticipants.filter(p => p.booking_id === b.id).length}G`,
                   nights > 0 && `${nights}n`,
                   b.num_lessons > 0 && `${b.num_lessons}L`,
                   b.num_equipment_rentals > 0 && `${b.num_equipment_rentals}R`,

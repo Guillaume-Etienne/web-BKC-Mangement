@@ -96,25 +96,12 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
     for (const booking of newBookings) {
       const realClientId = idMap.get(booking.client_id) ?? booking.client_id
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { participants, id: _bookingId, client: _client, ...bookingData } = booking
+      const { id: _bookingId, client: _client, ...bookingData } = booking
 
-      const { data: bData, error: bErr } = await supabase
+      const { error: bErr } = await supabase
         .from('bookings')
         .insert({ ...bookingData, client_id: realClientId })
-        .select('id')
-        .single()
       if (bErr) { alert('Import error (bookings): ' + bErr.message); return }
-
-      // Insert participants
-      if (participants && participants.length > 0) {
-        const participantData = participants.map(p => ({
-          booking_id: bData.id,
-          first_name: p.first_name,
-          last_name: p.last_name,
-          passport_number: p.passport_number,
-        }))
-        await supabase.from('participants').insert(participantData)
-      }
     }
 
     refreshClients()

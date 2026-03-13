@@ -2,7 +2,7 @@ import { useTable } from './useSupabase'
 import type { Booking, BookingParticipant, BookingRoom, BookingRoomPrice, Payment } from '../types/database'
 
 export function useBookings() {
-  return useTable<Booking>('bookings', { order: 'check_in', ascending: false, select: '*, participants(*), client:clients(first_name, last_name)' })
+  return useTable<Booking>('bookings', { order: 'check_in', ascending: false, select: '*, client:clients(first_name, last_name)' })
 }
 
 export function useBookingParticipants() {

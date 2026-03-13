@@ -109,9 +109,9 @@ const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const date = new Date(y, m - 1, d + days)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 function getMondayOfWeek(date: Date): Date {
@@ -595,7 +595,7 @@ export default function PlanningView() {
                 </div>
                 <div className="flex">
                   {Array.from({ length: totalDays }, (_, i) => {
-                    const d = new Date(seasonStart.getTime() + i * 86400000)
+                    const d = new Date(seasonStart.getFullYear(), seasonStart.getMonth(), seasonStart.getDate() + i)
                     const dow = d.getDay()
                     const isWeekend = dow === 0 || dow === 6
                     return (
@@ -629,6 +629,7 @@ export default function PlanningView() {
                           totalDays={totalDays}
                           seasonStart={seasonStart}
                           bookings={getBookingsForRoom(room.id)}
+                          bookingParticipants={bookingParticipants}
                           dragState={dragState}
                           onPointerDown={onPointerDown}
                           unavailableDays={unavailableDays}
@@ -637,9 +638,9 @@ export default function PlanningView() {
                     </div>
                   )
                 })}
-                <TotalsRow label="Tot Guest" totalDays={totalDays} seasonStart={seasonStart} bookings={resolvedBookings} type="guests" />
-                <TotalsRow label="Tot less" totalDays={totalDays} seasonStart={seasonStart} bookings={resolvedBookings} type="lessons" />
-                <TotalsRow label="Tot rent" totalDays={totalDays} seasonStart={seasonStart} bookings={resolvedBookings} type="equipment" />
+                <TotalsRow label="Tot Guest" totalDays={totalDays} seasonStart={seasonStart} bookings={resolvedBookings} bookingParticipants={bookingParticipants} type="guests" />
+                <TotalsRow label="Tot less" totalDays={totalDays} seasonStart={seasonStart} bookings={resolvedBookings} bookingParticipants={bookingParticipants} type="lessons" />
+                <TotalsRow label="Tot rent" totalDays={totalDays} seasonStart={seasonStart} bookings={resolvedBookings} bookingParticipants={bookingParticipants} type="equipment" />
               </div>
             </div>
           </>
@@ -647,7 +648,7 @@ export default function PlanningView() {
 
         {/* ── NOW TAB ── */}
         {planningTab === 'now' && (
-          <NowView bookings={bookings} bookingRooms={bookingRooms} rooms={rooms} accommodations={accommodations} instructors={instructors} />
+          <NowView bookings={bookings} bookingParticipants={bookingParticipants} bookingRooms={bookingRooms} rooms={rooms} accommodations={accommodations} instructors={instructors} />
         )}
 
         {/* ── FORECAST TAB ── */}

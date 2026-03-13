@@ -23,9 +23,10 @@
 - Renders: PlanningRow × N, TotalsRow × 3, sub-tab component
 
 ### `PlanningRow` — `planning/PlanningRow.tsx`
-**Props:** `{ roomId, label, totalDays, seasonStart, bookings, dragState, onPointerDown }`
+**Props:** `{ roomId, label, totalDays, seasonStart, bookings, bookingParticipants: BookingParticipant[], dragState, onPointerDown }`
 - One grid row for one room (label + day columns + booking bars)
 - `CELL_W = 32px` per day. Weekend highlighting. Drag handles on booking edges.
+- Uses `bookingParticipants.filter(p => p.booking_id === b.id).length` for guest count badges
 - Fully controlled (no internal state)
 
 ### `BookingBar` — `planning/BookingBar.tsx`
@@ -35,20 +36,32 @@
 - CSS grid positioning
 
 ### `TotalsRow` — `planning/TotalsRow.tsx`
-**Props:** `{ label, totalDays, seasonStart, bookings, type: 'lessons'|'equipment'|'guests' }`
+**Props:** `{ label, totalDays, seasonStart, bookings, bookingParticipants: BookingParticipant[], type: 'lessons'|'equipment'|'guests' }`
 - Summary row with daily counts per day column
 - Emerald if > 0, gray if 0. Weekend highlighting.
+- `type='guests'`: counts via `bookingParticipants.filter(p => p.booking_id === booking.id).length`
 
 ### `LessonWeekView` — `planning/LessonWeekView.tsx`
-*(Props: hooks-derived data + mutation callbacks)*
+*(Props: hooks-derived data + mutation callbacks + `bookingParticipants: BookingParticipant[]` + `clients: Client[]`)*
 - Week navigator (Mon–Sun)
 - 3 slots/day (morning, afternoon, evening)
 - List lessons/activities/rentals per slot
 - Modals: add/edit lesson, add/edit activity, add/edit rental
 - ⚠️ Forms defined at **module scope** (not inside render) to avoid focus loss
 
+**Key helper functions:**
+- `activeParticipantsForDate(date)` — returns participants from bookings active on that date (`check_in <= date <= check_out`). Falls back to all `bookingParticipants` if none found.
+- `bookingForParticipant(participantId)` — returns booking_id for a participant
+- `bookingClient(bookingId)` — returns display name from booking's client (fallback when no participant linked)
+
+**Participant display in lessons/rentals:**
+1. Look up `BookingParticipant` by `participant_ids[0]` or `participant_id`
+2. Fall back to `bookingClient(booking_id)` if not found
+
+**Rental edit modal** — fully expanded fields: guest selector (BookingParticipant), type buttons (kite/board/surfboard/foilboard), equipment selectors, slot (morning/afternoon/full_day), price, notes. Derives type from `equipment.category`.
+
 ### `NowView` — `planning/NowView.tsx`
-**Props:** `{ instructors: Instructor[] }` + internal `useTable<DiningEvent>`
+**Props:** `{ instructors: Instructor[]; bookingParticipants: BookingParticipant[] }` + internal `useTable<DiningEvent>`
 - Dining event editor for the "Now" sub-tab
 - Date picker (±1 day)
 - Event list → select → attendee table
@@ -74,6 +87,7 @@
 ```ts
 {
   trips: TaxiTrip[]; drivers: TaxiDriver[]; bookings: BookingRef[]
+  bookingParticipants: BookingParticipant[]
   pricingDefaults: TaxiPricingDefaults | null
   onAddTrip: (t: Omit<TaxiTrip,'id'>) => Promise<TaxiTrip|null>
   onUpdateTrip: (t: TaxiTrip) => Promise<void>
@@ -83,11 +97,12 @@
 ```
 - Summary table (done vs. planned: client MZN, EUR, driver, manager, centre)
 - Trip table: date, time, type, driver, guest, status, persons, luggage, financials
+- Guest count: `bookingParticipants.filter(p => p.booking_id === b.id).length || 1`
 - Add → opens modal pre-filled with `pricingDefaults`
 - Status badges: confirmed=gray, needs_details=red, done=green
 
 ### `TaxiKanbanView` — `taxi/TaxiKanbanView.tsx`
-**Props:** Same as TaxiListView
+**Props:** Same as TaxiListView (including `bookingParticipants`)
 - 3 columns: Confirmed / Needs Details / Done
 - Drag card between columns → updates `status` via `onUpdateTrip`
 - Same summary table as ListView
@@ -136,6 +151,7 @@ All accounting components share:
 - Click booking → detail: room breakdown, lesson breakdown, rentals, taxis
 - Payment list with add/delete
 - Forms at module scope
+- Guest count: `data.bookingParticipants.filter(p => p.booking_id === b.id).length`
 
 ### `InstructorPayroll` — `accounting/InstructorPayroll.tsx`
 **Props:** `{ data, handlers }`

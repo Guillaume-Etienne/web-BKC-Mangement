@@ -1,4 +1,4 @@
-import type { Client, Booking, Participant } from '../types/database'
+import type { Client, Booking } from '../types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -313,7 +313,6 @@ function buildBooking(
       taxi_departure: transportYes(get(cols.transport)),
       couples_count:  0,
       children_count: 0,
-      participants:   [] as Participant[],
       amount_paid:    0,
       import_id,
       emergency_contact_name:  get(cols.emergencyName)  || null,

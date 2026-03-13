@@ -3,6 +3,7 @@ import TaxiKanbanView from '../components/taxi/TaxiKanbanView'
 import TaxiListView from '../components/taxi/TaxiListView'
 import TaxiFinanceTab from '../components/taxi/TaxiFinanceTab'
 import { useTaxiDrivers, useTaxiTrips } from '../hooks/useTaxis'
+import { useBookingParticipants } from '../hooks/useBookings'
 import { useTable } from '../hooks/useSupabase'
 import { supabase } from '../lib/supabase'
 
@@ -21,10 +22,11 @@ export default function TaxiPage() {
   const { data: trips, loading: tripsLoading, error: tripsError, schemaOutdated, refresh: refreshTrips } = useTaxiTrips()
   const { data: drivers, loading: driversLoading, error: driversError, refresh: refreshDrivers } = useTaxiDrivers()
   const { data: bookings } = useTable<BookingRef>('bookings', {
-    select: 'id, booking_number, check_in, check_out, luggage_count, boardbag_count, participants(id), client:clients(first_name, last_name)',
+    select: 'id, booking_number, check_in, check_out, luggage_count, boardbag_count, client:clients(first_name, last_name)',
     order: 'check_in',
     ascending: false,
   })
+  const { data: bookingParticipants } = useBookingParticipants()
 
   const { data: paymentsData } = useTable<TaxiManagerPayment>('taxi_manager_payments', { order: 'date', ascending: false })
   const [payments, setPayments] = useState<TaxiManagerPayment[]>([])
@@ -198,7 +200,7 @@ export default function TaxiPage() {
               <div className="text-center py-16 text-gray-400">Loading…</div>
             ) : planningView === 'list' ? (
               <TaxiListView
-                trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings}
+                trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings} bookingParticipants={bookingParticipants}
                 onAddTrip={schemaOutdated ? async () => { alert('Database migration required before adding/editing trips.'); return null } : addTrip}
                 onUpdateTrip={schemaOutdated ? async () => { alert('Database migration required before editing trips.') } : updateTrip}
                 onDeleteTrip={deleteTrip}
@@ -206,7 +208,7 @@ export default function TaxiPage() {
               />
             ) : (
               <TaxiKanbanView
-                trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings}
+                trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings} bookingParticipants={bookingParticipants}
                 onAddTrip={schemaOutdated ? async () => { alert('Database migration required before adding/editing trips.'); return null } : addTrip}
                 onUpdateTrip={schemaOutdated ? async () => { alert('Database migration required before editing trips.') } : updateTrip}
                 onDeleteTrip={deleteTrip}

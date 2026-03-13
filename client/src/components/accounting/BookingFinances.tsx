@@ -209,7 +209,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
   const lessonsRev       = computeLessonsRevenue(b, data)
   const rentalsRev       = computeRentalsRevenue(b, data)
   const taxiRev          = computeTaxiRevenue(b, data)
-  const diningRev        = computeDiningForBooking(b, data.diningEvents)
+  const diningRev        = computeDiningForBooking(b, data.diningEvents, data.bookingParticipants)
 
   // Room detail
   const bkRooms = data.bookingRooms.filter(br => br.booking_id === b.id)
@@ -388,10 +388,11 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
 
           {/* Dining events */}
           {diningRev > 0 && (() => {
-            const hasParticipants = (b.participants ?? []).length > 0
+            const bParts = data.bookingParticipants.filter(p => p.booking_id === b.id)
+            const hasParticipants = bParts.length > 0
             const matchIds = new Set(
               hasParticipants
-                ? (b.participants ?? []).map(p => p.id)
+                ? bParts.map(p => p.id)
                 : [b.client_id]
             )
             return (

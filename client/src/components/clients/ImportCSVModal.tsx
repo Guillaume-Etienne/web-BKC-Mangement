@@ -111,12 +111,6 @@ export default function ImportCSVModal({ existingClients, existingBookings, next
         id: `bk_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         booking_number: bookingNum++,
         client_id: referentId,
-        participants: row.clients.map((ic, i) => ({
-          id: `p_${row.import_id}_${i}`,
-          first_name: ic.client.first_name,
-          last_name: ic.client.last_name,
-          passport_number: ic.client.passport_number ?? '',
-        })),
       }
       newBookings.push(booking)
     }

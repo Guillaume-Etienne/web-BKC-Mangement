@@ -64,14 +64,19 @@
 | emergency_contact_email | string \| null |
 | emergency_contact_relation | string \| null |
 
-### `participants` → `Participant`
-| Field | Type |
-|-------|------|
-| id | string (UUID) |
-| first_name | string |
-| last_name | string |
-| passport_number | string |
-> Non-client persons in a booking. Linked via `participants` array in Booking (join).
+### `booking_participants` → `BookingParticipant`
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| booking_id | string (FK → bookings) | |
+| first_name | string | |
+| last_name | string \| null | |
+| passport_number | string \| null | Required for visa letter |
+| client_id | string \| null | Optional link to existing Client |
+| notes | string \| null | |
+| created_at | string (ISO timestamp) | |
+> **Replaces old `participants` table** (dropped). Unified model for all persons in a booking (visa + lessons + rentals).
+> ⚠️ Requires RLS policies for authenticated users (SELECT/INSERT/UPDATE/DELETE).
 
 ### `bookings` → `Booking`
 | Field | Type | Notes |
@@ -98,12 +103,12 @@
 | children_count | number | |
 | amount_paid | number (EUR) | |
 | import_id | string \| null | Google Forms dedup |
-| participants | Participant[] | Joined array |
 | client? | Client | Optional join |
 | emergency_contact_* | string \| null | Duplicated from client |
+> Participants are in `booking_participants` table (separate query via `useBookingParticipants()`).
 
 **Minimal projection `BookingRef`** (used by taxi/activity pickers):
-`id, booking_number, check_in, check_out, luggage_count, boardbag_count, participants?[{id}], client?{first_name, last_name}`
+`id, booking_number, check_in, check_out, luggage_count, boardbag_count, client?{first_name, last_name}`
 
 ### `booking_rooms` → `BookingRoom`
 | Field | Type |
@@ -152,7 +157,7 @@
 | id | string (UUID) | |
 | booking_id | string (FK) | |
 | instructor_id | string (FK) | |
-| client_ids | string[] | 1 for private/supervision, N for group |
+| participant_ids | string[] | BookingParticipant.id — 1 for private/supervision, N for group |
 | date | string (ISO date) | |
 | start_time | string (HH:MM) | |
 | duration_hours | number | |
@@ -217,7 +222,7 @@
 | id | string (UUID) |
 | equipment_id | string (FK) |
 | booking_id | string \| null |
-| client_id | string \| null |
+| participant_id | string \| null (FK → booking_participants) |
 | date | string (ISO date) |
 | slot | RentalSlot |
 | price | number (EUR) |

@@ -1,4 +1,4 @@
-import type { Booking } from '../../types/database'
+import type { Booking, BookingParticipant } from '../../types/database'
 import { CELL_W } from '../../hooks/useBookingDrag'
 
 interface TotalsRowProps {
@@ -6,22 +6,29 @@ interface TotalsRowProps {
   totalDays: number
   seasonStart: Date
   bookings: Booking[]
+  bookingParticipants: BookingParticipant[]
   type: 'lessons' | 'equipment' | 'guests'
 }
 
-export default function TotalsRow({ label, totalDays, seasonStart, bookings, type }: TotalsRowProps) {
+export default function TotalsRow({ label, totalDays, seasonStart, bookings, bookingParticipants, type }: TotalsRowProps) {
   const dailyTotals = new Array(totalDays).fill(0)
 
+  function dateToIdx(dateStr: string): number {
+    const [y, m, d] = dateStr.split('-').map(Number)
+    return Math.round(
+      (Date.UTC(y, m - 1, d) - Date.UTC(seasonStart.getFullYear(), seasonStart.getMonth(), seasonStart.getDate()))
+      / 86400000
+    )
+  }
+
   for (const booking of bookings) {
-    const bStart = new Date(booking.check_in + 'T00:00:00')
-    const bEnd = new Date(booking.check_out + 'T00:00:00')
-    const startOffset = Math.max(0, Math.round((bStart.getTime() - seasonStart.getTime()) / 86400000))
-    const endOffset = Math.min(totalDays, Math.round((bEnd.getTime() - seasonStart.getTime()) / 86400000))
+    const startOffset = Math.max(0, dateToIdx(booking.check_in))
+    const endOffset = Math.min(totalDays, dateToIdx(booking.check_out) + 1)
     const value = type === 'lessons'
       ? booking.num_lessons
       : type === 'equipment'
         ? booking.num_equipment_rentals
-        : booking.participants.length
+        : bookingParticipants.filter(p => p.booking_id === booking.id).length
 
     for (let i = startOffset; i < endOffset; i++) {
       dailyTotals[i] += value
@@ -36,7 +43,7 @@ export default function TotalsRow({ label, totalDays, seasonStart, bookings, typ
       <div className="shrink-0" style={{ width: `${totalDays * CELL_W}px`, minHeight: '28px' }}>
         <div className="flex h-full">
           {Array.from({ length: totalDays }, (_, i) => {
-            const d = new Date(seasonStart.getTime() + i * 86400000)
+            const d = new Date(seasonStart.getFullYear(), seasonStart.getMonth(), seasonStart.getDate() + i)
             const dow = d.getDay()
             const total = dailyTotals[i]
             return (

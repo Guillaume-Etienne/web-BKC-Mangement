@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef } from '../../types/database'
+import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef, BookingParticipant } from '../../types/database'
 
 const STATUS_CONFIG: Record<TaxiTripStatus, { label: string; card: string; badge: string }> = {
   confirmed:    { label: 'Confirmed',     card: 'from-slate-50 to-gray-50 border-gray-200',     badge: 'bg-gray-100 text-gray-600' },
@@ -100,13 +100,14 @@ interface TaxiKanbanViewProps {
   drivers: TaxiDriver[]
   pricingDefaults: TaxiPricingDefaults
   bookings: BookingRef[]
+  bookingParticipants: BookingParticipant[]
   onAddTrip:    (trip: Omit<TaxiTrip, 'id'>) => Promise<TaxiTrip | null>
   onUpdateTrip: (trip: TaxiTrip) => Promise<void>
   onDeleteTrip: (id: string) => Promise<void>
   onUpdateRate: (rate: number) => void
 }
 
-export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookings, onAddTrip, onUpdateTrip, onDeleteTrip, onUpdateRate }: TaxiKanbanViewProps) {
+export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookings, bookingParticipants, onAddTrip, onUpdateTrip, onDeleteTrip, onUpdateRate }: TaxiKanbanViewProps) {
   const [editTrip, setEditTrip]         = useState<TaxiTrip | null>(null)
   const [draggedTrip, setDraggedTrip]   = useState<{ id: string; fromDriverId: string | null } | null>(null)
   const [dropTarget, setDropTarget]     = useState<string | null>(null)
@@ -427,7 +428,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                       handleEditChange({
                         booking_id: id,
                         ...(b ? {
-                          nb_persons:   (b.participants ?? []).length || 1,
+                          nb_persons:   bookingParticipants.filter(p => p.booking_id === b.id).length || 1,
                           nb_luggage:   b.luggage_count,
                           nb_boardbags: b.boardbag_count,
                         } : {}),

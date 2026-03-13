@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef } from '../../types/database'
+import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef, BookingParticipant } from '../../types/database'
 
 const STATUS_CONFIG: Record<TaxiTripStatus, { label: string; row: string; badge: string }> = {
   confirmed:    { label: 'Confirmed',     row: '',            badge: 'bg-gray-100 text-gray-600' },
@@ -100,6 +100,7 @@ interface EditModalProps {
   trip: TaxiTrip
   drivers: TaxiDriver[]
   bookings: BookingRef[]
+  bookingParticipants: BookingParticipant[]
   pricingDefaults: TaxiPricingDefaults
   onChange: (data: Partial<TaxiTrip>) => void
   onSave: (updateRate?: number) => void
@@ -107,7 +108,7 @@ interface EditModalProps {
   onClose: () => void
 }
 
-function EditModal({ trip, drivers, bookings, pricingDefaults, onChange, onSave, onDelete, onClose }: EditModalProps) {
+function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaults, onChange, onSave, onDelete, onClose }: EditModalProps) {
   const [updateRateChecked, setUpdateRateChecked] = useState(false)
   const [newRate, setNewRate] = useState(pricingDefaults.eur_mzn_rate)
 
@@ -190,7 +191,7 @@ function EditModal({ trip, drivers, bookings, pricingDefaults, onChange, onSave,
                   onChange({
                     booking_id: id,
                     ...(b ? {
-                      nb_persons:   (b.participants ?? []).length || 1,
+                      nb_persons:   bookingParticipants.filter(p => p.booking_id === b.id).length || 1,
                       nb_luggage:   b.luggage_count,
                       nb_boardbags: b.boardbag_count,
                     } : {}),
@@ -307,6 +308,7 @@ interface TaxiListViewProps {
   trips: TaxiTrip[]
   drivers: TaxiDriver[]
   bookings: BookingRef[]
+  bookingParticipants: BookingParticipant[]
   pricingDefaults: TaxiPricingDefaults
   onAddTrip:    (trip: Omit<TaxiTrip, 'id'>) => Promise<TaxiTrip | null>
   onUpdateTrip: (trip: TaxiTrip) => Promise<void>
@@ -314,7 +316,7 @@ interface TaxiListViewProps {
   onUpdateRate: (rate: number) => void
 }
 
-export default function TaxiListView({ trips, drivers, bookings, pricingDefaults, onAddTrip, onUpdateTrip, onDeleteTrip, onUpdateRate }: TaxiListViewProps) {
+export default function TaxiListView({ trips, drivers, bookings, bookingParticipants, pricingDefaults, onAddTrip, onUpdateTrip, onDeleteTrip, onUpdateRate }: TaxiListViewProps) {
   const [sortBy, setSortBy]             = useState<'date' | 'driver' | 'type'>('date')
   const [filterDriver, setFilterDriver] = useState<string>('all')
   const [editTrip, setEditTrip]         = useState<TaxiTrip | null>(null)
@@ -506,6 +508,7 @@ export default function TaxiListView({ trips, drivers, bookings, pricingDefaults
           trip={editTrip}
           drivers={drivers}
           bookings={bookings}
+          bookingParticipants={bookingParticipants}
           pricingDefaults={pricingDefaults}
           onChange={handleEditChange}
           onSave={handleSave}

@@ -1,4 +1,4 @@
-import type { Booking } from '../../types/database'
+import type { Booking, BookingParticipant } from '../../types/database'
 import type { DragState, DragMode } from '../../hooks/useBookingDrag'
 import { CELL_W } from '../../hooks/useBookingDrag'
 
@@ -14,23 +14,30 @@ interface PlanningRowProps {
   totalDays: number
   seasonStart: Date
   bookings: Booking[]
+  bookingParticipants: BookingParticipant[]
   dragState: DragState | null
   onPointerDown: (e: React.PointerEvent, bookingId: string, roomId: string, mode: DragMode) => void
   unavailableDays?: Set<number>
 }
 
-export default function PlanningRow({ roomId, label, totalDays, seasonStart, bookings, dragState, onPointerDown, unavailableDays }: PlanningRowProps) {
+export default function PlanningRow({ roomId, label, totalDays, seasonStart, bookings, bookingParticipants, dragState, onPointerDown, unavailableDays }: PlanningRowProps) {
   const isDropTarget = dragState && dragState.targetRoomId === roomId && dragState.roomId !== roomId
 
+  function dateToIdx(dateStr: string): number {
+    const [y, m, d] = dateStr.split('-').map(Number)
+    return Math.round(
+      (Date.UTC(y, m - 1, d) - Date.UTC(seasonStart.getFullYear(), seasonStart.getMonth(), seasonStart.getDate()))
+      / 86400000
+    )
+  }
+
   const segments = bookings.map((b) => {
-    const bStart = new Date(b.check_in + 'T00:00:00')
-    const bEnd = new Date(b.check_out + 'T00:00:00')
-    const startOffset = Math.max(0, Math.round((bStart.getTime() - seasonStart.getTime()) / 86400000))
-    const endOffset = Math.min(totalDays, Math.round((bEnd.getTime() - seasonStart.getTime()) / 86400000))
+    const startOffset = Math.max(0, dateToIdx(b.check_in))
+    const endOffset = Math.min(totalDays, dateToIdx(b.check_out))
     const clientName = b.client ? `${b.client.first_name} ${b.client.last_name}` : '?'
     const label = [
       clientName,
-      b.participants.length > 0 ? `${b.participants.length}P` : null,
+      bookingParticipants.filter(p => p.booking_id === b.id).length > 0 ? `${bookingParticipants.filter(p => p.booking_id === b.id).length}P` : null,
       b.num_lessons > 0 ? `${b.num_lessons}L` : null,
       b.num_equipment_rentals > 0 ? `${b.num_equipment_rentals}R` : null,
       b.notes || null,
@@ -51,7 +58,7 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
       <div className="relative shrink-0" style={{ width: `${totalDays * CELL_W}px`, minHeight: '32px' }}>
         <div className="flex h-full">
           {Array.from({ length: totalDays }, (_, i) => {
-            const d = new Date(seasonStart.getTime() + i * 86400000)
+            const d = new Date(seasonStart.getFullYear(), seasonStart.getMonth(), seasonStart.getDate() + i)
             const dow = d.getDay()
             const isUnavailable = unavailableDays?.has(i) ?? false
             const isWeekend = dow === 0 || dow === 6
@@ -84,7 +91,7 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
             }
           }
 
-          const leftPx = startOffset * CELL_W
+          const leftPx = startOffset * CELL_W + CELL_W / 2
           const widthPx = Math.max((endOffset - startOffset) * CELL_W, 0)
 
           return (

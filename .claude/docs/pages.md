@@ -62,7 +62,7 @@
 ### `PlanningView` *(rendered as page)*
 - **Route:** `'planning'`
 - **File:** `components/planning/PlanningView.tsx`
-- **Hooks:** useAccommodations, useRooms, useBookings(`'*, participants(*)'`), useBookingRooms, useLessons, useDayActivities, useInstructors, useClients, useEquipment, useEquipmentRentals
+- **Hooks:** useAccommodations, useRooms, useBookings, useBookingRooms, useBookingParticipants, useLessons, useDayActivities, useInstructors, useClients, useEquipment, useEquipmentRentals
 - **Key state:** `seasonYear`, `currentTab: 'planning'|'lessons'|'now'|'forecast'`, drag state
 - **Sub-tabs:**
   - `planning` → grid with BookingBars (draggable)
@@ -73,10 +73,12 @@
 
 ### `BookingsPage`
 - **Route:** `'bookings'`
-- **Hooks:** useClients, useBookings, useBookingRooms, useAccommodations, useRooms
+- **Hooks:** useClients, useBookings, useBookingRooms, useBookingParticipants, useAccommodations, useRooms
 - **Key state:** `showWizard`, `wizardStep (0-5)`, `wizardData`, `editingBooking`, `selectedBooking`
 - **Wizard steps:** Client → Stay → Guests → Transport → KiteCenter → Payment
-- **Save:** multi-table async: upsert client → upsert booking → delete+insert participants → delete+insert booking_rooms
+- **Wizard step 3 (Guests):** manages `booking_participants` — delete-all + re-insert on save. Auto-adds main client if no participants entered (new bookings). Falls back to main client in `bookingToWizard` for old bookings.
+- **Save:** multi-table async: upsert client → upsert booking → delete+insert `booking_participants` → delete+insert booking_rooms
+- **WizardData.participants:** `{ id, first_name, last_name, passport_number }[]`
 
 ### `ClientsPage`
 - **Route:** `'clients'`
@@ -87,7 +89,7 @@
 
 ### `TaxiPage`
 - **Route:** `'taxis'`
-- **Hooks:** useTaxiTrips, useTaxiDrivers, useTable<BookingRef>(`bookings`, select for picker), useTable<TaxiPricingDefaults>
+- **Hooks:** useTaxiTrips, useTaxiDrivers, useBookingParticipants, useTable<BookingRef>(`bookings`, select for picker), useTable<TaxiPricingDefaults>
 - **Key state:** `tab: 'planning'|'drivers'`, `planningView: 'kanban'|'list'`, `pricingDefaults`
 - **Sub-components:** TaxiListView or TaxiKanbanView, Driver form modal
 - **Financial rule:** `price_driver_mzn = price_client_mzn - margin_manager_mzn - margin_centre_mzn`
@@ -100,9 +102,10 @@
 
 ### `DocumentsPage`
 - **Route:** `'documents'`
-- **Hooks:** useBookings (with client join), useBookingRooms, useRooms, useAccommodations
-- **Key state:** `tab: 'visas'|'bookings'|'guide'`, travelGuideSections
-- **PDF generation:** `printVisaLetter()` and `printBookingSummary()` → `window.open()` + browser print
+- **Hooks:** useBookings (with client join), useBookingRooms, useBookingParticipants, useRooms, useAccommodations
+- **Key state:** `tab: 'visa'|'summary'|'guide'`, travelGuideSections
+- **PDF generation:** `printVisaLetter(booking, participants)` and `printBookingSummary(...)` → `window.open()` + browser print
+- **Visa letter:** participants shown with passport numbers from `bookingParticipants` (⚠ if none listed)
 - **Travel guide:** 6 sections, 3 languages (en/fr/es), state not persisted to DB yet
 
 ### `AccountingPage`

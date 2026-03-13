@@ -75,7 +75,6 @@ export interface Booking {
   taxi_departure: boolean
   couples_count: number
   children_count: number
-  participants: Participant[]
   amount_paid: number
   import_id: string | null                   // Google Forms row timestamp (dedup key)
   emergency_contact_name: string | null
@@ -235,7 +234,6 @@ export interface BookingRef {
   check_out: string
   luggage_count: number
   boardbag_count: number
-  participants?: { id: string }[]
   client?: { first_name: string; last_name: string } | null
 }
 

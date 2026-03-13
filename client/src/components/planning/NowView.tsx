@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import type { Booking, BookingRoom, DiningEvent, EventAttendee, EventType, Room, Accommodation, Instructor } from '../../types/database'
+import type { Booking, BookingParticipant, BookingRoom, DiningEvent, EventAttendee, EventType, Room, Accommodation, Instructor } from '../../types/database'
 import { useTable } from '../../hooks/useSupabase'
 import { supabase } from '../../lib/supabase'
 
@@ -156,6 +156,7 @@ function SectionLabel({ label, count }: { label: string; count: number }) {
 
 interface NowViewProps {
   bookings: Booking[]
+  bookingParticipants: BookingParticipant[]
   bookingRooms: BookingRoom[]
   rooms: Room[]
   accommodations: Accommodation[]
@@ -164,7 +165,7 @@ interface NowViewProps {
 
 type View = 'table' | 'cards'
 
-export default function NowView({ bookings, bookingRooms, rooms, accommodations, instructors }: NowViewProps) {
+export default function NowView({ bookings, bookingParticipants, bookingRooms, rooms, accommodations, instructors }: NowViewProps) {
   const today = new Date().toISOString().slice(0, 10)
 
   // ── Dining events from Supabase ───────────────────────────────────
@@ -210,8 +211,9 @@ export default function NowView({ bookings, bookingRooms, rooms, accommodations,
     for (const b of bookings) {
       if (b.check_in > today || b.check_out <= today) continue
       const roomLabel = getRoomLabel(b.id, bookingRooms, rooms, accommodations)
-      const people = b.participants.length > 0
-        ? b.participants.map(p => ({ id: p.id, name: `${p.first_name} ${p.last_name}` }))
+      const bParts = bookingParticipants.filter(p => p.booking_id === b.id)
+      const people = bParts.length > 0
+        ? bParts.map(p => ({ id: p.id, name: `${p.first_name} ${p.last_name ?? ''}`.trim() }))
         : b.client ? [{ id: b.client_id, name: `${b.client.first_name} ${b.client.last_name}` }] : []
       for (const person of people) {
         list.push({
@@ -222,7 +224,7 @@ export default function NowView({ bookings, bookingRooms, rooms, accommodations,
       }
     }
     return list
-  }, [instructors, presence, bookings, bookingRooms, today])
+  }, [instructors, presence, bookings, bookingParticipants, bookingRooms, today])
 
   // ── Event mutations ───────────────────────────────────────────────
   const createEvent = async () => {

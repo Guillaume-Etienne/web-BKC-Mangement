@@ -1,4 +1,4 @@
-import type { Booking, Payment, Lesson, Instructor, LessonRateOverride, DiningEvent } from '../../types/database'
+import type { Booking, BookingParticipant, Payment, Lesson, Instructor, LessonRateOverride, DiningEvent } from '../../types/database'
 import type { SharedAccountingData } from './types'
 
 /** Nightly rate for a room within a booking (snapshot → base rate fallback) */
@@ -73,7 +73,7 @@ export function computeBookingTotal(booking: Booking, data: SharedAccountingData
     computeLessonsRevenue(booking, data) +
     computeRentalsRevenue(booking, data) +
     computeTaxiRevenue(booking, data) +
-    computeDiningForBooking(booking, data.diningEvents)
+    computeDiningForBooking(booking, data.diningEvents, data.bookingParticipants)
   )
 }
 
@@ -147,11 +147,12 @@ export function computeDiningRevenue(events: DiningEvent[]): number {
 }
 
 /** Dining charges attributable to a booking (matches client/participant attendees) */
-export function computeDiningForBooking(booking: Booking, diningEvents: DiningEvent[]): number {
-  const hasParticipants = (booking.participants ?? []).length > 0
+export function computeDiningForBooking(booking: Booking, diningEvents: DiningEvent[], bookingParticipants: BookingParticipant[]): number {
+  const bParts = bookingParticipants.filter(p => p.booking_id === booking.id)
+  const hasParticipants = bParts.length > 0
   const matchIds = new Set(
     hasParticipants
-      ? (booking.participants ?? []).map(p => p.id)
+      ? bParts.map(p => p.id)
       : [booking.client_id]
   )
   return diningEvents.reduce((total, ev) => {

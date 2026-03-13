@@ -1,4 +1,4 @@
-import type { Booking } from '../types/database'
+import type { Booking, BookingParticipant } from '../types/database'
 import type { TravelGuideSection } from '../data/travelGuide'
 
 const LOGO_URL = `${window.location.origin}/docs/logo-mas.png`
@@ -85,7 +85,8 @@ export function printBookingSummary(
   roomLabels: string[],
   lang: Lang,
   totalAmount: number | null,
-  activeSections: TravelGuideSection[]
+  activeSections: TravelGuideSection[],
+  bookingParticipants: BookingParticipant[] = []
 ): void {
   const t = T[lang]
   const client = booking.client
@@ -102,7 +103,8 @@ export function printBookingSummary(
   ].join('')
 
   // ── Guests section ──
-  const guestsContent = booking.participants.length === 0 ? '' :
+  const bParts = bookingParticipants.filter(p => p.booking_id === booking.id)
+  const guestsContent = bParts.length === 0 ? '' :
     section('👥', t.guests, `
       <table style="width:100%;border-collapse:collapse;font-size:10pt;">
         <thead>
@@ -113,11 +115,11 @@ export function printBookingSummary(
           </tr>
         </thead>
         <tbody>
-          ${booking.participants.map((p, i) => `
+          ${bParts.map((p, i) => `
             <tr style="border-bottom:0.5pt solid #e5e7eb;">
               <td style="padding:5px 10px;color:#9ca3af;">${i + 1}</td>
-              <td style="padding:5px 10px;">${p.first_name} ${p.last_name}</td>
-              <td style="padding:5px 10px;color:#6b7280;">${p.passport_number}</td>
+              <td style="padding:5px 10px;">${p.first_name} ${p.last_name ?? ''}</td>
+              <td style="padding:5px 10px;color:#6b7280;">${p.passport_number ?? ''}</td>
             </tr>`).join('')}
         </tbody>
       </table>`)
