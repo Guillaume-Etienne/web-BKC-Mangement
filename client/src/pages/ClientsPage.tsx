@@ -2,23 +2,27 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useClients } from '../hooks/useClients'
 import { useBookings } from '../hooks/useBookings'
-import type { Client, Booking } from '../types/database'
+import type { Client, Booking, KiteLevel } from '../types/database'
 import ImportCSVModal from '../components/clients/ImportCSVModal'
 
 interface ClientsPageProps {
   onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients') => void
 }
 
-const kiteLevelLabels: Record<string, string> = {
-  beginner: 'Beginner',
-  intermediate: 'Intermediate',
-  advanced: 'Advanced',
+const kiteLevelLabels: Record<KiteLevel, string> = {
+  'beg-total':      'Beg-Total',
+  'beg-bodydrag':   'Beg-BodyDrag',
+  'beg-waterstart': 'Beg-WaterStart',
+  intermediate:     'Intermediate',
+  advanced:         'Advanced',
 }
 
-const kiteLevelColors: Record<string, string> = {
-  beginner: 'bg-green-100 text-green-800',
-  intermediate: 'bg-blue-100 text-blue-800',
-  advanced: 'bg-purple-100 text-purple-800',
+const kiteLevelColors: Record<KiteLevel, string> = {
+  'beg-total':      'bg-lime-100 text-lime-800',
+  'beg-bodydrag':   'bg-green-100 text-green-800',
+  'beg-waterstart': 'bg-emerald-100 text-emerald-800',
+  intermediate:     'bg-blue-100 text-blue-800',
+  advanced:         'bg-purple-100 text-purple-800',
 }
 
 const bookingStatusLabel: Record<string, string> = {
@@ -39,7 +43,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
 
   const [showImport, setShowImport] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterLevel, setFilterLevel] = useState<'' | 'beginner' | 'intermediate' | 'advanced'>('')
+  const [filterLevel, setFilterLevel] = useState<'' | KiteLevel>('')
   const [filterNationality, setFilterNationality] = useState('')
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [detailTab, setDetailTab] = useState<'info' | 'bookings'>('info')
@@ -252,7 +256,9 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           >
             <option value="">All levels</option>
-            <option value="beginner">Beginner</option>
+            <option value="beg-total">Beg-Total</option>
+            <option value="beg-bodydrag">Beg-BodyDrag</option>
+            <option value="beg-waterstart">Beg-WaterStart</option>
             <option value="intermediate">Intermediate</option>
             <option value="advanced">Advanced</option>
           </select>
@@ -563,7 +569,9 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                       <select value={formData.kite_level || ''} onChange={(e) => setFormData({ ...formData, kite_level: (e.target.value as Client['kite_level']) || null })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Select level</option>
-                        <option value="beginner">Beginner</option>
+                        <option value="beg-total">Beg-Total</option>
+                        <option value="beg-bodydrag">Beg-BodyDrag</option>
+                        <option value="beg-waterstart">Beg-WaterStart</option>
                         <option value="intermediate">Intermediate</option>
                         <option value="advanced">Advanced</option>
                       </select>

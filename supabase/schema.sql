@@ -19,7 +19,7 @@ CREATE TYPE rental_slot                 AS ENUM ('morning', 'afternoon', 'full_d
 CREATE TYPE payment_method              AS ENUM ('cash_eur', 'cash_mzn', 'transfer', 'card_palmeiras');
 CREATE TYPE consumption_type            AS ENUM ('lesson', 'rental', 'activity', 'center_access');
 CREATE TYPE external_accommodation_provider AS ENUM ('palmeiras', 'other');
-CREATE TYPE kite_level                  AS ENUM ('beginner', 'intermediate', 'advanced');
+CREATE TYPE kite_level                  AS ENUM ('beg-total', 'beg-bodydrag', 'beg-waterstart', 'intermediate', 'advanced');
 CREATE TYPE palmeiras_entry_type        AS ENUM ('expense', 'income');
 CREATE TYPE event_person_type           AS ENUM ('instructor', 'client', 'extra');
 
@@ -353,9 +353,11 @@ CREATE TABLE payments (
   date        DATE NOT NULL,
   amount      NUMERIC(10,2) NOT NULL,
   method      payment_method NOT NULL,
-  is_deposit  BOOLEAN NOT NULL DEFAULT false,
-  notes       TEXT,
-  created_at  TIMESTAMPTZ DEFAULT now()
+  is_deposit   BOOLEAN NOT NULL DEFAULT false,
+  is_verified  BOOLEAN NOT NULL DEFAULT false,
+  is_discount  BOOLEAN NOT NULL DEFAULT false,
+  notes        TEXT,
+  created_at   TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE INDEX idx_payments_booking ON payments(booking_id);

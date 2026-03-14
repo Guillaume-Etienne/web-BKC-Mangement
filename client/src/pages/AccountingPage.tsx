@@ -16,6 +16,7 @@ import HousesTab            from '../components/accounting/HousesTab'
 import CashFlow             from '../components/accounting/CashFlow'
 import ExpensesTab          from '../components/accounting/ExpensesTab'
 import EventsTab            from '../components/accounting/EventsTab'
+import UnverifiedPayments   from '../components/accounting/UnverifiedPayments'
 import type {
   ExternalAccommodation, ExternalAccommodationBooking, HouseRental, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride, EquipmentRental,
@@ -23,7 +24,7 @@ import type {
   DiningEvent,
 } from '../types/database'
 
-type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'cashflow' | 'expenses' | 'events'
+type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'cashflow' | 'expenses' | 'events' | 'unverified'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'dashboard',   label: 'Dashboard',   icon: '📊' },
@@ -34,6 +35,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'cashflow',    label: 'Cash Flow',   icon: '💸' },
   { id: 'expenses',    label: 'Expenses',    icon: '🧾' },
   { id: 'events',      label: 'Events',      icon: '🍽️' },
+  { id: 'unverified',  label: 'To Verify',   icon: '⚠️' },
 ]
 
 export default function AccountingPage() {
@@ -142,6 +144,10 @@ export default function AccountingPage() {
       setPayments(prev => prev.filter(x => x.id !== id))
       supabase.from('payments').delete().eq('id', id)
     },
+    verifyPayment: (id: string) => {
+      setPayments(prev => prev.map(p => p.id === id ? { ...p, is_verified: true } : p))
+      supabase.from('payments').update({ is_verified: true }).eq('id', id)
+    },
 
     addInstructorDebt: (d: InstructorDebt) => {
       setInstructorDebts(prev => [...prev, d])
@@ -238,20 +244,28 @@ export default function AccountingPage() {
 
         {/* Tab bar */}
         <div className="flex gap-1 bg-white rounded-xl shadow-sm border border-gray-200 p-1 mb-8 overflow-x-auto">
-          {TABS.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm whitespace-nowrap transition-colors flex-1 justify-center ${
-                tab === t.id
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <span>{t.icon}</span>
-              {t.label}
-            </button>
-          ))}
+          {TABS.map(t => {
+            const unverifiedCount = t.id === 'unverified' ? payments.filter(p => !p.is_verified).length : 0
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm whitespace-nowrap transition-colors flex-1 justify-center ${
+                  tab === t.id
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <span>{t.icon}</span>
+                {t.label}
+                {unverifiedCount > 0 && (
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${tab === t.id ? 'bg-white text-blue-600' : 'bg-orange-100 text-orange-700'}`}>
+                    {unverifiedCount}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
 
         {/* Tab content */}
@@ -263,6 +277,7 @@ export default function AccountingPage() {
         {tab === 'cashflow'    && <CashFlow            data={sharedData} />}
         {tab === 'expenses'    && <ExpensesTab         data={sharedData} handlers={handlers} />}
         {tab === 'events'      && <EventsTab           data={sharedData} />}
+        {tab === 'unverified'  && <UnverifiedPayments  data={sharedData} handlers={handlers} />}
       </div>
     </div>
   )

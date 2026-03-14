@@ -25,10 +25,10 @@ const nullEmergency = { import_id: null, emergency_contact_name: null, emergency
 
 export const mockClients: Client[] = [
   { id: 'c1', first_name: 'Jean', last_name: 'Dupont', email: 'jean@mail.com', phone: null, notes: null, nationality: 'France', passport_number: 'AB123456', birth_date: '1990-05-15', kite_level: 'intermediate', ...nullEmergency },
-  { id: 'c2', first_name: 'Marie', last_name: 'Martin', email: null, phone: '+33612345678', notes: null, nationality: 'Belgique', passport_number: 'BE789012', birth_date: '1985-08-22', kite_level: 'beginner', ...nullEmergency },
+  { id: 'c2', first_name: 'Marie', last_name: 'Martin', email: null, phone: '+33612345678', notes: null, nationality: 'Belgique', passport_number: 'BE789012', birth_date: '1985-08-22', kite_level: 'beg-total', ...nullEmergency },
   { id: 'c3', first_name: 'Pierre', last_name: 'Durand', email: 'pierre@mail.com', phone: null, notes: 'Client régulier', nationality: 'Allemagne', passport_number: 'DE345678', birth_date: '1988-03-10', kite_level: 'advanced', ...nullEmergency },
   { id: 'c4', first_name: 'Sophie', last_name: 'Laurent', email: 'sophie@mail.com', phone: '+33698765432', notes: null, nationality: 'France', passport_number: 'AB234567', birth_date: '1992-12-05', kite_level: 'intermediate', ...nullEmergency },
-  { id: 'c5', first_name: 'Luc', last_name: 'Müller', email: 'luc.muller@mail.com', phone: null, notes: 'Aime les bungalows', nationality: 'Suisse', passport_number: 'CH567890', birth_date: '1995-07-20', kite_level: 'beginner', ...nullEmergency },
+  { id: 'c5', first_name: 'Luc', last_name: 'Müller', email: 'luc.muller@mail.com', phone: null, notes: 'Aime les bungalows', nationality: 'Suisse', passport_number: 'CH567890', birth_date: '1995-07-20', kite_level: 'beg-total', ...nullEmergency },
 ]
 
 const nullBookingImport = { import_id: null, emergency_contact_name: null, emergency_contact_phone: null, emergency_contact_email: null }
@@ -250,13 +250,13 @@ export const mockExternalAccommodationBookings: ExternalAccommodationBooking[] =
 ]
 
 export const mockPayments: Payment[] = [
-  { id: 'pay1', booking_id: 'bk1', date: '2025-12-10', amount: 200, method: 'transfer',        is_deposit: true,  notes: 'Acompte 30%' },
-  { id: 'pay2', booking_id: 'bk1', date: '2026-02-05', amount: 300, method: 'cash_eur',         is_deposit: false, notes: 'Solde à l\'arrivée' },
-  { id: 'pay3', booking_id: 'bk2', date: '2026-01-15', amount: 150, method: 'transfer',        is_deposit: true,  notes: 'Acompte' },
-  { id: 'pay4', booking_id: 'bk3', date: '2026-01-20', amount: 180, method: 'transfer',        is_deposit: true,  notes: 'Acompte' },
-  { id: 'pay5', booking_id: 'bk3', date: '2026-02-15', amount: 420, method: 'card_palmeiras',  is_deposit: false, notes: null },
-  { id: 'pay6', booking_id: 'bk5', date: '2025-11-30', amount: 120, method: 'transfer',        is_deposit: true,  notes: 'Acompte min 120€' },
-  { id: 'pay7', booking_id: 'bk5', date: '2026-02-01', amount: 280, method: 'cash_mzn',        is_deposit: false, notes: '~20000 MZN' },
+  { id: 'pay1', booking_id: 'bk1', date: '2025-12-10', amount: 200, method: 'transfer',        is_deposit: true,  is_verified: true,  is_discount: false, notes: 'Acompte 30%' },
+  { id: 'pay2', booking_id: 'bk1', date: '2026-02-05', amount: 300, method: 'cash_eur',         is_deposit: false, is_verified: true,  is_discount: false, notes: 'Solde à l\'arrivée' },
+  { id: 'pay3', booking_id: 'bk2', date: '2026-01-15', amount: 150, method: 'transfer',        is_deposit: true,  is_verified: true,  is_discount: false, notes: 'Acompte' },
+  { id: 'pay4', booking_id: 'bk3', date: '2026-01-20', amount: 180, method: 'transfer',        is_deposit: true,  is_verified: true,  is_discount: false, notes: 'Acompte' },
+  { id: 'pay5', booking_id: 'bk3', date: '2026-02-15', amount: 420, method: 'card_palmeiras',  is_deposit: false, is_verified: true,  is_discount: false, notes: null },
+  { id: 'pay6', booking_id: 'bk5', date: '2025-11-30', amount: 120, method: 'transfer',        is_deposit: true,  is_verified: true,  is_discount: false, notes: 'Acompte min 120€' },
+  { id: 'pay7', booking_id: 'bk5', date: '2026-02-01', amount: 280, method: 'cash_mzn',        is_deposit: false, is_verified: true,  is_discount: false, notes: '~20000 MZN' },
 ]
 
 export const mockInstructorDebts: InstructorDebt[] = [

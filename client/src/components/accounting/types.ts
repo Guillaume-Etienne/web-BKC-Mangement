@@ -41,6 +41,7 @@ export interface AccountingHandlers {
   addPayment:              (p: Payment)            => void
   updatePayment:           (p: Payment)            => void
   deletePayment:           (id: string)            => void
+  verifyPayment:           (id: string)            => void
   addInstructorDebt:       (d: InstructorDebt)     => void
   deleteInstructorDebt:    (id: string)            => void
   addInstructorPayment:    (p: InstructorPayment)  => void

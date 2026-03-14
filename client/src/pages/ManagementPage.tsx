@@ -3,11 +3,32 @@ import { supabase } from '../lib/supabase'
 import { useInstructors } from '../hooks/useInstructors'
 import { useLessons } from '../hooks/useLessons'
 import { useTable } from '../hooks/useSupabase'
-import type { Instructor, Lesson, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults } from '../types/database'
+import { useBookings, useBookingParticipants } from '../hooks/useBookings'
+import type { Instructor, Lesson, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults, BookingStatus, KiteLevel } from '../types/database'
 import HousesTab from '../components/management/HousesTab'
 
-const specialtyOptions = ['Beginner', 'Intermediate', 'Advanced', 'Wave', 'Freestyle']
-const specialtyValues = ['beginner', 'intermediate', 'advanced', 'wave', 'freestyle']
+const KITE_LEVEL_LABELS: Record<KiteLevel, string> = {
+  'beg-total':      'Beg-Total',
+  'beg-bodydrag':   'Beg-BodyDrag',
+  'beg-waterstart': 'Beg-WaterStart',
+  'intermediate':   'Intermediate',
+  'advanced':       'Advanced',
+}
+const KITE_LEVEL_COLORS: Record<KiteLevel, string> = {
+  'beg-total':      'bg-lime-100 text-lime-800',
+  'beg-bodydrag':   'bg-green-100 text-green-800',
+  'beg-waterstart': 'bg-emerald-100 text-emerald-800',
+  'intermediate':   'bg-blue-100 text-blue-800',
+  'advanced':       'bg-purple-100 text-purple-800',
+}
+const STATUS_COLORS: Record<BookingStatus, string> = {
+  confirmed:   'bg-green-100 text-green-700',
+  provisional: 'bg-yellow-100 text-yellow-700',
+  cancelled:   'bg-red-100 text-red-700',
+}
+
+const specialtyOptions = ['Beg-Total', 'Beg-BodyDrag', 'Beg-WaterStart', 'Intermediate', 'Advanced', 'Wave', 'Freestyle']
+const specialtyValues = ['beg-total', 'beg-bodydrag', 'beg-waterstart', 'intermediate', 'advanced', 'wave', 'freestyle']
 
 const priceCategoryLabels: Record<PriceCategory, string> = {
   'lesson': 'Lessons',
@@ -31,7 +52,15 @@ function getBaseUrl() {
 }
 
 export default function ManagementPage() {
-  const [tab, setTab] = useState<'instructors' | 'houses' | 'pricing' | 'links'>('instructors')
+  const [tab, setTab] = useState<'instructors' | 'houses' | 'pricing' | 'links' | 'bookguest'>('instructors')
+
+  // ── Bookings & Guests tab ─────────────────────────────────────────────────
+  const { data: allBookings } = useBookings()
+  const { data: allParticipants } = useBookingParticipants()
+  const [bgSearch, setBgSearch] = useState('')
+  const [bgTimeFilter, setBgTimeFilter] = useState<'all' | 'active' | 'upcoming' | 'past'>('all')
+  const [bgStatusFilter, setBgStatusFilter] = useState<'' | BookingStatus>('')
+  const [bgOpenId, setBgOpenId] = useState<string | null>(null)
 
   // ── Instructors (Supabase) ─────────────────────────────────────────────────
   const { data: instructorsData, refresh: refreshInstructors } = useInstructors()
@@ -237,12 +266,12 @@ export default function ManagementPage() {
 
         {/* Tabs */}
         <div className="flex gap-4 mt-8 mb-8 border-b">
-          {(['instructors', 'houses', 'pricing', 'links'] as const).map(t => (
+          {(['instructors', 'houses', 'pricing', 'links', 'bookguest'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 font-medium capitalize transition-colors ${
                 tab === t ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'
               }`}>
-              {t === 'instructors' ? '📚 Instructors' : t === 'houses' ? '🏠 Houses' : t === 'pricing' ? '💰 Pricing' : '🔗 Shared Links'}
+              {t === 'instructors' ? '📚 Instructors' : t === 'houses' ? '🏠 Houses' : t === 'pricing' ? '💰 Pricing' : t === 'links' ? '🔗 Shared Links' : '👥 Bookings & Guests'}
             </button>
           ))}
         </div>
@@ -548,6 +577,132 @@ export default function ManagementPage() {
         )}
 
         {/* ── Shared Links Tab ──────────────────────────────────────────────── */}
+        {/* ── Bookings & Guests Tab ─────────────────────────────────────── */}
+        {tab === 'bookguest' && (() => {
+          const today = new Date().toISOString().slice(0, 10)
+          const activeNow   = allBookings.filter(b => b.check_in <= today && b.check_out >= today && b.status !== 'cancelled').length
+          const upcomingCnt = allBookings.filter(b => b.check_in > today && b.status !== 'cancelled').length
+          const confirmedCnt = allBookings.filter(b => b.status === 'confirmed').length
+
+          const filtered = allBookings
+            .filter(b => {
+              if (bgTimeFilter === 'active')   return b.check_in <= today && b.check_out >= today
+              if (bgTimeFilter === 'upcoming') return b.check_in > today
+              if (bgTimeFilter === 'past')     return b.check_out < today
+              return true
+            })
+            .filter(b => !bgStatusFilter || b.status === bgStatusFilter)
+            .filter(b => {
+              if (!bgSearch) return true
+              const s = bgSearch.toLowerCase()
+              const name = `${b.client?.first_name ?? ''} ${b.client?.last_name ?? ''}`.toLowerCase()
+              return name.includes(s) || String(b.booking_number).padStart(3, '0').includes(bgSearch) || `#${b.booking_number}`.includes(bgSearch)
+            })
+
+          return (
+            <div>
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="bg-white rounded-lg shadow p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-600">{activeNow}</div>
+                  <div className="text-sm text-gray-500">Active now</div>
+                </div>
+                <div className="bg-white rounded-lg shadow p-4 text-center">
+                  <div className="text-2xl font-bold text-green-600">{upcomingCnt}</div>
+                  <div className="text-sm text-gray-500">Upcoming</div>
+                </div>
+                <div className="bg-white rounded-lg shadow p-4 text-center">
+                  <div className="text-2xl font-bold text-gray-700">{confirmedCnt}</div>
+                  <div className="text-sm text-gray-500">Confirmed total</div>
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div className="flex flex-wrap gap-3 mb-4 items-center">
+                <input
+                  type="text"
+                  value={bgSearch}
+                  onChange={e => setBgSearch(e.target.value)}
+                  placeholder="Search name or #booking…"
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-56"
+                />
+                <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                  {(['all', 'active', 'upcoming', 'past'] as const).map(f => (
+                    <button key={f} onClick={() => setBgTimeFilter(f)}
+                      className={`px-3 py-1 rounded text-sm font-medium transition-colors ${bgTimeFilter === f ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}>
+                      {f === 'all' ? 'All' : f === 'active' ? 'Active' : f === 'upcoming' ? 'Upcoming' : 'Past'}
+                    </button>
+                  ))}
+                </div>
+                <select value={bgStatusFilter} onChange={e => setBgStatusFilter(e.target.value as '' | BookingStatus)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">All statuses</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="provisional">Provisional</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+                <span className="text-sm text-gray-400 ml-auto">{filtered.length} booking{filtered.length !== 1 ? 's' : ''}</span>
+              </div>
+
+              {/* List */}
+              {filtered.length === 0 ? (
+                <p className="text-gray-500 text-sm">No bookings match these filters.</p>
+              ) : (
+                <div className="space-y-2">
+                  {filtered.map(b => {
+                    const guests = allParticipants.filter(p => p.booking_id === b.id)
+                    const isOpen = bgOpenId === b.id
+                    return (
+                      <div key={b.id} className="bg-white rounded-lg shadow overflow-hidden">
+                        <button
+                          className="w-full text-left px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1 hover:bg-gray-50 transition-colors"
+                          onClick={() => setBgOpenId(isOpen ? null : b.id)}
+                        >
+                          <span className="font-mono text-sm font-bold text-blue-600">#{String(b.booking_number).padStart(3, '0')}</span>
+                          <span className="font-medium text-gray-800">{b.client?.first_name} {b.client?.last_name}</span>
+                          <span className="text-sm text-gray-500">{b.check_in} → {b.check_out}</span>
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[b.status]}`}>{b.status}</span>
+                          <span className="text-sm text-gray-400 ml-auto flex items-center gap-1">
+                            {guests.length} guest{guests.length !== 1 ? 's' : ''}
+                            <span className="text-xs">{isOpen ? '▲' : '▼'}</span>
+                          </span>
+                        </button>
+                        {isOpen && (
+                          <div className="border-t px-4 py-3 bg-gray-50">
+                            {guests.length === 0 ? (
+                              <p className="text-sm text-gray-400">No guests listed.</p>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {guests.map(p => (
+                                  <div key={p.id} className="flex flex-wrap items-center gap-2">
+                                    <span className="text-sm text-gray-800">{p.first_name} {p.last_name ?? ''}</span>
+                                    {p.kite_level && (
+                                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${KITE_LEVEL_COLORS[p.kite_level]}`}>
+                                        {KITE_LEVEL_LABELS[p.kite_level]}
+                                      </span>
+                                    )}
+                                    {p.passport_number && <span className="text-xs text-gray-400">{p.passport_number}</span>}
+                                    {p.notes && <span className="text-xs text-gray-400 italic">{p.notes}</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div className="mt-3 pt-2 border-t flex gap-4 text-xs text-gray-500">
+                              {b.num_lessons > 0 && <span>🏄 {b.num_lessons} lesson{b.num_lessons !== 1 ? 's' : ''}</span>}
+                              {b.num_equipment_rentals > 0 && <span>🪁 {b.num_equipment_rentals} rental{b.num_equipment_rentals !== 1 ? 's' : ''}</span>}
+                              {b.num_center_access > 0 && <span>🏖 {b.num_center_access} center access</span>}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })()}
+
         {tab === 'links' && (
           <div>
             <div className="flex items-center justify-between mb-6">

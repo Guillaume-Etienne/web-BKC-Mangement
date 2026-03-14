@@ -102,40 +102,113 @@ function LessonRateForm({ lesson, currentRate, hasOverride, onSave, onRemove, on
   )
 }
 
-// ── Add Payment Form (module-scope to avoid focus loss) ────────────────────
+// ── Discount Form (module-scope) ────────────────────────────────────────────
 
-interface AddPaymentFormProps {
+interface DiscountFormProps {
   bookingId: string
-  suggestedDeposit: number
-  onAdd: (p: Payment) => void
+  initial?: Payment
+  onSave: (p: Payment) => void
   onCancel: () => void
 }
 
-function AddPaymentForm({ bookingId, suggestedDeposit, onAdd, onCancel }: AddPaymentFormProps) {
-  const [amount, setAmount]     = useState(String(suggestedDeposit))
-  const [method, setMethod]     = useState<PaymentMethod>('transfer')
-  const [isDeposit, setIsDeposit] = useState(false)
-  const [notes, setNotes]       = useState('')
-  const [date, setDate]         = useState(new Date().toISOString().slice(0, 10))
+function DiscountForm({ bookingId, initial, onSave, onCancel }: DiscountFormProps) {
+  const [amount, setAmount] = useState(initial ? String(initial.amount) : '')
+  const [notes,  setNotes]  = useState(initial?.notes ?? '')
+  const [date,   setDate]   = useState(initial?.date ?? new Date().toISOString().slice(0, 10))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const parsed = parseFloat(amount)
     if (!parsed || parsed <= 0) return
-    onAdd({
-      id: `pay_${Date.now()}`,
-      booking_id: bookingId,
+    onSave({
+      id:          initial?.id ?? `pay_${Date.now()}`,
+      booking_id:  bookingId,
       date,
-      amount: parsed,
-      method,
-      is_deposit: isDeposit,
-      notes: notes || null,
+      amount:      parsed,
+      method:      'transfer',
+      is_deposit:  false,
+      is_verified: true,
+      is_discount: true,
+      notes:       notes || null,
     })
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-      <p className="text-sm font-semibold text-blue-800">Add payment</p>
+    <form onSubmit={handleSubmit} className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-3">
+      <p className="text-sm font-semibold text-purple-800">{initial ? 'Edit discount' : 'Add discount'}</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">Date</label>
+          <input type="date" value={date} onChange={e => setDate(e.target.value)}
+            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">Amount (€)</label>
+          <input type="number" min="0.01" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} autoFocus
+            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+        </div>
+      </div>
+      <div>
+        <label className="text-xs text-gray-500 mb-1 block">Reason</label>
+        <input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Loyalty discount"
+          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+      </div>
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={onCancel}
+          className="flex-1 px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50">
+          Cancel
+        </button>
+        <button type="submit"
+          className="flex-1 px-3 py-1.5 bg-purple-600 text-white rounded text-sm font-semibold hover:bg-purple-700">
+          {initial ? 'Update' : 'Save discount'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+// ── Payment Form (module-scope) — used for Add and Edit ────────────────────
+
+interface PaymentFormProps {
+  bookingId: string
+  initial?: Payment
+  suggestedDeposit?: number
+  onSave: (p: Payment) => void
+  onCancel: () => void
+}
+
+function PaymentForm({ bookingId, initial, suggestedDeposit = 0, onSave, onCancel }: PaymentFormProps) {
+  const [amount,     setAmount]     = useState(initial ? String(initial.amount) : String(suggestedDeposit))
+  const [method,     setMethod]     = useState<PaymentMethod>(initial?.method ?? 'transfer')
+  const [isDeposit,  setIsDeposit]  = useState(initial?.is_deposit ?? false)
+  const [isVerified, setIsVerified] = useState(initial?.is_verified ?? true)
+  const [notes,      setNotes]      = useState(initial?.notes ?? '')
+  const [date,       setDate]       = useState(initial?.date ?? new Date().toISOString().slice(0, 10))
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const parsed = parseFloat(amount)
+    if (!parsed || parsed <= 0) return
+    onSave({
+      id:          initial?.id ?? `pay_${Date.now()}`,
+      booking_id:  bookingId,
+      date,
+      amount:      parsed,
+      method,
+      is_deposit:  isDeposit,
+      is_verified: isVerified,
+      is_discount: false,
+      notes:       notes || null,
+    })
+  }
+
+  const isEdit = !!initial
+
+  return (
+    <form onSubmit={handleSubmit} className={`border rounded-lg p-4 space-y-3 ${isEdit ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
+      <p className={`text-sm font-semibold ${isEdit ? 'text-amber-800' : 'text-blue-800'}`}>
+        {isEdit ? 'Edit payment' : 'Add payment'}
+      </p>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-gray-500 mb-1 block">Date</label>
@@ -144,7 +217,7 @@ function AddPaymentForm({ bookingId, suggestedDeposit, onAdd, onCancel }: AddPay
         </div>
         <div>
           <label className="text-xs text-gray-500 mb-1 block">Amount (€)</label>
-          <input type="number" min="1" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
+          <input type="number" min="0.01" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
             className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
       </div>
@@ -164,19 +237,24 @@ function AddPaymentForm({ bookingId, suggestedDeposit, onAdd, onCancel }: AddPay
             className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
       </div>
-      <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-        <input type="checkbox" checked={isDeposit} onChange={e => setIsDeposit(e.target.checked)}
-          className="rounded" />
-        Mark as deposit
-      </label>
+      <div className="flex gap-4">
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+          <input type="checkbox" checked={isDeposit} onChange={e => setIsDeposit(e.target.checked)} className="rounded" />
+          Deposit
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+          <input type="checkbox" checked={isVerified} onChange={e => setIsVerified(e.target.checked)} className="rounded" />
+          Verified
+        </label>
+      </div>
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onCancel}
           className="flex-1 px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50">
           Cancel
         </button>
         <button type="submit"
-          className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm font-semibold hover:bg-blue-700">
-          Save payment
+          className={`flex-1 px-3 py-1.5 text-white rounded text-sm font-semibold ${isEdit ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
+          {isEdit ? 'Update' : 'Save payment'}
         </button>
       </div>
     </form>
@@ -193,6 +271,8 @@ interface DetailPanelProps {
 
 function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
   const [showAddPayment, setShowAddPayment] = useState(false)
+  const [showAddDiscount, setShowAddDiscount] = useState(false)
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
   const [editingRentalId, setEditingRentalId] = useState<string | null>(null)
   const [overridingLessonId, setOverridingLessonId] = useState<string | null>(null)
 
@@ -433,20 +513,34 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
       <div>
         <div className="flex justify-between items-center mb-3">
           <p className="text-sm font-semibold text-gray-600">Payments</p>
-          {!showAddPayment && (
-            <button onClick={() => setShowAddPayment(true)}
-              className="text-xs px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
-              + Add payment
-            </button>
+          {!showAddPayment && !showAddDiscount && (
+            <div className="flex gap-2">
+              <button onClick={() => setShowAddDiscount(true)}
+                className="text-xs px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">
+                + Discount
+              </button>
+              <button onClick={() => setShowAddPayment(true)}
+                className="text-xs px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                + Payment
+              </button>
+            </div>
           )}
         </div>
 
         {showAddPayment && (
-          <AddPaymentForm
+          <PaymentForm
             bookingId={b.id}
             suggestedDeposit={sugDeposit}
-            onAdd={(p) => { handlers.addPayment(p); setShowAddPayment(false) }}
+            onSave={(p) => { handlers.addPayment(p); setShowAddPayment(false) }}
             onCancel={() => setShowAddPayment(false)}
+          />
+        )}
+
+        {showAddDiscount && (
+          <DiscountForm
+            bookingId={b.id}
+            onSave={(p) => { handlers.addPayment(p); setShowAddDiscount(false) }}
+            onCancel={() => setShowAddDiscount(false)}
           />
         )}
 
@@ -455,22 +549,55 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
         ) : (
           <div className="space-y-2 mt-2">
             {bkPayments.map(p => (
-              <div key={p.id} className="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-4 py-2">
-                <div className="flex items-center gap-3">
-                  <span className="text-gray-400 text-xs">{p.date}</span>
-                  <span className={`px-2 py-0.5 rounded text-xs font-semibold ${METHOD_COLORS[p.method]}`}>
-                    {METHOD_LABELS[p.method]}
-                  </span>
-                  {p.is_deposit && (
-                    <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700">Deposit</span>
-                  )}
-                  {p.notes && <span className="text-gray-400 text-xs italic">{p.notes}</span>}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold text-emerald-700">{fmtEur(p.amount)}</span>
-                  <button onClick={() => handlers.deletePayment(p.id)}
-                    className="text-gray-300 hover:text-red-500 transition-colors text-xs">✕</button>
-                </div>
+              <div key={p.id}>
+                {editingPaymentId === p.id ? (
+                  p.is_discount ? (
+                    <DiscountForm
+                      bookingId={b.id}
+                      initial={p}
+                      onSave={(updated) => { handlers.updatePayment(updated); setEditingPaymentId(null) }}
+                      onCancel={() => setEditingPaymentId(null)}
+                    />
+                  ) : (
+                    <PaymentForm
+                      bookingId={b.id}
+                      initial={p}
+                      onSave={(updated) => { handlers.updatePayment(updated); setEditingPaymentId(null) }}
+                      onCancel={() => setEditingPaymentId(null)}
+                    />
+                  )
+                ) : (
+                  <div className={`flex items-center justify-between text-sm rounded-lg px-4 py-2 ${p.is_discount ? 'bg-purple-50' : 'bg-gray-50'}`}>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-gray-400 text-xs">{p.date}</span>
+                      {p.is_discount ? (
+                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-700">Discount</span>
+                      ) : (
+                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${METHOD_COLORS[p.method]}`}>
+                          {METHOD_LABELS[p.method]}
+                        </span>
+                      )}
+                      {p.is_deposit && (
+                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700">Deposit</span>
+                      )}
+                      {!p.is_discount && (
+                        p.is_verified
+                          ? <span className="px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">✓ Verified</span>
+                          : <span className="px-2 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">⚠ To verify</span>
+                      )}
+                      {p.notes && <span className="text-gray-400 text-xs italic">{p.notes}</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`font-semibold ${p.is_discount ? 'text-purple-700' : 'text-emerald-700'}`}>
+                        {p.is_discount ? '-' : ''}{fmtEur(p.amount)}
+                      </span>
+                      <button onClick={() => setEditingPaymentId(p.id)}
+                        className="text-gray-300 hover:text-amber-500 transition-colors text-xs">✏️</button>
+                      <button onClick={() => handlers.deletePayment(p.id)}
+                        className="text-gray-300 hover:text-red-500 transition-colors text-xs">✕</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
             <div className="flex justify-between items-center px-4 py-2 border-t text-sm font-semibold">

@@ -4,7 +4,7 @@ import { useClients } from '../hooks/useClients'
 import { useBookings, useBookingRooms, useBookingRoomPrices, useBookingParticipants } from '../hooks/useBookings'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useTable } from '../hooks/useSupabase'
-import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, RoomRate } from '../types/database'
+import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate } from '../types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,7 +17,7 @@ interface WizardData {
   new_client_email: string
   new_client_phone: string
   new_client_nationality: string
-  new_client_kite_level: 'beginner' | 'intermediate' | 'advanced' | ''
+  new_client_kite_level: KiteLevel | ''
   // Step 2 – Stay
   check_in: string
   check_out: string
@@ -27,7 +27,7 @@ interface WizardData {
   room_prices: Record<string, number>
   status: BookingStatus
   // Step 3 – Guests
-  participants: { id: string; first_name: string; last_name: string; passport_number: string }[]
+  participants: { id: string; first_name: string; last_name: string; passport_number: string; kite_level: KiteLevel | ''; client_id: string }[]
   couples_count: number
   children_count: number
   // Step 4 – Transport
@@ -125,6 +125,120 @@ function Counter({ value, onChange, min = 0 }: { value: number; onChange: (v: nu
   )
 }
 
+// ─── Participant row (module-scope for focus safety) ──────────────────────────
+
+type ParticipantData = { id: string; first_name: string; last_name: string; passport_number: string; kite_level: KiteLevel | ''; client_id: string }
+
+interface ParticipantRowProps {
+  p: ParticipantData
+  clients: Client[]
+  onChange: (patch: Partial<ParticipantData>) => void
+  onRemove: () => void
+}
+
+function ParticipantRow({ p, clients, onChange, onRemove }: ParticipantRowProps) {
+  const [search, setSearch] = useState('')
+  const [open, setOpen] = useState(false)
+
+  const linkedClient = p.client_id ? clients.find(c => c.id === p.client_id) : null
+
+  const suggestions = search.length >= 1
+    ? clients.filter(c =>
+        `${c.first_name} ${c.last_name}`.toLowerCase().includes(search.toLowerCase())
+      ).slice(0, 6)
+    : []
+
+  function linkClient(c: Client) {
+    onChange({
+      client_id: c.id,
+      first_name: c.first_name,
+      last_name: c.last_name,
+      passport_number: c.passport_number ?? '',
+      kite_level: c.kite_level ?? '',
+    })
+    setSearch('')
+    setOpen(false)
+  }
+
+  function unlink() {
+    onChange({ client_id: '' })
+  }
+
+  const levelBtnCls = (lvl: string) =>
+    `px-2 py-1 rounded text-xs font-medium border transition-colors ${p.kite_level === lvl
+      ? 'bg-blue-600 text-white border-blue-600'
+      : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`
+
+  return (
+    <div className="border border-gray-200 rounded-lg p-3 space-y-2">
+      {/* Client link row */}
+      <div className="relative">
+        {linkedClient ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs bg-blue-50 border border-blue-200 text-blue-800 px-2 py-1 rounded font-medium flex-1 truncate">
+              🔗 {linkedClient.first_name} {linkedClient.last_name}
+            </span>
+            <button type="button" onClick={unlink}
+              className="text-xs text-gray-400 hover:text-red-600 shrink-0">Unlink</button>
+          </div>
+        ) : (
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Link to existing client (optional)…"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setOpen(true) }}
+              onFocus={() => setOpen(true)}
+              onBlur={() => setTimeout(() => setOpen(false), 150)}
+              className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            {open && suggestions.length > 0 && (
+              <div className="absolute z-10 top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-0.5 max-h-36 overflow-y-auto">
+                {suggestions.map(c => (
+                  <button key={c.id} type="button"
+                    onMouseDown={() => linkClient(c)}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 flex items-center justify-between gap-2">
+                    <span className="font-medium">{c.first_name} {c.last_name}</span>
+                    {c.kite_level && <span className="text-gray-400 capitalize">{c.kite_level}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Name + passport */}
+      <div className="grid grid-cols-3 gap-1.5">
+        <input placeholder="First name" value={p.first_name}
+          onChange={e => onChange({ first_name: e.target.value })}
+          className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
+        <input placeholder="Last name" value={p.last_name}
+          onChange={e => onChange({ last_name: e.target.value })}
+          className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
+        <input placeholder="Passport #" value={p.passport_number}
+          onChange={e => onChange({ passport_number: e.target.value })}
+          className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
+      </div>
+
+      {/* Kite level + remove */}
+      <div className="flex flex-wrap items-center gap-1 gap-y-1">
+        <span className="text-xs text-gray-400 mr-0.5">Kite:</span>
+        {(['beg-total', 'beg-bodydrag', 'beg-waterstart', 'intermediate', 'advanced'] as const).map(lvl => (
+          <button key={lvl} type="button"
+            onClick={() => onChange({ kite_level: p.kite_level === lvl ? '' : lvl })}
+            className={levelBtnCls(lvl)}>
+            {lvl === 'beg-total' ? 'Beg-Total' : lvl === 'beg-bodydrag' ? 'Beg-BodyDrag' : lvl === 'beg-waterstart' ? 'Beg-WaterStart' : lvl === 'intermediate' ? 'Intermediate' : 'Advanced'}
+          </button>
+        ))}
+        <div className="flex-1" />
+        <button type="button" onClick={onRemove}
+          className="text-red-400 hover:text-red-600 text-lg leading-none px-0.5">✕</button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Wizard component (top-level for focus safety) ────────────────────────────
 
 interface WizardProps {
@@ -161,7 +275,10 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
         ? (clients.find(c => c.id === d.client_id)?.last_name ?? '')
         : d.new_client_last_name
       if (firstName || lastName) {
-        update({ participants: [{ id: `p${Date.now()}`, first_name: firstName, last_name: lastName, passport_number: '' }] })
+        const autoClientId = d.client_id || ''
+        const autoKiteLevel = d.client_id ? (clients.find(c => c.id === d.client_id)?.kite_level ?? '') : ''
+        const autoPassport = d.client_id ? (clients.find(c => c.id === d.client_id)?.passport_number ?? '') : ''
+        update({ participants: [{ id: `p${Date.now()}`, first_name: firstName, last_name: lastName, passport_number: autoPassport, kite_level: autoKiteLevel as ParticipantData['kite_level'], client_id: autoClientId }] })
       }
     }
     setStep(n)
@@ -183,11 +300,11 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
 
   // Participant helpers
   function addParticipant() {
-    update({ participants: [...d.participants, { id: `p${Date.now()}`, first_name: '', last_name: '', passport_number: '' }] })
+    update({ participants: [...d.participants, { id: `p${Date.now()}`, first_name: '', last_name: '', passport_number: '', kite_level: '', client_id: '' }] })
   }
-  function updateParticipant(i: number, field: 'first_name' | 'last_name' | 'passport_number', val: string) {
+  function updateParticipant(i: number, patch: Partial<ParticipantData>) {
     const parts = [...d.participants]
-    parts[i] = { ...parts[i], [field]: val }
+    parts[i] = { ...parts[i], ...patch }
     update({ participants: parts })
   }
   function removeParticipant(i: number) {
@@ -343,7 +460,9 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                         onChange={e => update({ new_client_kite_level: e.target.value as WizardData['new_client_kite_level'] })}
                         className={inputCls}>
                         <option value="">— unknown —</option>
-                        <option value="beginner">Beginner</option>
+                        <option value="beg-total">Beg-Total</option>
+                        <option value="beg-bodydrag">Beg-BodyDrag</option>
+                        <option value="beg-waterstart">Beg-WaterStart</option>
                         <option value="intermediate">Intermediate</option>
                         <option value="advanced">Advanced</option>
                       </select>
@@ -538,21 +657,13 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
 
                 <div className="space-y-2">
                   {d.participants.map((p, i) => (
-                    <div key={p.id} className="flex gap-1.5 items-start">
-                      <div className="flex-1 grid grid-cols-3 gap-1">
-                        <input placeholder="First name" value={p.first_name}
-                          onChange={e => updateParticipant(i, 'first_name', e.target.value)}
-                          className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                        <input placeholder="Last name" value={p.last_name}
-                          onChange={e => updateParticipant(i, 'last_name', e.target.value)}
-                          className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                        <input placeholder="Passport #" value={p.passport_number}
-                          onChange={e => updateParticipant(i, 'passport_number', e.target.value)}
-                          className="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                      </div>
-                      <button type="button" onClick={() => removeParticipant(i)}
-                        className="shrink-0 text-red-400 hover:text-red-600 text-lg leading-none px-0.5 mt-1">✕</button>
-                    </div>
+                    <ParticipantRow
+                      key={p.id}
+                      p={p}
+                      clients={clients}
+                      onChange={patch => updateParticipant(i, patch)}
+                      onRemove={() => removeParticipant(i)}
+                    />
                   ))}
                 </div>
               </div>
@@ -962,8 +1073,8 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       return firstName ? [{ first_name: firstName, last_name: lastName }] : []
     })() : []
     const participantsToInsert = [
-      ...named.map(p => ({ first_name: p.first_name.trim(), last_name: p.last_name.trim() || null, passport_number: p.passport_number.trim() || null })),
-      ...autoList.map(p => ({ ...p, passport_number: null })),
+      ...named.map(p => ({ first_name: p.first_name.trim(), last_name: p.last_name.trim() || null, passport_number: p.passport_number.trim() || null, kite_level: p.kite_level || null, client_id: p.client_id || null })),
+      ...autoList.map(p => ({ ...p, passport_number: null, kite_level: null, client_id: null })),
     ]
     if (participantsToInsert.length > 0) {
       const { data: inserted, error: insErr } = await supabase.from('booking_participants').insert(
@@ -972,7 +1083,8 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           first_name: p.first_name,
           last_name: p.last_name || null,
           passport_number: p.passport_number || null,
-          client_id: null,
+          kite_level: p.kite_level || null,
+          client_id: p.client_id || null,
           notes: null,
         }))
       ).select()
@@ -1008,6 +1120,56 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           override_note: null,
         }))
       )
+    }
+
+    // 6. Auto-create unverified payment if amount_paid > 0 (new bookings only)
+    if (isNew && data.amount_paid > 0) {
+      await supabase.from('payments').insert({
+        booking_id:  bookingId,
+        date:        new Date().toISOString().slice(0, 10),
+        amount:      data.amount_paid,
+        method:      'transfer',
+        is_deposit:  false,
+        is_verified: false,
+        is_discount: false,
+        notes:       'Auto-created from booking — to verify',
+      })
+    }
+
+    // 7. Auto-create taxi trips (new bookings only)
+    if (isNew) {
+      const nbPersons = (data.num_lessons + data.num_equipment_rentals + data.num_center_access) || 1
+      const taxiBase = {
+        booking_id:         bookingId,
+        taxi_driver_id:     null,
+        status:             'needs_details' as const,
+        nb_persons:         nbPersons,
+        nb_luggage:         data.luggage_count,
+        nb_boardbags:       data.boardbag_count,
+        notes:              null,
+        price_client_mzn:   0,
+        margin_manager_mzn: 0,
+        margin_centre_mzn:  0,
+        price_driver_mzn:   0,
+        price_eur:          0,
+        exchange_rate:      65,
+      }
+      if (data.taxi_arrival) {
+        await supabase.from('taxi_trips').insert({
+          ...taxiBase,
+          date:       data.check_in,
+          start_time: data.arrival_time || '00:00',
+          type:       'aero-to-center',
+        })
+      }
+      if (data.taxi_departure) {
+        await supabase.from('taxi_trips').insert({
+          ...taxiBase,
+          date:       data.check_out,
+          start_time: data.departure_time || '00:00',
+          type:       'center-to-aero',
+        })
+      }
     }
 
     refreshBookings()
@@ -1046,11 +1208,13 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           first_name: p.first_name,
           last_name: p.last_name ?? '',
           passport_number: p.passport_number ?? '',
+          kite_level: (p.kite_level ?? '') as ParticipantData['kite_level'],
+          client_id: p.client_id ?? '',
         }))
         if (existing.length > 0) return existing
         // No participants yet — pre-fill with main client
         const c = clients.find(cl => cl.id === b.client_id)
-        return c ? [{ id: `pre_${b.id}`, first_name: c.first_name, last_name: c.last_name, passport_number: '' }] : []
+        return c ? [{ id: `pre_${b.id}`, first_name: c.first_name, last_name: c.last_name, passport_number: c.passport_number ?? '', kite_level: (c.kite_level ?? '') as ParticipantData['kite_level'], client_id: c.id }] : []
       })(),
       couples_count: b.couples_count, children_count: b.children_count,
       arrival_time: b.arrival_time ?? '', departure_time: b.departure_time ?? '',

@@ -1,5 +1,6 @@
 export type AccommodationType = 'house' | 'bungalow' | 'other'
 export type BookingStatus = 'confirmed' | 'provisional' | 'cancelled'
+export type KiteLevel = 'beg-total' | 'beg-bodydrag' | 'beg-waterstart' | 'intermediate' | 'advanced'
 
 export interface Accommodation {
   id: string
@@ -26,7 +27,7 @@ export interface Client {
   nationality: string | null
   passport_number: string | null
   birth_date: string | null
-  kite_level: 'beginner' | 'intermediate' | 'advanced' | null
+  kite_level: KiteLevel | null
   import_id: string | null                   // Google Forms row timestamp (dedup key)
   emergency_contact_name: string | null
   emergency_contact_phone: string | null
@@ -49,6 +50,7 @@ export interface BookingParticipant {
   last_name: string | null
   passport_number: string | null
   client_id: string | null   // lien optionnel vers un Client existant
+  kite_level: KiteLevel | null
   notes: string | null
   created_at: string
 }
@@ -350,6 +352,8 @@ export interface Payment {
   amount: number                // always in EUR
   method: PaymentMethod
   is_deposit: boolean
+  is_verified: boolean
+  is_discount: boolean
   notes: string | null
 }
 
