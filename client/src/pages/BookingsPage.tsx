@@ -4,7 +4,7 @@ import { useClients } from '../hooks/useClients'
 import { useBookings, useBookingRooms, useBookingRoomPrices, useBookingParticipants } from '../hooks/useBookings'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useTable } from '../hooks/useSupabase'
-import type { Booking, BookingParticipant, BookingStatus, Client, Room, Accommodation, HouseRental, RoomRate } from '../types/database'
+import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, RoomRate } from '../types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -135,12 +135,15 @@ interface WizardProps {
   accommodations: Accommodation[]
   houseRentals: HouseRental[]
   roomRates: RoomRate[]
+  bookings: Booking[]
+  bookingRooms: BookingRoom[]
+  editingBookingId: string | null
   isEditing: boolean
   onCancel: () => void
   onSave: (data: WizardData, isNew: boolean) => void
 }
 
-function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, houseRentals, roomRates, isEditing, onCancel, onSave }: WizardProps) {
+function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, houseRentals, roomRates, bookings, bookingRooms, editingBookingId, isEditing, onCancel, onSave }: WizardProps) {
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(isEditing ? 6 : 1)
   const [d, setD] = useState<WizardData>(initial)
@@ -230,6 +233,18 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
     const rentals = houseRentals.filter(r => r.accommodation_id === accId)
     if (rentals.length === 0) return false
     return rentals.some(r => r.start_date <= d.check_in && r.end_date >= d.check_out)
+  }
+
+  // Half-day convention: same-day check-out/check-in is NOT a conflict (strict comparisons)
+  function isRoomConflicted(roomId: string): boolean {
+    if (!d.check_in || !d.check_out) return false
+    return bookingRooms.some(br => {
+      if (br.room_id !== roomId) return false
+      if (br.booking_id === editingBookingId) return false
+      const b = bookings.find(b => b.id === br.booking_id)
+      if (!b || b.status === 'cancelled') return false
+      return b.check_in < d.check_out && b.check_out > d.check_in
+    })
   }
 
   const canProceed: Record<number, boolean> = {
@@ -415,14 +430,25 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                               🏠 Full house (F + B)
                             </button>
                           )}
-                          {accRooms.map(r => (
-                            <button key={r.id} type="button" onClick={() => toggleRoom(r.id)}
-                              className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors
-                                ${d.room_ids.includes(r.id) ? 'border-blue-500 bg-blue-50 text-blue-800 font-medium' : 'border-gray-200 hover:border-gray-300 text-gray-700'}`}>
-                              {acc.name} / {r.name}
-                              <span className="text-xs text-gray-400 ml-2">capacity {r.capacity}</span>
-                            </button>
-                          ))}
+                          {accRooms.map(r => {
+                            const conflicted = isRoomConflicted(r.id)
+                            const selected = d.room_ids.includes(r.id)
+                            return (
+                              <button key={r.id} type="button" onClick={() => toggleRoom(r.id)}
+                                className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors flex items-center justify-between
+                                  ${selected ? 'border-blue-500 bg-blue-50 text-blue-800 font-medium'
+                                    : conflicted ? 'border-red-300 bg-red-50 text-gray-700'
+                                    : 'border-gray-200 hover:border-gray-300 text-gray-700'}`}>
+                                <span>
+                                  {acc.name} / {r.name}
+                                  <span className="text-xs text-gray-400 ml-2">capacity {r.capacity}</span>
+                                </span>
+                                {conflicted && !selected && (
+                                  <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium shrink-0">⚠ Booked</span>
+                                )}
+                              </button>
+                            )
+                          })}
                         </div>
                       </div>
                     )
@@ -1239,6 +1265,9 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           accommodations={accommodations}
           houseRentals={houseRentals}
           roomRates={roomRatesData}
+          bookings={bookings}
+          bookingRooms={bookingRooms}
+          editingBookingId={wizard.editing?.id ?? null}
           isEditing={!!wizard.editing}
           onCancel={closeWizard}
           onSave={handleSave}
