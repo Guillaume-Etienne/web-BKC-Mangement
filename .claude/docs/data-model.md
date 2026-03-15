@@ -10,6 +10,7 @@
 |------|--------|
 | `AccommodationType` | `'house' \| 'bungalow' \| 'other'` |
 | `BookingStatus` | `'confirmed' \| 'provisional' \| 'cancelled'` |
+| `KiteLevel` | `'beg-total' \| 'beg-bodydrag' \| 'beg-waterstart' \| 'intermediate' \| 'advanced'` |
 | `LessonType` | `'private' \| 'group' \| 'supervision'` |
 | `DaySlot` | `'morning' \| 'afternoon' \| 'evening'` |
 | `PriceCategory` | `'lesson' \| 'activity' \| 'rental' \| 'taxi'` |
@@ -57,7 +58,7 @@
 | nationality | string \| null |
 | passport_number | string \| null |
 | birth_date | string \| null (ISO date) |
-| kite_level | `'beginner' \| 'intermediate' \| 'advanced' \| null` |
+| kite_level | `KiteLevel \| null` |
 | import_id | string \| null (Google Forms dedup key) |
 | emergency_contact_name | string \| null |
 | emergency_contact_phone | string \| null |
@@ -73,6 +74,7 @@
 | last_name | string \| null | |
 | passport_number | string \| null | Required for visa letter |
 | client_id | string \| null | Optional link to existing Client |
+| kite_level | `KiteLevel \| null` | Added 2026-03 |
 | notes | string \| null | |
 | created_at | string (ISO timestamp) | |
 > **Replaces old `participants` table** (dropped). Unified model for all persons in a booking (visa + lessons + rentals).
@@ -338,15 +340,20 @@
 | notes | string \| null |
 
 ### `payments` → `Payment`
-| Field | Type |
-|-------|------|
-| id | string (UUID) |
-| booking_id | string (FK) |
-| date | string (ISO date) |
-| amount | number (always EUR) |
-| method | PaymentMethod |
-| is_deposit | boolean |
-| notes | string \| null |
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| booking_id | string (FK) | |
+| date | string (ISO date) | |
+| amount | number (always EUR) | Always positive (including discounts) |
+| method | PaymentMethod | |
+| is_deposit | boolean | Deposit vs. balance payment |
+| is_verified | boolean | false = "to verify" (auto-created payments start false) |
+| is_discount | boolean | true = discount credit (reduces balance, not a real payment) |
+| notes | string \| null | |
+> Auto-creation: new booking with `amount_paid > 0` → inserts Payment (`method:'transfer'`, `is_verified:false`).
+> Discounts: stored as positive amount, `is_discount:true`. Reduces balance = reduces outstanding (Total − Paid).
+> Payments added manually in Accounting/Bookings are created with `is_verified:true`.
 
 ### `participant_consumptions` → `ParticipantConsumption`
 | Field | Type |

@@ -148,10 +148,18 @@ All accounting components share:
 ### `BookingFinances` — `accounting/BookingFinances.tsx`
 **Props:** `{ data, handlers }`
 - Booking list with totals (due / paid / balance)
-- Click booking → detail: room breakdown, lesson breakdown, rentals, taxis
-- Payment list with add/delete
-- Forms at module scope
+- Click booking → detail: room breakdown, lesson breakdown, rentals, taxis, dining
+- Payment list: add / edit (✏️) / delete (✕); verified badge (✓ green / ⚠ orange); discount lines in purple
+- **Module-scope forms:** `PaymentForm` (add+edit, `is_verified` checkbox), `DiscountForm` (amount + reason), `EditRentalForm`, `LessonRateForm`
+- Buttons: `+ Payment` (blue) and `+ Discount` (purple) — mutually exclusive with add forms
 - Guest count: `data.bookingParticipants.filter(p => p.booking_id === b.id).length`
+
+### `UnverifiedPayments` — `accounting/UnverifiedPayments.tsx`
+**Props:** `{ data, handlers }`
+- Table of all `payments` where `is_verified=false`, sorted by date
+- Columns: date, booking #, client, method, amount, notes, "✓ Verify" button
+- Footer: total unverified amount
+- Empty state: "✅ All payments have been verified."
 
 ### `InstructorPayroll` — `accounting/InstructorPayroll.tsx`
 **Props:** `{ data, handlers }`
@@ -184,6 +192,19 @@ All accounting components share:
 - Add/delete expenses
 - Category PALETTE: 10 colors (cyclic)
 - Form `AddExpenseForm` at module scope
+
+---
+
+## Kite Level Display
+
+`KiteLevel` values used in ClientsPage, BookingsPage, ManagementPage:
+| Value | Label | Color |
+|-------|-------|-------|
+| `beg-total` | Beg-Total | lime |
+| `beg-bodydrag` | Beg-BodyDrag | green |
+| `beg-waterstart` | Beg-WaterStart | emerald |
+| `intermediate` | Intermediate | blue |
+| `advanced` | Advanced | purple |
 
 ---
 
@@ -220,9 +241,12 @@ App
     │   ├── AccountingDashboard
     │   ├── BookingFinances
     │   ├── InstructorPayroll
+    │   ├── HousesTab
     │   ├── PalmeirasTab
     │   ├── CashFlow
-    │   └── ExpensesTab
+    │   ├── ExpensesTab
+    │   ├── EventsTab
+    │   └── UnverifiedPayments
     ├── ManagementPage
     ├── ForecastSharePage  (public)
     ├── TaxiSharePage      (public)

@@ -77,8 +77,12 @@
 - **Key state:** `showWizard`, `wizardStep (0-5)`, `wizardData`, `editingBooking`, `selectedBooking`
 - **Wizard steps:** Client → Stay → Guests → Transport → KiteCenter → Payment
 - **Wizard step 3 (Guests):** manages `booking_participants` — delete-all + re-insert on save. Auto-adds main client if no participants entered (new bookings). Falls back to main client in `bookingToWizard` for old bookings.
-- **Save:** multi-table async: upsert client → upsert booking → delete+insert `booking_participants` → delete+insert booking_rooms
-- **WizardData.participants:** `{ id, first_name, last_name, passport_number }[]`
+- **Save (new bookings only — isNew=true):**
+  1. Upsert client → upsert booking → delete+insert `booking_participants` → delete+insert booking_rooms → delete+insert booking_room_prices
+  2. If `amount_paid > 0` → insert `payments` (`method:'transfer'`, `is_verified:false`, `is_discount:false`, note "Auto-created from booking — to verify")
+  3. If `taxi_arrival` → insert `taxi_trips` (`type:'aero-to-center'`, `date:check_in`, `start_time:arrival_time||'00:00'`, `status:'needs_details'`, nb_persons/luggage/boardbags from booking)
+  4. If `taxi_departure` → insert `taxi_trips` (`type:'center-to-aero'`, `date:check_out`, `start_time:departure_time||'00:00'`)
+- **WizardData.participants:** `{ id, first_name, last_name, passport_number, kite_level, client_id }[]`
 
 ### `ClientsPage`
 - **Route:** `'clients'`
@@ -111,13 +115,15 @@
 ### `AccountingPage`
 - **Route:** `'accounting'`
 - **Hooks:** 19 hooks total (see components.md for full list)
-- **Key state:** `tab: 'dashboard'|'bookings'|'instructors'|'palmeiras'|'cashflow'|'expenses'`
+- **Key state:** `tab: 'dashboard'|'bookings'|'instructors'|'houses'|'palmeiras'|'cashflow'|'expenses'|'events'|'unverified'`
 - **Pattern:** `sharedData` object + `handlers` object passed to sub-components
 - **Mutations:** optimistic local state + fire-and-forget supabase call
+- **Tab "⚠️ To Verify"** — lists all `payments` where `is_verified=false`. Badge count on tab. `verifyPayment(id)` handler sets `is_verified=true` optimistically.
 
 ### `ManagementPage`
 - **Route:** `'management'`
-- **Hooks:** useInstructors, useLessons, useTable<PriceItem>, useTable<TaxiPricingDefaults>, useTable<SharedLink>
-- **Key state:** `tab: 'instructors'|'pricing'|'links'`
-- **Tabs:** Instructors CRUD, Pricing (items + taxi defaults), Shared links (generate tokens)
+- **Hooks:** useInstructors, useLessons, useTable<PriceItem>, useTable<TaxiPricingDefaults>, useTable<SharedLink>, useBookings, useBookingParticipants
+- **Key state:** `tab: 'instructors'|'houses'|'pricing'|'links'|'bookguest'`
+- **Tabs:** Instructors CRUD, Houses, Pricing (items + taxi defaults), Shared links, Bookings & Guests
 - **Shared link creation:** type 'client' requires `booking_number` field → stored in `params`
+- **Tab "👥 Bookings & Guests"** — filters (All/Active/Upcoming/Past + status), search, stats (active now / upcoming / confirmed), per-booking dropdown listing participants with kite level badges
