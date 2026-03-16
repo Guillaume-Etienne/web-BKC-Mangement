@@ -9,10 +9,10 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         {/* Header */}
         <div className="text-center mb-12 md:mb-16">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
-            🏄 Gestion du Kitesurf Center
+            🏄 BKC-Management
           </h1>
           <p className="text-lg md:text-xl text-gray-600">
-            Gérez vos hébergements, réservations et équipements en un seul endroit
+            Manage everything from here: reservations, planning, clients and more!
           </p>
         </div>
 
@@ -24,9 +24,9 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             className="group bg-white rounded-xl shadow-lg hover:shadow-xl transition-all p-8 text-left"
           >
             <div className="text-5xl mb-4">📅</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">Planning des hébergements</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-3">Planning</h2>
             <p className="text-gray-600 mb-4">
-              Visualisez les réservations en cours, les cours et les locations de matériel par jour.
+              Booking Plan
             </p>
             <div className="inline-flex items-center text-blue-600 font-semibold group-hover:gap-2 transition-all">
               Consulter <span className="ml-1">→</span>
@@ -39,9 +39,9 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             className="group bg-white rounded-xl shadow-lg hover:shadow-xl transition-all p-8 text-left"
           >
             <div className="text-5xl mb-4">📋</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">Gérer les réservations</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-3">Bookings</h2>
             <p className="text-gray-600 mb-4">
-              Créez, modifiez et supprimez les réservations de vos clients.
+              Manage bookings
             </p>
             <div className="inline-flex items-center text-blue-600 font-semibold group-hover:gap-2 transition-all">
               Accéder <span className="ml-1">→</span>

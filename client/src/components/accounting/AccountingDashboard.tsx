@@ -4,7 +4,7 @@ import {
   computeAccommodationRevenue, computeLessonsRevenue,
   computeRentalsRevenue, computeTaxiRevenue,
   computeDiningRevenue,
-  computeInstructorBalance, fmtEur,
+  computeInstructorBalance, computeStandaloneTaxiRevenue, fmtEur,
 } from './utils'
 
 interface Props { data: SharedAccountingData }
@@ -34,12 +34,14 @@ export default function AccountingDashboard({ data }: Props) {
   const activeBookings = bookings.filter(b => b.status !== 'cancelled')
 
   // ── Revenue ────────────────────────────────────────────────────────────
-  const accomRev   = activeBookings.reduce((s, b) => s + computeAccommodationRevenue(b, data), 0)
-  const lessonsRev = activeBookings.reduce((s, b) => s + computeLessonsRevenue(b, data), 0)
-  const rentalsRev = activeBookings.reduce((s, b) => s + computeRentalsRevenue(b, data), 0)
-  const taxisRev   = activeBookings.reduce((s, b) => s + computeTaxiRevenue(b, data), 0)
-  const eventsRev  = computeDiningRevenue(diningEvents)
-  const totalRevenue = accomRev + lessonsRev + rentalsRev + taxisRev + eventsRev
+  const accomRev        = activeBookings.reduce((s, b) => s + computeAccommodationRevenue(b, data), 0)
+  const lessonsRev      = activeBookings.reduce((s, b) => s + computeLessonsRevenue(b, data), 0)
+  const rentalsRev      = activeBookings.reduce((s, b) => s + computeRentalsRevenue(b, data), 0)
+  const standaloneTrips = taxiTrips.filter(t => t.booking_id === null)
+  const standaloneRev   = computeStandaloneTaxiRevenue(data)
+  const taxisRev        = activeBookings.reduce((s, b) => s + computeTaxiRevenue(b, data), 0) + standaloneRev
+  const eventsRev       = computeDiningRevenue(diningEvents)
+  const totalRevenue    = accomRev + lessonsRev + rentalsRev + taxisRev + eventsRev
 
   // ── Collections ────────────────────────────────────────────────────────
   const totalPaid = bookings.reduce((s, b) => s + computeBookingPaid(b.id, payments), 0)
@@ -169,7 +171,12 @@ export default function AccountingDashboard({ data }: Props) {
               { label: 'Events',        value: eventsRev,  color: 'bg-rose-400' },
             ].map(c => (
               <div key={c.label} className="flex items-center gap-3">
-                <p className="w-28 text-sm text-gray-600 shrink-0">{c.label}</p>
+                <div className="w-28 shrink-0">
+                  <p className="text-sm text-gray-600">{c.label}</p>
+                  {c.label === 'Taxis' && standaloneTrips.length > 0 && (
+                    <p className="text-xs text-amber-500">incl. {standaloneTrips.length} unlinked</p>
+                  )}
+                </div>
                 <Bar value={c.value} max={totalRevenue} color={c.color} />
                 <p className="w-24 text-right text-sm font-semibold text-gray-700">{fmt(c.value)}</p>
               </div>

@@ -16,6 +16,7 @@ import AccountingPage from './pages/AccountingPage'
 import ForecastSharePage from './pages/ForecastSharePage'
 import TaxiSharePage from './pages/TaxiSharePage'
 import ClientSharePage from './pages/ClientSharePage'
+import DriverSharePage from './pages/DriverSharePage'
 import type { SharedLink } from './types/database'
 
 type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting'
@@ -70,6 +71,7 @@ function App() {
     if (sharedLink.type === 'forecast') return <ForecastSharePage />
     if (sharedLink.type === 'taxi')     return <TaxiSharePage />
     if (sharedLink.type === 'client')   return <ClientSharePage bookingNumber={parseInt(sharedLink.params?.booking_number ?? '0')} />
+    if (sharedLink.type === 'driver')   return <DriverSharePage driverId={sharedLink.params?.driver_id ?? ''} />
   }
 
   // Loading session

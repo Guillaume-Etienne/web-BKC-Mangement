@@ -16,7 +16,7 @@ export default function Navigation({ currentPage, onNavigate, onLogout }: Naviga
     { id: 'bookings',   label: 'Bookings',   icon: '📋' },
     { id: 'accounting', label: 'Accounting', icon: '💰' },
     { id: 'documents',  label: 'Documents',  icon: '📄' },
-    { id: 'management', label: 'Management', icon: '⚙️' },
+    { id: 'management', label: 'Options', icon: '⚙️' },
     { id: 'equipment',  label: 'Equipment',  icon: '🎿' },
     { id: 'taxis',      label: 'Taxis',      icon: '🚕' },
   ] as const
@@ -46,7 +46,7 @@ export default function Navigation({ currentPage, onNavigate, onLogout }: Naviga
                 className="text-xl font-bold text-blue-600 hover:text-blue-700"
                 style={{ touchAction: 'manipulation' }}
               >
-                🏄 Kitesurf Center
+                🏄 BKC
               </button>
             </div>
 

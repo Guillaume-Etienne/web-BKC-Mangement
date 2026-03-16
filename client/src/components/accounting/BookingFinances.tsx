@@ -4,7 +4,7 @@ import type { Payment, PaymentMethod, Booking, EquipmentRental, Lesson, LessonRa
 import {
   computeBookingTotal, computeBookingPaid, computeAccommodationRevenue,
   computeLessonsRevenue, computeRentalsRevenue, computeTaxiRevenue,
-  computeDiningForBooking, getLessonRate,
+  computeDiningForBooking, getLessonRate, computeStandaloneTaxiRevenue,
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate,
 } from './utils'
 
@@ -618,6 +618,9 @@ export default function BookingFinances({ data, handlers }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showCancelled, setShowCancelled] = useState(false)
 
+  const standaloneTrips = data.taxiTrips.filter(t => t.booking_id === null)
+  const standaloneRev   = computeStandaloneTaxiRevenue(data)
+
   const rows = bookings
     .filter(b => showCancelled || b.status !== 'cancelled')
     .map(b => {
@@ -719,6 +722,41 @@ export default function BookingFinances({ data, handlers }: Props) {
           {showCancelled ? 'Hide cancelled bookings' : `Show cancelled bookings`}
         </button>
       </div>
+
+      {/* Unlinked taxi trips */}
+      {standaloneTrips.length > 0 && (
+        <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
+          <div className="flex justify-between items-center px-5 py-3 bg-amber-50 border-b border-amber-200">
+            <div>
+              <p className="text-sm font-semibold text-amber-800">Unlinked taxi trips</p>
+              <p className="text-xs text-amber-600">Not attached to any booking</p>
+            </div>
+            <p className="text-sm font-bold text-amber-800">{fmtEur(standaloneRev)}</p>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="px-4 py-2 text-left font-medium text-gray-500 text-xs">Date</th>
+                <th className="px-4 py-2 text-left font-medium text-gray-500 text-xs">Type</th>
+                <th className="px-4 py-2 text-left font-medium text-gray-500 text-xs">Persons</th>
+                <th className="px-4 py-2 text-left font-medium text-gray-500 text-xs">Notes</th>
+                <th className="px-4 py-2 text-right font-medium text-gray-500 text-xs">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {standaloneTrips.map(t => (
+                <tr key={t.id} className="border-b last:border-0 hover:bg-gray-50">
+                  <td className="px-4 py-2 text-gray-600">{t.date}</td>
+                  <td className="px-4 py-2 text-gray-600">{t.type}</td>
+                  <td className="px-4 py-2 text-gray-500">{t.nb_persons}p</td>
+                  <td className="px-4 py-2 text-gray-400 italic text-xs">{t.notes ?? '–'}</td>
+                  <td className="px-4 py-2 text-right font-semibold text-gray-700">{fmtEur(t.price_eur)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

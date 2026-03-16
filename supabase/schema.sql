@@ -12,7 +12,7 @@ CREATE TYPE day_slot                    AS ENUM ('morning', 'afternoon', 'evenin
 CREATE TYPE price_category              AS ENUM ('lesson', 'activity', 'rental', 'taxi');
 CREATE TYPE taxi_trip_type              AS ENUM ('aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other');
 CREATE TYPE taxi_trip_status            AS ENUM ('confirmed', 'needs_details', 'done');
-CREATE TYPE shared_link_type            AS ENUM ('forecast', 'taxi');
+CREATE TYPE shared_link_type            AS ENUM ('forecast', 'taxi', 'client', 'driver');
 CREATE TYPE equipment_category          AS ENUM ('kite', 'board', 'surfboard', 'foilboard');
 CREATE TYPE equipment_condition         AS ENUM ('new', 'good', 'fair', 'damaged', 'retired');
 CREATE TYPE rental_slot                 AS ENUM ('morning', 'afternoon', 'full_day');

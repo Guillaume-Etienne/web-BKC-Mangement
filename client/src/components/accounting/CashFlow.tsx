@@ -21,7 +21,7 @@ interface MonthRow {
 export default function CashFlow({ data }: Props) {
   const {
     payments, expenses, palmeirasRents, palmeirasReversals,
-    seasons, bookings, instructorPayments,
+    seasons, bookings, instructorPayments, taxiTrips,
   } = data
 
   const currentSeason = seasons[seasons.length - 1]
@@ -44,6 +44,12 @@ export default function CashFlow({ data }: Props) {
     for (const b of bookings.filter(b => b.status !== 'cancelled')) {
       const m = b.check_in.slice(0, 7)
       ensure(m).billed += computeBookingTotal(b, data)
+    }
+
+    // Standalone taxi trips (no booking) — billed by trip date
+    for (const t of taxiTrips.filter(t => t.booking_id === null)) {
+      const m = t.date.slice(0, 7)
+      ensure(m).billed += t.price_eur
     }
 
     // Cash collected (by payment date)
@@ -80,7 +86,7 @@ export default function CashFlow({ data }: Props) {
     }
 
     return Object.values(idx).sort((a, b) => b.month.localeCompare(a.month)) // newest first
-  }, [bookings, payments, palmeirasReversals, expenses, palmeirasRents, instructorPayments, data])
+  }, [bookings, payments, palmeirasReversals, expenses, palmeirasRents, instructorPayments, taxiTrips, data])
 
   // ── Filter by period ────────────────────────────────────────────────────
   const filtered = useMemo(() => {

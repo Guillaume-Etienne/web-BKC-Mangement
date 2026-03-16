@@ -66,6 +66,13 @@ export function computeTaxiRevenue(booking: Booking, data: SharedAccountingData)
     .reduce((sum, t) => sum + t.price_eur, 0)
 }
 
+/** Taxi revenue for trips not linked to any booking */
+export function computeStandaloneTaxiRevenue(data: SharedAccountingData): number {
+  return data.taxiTrips
+    .filter(t => t.booking_id === null)
+    .reduce((sum, t) => sum + t.price_eur, 0)
+}
+
 /** Full computed total for a booking */
 export function computeBookingTotal(booking: Booking, data: SharedAccountingData): number {
   return (

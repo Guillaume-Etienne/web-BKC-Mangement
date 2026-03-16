@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react'
 import TaxiKanbanView from '../components/taxi/TaxiKanbanView'
 import TaxiListView from '../components/taxi/TaxiListView'
 import TaxiFinanceTab from '../components/taxi/TaxiFinanceTab'
+import DriverStatementPanel from '../components/taxi/DriverStatementPanel'
 import { useTaxiDrivers, useTaxiTrips } from '../hooks/useTaxis'
 import { useBookingParticipants } from '../hooks/useBookings'
 import { useTable } from '../hooks/useSupabase'
 import { supabase } from '../lib/supabase'
 
-import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults, TaxiManagerPayment, BookingRef } from '../types/database'
+import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults, TaxiManagerPayment, BookingRef, SharedLink } from '../types/database'
 
 const FALLBACK_PRICING: TaxiPricingDefaults = {
   id: '',
@@ -33,9 +34,13 @@ export default function TaxiPage() {
 
   useEffect(() => { setPayments(paymentsData) }, [paymentsData])
 
+  const { data: sharedLinksData, refresh: refreshSharedLinks } = useTable<SharedLink>('shared_links')
+  const driverLinks = sharedLinksData.filter(l => l.type === 'driver')
+
   const [tab, setTab]               = useState<'planning' | 'finance' | 'drivers'>('planning')
   const [planningView, setPlanningView] = useState<'kanban' | 'list'>('list')
   const [selectedDriver, setSelectedDriver] = useState<TaxiDriver | null>(null)
+  const [viewingDriverId, setViewingDriverId] = useState<string | null>(null)
   const [showDriverForm, setShowDriverForm] = useState(false)
   const [driverFormData, setDriverFormData] = useState<Partial<TaxiDriver>>({})
   const [saving, setSaving] = useState(false)
@@ -134,7 +139,25 @@ export default function TaxiPage() {
     const { error } = await supabase.from('taxi_drivers').delete().eq('id', id)
     if (error) { alert('Error: ' + error.message); return }
     setSelectedDriver(null)
+    setViewingDriverId(null)
     refreshDrivers()
+  }
+
+  async function generateDriverLink(driver: TaxiDriver): Promise<void> {
+    const existing = driverLinks.find(l => l.params?.driver_id === driver.id)
+    if (existing) return
+    const token = `driver_${Math.random().toString(36).slice(2, 12)}`
+    const { error } = await supabase.from('shared_links').insert([{
+      token,
+      type:       'driver',
+      label:      `Driver: ${driver.name}`,
+      params:     { driver_id: driver.id },
+      created_at: new Date().toISOString().slice(0, 10),
+      expires_at: null,
+      is_active:  true,
+    }])
+    if (error) { alert('Error: ' + error.message); return }
+    refreshSharedLinks()
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -230,8 +253,8 @@ export default function TaxiPage() {
 
         {/* Drivers Tab */}
         {tab === 'drivers' && (
-          <div>
-            <div className="flex items-center justify-between mb-6">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-800">Drivers</h2>
               <button onClick={() => openDriverForm()}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors">
@@ -240,32 +263,58 @@ export default function TaxiPage() {
             </div>
 
             {driversLoading ? (
-              <div className="text-center py-16 text-gray-400">Chargement…</div>
+              <div className="text-center py-16 text-gray-400">Loading…</div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {drivers.map(driver => (
-                  <div key={driver.id} className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-                    <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4">
-                      <h3 className="font-bold text-lg">{driver.name}</h3>
-                      <p className="text-sm text-blue-100">{driver.vehicle || 'Vehicle not specified'}</p>
-                    </div>
-                    <div className="p-4 space-y-3">
-                      {driver.phone && <p className="text-sm text-gray-700">📞 {driver.phone}</p>}
-                      {driver.email && <p className="text-sm text-gray-700">📧 {driver.email}</p>}
-                      {driver.notes && <p className="text-sm text-gray-600 italic">💬 {driver.notes}</p>}
-                      <div className="bg-amber-50 p-3 rounded border border-amber-200">
-                        <p className="text-sm font-semibold text-amber-900">Margin: <span className="text-lg">{driver.margin_percent}%</span></p>
-                      </div>
-                      <div className="pt-3 border-t flex gap-2">
-                        <button onClick={() => openDriverForm(driver)}
-                          className="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 font-medium text-sm">✏️ Edit</button>
-                        <button onClick={() => deleteDriver(driver.id)}
-                          className="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 font-medium text-sm">🗑️ Delete</button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <>
+                {/* Driver selector cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {drivers.map(driver => {
+                    const driverTrips = trips.filter(t => t.taxi_driver_id === driver.id)
+                    const hasLink = driverLinks.some(l => l.params?.driver_id === driver.id)
+                    const isViewing = viewingDriverId === driver.id
+                    return (
+                      <button
+                        key={driver.id}
+                        onClick={() => setViewingDriverId(isViewing ? null : driver.id)}
+                        className={`text-left rounded-xl border p-4 transition-all ${
+                          isViewing
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                            : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm'
+                        }`}
+                      >
+                        <p className={`font-bold text-base ${isViewing ? 'text-white' : 'text-gray-800'}`}>{driver.name}</p>
+                        <p className={`text-xs mt-0.5 truncate ${isViewing ? 'text-blue-200' : 'text-gray-400'}`}>{driver.vehicle ?? 'No vehicle'}</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${isViewing ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                            {driverTrips.length} trip{driverTrips.length !== 1 ? 's' : ''}
+                          </span>
+                          {hasLink && (
+                            <span className={`text-xs ${isViewing ? 'text-blue-200' : 'text-green-500'}`}>🔗</span>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Driver statement panel */}
+                {viewingDriverId && (() => {
+                  const driver = drivers.find(d => d.id === viewingDriverId)
+                  if (!driver) return null
+                  const driverTrips = trips.filter(t => t.taxi_driver_id === driver.id)
+                  const driverLink  = driverLinks.find(l => l.params?.driver_id === driver.id) ?? null
+                  return (
+                    <DriverStatementPanel
+                      driver={driver}
+                      trips={driverTrips}
+                      driverLink={driverLink}
+                      onGenerateLink={() => generateDriverLink(driver)}
+                      onEdit={() => openDriverForm(driver)}
+                      onDelete={() => deleteDriver(driver.id)}
+                    />
+                  )
+                })()}
+              </>
             )}
           </div>
         )}

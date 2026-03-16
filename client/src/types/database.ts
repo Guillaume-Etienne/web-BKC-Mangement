@@ -240,7 +240,7 @@ export interface BookingRef {
 }
 
 // Shared public links
-export type SharedLinkType = 'forecast' | 'taxi' | 'client'
+export type SharedLinkType = 'forecast' | 'taxi' | 'client' | 'driver'
 
 export interface SharedLink {
   id: string
