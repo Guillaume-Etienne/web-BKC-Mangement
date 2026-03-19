@@ -1,129 +1,158 @@
 # Pages Reference
-> All pages in `client/src/pages/`
-> Routing in `client/src/App.tsx`
+> Toutes les pages dans `client/src/pages/`
+> Routing dans `client/src/App.tsx`
 
 ---
 
-## Routing Logic (`App.tsx`)
+## Logique de routing (`App.tsx`)
 
-1. `?share=<token>` in URL → check `shared_links` table → show public page (no auth)
-2. `session === undefined` → loading spinner
+1. `?share=<token>` dans l'URL → vérifie `shared_links` → affiche page publique (sans auth)
+2. `session === undefined` → spinner de chargement
 3. `session === null` → `LoginPage`
-4. `session` → authenticated app with `Navigation` + page switcher
+4. `session` → app authentifiée avec `Navigation` + page switcher
 
-**Public pages (SharedLinkType):**
-| type | Component |
-|------|-----------|
-| `'forecast'` | `ForecastSharePage` |
-| `'taxi'` | `TaxiSharePage` |
-| `'client'` | `ClientSharePage` (props: `bookingNumber` from `sharedLink.params.booking_number`) |
+**Pages publiques (SharedLinkType) :**
+| type | Composant | Props |
+|------|-----------|-------|
+| `'forecast'` | `ForecastSharePage` | — |
+| `'taxi'` | `TaxiSharePage` | — |
+| `'client'` | `ClientSharePage` | `bookingNumber` depuis `sharedLink.params.booking_number` |
+| `'driver'` | `DriverSharePage` | `driverId` depuis `sharedLink.params.driver_id` |
+| `'activity_provider'` | `ActivityProviderSharePage` | `providerId` depuis `sharedLink.params.provider_id` |
 
-**Authenticated pages (Page union):**
-`'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting'`
+**Pages authentifiées (type `Page`) :**
+`'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities'`
 
 ---
 
-## Public Pages
+## Pages publiques
 
 ### `ForecastSharePage`
-- **Access:** `?share=<forecast_token>`
-- **Purpose:** Read-only instructor schedule + rentals for a given date
-- **Hooks:** `useTable` for lessons, rentals, instructors, clients, equipment
-- **Key state:** `selectedDate` (default: tomorrow), `mobileInstrIdx`
-- **Layout:** Time grid 8:00–19:00 (30-min slots, 36px each), instructor columns, rentals panel
+- **Accès :** `?share=<forecast_token>`
+- **But :** Planning instructeurs + locations en lecture seule pour une date donnée
+- **Hooks :** `useTable` pour lessons, rentals, instructors, clients, equipment
+- **State :** `selectedDate` (défaut : demain), `mobileInstrIdx`
+- **Layout :** Grille horaire 8:00–19:00 (30 min/slot, 36px), colonnes instructeurs, panel locations
 
 ### `TaxiSharePage`
-- **Access:** `?share=<taxi_token>`
-- **Purpose:** Read-only taxi schedule grouped by date
-- **Hooks:** `useTable` for TaxiTrip, TaxiDriver, Booking (with client join)
-- **Key state:** `showPast`, `filterDriver`
-- **Layout:** Date groups → trip cards (type, guest, luggage, status)
+- **Accès :** `?share=<taxi_token>`
+- **But :** Planning taxi groupé par date, lecture seule
+- **Hooks :** `useTable` pour TaxiTrip, TaxiDriver, Booking (avec join client)
+- **State :** `showPast`, `filterDriver`
+- **Layout :** Groupes date → cartes trip (type, client, bagages, statut)
 
 ### `ClientSharePage`
-- **Access:** `?share=<client_token>` where token has `params.booking_number`
-- **Props:** `{ bookingNumber: number }`
-- **Purpose:** Client-facing booking account (accommodation, services, payments, balance)
-- **Data:** Direct supabase queries (booking → rooms → payments → consumptions)
-- **Layout:** 4 sections: Accommodation table, Services table, Payments table, Balance card
+- **Accès :** `?share=<client_token>` où le token a `params.booking_number`
+- **Props :** `{ bookingNumber: number }`
+- **But :** Compte client (hébergement, services, paiements, solde)
+- **Data :** Requêtes Supabase directes (booking → rooms → payments → consumptions)
+- **Layout :** 4 sections : tableau hébergement, services, paiements, carte solde
+
+### `DriverSharePage`
+- **Accès :** `?share=<driver_token>` où le token a `params.driver_id`
+- **Props :** `{ driverId: string }`
+- **But :** Relevé conducteur (trips à venir + passés avec détails client)
+- **Data :** `taxi_drivers` + `taxi_trips` avec join `booking:bookings(client:clients(first_name, last_name))`
+- **Layout :** 3 KPI cards (Completed/Upcoming/Total MZN) + 2 tables de trips
+- **Colonnes trips :** Date, Time, Route, Client name, Pax, Bags, Boards, Notes, Driver MZN
+
+### `ActivityProviderSharePage`
+- **Accès :** `?share=<activity_provider_token>` où le token a `params.provider_id`
+- **Props :** `{ providerId: string }`
+- **But :** Relevé prestataire activités (planning + compta)
+- **Data :** `activity_providers` + `activity_bookings` + `activity_payments`
+- **Onglets :**
+  - **Planning** (toujours visible) : bookings passés/futurs, filtre par année, prix visibles si `show_prices=true`
+  - **Accounting** (seulement si `show_prices=true`) : bilan (center owes you / you owe us), lignes bookings avec flux, historique paiements
+- **Filtres :** "All time" + boutons par année
 
 ---
 
-## Authenticated Pages
+## Pages authentifiées
 
 ### `LoginPage`
-- **Shown when:** `session === null`
-- **Auth:** `supabase.auth.signInWithPassword()`
+- **Affiché quand :** `session === null`
+- **Auth :** `supabase.auth.signInWithPassword()`
 
 ### `HomePage`
-- **Route:** `'home'`
-- **Props:** `{ onNavigate }`
-- **Purpose:** Landing page with navigation cards (static)
+- **Route :** `'home'`
+- **Props :** `{ onNavigate }`
+- **But :** Page d'accueil avec cartes de navigation (statique)
 
-### `PlanningView` *(rendered as page)*
-- **Route:** `'planning'`
-- **File:** `components/planning/PlanningView.tsx`
-- **Hooks:** useAccommodations, useRooms, useBookings, useBookingRooms, useBookingParticipants, useLessons, useDayActivities, useInstructors, useClients, useEquipment, useEquipmentRentals
-- **Key state:** `seasonYear`, `currentTab: 'planning'|'lessons'|'now'|'forecast'`, drag state
-- **Sub-tabs:**
-  - `planning` → grid with BookingBars (draggable)
+### `PlanningView` *(rendu comme page)*
+- **Route :** `'planning'`
+- **Fichier :** `components/planning/PlanningView.tsx`
+- **Hooks :** useAccommodations, useRooms, useBookings, useBookingRooms, useBookingParticipants, useLessons, useDayActivities, useInstructors, useClients, useEquipment, useEquipmentRentals
+- **State :** `seasonYear`, `currentTab: 'planning'|'lessons'|'now'|'forecast'`, drag state
+- **Sub-tabs :**
+  - `planning` → grille avec BookingBars (draggable)
   - `lessons` → `LessonWeekView`
   - `now` → `NowView` (dining events)
   - `forecast` → `ForecastView`
-- **Mutations:** booking drag/resize → supabase update; lesson/activity/rental CRUD
+- **Mutations :** drag/resize booking → supabase update ; CRUD lesson/activity/rental
 
 ### `BookingsPage`
-- **Route:** `'bookings'`
-- **Hooks:** useClients, useBookings, useBookingRooms, useBookingParticipants, useAccommodations, useRooms
-- **Key state:** `showWizard`, `wizardStep (0-5)`, `wizardData`, `editingBooking`, `selectedBooking`
-- **Wizard steps:** Client → Stay → Guests → Transport → KiteCenter → Payment
-- **Wizard step 3 (Guests):** manages `booking_participants` — delete-all + re-insert on save. Auto-adds main client if no participants entered (new bookings). Falls back to main client in `bookingToWizard` for old bookings.
-- **Save (new bookings only — isNew=true):**
+- **Route :** `'bookings'`
+- **Hooks :** useClients, useBookings, useBookingRooms, useBookingParticipants, useAccommodations, useRooms
+- **State :** `showWizard`, `wizardStep (0-5)`, `wizardData`, `editingBooking`, `selectedBooking`
+- **Wizard steps :** Client → Stay → Guests → Transport → KiteCenter → Payment
+- **Step 3 (Guests) :** gère `booking_participants` — delete-all + re-insert au save. Auto-ajoute le client principal si aucun participant saisi (nouveaux bookings).
+- **Save (nouveaux bookings, isNew=true) :**
   1. Upsert client → upsert booking → delete+insert `booking_participants` → delete+insert booking_rooms → delete+insert booking_room_prices
-  2. If `amount_paid > 0` → insert `payments` (`method:'transfer'`, `is_verified:false`, `is_discount:false`, note "Auto-created from booking — to verify")
-  3. If `taxi_arrival` → insert `taxi_trips` (`type:'aero-to-center'`, `date:check_in`, `start_time:arrival_time||'00:00'`, `status:'needs_details'`, nb_persons/luggage/boardbags from booking)
-  4. If `taxi_departure` → insert `taxi_trips` (`type:'center-to-aero'`, `date:check_out`, `start_time:departure_time||'00:00'`)
-- **WizardData.participants:** `{ id, first_name, last_name, passport_number, kite_level, client_id }[]`
+  2. Si `amount_paid > 0` → insert `payments` (`method:'transfer'`, `is_verified:false`, note "Auto-created…")
+  3. Si `taxi_arrival` → insert `taxi_trips` (`type:'aero-to-center'`, `date:check_in`, ...)
+  4. Si `taxi_departure` → insert `taxi_trips` (`type:'center-to-aero'`, `date:check_out`, ...)
 
 ### `ClientsPage`
-- **Route:** `'clients'`
-- **Props:** `{ onNavigate }`
-- **Hooks:** useClients, useBookings
-- **Key state:** `showImport`, `searchTerm`, `filterLevel`, `filterNationality`, `selectedClient`
-- **Features:** Search/filter, detail drawer (info + booking history), CSV import via `ImportCSVModal`
+- **Route :** `'clients'`
+- **Props :** `{ onNavigate }`
+- **Hooks :** useClients, useBookings
+- **State :** `showImport`, `searchTerm`, `filterLevel`, `filterNationality`, `selectedClient`
+- **Features :** Recherche/filtres, tiroir détail (infos + historique bookings), import CSV via `ImportCSVModal`
 
 ### `TaxiPage`
-- **Route:** `'taxis'`
-- **Hooks:** useTaxiTrips, useTaxiDrivers, useBookingParticipants, useTable<BookingRef>(`bookings`, select for picker), useTable<TaxiPricingDefaults>
-- **Key state:** `tab: 'planning'|'drivers'`, `planningView: 'kanban'|'list'`, `pricingDefaults`
-- **Sub-components:** TaxiListView or TaxiKanbanView, Driver form modal
-- **Financial rule:** `price_driver_mzn = price_client_mzn - margin_manager_mzn - margin_centre_mzn`
+- **Route :** `'taxis'`
+- **Hooks :** useTaxiTrips, useTaxiDrivers, useBookingParticipants, useTable<BookingRef>, useTable<TaxiPricingDefaults>, useTable<SharedLink>
+- **State :** `tab: 'planning'|'drivers'`, `planningView: 'kanban'|'list'`, `viewingDriverId`
+- **Onglet Drivers :** grille de cartes → sélection → `DriverStatementPanel`
+- **DriverStatementPanel :** trips passés/à venir, KPIs MZN, section share link (génère `shared_link` type `'driver'`, params `{ driver_id }`)
+- **Règle financière :** `price_driver_mzn = price_client_mzn - margin_manager_mzn - margin_centre_mzn`
 
 ### `EquipmentPage`
-- **Route:** `'equipment'`
-- **Hooks:** useEquipment, useEquipmentRentals
-- **Key state:** editModal, filters
-- **Features:** Inventory list, condition badges, usage count, add/edit/delete
+- **Route :** `'equipment'`
+- **Hooks :** useEquipment, useEquipmentRentals
+- **Features :** Inventaire, badges condition, compteur usage, CRUD
 
 ### `DocumentsPage`
-- **Route:** `'documents'`
-- **Hooks:** useBookings (with client join), useBookingRooms, useBookingParticipants, useRooms, useAccommodations
-- **Key state:** `tab: 'visa'|'summary'|'guide'`, travelGuideSections
-- **PDF generation:** `printVisaLetter(booking, participants)` and `printBookingSummary(...)` → `window.open()` + browser print
-- **Visa letter:** participants shown with passport numbers from `bookingParticipants` (⚠ if none listed)
-- **Travel guide:** 6 sections, 3 languages (en/fr/es), state not persisted to DB yet
+- **Route :** `'documents'`
+- **Hooks :** useBookings, useBookingRooms, useBookingParticipants, useRooms, useAccommodations
+- **State :** `tab: 'visa'|'summary'|'guide'`, travelGuideSections
+- **PDF :** `printVisaLetter(booking, participants)` et `printBookingSummary(...)` → `window.open()` + browser print
+- **Travel guide :** 6 sections, 3 langues (en/fr/es), state non persisté en DB
 
 ### `AccountingPage`
-- **Route:** `'accounting'`
-- **Hooks:** 19 hooks total (see components.md for full list)
-- **Key state:** `tab: 'dashboard'|'bookings'|'instructors'|'houses'|'palmeiras'|'cashflow'|'expenses'|'events'|'unverified'`
-- **Pattern:** `sharedData` object + `handlers` object passed to sub-components
-- **Mutations:** optimistic local state + fire-and-forget supabase call
-- **Tab "⚠️ To Verify"** — lists all `payments` where `is_verified=false`. Badge count on tab. `verifyPayment(id)` handler sets `is_verified=true` optimistically.
+- **Route :** `'accounting'`
+- **Hooks :** 21 hooks (useAccommodations, useHouseRentals, useBookings, useBookingParticipants, useClients, useRooms, useBookingRooms, useBookingRoomPrices, useExternalAccommodations, useExternalAccommodationBkgs, useDiningEvents, useLessons, useInstructors, useEquipment, useEquipmentRentals, useTaxiTrips, useActivityBookings, useActivityPayments, useSeasons, usePayments, + états mutables)
+- **State :** `tab: 'dashboard'|'bookings'|'instructors'|'houses'|'palmeiras'|'cashflow'|'expenses'|'events'|'unverified'`
+- **Pattern :** objet `sharedData` + objet `handlers` passés aux sous-composants
+- **Mutations :** state local optimiste + appel Supabase fire-and-forget
+- **Onglet "⚠️ To Verify"** — liste les `payments` où `is_verified=false`. Badge count sur l'onglet.
 
 ### `ManagementPage`
-- **Route:** `'management'`
-- **Hooks:** useInstructors, useLessons, useTable<PriceItem>, useTable<TaxiPricingDefaults>, useTable<SharedLink>, useBookings, useBookingParticipants
-- **Key state:** `tab: 'instructors'|'houses'|'pricing'|'links'|'bookguest'`
-- **Tabs:** Instructors CRUD, Houses, Pricing (items + taxi defaults), Shared links, Bookings & Guests
-- **Shared link creation:** type 'client' requires `booking_number` field → stored in `params`
-- **Tab "👥 Bookings & Guests"** — filters (All/Active/Upcoming/Past + status), search, stats (active now / upcoming / confirmed), per-booking dropdown listing participants with kite level badges
+- **Route :** `'management'`
+- **Hooks :** useInstructors, useLessons, useTable<PriceItem>, useTable<TaxiPricingDefaults>, useTable<SharedLink>, useBookings, useBookingParticipants
+- **State :** `tab: 'instructors'|'houses'|'pricing'|'links'|'bookguest'`
+- **Onglets :** Instructors CRUD, Houses, Pricing (items + taxi defaults), Shared links, Bookings & Guests
+- **Shared links :** formulaire manuel pour types `forecast`, `taxi`, `client` uniquement.
+  `driver` et `activity_provider` exclus (créés depuis leurs pages dédiées).
+- **`LINK_TYPE_LABELS`** : utilisé pour afficher le type dans la liste, inclut tous les 5 types.
+
+### `ActivitiesPage`
+- **Route :** `'activities'`
+- **Hooks :** useActivityProviders, useActivityBookings, useActivityPayments, useBookingParticipants, useTable<BookingRef>, useTable<SharedLink>
+- **State :** `tab: 'providers'|'bookings'`, `viewingId`, `showProviderForm`, `editingProvider`, `filterProvider`
+- **Onglet Providers :** grille de cartes → sélection → `ProviderPanel` avec KPIs financiers, liste bookings, liste paiements, share link
+- **Onglet Bookings :** tableau de tous les bookings filtrables par prestataire
+- **ProviderPanel :** CRUD bookings + paiements, section share link (génère `shared_link` type `'activity_provider'`, params `{ provider_id }`)
+- **show_prices toggle :** sur le form provider, contrôle la visibilité de l'onglet Accounting sur la page publique
+- **Formulaires module-scope :** `ProviderForm`, `BookingForm` (avec participant picker), `PaymentForm`

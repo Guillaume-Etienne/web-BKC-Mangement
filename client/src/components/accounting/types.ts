@@ -4,7 +4,7 @@ import type {
   HouseRental, Lesson, Instructor, Equipment, EquipmentRental, TaxiTrip, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSubLet,
-  DiningEvent,
+  DiningEvent, ActivityBooking, ActivityPayment,
 } from '../../types/database'
 
 export interface SharedAccountingData {
@@ -34,6 +34,8 @@ export interface SharedAccountingData {
   palmeirasReversals:        PalmeirasReversal[]
   palmeirasEntries:          PalmeirasEntry[]
   palmeirasSubLets:          PalmeirasSubLet[]
+  activityBookings:          ActivityBooking[]
+  activityPayments:          ActivityPayment[]
 }
 
 export interface AccountingHandlers {

@@ -239,8 +239,51 @@ export interface BookingRef {
   client?: { first_name: string; last_name: string } | null
 }
 
+// Activities
+export type ActivityProviderType     = 'activity' | 'safari'
+export type ActivityPaymentFlow      = 'we_pay_provider' | 'provider_pays_us'
+export type ActivityPaymentDirection = 'to_provider' | 'from_provider'
+
+export interface ActivityProvider {
+  id:          string
+  name:        string
+  type:        ActivityProviderType
+  phone:       string | null
+  email:       string | null
+  website:     string | null
+  notes:       string | null
+  is_active:   boolean
+  show_prices: boolean
+  created_at:  string
+}
+
+export interface ActivityBooking {
+  id:              string
+  provider_id:     string
+  booking_id:      string | null
+  date:            string
+  label:           string
+  nb_persons:      number
+  participant_ids: string[]
+  price_client:    number
+  price_provider:  number
+  payment_flow:    ActivityPaymentFlow
+  notes:           string | null
+  created_at:      string
+}
+
+export interface ActivityPayment {
+  id:          string
+  provider_id: string
+  date:        string
+  amount:      number
+  direction:   ActivityPaymentDirection
+  notes:       string | null
+  created_at:  string
+}
+
 // Shared public links
-export type SharedLinkType = 'forecast' | 'taxi' | 'client' | 'driver'
+export type SharedLinkType = 'forecast' | 'taxi' | 'client' | 'driver' | 'activity_provider'
 
 export interface SharedLink {
   id: string

@@ -1,30 +1,34 @@
 -- ============================================================
 -- Schema SQL — Kitesurf Center Management
--- À exécuter dans le SQL Editor de Supabase Dashboard
+-- Version : mars 2026 — état complet et propre
 -- ============================================================
+
 
 -- ── Enums ────────────────────────────────────────────────────────────────────
 
-CREATE TYPE accommodation_type          AS ENUM ('house', 'bungalow', 'other');
-CREATE TYPE booking_status              AS ENUM ('confirmed', 'provisional', 'cancelled');
-CREATE TYPE lesson_type                 AS ENUM ('private', 'group', 'supervision');
-CREATE TYPE day_slot                    AS ENUM ('morning', 'afternoon', 'evening');
-CREATE TYPE price_category              AS ENUM ('lesson', 'activity', 'rental', 'taxi');
-CREATE TYPE taxi_trip_type              AS ENUM ('aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other');
-CREATE TYPE taxi_trip_status            AS ENUM ('confirmed', 'needs_details', 'done');
-CREATE TYPE shared_link_type            AS ENUM ('forecast', 'taxi', 'client', 'driver');
-CREATE TYPE equipment_category          AS ENUM ('kite', 'board', 'surfboard', 'foilboard');
-CREATE TYPE equipment_condition         AS ENUM ('new', 'good', 'fair', 'damaged', 'retired');
-CREATE TYPE rental_slot                 AS ENUM ('morning', 'afternoon', 'full_day');
-CREATE TYPE payment_method              AS ENUM ('cash_eur', 'cash_mzn', 'transfer', 'card_palmeiras');
-CREATE TYPE consumption_type            AS ENUM ('lesson', 'rental', 'activity', 'center_access');
+CREATE TYPE accommodation_type              AS ENUM ('house', 'bungalow', 'other');
+CREATE TYPE booking_status                  AS ENUM ('confirmed', 'provisional', 'cancelled');
+CREATE TYPE lesson_type                     AS ENUM ('private', 'group', 'supervision');
+CREATE TYPE day_slot                        AS ENUM ('morning', 'afternoon', 'evening');
+CREATE TYPE price_category                  AS ENUM ('lesson', 'activity', 'rental', 'taxi');
+CREATE TYPE taxi_trip_type                  AS ENUM ('aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other');
+CREATE TYPE taxi_trip_status                AS ENUM ('confirmed', 'needs_details', 'done');
+CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'activity_provider');
+CREATE TYPE equipment_category              AS ENUM ('kite', 'board', 'surfboard', 'foilboard');
+CREATE TYPE equipment_condition             AS ENUM ('new', 'good', 'fair', 'damaged', 'retired');
+CREATE TYPE rental_slot                     AS ENUM ('morning', 'afternoon', 'full_day');
+CREATE TYPE payment_method                  AS ENUM ('cash_eur', 'cash_mzn', 'transfer', 'card_palmeiras');
+CREATE TYPE consumption_type                AS ENUM ('lesson', 'rental', 'activity', 'center_access');
 CREATE TYPE external_accommodation_provider AS ENUM ('palmeiras', 'other');
-CREATE TYPE kite_level                  AS ENUM ('beg-total', 'beg-bodydrag', 'beg-waterstart', 'intermediate', 'advanced');
-CREATE TYPE palmeiras_entry_type        AS ENUM ('expense', 'income');
-CREATE TYPE event_person_type           AS ENUM ('instructor', 'client', 'extra');
+CREATE TYPE kite_level                      AS ENUM ('beg-total', 'beg-bodydrag', 'beg-waterstart', 'intermediate', 'advanced');
+CREATE TYPE palmeiras_entry_type            AS ENUM ('expense', 'income');
+CREATE TYPE event_person_type               AS ENUM ('instructor', 'participant', 'extra');
+CREATE TYPE activity_provider_type          AS ENUM ('activity', 'safari');
+CREATE TYPE activity_payment_flow           AS ENUM ('we_pay_provider', 'provider_pays_us');
+CREATE TYPE activity_payment_direction      AS ENUM ('to_provider', 'from_provider');
 
 
--- ── Core — Accommodations ─────────────────────────────────────────────────────
+-- ── Accommodations ────────────────────────────────────────────────────────────
 
 CREATE TABLE accommodations (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -36,11 +40,11 @@ CREATE TABLE accommodations (
 );
 
 CREATE TABLE rooms (
-  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  accommodation_id   UUID NOT NULL REFERENCES accommodations(id) ON DELETE CASCADE,
-  name               TEXT NOT NULL,
-  capacity           INTEGER NOT NULL DEFAULT 2,
-  created_at         TIMESTAMPTZ DEFAULT now()
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  accommodation_id  UUID NOT NULL REFERENCES accommodations(id) ON DELETE CASCADE,
+  name              TEXT NOT NULL,
+  capacity          INTEGER NOT NULL DEFAULT 2,
+  created_at        TIMESTAMPTZ DEFAULT now()
 );
 
 
@@ -57,7 +61,7 @@ CREATE TABLE clients (
   passport_number             TEXT,
   birth_date                  DATE,
   kite_level                  kite_level,
-  import_id                   TEXT,           -- Google Forms dedup key
+  import_id                   TEXT,   -- Google Forms dedup key
   emergency_contact_name      TEXT,
   emergency_contact_phone     TEXT,
   emergency_contact_email     TEXT,
@@ -73,58 +77,62 @@ CREATE UNIQUE INDEX idx_clients_import_id ON clients(import_id) WHERE import_id 
 CREATE SEQUENCE booking_number_seq START 1;
 
 CREATE TABLE bookings (
-  id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  booking_number              INTEGER NOT NULL DEFAULT nextval('booking_number_seq') UNIQUE,
-  client_id                   UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-  check_in                    DATE NOT NULL,
-  check_out                   DATE NOT NULL,
-  visa_entry_date             DATE,
-  visa_exit_date              DATE,
-  status                      booking_status NOT NULL DEFAULT 'provisional',
-  notes                       TEXT,
-  num_lessons                 INTEGER NOT NULL DEFAULT 0,
-  num_equipment_rentals       INTEGER NOT NULL DEFAULT 0,
-  num_center_access           INTEGER NOT NULL DEFAULT 0,
-  arrival_time                TEXT,
-  departure_time              TEXT,
-  luggage_count               INTEGER NOT NULL DEFAULT 0,
-  boardbag_count              INTEGER NOT NULL DEFAULT 0,
-  taxi_arrival                BOOLEAN NOT NULL DEFAULT false,
-  taxi_departure              BOOLEAN NOT NULL DEFAULT false,
-  couples_count               INTEGER NOT NULL DEFAULT 0,
-  children_count              INTEGER NOT NULL DEFAULT 0,
-  amount_paid                 NUMERIC(10,2) NOT NULL DEFAULT 0,
-  import_id                   TEXT,           -- Google Forms dedup key
-  emergency_contact_name      TEXT,
-  emergency_contact_phone     TEXT,
-  emergency_contact_email     TEXT,
-  created_at                  TIMESTAMPTZ DEFAULT now(),
+  id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_number            INTEGER NOT NULL DEFAULT nextval('booking_number_seq') UNIQUE,
+  client_id                 UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  check_in                  DATE NOT NULL,
+  check_out                 DATE NOT NULL,
+  visa_entry_date           DATE,
+  visa_exit_date            DATE,
+  status                    booking_status NOT NULL DEFAULT 'provisional',
+  notes                     TEXT,
+  num_lessons               INTEGER NOT NULL DEFAULT 0,
+  num_equipment_rentals     INTEGER NOT NULL DEFAULT 0,
+  num_center_access         INTEGER NOT NULL DEFAULT 0,
+  arrival_time              TEXT,     -- HH:MM
+  departure_time            TEXT,     -- HH:MM
+  luggage_count             INTEGER NOT NULL DEFAULT 0,
+  boardbag_count            INTEGER NOT NULL DEFAULT 0,
+  taxi_arrival              BOOLEAN NOT NULL DEFAULT false,
+  taxi_departure            BOOLEAN NOT NULL DEFAULT false,
+  couples_count             INTEGER NOT NULL DEFAULT 0,
+  children_count            INTEGER NOT NULL DEFAULT 0,
+  amount_paid               NUMERIC(10,2) NOT NULL DEFAULT 0,
+  import_id                 TEXT,     -- Google Forms dedup key
+  emergency_contact_name    TEXT,
+  emergency_contact_phone   TEXT,
+  emergency_contact_email   TEXT,
+  created_at                TIMESTAMPTZ DEFAULT now(),
   CONSTRAINT check_dates CHECK (check_out > check_in)
 );
 
 CREATE UNIQUE INDEX idx_bookings_import_id ON bookings(import_id) WHERE import_id IS NOT NULL;
-CREATE INDEX idx_bookings_dates    ON bookings(check_in, check_out);
-CREATE INDEX idx_bookings_client   ON bookings(client_id);
-CREATE INDEX idx_bookings_status   ON bookings(status);
+CREATE INDEX idx_bookings_dates   ON bookings(check_in, check_out);
+CREATE INDEX idx_bookings_client  ON bookings(client_id);
+CREATE INDEX idx_bookings_status  ON bookings(status);
 
--- Booking ↔ Rooms
+-- Booking ↔ Rooms (many-to-many)
 CREATE TABLE booking_rooms (
   booking_id  UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
   room_id     UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
   PRIMARY KEY (booking_id, room_id)
 );
 
--- Participants (travelling companions on a booking)
-CREATE TABLE participants (
+-- Participants d'un booking (visa, leçons, location)
+-- Remplace l'ancienne table `participants` (supprimée)
+CREATE TABLE booking_participants (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id       UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
   first_name       TEXT NOT NULL,
-  last_name        TEXT NOT NULL,
+  last_name        TEXT,
   passport_number  TEXT,
+  client_id        UUID REFERENCES clients(id) ON DELETE SET NULL,
+  kite_level       kite_level,
+  notes            TEXT,
   created_at       TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX idx_participants_booking ON participants(booking_id);
+CREATE INDEX idx_booking_participants_booking ON booking_participants(booking_id);
 
 
 -- ── Instructors & Lessons ─────────────────────────────────────────────────────
@@ -144,32 +152,26 @@ CREATE TABLE instructors (
 );
 
 CREATE TABLE lessons (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  booking_id      UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
-  instructor_id   UUID NOT NULL REFERENCES instructors(id),
-  date            DATE NOT NULL,
-  start_time      TEXT NOT NULL,    -- HH:MM
-  duration_hours  NUMERIC(4,2) NOT NULL DEFAULT 1,
-  type            lesson_type NOT NULL,
-  notes           TEXT,
-  kite_id         UUID,             -- FK to equipment (nullable)
-  board_id        UUID,             -- FK to equipment (nullable)
-  created_at      TIMESTAMPTZ DEFAULT now()
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id       UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  instructor_id    UUID NOT NULL REFERENCES instructors(id),
+  participant_ids  UUID[] NOT NULL DEFAULT '{}',  -- booking_participants.id[]
+  date             DATE NOT NULL,
+  start_time       TEXT NOT NULL,   -- HH:MM
+  duration_hours   NUMERIC(4,2) NOT NULL DEFAULT 1,
+  type             lesson_type NOT NULL,
+  notes            TEXT,
+  kite_id          UUID,            -- FK to equipment (nullable)
+  board_id         UUID,            -- FK to equipment (nullable)
+  created_at       TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE INDEX idx_lessons_booking    ON lessons(booking_id);
 CREATE INDEX idx_lessons_instructor ON lessons(instructor_id);
 CREATE INDEX idx_lessons_date       ON lessons(date);
 
--- Lesson ↔ Clients (1 private/supervision → 1, group → N)
-CREATE TABLE lesson_clients (
-  lesson_id   UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
-  client_id   UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-  PRIMARY KEY (lesson_id, client_id)
-);
 
-
--- ── Day Activities (Now tab) ───────────────────────────────────────────────────
+-- ── Day Activities & Dining ───────────────────────────────────────────────────
 
 CREATE TABLE day_activities (
   id     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -179,17 +181,15 @@ CREATE TABLE day_activities (
   notes  TEXT
 );
 
--- Dining events
 CREATE TABLE dining_events (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name              TEXT NOT NULL,
   date              DATE NOT NULL,
-  time              TEXT NOT NULL,
+  time              TEXT NOT NULL,   -- HH:MM
   type              TEXT NOT NULL CHECK (type IN ('count', 'menu')),
   price_per_person  NUMERIC(8,2) NOT NULL DEFAULT 0,
   notes             TEXT,
-  -- Attendees stored as JSONB array (denormalized for simplicity)
-  attendees         JSONB NOT NULL DEFAULT '[]',
+  attendees         JSONB NOT NULL DEFAULT '[]',  -- EventAttendee[] dénormalisé
   created_at        TIMESTAMPTZ DEFAULT now()
 );
 
@@ -223,19 +223,19 @@ CREATE TABLE equipment (
 );
 
 CREATE TABLE equipment_rentals (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  equipment_id  UUID NOT NULL REFERENCES equipment(id),
-  booking_id    UUID REFERENCES bookings(id) ON DELETE SET NULL,
-  client_id     UUID REFERENCES clients(id) ON DELETE SET NULL,
-  date          DATE NOT NULL,
-  slot          rental_slot NOT NULL,
-  price         NUMERIC(8,2) NOT NULL DEFAULT 0,
-  notes         TEXT,
-  created_at    TIMESTAMPTZ DEFAULT now()
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  equipment_id    UUID REFERENCES equipment(id),
+  booking_id      UUID REFERENCES bookings(id) ON DELETE SET NULL,
+  participant_id  UUID REFERENCES booking_participants(id) ON DELETE SET NULL,
+  date            DATE NOT NULL,
+  slot            rental_slot NOT NULL,
+  price           NUMERIC(8,2) NOT NULL DEFAULT 0,
+  notes           TEXT,
+  created_at      TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX idx_rentals_date     ON equipment_rentals(date);
-CREATE INDEX idx_rentals_booking  ON equipment_rentals(booking_id);
+CREATE INDEX idx_rentals_date    ON equipment_rentals(date);
+CREATE INDEX idx_rentals_booking ON equipment_rentals(booking_id);
 
 
 -- ── Taxis ─────────────────────────────────────────────────────────────────────
@@ -252,24 +252,25 @@ CREATE TABLE taxi_drivers (
 );
 
 CREATE TABLE taxi_trips (
-  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  date                    DATE NOT NULL,
-  start_time              TEXT NOT NULL,  -- HH:MM
-  type                    taxi_trip_type NOT NULL,
-  status                  taxi_trip_status NOT NULL DEFAULT 'confirmed',
-  taxi_driver_id          UUID REFERENCES taxi_drivers(id) ON DELETE SET NULL,
-  booking_id              UUID REFERENCES bookings(id) ON DELETE SET NULL,
-  nb_persons              INTEGER NOT NULL DEFAULT 1,
-  nb_luggage              INTEGER NOT NULL DEFAULT 0,
-  nb_boardbags            INTEGER NOT NULL DEFAULT 0,
-  notes                   TEXT,
-  price_client_mzn        INTEGER NOT NULL DEFAULT 8000,
-  margin_manager_mzn      INTEGER NOT NULL DEFAULT 1000,
-  margin_centre_mzn       INTEGER NOT NULL DEFAULT 1000,
-  price_driver_mzn        INTEGER NOT NULL DEFAULT 6000,
-  price_eur               NUMERIC(10,2) NOT NULL DEFAULT 0,
-  exchange_rate           NUMERIC(10,4) NOT NULL DEFAULT 65.0,
-  created_at              TIMESTAMPTZ DEFAULT now()
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date                DATE NOT NULL,
+  start_time          TEXT NOT NULL,   -- HH:MM
+  type                taxi_trip_type NOT NULL,
+  status              taxi_trip_status NOT NULL DEFAULT 'confirmed',
+  taxi_driver_id      UUID REFERENCES taxi_drivers(id) ON DELETE SET NULL,
+  booking_id          UUID REFERENCES bookings(id) ON DELETE SET NULL,
+  nb_persons          INTEGER NOT NULL DEFAULT 1,
+  nb_luggage          INTEGER NOT NULL DEFAULT 0,
+  nb_boardbags        INTEGER NOT NULL DEFAULT 0,
+  notes               TEXT,
+  -- Financials (MZN integers)
+  price_client_mzn    INTEGER NOT NULL DEFAULT 8000,   -- what client pays
+  margin_manager_mzn  INTEGER NOT NULL DEFAULT 1000,   -- intermediate manager cut
+  margin_centre_mzn   INTEGER NOT NULL DEFAULT 1000,   -- our centre margin
+  price_driver_mzn    INTEGER NOT NULL DEFAULT 6000,   -- = client - manager - centre
+  price_eur           NUMERIC(10,2) NOT NULL DEFAULT 0,  -- frozen at save time
+  exchange_rate       NUMERIC(10,4) NOT NULL DEFAULT 65.0,
+  created_at          TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE taxi_pricing_defaults (
@@ -281,12 +282,24 @@ CREATE TABLE taxi_pricing_defaults (
   updated_at          TIMESTAMPTZ DEFAULT now()
 );
 
+-- Suivi des avances versées au manager intermédiaire
+CREATE TABLE taxi_manager_payments (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date        DATE NOT NULL,
+  amount_mzn  INTEGER NOT NULL,
+  notes       TEXT,
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+
 CREATE INDEX idx_taxi_trips_date    ON taxi_trips(date);
 CREATE INDEX idx_taxi_trips_driver  ON taxi_trips(taxi_driver_id);
 CREATE INDEX idx_taxi_trips_booking ON taxi_trips(booking_id);
 
 
 -- ── Shared Public Links ───────────────────────────────────────────────────────
+-- Types : forecast | taxi | client | driver | activity_provider
+-- token : '{type}_{10 random chars}'
+-- params : { booking_number } pour client, { driver_id } pour driver, { provider_id } pour activity_provider
 
 CREATE TABLE shared_links (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -302,6 +315,54 @@ CREATE TABLE shared_links (
 CREATE INDEX idx_shared_links_token ON shared_links(token);
 
 
+-- ── Activities & Safaris ──────────────────────────────────────────────────────
+-- Prestataires externes (activités / safaris)
+-- Modèle bidirectionnel : we_pay_provider ou provider_pays_us
+-- Lien public par prestataire avec toggle show_prices
+
+CREATE TABLE activity_providers (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name         TEXT NOT NULL,
+  type         activity_provider_type NOT NULL DEFAULT 'activity',
+  phone        TEXT,
+  email        TEXT,
+  website      TEXT,
+  notes        TEXT,
+  is_active    BOOLEAN NOT NULL DEFAULT true,
+  show_prices  BOOLEAN NOT NULL DEFAULT false,  -- affiche onglet compta sur page publique
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE activity_bookings (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider_id      UUID NOT NULL REFERENCES activity_providers(id) ON DELETE CASCADE,
+  booking_id       UUID REFERENCES bookings(id) ON DELETE SET NULL,
+  date             DATE NOT NULL,
+  label            TEXT NOT NULL,
+  nb_persons       INTEGER NOT NULL DEFAULT 1,
+  participant_ids  UUID[] NOT NULL DEFAULT '{}',  -- booking_participants.id[]
+  price_client     NUMERIC(8,2) NOT NULL DEFAULT 0,   -- ce que paie le client au centre
+  price_provider   NUMERIC(8,2) NOT NULL DEFAULT 0,   -- ce que paie/reçoit le prestataire
+  payment_flow     activity_payment_flow NOT NULL DEFAULT 'we_pay_provider',
+  notes            TEXT,
+  created_at       TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE activity_payments (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider_id  UUID NOT NULL REFERENCES activity_providers(id) ON DELETE CASCADE,
+  date         DATE NOT NULL,
+  amount       NUMERIC(8,2) NOT NULL,
+  direction    activity_payment_direction NOT NULL,
+  notes        TEXT,
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_activity_bookings_provider ON activity_bookings(provider_id);
+CREATE INDEX idx_activity_bookings_date     ON activity_bookings(date);
+CREATE INDEX idx_activity_payments_provider ON activity_payments(provider_id);
+
+
 -- ── Accounting ────────────────────────────────────────────────────────────────
 
 CREATE TABLE seasons (
@@ -311,9 +372,18 @@ CREATE TABLE seasons (
   end_date    DATE NOT NULL
 );
 
+CREATE TABLE house_rentals (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  accommodation_id   UUID NOT NULL REFERENCES accommodations(id) ON DELETE CASCADE,
+  start_date         DATE NOT NULL,
+  end_date           DATE NOT NULL,
+  total_cost         NUMERIC(10,2) NOT NULL,
+  notes              TEXT
+);
+
 CREATE TABLE room_rates (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  room_id          TEXT NOT NULL,  -- room UUID or 'full_{accommodation_id}'
+  room_id          TEXT NOT NULL,  -- room UUID ou 'full_{accommodation_id}'
   price_per_night  NUMERIC(8,2) NOT NULL,
   notes            TEXT
 );
@@ -327,13 +397,13 @@ CREATE TABLE booking_room_prices (
 );
 
 CREATE TABLE external_accommodations (
-  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name                 TEXT NOT NULL,
-  provider             external_accommodation_provider NOT NULL,
-  cost_per_night       NUMERIC(8,2) NOT NULL DEFAULT 0,
-  sell_price_per_night NUMERIC(8,2) NOT NULL DEFAULT 0,
-  notes                TEXT,
-  is_active            BOOLEAN NOT NULL DEFAULT true
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                  TEXT NOT NULL,
+  provider              external_accommodation_provider NOT NULL,
+  cost_per_night        NUMERIC(8,2) NOT NULL DEFAULT 0,
+  sell_price_per_night  NUMERIC(8,2) NOT NULL DEFAULT 0,
+  notes                 TEXT,
+  is_active             BOOLEAN NOT NULL DEFAULT true
 );
 
 CREATE TABLE external_accommodation_bookings (
@@ -342,17 +412,17 @@ CREATE TABLE external_accommodation_bookings (
   external_accommodation_id  UUID NOT NULL REFERENCES external_accommodations(id),
   check_in                   DATE NOT NULL,
   check_out                  DATE NOT NULL,
-  cost_per_night             NUMERIC(8,2) NOT NULL,   -- snapshot
-  sell_price_per_night       NUMERIC(8,2) NOT NULL,   -- snapshot
+  cost_per_night             NUMERIC(8,2) NOT NULL,  -- snapshot
+  sell_price_per_night       NUMERIC(8,2) NOT NULL,  -- snapshot
   notes                      TEXT
 );
 
 CREATE TABLE payments (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  booking_id  UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
-  date        DATE NOT NULL,
-  amount      NUMERIC(10,2) NOT NULL,
-  method      payment_method NOT NULL,
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id   UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  date         DATE NOT NULL,
+  amount       NUMERIC(10,2) NOT NULL,
+  method       payment_method NOT NULL,
   is_deposit   BOOLEAN NOT NULL DEFAULT false,
   is_verified  BOOLEAN NOT NULL DEFAULT false,
   is_discount  BOOLEAN NOT NULL DEFAULT false,
@@ -365,7 +435,7 @@ CREATE INDEX idx_payments_booking ON payments(booking_id);
 CREATE TABLE participant_consumptions (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id      UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
-  participant_id  UUID NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
+  participant_id  UUID NOT NULL REFERENCES booking_participants(id) ON DELETE CASCADE,
   type            consumption_type NOT NULL,
   quantity        NUMERIC(8,2) NOT NULL DEFAULT 1,
   unit_price      NUMERIC(8,2) NOT NULL DEFAULT 0,
@@ -456,39 +526,39 @@ CREATE TABLE palmeiras_sub_lets (
 -- ── Travel Guide ──────────────────────────────────────────────────────────────
 
 CREATE TABLE travel_guide_sections (
-  id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key      TEXT NOT NULL UNIQUE,   -- e.g. 'weather', 'transport'
-  title_fr TEXT NOT NULL,
-  title_en TEXT NOT NULL,
-  title_es TEXT NOT NULL,
-  body_fr  TEXT NOT NULL DEFAULT '',
-  body_en  TEXT NOT NULL DEFAULT '',
-  body_es  TEXT NOT NULL DEFAULT '',
-  sort_order INTEGER NOT NULL DEFAULT 0,
-  updated_at TIMESTAMPTZ DEFAULT now()
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key         TEXT NOT NULL UNIQUE,   -- e.g. 'weather', 'transport'
+  title_fr    TEXT NOT NULL,
+  title_en    TEXT NOT NULL,
+  title_es    TEXT NOT NULL,
+  body_fr     TEXT NOT NULL DEFAULT '',
+  body_en     TEXT NOT NULL DEFAULT '',
+  body_es     TEXT NOT NULL DEFAULT '',
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  updated_at  TIMESTAMPTZ DEFAULT now()
 );
 
 
 -- ============================================================
 -- RLS — Row Level Security
--- Règle : authentifié = accès complet / anonyme = rien
--- (Les liens publics seront gérés avec des policies dédiées)
+-- Règle de base : authentifié = accès complet, anon = rien
+-- Exceptions : tables avec accès public en lecture (pages partagées)
 -- ============================================================
 
 DO $$
-DECLARE
-  t TEXT;
+DECLARE t TEXT;
 BEGIN
   FOR t IN SELECT unnest(ARRAY[
     'accommodations', 'rooms',
-    'clients', 'bookings', 'booking_rooms', 'participants',
-    'instructors', 'lessons', 'lesson_clients',
+    'clients', 'bookings', 'booking_rooms', 'booking_participants',
+    'instructors', 'lessons',
     'day_activities', 'dining_events',
     'price_items',
     'equipment', 'equipment_rentals',
-    'taxi_drivers', 'taxi_trips',
+    'taxi_drivers', 'taxi_trips', 'taxi_pricing_defaults', 'taxi_manager_payments',
     'shared_links',
-    'seasons', 'room_rates', 'booking_room_prices',
+    'activity_providers', 'activity_bookings', 'activity_payments',
+    'seasons', 'house_rentals', 'room_rates', 'booking_room_prices',
     'external_accommodations', 'external_accommodation_bookings',
     'payments', 'participant_consumptions',
     'instructor_debts', 'instructor_payments', 'lesson_rate_overrides',
@@ -498,46 +568,22 @@ BEGIN
   ]) LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format(
-      'CREATE POLICY "admin_all" ON %I FOR ALL TO authenticated USING (true) WITH CHECK (true)',
-      t
+      'CREATE POLICY "admin_all" ON %I FOR ALL TO authenticated USING (true) WITH CHECK (true)', t
     );
   END LOOP;
 END $$;
 
--- Accès anonyme en lecture seule sur shared_links (pour valider un token)
+-- Accès anon : shared_links (validation token)
 CREATE POLICY "anon_read_shared_links" ON shared_links
   FOR SELECT TO anon
   USING (is_active = true AND (expires_at IS NULL OR expires_at >= CURRENT_DATE));
 
--- Accès anonyme en lecture sur taxi_trips (pour la page publique taxi)
-CREATE POLICY "anon_read_taxi_trips" ON taxi_trips
-  FOR SELECT TO anon USING (true);
-
-CREATE POLICY "anon_read_taxi_drivers" ON taxi_drivers
-  FOR SELECT TO anon USING (true);
-
--- Accès anonyme en lecture sur les données nécessaires au forecast public
-CREATE POLICY "anon_read_lessons" ON lessons
-  FOR SELECT TO anon USING (true);
-
-CREATE POLICY "anon_read_instructors" ON instructors
-  FOR SELECT TO anon USING (true);
-
-CREATE POLICY "anon_read_bookings" ON bookings
-  FOR SELECT TO anon USING (true);
-
-CREATE POLICY "anon_read_clients" ON clients
-  FOR SELECT TO anon USING (true);
-
--- ── À exécuter dans SQL Editor (Supabase dashboard) ────────────────────────
--- Taxi manager payments — track advances paid to the intermediate manager
-CREATE TABLE taxi_manager_payments (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  date       DATE NOT NULL,
-  amount_mzn INTEGER NOT NULL,
-  notes      TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE taxi_manager_payments ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "auth" ON taxi_manager_payments
-  FOR ALL USING (auth.role() = 'authenticated');
+-- Accès anon : données nécessaires aux pages publiques (forecast, taxi, client, driver, activity)
+CREATE POLICY "anon_read_taxi_trips"    ON taxi_trips     FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_taxi_drivers"  ON taxi_drivers   FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_lessons"       ON lessons        FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_instructors"   ON instructors    FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_bookings"      ON bookings       FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_clients"       ON clients        FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_activity_providers" ON activity_providers FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_activity_bookings"  ON activity_bookings  FOR SELECT TO anon USING (true);

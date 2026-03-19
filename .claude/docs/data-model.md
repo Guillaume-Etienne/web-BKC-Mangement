@@ -1,13 +1,13 @@
 # Data Model Reference
-> Source of truth: `client/src/types/database.ts` + `supabase/schema.sql`
-> Room labels: "Maison X" → "H-X", "Chambre 1" → "F" (Front), "Chambre 2" → "B" (Back)
+> Source of truth : `client/src/types/database.ts` + `supabase/schema.sql`
+> Room labels : "Maison X" → "H-X", "Chambre 1" → "F" (Front), "Chambre 2" → "B" (Back)
 
 ---
 
 ## Union Types / Enums
 
-| Type | Values |
-|------|--------|
+| Type | Valeurs |
+|------|---------|
 | `AccommodationType` | `'house' \| 'bungalow' \| 'other'` |
 | `BookingStatus` | `'confirmed' \| 'provisional' \| 'cancelled'` |
 | `KiteLevel` | `'beg-total' \| 'beg-bodydrag' \| 'beg-waterstart' \| 'intermediate' \| 'advanced'` |
@@ -16,7 +16,7 @@
 | `PriceCategory` | `'lesson' \| 'activity' \| 'rental' \| 'taxi'` |
 | `TaxiTripType` | `'aero-to-center' \| 'center-to-aero' \| 'aero-to-spot' \| 'spot-to-aero' \| 'center-to-town' \| 'town-to-center' \| 'other'` |
 | `TaxiTripStatus` | `'confirmed' \| 'needs_details' \| 'done'` |
-| `SharedLinkType` | `'forecast' \| 'taxi' \| 'client'` |
+| `SharedLinkType` | `'forecast' \| 'taxi' \| 'client' \| 'driver' \| 'activity_provider'` |
 | `EquipmentCategory` | `'kite' \| 'board' \| 'surfboard' \| 'foilboard'` |
 | `EquipmentCondition` | `'new' \| 'good' \| 'fair' \| 'damaged' \| 'retired'` |
 | `RentalSlot` | `'morning' \| 'afternoon' \| 'full_day'` |
@@ -24,6 +24,9 @@
 | `ConsumptionType` | `'lesson' \| 'rental' \| 'activity' \| 'center_access'` |
 | `EventType` | `'count' \| 'menu'` |
 | `ExternalAccommodationProvider` | `'palmeiras' \| 'other'` |
+| `ActivityProviderType` | `'activity' \| 'safari'` |
+| `ActivityPaymentFlow` | `'we_pay_provider' \| 'provider_pays_us'` |
+| `ActivityPaymentDirection` | `'to_provider' \| 'from_provider'` |
 
 ---
 
@@ -44,7 +47,7 @@
 | id | string (UUID) | |
 | accommodation_id | string (FK) | |
 | name | string | "Chambre 1" → F, "Chambre 2" → B |
-| capacity | number | persons |
+| capacity | number | personnes |
 
 ### `clients` → `Client`
 | Field | Type |
@@ -72,29 +75,28 @@
 | booking_id | string (FK → bookings) | |
 | first_name | string | |
 | last_name | string \| null | |
-| passport_number | string \| null | Required for visa letter |
-| client_id | string \| null | Optional link to existing Client |
-| kite_level | `KiteLevel \| null` | Added 2026-03 |
+| passport_number | string \| null | Requis pour lettre visa |
+| client_id | string \| null | Lien optionnel vers Client existant |
+| kite_level | `KiteLevel \| null` | |
 | notes | string \| null | |
 | created_at | string (ISO timestamp) | |
-> **Replaces old `participants` table** (dropped). Unified model for all persons in a booking (visa + lessons + rentals).
-> ⚠️ Requires RLS policies for authenticated users (SELECT/INSERT/UPDATE/DELETE).
+> Remplace l'ancienne table `participants` (supprimée). Modèle unifié pour visa + leçons + location.
 
 ### `bookings` → `Booking`
 | Field | Type | Notes |
 |-------|------|-------|
 | id | string (UUID) | |
-| booking_number | number | Sequential, displayed as #001 |
+| booking_number | number | Séquentiel, affiché #001 |
 | client_id | string (FK → clients) | |
-| check_in | string (ISO date) | Actual kite center arrival |
-| check_out | string (ISO date) | Actual kite center departure |
-| visa_entry_date | string \| null | Mozambique entry (visa letter) |
-| visa_exit_date | string \| null | Mozambique exit (visa letter) |
+| check_in | string (ISO date) | |
+| check_out | string (ISO date) | |
+| visa_entry_date | string \| null | Entrée Mozambique (lettre visa) |
+| visa_exit_date | string \| null | Sortie Mozambique (lettre visa) |
 | status | BookingStatus | |
 | notes | string \| null | |
-| num_lessons | number | Persons wanting lessons |
+| num_lessons | number | Personnes voulant des leçons |
 | num_equipment_rentals | number | |
-| num_center_access | number | No lesson/rental |
+| num_center_access | number | Sans leçon ni location |
 | arrival_time | string \| null (HH:MM) | |
 | departure_time | string \| null (HH:MM) | |
 | luggage_count | number | |
@@ -105,11 +107,11 @@
 | children_count | number | |
 | amount_paid | number (EUR) | |
 | import_id | string \| null | Google Forms dedup |
-| client? | Client | Optional join |
-| emergency_contact_* | string \| null | Duplicated from client |
-> Participants are in `booking_participants` table (separate query via `useBookingParticipants()`).
+| client? | Client | Join optionnel |
+| emergency_contact_* | string \| null | |
+> Participants dans `booking_participants` (requête séparée via `useBookingParticipants()`).
 
-**Minimal projection `BookingRef`** (used by taxi/activity pickers):
+**Projection minimale `BookingRef`** (utilisée par taxi/activity pickers) :
 `id, booking_number, check_in, check_out, luggage_count, boardbag_count, client?{first_name, last_name}`
 
 ### `booking_rooms` → `BookingRoom`
@@ -117,27 +119,27 @@
 |-------|------|
 | booking_id | string (FK) |
 | room_id | string (FK) |
-> Many-to-many junction.
+> Junction many-to-many.
 
 ### `booking_room_prices` → `BookingRoomPrice`
 | Field | Type | Notes |
 |-------|------|-------|
 | booking_id | string (FK) | |
 | room_id | string (FK) | |
-| price_per_night | number (EUR) | Frozen at booking time |
+| price_per_night | number (EUR) | Figé au moment du booking |
 | override_note | string \| null | |
 
 ### `room_rates` → `RoomRate`
 | Field | Type |
 |-------|------|
 | id | string (UUID) |
-| room_id | string (FK or `'full_{accommodation_id}'` for full-house rate) |
+| room_id | string (FK ou `'full_{accommodation_id}'` pour tarif maison entière) |
 | price_per_night | number (EUR) |
 | notes | string \| null |
 
 ---
 
-## Planning / Lessons
+## Planning / Leçons
 
 ### `instructors` → `Instructor`
 | Field | Type |
@@ -159,7 +161,7 @@
 | id | string (UUID) | |
 | booking_id | string (FK) | |
 | instructor_id | string (FK) | |
-| participant_ids | string[] | BookingParticipant.id — 1 for private/supervision, N for group |
+| participant_ids | string[] | booking_participants.id[] — 1 pour private/supervision, N pour group |
 | date | string (ISO date) | |
 | start_time | string (HH:MM) | |
 | duration_hours | number | |
@@ -184,26 +186,26 @@
 | name | string | |
 | date | string (ISO date) | |
 | time | string (HH:MM) | |
-| type | EventType | `'count'` = headcount only, `'menu'` = full menu |
+| type | EventType | `'count'` = effectif seulement, `'menu'` = menu complet |
 | price_per_person | number | |
 | notes | string | |
-| attendees | EventAttendee[] | Joined |
+| attendees | EventAttendee[] | Dénormalisé JSONB |
 
 ### `event_attendees` → `EventAttendee`
 | Field | Type |
 |-------|------|
 | id | string (UUID) |
 | person_id | string |
-| person_type | `'instructor' \| 'client' \| 'extra'` |
+| person_type | `'instructor' \| 'participant' \| 'extra'` |
 | person_name | string |
 | room_label | string (e.g. "H-1/F") |
 | is_attending | boolean |
 | price_override? | number |
-| starter / main / side / dessert | string (for type='menu') |
+| starter / main / side / dessert | string (pour type='menu') |
 
 ---
 
-## Equipment
+## Équipement
 
 ### `equipment` → `Equipment`
 | Field | Type |
@@ -222,8 +224,8 @@
 | Field | Type |
 |-------|------|
 | id | string (UUID) |
-| equipment_id | string (FK) |
-| booking_id | string \| null |
+| equipment_id | string \| null (FK) |
+| booking_id | string \| null (FK) |
 | participant_id | string \| null (FK → booking_participants) |
 | date | string (ISO date) |
 | slot | RentalSlot |
@@ -254,18 +256,19 @@
 | type | TaxiTripType | |
 | status | TaxiTripStatus | |
 | taxi_driver_id | string \| null | |
-| booking_id | string \| null | |
+| booking_id | string \| null | null = trip standalone (sans booking) |
 | nb_persons | number | |
 | nb_luggage | number | |
 | nb_boardbags | number | |
 | notes | string \| null | |
-| price_client_mzn | number | What client pays |
-| margin_manager_mzn | number | Intermediate manager cut |
-| margin_centre_mzn | number | Our centre margin |
+| price_client_mzn | number | Ce que paie le client |
+| margin_manager_mzn | number | Marge manager intermédiaire |
+| margin_centre_mzn | number | Marge du centre |
 | price_driver_mzn | number | = client − manager − centre |
-| price_eur | number | Frozen at save time |
-| exchange_rate | number | EUR/MZN at save time |
-> ⚠️ `useTaxiTrips()` normalizes old DB column names automatically (`schemaOutdated` flag).
+| price_eur | number | Figé au save |
+| exchange_rate | number | EUR/MZN au save |
+> ⚠️ `useTaxiTrips()` normalise les anciens noms de colonnes DB (`schemaOutdated` flag).
+> Trips sans `booking_id` : revenue compté dans compta via `computeStandaloneTaxiRevenue()`.
 
 ### `taxi_pricing_defaults` → `TaxiPricingDefaults`
 | Field | Type | Default |
@@ -276,7 +279,64 @@
 | margin_centre_mzn | number | 1000 |
 | eur_mzn_rate | number | 65 |
 | updated_at | string (ISO timestamp) | |
-> Singleton table. New trips pre-fill from this. Editable in Management → Pricing.
+> Singleton. Pré-remplit les nouveaux trips. Modifiable dans Management → Pricing.
+
+### `taxi_manager_payments` → `TaxiManagerPayment`
+| Field | Type |
+|-------|------|
+| id | string (UUID) |
+| date | string (ISO date) |
+| amount_mzn | number |
+| notes | string \| null |
+
+---
+
+## Activities & Safaris
+
+### `activity_providers` → `ActivityProvider`
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| name | string | |
+| type | ActivityProviderType | `'activity'` ou `'safari'` |
+| phone | string \| null | |
+| email | string \| null | |
+| website | string \| null | |
+| notes | string \| null | |
+| is_active | boolean | |
+| show_prices | boolean | Si true → onglet Accounting visible sur page publique |
+| created_at | string | |
+
+### `activity_bookings` → `ActivityBooking`
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| provider_id | string (FK) | |
+| booking_id | string \| null (FK → bookings) | Lien optionnel |
+| date | string (ISO date) | |
+| label | string | e.g. "Whale shark tour" |
+| nb_persons | number | |
+| participant_ids | string[] | booking_participants.id[] |
+| price_client | number (EUR) | Ce que paie le client au centre |
+| price_provider | number (EUR) | Ce que paie/reçoit le prestataire |
+| payment_flow | ActivityPaymentFlow | |
+| notes | string \| null | |
+| created_at | string | |
+
+**Modèle financier :**
+- `we_pay_provider` : client paie le centre (price_client), centre paie prestataire (price_provider). Marge centre = price_client − price_provider.
+- `provider_pays_us` : client paie le prestataire directement, prestataire nous reverse price_provider.
+
+### `activity_payments` → `ActivityPayment`
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| provider_id | string (FK) | |
+| date | string (ISO date) | |
+| amount | number (EUR) | |
+| direction | ActivityPaymentDirection | `'to_provider'` = on les paie, `'from_provider'` = ils nous paient |
+| notes | string \| null | |
+| created_at | string | |
 
 ---
 
@@ -296,13 +356,23 @@
 | Field | Type | Notes |
 |-------|------|-------|
 | id | string (UUID) | |
-| token | string | Random `{type}_{10chars}` |
-| type | SharedLinkType | `'forecast' \| 'taxi' \| 'client'` |
+| token | string | Aléatoire `{type}_{10chars}` |
+| type | SharedLinkType | |
 | label | string | |
-| params | Record<string, string> | e.g. `{ booking_number: '42' }` for 'client' type |
+| params | Record<string, string> | `{ booking_number }` / `{ driver_id }` / `{ provider_id }` |
 | created_at | string (ISO date) | |
 | expires_at | string \| null | |
 | is_active | boolean | |
+
+**Paramètres par type :**
+| type | params |
+|------|--------|
+| `client` | `{ booking_number: '42' }` |
+| `driver` | `{ driver_id: 'uuid' }` |
+| `activity_provider` | `{ provider_id: 'uuid' }` |
+| `forecast` / `taxi` | `{}` |
+
+> Créés automatiquement (pas via le form links) pour `driver` et `activity_provider` depuis leurs pages dédiées.
 
 ---
 
@@ -316,14 +386,24 @@
 | start_date | string (ISO date) |
 | end_date | string (ISO date) |
 
+### `house_rentals` → `HouseRental`
+| Field | Type |
+|-------|------|
+| id | string (UUID) |
+| accommodation_id | string (FK) |
+| start_date | string (ISO date) |
+| end_date | string (ISO date) |
+| total_cost | number (EUR) |
+| notes | string \| null |
+
 ### `external_accommodations` → `ExternalAccommodation`
 | Field | Type |
 |-------|------|
 | id | string (UUID) |
 | name | string |
 | provider | ExternalAccommodationProvider |
-| cost_per_night | number (EUR, what we pay) |
-| sell_price_per_night | number (EUR, what we charge) |
+| cost_per_night | number (EUR, ce qu'on paie) |
+| sell_price_per_night | number (EUR, ce qu'on facture) |
 | notes | string \| null |
 | is_active | boolean |
 
@@ -345,26 +425,14 @@
 | id | string (UUID) | |
 | booking_id | string (FK) | |
 | date | string (ISO date) | |
-| amount | number (always EUR) | Always positive (including discounts) |
+| amount | number (EUR) | Toujours positif |
 | method | PaymentMethod | |
-| is_deposit | boolean | Deposit vs. balance payment |
-| is_verified | boolean | false = "to verify" (auto-created payments start false) |
-| is_discount | boolean | true = discount credit (reduces balance, not a real payment) |
+| is_deposit | boolean | |
+| is_verified | boolean | false = "à vérifier" |
+| is_discount | boolean | true = remise (réduit le solde) |
 | notes | string \| null | |
-> Auto-creation: new booking with `amount_paid > 0` → inserts Payment (`method:'transfer'`, `is_verified:false`).
-> Discounts: stored as positive amount, `is_discount:true`. Reduces balance = reduces outstanding (Total − Paid).
-> Payments added manually in Accounting/Bookings are created with `is_verified:true`.
-
-### `participant_consumptions` → `ParticipantConsumption`
-| Field | Type |
-|-------|------|
-| id | string (UUID) |
-| booking_id | string (FK) |
-| participant_id | string (FK) |
-| type | ConsumptionType |
-| quantity | number |
-| unit_price | number |
-| notes | string \| null |
+> Auto-création : nouveau booking avec `amount_paid > 0` → insert Payment (`method:'transfer'`, `is_verified:false`).
+> Discounts : positif, `is_discount:true`. Réduit outstanding (Total − Paid).
 
 ### `instructor_debts` → `InstructorDebt`
 | Field | Type |
@@ -389,9 +457,9 @@
 | Field | Type |
 |-------|------|
 | id | string (UUID) |
-| lesson_id | string (FK) |
+| lesson_id | string (FK, UNIQUE) |
 | rate | number (EUR/h) |
-| note | string (required) |
+| note | string (requis) |
 
 ### `expenses` → `Expense`
 | Field | Type |
@@ -401,52 +469,35 @@
 | category | string (free-form) |
 | amount | number (EUR) |
 | description | string |
-> Default categories: Equipment, Maintenance, Transport, Staff, Admin, Other
+> Catégories par défaut : Equipment, Maintenance, Transport, Staff, Admin, Other
 
-### `palmeiras_rents` → `PalmeirasRent`
-| Field | Type |
-|-------|------|
-| id | string (UUID) |
-| month | string (YYYY-MM) |
-| amount | number (EUR) |
-| notes | string \| null |
-
-### `palmeiras_reversals` → `PalmeirasReversal`
-| Field | Type | Notes |
-|-------|------|-------|
-| id | string (UUID) | |
-| month | string (YYYY-MM) | |
-| gross_amount | number (EUR) | Collected by Palmeiras |
-| percent | number | % owed to us |
-| net_amount | number (EUR) | gross × percent / 100 |
-| notes | string \| null | |
-
-### `palmeiras_entries` → `PalmeirasEntry`
-| Field | Type |
-|-------|------|
-| id | string (UUID) |
-| month | string (YYYY-MM) |
-| type | `'expense' \| 'income'` |
-| description | string |
-| amount | number (EUR) |
-
-### `palmeiras_sub_lets` → `PalmeirasSubLet`
-| Field | Type |
-|-------|------|
-| id | string (UUID) |
-| month | string (YYYY-MM) |
-| bungalow | string |
-| check_in | string (ISO date) |
-| check_out | string (ISO date) |
-| nights | number |
-| cost_per_night | number (EUR, what we pay) |
-| sell_per_night | number (EUR, what we charge) |
-| booking_ref | string \| null |
-| notes | string \| null |
+### Palmeiras
+| Table | Interface | Clé |
+|-------|-----------|-----|
+| `palmeiras_rents` | `PalmeirasRent` | `month` YYYY-MM |
+| `palmeiras_reversals` | `PalmeirasReversal` | `month` + gross/percent/net |
+| `palmeiras_entries` | `PalmeirasEntry` | `month` + type income/expense |
+| `palmeiras_sub_lets` | `PalmeirasSubLet` | `month` + bungalow + cost/sell/nights |
 
 ---
 
-## Accounting Helper Types (`components/accounting/types.ts`)
+## Types accounting partagés (`components/accounting/types.ts`)
 
-- **`SharedAccountingData`** — bundle passed to all accounting sub-components (all tables read-only)
-- **`AccountingHandlers`** — interface for all mutations (add/update/delete per entity)
+**`SharedAccountingData`** — bundle passé à tous les sous-composants :
+`accommodations, bookingParticipants, houseRentals, bookings, clients, rooms, bookingRooms, bookingRoomPrices, externalAccommodationBkgs, externalAccommodations, diningEvents, lessons, instructors, equipment, equipmentRentals, taxiTrips, seasons, payments, instructorDebts, instructorPayments, lessonRateOverrides, expenses, palmeirasRents, palmeirasReversals, palmeirasEntries, palmeirasSubLets, activityBookings, activityPayments`
+
+**`AccountingHandlers`** — mutations add/update/delete pour chaque entité mutable.
+
+**`utils.ts`** — fonctions de calcul clés :
+| Fonction | Retourne |
+|----------|---------|
+| `computeBookingTotal(b, data)` | Total facturé pour un booking |
+| `computeAccommodationRevenue(b, data)` | Revenu hébergement |
+| `computeLessonsRevenue(b, data)` | Revenu leçons |
+| `computeRentalsRevenue(b, data)` | Revenu location matériel |
+| `computeTaxiRevenue(b, data)` | Revenu taxi lié à un booking |
+| `computeStandaloneTaxiRevenue(data)` | Revenu trips taxi sans booking |
+| `computeActivityNetRevenue(data)` | Marge nette activités (we_pay: price_client−price_provider ; provider_pays: price_provider) |
+| `computeInstructorBalance(id, data)` | Solde dû à un instructeur |
+| `fmtEur(n)` | Formatage EUR |
+| `fmtMonth(yyyymm)` | "Feb 2026" |

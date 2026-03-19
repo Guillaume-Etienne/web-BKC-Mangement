@@ -1,89 +1,72 @@
 # Components Reference
-> All components in `client/src/components/`
+> Tous les composants dans `client/src/components/`
 
 ---
 
 ## Layout
 
 ### `Navigation` — `layout/Navigation.tsx`
-**Props:** `{ currentPage: Page; onNavigate: (p: Page) => void; onLogout: () => void }`
-- Top sticky navbar: logo, 9 nav items, sign out button
-- Mobile: hamburger → dropdown
-- State: `mobileMenuOpen: boolean`
+**Props :** `{ currentPage: Page; onNavigate: (p: Page) => void; onLogout: () => void }`
+- Navbar sticky top : logo, 10 items, bouton sign out
+- Mobile : hamburger → dropdown
+- **Items :** Home, Clients, Planning, Bookings, Accounting, Documents, Options, Equipment, Taxis, Activities
+- State : `mobileMenuOpen: boolean`
 
 ---
 
 ## Planning
 
 ### `PlanningView` — `planning/PlanningView.tsx`
-*(Used as a page, no props — uses hooks directly)*
-- Main planning grid: horizontal timeline Sep→Mar
-- 4 sub-tabs: planning (grid), lessons (LessonWeekView), now (NowView), forecast (ForecastView)
-- Manages: season year selector, drag state (`useBookingDrag`), Supabase mutations
-- Renders: PlanningRow × N, TotalsRow × 3, sub-tab component
+*(Utilisé comme page, pas de props — hooks directs)*
+- Grille planning horizontale Sep→Mar
+- 4 sub-tabs : planning (grille), lessons (LessonWeekView), now (NowView), forecast (ForecastView)
+- Gère : sélecteur d'année, drag state (`useBookingDrag`), mutations Supabase
+- Rend : PlanningRow × N, TotalsRow × 3, composant sub-tab
 
 ### `PlanningRow` — `planning/PlanningRow.tsx`
-**Props:** `{ roomId, label, totalDays, seasonStart, bookings, bookingParticipants: BookingParticipant[], dragState, onPointerDown }`
-- One grid row for one room (label + day columns + booking bars)
-- `CELL_W = 32px` per day. Weekend highlighting. Drag handles on booking edges.
-- Uses `bookingParticipants.filter(p => p.booking_id === b.id).length` for guest count badges
-- Fully controlled (no internal state)
+**Props :** `{ roomId, label, totalDays, seasonStart, bookings, bookingParticipants: BookingParticipant[], dragState, onPointerDown }`
+- Une ligne grille pour une chambre (label + colonnes jour + barres booking)
+- `CELL_W = 32px` par jour. Highlighting weekend. Poignées drag sur les bords.
+- Utilise `bookingParticipants.filter(p => p.booking_id === b.id).length` pour les badges
+- Entièrement contrôlé (pas d'état interne)
 
 ### `BookingBar` — `planning/BookingBar.tsx`
-**Props:** `{ booking, startCol, endCol, totalDays }`
-- Colored bar: confirmed=emerald, provisional=amber, cancelled=gray
-- Truncated client name, tooltip with details
-- CSS grid positioning
+**Props :** `{ booking, startCol, endCol, totalDays }`
+- Barre colorée : confirmed=emerald, provisional=amber, cancelled=gray
+- Nom client tronqué, tooltip avec détails
+- Positionnement CSS grid
 
 ### `TotalsRow` — `planning/TotalsRow.tsx`
-**Props:** `{ label, totalDays, seasonStart, bookings, bookingParticipants: BookingParticipant[], type: 'lessons'|'equipment'|'guests' }`
-- Summary row with daily counts per day column
-- Emerald if > 0, gray if 0. Weekend highlighting.
-- `type='guests'`: counts via `bookingParticipants.filter(p => p.booking_id === booking.id).length`
+**Props :** `{ label, totalDays, seasonStart, bookings, bookingParticipants: BookingParticipant[], type: 'lessons'|'equipment'|'guests' }`
+- Ligne résumé avec comptes journaliers
+- Emerald si > 0, gray si 0. Highlighting weekend.
 
 ### `LessonWeekView` — `planning/LessonWeekView.tsx`
-*(Props: hooks-derived data + mutation callbacks + `bookingParticipants: BookingParticipant[]` + `clients: Client[]`)*
-- Week navigator (Mon–Sun)
-- 3 slots/day (morning, afternoon, evening)
-- List lessons/activities/rentals per slot
-- Modals: add/edit lesson, add/edit activity, add/edit rental
-- ⚠️ Forms defined at **module scope** (not inside render) to avoid focus loss
-
-**Key helper functions:**
-- `activeParticipantsForDate(date)` — returns participants from bookings active on that date (`check_in <= date <= check_out`). Falls back to all `bookingParticipants` if none found.
-- `bookingForParticipant(participantId)` — returns booking_id for a participant
-- `bookingClient(bookingId)` — returns display name from booking's client (fallback when no participant linked)
-
-**Participant display in lessons/rentals:**
-1. Look up `BookingParticipant` by `participant_ids[0]` or `participant_id`
-2. Fall back to `bookingClient(booking_id)` if not found
-
-**Rental edit modal** — fully expanded fields: guest selector (BookingParticipant), type buttons (kite/board/surfboard/foilboard), equipment selectors, slot (morning/afternoon/full_day), price, notes. Derives type from `equipment.category`.
+*(Props : données des hooks + callbacks mutations + `bookingParticipants: BookingParticipant[]` + `clients: Client[]`)*
+- Navigateur semaine (Lun–Dim)
+- 3 slots/jour (morning, afternoon, evening)
+- Modals add/edit lesson, activity, rental
+- ⚠️ Formulaires définis au **scope module** (pas dans le render) pour éviter la perte de focus
 
 ### `NowView` — `planning/NowView.tsx`
-**Props:** `{ instructors: Instructor[]; bookingParticipants: BookingParticipant[] }` + internal `useTable<DiningEvent>`
-- Dining event editor for the "Now" sub-tab
-- Date picker (±1 day)
-- Event list → select → attendee table
-- EventType: `'count'` (headcount) or `'menu'` (per-person menu fields)
-- Attendee: toggle attending, price override, menu fields (starter/main/side/dessert)
-- ⚠️ All sub-forms at **module scope**
-- Mutations: fire-and-forget to `dining_events` table
+**Props :** `{ instructors: Instructor[]; bookingParticipants: BookingParticipant[] }` + `useTable<DiningEvent>` interne
+- Éditeur d'événements dining pour le sub-tab "Now"
+- Sélecteur de date (±1 jour)
+- EventType : `'count'` (effectif) ou `'menu'` (champs par personne)
+- ⚠️ Formulaires au **scope module**
 
 ### `ForecastView` — `planning/ForecastView.tsx`
-*(Props: hooks-derived data + mutation callbacks)*
-- Instructor schedule time grid (same layout as ForecastSharePage but editable)
-- Date picker, instructor columns, lesson blocks (color by type)
-- Rentals panel (slot-based)
-- Add/edit lesson modal
-- Mobile: instructor carousel
+*(Props : données des hooks + callbacks mutations)*
+- Grille horaire instructeurs (même layout que ForecastSharePage mais éditable)
+- Sélecteur de date, colonnes instructeurs, blocs de leçons (couleur par type)
+- Modal add/edit leçon
 
 ---
 
 ## Taxi
 
 ### `TaxiListView` — `taxi/TaxiListView.tsx`
-**Props:**
+**Props :**
 ```ts
 {
   trips: TaxiTrip[]; drivers: TaxiDriver[]; bookings: BookingRef[]
@@ -95,25 +78,29 @@
   onUpdateRate: (rate: number) => void
 }
 ```
-- Summary table (done vs. planned: client MZN, EUR, driver, manager, centre)
-- Trip table: date, time, type, driver, guest, status, persons, luggage, financials
-- Guest count: `bookingParticipants.filter(p => p.booking_id === b.id).length || 1`
-- Add → opens modal pre-filled with `pricingDefaults`
-- Status badges: confirmed=gray, needs_details=red, done=green
+- Tableau récapitulatif (done vs. planned : client MZN, EUR, driver, manager, centre)
+- Tableau trips : date, heure, type, driver, client, statut, personnes, bagages, financials
+- Add → modal pré-rempli avec `pricingDefaults`
+- Badges statut : confirmed=gray, needs_details=red, done=green
 
 ### `TaxiKanbanView` — `taxi/TaxiKanbanView.tsx`
-**Props:** Same as TaxiListView (including `bookingParticipants`)
-- 3 columns: Confirmed / Needs Details / Done
-- Drag card between columns → updates `status` via `onUpdateTrip`
-- Same summary table as ListView
-- Same modal for add/edit
+**Props :** Identiques à TaxiListView
+- 3 colonnes : Confirmed / Needs Details / Done
+- Drag carte entre colonnes → update `status`
+
+### `DriverStatementPanel` — `taxi/DriverStatementPanel.tsx`
+**Props :** `{ driver, trips, driverLink: SharedLink|null, onGenerateLink, onEdit, onDelete }`
+- 3 KPI cards : Completed / Upcoming / Total (MZN)
+- Tables trips passés et à venir (date, heure, route, client, pax, bags, boards, notes, MZN)
+- Section share link : bouton "Generate link" → URL + Copy + Open
+- Génère un `shared_link` de type `'driver'` avec `params.driver_id`
 
 ---
 
 ## Clients
 
 ### `ImportCSVModal` — `clients/ImportCSVModal.tsx`
-**Props:**
+**Props :**
 ```ts
 {
   existingClients: Client[]; existingBookings: Booking[]
@@ -122,84 +109,96 @@
   onClose: () => void
 }
 ```
-- 4-step wizard: Pick file → Review rows → Resolve conflicts → Confirm
-- Parses Google Forms CSV → extracts client + booking data
-- Dedup key: `import_id` (Google Forms timestamp)
-- Conflict: same import_id → choose keep/replace
+- Wizard 4 étapes : Choisir fichier → Réviser lignes → Résoudre conflits → Confirmer
+- Parse CSV Google Forms → extrait données client + booking
+- Clé dedup : `import_id` (timestamp Google Forms)
 
 ---
 
 ## Accounting
 
-All accounting components share:
-- **Props pattern:** `{ data: SharedAccountingData }` or `{ data, handlers: AccountingHandlers }`
-- **Utils:** `components/accounting/utils.ts` — compute functions + `fmtEur()`, `fmtMonth()`
-- **Types:** `components/accounting/types.ts` — SharedAccountingData, AccountingHandlers
+Tous les composants accounting partagent :
+- **Pattern Props :** `{ data: SharedAccountingData }` ou `{ data, handlers: AccountingHandlers }`
+- **Utils :** `components/accounting/utils.ts` — fonctions compute + `fmtEur()`, `fmtMonth()`
+- **Types :** `components/accounting/types.ts` — SharedAccountingData, AccountingHandlers
 
 ### `AccountingDashboard` — `accounting/AccountingDashboard.tsx`
-**Props:** `{ data }`
-- KPI cards: revenue by category (accommodation, lessons, rentals, taxis)
-- Collections progress (due vs. paid)
-- Instructor balances list
-- Palmeiras net
-- Net result
-- No mutations
+**Props :** `{ data }`
+- KPI cards : Total revenue, Collected, Outstanding
+- Ventilation revenus : Accommodation / Lessons / Equipment / Taxis / Activities / Events
+- Coûts : instructor costs, taxi net margin, Palmeiras net, expenses
+- Bandeau net result
+- Liste des soldes instructeurs
+- Pas de mutations
 
 ### `BookingFinances` — `accounting/BookingFinances.tsx`
-**Props:** `{ data, handlers }`
-- Booking list with totals (due / paid / balance)
-- Click booking → detail: room breakdown, lesson breakdown, rentals, taxis, dining
-- Payment list: add / edit (✏️) / delete (✕); verified badge (✓ green / ⚠ orange); discount lines in purple
-- **Module-scope forms:** `PaymentForm` (add+edit, `is_verified` checkbox), `DiscountForm` (amount + reason), `EditRentalForm`, `LessonRateForm`
-- Buttons: `+ Payment` (blue) and `+ Discount` (purple) — mutually exclusive with add forms
-- Guest count: `data.bookingParticipants.filter(p => p.booking_id === b.id).length`
+**Props :** `{ data, handlers }`
+- Liste bookings avec totaux (dû / payé / solde)
+- Clic booking → détail : hébergement, leçons, locations, taxis, dining
+- Liste paiements : add / edit (✏️) / delete (✕) ; badge vérifié ; lignes discount en violet
+- **Formulaires module-scope :** `PaymentForm`, `DiscountForm`, `EditRentalForm`, `LessonRateForm`
+- Boutons `+ Payment` (bleu) et `+ Discount` (violet)
+- Section "Unlinked taxi trips" (amber) pour les trips sans booking_id
 
 ### `UnverifiedPayments` — `accounting/UnverifiedPayments.tsx`
-**Props:** `{ data, handlers }`
-- Table of all `payments` where `is_verified=false`, sorted by date
-- Columns: date, booking #, client, method, amount, notes, "✓ Verify" button
-- Footer: total unverified amount
-- Empty state: "✅ All payments have been verified."
+**Props :** `{ data, handlers }`
+- Tableau de tous les `payments` où `is_verified=false`, trié par date
+- Colonnes : date, booking #, client, méthode, montant, notes, bouton "✓ Verify"
+- Footer : total non-vérifié
+- État vide : "✅ All payments have been verified."
 
 ### `InstructorPayroll` — `accounting/InstructorPayroll.tsx`
-**Props:** `{ data, handlers }`
-- Instructor list: earned / debts / paid / balance (color-coded)
-- Click → detail drawer: lesson list, debts, payments, add debt/payment forms
-- Lesson rate overrides (per-lesson rate override with required note)
-- Forms at module scope
+**Props :** `{ data, handlers }`
+- Liste instructeurs : earned / debts / paid / balance (code couleur)
+- Clic → tiroir détail : liste leçons, dettes, paiements, formulaires add dette/paiement
+- Overrides de taux de leçon (par leçon, avec note obligatoire)
 
 ### `PalmeirasTab` — `accounting/PalmeirasTab.tsx`
-**Props:** `{ data, handlers }`
-- Month selector
-- 4 sub-tabs: Rent | Reversals | Sub-lets | Free Entries
-- Rent: add/edit monthly rent
-- Reversals: gross × % → auto-calc net
-- Sub-lets: bungalow track (cost vs. sell margin)
-- Free Entries: income/expense free-form lines
-- Monthly summary at bottom
+**Props :** `{ data, handlers }`
+- Sélecteur de mois
+- 4 sub-tabs : Rent | Reversals | Sub-lets | Free Entries
+- Résumé mensuel en bas
 
 ### `CashFlow` — `accounting/CashFlow.tsx`
-**Props:** `{ data }`
-- Period selector: month / season / custom date range
-- Chart type: bars / diverging / line
-- Monthly table: billed, collected, palmIn, expenses, rent, instrPaid, net
-- No mutations
+**Props :** `{ data }`
+- Sélecteur de période : month / season / custom
+- Types de chart : bars / diverging / line
+- Tableau mensuel : billed (incl. activités), collected, palmIn, expenses, rent, instrPaid, net
+- "Billed" inclut : booking totals + taxi standalone + activity net margin par mois
+- Pas de mutations
 
 ### `ExpensesTab` — `accounting/ExpensesTab.tsx`
-**Props:** `{ data, handlers }`
-- 2 views: List (table + filters) / Summary (matrix month × category)
-- Categories: free-form strings, default list `DEFAULT_CATEGORIES` (Equipment, Maintenance, Transport, Staff, Admin, Other)
-- Add/delete expenses
-- Category PALETTE: 10 colors (cyclic)
-- Form `AddExpenseForm` at module scope
+**Props :** `{ data, handlers }`
+- 2 vues : List (tableau + filtres) / Summary (matrice mois × catégorie)
+- Catégories free-form, liste par défaut `DEFAULT_CATEGORIES`
+- Form `AddExpenseForm` au scope module
+
+### `EventsTab` — `accounting/EventsTab.tsx`
+**Props :** `{ data, handlers }`
+- Gestion des dining events
+- CRUD events + attendees
+
+### `HousesTab` (accounting) — `accounting/HousesTab.tsx`
+**Props :** `{ data, handlers }`
+- Locations de maisons (house_rentals)
+- Tarifs par chambre (room_rates)
+
+---
+
+## Management
+
+### `HousesTab` (management) — `management/HousesTab.tsx`
+**Props :** `{ accommodations, rooms, ... }`
+- Gestion des maisons et bungalows
+- Add/edit/toggle active
 
 ---
 
 ## Kite Level Display
 
-`KiteLevel` values used in ClientsPage, BookingsPage, ManagementPage:
-| Value | Label | Color |
-|-------|-------|-------|
+Utilisé dans ClientsPage, BookingsPage, ManagementPage :
+| Value | Label | Couleur |
+|-------|-------|---------|
 | `beg-total` | Beg-Total | lime |
 | `beg-bodydrag` | Beg-BodyDrag | green |
 | `beg-waterstart` | Beg-WaterStart | emerald |
@@ -208,33 +207,35 @@ All accounting components share:
 
 ---
 
-## Key Architectural Rules
+## Règles architecturales clés
 
-1. **Module-scope forms** — any component with text inputs that re-renders on state change MUST define the form component outside the parent render function to avoid focus loss on keystroke
-2. **Optimistic updates** — for mutations: update local state immediately, fire-and-forget Supabase call (no await)
-3. **`refresh()` pattern** — after insert/update/delete in TaxiPage and ManagementPage (non-optimistic): call `refresh()` from hook after awaiting Supabase
-4. **`useEffect` sync** — when hook data feeds local mutable state: `useEffect(() => setState(data), [data])`
-5. **`CELL_W = 32`** — px per day column in planning grid (must match Tailwind `w-8`)
+1. **Formulaires au scope module** — tout composant avec des inputs texte qui re-rend sur changement de state DOIT définir le composant formulaire hors de la fonction parent pour éviter la perte de focus à chaque frappe
+2. **Mise à jour optimiste** — pour les mutations : update state local immédiatement, appel Supabase fire-and-forget (sans await)
+3. **Pattern refresh()** — après insert/update/delete dans TaxiPage, ManagementPage, ActivitiesPage (pas d'état local mutable) : `await supabase...` puis `refresh()`
+4. **`useEffect` sync** — quand les données du hook alimentent un state local mutable : `useEffect(() => setState(data), [data])`
+5. **`CELL_W = 32`** — px par colonne jour dans la grille planning (doit correspondre au Tailwind `w-8`)
 
 ---
 
-## Component Tree
+## Arbre de composants
 
 ```
 App
 ├── LoginPage
-├── Navigation
+├── Navigation (10 items)
 └── [pages]
     ├── HomePage
     ├── PlanningView
     │   ├── PlanningRow[] → BookingBar[]
     │   ├── TotalsRow[]
-    │   ├── LessonWeekView  (sub-tab 'lessons')
-    │   ├── NowView         (sub-tab 'now')
-    │   └── ForecastView    (sub-tab 'forecast')
-    ├── BookingsPage  (6-step wizard)
+    │   ├── LessonWeekView   (sub-tab 'lessons')
+    │   ├── NowView          (sub-tab 'now')
+    │   └── ForecastView     (sub-tab 'forecast')
+    ├── BookingsPage  (wizard 6 étapes)
     ├── ClientsPage → ImportCSVModal
-    ├── TaxiPage → TaxiListView | TaxiKanbanView
+    ├── TaxiPage
+    │   ├── TaxiListView | TaxiKanbanView  (onglet 'planning')
+    │   └── DriverStatementPanel           (onglet 'drivers')
     ├── EquipmentPage
     ├── DocumentsPage
     ├── AccountingPage
@@ -247,8 +248,11 @@ App
     │   ├── ExpensesTab
     │   ├── EventsTab
     │   └── UnverifiedPayments
-    ├── ManagementPage
-    ├── ForecastSharePage  (public)
-    ├── TaxiSharePage      (public)
-    └── ClientSharePage    (public)
+    ├── ManagementPage → HousesTab (management)
+    ├── ActivitiesPage            (onglets providers + bookings)
+    ├── ForecastSharePage         (public)
+    ├── TaxiSharePage             (public)
+    ├── ClientSharePage           (public)
+    ├── DriverSharePage           (public)
+    └── ActivityProviderSharePage (public)
 ```

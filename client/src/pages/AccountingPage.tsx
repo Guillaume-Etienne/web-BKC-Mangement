@@ -7,6 +7,7 @@ import { useLessons } from '../hooks/useLessons'
 import { useInstructors } from '../hooks/useInstructors'
 import { useEquipment, useEquipmentRentals } from '../hooks/useEquipment'
 import { useTaxiTrips } from '../hooks/useTaxis'
+import { useActivityBookings, useActivityPayments } from '../hooks/useActivities'
 import { useTable } from '../hooks/useSupabase'
 import AccountingDashboard  from '../components/accounting/AccountingDashboard'
 import BookingFinances      from '../components/accounting/BookingFinances'
@@ -59,6 +60,8 @@ export default function AccountingPage() {
   const { data: equipmentRentalsData }     = useEquipmentRentals()
   const [equipmentRentals, setEquipmentRentals] = useState<EquipmentRental[]>([])
   const { data: taxiTrips }                = useTaxiTrips()
+  const { data: activityBookings }         = useActivityBookings()
+  const { data: activityPayments }         = useActivityPayments()
   const { data: seasons }                  = useTable<Season>('seasons')
 
   // ── Mutable state (Supabase) ──────────────────────────────────────────────
@@ -121,6 +124,8 @@ export default function AccountingPage() {
     palmeirasReversals,
     palmeirasEntries,
     palmeirasSubLets,
+    activityBookings,
+    activityPayments,
   }
 
   // ── Handlers (optimistic local update + Supabase fire-and-forget) ─────────

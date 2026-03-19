@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
 interface NavigationProps {
-  currentPage: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting'
-  onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting') => void
+  currentPage: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities'
+  onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities') => void
   onLogout: () => void
 }
 
@@ -16,12 +16,13 @@ export default function Navigation({ currentPage, onNavigate, onLogout }: Naviga
     { id: 'bookings',   label: 'Bookings',   icon: '📋' },
     { id: 'accounting', label: 'Accounting', icon: '💰' },
     { id: 'documents',  label: 'Documents',  icon: '📄' },
-    { id: 'management', label: 'Options', icon: '⚙️' },
+    { id: 'management', label: 'Options',    icon: '⚙️' },
     { id: 'equipment',  label: 'Equipment',  icon: '🎿' },
     { id: 'taxis',      label: 'Taxis',      icon: '🚕' },
+    { id: 'activities', label: 'Activities', icon: '🏕️' },
   ] as const
 
-  const handleNavigate = (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting') => {
+  const handleNavigate = (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities') => {
     setMobileMenuOpen(false)
     onNavigate(page)
   }

@@ -38,10 +38,11 @@ const priceCategoryLabels: Record<PriceCategory, string> = {
 }
 
 const LINK_TYPE_LABELS: Record<SharedLinkType, { icon: string; label: string }> = {
-  forecast: { icon: '📋', label: 'Forecast' },
-  taxi:     { icon: '🚕', label: 'Taxi Schedule' },
-  client:   { icon: '👤', label: 'Client Account' },
-  driver:   { icon: '🚗', label: 'Driver Statement' },
+  forecast:          { icon: '📋', label: 'Forecast' },
+  taxi:              { icon: '🚕', label: 'Taxi Schedule' },
+  client:            { icon: '👤', label: 'Client Account' },
+  driver:            { icon: '🚗', label: 'Driver Statement' },
+  activity_provider: { icon: '🏕️', label: 'Activity Provider' },
 }
 
 function generateToken(type: SharedLinkType) {
@@ -726,7 +727,7 @@ export default function ManagementPage() {
                   <select value={linkFormData.type}
                     onChange={e => setLinkFormData(d => ({ ...d, type: e.target.value as SharedLinkType }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    {(Object.entries(LINK_TYPE_LABELS) as [SharedLinkType, { icon: string; label: string }][]).filter(([k]) => k !== 'driver').map(([k, v]) => (
+                    {(Object.entries(LINK_TYPE_LABELS) as [SharedLinkType, { icon: string; label: string }][]).filter(([k]) => k !== 'driver' && k !== 'activity_provider').map(([k, v]) => (
                       <option key={k} value={k}>{v.icon} {v.label}</option>
                     ))}
                   </select>

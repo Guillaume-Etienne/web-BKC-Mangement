@@ -4,7 +4,7 @@ import {
   computeAccommodationRevenue, computeLessonsRevenue,
   computeRentalsRevenue, computeTaxiRevenue,
   computeDiningRevenue,
-  computeInstructorBalance, computeStandaloneTaxiRevenue, fmtEur,
+  computeInstructorBalance, computeStandaloneTaxiRevenue, computeActivityNetRevenue, fmtEur,
 } from './utils'
 
 interface Props { data: SharedAccountingData }
@@ -41,7 +41,8 @@ export default function AccountingDashboard({ data }: Props) {
   const standaloneRev   = computeStandaloneTaxiRevenue(data)
   const taxisRev        = activeBookings.reduce((s, b) => s + computeTaxiRevenue(b, data), 0) + standaloneRev
   const eventsRev       = computeDiningRevenue(diningEvents)
-  const totalRevenue    = accomRev + lessonsRev + rentalsRev + taxisRev + eventsRev
+  const activitiesRev   = computeActivityNetRevenue(data)
+  const totalRevenue    = accomRev + lessonsRev + rentalsRev + taxisRev + eventsRev + activitiesRev
 
   // ── Collections ────────────────────────────────────────────────────────
   const totalPaid = bookings.reduce((s, b) => s + computeBookingPaid(b.id, payments), 0)
@@ -164,11 +165,12 @@ export default function AccountingDashboard({ data }: Props) {
           <h2 className="text-base font-bold text-gray-800 mb-4">Revenue breakdown</h2>
           <div className="space-y-3">
             {[
-              { label: 'Accommodation', value: accomRev,   color: 'bg-blue-500' },
-              { label: 'Lessons',       value: lessonsRev, color: 'bg-emerald-500' },
-              { label: 'Equipment',     value: rentalsRev, color: 'bg-purple-500' },
-              { label: 'Taxis',         value: taxisRev,   color: 'bg-amber-500' },
-              { label: 'Events',        value: eventsRev,  color: 'bg-rose-400' },
+              { label: 'Accommodation', value: accomRev,      color: 'bg-blue-500' },
+              { label: 'Lessons',       value: lessonsRev,   color: 'bg-emerald-500' },
+              { label: 'Equipment',     value: rentalsRev,   color: 'bg-purple-500' },
+              { label: 'Taxis',         value: taxisRev,     color: 'bg-amber-500' },
+              { label: 'Activities',    value: activitiesRev,color: 'bg-teal-500' },
+              { label: 'Events',        value: eventsRev,    color: 'bg-rose-400' },
             ].map(c => (
               <div key={c.label} className="flex items-center gap-3">
                 <div className="w-28 shrink-0">

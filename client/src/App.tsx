@@ -17,9 +17,11 @@ import ForecastSharePage from './pages/ForecastSharePage'
 import TaxiSharePage from './pages/TaxiSharePage'
 import ClientSharePage from './pages/ClientSharePage'
 import DriverSharePage from './pages/DriverSharePage'
+import ActivityProviderSharePage from './pages/ActivityProviderSharePage'
+import ActivitiesPage from './pages/ActivitiesPage'
 import type { SharedLink } from './types/database'
 
-type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting'
+type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities'
 
 // ── Public share token from URL (sync, module scope) ──────────────────────
 const shareToken = new URLSearchParams(window.location.search).get('share')
@@ -71,7 +73,8 @@ function App() {
     if (sharedLink.type === 'forecast') return <ForecastSharePage />
     if (sharedLink.type === 'taxi')     return <TaxiSharePage />
     if (sharedLink.type === 'client')   return <ClientSharePage bookingNumber={parseInt(sharedLink.params?.booking_number ?? '0')} />
-    if (sharedLink.type === 'driver')   return <DriverSharePage driverId={sharedLink.params?.driver_id ?? ''} />
+    if (sharedLink.type === 'driver')            return <DriverSharePage driverId={sharedLink.params?.driver_id ?? ''} />
+    if (sharedLink.type === 'activity_provider') return <ActivityProviderSharePage providerId={sharedLink.params?.provider_id ?? ''} />
   }
 
   // Loading session
@@ -102,6 +105,7 @@ function App() {
         {currentPage === 'taxis'      && <TaxiPage />}
         {currentPage === 'documents'  && <DocumentsPage />}
         {currentPage === 'accounting' && <AccountingPage />}
+        {currentPage === 'activities' && <ActivitiesPage />}
       </main>
     </div>
   )

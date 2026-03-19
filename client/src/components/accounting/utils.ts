@@ -66,6 +66,17 @@ export function computeTaxiRevenue(booking: Booking, data: SharedAccountingData)
     .reduce((sum, t) => sum + t.price_eur, 0)
 }
 
+/** Net activity revenue: our margin from activity bookings
+ *  we_pay_provider → price_client − price_provider (our cut)
+ *  provider_pays_us → price_provider (reversal to us)
+ */
+export function computeActivityNetRevenue(data: SharedAccountingData): number {
+  return data.activityBookings.reduce((sum, b) => {
+    if (b.payment_flow === 'we_pay_provider') return sum + b.price_client - b.price_provider
+    return sum + b.price_provider // provider_pays_us
+  }, 0)
+}
+
 /** Taxi revenue for trips not linked to any booking */
 export function computeStandaloneTaxiRevenue(data: SharedAccountingData): number {
   return data.taxiTrips
