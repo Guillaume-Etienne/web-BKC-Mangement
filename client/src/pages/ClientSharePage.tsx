@@ -222,7 +222,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       duration: l.duration_hours,
       instructor: instr ? instr.first_name : '?',
       guests: partNames(l.participant_ids),
-      total: rate * l.duration_hours,
+      total: rate * l.duration_hours * (l.type === 'group' ? l.participant_ids.length : 1),
     }
   })
   const lessonsTotal = lessonRows.reduce((s, r) => s + r.total, 0)

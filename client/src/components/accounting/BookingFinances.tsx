@@ -407,7 +407,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                           {override && <span className="ml-1 text-amber-500 italic">(override)</span>}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span>{fmtEur(rate * l.duration_hours)}</span>
+                          <span>{fmtEur(rate * l.duration_hours * (l.type === 'group' ? l.participant_ids.length : 1))}</span>
                           <button onClick={() => setOverridingLessonId(isOverriding ? null : l.id)}
                             className={`transition-colors ${override ? 'text-amber-400 hover:text-amber-600' : 'text-gray-300 hover:text-amber-500'}`}>✏️</button>
                         </div>
