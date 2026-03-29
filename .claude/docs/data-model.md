@@ -192,16 +192,20 @@
 | attendees | EventAttendee[] | Dénormalisé JSONB |
 
 ### `event_attendees` → `EventAttendee`
-| Field | Type |
-|-------|------|
-| id | string (UUID) |
-| person_id | string |
-| person_type | `'instructor' \| 'participant' \| 'extra'` |
-| person_name | string |
-| room_label | string (e.g. "H-1/F") |
-| is_attending | boolean |
-| price_override? | number |
-| starter / main / side / dessert | string (pour type='menu') |
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| person_id | string | |
+| person_type | `'instructor' \| 'participant' \| 'extra'` | |
+| person_name | string | |
+| room_label | string | e.g. "H-1/F" |
+| is_attending | boolean | |
+| price_override? | number | Surcharge individuelle |
+| starter | string | Menu item (always present) |
+| main | string | Menu item (always present) |
+| side | string | Menu item (always present) |
+| dessert | string | Menu item (always present) |
+> Les champs menu (starter/main/side/dessert) sont toujours présents (strings vides si non utilisés), pas conditionnels à type='menu'.
 
 ---
 
@@ -434,6 +438,18 @@
 > Auto-création : nouveau booking avec `amount_paid > 0` → insert Payment (`method:'transfer'`, `is_verified:false`).
 > Discounts : positif, `is_discount:true`. Réduit outstanding (Total − Paid).
 
+### `participant_consumptions` → `ParticipantConsumption`
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| booking_id | string (FK) | |
+| participant_id | string (FK → booking_participants) | |
+| type | ConsumptionType | `'lesson' \| 'rental' \| 'activity' \| 'center_access'` |
+| quantity | number | |
+| unit_price | number (EUR) | |
+| notes | string \| null | |
+> ⚠️ Table définie mais jamais alimentée en pratique. ClientSharePage utilise les tables sources directes (lessons, equipment_rentals, activity_bookings) au lieu de cette table.
+
 ### `instructor_debts` → `InstructorDebt`
 | Field | Type |
 |-------|------|
@@ -478,6 +494,25 @@
 | `palmeiras_reversals` | `PalmeirasReversal` | `month` + gross/percent/net |
 | `palmeiras_entries` | `PalmeirasEntry` | `month` + type income/expense |
 | `palmeiras_sub_lets` | `PalmeirasSubLet` | `month` + bungalow + cost/sell/nights |
+
+---
+
+## Documents
+
+### `travel_guide_sections` → `TravelGuideSection`
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| key | string (UNIQUE) | Identifiant (e.g. "getting_there", "packing") |
+| title_fr | string | Français |
+| title_en | string | English |
+| title_es | string | Español |
+| body_fr | string | Contenu français |
+| body_en | string | Contenu anglais |
+| body_es | string | Contenu espagnol |
+| sort_order | number | Ordre d'affichage |
+| updated_at | string (ISO timestamp) | |
+> Utilisé dans DocumentsPage (onglet Travel Guide). i18n intégré dans schema.
 
 ---
 

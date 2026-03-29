@@ -24,9 +24,10 @@
 - Rend : PlanningRow × N, TotalsRow × 3, composant sub-tab
 
 ### `PlanningRow` — `planning/PlanningRow.tsx`
-**Props :** `{ roomId, label, totalDays, seasonStart, bookings, bookingParticipants: BookingParticipant[], dragState, onPointerDown }`
+**Props :** `{ roomId, label, totalDays, seasonStart, bookings, bookingParticipants: BookingParticipant[], dragState, onPointerDown, unavailableDays?: Set<number> }`
 - Une ligne grille pour une chambre (label + colonnes jour + barres booking)
 - `CELL_W = 32px` par jour. Highlighting weekend. Poignées drag sur les bords.
+- `unavailableDays` (optional): Set de day-of-season indices pour highlighting unavailable periods
 - Utilise `bookingParticipants.filter(p => p.booking_id === b.id).length` pour les badges
 - Entièrement contrôlé (pas d'état interne)
 
@@ -49,10 +50,11 @@
 - ⚠️ Formulaires définis au **scope module** (pas dans le render) pour éviter la perte de focus
 
 ### `NowView` — `planning/NowView.tsx`
-**Props :** `{ instructors: Instructor[]; bookingParticipants: BookingParticipant[] }` + `useTable<DiningEvent>` interne
+**Props :** `{ bookings: Booking[]; bookingParticipants: BookingParticipant[]; bookingRooms: BookingRoom[]; rooms: Room[]; accommodations: Accommodation[]; instructors: Instructor[] }` + `useTable<DiningEvent>` interne
 - Éditeur d'événements dining pour le sub-tab "Now"
 - Sélecteur de date (±1 jour)
 - EventType : `'count'` (effectif) ou `'menu'` (champs par personne)
+- Calcule room_label des participants à partir de bookingRooms/rooms/accommodations
 - ⚠️ Formulaires au **scope module**
 
 ### `ForecastView` — `planning/ForecastView.tsx`
@@ -71,7 +73,7 @@
 {
   trips: TaxiTrip[]; drivers: TaxiDriver[]; bookings: BookingRef[]
   bookingParticipants: BookingParticipant[]
-  pricingDefaults: TaxiPricingDefaults | null
+  pricingDefaults: TaxiPricingDefaults  // always present (required)
   onAddTrip: (t: Omit<TaxiTrip,'id'>) => Promise<TaxiTrip|null>
   onUpdateTrip: (t: TaxiTrip) => Promise<void>
   onDeleteTrip: (id: string) => Promise<void>
@@ -87,6 +89,13 @@
 **Props :** Identiques à TaxiListView
 - 3 colonnes : Confirmed / Needs Details / Done
 - Drag carte entre colonnes → update `status`
+
+### `TaxiFinanceTab` — `taxi/TaxiFinanceTab.tsx`
+**Props :** `{ trips: TaxiTrip[]; onAddPayment; onUpdatePayment; onDeletePayment }`
+- Onglet Finance pour TaxiPage
+- Manager payment history (tableau des paiements)
+- Summaries par statut (completed, pending, total)
+- ⚠️ Module-scope form `AddPaymentForm` pour mutations manager payments
 
 ### `DriverStatementPanel` — `taxi/DriverStatementPanel.tsx`
 **Props :** `{ driver, trips, driverLink: SharedLink|null, onGenerateLink, onEdit, onDelete }`

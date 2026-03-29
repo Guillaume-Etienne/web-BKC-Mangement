@@ -12,7 +12,10 @@
 | SharedAccountingData (quels champs ?) | `data-model.md` | § Types accounting partagés |
 | Fonctions de calcul (computeXxx) | `data-model.md` | § Types accounting partagés → utils.ts |
 | SharedLink params par type | `data-model.md` | § shared_links |
+| ParticipantConsumption (table non alimentée) | `data-model.md` | § ParticipantConsumption |
+| TravelGuideSection (6 sections i18n) | `data-model.md` | § TravelGuideSection |
 | Schéma SQL complet | `supabase/schema.sql` | — |
+| Data integrity issues (audit) | `project_accounting_issues.md` | § Issue 1–4 |
 
 ### Hooks
 | Besoin | Fichier | Section |
@@ -30,7 +33,9 @@
 | Routing App.tsx (sharedLink → page) | `pages.md` | § Logique de routing |
 | Liste des pages publiques + props | `pages.md` | § Pages publiques |
 | Quelle page utilise quels hooks | `pages.md` | Page concernée |
-| Wizard booking (étapes, save logic) | `pages.md` | § BookingsPage |
+| PlanningView (draft mode, validation) | `pages.md` | § PlanningView |
+| Wizard booking (étapes 1-6, save logic) | `pages.md` | § BookingsPage |
+| TaxiPage (onglets planning/finance/drivers) | `pages.md` | § TaxiPage |
 | ActivitiesPage (state, onglets, CRUD) | `pages.md` | § ActivitiesPage |
 | DriverSharePage / ActivityProviderSharePage | `pages.md` | § Pages publiques |
 | AccountingPage (21 hooks, sharedData) | `pages.md` | § AccountingPage |
@@ -41,7 +46,10 @@
 | Props d'un composant | `components.md` | Section du composant |
 | Arbre composants complet | `components.md` | § Arbre de composants |
 | Navigation (items, types) | `components.md` | § Navigation |
-| DriverStatementPanel | `components.md` | § Taxi |
+| PlanningRow (drag, unavailableDays) | `components.md` | § PlanningRow |
+| NowView (dining events) | `components.md` | § NowView |
+| DriverStatementPanel | `components.md` | § DriverStatementPanel |
+| TaxiFinanceTab (manager payments) | `components.md` | § TaxiFinanceTab |
 | AccountingDashboard (revenue breakdown) | `components.md` | § AccountingDashboard |
 | BookingFinances (paiements, discounts) | `components.md` | § BookingFinances |
 | CashFlow (quoi est dans "billed") | `components.md` | § CashFlow |

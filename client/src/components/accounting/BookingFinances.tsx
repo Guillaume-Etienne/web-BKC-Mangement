@@ -2,8 +2,9 @@ import { useState } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { Payment, PaymentMethod, Booking, EquipmentRental, Lesson, LessonRateOverride } from '../../types/database'
 import {
-  computeBookingTotal, computeBookingPaid, computeAccommodationRevenue,
-  computeLessonsRevenue, computeRentalsRevenue, computeTaxiRevenue,
+  computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
+  computeAccommodationRevenue, computeLessonsRevenue, computeRentalsRevenue,
+  computeTaxiRevenue, computeActivityRevenueForBooking,
   computeDiningForBooking, getLessonRate, computeStandaloneTaxiRevenue,
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate,
 } from './utils'
@@ -277,8 +278,9 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
   const [overridingLessonId, setOverridingLessonId] = useState<string | null>(null)
 
   const total        = computeBookingTotal(b, data)
+  const discounts    = computeBookingDiscounts(b.id, data.payments)
   const paid         = computeBookingPaid(b.id, data.payments)
-  const due          = total - paid
+  const due          = total - discounts - paid
   const sugDeposit   = suggestDeposit(total)
   const nights       = countNights(b.check_in, b.check_out)
   const bkPayments   = data.payments.filter(p => p.booking_id === b.id)
@@ -290,6 +292,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
   const rentalsRev       = computeRentalsRevenue(b, data)
   const taxiRev          = computeTaxiRevenue(b, data)
   const diningRev        = computeDiningForBooking(b, data.diningEvents, data.bookingParticipants)
+  const activityRev      = computeActivityRevenueForBooking(b, data)
 
   // Room detail
   const bkRooms = data.bookingRooms.filter(br => br.booking_id === b.id)
@@ -303,6 +306,9 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
 
   // Taxi detail
   const bkTaxis = data.taxiTrips.filter(t => t.booking_id === b.id)
+
+  // Activity detail (only we_pay_provider — client pays us)
+  const bkActivities = data.activityBookings.filter(a => a.booking_id === b.id && a.payment_flow === 'we_pay_provider')
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
@@ -501,11 +507,35 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
             )
           })()}
 
+          {/* Activities */}
+          {activityRev > 0 && (
+            <div className="rounded-lg border border-gray-100 overflow-hidden">
+              <div className="flex justify-between items-center px-4 py-2 bg-gray-50">
+                <span className="text-sm font-medium text-gray-700">🎯 Activities</span>
+                <span className="text-sm font-semibold text-gray-800">{fmtEur(activityRev)}</span>
+              </div>
+              <div className="px-4 py-2 space-y-1">
+                {bkActivities.map(a => (
+                  <div key={a.id} className="flex justify-between text-xs text-gray-500">
+                    <span>{a.date} · {a.label} · {a.nb_persons}p</span>
+                    <span>{fmtEur(a.price_client)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Total line */}
           <div className="flex justify-between items-center px-4 py-2 bg-gray-800 rounded-lg text-white text-sm font-bold">
             <span>Total</span>
             <span>{fmtEur(total)}</span>
           </div>
+          {discounts > 0 && (
+            <div className="flex justify-between items-center px-4 py-2 bg-purple-100 rounded-lg text-purple-700 text-sm font-bold">
+              <span>Discounts</span>
+              <span>-{fmtEur(discounts)}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -624,10 +654,11 @@ export default function BookingFinances({ data, handlers }: Props) {
   const rows = bookings
     .filter(b => showCancelled || b.status !== 'cancelled')
     .map(b => {
-      const client = clients.find(c => c.id === b.client_id)
-      const total  = computeBookingTotal(b, data)
-      const paid   = computeBookingPaid(b.id, payments)
-      const due    = total - paid
+      const client    = clients.find(c => c.id === b.client_id)
+      const total     = computeBookingTotal(b, data)
+      const discount  = computeBookingDiscounts(b.id, payments)
+      const paid      = computeBookingPaid(b.id, payments)
+      const due       = total - discount - paid
       return { booking: b, client, total, paid, due }
     })
     .sort((a, b) => a.booking.check_in.localeCompare(b.booking.check_in))

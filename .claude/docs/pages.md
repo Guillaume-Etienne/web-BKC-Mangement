@@ -82,21 +82,24 @@
 ### `PlanningView` *(rendu comme page)*
 - **Route :** `'planning'`
 - **Fichier :** `components/planning/PlanningView.tsx`
-- **Hooks :** useAccommodations, useRooms, useBookings, useBookingRooms, useBookingParticipants, useLessons, useDayActivities, useInstructors, useClients, useEquipment, useEquipmentRentals
-- **State :** `seasonYear`, `currentTab: 'planning'|'lessons'|'now'|'forecast'`, drag state
+- **Hooks :** useAccommodations, useRooms, useBookings, useBookingRooms, useBookingParticipants, useLessons, useDayActivities, useInstructors, useClients, useEquipment, useEquipmentRentals, **useBookingDrag, useTable<HouseRental>, useTable<PriceItem>**
+- **State :** `seasonYear`, `currentTab: 'planning'|'lessons'|'now'|'forecast'`, drag state, **draftMoves (Map), showValidateModal, lessonView, weekStart**
 - **Sub-tabs :**
   - `planning` → grille avec BookingBars (draggable)
   - `lessons` → `LessonWeekView`
   - `now` → `NowView` (dining events)
   - `forecast` → `ForecastView`
-- **Mutations :** drag/resize booking → supabase update ; CRUD lesson/activity/rental
+- **Mutations :**
+  - **Drag/resize booking** → Draft mode with validation modal, then bulk apply
+  - Lesson/activity/rental CRUD → direct Supabase
+- **Important :** Drag operations use draft map, not direct updates. Validation modal before commit.
 
 ### `BookingsPage`
 - **Route :** `'bookings'`
-- **Hooks :** useClients, useBookings, useBookingRooms, useBookingParticipants, useAccommodations, useRooms
-- **State :** `showWizard`, `wizardStep (0-5)`, `wizardData`, `editingBooking`, `selectedBooking`
-- **Wizard steps :** Client → Stay → Guests → Transport → KiteCenter → Payment
-- **Step 3 (Guests) :** gère `booking_participants` — delete-all + re-insert au save. Auto-ajoute le client principal si aucun participant saisi (nouveaux bookings).
+- **Hooks :** useClients, useBookings, useBookingRooms, **useBookingRoomPrices**, useBookingParticipants, useAccommodations, useRooms, **useTable<HouseRental>**
+- **State :** `showWizard`, `wizardStep (1-6)` (not 0-5), `wizardData`, `editingBooking`, `selectedBooking`
+- **Wizard steps (1-6):** 1. Client → 2. Stay → 3. Guests → 4. Transport → 5. KiteCenter → 6. Payment
+- **Step 3 (Guests) :** Gère `booking_participants` — delete-all + re-insert au save. Auto-ajoute le client principal si aucun participant saisi (nouveaux bookings).
 - **Save (nouveaux bookings, isNew=true) :**
   1. Upsert client → upsert booking → delete+insert `booking_participants` → delete+insert booking_rooms → delete+insert booking_room_prices
   2. Si `amount_paid > 0` → insert `payments` (`method:'transfer'`, `is_verified:false`, note "Auto-created…")
@@ -112,9 +115,12 @@
 
 ### `TaxiPage`
 - **Route :** `'taxis'`
-- **Hooks :** useTaxiTrips, useTaxiDrivers, useBookingParticipants, useTable<BookingRef>, useTable<TaxiPricingDefaults>, useTable<SharedLink>
-- **State :** `tab: 'planning'|'drivers'`, `planningView: 'kanban'|'list'`, `viewingDriverId`
-- **Onglet Drivers :** grille de cartes → sélection → `DriverStatementPanel`
+- **Hooks :** useTaxiTrips, useTaxiDrivers, useBookingParticipants, useTable<BookingRef>, useTable<TaxiPricingDefaults>, useTable<SharedLink>, **useTable<TaxiManagerPayment>**
+- **State :** `tab: 'planning'|'finance'|'drivers'`, `planningView: 'kanban'|'list'`, `viewingDriverId`
+- **Onglets :**
+  - `planning` → Kanban/List views for trip management
+  - `finance` → Manager payment history and summaries
+  - `drivers` → Grid de cartes → sélection → `DriverStatementPanel`
 - **DriverStatementPanel :** trips passés/à venir, KPIs MZN, section share link (génère `shared_link` type `'driver'`, params `{ driver_id }`)
 - **Règle financière :** `price_driver_mzn = price_client_mzn - margin_manager_mzn - margin_centre_mzn`
 

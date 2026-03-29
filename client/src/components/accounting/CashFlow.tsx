@@ -52,8 +52,8 @@ export default function CashFlow({ data }: Props) {
       ensure(m).billed += t.price_eur
     }
 
-    // Activity net margin — billed by activity date
-    for (const b of activityBookings) {
+    // Activity net margin — only standalone (no booking); booking-linked are in computeBookingTotal
+    for (const b of activityBookings.filter(a => a.booking_id === null)) {
       const m = b.date.slice(0, 7)
       const net = b.payment_flow === 'we_pay_provider'
         ? b.price_client - b.price_provider
@@ -61,8 +61,8 @@ export default function CashFlow({ data }: Props) {
       ensure(m).billed += net
     }
 
-    // Cash collected (by payment date)
-    for (const p of payments) {
+    // Cash collected (by payment date, excludes discounts)
+    for (const p of payments.filter(p => !p.is_discount)) {
       const m = p.date.slice(0, 7)
       ensure(m).collected += p.amount
     }

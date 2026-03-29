@@ -16,7 +16,11 @@
       "Bash(cd \"C:\\\\gui\\\\web\\\\2026\\\\Claude-Code-Projet\\\\client\" && npm run build 2>&1 | tail -30)",
       "Bash(cd \"C:\\\\gui\\\\web\\\\2026\\\\Claude-Code-Projet\" && node -e \"\nconst fs = require\\('fs'\\);\nconst path = 'C:/gui/web/2026/Claude-Code-Projet/client/src/pages/BookingsPage.tsx';\nlet c = fs.readFileSync\\(path, 'utf8'\\);\nc = c.replace\\(\n  'import type { Booking, BookingStatus, Client, Participant, Room, Accommodation, HouseRental, RoomRate, BookingRoomPrice } from \\\\'../types/database\\\\'',\n  'import type { Booking, BookingStatus, Client, Participant, Room, Accommodation, HouseRental, RoomRate } from \\\\'../types/database\\\\''\n\\);\nfs.writeFileSync\\(path, c, 'utf8'\\);\nconsole.log\\('done'\\);\n\")",
       "Bash(cd:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(for page:*)",
+      "Bash(do echo:*)",
+      "Bash(find . -maxdepth 2 -name *.md -type f)",
+      "Bash(ls:*)"
     ]
   }
 }

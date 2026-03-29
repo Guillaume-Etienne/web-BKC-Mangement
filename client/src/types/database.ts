@@ -482,3 +482,17 @@ export interface PalmeirasSubLet {
   booking_ref: string | null  // optional booking number / name
   notes: string | null
 }
+
+// Travel guide sections (Documents page)
+export interface TravelGuideSection {
+  id: string
+  key: string               // unique identifier (e.g., 'getting_there', 'packing', etc.)
+  title_fr: string
+  title_en: string
+  title_es: string
+  body_fr: string
+  body_en: string
+  body_es: string
+  sort_order: number        // display order
+  updated_at: string        // ISO timestamp
+}

@@ -103,9 +103,15 @@ export default function ExpensesTab({ data, handlers }: Props) {
   const currentSeason = seasons[seasons.length - 1]
 
   const [view,        setView]        = useState<View>('list')
-  const [categories,  setCategories]  = useState<string[]>(DEFAULT_CATEGORIES)
+  const [extraCats,   setExtraCats]   = useState<string[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [showAddCat,  setShowAddCat]  = useState(false)
+
+  // Categories = defaults + categories used in existing expenses + manually added in this session
+  const categories = useMemo(() => {
+    const fromExpenses = expenses.map(e => e.category)
+    return [...new Set([...DEFAULT_CATEGORIES, ...fromExpenses, ...extraCats])]
+  }, [expenses, extraCats])
 
   // List filters
   const [filterCat,   setFilterCat]   = useState<string>('all')
@@ -126,12 +132,12 @@ export default function ExpensesTab({ data, handlers }: Props) {
 
   // ── Category management ───────────────────────────────────────────────────
   const addCategory = (name: string) => {
-    if (!categories.includes(name)) setCategories(prev => [...prev, name])
+    if (!categories.includes(name)) setExtraCats(prev => [...prev, name])
     setShowAddCat(false)
   }
   const removeCategory = (name: string) => {
-    if (expenses.some(e => e.category === name)) return // used
-    setCategories(prev => prev.filter(c => c !== name))
+    if (expenses.some(e => e.category === name)) return // used by an expense
+    setExtraCats(prev => prev.filter(c => c !== name))
   }
 
   // ── Filtered list ─────────────────────────────────────────────────────────

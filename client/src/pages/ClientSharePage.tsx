@@ -6,6 +6,7 @@ import type {
   LessonRateOverride, EquipmentRental, TaxiTrip,
   DiningEvent, BookingParticipant,
   ExternalAccommodationBooking, ExternalAccommodation,
+  ActivityBooking,
 } from '../types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -87,6 +88,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const [participants,   setParticipants]   = useState<BookingParticipant[]>([])
   const [extAccomBkgs,   setExtAccomBkgs]   = useState<ExternalAccommodationBooking[]>([])
   const [extAccoms,      setExtAccoms]      = useState<ExternalAccommodation[]>([])
+  const [activityBkgs,   setActivityBkgs]   = useState<ActivityBooking[]>([])
   const [loading,        setLoading]        = useState(true)
 
   // Step 1 — fetch booking by number
@@ -124,10 +126,11 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       supabase.from('booking_participants').select('*').eq('booking_id', id),
       supabase.from('external_accommodation_bookings').select('*').eq('booking_id', id),
       supabase.from('external_accommodations').select('*'),
+      supabase.from('activity_bookings').select('*').eq('booking_id', id).order('date'),
     ]).then(([
       bkgRoomsRes, pricesRes, roomsRes, acomsRes, paymentsRes,
       lessonsRes, instrRes, overridesRes, rentalsRes, taxisRes,
-      diningRes, partRes, extBkgRes, extAccomRes,
+      diningRes, partRes, extBkgRes, extAccomRes, actBkgRes,
     ]) => {
       setBkgRooms(bkgRoomsRes.data ?? [])
       setRoomPrices(pricesRes.data ?? [])
@@ -143,6 +146,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       setParticipants(partRes.data ?? [])
       setExtAccomBkgs(extBkgRes.data ?? [])
       setExtAccoms(extAccomRes.data ?? [])
+      setActivityBkgs(actBkgRes.data ?? [])
       setLoading(false)
     })
   }, [booking])
@@ -237,12 +241,19 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   }
   const diningTotal = diningRows.reduce((s, r) => s + r.total, 0)
 
-  // Payments
-  const totalPaid = payments.reduce((s, p) => s + p.amount, 0)
+  // Activities (only we_pay_provider — client pays the center)
+  const activityRows = activityBkgs
+    .filter(a => a.payment_flow === 'we_pay_provider')
+    .map(a => ({ id: a.id, date: a.date, label: a.label, nb_persons: a.nb_persons, total: a.price_client }))
+  const activityTotal = activityRows.reduce((s, r) => s + r.total, 0)
+
+  // Payments (exclude discounts from paid amount)
+  const totalDiscounts = payments.filter(p => p.is_discount).reduce((s, p) => s + p.amount, 0)
+  const totalPaid = payments.filter(p => !p.is_discount).reduce((s, p) => s + p.amount, 0)
 
   // Grand totals
-  const totalCharges = accomTotal + lessonsTotal + rentalsTotal + taxiTotal + diningTotal
-  const balance = totalCharges - totalPaid
+  const totalCharges = accomTotal + lessonsTotal + rentalsTotal + taxiTotal + diningTotal + activityTotal
+  const balance = totalCharges - totalDiscounts - totalPaid
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -453,6 +464,38 @@ export default function ClientSharePage({ bookingNumber }: Props) {
           </Section>
         )}
 
+        {/* Activities */}
+        {activityRows.length > 0 && (
+          <Section title="Activities" icon="🎯">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Date</th>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Activity</th>
+                  <th className="px-5 py-2.5 text-right font-medium text-gray-500">Persons</th>
+                  <th className="px-5 py-2.5 text-right font-medium text-gray-500">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activityRows.map(r => (
+                  <tr key={r.id} className="border-b border-gray-50">
+                    <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td className="px-5 py-3 text-gray-600">{r.label}</td>
+                    <td className="px-5 py-3 text-right text-gray-500">{r.nb_persons}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-gray-800">{fmtEur(r.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t border-gray-200">
+                <tr>
+                  <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600">Subtotal activities</td>
+                  <td className="px-5 py-3 text-right font-bold text-gray-800">{fmtEur(activityTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </Section>
+        )}
+
         {/* Payments */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
@@ -473,18 +516,32 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 </thead>
                 <tbody>
                   {payments.map(p => (
-                    <tr key={p.id} className="border-b border-gray-50">
+                    <tr key={p.id} className={`border-b border-gray-50 ${p.is_discount ? 'bg-purple-50' : ''}`}>
                       <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{formatDate(p.date)}</td>
                       <td className="px-5 py-3 text-gray-600 whitespace-nowrap">
-                        {METHOD_LABELS[p.method] ?? p.method}
-                        {p.is_deposit && <span className="ml-1.5 text-xs px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded-full">Deposit</span>}
+                        {p.is_discount ? (
+                          <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full font-medium">Discount</span>
+                        ) : (
+                          <>
+                            {METHOD_LABELS[p.method] ?? p.method}
+                            {p.is_deposit && <span className="ml-1.5 text-xs px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded-full">Deposit</span>}
+                          </>
+                        )}
                       </td>
                       <td className="px-5 py-3 text-gray-400 text-xs italic">{p.notes ?? ''}</td>
-                      <td className="px-5 py-3 text-right font-semibold text-green-700">{fmtEur(p.amount)}</td>
+                      <td className={`px-5 py-3 text-right font-semibold ${p.is_discount ? 'text-purple-700' : 'text-green-700'}`}>
+                        {p.is_discount ? '-' : ''}{fmtEur(p.amount)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot className="bg-gray-50 border-t border-gray-200">
+                  {totalDiscounts > 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-5 py-2 text-sm font-semibold text-purple-600">Total discounts</td>
+                      <td className="px-5 py-2 text-right font-bold text-purple-700">-{fmtEur(totalDiscounts)}</td>
+                    </tr>
+                  )}
                   <tr>
                     <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600">Total paid</td>
                     <td className="px-5 py-3 text-right font-bold text-green-700">{fmtEur(totalPaid)}</td>
@@ -505,6 +562,12 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               <div className="flex justify-between text-gray-600">
                 <span>Total charges</span>
                 <span className="font-medium text-gray-800">{fmtEur(totalCharges)}</span>
+              </div>
+            )}
+            {totalDiscounts > 0 && (
+              <div className="flex justify-between text-purple-600">
+                <span>Discounts</span>
+                <span className="font-medium">-{fmtEur(totalDiscounts)}</span>
               </div>
             )}
             <div className="flex justify-between text-gray-600">

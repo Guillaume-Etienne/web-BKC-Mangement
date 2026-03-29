@@ -77,6 +77,19 @@ export function computeActivityNetRevenue(data: SharedAccountingData): number {
   }, 0)
 }
 
+/** Activity charges on a booking (what the client owes the center).
+ *  we_pay_provider → client pays us price_client (we then pay provider)
+ *  provider_pays_us → client pays provider directly, NOT billed on the booking
+ */
+export function computeActivityRevenueForBooking(booking: Booking, data: SharedAccountingData): number {
+  return data.activityBookings
+    .filter(a => a.booking_id === booking.id)
+    .reduce((sum, a) => {
+      if (a.payment_flow === 'we_pay_provider') return sum + a.price_client
+      return sum // provider_pays_us: no charge on booking
+    }, 0)
+}
+
 /** Taxi revenue for trips not linked to any booking */
 export function computeStandaloneTaxiRevenue(data: SharedAccountingData): number {
   return data.taxiTrips
@@ -84,21 +97,29 @@ export function computeStandaloneTaxiRevenue(data: SharedAccountingData): number
     .reduce((sum, t) => sum + t.price_eur, 0)
 }
 
-/** Full computed total for a booking */
+/** Full computed total for a booking (before discounts) */
 export function computeBookingTotal(booking: Booking, data: SharedAccountingData): number {
   return (
     computeAccommodationRevenue(booking, data) +
     computeLessonsRevenue(booking, data) +
     computeRentalsRevenue(booking, data) +
     computeTaxiRevenue(booking, data) +
-    computeDiningForBooking(booking, data.diningEvents, data.bookingParticipants)
+    computeDiningForBooking(booking, data.diningEvents, data.bookingParticipants) +
+    computeActivityRevenueForBooking(booking, data)
   )
 }
 
-/** Total amount paid for a booking */
+/** Total discounts applied to a booking */
+export function computeBookingDiscounts(bookingId: string, payments: Payment[]): number {
+  return payments
+    .filter(p => p.booking_id === bookingId && p.is_discount)
+    .reduce((sum, p) => sum + p.amount, 0)
+}
+
+/** Total actual money received for a booking (excludes discounts) */
 export function computeBookingPaid(bookingId: string, payments: Payment[]): number {
   return payments
-    .filter(p => p.booking_id === bookingId)
+    .filter(p => p.booking_id === bookingId && !p.is_discount)
     .reduce((sum, p) => sum + p.amount, 0)
 }
 
@@ -115,7 +136,9 @@ export function getLessonRate(
     : instructor.rate_supervision
 }
 
-/** Total earned by an instructor (lessons × rates, after overrides) */
+/** Total earned by an instructor (lessons × rates, after overrides).
+ *  Includes ALL lessons regardless of booking_id — day activities and
+ *  scheduled trips (no booking) are center revenue, not booking-specific. */
 export function computeInstructorEarned(
   instructorId: string,
   data: SharedAccountingData
@@ -164,7 +187,9 @@ export function computeDiningRevenue(events: DiningEvent[]): number {
   }, 0)
 }
 
-/** Dining charges attributable to a booking (matches client/participant attendees) */
+/** Dining charges attributable to a booking (matches client/participant attendees).
+ *  NOTE: attendee.person_id is matched against BookingParticipant.id with no FK constraint.
+ *  If a participant is deleted, their dining charges become orphaned. */
 export function computeDiningForBooking(booking: Booking, diningEvents: DiningEvent[], bookingParticipants: BookingParticipant[]): number {
   const bParts = bookingParticipants.filter(p => p.booking_id === booking.id)
   const hasParticipants = bParts.length > 0

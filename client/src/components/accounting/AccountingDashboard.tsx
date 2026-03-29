@@ -1,6 +1,6 @@
 import type { SharedAccountingData } from './types'
 import {
-  computeBookingTotal, computeBookingPaid,
+  computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
   computeAccommodationRevenue, computeLessonsRevenue,
   computeRentalsRevenue, computeTaxiRevenue,
   computeDiningRevenue,
@@ -45,8 +45,9 @@ export default function AccountingDashboard({ data }: Props) {
   const totalRevenue    = accomRev + lessonsRev + rentalsRev + taxisRev + eventsRev + activitiesRev
 
   // ── Collections ────────────────────────────────────────────────────────
+  const totalDiscounts = bookings.reduce((s, b) => s + computeBookingDiscounts(b.id, payments), 0)
   const totalPaid = bookings.reduce((s, b) => s + computeBookingPaid(b.id, payments), 0)
-  const totalDue  = totalRevenue - totalPaid
+  const totalDue  = totalRevenue - totalDiscounts - totalPaid
 
   // ── Instructor costs ───────────────────────────────────────────────────
   const instructorCosts = lessons.reduce((sum, l) => {
@@ -87,9 +88,10 @@ export default function AccountingDashboard({ data }: Props) {
   // ── Unpaid bookings ────────────────────────────────────────────────────
   const unpaidBookings = activeBookings
     .map(b => {
-      const total = computeBookingTotal(b, data)
-      const paid  = computeBookingPaid(b.id, payments)
-      return { ...b, total, paid, due: total - paid }
+      const total     = computeBookingTotal(b, data)
+      const discounts = computeBookingDiscounts(b.id, payments)
+      const paid      = computeBookingPaid(b.id, payments)
+      return { ...b, total, paid, due: total - discounts - paid }
     })
     .filter(b => b.due > 0.5)
     .sort((a, b) => b.due - a.due)
