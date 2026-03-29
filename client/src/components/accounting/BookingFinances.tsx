@@ -310,6 +310,14 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
   // Activity detail (only we_pay_provider — client pays us)
   const bkActivities = data.activityBookings.filter(a => a.booking_id === b.id && a.payment_flow === 'we_pay_provider')
 
+  // Participant name resolver
+  const bkParts = data.bookingParticipants.filter(p => p.booking_id === b.id)
+  const partName = (id: string) => {
+    const p = bkParts.find(p => p.id === id)
+    return p ? p.first_name : null
+  }
+  const partNames = (ids: string[]) => ids.map(partName).filter(Boolean).join(', ')
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
 
@@ -393,6 +401,9 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                       <div className="flex justify-between items-center">
                         <span>
                           {l.type} · {l.duration_hours}h · {l.date} ({instr.first_name})
+                          {l.participant_ids.length > 0 && (
+                            <span className="ml-1 text-blue-400">— {partNames(l.participant_ids)}</span>
+                          )}
                           {override && <span className="ml-1 text-amber-500 italic">(override)</span>}
                         </span>
                         <div className="flex items-center gap-2">
@@ -433,7 +444,12 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                   return (
                     <div key={r.id} className="text-xs text-gray-500">
                       <div className="flex justify-between items-center">
-                        <span>{r.date} · <span className="capitalize">{typeLabel}</span> · {r.slot}</span>
+                        <span>
+                          {r.date} · <span className="capitalize">{typeLabel}</span> · {r.slot}
+                          {r.participant_id && partName(r.participant_id) && (
+                            <span className="ml-1 text-blue-400">— {partName(r.participant_id)}</span>
+                          )}
+                        </span>
                         <div className="flex items-center gap-2">
                           <span>{fmtEur(r.price)}</span>
                           <button onClick={() => setEditingRentalId(isEditing ? null : r.id)}
@@ -497,7 +513,10 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                     const evTotal = attending.reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
                     return (
                       <div key={ev.id} className="flex justify-between text-xs text-gray-500">
-                        <span>{ev.date} · {ev.name || '(unnamed)'} · {attending.length}p @ {fmtEur(ev.price_per_person)}</span>
+                        <span>
+                          {ev.date} · {ev.name || '(unnamed)'} · {attending.length}p @ {fmtEur(ev.price_per_person)}
+                          <span className="ml-1 text-blue-400">— {attending.map(a => partName(a.person_id) ?? a.person_name).join(', ')}</span>
+                        </span>
                         <span>{fmtEur(evTotal)}</span>
                       </div>
                     )
@@ -517,7 +536,12 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
               <div className="px-4 py-2 space-y-1">
                 {bkActivities.map(a => (
                   <div key={a.id} className="flex justify-between text-xs text-gray-500">
-                    <span>{a.date} · {a.label} · {a.nb_persons}p</span>
+                    <span>
+                      {a.date} · {a.label} · {a.nb_persons}p
+                      {a.participant_ids.length > 0 && (
+                        <span className="ml-1 text-blue-400">— {partNames(a.participant_ids)}</span>
+                      )}
+                    </span>
                     <span>{fmtEur(a.price_client)}</span>
                   </div>
                 ))}
@@ -538,6 +562,80 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           )}
         </div>
       </div>
+
+      {/* Per-guest breakdown (collapsible) */}
+      {(() => {
+        const bkParts = data.bookingParticipants.filter(p => p.booking_id === b.id)
+        if (bkParts.length === 0) return null
+
+        type Line = { date: string; label: string; amount: number }
+        const guestData = bkParts.map(part => {
+          const lines: Line[] = []
+
+          // Lessons where this participant is listed
+          for (const l of bkLessons) {
+            if (!l.participant_ids.includes(part.id)) continue
+            const instr = data.instructors.find(i => i.id === l.instructor_id)
+            if (!instr) continue
+            const rate = getLessonRate(l, instr, data.lessonRateOverrides)
+            lines.push({ date: l.date, label: `${l.type} lesson ${l.duration_hours}h (${instr.first_name})`, amount: rate * l.duration_hours })
+          }
+
+          // Rentals assigned to this participant
+          for (const r of bkRentals) {
+            if (r.participant_id !== part.id) continue
+            const equip = data.equipment.find(e => e.id === r.equipment_id)
+            lines.push({ date: r.date, label: `${equip?.category ?? 'rental'} · ${r.slot}`, amount: r.price })
+          }
+
+          // Dining events where this participant attended
+          for (const ev of data.diningEvents) {
+            if (ev.price_per_person === 0) continue
+            const att = (ev.attendees ?? []).find(a => a.is_attending && a.person_type === 'participant' && a.person_id === part.id)
+            if (!att) continue
+            lines.push({ date: ev.date, label: ev.name || 'dining', amount: att.price_override ?? ev.price_per_person })
+          }
+
+          // Activities where this participant is listed
+          for (const a of bkActivities) {
+            if (!a.participant_ids.includes(part.id)) continue
+            lines.push({ date: a.date, label: a.label, amount: a.price_client / a.nb_persons })
+          }
+
+          lines.sort((a, b) => a.date.localeCompare(b.date))
+          const total = lines.reduce((s, l) => s + l.amount, 0)
+          return { participant: part, lines, total }
+        }).filter(g => g.lines.length > 0)
+
+        if (guestData.length === 0) return null
+
+        return (
+          <details className="group">
+            <summary className="cursor-pointer select-none flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-700 transition-colors py-2">
+              <span className="transition-transform group-open:rotate-90">▶</span>
+              Per-guest breakdown
+            </summary>
+            <div className="mt-2 space-y-3">
+              {guestData.map(({ participant: p, lines, total }) => (
+                <div key={p.id} className="rounded-lg border border-gray-100 overflow-hidden">
+                  <div className="flex justify-between items-center px-4 py-2 bg-blue-50">
+                    <span className="text-sm font-medium text-blue-800">{p.first_name} {p.last_name ?? ''}</span>
+                    <span className="text-sm font-semibold text-blue-800">{fmtEur(total)}</span>
+                  </div>
+                  <div className="px-4 py-2 space-y-1">
+                    {lines.map((l, i) => (
+                      <div key={i} className="flex justify-between text-xs text-gray-500">
+                        <span>{l.date} · {l.label}</span>
+                        <span>{fmtEur(l.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
+        )
+      })()}
 
       {/* Payments */}
       <div>

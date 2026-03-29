@@ -41,14 +41,16 @@ export function computeAccommodationRevenue(booking: Booking, data: SharedAccoun
   return ownRooms + extAccomm
 }
 
-/** Lessons revenue for a booking (respects lesson_rate_overrides) */
+/** Lessons revenue for a booking (respects lesson_rate_overrides).
+ *  Group lessons: rate is per person, so multiply by participant count. */
 export function computeLessonsRevenue(booking: Booking, data: SharedAccountingData): number {
   return data.lessons
     .filter(l => l.booking_id === booking.id)
     .reduce((sum, l) => {
       const instr = data.instructors.find(i => i.id === l.instructor_id)
       if (!instr) return sum
-      return sum + getLessonRate(l, instr, data.lessonRateOverrides) * l.duration_hours
+      const base = getLessonRate(l, instr, data.lessonRateOverrides) * l.duration_hours
+      return sum + (l.type === 'group' ? base * l.participant_ids.length : base)
     }, 0)
 }
 

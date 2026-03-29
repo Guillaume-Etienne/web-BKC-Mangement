@@ -207,6 +207,10 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const accomTotal = accomRows.reduce((s, r) => s + r.total, 0)
     + extAccomRows.reduce((s, r) => s + r.total, 0)
 
+  // Participant name helpers
+  const partName = (id: string) => participants.find(p => p.id === id)?.first_name ?? null
+  const partNames = (ids: string[]) => ids.map(partName).filter(Boolean).join(', ')
+
   // Lessons
   const lessonRows = lessons.map(l => {
     const instr = instructors.find(i => i.id === l.instructor_id)
@@ -217,6 +221,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       type: l.type,
       duration: l.duration_hours,
       instructor: instr ? instr.first_name : '?',
+      guests: partNames(l.participant_ids),
       total: rate * l.duration_hours,
     }
   })
@@ -230,21 +235,22 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
   // Dining events (match participants to attendees)
   const partIds = new Set(participants.map(p => p.id))
-  const diningRows: { id: string; date: string; name: string; count: number; pricePerPerson: number; total: number }[] = []
+  const diningRows: { id: string; date: string; name: string; count: number; pricePerPerson: number; guests: string; total: number }[] = []
   for (const ev of diningEvents) {
     if (ev.price_per_person === 0) continue
     const attending = (ev.attendees ?? [])
       .filter(a => a.is_attending && a.person_type === 'participant' && partIds.has(a.person_id))
     if (attending.length === 0) continue
     const total = attending.reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
-    diningRows.push({ id: ev.id, date: ev.date, name: ev.name, count: attending.length, pricePerPerson: ev.price_per_person, total })
+    const guests = attending.map(a => partName(a.person_id) ?? a.person_name).join(', ')
+    diningRows.push({ id: ev.id, date: ev.date, name: ev.name, count: attending.length, pricePerPerson: ev.price_per_person, guests, total })
   }
   const diningTotal = diningRows.reduce((s, r) => s + r.total, 0)
 
   // Activities (only we_pay_provider — client pays the center)
   const activityRows = activityBkgs
     .filter(a => a.payment_flow === 'we_pay_provider')
-    .map(a => ({ id: a.id, date: a.date, label: a.label, nb_persons: a.nb_persons, total: a.price_client }))
+    .map(a => ({ id: a.id, date: a.date, label: a.label, nb_persons: a.nb_persons, guests: partNames(a.participant_ids), total: a.price_client }))
   const activityTotal = activityRows.reduce((s, r) => s + r.total, 0)
 
   // Payments (exclude discounts from paid amount)
@@ -344,6 +350,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 <tr>
                   <th className="px-5 py-2.5 text-left font-medium text-gray-500">Date</th>
                   <th className="px-5 py-2.5 text-left font-medium text-gray-500">Type</th>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Guest</th>
                   <th className="px-5 py-2.5 text-right font-medium text-gray-500">Duration</th>
                   <th className="px-5 py-2.5 text-left font-medium text-gray-500">Instructor</th>
                   <th className="px-5 py-2.5 text-right font-medium text-gray-500">Total</th>
@@ -354,6 +361,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                   <tr key={r.id} className="border-b border-gray-50">
                     <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{formatDate(r.date)}</td>
                     <td className="px-5 py-3 text-gray-600 capitalize">{r.type}</td>
+                    <td className="px-5 py-3 text-blue-500 text-xs">{r.guests}</td>
                     <td className="px-5 py-3 text-right text-gray-600">{r.duration}h</td>
                     <td className="px-5 py-3 text-gray-600">{r.instructor}</td>
                     <td className="px-5 py-3 text-right font-semibold text-gray-800">{fmtEur(r.total)}</td>
@@ -362,7 +370,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               </tbody>
               <tfoot className="bg-gray-50 border-t border-gray-200">
                 <tr>
-                  <td colSpan={4} className="px-5 py-3 text-sm font-semibold text-gray-600">Subtotal lessons</td>
+                  <td colSpan={5} className="px-5 py-3 text-sm font-semibold text-gray-600">Subtotal lessons</td>
                   <td className="px-5 py-3 text-right font-bold text-gray-800">{fmtEur(lessonsTotal)}</td>
                 </tr>
               </tfoot>
@@ -377,6 +385,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   <th className="px-5 py-2.5 text-left font-medium text-gray-500">Date</th>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Guest</th>
                   <th className="px-5 py-2.5 text-left font-medium text-gray-500">Slot</th>
                   <th className="px-5 py-2.5 text-right font-medium text-gray-500">Price</th>
                 </tr>
@@ -385,6 +394,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 {rentals.map(r => (
                   <tr key={r.id} className="border-b border-gray-50">
                     <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td className="px-5 py-3 text-blue-500 text-xs">{r.participant_id ? partName(r.participant_id) ?? '' : ''}</td>
                     <td className="px-5 py-3 text-gray-600 capitalize">{r.slot.replace('_', ' ')}</td>
                     <td className="px-5 py-3 text-right font-semibold text-gray-800">{fmtEur(r.price)}</td>
                   </tr>
@@ -392,7 +402,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               </tbody>
               <tfoot className="bg-gray-50 border-t border-gray-200">
                 <tr>
-                  <td colSpan={2} className="px-5 py-3 text-sm font-semibold text-gray-600">Subtotal rentals</td>
+                  <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600">Subtotal rentals</td>
                   <td className="px-5 py-3 text-right font-bold text-gray-800">{fmtEur(rentalsTotal)}</td>
                 </tr>
               </tfoot>
@@ -449,7 +459,10 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                   <tr key={r.id} className="border-b border-gray-50">
                     <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{formatDate(r.date)}</td>
                     <td className="px-5 py-3 text-gray-600">{r.name}</td>
-                    <td className="px-5 py-3 text-right text-gray-500">{r.count}p @ {fmtEur(r.pricePerPerson)}</td>
+                    <td className="px-5 py-3 text-right text-gray-500">
+                      {r.count}p @ {fmtEur(r.pricePerPerson)}
+                      {r.guests && <span className="ml-1 text-blue-400 text-xs">({r.guests})</span>}
+                    </td>
                     <td className="px-5 py-3 text-right font-semibold text-gray-800">{fmtEur(r.total)}</td>
                   </tr>
                 ))}
@@ -472,7 +485,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 <tr>
                   <th className="px-5 py-2.5 text-left font-medium text-gray-500">Date</th>
                   <th className="px-5 py-2.5 text-left font-medium text-gray-500">Activity</th>
-                  <th className="px-5 py-2.5 text-right font-medium text-gray-500">Persons</th>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Guests</th>
                   <th className="px-5 py-2.5 text-right font-medium text-gray-500">Total</th>
                 </tr>
               </thead>
@@ -481,7 +494,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                   <tr key={r.id} className="border-b border-gray-50">
                     <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{formatDate(r.date)}</td>
                     <td className="px-5 py-3 text-gray-600">{r.label}</td>
-                    <td className="px-5 py-3 text-right text-gray-500">{r.nb_persons}</td>
+                    <td className="px-5 py-3 text-blue-500 text-xs">{r.guests}</td>
                     <td className="px-5 py-3 text-right font-semibold text-gray-800">{fmtEur(r.total)}</td>
                   </tr>
                 ))}
@@ -495,6 +508,76 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             </table>
           </Section>
         )}
+
+        {/* Per-guest breakdown (collapsible) */}
+        {(() => {
+          if (participants.length === 0) return null
+
+          type Line = { date: string; label: string; amount: number }
+          const guestData = participants.map(part => {
+            const lines: Line[] = []
+
+            for (const l of lessons) {
+              if (!l.participant_ids.includes(part.id)) continue
+              const instr = instructors.find(i => i.id === l.instructor_id)
+              if (!instr) continue
+              const rate = getLessonRate(l, instr, lessonOverrides)
+              lines.push({ date: l.date, label: `${l.type} lesson ${l.duration_hours}h (${instr.first_name})`, amount: rate * l.duration_hours })
+            }
+
+            for (const r of rentals) {
+              if (r.participant_id !== part.id) continue
+              lines.push({ date: r.date, label: `rental · ${r.slot}`, amount: r.price })
+            }
+
+            for (const ev of diningEvents) {
+              if (ev.price_per_person === 0) continue
+              const att = (ev.attendees ?? []).find(a => a.is_attending && a.person_type === 'participant' && a.person_id === part.id)
+              if (!att) continue
+              lines.push({ date: ev.date, label: ev.name || 'dining', amount: att.price_override ?? ev.price_per_person })
+            }
+
+            for (const a of activityBkgs.filter(a => a.payment_flow === 'we_pay_provider')) {
+              if (!a.participant_ids.includes(part.id)) continue
+              lines.push({ date: a.date, label: a.label, amount: a.price_client / a.nb_persons })
+            }
+
+            lines.sort((a, b) => a.date.localeCompare(b.date))
+            const total = lines.reduce((s, l) => s + l.amount, 0)
+            return { participant: part, lines, total }
+          }).filter(g => g.lines.length > 0)
+
+          if (guestData.length === 0) return null
+
+          return (
+            <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <details className="group">
+                <summary className="cursor-pointer select-none px-5 py-4 flex items-center gap-2 font-semibold text-gray-500 hover:text-gray-700 transition-colors">
+                  <span className="transition-transform group-open:rotate-90">▶</span>
+                  Per-guest breakdown
+                </summary>
+                <div className="px-5 pb-4 space-y-3">
+                  {guestData.map(({ participant: p, lines, total }) => (
+                    <div key={p.id} className="rounded-lg border border-gray-100 overflow-hidden">
+                      <div className="flex justify-between items-center px-4 py-2 bg-blue-50">
+                        <span className="text-sm font-medium text-blue-800">{p.first_name} {p.last_name ?? ''}</span>
+                        <span className="text-sm font-semibold text-blue-800">{fmtEur(total)}</span>
+                      </div>
+                      <div className="px-4 py-2 space-y-1">
+                        {lines.map((l, i) => (
+                          <div key={i} className="flex justify-between text-xs text-gray-500">
+                            <span>{formatDate(l.date)} · {l.label}</span>
+                            <span>{fmtEur(l.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            </section>
+          )
+        })()}
 
         {/* Payments */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
