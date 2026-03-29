@@ -35,14 +35,7 @@ export interface Client {
   emergency_contact_relation: string | null
 }
 
-export interface Participant {
-  id: string
-  first_name: string
-  last_name: string
-  passport_number: string
-}
-
-// Participant lié à un booking (nouvelle table booking_participants)
+// Participant lié à un booking (table booking_participants)
 export interface BookingParticipant {
   id: string
   booking_id: string

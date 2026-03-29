@@ -88,7 +88,7 @@ export default function ManagementPage() {
   useEffect(() => { setPriceItems(priceItemsData) }, [priceItemsData])
 
   // ── Taxi pricing defaults (Supabase) ──────────────────────────────────────
-  const { data: taxiDefaultsData } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults')
+  const { data: taxiDefaultsData, loading: taxiDefaultsLoading } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults')
   const [taxiPricingDefaults, setTaxiPricingDefaults] = useState<TaxiPricingDefaults | null>(null)
   const [taxiPricingForm, setTaxiPricingForm] = useState<TaxiPricingDefaults | null>(null)
   const [taxiPricingEditing, setTaxiPricingEditing] = useState(false)
@@ -489,8 +489,21 @@ export default function ManagementPage() {
                 )}
               </div>
               <div className="bg-white rounded-lg shadow p-6">
-                {!taxiPricingDefaults ? (
+                {taxiDefaultsLoading ? (
                   <p className="text-sm text-gray-400">Loading…</p>
+                ) : !taxiPricingDefaults ? (
+                  <div className="text-center py-4 space-y-3">
+                    <p className="text-sm text-gray-500">No taxi pricing defaults found.</p>
+                    <button onClick={async () => {
+                      const defaults = { price_client_mzn: 8000, margin_manager_mzn: 1000, margin_centre_mzn: 1000, eur_mzn_rate: 65.0, updated_at: new Date().toISOString() }
+                      const { data, error } = await supabase.from('taxi_pricing_defaults').insert([defaults]).select().single()
+                      if (error) { alert('Error: ' + error.message); return }
+                      setTaxiPricingDefaults(data)
+                      setTaxiPricingForm(data)
+                    }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm">
+                      Initialize defaults
+                    </button>
+                  </div>
                 ) : taxiPricingEditing && taxiPricingForm ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

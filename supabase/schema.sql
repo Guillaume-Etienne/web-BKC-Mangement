@@ -585,5 +585,9 @@ CREATE POLICY "anon_read_lessons"       ON lessons        FOR SELECT TO anon USI
 CREATE POLICY "anon_read_instructors"   ON instructors    FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_bookings"      ON bookings       FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_clients"       ON clients        FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_activity_providers" ON activity_providers FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_activity_bookings"  ON activity_bookings  FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_activity_providers"    ON activity_providers    FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_activity_bookings"     ON activity_bookings     FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_activity_payments"     ON activity_payments     FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_equipment"             ON equipment             FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_equipment_rentals"     ON equipment_rentals     FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_participant_consumptions" ON participant_consumptions FOR SELECT TO anon USING (true);
