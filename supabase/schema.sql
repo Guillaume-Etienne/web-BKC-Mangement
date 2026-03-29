@@ -591,3 +591,15 @@ CREATE POLICY "anon_read_activity_payments"     ON activity_payments     FOR SEL
 CREATE POLICY "anon_read_equipment"             ON equipment             FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_equipment_rentals"     ON equipment_rentals     FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_participant_consumptions" ON participant_consumptions FOR SELECT TO anon USING (true);
+
+-- Accès anon : données supplémentaires pour ClientSharePage
+CREATE POLICY "anon_read_booking_participants"  ON booking_participants  FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_dining_events"         ON dining_events         FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_lesson_rate_overrides" ON lesson_rate_overrides FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_ext_accom_bookings"    ON external_accommodation_bookings FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_ext_accommodations"    ON external_accommodations FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_booking_rooms"         ON booking_rooms         FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_booking_room_prices"   ON booking_room_prices   FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_rooms"                 ON rooms                 FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_accommodations"        ON accommodations        FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_payments"              ON payments              FOR SELECT TO anon USING (true);

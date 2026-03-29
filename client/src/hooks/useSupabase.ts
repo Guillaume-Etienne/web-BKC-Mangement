@@ -42,5 +42,14 @@ export function useTable<T>(
     return () => { cancelled = true }
   }, [table, tick]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Realtime: re-fetch on any DB change for this table
+  useEffect(() => {
+    const channel = supabase
+      .channel(`realtime-${table}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table }, () => { refresh() })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [table, refresh])
+
   return { data, loading, error, refresh }
 }

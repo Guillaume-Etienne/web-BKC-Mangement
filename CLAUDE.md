@@ -10,7 +10,7 @@ Management system for a **kitesurf center in Africa**. Covers: accommodations, b
 
 ## Tech Stack
 
-- **Frontend**: React + TypeScript + Tailwind CSS (static build deployed on Hostinger)
+- **Frontend**: React + TypeScript + Tailwind CSS (static build deployed on vercel)
 - **Backend/DB**: Supabase Cloud (PostgreSQL, Auth, RLS, Realtime) — no custom server
 - **Auth**: Supabase Auth, 2 admin accounts only (manual creation)
 - **Public access**: Signed token links for read-only pages (clients, providers, taxis)

@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import type {
   Booking, Client, BookingRoom, BookingRoomPrice,
-  Room, Accommodation, Payment, ParticipantConsumption,
+  Room, Accommodation, Payment, Lesson, Instructor,
+  LessonRateOverride, EquipmentRental, TaxiTrip,
+  DiningEvent, BookingParticipant,
+  ExternalAccommodationBooking, ExternalAccommodation,
 } from '../types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -16,9 +19,9 @@ interface Props {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function nightsBetween(checkIn: string, checkOut: string): number {
-  return Math.round(
+  return Math.max(0, Math.round(
     (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)
-  )
+  ))
 }
 
 function formatDate(iso: string): string {
@@ -35,6 +38,14 @@ function roomLabel(room: Room, accom: Accommodation): string {
   return accom.type === 'house' ? `${house}/${side}` : accom.name
 }
 
+function getLessonRate(l: Lesson, instr: Instructor, overrides: LessonRateOverride[]): number {
+  const ov = overrides.find(o => o.lesson_id === l.id)
+  if (ov) return ov.rate
+  return l.type === 'private' ? instr.rate_private
+    : l.type === 'group' ? instr.rate_group
+    : instr.rate_supervision
+}
+
 const METHOD_LABELS: Record<string, string> = {
   cash_eur:        'Cash (€)',
   cash_mzn:        'Cash (MZN)',
@@ -42,11 +53,14 @@ const METHOD_LABELS: Record<string, string> = {
   card_palmeiras:  'Card – Palmeiras',
 }
 
-const CONSUMPTION_LABELS: Record<string, string> = {
-  lesson:        'Kite lesson',
-  rental:        'Equipment rental',
-  activity:      'Activity',
-  center_access: 'Center access',
+const TAXI_TYPE_LABELS: Record<string, string> = {
+  'aero-to-center': 'Airport → Center',
+  'center-to-aero': 'Center → Airport',
+  'aero-to-spot':   'Airport → Spot',
+  'spot-to-aero':   'Spot → Airport',
+  'center-to-town': 'Center → Town',
+  'town-to-center': 'Town → Center',
+  'other':          'Other',
 }
 
 const STATUS_CFG = {
@@ -58,14 +72,22 @@ const STATUS_CFG = {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ClientSharePage({ bookingNumber }: Props) {
-  const [booking,      setBooking]      = useState<BookingWithClient | 'not_found' | undefined>(undefined)
-  const [bkgRooms,     setBkgRooms]     = useState<BookingRoom[]>([])
-  const [roomPrices,   setRoomPrices]   = useState<BookingRoomPrice[]>([])
-  const [rooms,        setRooms]        = useState<Room[]>([])
-  const [accoms,       setAccoms]       = useState<Accommodation[]>([])
-  const [payments,     setPayments]     = useState<Payment[]>([])
-  const [consumptions, setConsumptions] = useState<ParticipantConsumption[]>([])
-  const [loading,      setLoading]      = useState(true)
+  const [booking,        setBooking]        = useState<BookingWithClient | 'not_found' | undefined>(undefined)
+  const [bkgRooms,       setBkgRooms]       = useState<BookingRoom[]>([])
+  const [roomPrices,     setRoomPrices]     = useState<BookingRoomPrice[]>([])
+  const [rooms,          setRooms]          = useState<Room[]>([])
+  const [accoms,         setAccoms]         = useState<Accommodation[]>([])
+  const [payments,       setPayments]       = useState<Payment[]>([])
+  const [lessons,        setLessons]        = useState<Lesson[]>([])
+  const [instructors,    setInstructors]    = useState<Instructor[]>([])
+  const [lessonOverrides,setLessonOverrides]= useState<LessonRateOverride[]>([])
+  const [rentals,        setRentals]        = useState<EquipmentRental[]>([])
+  const [taxis,          setTaxis]          = useState<TaxiTrip[]>([])
+  const [diningEvents,   setDiningEvents]   = useState<DiningEvent[]>([])
+  const [participants,   setParticipants]   = useState<BookingParticipant[]>([])
+  const [extAccomBkgs,   setExtAccomBkgs]   = useState<ExternalAccommodationBooking[]>([])
+  const [extAccoms,      setExtAccoms]      = useState<ExternalAccommodation[]>([])
+  const [loading,        setLoading]        = useState(true)
 
   // Step 1 — fetch booking by number
   useEffect(() => {
@@ -93,14 +115,34 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       supabase.from('rooms').select('*'),
       supabase.from('accommodations').select('*'),
       supabase.from('payments').select('*').eq('booking_id', id).order('date'),
-      supabase.from('participant_consumptions').select('*').eq('booking_id', id),
-    ]).then(([bkgRoomsRes, pricesRes, roomsRes, acomsRes, paymentsRes, consRes]) => {
+      supabase.from('lessons').select('*').eq('booking_id', id).order('date'),
+      supabase.from('instructors').select('*'),
+      supabase.from('lesson_rate_overrides').select('*'),
+      supabase.from('equipment_rentals').select('*').eq('booking_id', id).order('date'),
+      supabase.from('taxi_trips').select('*').eq('booking_id', id).order('date'),
+      supabase.from('dining_events').select('*'),
+      supabase.from('booking_participants').select('*').eq('booking_id', id),
+      supabase.from('external_accommodation_bookings').select('*').eq('booking_id', id),
+      supabase.from('external_accommodations').select('*'),
+    ]).then(([
+      bkgRoomsRes, pricesRes, roomsRes, acomsRes, paymentsRes,
+      lessonsRes, instrRes, overridesRes, rentalsRes, taxisRes,
+      diningRes, partRes, extBkgRes, extAccomRes,
+    ]) => {
       setBkgRooms(bkgRoomsRes.data ?? [])
       setRoomPrices(pricesRes.data ?? [])
       setRooms(roomsRes.data ?? [])
       setAccoms(acomsRes.data ?? [])
       setPayments(paymentsRes.data ?? [])
-      setConsumptions(consRes.data ?? [])
+      setLessons(lessonsRes.data ?? [])
+      setInstructors(instrRes.data ?? [])
+      setLessonOverrides(overridesRes.data ?? [])
+      setRentals(rentalsRes.data ?? [])
+      setTaxis(taxisRes.data ?? [])
+      setDiningEvents(diningRes.data ?? [])
+      setParticipants(partRes.data ?? [])
+      setExtAccomBkgs(extBkgRes.data ?? [])
+      setExtAccoms(extAccomRes.data ?? [])
       setLoading(false)
     })
   }, [booking])
@@ -131,7 +173,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const nights = nightsBetween(booking.check_in, booking.check_out)
   const statusCfg = STATUS_CFG[booking.status] ?? STATUS_CFG.confirmed
 
-  // Accommodation rows
+  // Accommodation rows (own rooms)
   const accomRows = bkgRooms.map(br => {
     const room  = rooms.find(r => r.id === br.room_id)
     const accom = room ? accoms.find(a => a.id === room.accommodation_id) : null
@@ -145,16 +187,61 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       note: priceRow?.override_note ?? null,
     }
   })
-  const accomTotal = accomRows.reduce((s, r) => s + r.total, 0)
 
-  // Consumption rows
-  const consTotal = consumptions.reduce((s, c) => s + c.unit_price * c.quantity, 0)
+  // External accommodation rows
+  const extAccomRows = extAccomBkgs.map(e => {
+    const acc = extAccoms.find(a => a.id === e.external_accommodation_id)
+    const n = nightsBetween(e.check_in, e.check_out)
+    return {
+      label: acc?.name ?? 'External',
+      nights: n,
+      pricePerNight: e.sell_price_per_night,
+      total: e.sell_price_per_night * n,
+    }
+  })
+
+  const accomTotal = accomRows.reduce((s, r) => s + r.total, 0)
+    + extAccomRows.reduce((s, r) => s + r.total, 0)
+
+  // Lessons
+  const lessonRows = lessons.map(l => {
+    const instr = instructors.find(i => i.id === l.instructor_id)
+    const rate = instr ? getLessonRate(l, instr, lessonOverrides) : 0
+    return {
+      id: l.id,
+      date: l.date,
+      type: l.type,
+      duration: l.duration_hours,
+      instructor: instr ? instr.first_name : '?',
+      total: rate * l.duration_hours,
+    }
+  })
+  const lessonsTotal = lessonRows.reduce((s, r) => s + r.total, 0)
+
+  // Equipment rentals
+  const rentalsTotal = rentals.reduce((s, r) => s + r.price, 0)
+
+  // Taxis
+  const taxiTotal = taxis.reduce((s, t) => s + t.price_eur, 0)
+
+  // Dining events (match participants to attendees)
+  const partIds = new Set(participants.map(p => p.id))
+  const diningRows: { id: string; date: string; name: string; count: number; pricePerPerson: number; total: number }[] = []
+  for (const ev of diningEvents) {
+    if (ev.price_per_person === 0) continue
+    const attending = (ev.attendees ?? [])
+      .filter(a => a.is_attending && a.person_type === 'participant' && partIds.has(a.person_id))
+    if (attending.length === 0) continue
+    const total = attending.reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
+    diningRows.push({ id: ev.id, date: ev.date, name: ev.name, count: attending.length, pricePerPerson: ev.price_per_person, total })
+  }
+  const diningTotal = diningRows.reduce((s, r) => s + r.total, 0)
 
   // Payments
   const totalPaid = payments.reduce((s, p) => s + p.amount, 0)
 
   // Grand totals
-  const totalCharges = accomTotal + consTotal
+  const totalCharges = accomTotal + lessonsTotal + rentalsTotal + taxiTotal + diningTotal
   const balance = totalCharges - totalPaid
 
   return (
@@ -162,9 +249,9 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <span className="text-xl font-bold text-blue-600">🏄 Kitesurf Center</span>
+        <span className="text-xl font-bold text-blue-600">Kitesurf Center</span>
         <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">
-          👤 Your stay — Read-only
+          Your stay — Read-only
         </span>
       </div>
 
@@ -196,83 +283,174 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         </div>
 
         {/* Accommodation */}
-        {accomRows.length > 0 && (
-          <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-800">🛏️ Accommodation</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="px-5 py-2.5 text-left font-medium text-gray-500">Room</th>
-                    <th className="px-5 py-2.5 text-right font-medium text-gray-500">Nights</th>
-                    <th className="px-5 py-2.5 text-right font-medium text-gray-500">Per night</th>
-                    <th className="px-5 py-2.5 text-right font-medium text-gray-500">Total</th>
+        {(accomRows.length > 0 || extAccomRows.length > 0) && (
+          <Section title="Accommodation" icon="🛏️">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Room</th>
+                  <th className="px-5 py-2.5 text-right font-medium text-gray-500">Nights</th>
+                  <th className="px-5 py-2.5 text-right font-medium text-gray-500">Per night</th>
+                  <th className="px-5 py-2.5 text-right font-medium text-gray-500">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accomRows.map((row, i) => (
+                  <tr key={i} className="border-b border-gray-50">
+                    <td className="px-5 py-3 font-medium text-gray-800">
+                      {row.label}
+                      {row.note && <span className="ml-2 text-xs text-gray-400 italic">{row.note}</span>}
+                    </td>
+                    <td className="px-5 py-3 text-right text-gray-600">{row.nights}</td>
+                    <td className="px-5 py-3 text-right text-gray-600">{fmtEur(row.pricePerNight)}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-gray-800">{fmtEur(row.total)}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {accomRows.map((row, i) => (
-                    <tr key={i} className="border-b border-gray-50">
-                      <td className="px-5 py-3 font-medium text-gray-800">
-                        {row.label}
-                        {row.note && <span className="ml-2 text-xs text-gray-400 italic">{row.note}</span>}
-                      </td>
-                      <td className="px-5 py-3 text-right text-gray-600">{row.nights}</td>
-                      <td className="px-5 py-3 text-right text-gray-600">{fmtEur(row.pricePerNight)}</td>
-                      <td className="px-5 py-3 text-right font-semibold text-gray-800">{fmtEur(row.total)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-gray-50 border-t border-gray-200">
-                  <tr>
-                    <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600">Subtotal accommodation</td>
-                    <td className="px-5 py-3 text-right font-bold text-gray-800">{fmtEur(accomTotal)}</td>
+                ))}
+                {extAccomRows.map((row, i) => (
+                  <tr key={`ext-${i}`} className="border-b border-gray-50">
+                    <td className="px-5 py-3 font-medium text-gray-800">{row.label}</td>
+                    <td className="px-5 py-3 text-right text-gray-600">{row.nights}</td>
+                    <td className="px-5 py-3 text-right text-gray-600">{fmtEur(row.pricePerNight)}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-gray-800">{fmtEur(row.total)}</td>
                   </tr>
-                </tfoot>
-              </table>
-            </div>
-          </section>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t border-gray-200">
+                <tr>
+                  <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600">Subtotal accommodation</td>
+                  <td className="px-5 py-3 text-right font-bold text-gray-800">{fmtEur(accomTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </Section>
         )}
 
-        {/* Services / consumptions */}
-        {consumptions.length > 0 && (
-          <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-800">🎯 Services</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="px-5 py-2.5 text-left font-medium text-gray-500">Service</th>
-                    <th className="px-5 py-2.5 text-right font-medium text-gray-500">Qty</th>
-                    <th className="px-5 py-2.5 text-right font-medium text-gray-500">Unit price</th>
-                    <th className="px-5 py-2.5 text-right font-medium text-gray-500">Total</th>
+        {/* Lessons */}
+        {lessonRows.length > 0 && (
+          <Section title="Kite lessons" icon="🏄">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Date</th>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Type</th>
+                  <th className="px-5 py-2.5 text-right font-medium text-gray-500">Duration</th>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Instructor</th>
+                  <th className="px-5 py-2.5 text-right font-medium text-gray-500">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lessonRows.map(r => (
+                  <tr key={r.id} className="border-b border-gray-50">
+                    <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td className="px-5 py-3 text-gray-600 capitalize">{r.type}</td>
+                    <td className="px-5 py-3 text-right text-gray-600">{r.duration}h</td>
+                    <td className="px-5 py-3 text-gray-600">{r.instructor}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-gray-800">{fmtEur(r.total)}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {consumptions.map(c => (
-                    <tr key={c.id} className="border-b border-gray-50">
-                      <td className="px-5 py-3 font-medium text-gray-800">
-                        {CONSUMPTION_LABELS[c.type] ?? c.type}
-                        {c.notes && <span className="ml-2 text-xs text-gray-400 italic">{c.notes}</span>}
-                      </td>
-                      <td className="px-5 py-3 text-right text-gray-600">{c.quantity}</td>
-                      <td className="px-5 py-3 text-right text-gray-600">{fmtEur(c.unit_price)}</td>
-                      <td className="px-5 py-3 text-right font-semibold text-gray-800">{fmtEur(c.unit_price * c.quantity)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-gray-50 border-t border-gray-200">
-                  <tr>
-                    <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600">Subtotal services</td>
-                    <td className="px-5 py-3 text-right font-bold text-gray-800">{fmtEur(consTotal)}</td>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t border-gray-200">
+                <tr>
+                  <td colSpan={4} className="px-5 py-3 text-sm font-semibold text-gray-600">Subtotal lessons</td>
+                  <td className="px-5 py-3 text-right font-bold text-gray-800">{fmtEur(lessonsTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </Section>
+        )}
+
+        {/* Equipment rentals */}
+        {rentals.length > 0 && (
+          <Section title="Equipment rentals" icon="🎿">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Date</th>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Slot</th>
+                  <th className="px-5 py-2.5 text-right font-medium text-gray-500">Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rentals.map(r => (
+                  <tr key={r.id} className="border-b border-gray-50">
+                    <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td className="px-5 py-3 text-gray-600 capitalize">{r.slot.replace('_', ' ')}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-gray-800">{fmtEur(r.price)}</td>
                   </tr>
-                </tfoot>
-              </table>
-            </div>
-          </section>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t border-gray-200">
+                <tr>
+                  <td colSpan={2} className="px-5 py-3 text-sm font-semibold text-gray-600">Subtotal rentals</td>
+                  <td className="px-5 py-3 text-right font-bold text-gray-800">{fmtEur(rentalsTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </Section>
+        )}
+
+        {/* Taxis */}
+        {taxis.length > 0 && (
+          <Section title="Taxi transfers" icon="🚕">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Date</th>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Route</th>
+                  <th className="px-5 py-2.5 text-right font-medium text-gray-500">Pax</th>
+                  <th className="px-5 py-2.5 text-right font-medium text-gray-500">Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {taxis.map(t => (
+                  <tr key={t.id} className="border-b border-gray-50">
+                    <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{formatDate(t.date)}</td>
+                    <td className="px-5 py-3 text-gray-600">{TAXI_TYPE_LABELS[t.type] ?? t.type}</td>
+                    <td className="px-5 py-3 text-right text-gray-600">{t.nb_persons}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-gray-800">{fmtEur(t.price_eur)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t border-gray-200">
+                <tr>
+                  <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600">Subtotal taxis</td>
+                  <td className="px-5 py-3 text-right font-bold text-gray-800">{fmtEur(taxiTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </Section>
+        )}
+
+        {/* Dining events */}
+        {diningRows.length > 0 && (
+          <Section title="Dining" icon="🍽️">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Date</th>
+                  <th className="px-5 py-2.5 text-left font-medium text-gray-500">Event</th>
+                  <th className="px-5 py-2.5 text-right font-medium text-gray-500">Detail</th>
+                  <th className="px-5 py-2.5 text-right font-medium text-gray-500">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {diningRows.map(r => (
+                  <tr key={r.id} className="border-b border-gray-50">
+                    <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td className="px-5 py-3 text-gray-600">{r.name}</td>
+                    <td className="px-5 py-3 text-right text-gray-500">{r.count}p @ {fmtEur(r.pricePerPerson)}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-gray-800">{fmtEur(r.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t border-gray-200">
+                <tr>
+                  <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600">Subtotal dining</td>
+                  <td className="px-5 py-3 text-right font-bold text-gray-800">{fmtEur(diningTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </Section>
         )}
 
         {/* Payments */}
@@ -349,5 +527,20 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         <p className="text-center text-xs text-gray-300 pb-4">Read-only view · Kitesurf Center Management</p>
       </div>
     </div>
+  )
+}
+
+// ─── Reusable section wrapper ─────────────────────────────────────────────────
+
+function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+  return (
+    <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100">
+        <h2 className="font-semibold text-gray-800">{icon} {title}</h2>
+      </div>
+      <div className="overflow-x-auto">
+        {children}
+      </div>
+    </section>
   )
 }
