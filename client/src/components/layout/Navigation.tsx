@@ -4,9 +4,10 @@ interface NavigationProps {
   currentPage: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities'
   onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities') => void
   onLogout: () => void
+  urgentCount?: number
 }
 
-export default function Navigation({ currentPage, onNavigate, onLogout }: NavigationProps) {
+export default function Navigation({ currentPage, onNavigate, onLogout, urgentCount = 0 }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const navItems = [
@@ -58,7 +59,7 @@ export default function Navigation({ currentPage, onNavigate, onLogout }: Naviga
                   key={item.id}
                   onClick={() => handleNavigate(item.id)}
                   style={{ touchAction: 'manipulation' }}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`relative px-4 py-2 rounded-lg font-medium transition-colors ${
                     currentPage === item.id
                       ? 'bg-blue-100 text-blue-700'
                       : 'text-gray-700 hover:bg-gray-100'
@@ -66,6 +67,11 @@ export default function Navigation({ currentPage, onNavigate, onLogout }: Naviga
                 >
                   <span className="mr-1">{item.icon}</span>
                   {item.label}
+                  {item.id === 'home' && urgentCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                      {urgentCount}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>

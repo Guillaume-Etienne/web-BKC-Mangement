@@ -5,6 +5,9 @@ import { supabase } from './lib/supabase'
 import Navigation from './components/layout/Navigation'
 import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
+import { computePendingActions } from './components/pending/pendingActions'
+import type { PendingAction } from './components/pending/pendingActions'
+import type { Booking, Payment } from './types/database'
 import PlanningView from './components/planning/PlanningView'
 import BookingsPage from './pages/BookingsPage'
 import ClientsPage from './pages/ClientsPage'
@@ -36,6 +39,7 @@ function App() {
   const [sharedLink, setSharedLink]   = useState<SharedLink | null | undefined>(
     shareToken ? undefined : null
   )
+  const [pendingActions, setPendingActions] = useState<PendingAction[]>([])
 
   useEffect(() => {
     // Get initial session
@@ -47,6 +51,21 @@ function App() {
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  // Load minimal data for pending actions (runs once after login)
+  useEffect(() => {
+    if (!session) return
+    Promise.all([
+      supabase.from('bookings').select('*, client:clients(first_name, last_name)'),
+      supabase.from('payments').select('id, booking_id, is_verified, is_discount'),
+      supabase.from('taxi_trips').select('booking_id'),
+    ]).then(([{ data: bookings }, { data: payments }, { data: taxis }]) => {
+      const bkgs = (bookings ?? []) as Booking[]
+      const pmts = (payments ?? []) as Payment[]
+      const unlinked = (taxis ?? []).filter((t: { booking_id: string | null }) => !t.booking_id).length
+      setPendingActions(computePendingActions({ bookings: bkgs, payments: pmts, taxiTripUnlinkedCount: unlinked }))
+    })
+  }, [session])
 
   useEffect(() => {
     if (!shareToken) return
@@ -94,9 +113,9 @@ function App() {
   // Authenticated
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation currentPage={currentPage} onNavigate={setCurrentPage} onLogout={() => supabase.auth.signOut()} />
+      <Navigation currentPage={currentPage} onNavigate={setCurrentPage} onLogout={() => supabase.auth.signOut()} urgentCount={pendingActions.filter(a => a.priority === 'urgent').length} />
       <main className="w-full">
-        {currentPage === 'home'       && <HomePage onNavigate={setCurrentPage} />}
+        {currentPage === 'home'       && <HomePage onNavigate={setCurrentPage} pendingActions={pendingActions} />}
         {currentPage === 'planning'   && <PlanningView onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
         {currentPage === 'bookings'   && <BookingsPage initialEditBookingId={pendingEditBookingId} onEditOpened={() => setPendingEditBookingId(null)} />}
         {currentPage === 'clients'    && <ClientsPage onNavigate={setCurrentPage} />}
