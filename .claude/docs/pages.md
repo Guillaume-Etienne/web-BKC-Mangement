@@ -10,6 +10,7 @@
 2. `session === undefined` → spinner de chargement
 3. `session === null` → `LoginPage`
 4. `session` → app authentifiée avec `Navigation` + page switcher
+5. Au login : charge en parallèle `bookings` (+ join client), `payments` (4 colonnes), `taxi_trips` (booking_id seul) → calcule `pendingActions` via `computePendingActions()` → passe `urgentCount` à `Navigation` + `pendingActions` à `HomePage`
 
 **Pages publiques (SharedLinkType) :**
 | type | Composant | Props |
@@ -76,8 +77,9 @@
 
 ### `HomePage`
 - **Route :** `'home'`
-- **Props :** `{ onNavigate }`
-- **But :** Page d'accueil avec cartes de navigation (statique)
+- **Props :** `{ onNavigate; pendingActions?: PendingAction[] }`
+- **But :** Page d'accueil + liste d'actions en attente
+- **Pending actions :** liste color-codée (🔴 urgent / 🟡 week / 🟢 monitor), chaque item a un lien vers la page concernée. Calculé dans `App.tsx` au login via `computePendingActions()` (`pendingActions.ts`).
 
 ### `PlanningView` *(rendu comme page)*
 - **Route :** `'planning'`
@@ -132,9 +134,21 @@
 ### `DocumentsPage`
 - **Route :** `'documents'`
 - **Hooks :** useBookings, useBookingRooms, useBookingParticipants, useRooms, useAccommodations
-- **State :** `tab: 'visa'|'summary'|'guide'`, travelGuideSections
-- **PDF :** `printVisaLetter(booking, participants)` et `printBookingSummary(...)` → `window.open()` + browser print
-- **Travel guide :** 6 sections, 3 langues (en/fr/es), state non persisté en DB
+- **State :** `tab: 'visa'|'summary'|'guide'|'templates'`, `guideSections` (localStorage `bkc_guide_sections`), `emailLogs`, `logsRefresh`, `sending: EmailLogType|null`
+- **Onglets :**
+  - `'visa'` → lettre visa (portugais) : sélecteur booking, aperçu dates/guests, Generate PDF + Send email
+  - `'summary'` → confirmation réservation : booking, langue (FR/EN/ES), total auto-calculé (9 requêtes parallèles + `compute*`), Generate PDF + Send email
+  - `'guide'` → guide voyage : sélecteur booking, langue, toggles sections (is_active), Generate PDF + Send email
+  - `'templates'` → éditeur contenu de base des sections guide (toutes langues), 3 boutons Preview PDF (FR/EN/ES)
+- **PDF :**
+  - `printVisaLetter(booking, participants)`
+  - `printBookingSummary(booking, rooms, lang, total, sections, participants)`
+  - `printTravelGuide(booking|null, lang, sections)` — `null` pour preview sans booking
+- **Email system :** via Edge Function `send-email` (proxy Resend)
+  - `SendEmailRow` : champ email pré-rempli depuis `client.email` + bouton Send + `EmailHistory` (3 derniers envois)
+  - Types : `visa_letter`, `booking_confirmation`, `travel_guide`
+  - Logs fetchés par booking, refresh via compteur `logsRefresh` (incrémenté après envoi réussi)
+- **Travel guide sections :** persistées dans `localStorage` (`bkc_guide_sections`), partagées entre onglets Guide et Templates. Fallback sur `defaultTravelGuideSections` si localStorage vide.
 
 ### `AccountingPage`
 - **Route :** `'accounting'`

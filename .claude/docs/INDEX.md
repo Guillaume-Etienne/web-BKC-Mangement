@@ -14,6 +14,8 @@
 | SharedLink params par type | `data-model.md` | § shared_links |
 | ParticipantConsumption (table non alimentée) | `data-model.md` | § ParticipantConsumption |
 | TravelGuideSection (6 sections i18n) | `data-model.md` | § TravelGuideSection |
+| EmailLog / EmailLogType / EmailLogStatus | `data-model.md` | § Email Logs |
+| PendingAction / ActionPriority / règles | `data-model.md` | § Pending Actions |
 | Schéma SQL complet | `supabase/schema.sql` | — |
 | Data integrity issues (audit) | `project_accounting_issues.md` | § Issue 1–4 |
 
@@ -67,7 +69,9 @@
 | Taxis | `pages.md` → TaxiPage + `data-model.md` → taxi | modèle MZN |
 | Activities | `pages.md` → ActivitiesPage + `data-model.md` → Activities | modèle EUR bidirectionnel |
 | Equipment | `pages.md` → EquipmentPage | |
-| Documents | `pages.md` → DocumentsPage | PDF, visa letter |
+| Documents | `pages.md` → DocumentsPage | PDF, email (Resend), templates guide |
+| Pending Actions | `data-model.md` → § Pending Actions | règles, badge nav, HomePage |
+| Email system | `data-model.md` → § Email Logs + `pages.md` → DocumentsPage | Resend, Edge Function, email_logs |
 | Accounting | `pages.md` → AccountingPage + `components.md` → Accounting | sharedData pattern |
 | Management | `pages.md` → ManagementPage | shared links, pricing |
 | Pages publiques | `pages.md` → Pages publiques | 5 types de SharedLink |

@@ -483,6 +483,23 @@ export interface PalmeirasSubLet {
   notes: string | null
 }
 
+// Email logs — transactional emails sent to clients
+export type EmailLogType   = 'booking_confirmation' | 'visa_letter' | 'travel_guide'
+export type EmailLogStatus = 'pending' | 'sent' | 'delivered' | 'opened' | 'failed'
+
+export interface EmailLog {
+  id: string
+  booking_id: string
+  type: EmailLogType
+  status: EmailLogStatus
+  recipient_email: string
+  sent_at: string | null
+  delivered_at: string | null
+  opened_at: string | null
+  error: string | null
+  created_at: string
+}
+
 // Travel guide sections (Documents page)
 export interface TravelGuideSection {
   id: string

@@ -523,6 +523,27 @@ CREATE TABLE palmeiras_sub_lets (
 );
 
 
+-- ── Email Logs ───────────────────────────────────────────────────────────────
+
+CREATE TYPE email_log_type   AS ENUM ('booking_confirmation', 'visa_letter', 'travel_guide');
+CREATE TYPE email_log_status AS ENUM ('pending', 'sent', 'delivered', 'opened', 'failed');
+
+CREATE TABLE email_logs (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id      UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  type            email_log_type   NOT NULL,
+  status          email_log_status NOT NULL DEFAULT 'pending',
+  recipient_email TEXT NOT NULL,
+  sent_at         TIMESTAMPTZ,
+  delivered_at    TIMESTAMPTZ,
+  opened_at       TIMESTAMPTZ,
+  error           TEXT,
+  created_at      TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_email_logs_booking ON email_logs(booking_id);
+
+
 -- ── Travel Guide ──────────────────────────────────────────────────────────────
 
 CREATE TABLE travel_guide_sections (
@@ -564,7 +585,8 @@ BEGIN
     'instructor_debts', 'instructor_payments', 'lesson_rate_overrides',
     'expenses',
     'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries', 'palmeiras_sub_lets',
-    'travel_guide_sections'
+    'travel_guide_sections',
+    'email_logs'
   ]) LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format(

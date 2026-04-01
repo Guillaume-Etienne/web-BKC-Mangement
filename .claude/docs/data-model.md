@@ -27,6 +27,9 @@
 | `ActivityProviderType` | `'activity' \| 'safari'` |
 | `ActivityPaymentFlow` | `'we_pay_provider' \| 'provider_pays_us'` |
 | `ActivityPaymentDirection` | `'to_provider' \| 'from_provider'` |
+| `EmailLogType` | `'booking_confirmation' \| 'visa_letter' \| 'travel_guide'` |
+| `EmailLogStatus` | `'pending' \| 'sent' \| 'delivered' \| 'opened' \| 'failed'` |
+| `ActionPriority` | `'urgent' \| 'week' \| 'monitor'` |
 
 ---
 
@@ -513,6 +516,59 @@
 | sort_order | number | Ordre d'affichage |
 | updated_at | string (ISO timestamp) | |
 > Utilisé dans DocumentsPage (onglet Travel Guide). i18n intégré dans schema.
+
+---
+
+## Email Logs (`email_logs` → `EmailLog`)
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| booking_id | string (FK → bookings) | |
+| type | EmailLogType | `booking_confirmation \| visa_letter \| travel_guide` |
+| status | EmailLogStatus | `pending \| sent \| delivered \| opened \| failed` |
+| recipient_email | string | |
+| sent_at | string (ISO) \| null | |
+| delivered_at | string (ISO) \| null | mis à jour par webhook Resend (non encore implémenté) |
+| opened_at | string (ISO) \| null | idem |
+| error | string \| null | message d'erreur si `failed` |
+| created_at | string (ISO) | |
+
+RLS : authentifié seulement (pas d'accès anon). Envoi via Edge Function `send-email` (proxy Resend, clé `RESEND_API_KEY` en secret Supabase).
+
+---
+
+## Pending Actions (`components/pending/pendingActions.ts`)
+
+Types purement calculés, pas de table DB.
+
+**`ActionPriority`** : `'urgent' | 'week' | 'monitor'`
+
+**`PendingAction`** :
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string | identifiant unique de la règle + bookingId |
+| priority | ActionPriority | |
+| message | string | texte affiché |
+| bookingRef | string \| undefined | ex. `#003 — John Smith` |
+| route | Page | page vers laquelle naviguer |
+| routeLabel | string | label du lien |
+
+**`PendingActionsData`** : `{ bookings: Booking[]; payments: Payment[]; taxiTripUnlinkedCount: number }`
+
+**Règles implémentées :**
+| Priorité | Condition |
+|----------|-----------|
+| 🔴 urgent | Paiement non vérifié (`is_verified=false`) |
+| 🔴 urgent | Réservation provisoire + check_in ≤ J+2 |
+| 🔴 urgent | `visa_entry_date` ≤ J+4 |
+| 🔴 urgent | Aucun paiement + check_in ≤ J+1 |
+| 🟡 week | Provisoire + check_in ≤ J+7 |
+| 🟡 week | Aucun paiement + check_in ≤ J+7 |
+| 🟡 week | `visa_entry_date` J+5 à J+7 |
+| 🟢 monitor | Trajets taxi sans `booking_id` |
+
+Chargé dans `App.tsx` au login (3 requêtes parallèles légères), passé à `HomePage` + `Navigation` (badge rouge).
 
 ---
 

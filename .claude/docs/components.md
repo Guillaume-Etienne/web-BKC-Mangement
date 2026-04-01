@@ -6,10 +6,11 @@
 ## Layout
 
 ### `Navigation` — `layout/Navigation.tsx`
-**Props :** `{ currentPage: Page; onNavigate: (p: Page) => void; onLogout: () => void }`
+**Props :** `{ currentPage: Page; onNavigate: (p: Page) => void; onLogout: () => void; urgentCount?: number }`
 - Navbar sticky top : logo, 10 items, bouton sign out
 - Mobile : hamburger → dropdown
 - **Items :** Home, Clients, Planning, Bookings, Accounting, Documents, Options, Equipment, Taxis, Activities
+- **Badge Home :** si `urgentCount > 0`, badge rouge sur le bouton Home avec le compte d'actions urgentes (vient de `computePendingActions` dans `App.tsx`)
 - State : `mobileMenuOpen: boolean`
 
 ---
