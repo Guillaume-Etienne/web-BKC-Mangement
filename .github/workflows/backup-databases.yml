@@ -1,0 +1,59 @@
+name: Daily Database Backup & Keep Alive
+
+on:
+  schedule:
+    # Every day at 03:00 UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch: # Manual trigger from GitHub UI
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - env: prod
+            url_secret: SUPABASE_DB_URL_PROD
+            api_url_secret: SUPABASE_API_URL_PROD
+            api_key_secret: SUPABASE_ANON_KEY_PROD
+          - env: test
+            url_secret: SUPABASE_DB_URL_TEST
+            api_url_secret: SUPABASE_API_URL_TEST
+            api_key_secret: SUPABASE_ANON_KEY_TEST
+
+    steps:
+      # Keep alive — ping the Supabase REST API to prevent free tier sleep
+      - name: Keep alive ping (${{ matrix.env }})
+        run: |
+          curl -sf -o /dev/null \
+            -H "apikey: ${{ secrets[matrix.api_key_secret] }}" \
+            -H "Authorization: Bearer ${{ secrets[matrix.api_key_secret] }}" \
+            "${{ secrets[matrix.api_url_secret] }}/rest/v1/seasons?select=id&limit=1" \
+          && echo "✅ ${{ matrix.env }} is alive" \
+          || echo "⚠️ ${{ matrix.env }} ping failed (may be paused)"
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+
+      - name: Dump database (${{ matrix.env }})
+        env:
+          DATABASE_URL: ${{ secrets[matrix.url_secret] }}
+        run: |
+          FILENAME="backup_${{ matrix.env }}_$(date +%Y%m%d_%H%M%S).sql"
+          pg_dump "$DATABASE_URL" \
+            --no-owner \
+            --no-privileges \
+            --clean \
+            --if-exists \
+            > "$FILENAME"
+          gzip "$FILENAME"
+          echo "BACKUP_FILE=${FILENAME}.gz" >> $GITHUB_ENV
+
+      - name: Upload backup as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ matrix.env }}-${{ github.run_id }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 90

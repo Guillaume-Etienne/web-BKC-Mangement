@@ -12,11 +12,11 @@ import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults, TaxiManagerPayment, Boo
 
 const FALLBACK_PRICING: TaxiPricingDefaults = {
   id: '',
-  price_client_mzn:   8000,
-  margin_manager_mzn: 1000,
-  margin_centre_mzn:  1000,
-  eur_mzn_rate:       65,
-  updated_at:         new Date().toISOString(),
+  default_price_eur:    120,
+  default_driver_mzn:   6000,
+  default_manager_mzn:  1000,
+  eur_mzn_rate:         65,
+  updated_at:           new Date().toISOString(),
 }
 
 export default function TaxiPage() {

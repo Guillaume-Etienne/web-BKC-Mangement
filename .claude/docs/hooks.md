@@ -96,7 +96,7 @@ useTable<T>(table: string, options?: {
 | schemaOutdated | boolean | true si anciens noms de colonnes DB |
 | refresh | () => void | |
 
-**Normalisation** (`normalizeTrip`) : mappe les anciens noms de colonnes, calcule `price_eur = round(price_client_mzn / exchange_rate)` si absent.
+**Normalisation** (`normalizeTrip`) : mappe les anciens noms de colonnes DB vers le modèle simplifié (`price_eur`, `price_driver_mzn`, `margin_manager_mzn`, `exchange_rate`). Dérive `price_eur` depuis l'ancien `price_client_mzn` si absent.
 
 ---
 

@@ -25,7 +25,7 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
 export default function AccountingDashboard({ data }: Props) {
   const {
     bookings, payments,
-    diningEvents,
+    diningEvents, houseRentals,
     lessons, instructors, lessonRateOverrides,
     taxiTrips, expenses,
     palmeirasRents, palmeirasReversals, palmeirasEntries,
@@ -61,8 +61,8 @@ export default function AccountingDashboard({ data }: Props) {
     return sum + rate * l.duration_hours
   }, 0)
 
-  // ── Taxi net (centre margin only) ──────────────────────────────────────
-  const taxiNetMargin = taxiTrips.reduce((s, t) => s + Math.round(t.margin_centre_mzn / t.exchange_rate), 0)
+  // ── Taxi net (EUR revenue minus MZN costs converted to EUR) ─────────
+  const taxiNetMargin = taxiTrips.reduce((s, t) => s + Math.round(t.price_eur - (t.price_driver_mzn + t.margin_manager_mzn) / t.exchange_rate), 0)
 
   // ── Expenses ───────────────────────────────────────────────────────────
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0)
@@ -90,8 +90,11 @@ export default function AccountingDashboard({ data }: Props) {
   const palmFreeExp   = palmeirasEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
   const palmeirasNet  = palmReversals + palmBungMargin + palmFreeInc - palmRent - palmFreeExp
 
+  // ── House rental costs ──────────────────────────────────────────────────
+  const houseRentalCosts = houseRentals.reduce((s, r) => s + r.total_cost, 0)
+
   // ── Net result ─────────────────────────────────────────────────────────
-  const netResult = totalRevenue + taxiNetMargin + palmeirasNet - instructorCosts - totalExpenses
+  const netResult = totalRevenue + taxiNetMargin + palmeirasNet - instructorCosts - totalExpenses - houseRentalCosts
 
   // ── Instructor balances ────────────────────────────────────────────────
   const instrBalances = instructors.map(i => ({
@@ -146,10 +149,14 @@ export default function AccountingDashboard({ data }: Props) {
       </div>
 
       {/* ── Row 2: cost / margin KPIs ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-red-500 mb-1">Instructor costs</p>
           <p className="text-2xl font-bold text-red-800">−{fmt(instructorCosts)}</p>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-500 mb-1">House rentals</p>
+          <p className="text-2xl font-bold text-red-800">−{fmt(houseRentalCosts)}</p>
         </div>
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-purple-500 mb-1">Taxi margin</p>
@@ -169,7 +176,7 @@ export default function AccountingDashboard({ data }: Props) {
       <div className={`rounded-xl border-2 p-5 flex items-center justify-between ${netResult >= 0 ? 'bg-emerald-50 border-emerald-400' : 'bg-red-50 border-red-400'}`}>
         <div>
           <p className={`text-sm font-semibold uppercase tracking-wide ${netResult >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>Net result (season)</p>
-          <p className="text-xs text-gray-500 mt-0.5">Revenue + taxi + palmeiras − instructor costs − expenses</p>
+          <p className="text-xs text-gray-500 mt-0.5">Revenue + taxi + palmeiras − instructors − house rentals − expenses</p>
         </div>
         <p className={`text-4xl font-bold ${netResult >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{sign(netResult)}</p>
       </div>

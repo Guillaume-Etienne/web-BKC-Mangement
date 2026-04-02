@@ -264,21 +264,19 @@ CREATE TABLE taxi_trips (
   nb_luggage          INTEGER NOT NULL DEFAULT 0,
   nb_boardbags        INTEGER NOT NULL DEFAULT 0,
   notes               TEXT,
-  -- Financials (MZN integers)
-  price_client_mzn    INTEGER NOT NULL DEFAULT 8000,   -- what client pays
-  margin_manager_mzn  INTEGER NOT NULL DEFAULT 1000,   -- intermediate manager cut
-  margin_centre_mzn   INTEGER NOT NULL DEFAULT 1000,   -- our centre margin
-  price_driver_mzn    INTEGER NOT NULL DEFAULT 6000,   -- = client - manager - centre
-  price_eur           NUMERIC(10,2) NOT NULL DEFAULT 0,  -- frozen at save time
-  exchange_rate       NUMERIC(10,4) NOT NULL DEFAULT 65.0,
+  -- Financials: client pays EUR, driver & manager paid MZN
+  price_eur           INTEGER NOT NULL DEFAULT 120,       -- fixed EUR price charged to client
+  price_driver_mzn    INTEGER NOT NULL DEFAULT 6000,      -- what driver gets (MZN)
+  margin_manager_mzn  INTEGER NOT NULL DEFAULT 1000,      -- manager commission (MZN)
+  exchange_rate       NUMERIC(10,4) NOT NULL DEFAULT 65.0,-- EUR/MZN reference rate
   created_at          TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE taxi_pricing_defaults (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  price_client_mzn    INTEGER NOT NULL DEFAULT 8000,
-  margin_manager_mzn  INTEGER NOT NULL DEFAULT 1000,
-  margin_centre_mzn   INTEGER NOT NULL DEFAULT 1000,
+  default_price_eur   INTEGER NOT NULL DEFAULT 120,       -- default EUR price for new trips
+  default_driver_mzn  INTEGER NOT NULL DEFAULT 6000,      -- default driver payment MZN
+  default_manager_mzn INTEGER NOT NULL DEFAULT 1000,      -- default manager commission MZN
   eur_mzn_rate        NUMERIC(10,4) NOT NULL DEFAULT 65.0,
   updated_at          TIMESTAMPTZ DEFAULT now()
 );

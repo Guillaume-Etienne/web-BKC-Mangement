@@ -501,7 +501,7 @@ export default function ManagementPage() {
                   <div className="text-center py-4 space-y-3">
                     <p className="text-sm text-gray-500">No taxi pricing defaults found.</p>
                     <button onClick={async () => {
-                      const defaults = { price_client_mzn: 8000, margin_manager_mzn: 1000, margin_centre_mzn: 1000, eur_mzn_rate: 65.0, updated_at: new Date().toISOString() }
+                      const defaults = { default_price_eur: 120, default_driver_mzn: 6000, default_manager_mzn: 1000, eur_mzn_rate: 65.0, updated_at: new Date().toISOString() }
                       const { data, error } = await supabase.from('taxi_pricing_defaults').insert([defaults]).select().single()
                       if (error) { alert('Error: ' + error.message); return }
                       setTaxiPricingDefaults(data)
@@ -514,22 +514,22 @@ export default function ManagementPage() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Client price (MZN)</label>
-                        <input type="number" min="0" value={taxiPricingForm.price_client_mzn}
-                          onChange={e => setTaxiPricingForm(f => f ? ({ ...f, price_client_mzn: parseInt(e.target.value) || 0 }) : f)}
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Client price (EUR)</label>
+                        <input type="number" min="0" value={taxiPricingForm.default_price_eur}
+                          onChange={e => setTaxiPricingForm(f => f ? ({ ...f, default_price_eur: parseInt(e.target.value) || 0 }) : f)}
                           className="w-full text-sm border rounded px-2 py-1.5 font-semibold text-blue-900" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Manager margin (MZN)</label>
-                        <input type="number" min="0" value={taxiPricingForm.margin_manager_mzn}
-                          onChange={e => setTaxiPricingForm(f => f ? ({ ...f, margin_manager_mzn: parseInt(e.target.value) || 0 }) : f)}
-                          className="w-full text-sm border rounded px-2 py-1.5 font-semibold text-purple-900" />
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Driver payment (MZN)</label>
+                        <input type="number" min="0" value={taxiPricingForm.default_driver_mzn}
+                          onChange={e => setTaxiPricingForm(f => f ? ({ ...f, default_driver_mzn: parseInt(e.target.value) || 0 }) : f)}
+                          className="w-full text-sm border rounded px-2 py-1.5 font-semibold text-amber-900" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Centre margin (MZN)</label>
-                        <input type="number" min="0" value={taxiPricingForm.margin_centre_mzn}
-                          onChange={e => setTaxiPricingForm(f => f ? ({ ...f, margin_centre_mzn: parseInt(e.target.value) || 0 }) : f)}
-                          className="w-full text-sm border rounded px-2 py-1.5 font-semibold text-green-900" />
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Manager commission (MZN)</label>
+                        <input type="number" min="0" value={taxiPricingForm.default_manager_mzn}
+                          onChange={e => setTaxiPricingForm(f => f ? ({ ...f, default_manager_mzn: parseInt(e.target.value) || 0 }) : f)}
+                          className="w-full text-sm border rounded px-2 py-1.5 font-semibold text-purple-900" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">EUR/MZN rate</label>
@@ -538,13 +538,13 @@ export default function ManagementPage() {
                           className="w-full text-sm border rounded px-2 py-1.5" />
                       </div>
                     </div>
-                    <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm">
-                      <span className="font-medium text-amber-900">Driver receives: </span>
-                      <span className="font-bold text-amber-900">
-                        {taxiPricingForm.price_client_mzn - taxiPricingForm.margin_manager_mzn - taxiPricingForm.margin_centre_mzn} MZN
+                    <div className="bg-gray-50 border border-gray-200 rounded p-3 text-sm">
+                      <span className="font-medium text-gray-700">MZN cost total: </span>
+                      <span className="font-bold text-gray-900">
+                        {taxiPricingForm.default_driver_mzn + taxiPricingForm.default_manager_mzn} MZN
                       </span>
-                      <span className="text-amber-700 ml-3">
-                        ≈ {Math.round((taxiPricingForm.price_client_mzn - taxiPricingForm.margin_manager_mzn - taxiPricingForm.margin_centre_mzn) / taxiPricingForm.eur_mzn_rate)}€
+                      <span className="text-gray-500 ml-3">
+                        ≈ {Math.round((taxiPricingForm.default_driver_mzn + taxiPricingForm.default_manager_mzn) / taxiPricingForm.eur_mzn_rate)}€
                       </span>
                     </div>
                     <div className="flex gap-3 pt-2">
@@ -554,9 +554,9 @@ export default function ManagementPage() {
                         if (!taxiPricingForm) return
                         const updated = { ...taxiPricingForm, updated_at: new Date().toISOString() }
                         const { error } = await supabase.from('taxi_pricing_defaults').update({
-                          price_client_mzn:   updated.price_client_mzn,
-                          margin_manager_mzn: updated.margin_manager_mzn,
-                          margin_centre_mzn:  updated.margin_centre_mzn,
+                          default_price_eur:  updated.default_price_eur,
+                          default_driver_mzn: updated.default_driver_mzn,
+                          default_manager_mzn:updated.default_manager_mzn,
                           eur_mzn_rate:       updated.eur_mzn_rate,
                           updated_at:         updated.updated_at,
                         }).eq('id', updated.id)
@@ -571,24 +571,19 @@ export default function ManagementPage() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-blue-50 rounded p-3">
                       <p className="text-xs text-blue-600 font-medium">Client price</p>
-                      <p className="text-xl font-bold text-blue-900">{taxiPricingDefaults.price_client_mzn.toLocaleString()} MZN</p>
-                      <p className="text-xs text-blue-600">≈ {Math.round(taxiPricingDefaults.price_client_mzn / taxiPricingDefaults.eur_mzn_rate)}€</p>
-                    </div>
-                    <div className="bg-purple-50 rounded p-3">
-                      <p className="text-xs text-purple-600 font-medium">Manager margin</p>
-                      <p className="text-xl font-bold text-purple-900">{taxiPricingDefaults.margin_manager_mzn.toLocaleString()} MZN</p>
-                    </div>
-                    <div className="bg-green-50 rounded p-3">
-                      <p className="text-xs text-green-600 font-medium">Centre margin</p>
-                      <p className="text-xl font-bold text-green-900">{taxiPricingDefaults.margin_centre_mzn.toLocaleString()} MZN</p>
+                      <p className="text-xl font-bold text-blue-900">{taxiPricingDefaults.default_price_eur}€</p>
                     </div>
                     <div className="bg-amber-50 rounded p-3">
-                      <p className="text-xs text-amber-600 font-medium">Driver receives</p>
-                      <p className="text-xl font-bold text-amber-900">{(taxiPricingDefaults.price_client_mzn - taxiPricingDefaults.margin_manager_mzn - taxiPricingDefaults.margin_centre_mzn).toLocaleString()} MZN</p>
+                      <p className="text-xs text-amber-600 font-medium">Driver payment</p>
+                      <p className="text-xl font-bold text-amber-900">{taxiPricingDefaults.default_driver_mzn.toLocaleString()} MZN</p>
                     </div>
-                    <div className="bg-gray-50 rounded p-3 col-span-2 md:col-span-4">
-                      <p className="text-xs text-gray-600 font-medium">EUR/MZN exchange rate</p>
-                      <p className="text-lg font-bold text-gray-900">1 € = {taxiPricingDefaults.eur_mzn_rate} MZN</p>
+                    <div className="bg-purple-50 rounded p-3">
+                      <p className="text-xs text-purple-600 font-medium">Manager commission</p>
+                      <p className="text-xl font-bold text-purple-900">{taxiPricingDefaults.default_manager_mzn.toLocaleString()} MZN</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-3">
+                      <p className="text-xs text-gray-600 font-medium">EUR/MZN rate</p>
+                      <p className="text-xl font-bold text-gray-900">1€ = {taxiPricingDefaults.eur_mzn_rate} MZN</p>
                     </div>
                   </div>
                 )}

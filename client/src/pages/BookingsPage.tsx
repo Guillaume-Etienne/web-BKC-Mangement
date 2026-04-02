@@ -1157,11 +1157,9 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
         nb_luggage:         data.luggage_count,
         nb_boardbags:       data.boardbag_count,
         notes:              null,
-        price_client_mzn:   0,
-        margin_manager_mzn: 0,
-        margin_centre_mzn:  0,
-        price_driver_mzn:   0,
         price_eur:          0,
+        price_driver_mzn:   0,
+        margin_manager_mzn: 0,
         exchange_rate:      65,
       }
       if (data.taxi_arrival) {

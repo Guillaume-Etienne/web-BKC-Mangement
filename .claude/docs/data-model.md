@@ -268,22 +268,21 @@
 | nb_luggage | number | |
 | nb_boardbags | number | |
 | notes | string \| null | |
-| price_client_mzn | number | Ce que paie le client |
-| margin_manager_mzn | number | Marge manager intermédiaire |
-| margin_centre_mzn | number | Marge du centre |
-| price_driver_mzn | number | = client − manager − centre |
-| price_eur | number | Figé au save |
-| exchange_rate | number | EUR/MZN au save |
+| price_eur | number | Fixed EUR price charged to client (e.g. 120€) |
+| price_driver_mzn | number | What driver gets (MZN) |
+| margin_manager_mzn | number | Manager commission (MZN) |
+| exchange_rate | number | EUR/MZN reference rate |
 > ⚠️ `useTaxiTrips()` normalise les anciens noms de colonnes DB (`schemaOutdated` flag).
 > Trips sans `booking_id` : revenue compté dans compta via `computeStandaloneTaxiRevenue()`.
+> **Modèle simplifié (avril 2026)** : client paie en EUR (prix fixe), driver + manager payés en MZN. Plus de `price_client_mzn` ni `margin_centre_mzn`.
 
 ### `taxi_pricing_defaults` → `TaxiPricingDefaults`
 | Field | Type | Default |
 |-------|------|---------|
 | id | string (UUID) | |
-| price_client_mzn | number | 8000 |
-| margin_manager_mzn | number | 1000 |
-| margin_centre_mzn | number | 1000 |
+| default_price_eur | number | 120 |
+| default_driver_mzn | number | 6000 |
+| default_manager_mzn | number | 1000 |
 | eur_mzn_rate | number | 65 |
 | updated_at | string (ISO timestamp) | |
 > Singleton. Pré-remplit les nouveaux trips. Modifiable dans Management → Pricing.

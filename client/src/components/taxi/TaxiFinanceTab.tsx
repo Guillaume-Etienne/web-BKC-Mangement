@@ -8,11 +8,9 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
   function stats(subset: TaxiTrip[]) {
     return {
       count:      subset.length,
-      clientMzn:  subset.reduce((s, t) => s + t.price_client_mzn,   0),
       clientEur:  subset.reduce((s, t) => s + t.price_eur,           0),
       driverMzn:  subset.reduce((s, t) => s + t.price_driver_mzn,   0),
       managerMzn: subset.reduce((s, t) => s + t.margin_manager_mzn, 0),
-      centreMzn:  subset.reduce((s, t) => s + t.margin_centre_mzn,  0),
     }
   }
 
@@ -31,11 +29,9 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
         <thead>
           <tr className="bg-gray-50 border-b text-xs">
             <th className="px-3 py-2 text-left font-medium text-gray-500"></th>
-            <th className="px-3 py-2 text-right font-semibold text-blue-700">Client MZN</th>
-            <th className="px-3 py-2 text-right font-semibold text-blue-500">EUR</th>
+            <th className="px-3 py-2 text-right font-semibold text-blue-700">Client EUR</th>
             <th className="px-3 py-2 text-right font-semibold text-amber-700">Driver MZN</th>
             <th className="px-3 py-2 text-right font-semibold text-purple-700">Manager MZN</th>
-            <th className="px-3 py-2 text-right font-semibold text-green-700">Centre MZN</th>
             <th className="px-3 py-2 text-right font-semibold text-gray-500">Trips</th>
           </tr>
         </thead>
@@ -43,11 +39,9 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
           {rows.map(r => (
             <tr key={r.label} className={`border-b ${r.bg}`}>
               <td className="px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">{r.label}</td>
-              <td className="px-3 py-2 text-right font-bold text-blue-900">{r.clientMzn.toLocaleString()}</td>
-              <td className="px-3 py-2 text-right text-blue-700">≈ {r.clientEur}€</td>
+              <td className="px-3 py-2 text-right font-bold text-blue-900">{r.clientEur}€</td>
               <td className="px-3 py-2 text-right text-amber-900">{r.driverMzn.toLocaleString()}</td>
               <td className="px-3 py-2 text-right text-purple-900">{r.managerMzn.toLocaleString()}</td>
-              <td className="px-3 py-2 text-right font-semibold text-green-900">{r.centreMzn.toLocaleString()}</td>
               <td className="px-3 py-2 text-right text-gray-600">{r.count}</td>
             </tr>
           ))}
@@ -55,11 +49,9 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
         <tfoot>
           <tr className="bg-gray-100 border-t-2 border-gray-300 font-bold">
             <td className="px-3 py-2 text-gray-800">Total</td>
-            <td className="px-3 py-2 text-right text-blue-900">{total.clientMzn.toLocaleString()}</td>
-            <td className="px-3 py-2 text-right text-blue-700">≈ {total.clientEur}€</td>
+            <td className="px-3 py-2 text-right text-blue-900">{total.clientEur}€</td>
             <td className="px-3 py-2 text-right text-amber-900">{total.driverMzn.toLocaleString()}</td>
             <td className="px-3 py-2 text-right text-purple-900">{total.managerMzn.toLocaleString()}</td>
-            <td className="px-3 py-2 text-right text-green-900">{total.centreMzn.toLocaleString()}</td>
             <td className="px-3 py-2 text-right text-gray-600">{total.count}</td>
           </tr>
         </tfoot>
@@ -127,21 +119,19 @@ interface TaxiFinanceTabProps {
 }
 
 export default function TaxiFinanceTab({ trips, payments, onAddPayment, onDeletePayment }: TaxiFinanceTabProps) {
-  const today    = new Date().toISOString().slice(0, 10)
-  const upcoming = trips.filter(t => t.date >= today)
-  const toEarn   = upcoming.reduce((s, t) => s + t.margin_manager_mzn, 0)
-  const paid     = payments.reduce((s, p) => s + p.amount_mzn, 0)
-  const debt     = paid - toEarn
+  const totalEarned = trips.reduce((s, t) => s + t.margin_manager_mzn, 0)
+  const totalPaid   = payments.reduce((s, p) => s + p.amount_mzn, 0)
+  const balance     = totalEarned - totalPaid  // >0 = we owe manager, <0 = manager overpaid
 
-  const debtColor =
-    debt > 0 ? 'text-red-700 bg-red-50 border-red-200' :
-    debt < 0 ? 'text-green-700 bg-green-50 border-green-200' :
-               'text-gray-700 bg-gray-50 border-gray-200'
+  const balanceColor =
+    balance > 0 ? 'text-orange-700 bg-orange-50 border-orange-200' :
+    balance < 0 ? 'text-green-700 bg-green-50 border-green-200' :
+                  'text-gray-700 bg-gray-50 border-gray-200'
 
-  const debtLabel =
-    debt > 0 ? '🔴 Still owes after upcoming trips' :
-    debt < 0 ? '🟢 Will have surplus after upcoming trips' :
-               '⚪ Balanced'
+  const balanceLabel =
+    balance > 0 ? '🟠 We owe the manager' :
+    balance < 0 ? '🟢 Manager overpaid (credit)' :
+                  '⚪ Balanced'
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this payment?')) return
@@ -163,20 +153,20 @@ export default function TaxiFinanceTab({ trips, payments, onAddPayment, onDelete
           <h3 className="font-semibold text-gray-800">Manager Balance</h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between items-center py-1 border-b">
-              <span className="text-gray-600">Paid (advances)</span>
-              <span className="font-bold text-blue-900">{paid.toLocaleString()} MZN</span>
+              <span className="text-gray-600">Total earned ({trips.length} trip{trips.length !== 1 ? 's' : ''})</span>
+              <span className="font-bold text-purple-900">{totalEarned.toLocaleString()} MZN</span>
             </div>
             <div className="flex justify-between items-center py-1 border-b">
-              <span className="text-gray-600">Will earn ({upcoming.length} upcoming trips)</span>
-              <span className="font-bold text-purple-900">{toEarn.toLocaleString()} MZN</span>
+              <span className="text-gray-600">Total paid (advances)</span>
+              <span className="font-bold text-blue-900">{totalPaid.toLocaleString()} MZN</span>
             </div>
-            <div className={`flex justify-between items-center p-3 rounded border font-bold ${debtColor}`}>
-              <span>{debtLabel}</span>
-              <span className="text-lg">{Math.abs(debt).toLocaleString()} MZN</span>
+            <div className={`flex justify-between items-center p-3 rounded border font-bold ${balanceColor}`}>
+              <span>{balanceLabel}</span>
+              <span className="text-lg">{Math.abs(balance).toLocaleString()} MZN</span>
             </div>
           </div>
           <p className="text-xs text-gray-400">
-            Balance = advances paid − manager margin on upcoming trips
+            Balance = total earned − total advances paid
           </p>
         </div>
 
@@ -220,7 +210,7 @@ export default function TaxiFinanceTab({ trips, payments, onAddPayment, onDelete
               <tfoot>
                 <tr className="bg-gray-100 border-t-2 border-gray-300 font-bold">
                   <td className="px-3 py-2 text-gray-800">Total</td>
-                  <td className="px-3 py-2 text-right text-blue-900">{paid.toLocaleString()} MZN</td>
+                  <td className="px-3 py-2 text-right text-blue-900">{totalPaid.toLocaleString()} MZN</td>
                   <td colSpan={2}></td>
                 </tr>
               </tfoot>

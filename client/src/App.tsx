@@ -1,5 +1,5 @@
 import './index.css'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import Navigation from './components/layout/Navigation'
@@ -52,8 +52,8 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Load minimal data for pending actions (runs once after login)
-  useEffect(() => {
+  // Load pending actions — refreshed on login and on every page navigation
+  const refreshPendingActions = useCallback(() => {
     if (!session) return
     Promise.all([
       supabase.from('bookings').select('*, client:clients(first_name, last_name)'),
@@ -66,6 +66,8 @@ function App() {
       setPendingActions(computePendingActions({ bookings: bkgs, payments: pmts, taxiTripUnlinkedCount: unlinked }))
     })
   }, [session])
+
+  useEffect(() => { refreshPendingActions() }, [refreshPendingActions])
 
   useEffect(() => {
     if (!shareToken) return
@@ -113,7 +115,7 @@ function App() {
   // Authenticated
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation currentPage={currentPage} onNavigate={setCurrentPage} onLogout={() => supabase.auth.signOut()} urgentCount={pendingActions.filter(a => a.priority === 'urgent').length} />
+      <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={pendingActions.filter(a => a.priority === 'urgent').length} />
       <main className="w-full">
         {currentPage === 'home'       && <HomePage onNavigate={setCurrentPage} pendingActions={pendingActions} />}
         {currentPage === 'planning'   && <PlanningView onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}

@@ -197,21 +197,19 @@ export interface TaxiTrip {
   nb_luggage: number
   nb_boardbags: number
   notes: string | null
-  // Financial (all MZN integers except price_eur)
-  price_client_mzn: number    // what client pays
-  margin_manager_mzn: number  // intermediate manager cut
-  margin_centre_mzn: number   // our centre margin
-  price_driver_mzn: number    // what driver gets = client - manager - centre
-  price_eur: number           // price_client_mzn / exchange_rate (frozen at transaction)
-  exchange_rate: number       // EUR/MZN rate at time of transaction
+  // Financial — client pays EUR, driver & manager paid MZN
+  price_eur: number           // fixed EUR price charged to client (e.g. 120€)
+  price_driver_mzn: number    // what driver gets (MZN)
+  margin_manager_mzn: number  // manager commission (MZN)
+  exchange_rate: number       // EUR/MZN reference rate
 }
 
 export interface TaxiPricingDefaults {
   id: string
-  price_client_mzn: number    // default 8000
-  margin_manager_mzn: number  // default 1000
-  margin_centre_mzn: number   // default 1000
-  eur_mzn_rate: number        // default 65
+  default_price_eur: number     // default EUR price for new trips (e.g. 120)
+  default_driver_mzn: number    // default driver payment MZN (e.g. 6000)
+  default_manager_mzn: number   // default manager commission MZN (e.g. 1000)
+  eur_mzn_rate: number          // default exchange rate
   updated_at: string
 }
 

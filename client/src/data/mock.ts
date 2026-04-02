@@ -103,20 +103,20 @@ export const mockTaxiDrivers: TaxiDriver[] = [
 
 export const mockTaxiPricingDefaults: TaxiPricingDefaults = {
   id: 'tpd1',
-  price_client_mzn: 8000,
-  margin_manager_mzn: 1000,
-  margin_centre_mzn: 1000,
+  default_price_eur: 120,
+  default_driver_mzn: 6000,
+  default_manager_mzn: 1000,
   eur_mzn_rate: 65,
   updated_at: '2026-01-01',
 }
 
 export const mockTaxiTrips: TaxiTrip[] = [
-  { id: 'trp1', date: '2026-02-05', start_time: '14:30', type: 'aero-to-center', status: 'done',         taxi_driver_id: 'td1', booking_id: 'bk1', nb_persons: 2, nb_luggage: 2, nb_boardbags: 1, notes: null,             price_client_mzn: 8000,  margin_manager_mzn: 1000, margin_centre_mzn: 1000, price_driver_mzn: 6000, price_eur: 123, exchange_rate: 65 },
-  { id: 'trp2', date: '2026-02-07', start_time: '10:00', type: 'center-to-aero', status: 'done',         taxi_driver_id: 'td2', booking_id: 'bk1', nb_persons: 2, nb_luggage: 2, nb_boardbags: 1, notes: 'Dépêche-toi!', price_client_mzn: 8000,  margin_manager_mzn: 1000, margin_centre_mzn: 1000, price_driver_mzn: 6000, price_eur: 123, exchange_rate: 65 },
-  { id: 'trp3', date: '2026-02-10', start_time: '16:00', type: 'aero-to-spot',   status: 'needs_details', taxi_driver_id: null,  booking_id: 'bk2', nb_persons: 4, nb_luggage: 3, nb_boardbags: 2, notes: 'Appel confirmé', price_client_mzn: 10000, margin_manager_mzn: 1500, margin_centre_mzn: 1500, price_driver_mzn: 7000, price_eur: 154, exchange_rate: 65 },
-  { id: 'trp4', date: '2026-02-12', start_time: '08:30', type: 'center-to-aero', status: 'confirmed',    taxi_driver_id: 'td3', booking_id: 'bk2', nb_persons: 1, nb_luggage: 1, nb_boardbags: 0, notes: null,             price_client_mzn: 6500,  margin_manager_mzn: 800,  margin_centre_mzn: 800,  price_driver_mzn: 4900, price_eur: 100, exchange_rate: 65 },
-  { id: 'trp5', date: '2026-02-18', start_time: '13:00', type: 'aero-to-center', status: 'done',         taxi_driver_id: 'td1', booking_id: 'bk3', nb_persons: 3, nb_luggage: 2, nb_boardbags: 1, notes: 'Très volumineux', price_client_mzn: 9000,  margin_manager_mzn: 1000, margin_centre_mzn: 1000, price_driver_mzn: 7000, price_eur: 138, exchange_rate: 65 },
-  { id: 'trp6', date: '2026-02-20', start_time: '11:00', type: 'center-to-town', status: 'needs_details', taxi_driver_id: null,  booking_id: 'bk3', nb_persons: 1, nb_luggage: 0, nb_boardbags: 0, notes: null,             price_client_mzn: 2500,  margin_manager_mzn: 500,  margin_centre_mzn: 500,  price_driver_mzn: 1500, price_eur: 38,  exchange_rate: 65 },
+  { id: 'trp1', date: '2026-02-05', start_time: '14:30', type: 'aero-to-center', status: 'done',         taxi_driver_id: 'td1', booking_id: 'bk1', nb_persons: 2, nb_luggage: 2, nb_boardbags: 1, notes: null,             price_eur: 120, price_driver_mzn: 6000, margin_manager_mzn: 1000, exchange_rate: 65 },
+  { id: 'trp2', date: '2026-02-07', start_time: '10:00', type: 'center-to-aero', status: 'done',         taxi_driver_id: 'td2', booking_id: 'bk1', nb_persons: 2, nb_luggage: 2, nb_boardbags: 1, notes: 'Dépêche-toi!', price_eur: 120, price_driver_mzn: 6000, margin_manager_mzn: 1000, exchange_rate: 65 },
+  { id: 'trp3', date: '2026-02-10', start_time: '16:00', type: 'aero-to-spot',   status: 'needs_details', taxi_driver_id: null,  booking_id: 'bk2', nb_persons: 4, nb_luggage: 3, nb_boardbags: 2, notes: 'Appel confirmé', price_eur: 150, price_driver_mzn: 7000, margin_manager_mzn: 1500, exchange_rate: 65 },
+  { id: 'trp4', date: '2026-02-12', start_time: '08:30', type: 'center-to-aero', status: 'confirmed',    taxi_driver_id: 'td3', booking_id: 'bk2', nb_persons: 1, nb_luggage: 1, nb_boardbags: 0, notes: null,             price_eur: 100, price_driver_mzn: 4900, margin_manager_mzn: 800,  exchange_rate: 65 },
+  { id: 'trp5', date: '2026-02-18', start_time: '13:00', type: 'aero-to-center', status: 'done',         taxi_driver_id: 'td1', booking_id: 'bk3', nb_persons: 3, nb_luggage: 2, nb_boardbags: 1, notes: 'Très volumineux', price_eur: 135, price_driver_mzn: 7000, margin_manager_mzn: 1000, exchange_rate: 65 },
+  { id: 'trp6', date: '2026-02-20', start_time: '11:00', type: 'center-to-town', status: 'needs_details', taxi_driver_id: null,  booking_id: 'bk3', nb_persons: 1, nb_luggage: 0, nb_boardbags: 0, notes: null,             price_eur: 40,  price_driver_mzn: 1500, margin_manager_mzn: 500,  exchange_rate: 65 },
 ]
 
 export const mockEquipment: Equipment[] = [

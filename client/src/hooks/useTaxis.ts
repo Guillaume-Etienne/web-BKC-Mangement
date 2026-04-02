@@ -5,19 +5,19 @@ import type { TaxiDriver, TaxiTrip } from '../types/database'
 
 /**
  * Normalise un row brut Supabase vers TaxiTrip.
- * Gère l'ancien schéma (price_paid_by_client, etc.) ET le nouveau (price_client_mzn, etc.)
- * pour assurer la rétrocompatibilité pendant la migration DB.
+ * Handles old schema (price_client_mzn, margin_centre_mzn) gracefully:
+ * maps to the new simplified model (price_eur, price_driver_mzn, margin_manager_mzn).
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeTrip(raw: any): TaxiTrip {
-  const price_client_mzn   = raw.price_client_mzn   ?? raw.price_paid_by_client  ?? 0
-  const margin_manager_mzn = raw.margin_manager_mzn ?? raw.taxi_manager_margin   ?? 0
-  const margin_centre_mzn  = raw.margin_centre_mzn  ?? raw.center_margin         ?? 0
-  const price_driver_mzn   = raw.price_driver_mzn   ?? raw.price_cost_to_driver  ?? 0
-  const exchange_rate       = Number(raw.exchange_rate) || 65
-  const price_eur           = raw.price_eur != null
+  const exchange_rate    = Number(raw.exchange_rate) || 65
+  const margin_manager_mzn = raw.margin_manager_mzn ?? raw.taxi_manager_margin ?? 0
+  const price_driver_mzn   = raw.price_driver_mzn   ?? raw.price_cost_to_driver ?? 0
+
+  // price_eur: use directly if present, else derive from old price_client_mzn
+  const price_eur = raw.price_eur != null
     ? Number(raw.price_eur)
-    : Math.round(price_client_mzn / exchange_rate)
+    : Math.round((raw.price_client_mzn ?? raw.price_paid_by_client ?? 0) / exchange_rate)
 
   return {
     id:              raw.id,
@@ -31,11 +31,9 @@ function normalizeTrip(raw: any): TaxiTrip {
     nb_luggage:      raw.nb_luggage      ?? 0,
     nb_boardbags:    raw.nb_boardbags    ?? 0,
     notes:           raw.notes           ?? null,
-    price_client_mzn,
-    margin_manager_mzn,
-    margin_centre_mzn,
-    price_driver_mzn,
     price_eur,
+    price_driver_mzn,
+    margin_manager_mzn,
     exchange_rate,
   }
 }
@@ -84,10 +82,10 @@ export function useTaxiTrips(): TaxiTripsState {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rawRows = (rows ?? []) as any[]
 
-      // Détecte l'ancien schéma : présence de l'ancienne colonne, absence de la nouvelle
+      // Detect old schema: presence of legacy column, absence of new ones
       const isOld = rawRows.length > 0
         && 'price_paid_by_client' in rawRows[0]
-        && !('price_client_mzn' in rawRows[0])
+        && !('price_eur' in rawRows[0])
       setSchemaOutdated(isOld)
       setData(rawRows.map(normalizeTrip))
       setLoading(false)

@@ -124,7 +124,7 @@
   - `finance` → Manager payment history and summaries
   - `drivers` → Grid de cartes → sélection → `DriverStatementPanel`
 - **DriverStatementPanel :** trips passés/à venir, KPIs MZN, section share link (génère `shared_link` type `'driver'`, params `{ driver_id }`)
-- **Règle financière :** `price_driver_mzn = price_client_mzn - margin_manager_mzn - margin_centre_mzn`
+- **Modèle financier :** Client paie `price_eur` (EUR fixe), driver reçoit `price_driver_mzn`, manager reçoit `margin_manager_mzn` (MZN). Plus de `price_client_mzn` / `margin_centre_mzn`.
 
 ### `EquipmentPage`
 - **Route :** `'equipment'`
