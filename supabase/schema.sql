@@ -31,12 +31,13 @@ CREATE TYPE activity_payment_direction      AS ENUM ('to_provider', 'from_provid
 -- ── Accommodations ────────────────────────────────────────────────────────────
 
 CREATE TABLE accommodations (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name         TEXT NOT NULL,
-  type         accommodation_type NOT NULL,
-  total_rooms  INTEGER NOT NULL DEFAULT 1,
-  is_active    BOOLEAN NOT NULL DEFAULT true,
-  created_at   TIMESTAMPTZ DEFAULT now()
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name            TEXT NOT NULL,
+  type            accommodation_type NOT NULL,
+  total_rooms     INTEGER NOT NULL DEFAULT 1,
+  is_active       BOOLEAN NOT NULL DEFAULT true,
+  cost_per_night  NUMERIC(10,2),   -- what we pay the owner (bungalows); NULL for owned houses
+  created_at      TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE rooms (
@@ -509,18 +510,9 @@ CREATE TABLE palmeiras_entries (
   amount       NUMERIC(10,2) NOT NULL
 );
 
-CREATE TABLE palmeiras_sub_lets (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  month           TEXT NOT NULL,   -- YYYY-MM
-  bungalow        TEXT NOT NULL,
-  check_in        DATE NOT NULL,
-  check_out       DATE NOT NULL,
-  nights          INTEGER NOT NULL,
-  cost_per_night  NUMERIC(8,2) NOT NULL,
-  sell_per_night  NUMERIC(8,2) NOT NULL,
-  booking_ref     TEXT,
-  notes           TEXT
-);
+-- palmeiras_sub_lets — REMOVED (avril 2026)
+-- Bungalow sub-lets are now tracked via accommodations (type='bungalow', cost_per_night)
+-- and booking_rooms / booking_room_prices. Margin auto-calculated in Palmeiras accounting.
 
 
 -- ── Email Logs ───────────────────────────────────────────────────────────────
@@ -584,7 +576,7 @@ BEGIN
     'payments', 'participant_consumptions',
     'instructor_debts', 'instructor_payments', 'lesson_rate_overrides',
     'expenses',
-    'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries', 'palmeiras_sub_lets',
+    'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries',
     'travel_guide_sections',
     'email_logs'
   ]) LOOP
@@ -625,3 +617,36 @@ CREATE POLICY "anon_read_booking_room_prices"   ON booking_room_prices   FOR SEL
 CREATE POLICY "anon_read_rooms"                 ON rooms                 FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_accommodations"        ON accommodations        FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_payments"              ON payments              FOR SELECT TO anon USING (true);
+
+
+
+-- ── DB Stats function ─────────────────────────────────────────────────────────
+-- Returns per-table row counts + sizes. Callable by authenticated admins only.
+
+CREATE OR REPLACE FUNCTION get_db_stats()
+RETURNS json
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT json_build_object(
+    'db_size', pg_size_pretty(pg_database_size(current_database())),
+    'tables', (
+      SELECT json_agg(t ORDER BY total_bytes DESC)
+      FROM (
+        SELECT
+          c.relname                                        AS table_name,
+          greatest(c.reltuples::bigint, 0)                AS row_count,
+          pg_size_pretty(pg_total_relation_size(c.oid))   AS total_size,
+          pg_size_pretty(pg_relation_size(c.oid))         AS table_size,
+          pg_size_pretty(pg_indexes_size(c.oid))          AS index_size,
+          pg_total_relation_size(c.oid)                   AS total_bytes
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND c.relkind = 'r'
+      ) t
+    )
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION get_db_stats() TO authenticated;

@@ -21,8 +21,8 @@ import UnverifiedPayments   from '../components/accounting/UnverifiedPayments'
 import type {
   ExternalAccommodation, ExternalAccommodationBooking, HouseRental, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride, EquipmentRental,
-  Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSubLet,
-  DiningEvent,
+  Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
+  DiningEvent, BookingRoomPrice,
 } from '../types/database'
 
 type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'cashflow' | 'expenses' | 'events' | 'unverified'
@@ -31,7 +31,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'dashboard',   label: 'Dashboard',   icon: '📊' },
   { id: 'bookings',    label: 'Bookings',    icon: '📋' },
   { id: 'instructors', label: 'Instructors', icon: '🏄' },
-  { id: 'houses',      label: 'Houses',      icon: '🏠' },
+  { id: 'houses',      label: 'Accommodations', icon: '🏠' },
   { id: 'palmeiras',   label: 'Palmeiras',   icon: '🏨' },
   { id: 'cashflow',    label: 'Cash Flow',   icon: '💸' },
   { id: 'expenses',    label: 'Expenses',    icon: '🧾' },
@@ -50,7 +50,7 @@ export default function AccountingPage() {
   const { data: clients }                  = useClients()
   const { data: rooms }                    = useRooms()
   const { data: bookingRooms }             = useBookingRooms()
-  const { data: bookingRoomPrices }        = useBookingRoomPrices()
+  const { data: bookingRoomPricesData }    = useBookingRoomPrices()
   const { data: externalAccommodations }   = useTable<ExternalAccommodation>('external_accommodations')
   const { data: externalAccommodationBkgs }= useTable<ExternalAccommodationBooking>('external_accommodation_bookings')
   const { data: diningEvents }             = useTable<DiningEvent>('dining_events', { order: 'date', ascending: false })
@@ -73,8 +73,8 @@ export default function AccountingPage() {
   const { data: palmeirasRentsData }     = useTable<PalmeirasRent>('palmeiras_rents', { order: 'month', ascending: false })
   const { data: palmeirasReversalsData } = useTable<PalmeirasReversal>('palmeiras_reversals', { order: 'date', ascending: false })
   const { data: palmeirasEntriesData }   = useTable<PalmeirasEntry>('palmeiras_entries', { order: 'date', ascending: false })
-  const { data: palmeirasSubLetsData }   = useTable<PalmeirasSubLet>('palmeiras_sub_lets', { order: 'month', ascending: false })
 
+  const [bookingRoomPrices,  setBookingRoomPrices]  = useState<BookingRoomPrice[]>([])
   const [payments,           setPayments]           = useState<Payment[]>([])
   const [instructorDebts,    setInstructorDebts]    = useState<InstructorDebt[]>([])
   const [instructorPayments, setInstructorPayments] = useState<InstructorPayment[]>([])
@@ -83,8 +83,8 @@ export default function AccountingPage() {
   const [palmeirasRents,     setPalmeirasRents]     = useState<PalmeirasRent[]>([])
   const [palmeirasReversals, setPalmeirasReversals] = useState<PalmeirasReversal[]>([])
   const [palmeirasEntries,   setPalmeirasEntries]   = useState<PalmeirasEntry[]>([])
-  const [palmeirasSubLets,   setPalmeirasSubLets]   = useState<PalmeirasSubLet[]>([])
 
+  useEffect(() => setBookingRoomPrices(bookingRoomPricesData), [bookingRoomPricesData])
   useEffect(() => setEquipmentRentals(equipmentRentalsData),  [equipmentRentalsData])
   useEffect(() => setPayments(paymentsData),                   [paymentsData])
   useEffect(() => setInstructorDebts(instructorDebtsData),     [instructorDebtsData])
@@ -94,7 +94,6 @@ export default function AccountingPage() {
   useEffect(() => setPalmeirasRents(palmeirasRentsData),       [palmeirasRentsData])
   useEffect(() => setPalmeirasReversals(palmeirasReversalsData),[palmeirasReversalsData])
   useEffect(() => setPalmeirasEntries(palmeirasEntriesData),   [palmeirasEntriesData])
-  useEffect(() => setPalmeirasSubLets(palmeirasSubLetsData),   [palmeirasSubLetsData])
 
   // ── Shared computed data passed down to tabs ──────────────────────────────
   const sharedData = {
@@ -123,13 +122,23 @@ export default function AccountingPage() {
     palmeirasRents,
     palmeirasReversals,
     palmeirasEntries,
-    palmeirasSubLets,
     activityBookings,
     activityPayments,
   }
 
   // ── Handlers (optimistic local update + Supabase fire-and-forget) ─────────
   const handlers = {
+    upsertBookingRoomPrice: (p: BookingRoomPrice) => {
+      setBookingRoomPrices(prev => {
+        const idx = prev.findIndex(x => x.booking_id === p.booking_id && x.room_id === p.room_id)
+        return idx >= 0 ? prev.map((x, i) => i === idx ? p : x) : [...prev, p]
+      })
+      supabase.from('booking_room_prices').upsert([p])
+    },
+    deleteBookingRoomPrice: (bookingId: string, roomId: string) => {
+      setBookingRoomPrices(prev => prev.filter(x => !(x.booking_id === bookingId && x.room_id === roomId)))
+      supabase.from('booking_room_prices').delete().eq('booking_id', bookingId).eq('room_id', roomId)
+    },
     updateRental: (r: EquipmentRental) => {
       setEquipmentRentals(prev => prev.map(x => x.id === r.id ? r : x))
       const { id, ...fields } = r
@@ -222,19 +231,6 @@ export default function AccountingPage() {
       supabase.from('palmeiras_entries').delete().eq('id', id)
     },
 
-    addPalmeirasSubLet: (s: PalmeirasSubLet) => {
-      setPalmeirasSubLets(prev => [...prev, s])
-      supabase.from('palmeiras_sub_lets').insert([s])
-    },
-    updatePalmeirasSubLet: (s: PalmeirasSubLet) => {
-      setPalmeirasSubLets(prev => prev.map(x => x.id === s.id ? s : x))
-      const { id, ...fields } = s
-      supabase.from('palmeiras_sub_lets').update(fields).eq('id', id)
-    },
-    deletePalmeirasSubLet: (id: string) => {
-      setPalmeirasSubLets(prev => prev.filter(x => x.id !== id))
-      supabase.from('palmeiras_sub_lets').delete().eq('id', id)
-    },
   }
 
   return (

@@ -3,7 +3,7 @@ import type {
   ExternalAccommodationBooking, ExternalAccommodation,
   HouseRental, Lesson, Instructor, Equipment, EquipmentRental, TaxiTrip, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
-  Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSubLet,
+  Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   DiningEvent, ActivityBooking, ActivityPayment,
 } from '../../types/database'
 
@@ -33,12 +33,13 @@ export interface SharedAccountingData {
   palmeirasRents:            PalmeirasRent[]
   palmeirasReversals:        PalmeirasReversal[]
   palmeirasEntries:          PalmeirasEntry[]
-  palmeirasSubLets:          PalmeirasSubLet[]
   activityBookings:          ActivityBooking[]
   activityPayments:          ActivityPayment[]
 }
 
 export interface AccountingHandlers {
+  upsertBookingRoomPrice:  (p: BookingRoomPrice)   => void
+  deleteBookingRoomPrice:  (bookingId: string, roomId: string) => void
   updateRental:            (r: EquipmentRental)    => void
   addPayment:              (p: Payment)            => void
   updatePayment:           (p: Payment)            => void
@@ -58,7 +59,4 @@ export interface AccountingHandlers {
   updatePalmeirasReversal: (r: PalmeirasReversal)  => void
   addPalmeirasEntry:       (e: PalmeirasEntry)     => void
   deletePalmeirasEntry:    (id: string)            => void
-  addPalmeirasSubLet:      (s: PalmeirasSubLet)    => void
-  updatePalmeirasSubLet:   (s: PalmeirasSubLet)    => void
-  deletePalmeirasSubLet:   (id: string)            => void
 }

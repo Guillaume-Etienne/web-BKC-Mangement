@@ -8,6 +8,7 @@ export interface Accommodation {
   type: AccommodationType
   total_rooms: number
   is_active: boolean
+  cost_per_night: number | null  // what we pay the owner (bungalows); null for owned houses
 }
 
 export interface Room {
@@ -469,19 +470,9 @@ export interface PalmeirasEntry {
   amount: number
 }
 
-// Bungalow we sub-let to a client (we pay Palmeiras cost, client pays sell price)
-export interface PalmeirasSubLet {
-  id: string
-  month: string          // YYYY-MM (derived from check_in, for filtering)
-  bungalow: string       // e.g. "Bungalow 1", "#3"
-  check_in: string       // YYYY-MM-DD
-  check_out: string      // YYYY-MM-DD
-  nights: number
-  cost_per_night: number // what we pay Palmeiras
-  sell_per_night: number // what we charge the client
-  booking_ref: string | null  // optional booking number / name
-  notes: string | null
-}
+// PalmeirasSubLet — REMOVED (avril 2026)
+// Bungalow sub-lets now tracked via accommodations (type='bungalow', cost_per_night)
+// and booking_rooms / booking_room_prices. Margin auto-calculated.
 
 // Email logs — transactional emails sent to clients
 export type EmailLogType   = 'booking_confirmation' | 'visa_letter' | 'travel_guide'

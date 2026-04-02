@@ -1,12 +1,12 @@
-import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity, TaxiDriver, TaxiTrip, TaxiPricingDefaults, Equipment, EquipmentRental, SharedLink, Season, RoomRate, BookingRoomPrice, ExternalAccommodation, ExternalAccommodationBooking, Payment, InstructorDebt, InstructorPayment, LessonRateOverride, Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSubLet } from '../types/database'
+import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity, TaxiDriver, TaxiTrip, TaxiPricingDefaults, Equipment, EquipmentRental, SharedLink, Season, RoomRate, BookingRoomPrice, ExternalAccommodation, ExternalAccommodationBooking, Payment, InstructorDebt, InstructorPayment, LessonRateOverride, Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry } from '../types/database'
 
 export const mockAccommodations: Accommodation[] = [
-  { id: 'h1', name: 'H-1', type: 'house', total_rooms: 2, is_active: true },
-  { id: 'h2', name: 'H-2', type: 'house', total_rooms: 2, is_active: true },
-  { id: 'h3', name: 'H-3', type: 'house', total_rooms: 2, is_active: true },
-  { id: 'b1', name: 'B-1', type: 'bungalow', total_rooms: 1, is_active: true },
-  { id: 'b2', name: 'B-2', type: 'bungalow', total_rooms: 1, is_active: true },
-  { id: 'b3', name: 'B-3', type: 'bungalow', total_rooms: 1, is_active: true },
+  { id: 'h1', name: 'H-1', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null },
+  { id: 'h2', name: 'H-2', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null },
+  { id: 'h3', name: 'H-3', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null },
+  { id: 'b1', name: 'B-1', type: 'bungalow', total_rooms: 1, is_active: true, cost_per_night: 25 },
+  { id: 'b2', name: 'B-2', type: 'bungalow', total_rooms: 1, is_active: true, cost_per_night: 25 },
+  { id: 'b3', name: 'B-3', type: 'bungalow', total_rooms: 1, is_active: true, cost_per_night: 25 },
 ]
 
 export const mockRooms: Room[] = [
@@ -314,9 +314,4 @@ export const mockPalmeirasEntries: PalmeirasEntry[] = [
   { id: 'pe4', month: '2026-02', type: 'income',  description: 'Partage coût excursion clients',  amount: 60  },
 ]
 
-export const mockPalmeirasSubLets: PalmeirasSubLet[] = [
-  { id: 'psl1', month: '2025-11', bungalow: 'Bungalow 1', check_in: '2025-11-10', check_out: '2025-11-17', nights: 7,  cost_per_night: 45, sell_per_night: 70, booking_ref: 'Martin famille', notes: null },
-  { id: 'psl2', month: '2025-12', bungalow: 'Bungalow 2', check_in: '2025-12-20', check_out: '2025-12-27', nights: 7,  cost_per_night: 55, sell_per_night: 85, booking_ref: 'Dupont',         notes: 'Fêtes' },
-  { id: 'psl3', month: '2026-01', bungalow: 'Bungalow 1', check_in: '2026-01-05', check_out: '2026-01-12', nights: 7,  cost_per_night: 45, sell_per_night: 70, booking_ref: null,             notes: null },
-  { id: 'psl4', month: '2026-02', bungalow: 'Bungalow 3', check_in: '2026-02-01', check_out: '2026-02-08', nights: 7,  cost_per_night: 50, sell_per_night: 75, booking_ref: 'BK-5',           notes: null },
-]
+// mockPalmeirasSubLets — REMOVED (avril 2026), bungalow margin now auto-calculated from bookings

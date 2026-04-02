@@ -5,7 +5,8 @@ import { useLessons } from '../hooks/useLessons'
 import { useTable } from '../hooks/useSupabase'
 import { useBookings, useBookingParticipants } from '../hooks/useBookings'
 import type { Instructor, Lesson, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults, BookingStatus, KiteLevel } from '../types/database'
-import HousesTab from '../components/management/HousesTab'
+import AccommodationsTab from '../components/management/AccommodationsTab'
+import DatabaseTab from '../components/management/DatabaseTab'
 
 const KITE_LEVEL_LABELS: Record<KiteLevel, string> = {
   'beg-total':      'Beg-Total',
@@ -54,7 +55,7 @@ function getBaseUrl() {
 }
 
 export default function ManagementPage() {
-  const [tab, setTab] = useState<'instructors' | 'houses' | 'pricing' | 'links' | 'bookguest'>('instructors')
+  const [tab, setTab] = useState<'instructors' | 'houses' | 'pricing' | 'links' | 'bookguest' | 'database'>('instructors')
 
   // ── Bookings & Guests tab ─────────────────────────────────────────────────
   const { data: allBookings } = useBookings()
@@ -268,12 +269,17 @@ export default function ManagementPage() {
 
         {/* Tabs */}
         <div className="flex gap-4 mt-8 mb-8 border-b">
-          {(['instructors', 'houses', 'pricing', 'links', 'bookguest'] as const).map(t => (
+          {(['instructors', 'houses', 'pricing', 'links', 'bookguest', 'database'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 font-medium capitalize transition-colors ${
                 tab === t ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'
               }`}>
-              {t === 'instructors' ? '📚 Instructors' : t === 'houses' ? '🏠 Houses' : t === 'pricing' ? '💰 Pricing' : t === 'links' ? '🔗 Shared Links' : '👥 Bookings & Guests'}
+              {t === 'instructors' ? '📚 Instructors'
+                : t === 'houses'   ? '🏠 Accommodations'
+                : t === 'pricing'  ? '💰 Pricing'
+                : t === 'links'    ? '🔗 Shared Links'
+                : t === 'database' ? '🗄️ Database'
+                : '👥 Bookings & Guests'}
             </button>
           ))}
         </div>
@@ -425,7 +431,7 @@ export default function ManagementPage() {
         )}
 
         {/* ── Houses Tab ────────────────────────────────────────────────────── */}
-        {tab === 'houses' && <HousesTab />}
+        {tab === 'houses' && <AccommodationsTab />}
 
         {/* ── Pricing Tab ───────────────────────────────────────────────────── */}
         {tab === 'pricing' && (
@@ -832,6 +838,8 @@ export default function ManagementPage() {
             )}
           </div>
         )}
+
+        {tab === 'database' && <DatabaseTab />}
       </div>
 
       {/* ── Instructor form modal ─────────────────────────────────────────── */}

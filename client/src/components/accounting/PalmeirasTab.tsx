@@ -1,13 +1,12 @@
 import { useState, useMemo } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
-import type { PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSubLet } from '../../types/database'
-import { fmtEur, fmtMonth } from './utils'
+import type { PalmeirasRent, PalmeirasReversal, PalmeirasEntry } from '../../types/database'
+import { fmtEur, fmtMonth, countNights } from './utils'
 
 interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
 
 type PeriodMode = 'all' | 'season' | 'custom' | 'single'
 
-// Navigate a YYYY-MM string by ±n months
 function shiftMonth(ym: string, delta: number): string {
   const [y, m] = ym.split('-').map(Number)
   const d = new Date(y, m - 1 + delta, 1)
@@ -107,98 +106,6 @@ function ReversalForm({ existing, onSave, onCancel }: { existing?: PalmeirasReve
   )
 }
 
-function SubLetForm({ existing, onSave, onCancel }: { existing?: PalmeirasSubLet; onSave: (s: PalmeirasSubLet) => void; onCancel: () => void }) {
-  const [bungalow,    setBungalow]    = useState(existing?.bungalow    ?? '')
-  const [checkIn,     setCheckIn]     = useState(existing?.check_in    ?? '')
-  const [checkOut,    setCheckOut]    = useState(existing?.check_out   ?? '')
-  const [costPer,     setCostPer]     = useState(String(existing?.cost_per_night ?? ''))
-  const [sellPer,     setSellPer]     = useState(String(existing?.sell_per_night ?? ''))
-  const [bookingRef,  setBookingRef]  = useState(existing?.booking_ref ?? '')
-  const [notes,       setNotes]       = useState(existing?.notes       ?? '')
-
-  const nights = checkIn && checkOut
-    ? Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000)
-    : 0
-  const cost   = parseFloat(costPer) || 0
-  const sell   = parseFloat(sellPer) || 0
-  const margin = (sell - cost) * nights
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!bungalow.trim() || !checkIn || !checkOut || nights <= 0 || !cost || !sell) return
-    onSave({
-      id:             existing?.id ?? `psl_${Date.now()}`,
-      month:          checkIn.slice(0, 7),
-      bungalow:       bungalow.trim(),
-      check_in:       checkIn,
-      check_out:      checkOut,
-      nights,
-      cost_per_night: cost,
-      sell_per_night: sell,
-      booking_ref:    bookingRef.trim() || null,
-      notes:          notes.trim() || null,
-    })
-  }
-
-  return (
-    <form onSubmit={submit} className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-      <p className="text-sm font-semibold text-blue-800">{existing ? 'Edit sub-let' : 'Add bungalow sub-let'}</p>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">Bungalow</label>
-          <input type="text" value={bungalow} onChange={e => setBungalow(e.target.value)} placeholder="e.g. Bungalow 1"
-            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">Check-in</label>
-          <input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)}
-            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">Check-out</label>
-          <input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)}
-            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">Cost / night (€)</label>
-          <input type="number" min="0" step="0.01" value={costPer} onChange={e => setCostPer(e.target.value)} placeholder="We pay"
-            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">Sell / night (€)</label>
-          <input type="number" min="0" step="0.01" value={sellPer} onChange={e => setSellPer(e.target.value)} placeholder="Client pays"
-            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">Booking ref</label>
-          <input type="text" value={bookingRef} onChange={e => setBookingRef(e.target.value)} placeholder="Optional"
-            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-        </div>
-      </div>
-      {nights > 0 && cost > 0 && sell > 0 && (
-        <div className="bg-white rounded-lg px-4 py-2 flex flex-wrap gap-4 items-center border border-blue-200 text-sm">
-          <span className="text-gray-500">{nights} night{nights !== 1 ? 's' : ''}</span>
-          <span className="text-gray-500">Cost total: <strong className="text-red-600">{fmtEur(cost * nights)}</strong></span>
-          <span className="text-gray-500">Revenue: <strong className="text-emerald-600">{fmtEur(sell * nights)}</strong></span>
-          <span className="font-bold" style={{ color: margin >= 0 ? '#059669' : '#dc2626' }}>
-            Margin: {margin >= 0 ? '+' : ''}{fmtEur(margin)}
-          </span>
-        </div>
-      )}
-      <div>
-        <label className="text-xs text-gray-500 mb-1 block">Notes</label>
-        <input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
-          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-      </div>
-      <div className="flex gap-2">
-        <button type="button" onClick={onCancel} className="flex-1 px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
-        <button type="submit" className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm font-semibold hover:bg-blue-700">Save</button>
-      </div>
-    </form>
-  )
-}
-
-// ── Free entry form (module-scope) ───────────────────────────────────────────
 function EntryForm({ month, type, onSave, onCancel }: {
   month: string; type: 'expense' | 'income'
   onSave: (e: PalmeirasEntry) => void; onCancel: () => void
@@ -230,9 +137,22 @@ function EntryForm({ month, type, onSave, onCancel }: {
   )
 }
 
+// ── Bungalow margin row (computed from bookings) ─────────────────────────────
+interface BungalowRow {
+  bungalow: string
+  bookingRef: string
+  checkIn: string
+  checkOut: string
+  nights: number
+  costRate: number
+  sellRate: number
+  margin: number
+  month: string
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function PalmeirasTab({ data, handlers }: Props) {
-  const { palmeirasRents, palmeirasReversals, palmeirasEntries, palmeirasSubLets, seasons } = data
+  const { palmeirasRents, palmeirasReversals, palmeirasEntries, seasons } = data
   const currentSeason = seasons[seasons.length - 1]
 
   const [period,    setPeriod]    = useState<PeriodMode>('season')
@@ -244,15 +164,45 @@ export default function PalmeirasTab({ data, handlers }: Props) {
 
   const [showAddRent,      setShowAddRent]      = useState(false)
   const [showAddReversal,  setShowAddReversal]  = useState(false)
-  const [showAddSubLet,    setShowAddSubLet]    = useState(false)
   const [editingRent,      setEditingRent]      = useState<PalmeirasRent | null>(null)
   const [editingReversal,  setEditingReversal]  = useState<PalmeirasReversal | null>(null)
-  const [editingSubLet,    setEditingSubLet]    = useState<PalmeirasSubLet | null>(null)
 
   const closeAll = () => {
-    setShowAddRent(false); setShowAddReversal(false); setShowAddSubLet(false)
-    setEditingRent(null);  setEditingReversal(null);  setEditingSubLet(null)
+    setShowAddRent(false); setShowAddReversal(false)
+    setEditingRent(null);  setEditingReversal(null)
   }
+
+  // ── Auto-computed bungalow margin from bookings ──────────────────────────
+  const bungalowRows = useMemo(() => {
+    const bungalows = data.accommodations.filter(a => a.type === 'bungalow')
+    const bungalowRoomIds = new Set(
+      data.rooms.filter(r => bungalows.some(b => b.id === r.accommodation_id)).map(r => r.id)
+    )
+    const rows: BungalowRow[] = []
+    for (const br of data.bookingRooms) {
+      if (!bungalowRoomIds.has(br.room_id)) continue
+      const booking = data.bookings.find(b => b.id === br.booking_id)
+      if (!booking || booking.status === 'cancelled') continue
+      const room = data.rooms.find(r => r.id === br.room_id)
+      const acc  = bungalows.find(b => b.id === room?.accommodation_id)
+      const sellRate = data.bookingRoomPrices.find(p => p.booking_id === br.booking_id && p.room_id === br.room_id)?.price_per_night ?? 0
+      const costRate = acc?.cost_per_night ?? 0
+      const nights = countNights(booking.check_in, booking.check_out)
+      const client = data.clients.find(c => c.id === booking.client_id)
+      rows.push({
+        bungalow:   acc?.name ?? '?',
+        bookingRef: client ? `${client.first_name} ${client.last_name}` : `#${booking.booking_number}`,
+        checkIn:    booking.check_in,
+        checkOut:   booking.check_out,
+        nights,
+        costRate,
+        sellRate,
+        margin:     (sellRate - costRate) * nights,
+        month:      booking.check_in.slice(0, 7),
+      })
+    }
+    return rows
+  }, [data.accommodations, data.rooms, data.bookingRooms, data.bookings, data.bookingRoomPrices, data.clients])
 
   // ── Period filter ─────────────────────────────────────────────────────────
   const inRange = (month: string) => {
@@ -270,52 +220,57 @@ export default function PalmeirasTab({ data, handlers }: Props) {
   const filteredRents      = useMemo(() => palmeirasRents.filter(r => inRange(r.month)),      [palmeirasRents, ...deps])
   const filteredReversals  = useMemo(() => palmeirasReversals.filter(r => inRange(r.month)),  [palmeirasReversals, ...deps])
   const filteredEntries    = useMemo(() => palmeirasEntries.filter(e => inRange(e.month)),    [palmeirasEntries, ...deps])
-  const filteredSubLets    = useMemo(() => palmeirasSubLets.filter(s => inRange(s.month)),    [palmeirasSubLets, ...deps])
+  const filteredBungalows  = useMemo(() => bungalowRows.filter(b => inRange(b.month)),       [bungalowRows, ...deps])
 
   // ── Totals ────────────────────────────────────────────────────────────────
-  const totalRent      = filteredRents.reduce((s, r) => s + r.amount, 0)
-  const totalReversals = filteredReversals.reduce((s, r) => s + r.net_amount, 0)
-  const totalSubMargin = filteredSubLets.reduce((s, sl) => s + (sl.sell_per_night - sl.cost_per_night) * sl.nights, 0)
-  const totalFreeInc   = filteredEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
-  const totalFreeExp   = filteredEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
-  const net            = totalReversals + totalSubMargin + totalFreeInc - totalRent - totalFreeExp
+  const totalRent         = filteredRents.reduce((s, r) => s + r.amount, 0)
+  const totalReversals    = filteredReversals.reduce((s, r) => s + r.net_amount, 0)
+  const totalBungMargin   = filteredBungalows.reduce((s, b) => s + b.margin, 0)
+  const totalFreeInc      = filteredEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
+  const totalFreeExp      = filteredEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
+  const net               = totalReversals + totalBungMargin + totalFreeInc - totalRent - totalFreeExp
 
   // ── Month list for table ──────────────────────────────────────────────────
   const allMonths = useMemo(() => [...new Set([
     ...filteredRents.map(r => r.month),
     ...filteredReversals.map(r => r.month),
     ...filteredEntries.map(e => e.month),
-    ...filteredSubLets.map(s => s.month),
+    ...filteredBungalows.map(b => b.month),
     ...(period === 'single' ? [singleMonth] : []),
-  ])].sort().reverse(), [filteredRents, filteredReversals, filteredEntries, filteredSubLets, period, singleMonth])
+  ])].sort().reverse(), [filteredRents, filteredReversals, filteredEntries, filteredBungalows, period, singleMonth])
 
   // ── Print / export ────────────────────────────────────────────────────────
   const handlePrint = () => {
-    const subLetRows = filteredSubLets.map(sl => `
+    const bungRows = filteredBungalows.map(b => `
       <tr>
-        <td>${sl.month}</td>
-        <td>${sl.bungalow}</td>
-        <td>${sl.check_in} → ${sl.check_out}</td>
-        <td class="right">${sl.nights}</td>
-        <td class="right">${fmtEur(sl.cost_per_night)}</td>
-        <td class="right">${fmtEur(sl.sell_per_night)}</td>
-        <td class="right pos">+ ${fmtEur((sl.sell_per_night - sl.cost_per_night) * sl.nights)}</td>
-        <td>${sl.booking_ref ?? ''}</td>
+        <td>${b.month}</td>
+        <td>${b.bungalow}</td>
+        <td>${b.checkIn} → ${b.checkOut}</td>
+        <td class="right">${b.nights}</td>
+        <td class="right">${fmtEur(b.costRate)}</td>
+        <td class="right">${fmtEur(b.sellRate)}</td>
+        <td class="right pos">+ ${fmtEur(b.margin)}</td>
+        <td>${b.bookingRef}</td>
       </tr>`).join('')
 
     const mainRows = allMonths.map(month => {
       const rent     = filteredRents.find(r => r.month === month)
       const reversal = filteredReversals.find(r => r.month === month)
-      const subLetsM = filteredSubLets.filter(s => s.month === month)
-      const subMargin = subLetsM.reduce((s, sl) => s + (sl.sell_per_night - sl.cost_per_night) * sl.nights, 0)
-      const monthNet  = (reversal?.net_amount ?? 0) + subMargin - (rent?.amount ?? 0)
+      const bungM    = filteredBungalows.filter(b => b.month === month)
+      const bungMargin = bungM.reduce((s, b) => s + b.margin, 0)
+      const mEntries = filteredEntries.filter(e => e.month === month)
+      const mInc     = mEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
+      const mExp     = mEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
+      const monthNet = (reversal?.net_amount ?? 0) + bungMargin + mInc - (rent?.amount ?? 0) - mExp
       return `<tr>
         <td>${fmtMonth(month)}</td>
         <td class="right neg">${rent ? `− ${fmtEur(rent.amount)}` : '–'}</td>
         <td class="right">${reversal ? fmtEur(reversal.gross_amount) : '–'}</td>
         <td class="right">${reversal ? `${reversal.percent}%` : ''}</td>
         <td class="right pos">${reversal ? `+ ${fmtEur(reversal.net_amount)}` : '–'}</td>
-        <td class="right ${subMargin > 0 ? 'pos' : ''}">${subMargin ? `+ ${fmtEur(subMargin)}` : '–'}</td>
+        <td class="right ${bungMargin > 0 ? 'pos' : ''}">${bungMargin ? `+ ${fmtEur(bungMargin)}` : '–'}</td>
+        <td class="right ${mInc > 0 ? 'pos' : ''}">${mInc ? `+ ${fmtEur(mInc)}` : '–'}</td>
+        <td class="right ${mExp > 0 ? 'neg' : ''}">${mExp ? `− ${fmtEur(mExp)}` : '–'}</td>
         <td class="right ${monthNet >= 0 ? 'pos' : 'neg'}">${monthNet >= 0 ? '+' : ''}${fmtEur(monthNet)}</td>
       </tr>`
     }).join('')
@@ -342,7 +297,8 @@ export default function PalmeirasTab({ data, handlers }: Props) {
       <thead><tr>
         <th>Month</th><th class="right">Rent paid</th>
         <th class="right">Gross (Palm.)</th><th class="right">%</th>
-        <th class="right">Reversal</th><th class="right">Sub-let margin</th><th class="right">Net</th>
+        <th class="right">Reversal</th><th class="right">Bungalow margin</th>
+        <th class="right">Free income</th><th class="right">Free expense</th><th class="right">Net</th>
       </tr></thead>
       <tbody>${mainRows}</tbody>
       <tfoot><tr>
@@ -351,19 +307,21 @@ export default function PalmeirasTab({ data, handlers }: Props) {
         <td class="right">${fmtEur(filteredReversals.reduce((s, r) => s + r.gross_amount, 0))}</td>
         <td></td>
         <td class="right pos">+ ${fmtEur(totalReversals)}</td>
-        <td class="right pos">+ ${fmtEur(totalSubMargin)}</td>
+        <td class="right pos">+ ${fmtEur(totalBungMargin)}</td>
+        <td class="right pos">+ ${fmtEur(totalFreeInc)}</td>
+        <td class="right neg">− ${fmtEur(totalFreeExp)}</td>
         <td class="right ${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${fmtEur(net)}</td>
       </tr></tfoot>
     </table>
 
-    ${filteredSubLets.length > 0 ? `
-    <h2>Bungalow sub-lets detail</h2>
+    ${filteredBungalows.length > 0 ? `
+    <h2>Bungalow bookings detail</h2>
     <table>
       <thead><tr>
         <th>Month</th><th>Bungalow</th><th>Period</th><th class="right">Nights</th>
-        <th class="right">Cost/n</th><th class="right">Sell/n</th><th class="right">Margin</th><th>Ref</th>
+        <th class="right">Cost/n</th><th class="right">Sell/n</th><th class="right">Margin</th><th>Client</th>
       </tr></thead>
-      <tbody>${subLetRows}</tbody>
+      <tbody>${bungRows}</tbody>
     </table>` : ''}
 
     </body></html>`
@@ -376,7 +334,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
     setTimeout(() => w.print(), 300)
   }
 
-  const anyForm = showAddRent || showAddReversal || showAddSubLet || editingRent || editingReversal || editingSubLet
+  const anyForm = showAddRent || showAddReversal || editingRent || editingReversal
 
   return (
     <div className="space-y-6">
@@ -431,8 +389,9 @@ export default function PalmeirasTab({ data, handlers }: Props) {
           <p className="text-lg font-bold text-emerald-700">+ {fmtEur(totalReversals)}</p>
         </div>
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-400 mb-1">Sub-lets</p>
-          <p className="text-lg font-bold text-blue-700">+ {fmtEur(totalSubMargin)}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-400 mb-1">Bungalows</p>
+          <p className="text-lg font-bold text-blue-700">+ {fmtEur(totalBungMargin)}</p>
+          <p className="text-xs text-blue-500 mt-0.5">{filteredBungalows.length} booking(s)</p>
         </div>
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400 mb-1">Free income</p>
@@ -457,8 +416,6 @@ export default function PalmeirasTab({ data, handlers }: Props) {
               className="text-xs px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium">+ Rent</button>
             <button onClick={() => { closeAll(); setShowAddReversal(true) }}
               className="text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 font-medium">+ Reversal</button>
-            <button onClick={() => { closeAll(); setShowAddSubLet(true) }}
-              className="text-xs px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium">+ Sub-let</button>
             <button onClick={() => { closeAll(); setAddingEntry('income') }}
               className="text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 font-medium">+ Income</button>
             <button onClick={() => { closeAll(); setAddingEntry('expense') }}
@@ -472,10 +429,8 @@ export default function PalmeirasTab({ data, handlers }: Props) {
           <div className="px-5 py-4 border-b bg-gray-50 space-y-3">
             {showAddRent      && <RentForm     onSave={r => { handlers.addPalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
             {showAddReversal  && <ReversalForm onSave={r => { handlers.addPalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
-            {showAddSubLet    && <SubLetForm   onSave={s => { handlers.addPalmeirasSubLet(s);    closeAll() }} onCancel={closeAll} />}
             {editingRent      && <RentForm     existing={editingRent}     onSave={r => { handlers.updatePalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
             {editingReversal  && <ReversalForm existing={editingReversal} onSave={r => { handlers.updatePalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
-            {editingSubLet    && <SubLetForm   existing={editingSubLet}   onSave={s => { handlers.updatePalmeirasSubLet(s);    closeAll() }} onCancel={closeAll} />}
             {addingEntry && (
               <EntryForm
                 month={period === 'single' ? singleMonth : new Date().toISOString().slice(0, 7)}
@@ -495,7 +450,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
               <th className="px-4 py-3 text-right font-semibold text-gray-500">Gross (Palm.)</th>
               <th className="px-4 py-3 text-right font-semibold text-gray-400">%</th>
               <th className="px-4 py-3 text-right font-semibold text-emerald-600">Reversal</th>
-              <th className="px-4 py-3 text-right font-semibold text-blue-600">Sub-lets</th>
+              <th className="px-4 py-3 text-right font-semibold text-blue-600">Bungalows</th>
               <th className="px-4 py-3 text-right font-semibold text-emerald-500">+ Free</th>
               <th className="px-4 py-3 text-right font-semibold text-orange-500">− Free</th>
               <th className="px-4 py-3 text-right font-semibold text-gray-600">Net</th>
@@ -504,17 +459,17 @@ export default function PalmeirasTab({ data, handlers }: Props) {
           </thead>
           <tbody>
             {allMonths.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">No data for this period.</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400 text-sm">No data for this period.</td></tr>
             )}
             {allMonths.map(month => {
               const rent      = filteredRents.find(r => r.month === month)
               const reversal  = filteredReversals.find(r => r.month === month)
-              const subLetsM  = filteredSubLets.filter(s => s.month === month)
-              const subMargin = subLetsM.reduce((s, sl) => s + (sl.sell_per_night - sl.cost_per_night) * sl.nights, 0)
+              const bungM     = filteredBungalows.filter(b => b.month === month)
+              const bungMargin = bungM.reduce((s, b) => s + b.margin, 0)
               const mEntries  = filteredEntries.filter(e => e.month === month)
               const mInc      = mEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
               const mExp      = mEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
-              const monthNet  = (reversal?.net_amount ?? 0) + subMargin + mInc - (rent?.amount ?? 0) - mExp
+              const monthNet  = (reversal?.net_amount ?? 0) + bungMargin + mInc - (rent?.amount ?? 0) - mExp
               return (
                 <tr key={month} className="border-b hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-800">{fmtMonth(month)}</td>
@@ -527,7 +482,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
                     {reversal ? <span className="text-emerald-700 font-medium">+ {fmtEur(reversal.net_amount)}</span> : <span className="text-gray-300">–</span>}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {subMargin > 0 ? <span className="text-blue-700 font-medium">+ {fmtEur(subMargin)}</span> : <span className="text-gray-300">–</span>}
+                    {bungMargin > 0 ? <span className="text-blue-700 font-medium">+ {fmtEur(bungMargin)}</span> : <span className="text-gray-300">–</span>}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {mInc > 0 ? <span className="text-emerald-600 font-medium">+ {fmtEur(mInc)}</span> : <span className="text-gray-300">–</span>}
@@ -536,7 +491,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
                     {mExp > 0 ? <span className="text-orange-600 font-medium">− {fmtEur(mExp)}</span> : <span className="text-gray-300">–</span>}
                   </td>
                   <td className={`px-4 py-3 text-right font-bold ${monthNet > 0 ? 'text-emerald-700' : monthNet < 0 ? 'text-red-700' : 'text-gray-400'}`}>
-                    {(rent || reversal || subMargin || mInc || mExp) ? `${monthNet >= 0 ? '+' : ''}${fmtEur(monthNet)}` : '–'}
+                    {(rent || reversal || bungMargin || mInc || mExp) ? `${monthNet >= 0 ? '+' : ''}${fmtEur(monthNet)}` : '–'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">
@@ -555,7 +510,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
               <td className="px-4 py-3 text-right font-semibold text-gray-600">{fmtEur(filteredReversals.reduce((s, r) => s + r.gross_amount, 0))}</td>
               <td />
               <td className="px-4 py-3 text-right font-semibold text-emerald-700">+ {fmtEur(totalReversals)}</td>
-              <td className="px-4 py-3 text-right font-semibold text-blue-700">+ {fmtEur(totalSubMargin)}</td>
+              <td className="px-4 py-3 text-right font-semibold text-blue-700">+ {fmtEur(totalBungMargin)}</td>
               <td className="px-4 py-3 text-right font-semibold text-emerald-600">+ {fmtEur(totalFreeInc)}</td>
               <td className="px-4 py-3 text-right font-semibold text-orange-600">− {fmtEur(totalFreeExp)}</td>
               <td className={`px-4 py-3 text-right font-bold ${net >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{net >= 0 ? '+' : ''}{fmtEur(net)}</td>
@@ -565,11 +520,12 @@ export default function PalmeirasTab({ data, handlers }: Props) {
         </table>
       </div>
 
-      {/* Sub-lets detail */}
-      {filteredSubLets.length > 0 && (
+      {/* Bungalow bookings detail (auto-computed) */}
+      {filteredBungalows.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b">
-            <h2 className="font-semibold text-gray-800">Bungalow sub-lets detail</h2>
+            <h2 className="font-semibold text-gray-800">Bungalow bookings detail</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Auto-calculated from bookings assigned to bungalow accommodations</p>
           </div>
           <table className="w-full text-sm min-w-[700px]">
             <thead className="bg-gray-50 border-b">
@@ -580,33 +536,23 @@ export default function PalmeirasTab({ data, handlers }: Props) {
                 <th className="px-4 py-3 text-right font-semibold text-red-500">Cost/n</th>
                 <th className="px-4 py-3 text-right font-semibold text-emerald-600">Sell/n</th>
                 <th className="px-4 py-3 text-right font-semibold text-blue-600">Margin</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-400">Ref</th>
-                <th className="px-4 py-3 w-16" />
+                <th className="px-4 py-3 text-left font-semibold text-gray-400">Client</th>
               </tr>
             </thead>
             <tbody>
-              {[...filteredSubLets].sort((a, b) => b.check_in.localeCompare(a.check_in)).map(sl => {
-                const margin = (sl.sell_per_night - sl.cost_per_night) * sl.nights
-                return (
-                  <tr key={sl.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-800">{sl.bungalow}</td>
-                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{sl.check_in} → {sl.check_out}</td>
-                    <td className="px-4 py-3 text-right text-gray-500">{sl.nights}</td>
-                    <td className="px-4 py-3 text-right text-red-500">{fmtEur(sl.cost_per_night)}</td>
-                    <td className="px-4 py-3 text-right text-emerald-600">{fmtEur(sl.sell_per_night)}</td>
-                    <td className={`px-4 py-3 text-right font-semibold ${margin >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                      {margin >= 0 ? '+' : ''}{fmtEur(margin)}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">{sl.booking_ref ?? ''}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex gap-1 justify-end">
-                        <button onClick={() => { closeAll(); setEditingSubLet(sl) }} className="text-gray-300 hover:text-blue-500 transition-colors text-sm px-1">✏</button>
-                        <button onClick={() => handlers.deletePalmeirasSubLet(sl.id)} className="text-gray-300 hover:text-red-500 transition-colors text-lg leading-none">×</button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
+              {[...filteredBungalows].sort((a, b) => b.checkIn.localeCompare(a.checkIn)).map((b, i) => (
+                <tr key={i} className="border-b hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium text-gray-800">{b.bungalow}</td>
+                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{b.checkIn} → {b.checkOut}</td>
+                  <td className="px-4 py-3 text-right text-gray-500">{b.nights}</td>
+                  <td className="px-4 py-3 text-right text-red-500">{fmtEur(b.costRate)}</td>
+                  <td className="px-4 py-3 text-right text-emerald-600">{fmtEur(b.sellRate)}</td>
+                  <td className={`px-4 py-3 text-right font-semibold ${b.margin >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                    {b.margin >= 0 ? '+' : ''}{fmtEur(b.margin)}
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">{b.bookingRef}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -653,9 +599,9 @@ export default function PalmeirasTab({ data, handlers }: Props) {
       )}
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm text-amber-800 space-y-1">
-        <p className="font-semibold">💡 About Palmeiras accounting</p>
+        <p className="font-semibold">About Palmeiras accounting</p>
         <p>All figures reflect the selected period and are included in the global dashboard totals.</p>
-        <p><strong>Reversal</strong> = % of Palmeiras' own bookings they owe us · <strong>Rent</strong> = monthly lease · <strong>Sub-let margin</strong> = sell − cost on bungalows re-rented to our clients · <strong>Free entries</strong> = any misc income or expense tied to the Palmeiras relationship.</p>
+        <p><strong>Reversal</strong> = % of Palmeiras' own bookings they owe us · <strong>Rent</strong> = monthly lease · <strong>Bungalow margin</strong> = sell − cost, auto-calculated from bookings assigned to bungalow accommodations · <strong>Free entries</strong> = any misc income or expense.</p>
       </div>
     </div>
   )

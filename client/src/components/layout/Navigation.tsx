@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { currentEnv } from '../../lib/supabase'
 
 interface NavigationProps {
   currentPage: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities'
@@ -38,17 +39,17 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
         />
       )}
 
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <nav className={`sticky top-0 z-50 border-b ${currentEnv === 'test' ? 'bg-amber-50 border-amber-300' : 'bg-white border-gray-200'}`}>
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex-shrink-0">
               <button
                 onClick={() => handleNavigate('home')}
-                className="text-xl font-bold text-blue-600 hover:text-blue-700"
+                className={`text-xl font-bold hover:text-blue-700 ${currentEnv === 'test' ? 'text-amber-700' : 'text-blue-600'}`}
                 style={{ touchAction: 'manipulation' }}
               >
-                🏄 BKC
+                {currentEnv === 'test' && '🏄 '}BKC
               </button>
             </div>
 

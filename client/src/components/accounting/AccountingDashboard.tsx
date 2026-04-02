@@ -4,7 +4,7 @@ import {
   computeAccommodationRevenue, computeLessonsRevenue,
   computeRentalsRevenue, computeTaxiRevenue,
   computeDiningRevenue,
-  computeInstructorBalance, computeStandaloneTaxiRevenue, computeActivityNetRevenue, fmtEur,
+  computeInstructorBalance, computeStandaloneTaxiRevenue, computeActivityNetRevenue, fmtEur, countNights,
 } from './utils'
 
 interface Props { data: SharedAccountingData }
@@ -28,7 +28,7 @@ export default function AccountingDashboard({ data }: Props) {
     diningEvents,
     lessons, instructors, lessonRateOverrides,
     taxiTrips, expenses,
-    palmeirasRents, palmeirasReversals, palmeirasSubLets, palmeirasEntries,
+    palmeirasRents, palmeirasReversals, palmeirasEntries,
   } = data
 
   const activeBookings = bookings.filter(b => b.status !== 'cancelled')
@@ -67,13 +67,28 @@ export default function AccountingDashboard({ data }: Props) {
   // ── Expenses ───────────────────────────────────────────────────────────
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0)
 
-  // ── Palmeiras (rent + reversals + sub-lets + free entries) ────────────
+  // ── Palmeiras (rent + reversals + bungalow margin + free entries) ─────
   const palmRent      = palmeirasRents.reduce((s, r) => s + r.amount, 0)
   const palmReversals = palmeirasReversals.reduce((s, r) => s + r.net_amount, 0)
-  const palmSubLets   = palmeirasSubLets.reduce((s, sl) => s + (sl.sell_per_night - sl.cost_per_night) * sl.nights, 0)
+  // Bungalow margin auto-calculated from bookings
+  const bungalows = data.accommodations.filter(a => a.type === 'bungalow')
+  const bungalowRoomIds = new Set(
+    data.rooms.filter(r => bungalows.some(b => b.id === r.accommodation_id)).map(r => r.id)
+  )
+  const palmBungMargin = data.bookingRooms.reduce((sum, br) => {
+    if (!bungalowRoomIds.has(br.room_id)) return sum
+    const bk = data.bookings.find(b => b.id === br.booking_id)
+    if (!bk || bk.status === 'cancelled') return sum
+    const room = data.rooms.find(r => r.id === br.room_id)
+    const acc = bungalows.find(b => b.id === room?.accommodation_id)
+    const sellRate = data.bookingRoomPrices.find(p => p.booking_id === br.booking_id && p.room_id === br.room_id)?.price_per_night ?? 0
+    const costRate = acc?.cost_per_night ?? 0
+    const nights = countNights(bk.check_in, bk.check_out)
+    return sum + (sellRate - costRate) * nights
+  }, 0)
   const palmFreeInc   = palmeirasEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
   const palmFreeExp   = palmeirasEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
-  const palmeirasNet  = palmReversals + palmSubLets + palmFreeInc - palmRent - palmFreeExp
+  const palmeirasNet  = palmReversals + palmBungMargin + palmFreeInc - palmRent - palmFreeExp
 
   // ── Net result ─────────────────────────────────────────────────────────
   const netResult = totalRevenue + taxiNetMargin + palmeirasNet - instructorCosts - totalExpenses

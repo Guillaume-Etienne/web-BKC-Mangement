@@ -25,6 +25,46 @@ const METHOD_COLORS: Record<PaymentMethod, string> = {
   card_palmeiras: 'bg-purple-100 text-purple-800',
 }
 
+// ── Edit Room Price Form (module-scope) ────────────────────────────────────
+
+interface EditRoomPriceFormProps {
+  bookingId: string
+  roomId: string
+  currentPrice: number
+  currentNote: string | null
+  onSave: (p: { booking_id: string; room_id: string; price_per_night: number; override_note: string | null }) => void
+  onCancel: () => void
+}
+function EditRoomPriceForm({ bookingId, roomId, currentPrice, currentNote, onSave, onCancel }: EditRoomPriceFormProps) {
+  const [price, setPrice] = useState(String(currentPrice))
+  const [note, setNote] = useState(currentNote ?? '')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const parsed = parseFloat(price)
+    if (isNaN(parsed) || parsed < 0) return
+    onSave({
+      booking_id: bookingId,
+      room_id: roomId,
+      price_per_night: parsed,
+      override_note: note.trim() || null,
+    })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex items-center gap-2 mt-1">
+      <input type="number" min="0" step="0.5" value={price} onChange={e => setPrice(e.target.value)}
+        autoFocus
+        className="w-20 px-2 py-0.5 border border-blue-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      <span className="text-xs text-gray-400">€/n</span>
+      <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="Note"
+        className="w-28 px-2 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+      <button type="submit" className="px-2 py-0.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">✓</button>
+      <button type="button" onClick={onCancel} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200">✕</button>
+    </form>
+  )
+}
+
 // ── Edit Rental Price Form (module-scope) ──────────────────────────────────
 
 interface EditRentalFormProps {
@@ -274,6 +314,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
   const [showAddPayment, setShowAddPayment] = useState(false)
   const [showAddDiscount, setShowAddDiscount] = useState(false)
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
+  const [editingRoomPriceId, setEditingRoomPriceId] = useState<string | null>(null)
   const [editingRentalId, setEditingRentalId] = useState<string | null>(null)
   const [overridingLessonId, setOverridingLessonId] = useState<string | null>(null)
 
@@ -347,7 +388,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
         <div className="space-y-2">
 
           {/* Accommodation */}
-          {accommodationRev > 0 && (
+          {(bkRooms.length > 0 || extAccomm.length > 0) && (
             <div className="rounded-lg border border-gray-100 overflow-hidden">
               <div className="flex justify-between items-center px-4 py-2 bg-gray-50">
                 <span className="text-sm font-medium text-gray-700">🏠 Accommodation</span>
@@ -356,15 +397,36 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
               <div className="px-4 py-2 space-y-1">
                 {bkRooms.map(br => {
                   const room = data.rooms.find(r => r.id === br.room_id)
+                  const acc = room ? data.accommodations.find(a => a.id === room.accommodation_id) : null
                   const rate = getRoomNightlyRate(b.id, br.room_id, data)
                   const snap = data.bookingRoomPrices.find(p => p.booking_id === b.id && p.room_id === br.room_id)
+                  const isEditing = editingRoomPriceId === br.room_id
+                  const roomLabel = acc ? `${acc.name}/${room?.name}` : (room?.name ?? br.room_id)
+                  const hasNoPrice = !snap
                   return (
-                    <div key={br.room_id} className="flex justify-between text-xs text-gray-500">
-                      <span>
-                        Room {room?.name ?? br.room_id} × {nights}n @ {fmtEur(rate)}/n
-                        {snap?.override_note && <span className="ml-2 text-amber-500 italic">({snap.override_note})</span>}
-                      </span>
-                      <span>{fmtEur(rate * nights)}</span>
+                    <div key={br.room_id} className="text-xs text-gray-500">
+                      <div className="flex justify-between items-center">
+                        <span>
+                          {roomLabel} × {nights}n @ {fmtEur(rate)}/n
+                          {snap?.override_note && <span className="ml-2 text-amber-500 italic">({snap.override_note})</span>}
+                          {hasNoPrice && <span className="ml-2 text-red-400 font-medium">⚠ no price</span>}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span>{fmtEur(rate * nights)}</span>
+                          <button onClick={() => setEditingRoomPriceId(isEditing ? null : br.room_id)}
+                            className={`transition-colors ${hasNoPrice ? 'text-red-400 hover:text-red-600' : 'text-gray-300 hover:text-blue-500'}`}>✏️</button>
+                        </div>
+                      </div>
+                      {isEditing && (
+                        <EditRoomPriceForm
+                          bookingId={b.id}
+                          roomId={br.room_id}
+                          currentPrice={rate}
+                          currentNote={snap?.override_note ?? null}
+                          onSave={p => { handlers.upsertBookingRoomPrice(p); setEditingRoomPriceId(null) }}
+                          onCancel={() => setEditingRoomPriceId(null)}
+                        />
+                      )}
                     </div>
                   )
                 })}

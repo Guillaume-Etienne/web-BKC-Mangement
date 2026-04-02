@@ -4,7 +4,7 @@ import TotalsRow from './TotalsRow'
 import LessonWeekView from './LessonWeekView'
 import NowView from './NowView'
 import ForecastView from './ForecastView'
-import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental, PriceItem, BookingParticipant, Room, Accommodation } from '../../types/database'
+import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental, PriceItem, BookingParticipant, Room, Accommodation, AccommodationType } from '../../types/database'
 import { useBookingDrag, CELL_W, type DragMode } from '../../hooks/useBookingDrag'
 import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
 import { useTable } from '../../hooks/useSupabase'
@@ -94,6 +94,7 @@ interface DraftMove {
   originalCheckIn: string
   originalCheckOut: string
   roomSwaps: RoomSwap[]
+  roomRemovals: string[]   // room_ids to delete from booking (e.g. other room when full-house → bungalow)
 }
 
 // ── Validate modal (module scope) ─────────────────────────────────────────────
@@ -152,6 +153,11 @@ function ValidateModal({ draftMoves, bookings, rooms, accommodations, onConfirm,
                 <p key={i} className="text-gray-600">
                   🏠 <span className="line-through text-gray-400">{roomLabel(s.from)}</span>
                   {' '}→ <span className="font-medium text-blue-700">{roomLabel(s.to)}</span>
+                </p>
+              ))}
+              {draft.roomRemovals.map((rid, i) => (
+                <p key={`rm-${i}`} className="text-red-600">
+                  ✕ <span className="line-through">{roomLabel(rid)}</span> <span className="text-xs">(freed)</span>
                 </p>
               ))}
             </div>
@@ -311,9 +317,13 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   const [draftMoves, setDraftMoves] = useState<Map<string, DraftMove>>(new Map())
   const [showValidateModal, setShowValidateModal] = useState(false)
 
-  // Ref so callbacks always see latest bookings without stale closure
+  // Refs so callbacks always see latest data without stale closure
   const bookingsRef = useRef(bookings)
   useEffect(() => { bookingsRef.current = bookings }, [bookings])
+  const roomsRef = useRef(rooms)
+  useEffect(() => { roomsRef.current = rooms }, [rooms])
+  const bookingRoomsRef = useRef(bookingRooms)
+  useEffect(() => { bookingRoomsRef.current = bookingRooms }, [bookingRooms])
 
   // Visual positions merge draft changes on top of saved data
   const resolvedBookings = useMemo(() =>
@@ -323,12 +333,17 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     }), [bookings, draftMoves])
 
   const resolvedBookingRooms = useMemo(() =>
-    bookingRooms.map(br => {
-      const d = draftMoves.get(br.booking_id)
-      if (!d) return br
-      const swap = d.roomSwaps.find(s => s.from === br.room_id)
-      return swap ? { ...br, room_id: swap.to } : br
-    }), [bookingRooms, draftMoves])
+    bookingRooms
+      .filter(br => {
+        const d = draftMoves.get(br.booking_id)
+        return !d || !d.roomRemovals.includes(br.room_id)
+      })
+      .map(br => {
+        const d = draftMoves.get(br.booking_id)
+        if (!d) return br
+        const swap = d.roomSwaps.find(s => s.from === br.room_id)
+        return swap ? { ...br, room_id: swap.to } : br
+      }), [bookingRooms, draftMoves])
 
   // ── Tabs / lesson view ───────────────────────────────────────────
   const [planningTab, setPlanningTab] = useState<'accommodations' | 'lessons' | 'now' | 'forecast'>('accommodations')
@@ -391,6 +406,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   async function validateDrafts() {
     const bookingUpdates: { id: string; check_in: string; check_out: string }[] = []
     const roomUpdates:    { booking_id: string; from: string; to: string }[] = []
+    const roomDeletions:  { booking_id: string; room_id: string }[] = []
 
     for (const [bookingId, draft] of draftMoves) {
       const booking = bookings.find(b => b.id === bookingId)
@@ -399,6 +415,9 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       }
       for (const swap of draft.roomSwaps) {
         roomUpdates.push({ booking_id: bookingId, from: swap.from, to: swap.to })
+      }
+      for (const rid of draft.roomRemovals) {
+        roomDeletions.push({ booking_id: bookingId, room_id: rid })
       }
     }
 
@@ -409,6 +428,17 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       ...roomUpdates.map(u =>
         supabase.from('booking_rooms').update({ room_id: u.to }).eq('booking_id', u.booking_id).eq('room_id', u.from)
       ),
+      // Move booking_room_prices to follow the room swap
+      ...roomUpdates.map(u =>
+        supabase.from('booking_room_prices').update({ room_id: u.to }).eq('booking_id', u.booking_id).eq('room_id', u.from)
+      ),
+      // Delete orphaned rooms (e.g. second house room when moved to bungalow)
+      ...roomDeletions.map(d =>
+        supabase.from('booking_room_prices').delete().eq('booking_id', d.booking_id).eq('room_id', d.room_id)
+      ),
+      ...roomDeletions.map(d =>
+        supabase.from('booking_rooms').delete().eq('booking_id', d.booking_id).eq('room_id', d.room_id)
+      ),
     ])
 
     // Apply changes to local state so display stays consistent
@@ -416,10 +446,16 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       const upd = bookingUpdates.find(u => u.id === b.id)
       return upd ? { ...b, check_in: upd.check_in, check_out: upd.check_out } : b
     }))
-    setBookingRooms(prev => prev.map(br => {
-      const upd = roomUpdates.find(u => u.booking_id === br.booking_id && u.from === br.room_id)
-      return upd ? { ...br, room_id: upd.to } : br
-    }))
+    setBookingRooms(prev => {
+      // First remove deleted rooms
+      const deletionSet = new Set(roomDeletions.map(d => `${d.booking_id}:${d.room_id}`))
+      const filtered = prev.filter(br => !deletionSet.has(`${br.booking_id}:${br.room_id}`))
+      // Then apply swaps
+      return filtered.map(br => {
+        const upd = roomUpdates.find(u => u.booking_id === br.booking_id && u.from === br.room_id)
+        return upd ? { ...br, room_id: upd.to } : br
+      })
+    })
 
     setDraftMoves(new Map())
     setShowValidateModal(false)
@@ -452,6 +488,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
         originalCheckIn:  booking.check_in,
         originalCheckOut: booking.check_out,
         roomSwaps: existing?.roomSwaps ?? [],
+        roomRemovals: existing?.roomRemovals ?? [],
       })
       return next
     })
@@ -463,16 +500,49 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       const existing = next.get(bookingId)
       const booking = bookingsRef.current.find(b => b.id === bookingId)
       if (!booking) return prev
+
       const newSwap: RoomSwap = { from: fromRoomId, to: toRoomId }
-      const roomSwaps = existing
+      let roomSwaps = existing
         ? existing.roomSwaps.filter(s => s.from !== fromRoomId).concat(newSwap)
         : [newSwap]
+      let roomRemovals = existing?.roomRemovals ?? []
+
+      // ── Auto-remove extra rooms when moving across accommodations ──
+      // e.g. full house (2 rooms) → bungalow (1 room): free the other house room
+      const allRooms = roomsRef.current
+      const fromRoom = allRooms.find(r => r.id === fromRoomId)
+      const toRoom = allRooms.find(r => r.id === toRoomId)
+
+      if (fromRoom && toRoom && fromRoom.accommodation_id !== toRoom.accommodation_id) {
+        // All rooms this booking occupies in the source accommodation (base state)
+        const sourceAccRoomIds = allRooms
+          .filter(r => r.accommodation_id === fromRoom.accommodation_id)
+          .map(r => r.id)
+        const bookingSourceRoomIds = bookingRoomsRef.current
+          .filter(br => br.booking_id === bookingId && sourceAccRoomIds.includes(br.room_id))
+          .map(br => br.room_id)
+
+        // Other rooms in source accommodation that aren't being swapped anywhere
+        const swappedFromIds = new Set(roomSwaps.map(s => s.from))
+        const orphanedRoomIds = bookingSourceRoomIds.filter(rid => !swappedFromIds.has(rid))
+
+        if (orphanedRoomIds.length > 0) {
+          // Remove orphaned rooms (they can't follow to the target — not enough room)
+          roomRemovals = [...new Set([...roomRemovals, ...orphanedRoomIds])]
+        }
+      }
+
+      // If a room was previously marked for removal but is now being swapped, un-remove it
+      const swappedFromIds = new Set(roomSwaps.map(s => s.from))
+      roomRemovals = roomRemovals.filter(rid => !swappedFromIds.has(rid))
+
       next.set(bookingId, {
         checkIn:  existing?.checkIn  ?? booking.check_in,
         checkOut: existing?.checkOut ?? booking.check_out,
         originalCheckIn:  booking.check_in,
         originalCheckOut: booking.check_out,
         roomSwaps,
+        roomRemovals,
       })
       return next
     })
@@ -695,25 +765,42 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
 
               {/* Rows */}
               <div ref={gridRef}>
-                {activeAccommodations.map((acc) => {
-                  const accRooms = rooms.filter(r => r.accommodation_id === acc.id)
-                  const unavailableDays = unavailableByAccommodation.get(acc.id)
+                {(['house', 'bungalow', 'other'] as AccommodationType[]).map(type => {
+                  const typeAccs = activeAccommodations.filter(a => a.type === type)
+                  if (typeAccs.length === 0) return null
+                  const typeLabel = type === 'house' ? 'Houses' : type === 'bungalow' ? 'Bungalows' : 'Other'
                   return (
-                    <div key={acc.id}>
-                      {accRooms.map((room) => (
-                        <PlanningRow
-                          key={room.id}
-                          roomId={room.id}
-                          label={accRooms.length > 1 ? `${acc.name}/${room.name}` : acc.name}
-                          totalDays={totalDays}
-                          seasonStart={seasonStart}
-                          bookings={getBookingsForRoom(room.id)}
-                          bookingParticipants={bookingParticipants}
-                          dragState={dragState}
-                          onPointerDown={onPointerDown}
-                          unavailableDays={unavailableDays}
-                        />
-                      ))}
+                    <div key={type}>
+                      {/* Type separator */}
+                      <div className="flex min-w-max border-b border-gray-300">
+                        <div className="sticky left-0 z-20 shrink-0 w-20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 bg-gray-100 border-r border-gray-200">
+                          {typeLabel}
+                        </div>
+                        <div className="flex-1 bg-gray-100" style={{ minWidth: totalDays * CELL_W }} />
+                      </div>
+                      {/* Accommodation rows */}
+                      {typeAccs.map((acc) => {
+                        const accRooms = rooms.filter(r => r.accommodation_id === acc.id)
+                        const unavailableDays = unavailableByAccommodation.get(acc.id)
+                        return (
+                          <div key={acc.id}>
+                            {accRooms.map((room) => (
+                              <PlanningRow
+                                key={room.id}
+                                roomId={room.id}
+                                label={accRooms.length > 1 ? `${acc.name}/${room.name}` : acc.name}
+                                totalDays={totalDays}
+                                seasonStart={seasonStart}
+                                bookings={getBookingsForRoom(room.id)}
+                                bookingParticipants={bookingParticipants}
+                                dragState={dragState}
+                                onPointerDown={onPointerDown}
+                                unavailableDays={unavailableDays}
+                              />
+                            ))}
+                          </div>
+                        )
+                      })}
                     </div>
                   )
                 })}

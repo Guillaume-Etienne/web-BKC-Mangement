@@ -18,7 +18,7 @@ Management system for a **kitesurf center in Africa**. Covers: accommodations, b
 ## Architecture
 
 ```
-Hostinger (static)  ──Supabase SDK──►  Supabase Cloud (free tier)
+Vercel  ──Supabase SDK──►  Supabase Cloud (free tier)
 React SPA                              PostgreSQL + Auth + RLS + Realtime
 ```
 
@@ -34,5 +34,5 @@ React SPA                              PostgreSQL + Auth + RLS + Realtime
 
 ## Language
 
-Project communication and UI are in **English**.
+Project communication is in french and UI in **English**.
 

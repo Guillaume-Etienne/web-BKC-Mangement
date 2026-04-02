@@ -20,7 +20,8 @@
       "Bash(for page:*)",
       "Bash(do echo:*)",
       "Bash(find . -maxdepth 2 -name *.md -type f)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(\"C:/gui/web/2026/Claude-Code-Projet/supabase/schema.sql\")"
     ]
   }
 }
