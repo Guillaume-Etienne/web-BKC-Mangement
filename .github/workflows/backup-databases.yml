@@ -44,7 +44,7 @@ jobs:
           DATABASE_URL: ${{ secrets[matrix.url_secret] }}
         run: |
           FILENAME="backup_${{ matrix.env }}_$(date +%Y%m%d_%H%M%S).sql"
-          pg_dump "$DATABASE_URL" \
+          /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" \
             --no-owner \
             --no-privileges \
             --clean \
