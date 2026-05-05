@@ -257,11 +257,17 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
     if (error) console.error('Duplicate event error:', error.message)
   }
 
-  const deleteEvent = (id: string) => {
+  const deleteEvent = async (id: string) => {
     if (!confirm('Delete this event?')) return
+    const snapshot = events.find(e => e.id === id)
     setEvents(prev => prev.filter(e => e.id !== id))
     if (activeId === id) setActiveId(null)
-    supabase.from('dining_events').delete().eq('id', id)
+    const { error } = await supabase.from('dining_events').delete().eq('id', id)
+    if (error) {
+      console.error('Delete event error:', error.message)
+      if (snapshot) setEvents(prev => [...prev, snapshot].sort((a, b) => b.date.localeCompare(a.date)))
+      alert('Error deleting event: ' + error.message)
+    }
   }
 
   const updateEvent = useCallback((changes: Partial<DiningEvent>) => {
