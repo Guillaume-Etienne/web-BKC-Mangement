@@ -100,6 +100,7 @@
 | num_lessons | number | Personnes voulant des leçons |
 | num_equipment_rentals | number | |
 | num_center_access | number | Sans leçon ni location |
+| center_access_rate | number (EUR) | €/jour par personne en center access (défaut 5) |
 | arrival_time | string \| null (HH:MM) | |
 | departure_time | string \| null (HH:MM) | |
 | luggage_count | number | |
@@ -244,15 +245,18 @@
 ## Taxi
 
 ### `taxi_drivers` → `TaxiDriver`
-| Field | Type |
-|-------|------|
-| id | string (UUID) |
-| name | string |
-| phone | string \| null |
-| email | string \| null |
-| vehicle | string \| null |
-| notes | string \| null |
-| margin_percent | number |
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| name | string | |
+| phone | string \| null | |
+| email | string \| null | |
+| vehicle | string \| null | |
+| notes | string \| null | |
+| margin_percent | number | |
+| default_price_eur | number | Tarif EUR client par défaut quand ce chauffeur est assigné |
+| default_driver_mzn | number | Paiement chauffeur MZN par défaut |
+| default_manager_mzn | number | Commission manager MZN par défaut |
 
 ### `taxi_trips` → `TaxiTrip`
 | Field | Type | Notes |
@@ -271,10 +275,9 @@
 | price_eur | number | Fixed EUR price charged to client (e.g. 120€) |
 | price_driver_mzn | number | What driver gets (MZN) |
 | margin_manager_mzn | number | Manager commission (MZN) |
-| exchange_rate | number | EUR/MZN reference rate |
-> ⚠️ `useTaxiTrips()` normalise les anciens noms de colonnes DB (`schemaOutdated` flag).
 > Trips sans `booking_id` : revenue compté dans compta via `computeStandaloneTaxiRevenue()`.
-> **Modèle simplifié (avril 2026)** : client paie en EUR (prix fixe), driver + manager payés en MZN. Plus de `price_client_mzn` ni `margin_centre_mzn`.
+> **Modèle (refactor mai 2026)** : client paie en EUR (prix fixe par trajet), driver + manager payés en MZN. **Pas de taux par trajet** — taux UNIQUE GLOBAL `taxi_pricing_defaults.eur_mzn_rate` (colonne `exchange_rate` supprimée). Marge centre = `computeTaxiMarginEur(trip, rate)`.
+> **Pré-assignation** : choisir un chauffeur dans le wizard booking applique ses `default_*` aux trajets auto-créés (statut `confirmed`). `useTaxiTrips()` fait un mapping direct (plus de `normalizeTrip`/`schemaOutdated`).
 
 ### `taxi_pricing_defaults` → `TaxiPricingDefaults`
 | Field | Type | Default |
@@ -574,7 +577,8 @@ Chargé dans `App.tsx` au login (3 requêtes parallèles légères), passé à `
 ## Types accounting partagés (`components/accounting/types.ts`)
 
 **`SharedAccountingData`** — bundle passé à tous les sous-composants :
-`accommodations, bookingParticipants, houseRentals, bookings, clients, rooms, bookingRooms, bookingRoomPrices, externalAccommodationBkgs, externalAccommodations, diningEvents, lessons, instructors, equipment, equipmentRentals, taxiTrips, seasons, payments, instructorDebts, instructorPayments, lessonRateOverrides, expenses, palmeirasRents, palmeirasReversals, palmeirasEntries, palmeirasSubLets, activityBookings, activityPayments`
+`accommodations, bookingParticipants, houseRentals, bookings, clients, rooms, bookingRooms, bookingRoomPrices, externalAccommodationBkgs, externalAccommodations, diningEvents, lessons, instructors, equipment, equipmentRentals, taxiTrips, eurMznRate, seasons, payments, instructorDebts, instructorPayments, lessonRateOverrides, expenses, palmeirasRents, palmeirasReversals, palmeirasEntries, palmeirasSubLets, activityBookings, activityPayments`
+> `eurMznRate` : taux EUR/MZN global (depuis `taxi_pricing_defaults`), utilisé pour la marge taxi nette.
 
 **`AccountingHandlers`** — mutations add/update/delete pour chaque entité mutable.
 
@@ -587,6 +591,8 @@ Chargé dans `App.tsx` au login (3 requêtes parallèles légères), passé à `
 | `computeRentalsRevenue(b, data)` | Revenu location matériel |
 | `computeTaxiRevenue(b, data)` | Revenu taxi lié à un booking |
 | `computeStandaloneTaxiRevenue(data)` | Revenu trips taxi sans booking |
+| `computeTaxiMarginEur(trip, rate)` | Marge centre EUR : `price_eur − (driver+manager)/taux` |
+| `computeCenterAccessRevenue(b)` | Center access : `num_center_access × nuits × center_access_rate` |
 | `computeActivityNetRevenue(data)` | Marge nette activités (we_pay: price_client−price_provider ; provider_pays: price_provider) |
 | `computeInstructorBalance(id, data)` | Solde dû à un instructeur |
 | `fmtEur(n)` | Formatage EUR |

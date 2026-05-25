@@ -92,6 +92,19 @@ export function computeActivityRevenueForBooking(booking: Booking, data: SharedA
     }, 0)
 }
 
+/** Centre net margin (EUR) on a taxi trip: client EUR minus driver+manager MZN cost converted at the global rate */
+export function computeTaxiMarginEur(
+  trip: { price_eur: number; price_driver_mzn: number; margin_manager_mzn: number },
+  eurMznRate: number
+): number {
+  return Math.round(trip.price_eur - (trip.price_driver_mzn + trip.margin_manager_mzn) / (eurMznRate || 1))
+}
+
+/** Center access revenue for a booking: persons × nights × per-day rate */
+export function computeCenterAccessRevenue(booking: Booking): number {
+  return booking.num_center_access * countNights(booking.check_in, booking.check_out) * (booking.center_access_rate ?? 0)
+}
+
 /** Taxi revenue for trips not linked to any booking */
 export function computeStandaloneTaxiRevenue(data: SharedAccountingData): number {
   return data.taxiTrips
@@ -107,7 +120,8 @@ export function computeBookingTotal(booking: Booking, data: SharedAccountingData
     computeRentalsRevenue(booking, data) +
     computeTaxiRevenue(booking, data) +
     computeDiningForBooking(booking, data.diningEvents, data.bookingParticipants) +
-    computeActivityRevenueForBooking(booking, data)
+    computeActivityRevenueForBooking(booking, data) +
+    computeCenterAccessRevenue(booking)
   )
 }
 

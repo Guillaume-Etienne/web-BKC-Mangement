@@ -22,6 +22,7 @@ import type {
   ExternalAccommodation, ExternalAccommodationBooking, HouseRental, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride, EquipmentRental,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
+  TaxiPricingDefaults,
   DiningEvent, BookingRoomPrice,
 } from '../types/database'
 
@@ -60,6 +61,7 @@ export default function AccountingPage() {
   const { data: equipmentRentalsData }     = useEquipmentRentals()
   const [equipmentRentals, setEquipmentRentals] = useState<EquipmentRental[]>([])
   const { data: taxiTrips }                = useTaxiTrips()
+  const { data: taxiPricingDefaults }      = useTable<TaxiPricingDefaults>('taxi_pricing_defaults')
   const { data: activityBookings }         = useActivityBookings()
   const { data: activityPayments }         = useActivityPayments()
   const { data: seasons }                  = useTable<Season>('seasons')
@@ -113,6 +115,7 @@ export default function AccountingPage() {
     equipment,
     equipmentRentals,
     taxiTrips,
+    eurMznRate: taxiPricingDefaults[0]?.eur_mzn_rate ?? 65,
     seasons,
     payments,
     instructorDebts,

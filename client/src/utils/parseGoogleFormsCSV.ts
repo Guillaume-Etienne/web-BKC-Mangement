@@ -304,6 +304,7 @@ function buildBooking(
       num_lessons:           0,
       num_equipment_rentals: 0,
       num_center_access:     numPeople,
+      center_access_rate:    5,
       client: undefined,
       arrival_time:   parseTime(get(cols.arrivalTime)),
       departure_time: parseTime(get(cols.departureTime)),

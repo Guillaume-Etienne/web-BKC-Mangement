@@ -24,6 +24,7 @@ export interface SharedAccountingData {
   equipment:                 Equipment[]
   equipmentRentals:          EquipmentRental[]
   taxiTrips:                 TaxiTrip[]
+  eurMznRate:                number    // global EUR/MZN rate (taxi_pricing_defaults)
   seasons:                   Season[]
   payments:                  Payment[]
   instructorDebts:           InstructorDebt[]

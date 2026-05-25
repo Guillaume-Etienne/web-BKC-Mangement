@@ -74,22 +74,21 @@
 {
   trips: TaxiTrip[]; drivers: TaxiDriver[]; bookings: BookingRef[]
   bookingParticipants: BookingParticipant[]
-  pricingDefaults: TaxiPricingDefaults  // always present (required)
+  pricingDefaults: TaxiPricingDefaults  // always present (required) — fournit le taux global eur_mzn_rate
   onAddTrip: (t: Omit<TaxiTrip,'id'>) => Promise<TaxiTrip|null>
   onUpdateTrip: (t: TaxiTrip) => Promise<void>
   onDeleteTrip: (id: string) => Promise<void>
-  onUpdateRate: (rate: number) => void
 }
 ```
-- Tableau récapitulatif (done vs. planned : client MZN, EUR, driver, manager, centre)
-- Tableau trips : date, heure, type, driver, client, statut, personnes, bagages, financials
-- Add → modal pré-rempli avec `pricingDefaults`
+- Tableau récapitulatif (done vs. planned : client EUR, driver MZN, manager MZN, **Centre €**)
+- Tableau trips : date, heure, type, driver, client, statut, personnes, bagages, financials + **colonne Centre €** (`computeTaxiMarginEur` au taux global)
+- Add → modal pré-rempli avec `pricingDefaults`. Modal : taux global affiché en lecture seule (plus de checkbox "update rate"), marge centre affichée
 - Badges statut : confirmed=gray, needs_details=red, done=green
 
 ### `TaxiKanbanView` — `taxi/TaxiKanbanView.tsx`
 **Props :** Identiques à TaxiListView
-- 3 colonnes : Confirmed / Needs Details / Done
-- Drag carte entre colonnes → update `status`
+- Colonnes : Unassigned + une par chauffeur ; drag carte entre colonnes → réassigne `taxi_driver_id`
+- Carte trip : finance Client/Driver/Manager + **ligne Centre €**
 
 ### `TaxiFinanceTab` — `taxi/TaxiFinanceTab.tsx`
 **Props :** `{ trips: TaxiTrip[]; onAddPayment; onUpdatePayment; onDeletePayment }`
@@ -135,8 +134,8 @@ Tous les composants accounting partagent :
 ### `AccountingDashboard` — `accounting/AccountingDashboard.tsx`
 **Props :** `{ data }`
 - KPI cards : Total revenue, Collected, Outstanding
-- Ventilation revenus : Accommodation / Lessons / Equipment / Taxis / Activities / Events
-- Coûts : instructor costs, taxi net margin, Palmeiras net, expenses
+- Ventilation revenus : Accommodation / Lessons / Equipment / Taxis / Activities / Events / **Center access**
+- Coûts : instructor costs, taxi net margin (au taux global `data.eurMznRate`), Palmeiras net, expenses
 - Bandeau net result
 - Liste des soldes instructeurs
 - Pas de mutations
@@ -144,7 +143,7 @@ Tous les composants accounting partagent :
 ### `BookingFinances` — `accounting/BookingFinances.tsx`
 **Props :** `{ data, handlers }`
 - Liste bookings avec totaux (dû / payé / solde)
-- Clic booking → détail : hébergement, leçons, locations, taxis, dining
+- Clic booking → détail : hébergement, leçons, locations, taxis, dining, activités, **center access**
 - Liste paiements : add / edit (✏️) / delete (✕) ; badge vérifié ; lignes discount en violet
 - **Formulaires module-scope :** `PaymentForm`, `DiscountForm`, `EditRentalForm`, `LessonRateForm`
 - Boutons `+ Payment` (bleu) et `+ Discount` (violet)

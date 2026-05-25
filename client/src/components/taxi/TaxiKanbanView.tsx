@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef, BookingParticipant } from '../../types/database'
+import { computeTaxiMarginEur } from '../accounting/utils'
 
 const STATUS_CONFIG: Record<TaxiTripStatus, { label: string; card: string; badge: string }> = {
   confirmed:    { label: 'Confirmed',     card: 'from-slate-50 to-gray-50 border-gray-200',     badge: 'bg-gray-100 text-gray-600' },
@@ -19,7 +20,7 @@ function bookingLabel(b: BookingRef): string {
 }
 
 // ── Summary table — réalisés vs prévus ───────────────────────────────────────
-function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
+function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
   const today = new Date().toISOString().slice(0, 10)
 
   function stats(subset: TaxiTrip[]) {
@@ -28,6 +29,7 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
       clientEur:  subset.reduce((s, t) => s + t.price_eur,           0),
       driverMzn:  subset.reduce((s, t) => s + t.price_driver_mzn,   0),
       managerMzn: subset.reduce((s, t) => s + t.margin_manager_mzn, 0),
+      centreEur:  subset.reduce((s, t) => s + computeTaxiMarginEur(t, rate), 0),
     }
   }
 
@@ -49,6 +51,7 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
             <th className="px-3 py-2 text-right font-semibold text-blue-700">Client EUR</th>
             <th className="px-3 py-2 text-right font-semibold text-amber-700">Driver MZN</th>
             <th className="px-3 py-2 text-right font-semibold text-purple-700">Manager MZN</th>
+            <th className="px-3 py-2 text-right font-semibold text-emerald-700">Centre €</th>
             <th className="px-3 py-2 text-right font-semibold text-gray-500">Trips</th>
           </tr>
         </thead>
@@ -59,6 +62,7 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
               <td className="px-3 py-2 text-right font-bold text-blue-900">{r.clientEur}€</td>
               <td className="px-3 py-2 text-right text-amber-900">{r.driverMzn.toLocaleString()}</td>
               <td className="px-3 py-2 text-right text-purple-900">{r.managerMzn.toLocaleString()}</td>
+              <td className="px-3 py-2 text-right font-semibold text-emerald-900">{r.centreEur}€</td>
               <td className="px-3 py-2 text-right text-gray-600">{r.count}</td>
             </tr>
           ))}
@@ -69,6 +73,7 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
             <td className="px-3 py-2 text-right text-blue-900">{total.clientEur}€</td>
             <td className="px-3 py-2 text-right text-amber-900">{total.driverMzn.toLocaleString()}</td>
             <td className="px-3 py-2 text-right text-purple-900">{total.managerMzn.toLocaleString()}</td>
+            <td className="px-3 py-2 text-right text-emerald-900">{total.centreEur}€</td>
             <td className="px-3 py-2 text-right text-gray-600">{total.count}</td>
           </tr>
         </tfoot>
@@ -96,16 +101,12 @@ interface TaxiKanbanViewProps {
   onAddTrip:    (trip: Omit<TaxiTrip, 'id'>) => Promise<TaxiTrip | null>
   onUpdateTrip: (trip: TaxiTrip) => Promise<void>
   onDeleteTrip: (id: string) => Promise<void>
-  onUpdateRate: (rate: number) => void
 }
 
-export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookings, bookingParticipants, onAddTrip, onUpdateTrip, onDeleteTrip, onUpdateRate }: TaxiKanbanViewProps) {
+export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookings, bookingParticipants, onAddTrip, onUpdateTrip, onDeleteTrip }: TaxiKanbanViewProps) {
   const [editTrip, setEditTrip]         = useState<TaxiTrip | null>(null)
   const [draggedTrip, setDraggedTrip]   = useState<{ id: string; fromDriverId: string | null } | null>(null)
   const [dropTarget, setDropTarget]     = useState<string | null>(null)
-  // Edit modal local state
-  const [updateRateChecked, setUpdateRateChecked] = useState(false)
-  const [newRate, setNewRate]           = useState(pricingDefaults.eur_mzn_rate)
 
   // Columns: "Unassigned" + one per driver
   const assignedColumns = ['unassigned' as const, ...drivers.map(d => d.id)]
@@ -118,8 +119,6 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
   }
 
   function openEdit(trip: TaxiTrip) {
-    setUpdateRateChecked(false)
-    setNewRate(pricingDefaults.eur_mzn_rate)
     setEditTrip({ ...trip })
   }
 
@@ -131,13 +130,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (!editTrip) return
-    const rate = updateRateChecked ? newRate : editTrip.exchange_rate
-    const saved: TaxiTrip = {
-      ...editTrip,
-      exchange_rate: rate,
-    }
-    await onUpdateTrip(saved)
-    if (updateRateChecked) onUpdateRate(newRate)
+    await onUpdateTrip(editTrip)
     setEditTrip(null)
   }
 
@@ -164,7 +157,6 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
       price_eur: d.default_price_eur,
       price_driver_mzn: d.default_driver_mzn,
       margin_manager_mzn: d.default_manager_mzn,
-      exchange_rate: d.eur_mzn_rate,
     })
     if (created) openEdit(created)
   }
@@ -195,7 +187,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
   return (
     <>
       {/* Summary */}
-      <SummaryTable trips={trips} />
+      <SummaryTable trips={trips} rate={pricingDefaults.eur_mzn_rate} />
 
       {/* Kanban */}
       <div className="flex gap-4 overflow-x-auto pb-6">
@@ -304,6 +296,10 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                           <div className="flex justify-between text-purple-800">
                             <span>Manager</span>
                             <span>{trip.margin_manager_mzn.toLocaleString()} MZN</span>
+                          </div>
+                          <div className="flex justify-between text-emerald-800 border-t pt-1 font-bold">
+                            <span>Centre</span>
+                            <span>{computeTaxiMarginEur(trip, pricingDefaults.eur_mzn_rate)}€</span>
                           </div>
                         </div>
 
@@ -466,29 +462,18 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                       className="w-full text-sm border rounded px-2 py-1.5 font-semibold text-purple-900" />
                   </div>
                 </div>
-                <div className="border-t pt-3 space-y-2">
-                  <div className="flex items-center gap-3 text-sm text-gray-700">
-                    <span>EUR/MZN rate: <strong>{editTrip.exchange_rate}</strong></span>
-                    <span className="text-gray-400">|</span>
-                    <span className="text-gray-500">
-                      MZN cost: <strong>{(editTrip.price_driver_mzn + editTrip.margin_manager_mzn).toLocaleString()}</strong>
-                      {editTrip.exchange_rate > 0 && <> ≈ {Math.round((editTrip.price_driver_mzn + editTrip.margin_manager_mzn) / editTrip.exchange_rate)}€</>}
-                    </span>
-                  </div>
-                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                    <input type="checkbox" checked={updateRateChecked}
-                      onChange={e => setUpdateRateChecked(e.target.checked)}
-                      className="rounded" />
-                    Update global rate
-                  </label>
-                  {updateRateChecked && (
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs font-medium text-gray-600">New rate (MZN/1€):</label>
-                      <input type="number" min="1" step="0.01" value={newRate}
-                        onChange={e => setNewRate(parseFloat(e.target.value) || 65)}
-                        className="w-28 text-sm border rounded px-2 py-1" />
-                    </div>
-                  )}
+                <div className="border-t pt-3 flex items-center gap-3 text-sm text-gray-700">
+                  <span className="text-gray-500">
+                    Global rate: <strong>1€ = {pricingDefaults.eur_mzn_rate} MZN</strong>
+                  </span>
+                  <span className="text-gray-400">|</span>
+                  <span className="text-gray-500">
+                    MZN cost: <strong>{(editTrip.price_driver_mzn + editTrip.margin_manager_mzn).toLocaleString()}</strong>
+                  </span>
+                  <span className="text-gray-400">|</span>
+                  <span className="font-semibold text-emerald-700">
+                    Centre margin: {computeTaxiMarginEur(editTrip, pricingDefaults.eur_mzn_rate)}€
+                  </span>
                 </div>
               </div>
 

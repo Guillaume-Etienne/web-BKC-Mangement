@@ -87,16 +87,15 @@ useTable<T>(table: string, options?: {
 | `useTaxiDrivers()` | `taxi_drivers` | `name` | `QueryState<TaxiDriver>` |
 | `useTaxiTrips()` | `taxi_trips` | date DESC | `TaxiTripsState` (spécial) |
 
-**`TaxiTripsState`** (retour étendu pour `useTaxiTrips`) :
+**`TaxiTripsState`** (retour pour `useTaxiTrips`) :
 | Field | Type | Notes |
 |-------|------|-------|
-| data | TaxiTrip[] | Normalisé |
+| data | TaxiTrip[] | Mapping direct du row Supabase (pas de normalisation) |
 | loading | boolean | |
 | error | string \| null | |
-| schemaOutdated | boolean | true si anciens noms de colonnes DB |
 | refresh | () => void | |
 
-**Normalisation** (`normalizeTrip`) : mappe les anciens noms de colonnes DB vers le modèle simplifié (`price_eur`, `price_driver_mzn`, `margin_manager_mzn`, `exchange_rate`). Dérive `price_eur` depuis l'ancien `price_client_mzn` si absent.
+> Mai 2026 : `normalizeTrip` (fallback legacy) et le flag `schemaOutdated` ont été supprimés — la DB est à jour, `select('*')` cast directement en `TaxiTrip`.
 
 ---
 

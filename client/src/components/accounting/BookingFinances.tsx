@@ -4,7 +4,7 @@ import type { Payment, PaymentMethod, Booking, EquipmentRental, Lesson, LessonRa
 import {
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
   computeAccommodationRevenue, computeLessonsRevenue, computeRentalsRevenue,
-  computeTaxiRevenue, computeActivityRevenueForBooking,
+  computeTaxiRevenue, computeActivityRevenueForBooking, computeCenterAccessRevenue,
   computeDiningForBooking, getLessonRate, computeStandaloneTaxiRevenue,
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate,
 } from './utils'
@@ -334,6 +334,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
   const taxiRev          = computeTaxiRevenue(b, data)
   const diningRev        = computeDiningForBooking(b, data.diningEvents, data.bookingParticipants)
   const activityRev      = computeActivityRevenueForBooking(b, data)
+  const centerAccessRev  = computeCenterAccessRevenue(b)
 
   // Room detail
   const bkRooms = data.bookingRooms.filter(br => br.booking_id === b.id)
@@ -607,6 +608,22 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                     <span>{fmtEur(a.price_client)}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Center access */}
+          {centerAccessRev > 0 && (
+            <div className="rounded-lg border border-gray-100 overflow-hidden">
+              <div className="flex justify-between items-center px-4 py-2 bg-gray-50">
+                <span className="text-sm font-medium text-gray-700">🏖️ Center access</span>
+                <span className="text-sm font-semibold text-gray-800">{fmtEur(centerAccessRev)}</span>
+              </div>
+              <div className="px-4 py-2">
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>{b.num_center_access} person{b.num_center_access > 1 ? 's' : ''} × {nights}n @ {fmtEur(b.center_access_rate)}/day</span>
+                  <span>{fmtEur(centerAccessRev)}</span>
+                </div>
               </div>
             </div>
           )}

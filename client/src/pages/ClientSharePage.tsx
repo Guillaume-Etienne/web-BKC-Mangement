@@ -253,12 +253,15 @@ export default function ClientSharePage({ bookingNumber }: Props) {
     .map(a => ({ id: a.id, date: a.date, label: a.label, nb_persons: a.nb_persons, guests: partNames(a.participant_ids), total: a.price_client }))
   const activityTotal = activityRows.reduce((s, r) => s + r.total, 0)
 
+  // Center access (persons × nights × per-day rate)
+  const centerAccessTotal = booking.num_center_access * nights * (booking.center_access_rate ?? 0)
+
   // Payments (exclude discounts from paid amount)
   const totalDiscounts = payments.filter(p => p.is_discount).reduce((s, p) => s + p.amount, 0)
   const totalPaid = payments.filter(p => !p.is_discount).reduce((s, p) => s + p.amount, 0)
 
   // Grand totals
-  const totalCharges = accomTotal + lessonsTotal + rentalsTotal + taxiTotal + diningTotal + activityTotal
+  const totalCharges = accomTotal + lessonsTotal + rentalsTotal + taxiTotal + diningTotal + activityTotal + centerAccessTotal
   const balance = totalCharges - totalDiscounts - totalPaid
 
   return (
@@ -503,6 +506,28 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 <tr>
                   <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600">Subtotal activities</td>
                   <td className="px-5 py-3 text-right font-bold text-gray-800">{fmtEur(activityTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </Section>
+        )}
+
+        {/* Center access */}
+        {centerAccessTotal > 0 && (
+          <Section title="Center access" icon="🏖️">
+            <table className="w-full text-sm">
+              <tbody>
+                <tr className="border-b border-gray-50">
+                  <td className="px-5 py-3 text-gray-600">
+                    {booking.num_center_access} person{booking.num_center_access > 1 ? 's' : ''} × {nights} night{nights !== 1 ? 's' : ''} @ {fmtEur(booking.center_access_rate ?? 0)}/day
+                  </td>
+                  <td className="px-5 py-3 text-right font-semibold text-gray-800">{fmtEur(centerAccessTotal)}</td>
+                </tr>
+              </tbody>
+              <tfoot className="bg-gray-50 border-t border-gray-200">
+                <tr>
+                  <td className="px-5 py-3 text-sm font-semibold text-gray-600">Subtotal center access</td>
+                  <td className="px-5 py-3 text-right font-bold text-gray-800">{fmtEur(centerAccessTotal)}</td>
                 </tr>
               </tfoot>
             </table>

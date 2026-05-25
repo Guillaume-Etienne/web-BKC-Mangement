@@ -62,6 +62,7 @@ export interface Booking {
   num_lessons: number        // nb persons wanting lessons
   num_equipment_rentals: number // nb persons wanting equipment rental
   num_center_access: number  // nb persons using center services only (no lesson/rental)
+  center_access_rate: number // €/day per center-access person (default 5)
   client?: Client
   arrival_time: string | null
   departure_time: string | null
@@ -183,6 +184,10 @@ export interface TaxiDriver {
   vehicle: string | null // marque/modèle
   notes: string | null
   margin_percent: number // % marge du driver (ex: 30 pour 30%)
+  // Default rates applied when this driver is pre-assigned to a trip
+  default_price_eur: number    // EUR charged to client
+  default_driver_mzn: number   // MZN paid to driver
+  default_manager_mzn: number  // MZN manager commission
 }
 
 export interface TaxiTrip {
@@ -201,7 +206,6 @@ export interface TaxiTrip {
   price_eur: number           // fixed EUR price charged to client (e.g. 120€)
   price_driver_mzn: number    // what driver gets (MZN)
   margin_manager_mzn: number  // manager commission (MZN)
-  exchange_rate: number       // EUR/MZN reference rate
 }
 
 export interface TaxiPricingDefaults {

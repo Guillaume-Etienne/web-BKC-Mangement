@@ -21,7 +21,15 @@
       "Bash(do echo:*)",
       "Bash(find . -maxdepth 2 -name *.md -type f)",
       "Bash(ls:*)",
-      "Bash(\"C:/gui/web/2026/Claude-Code-Projet/supabase/schema.sql\")"
+      "Bash(\"C:/gui/web/2026/Claude-Code-Projet/supabase/schema.sql\")",
+      "Skill(update-config)",
+      "Bash(not exist *)",
+      "Bash(ls -la supabase)",
+      "Bash(find . -name \"*.sql\" -not -path \"*/node_modules/*\")",
+      "Bash(ls .claude/projects/*/memory/)",
+      "Bash(ls __TRACKED_VAR__/.claude/projects/C--gui-web-2026-Claude-Code-Projet/memory/)",
+      "Bash(grep -rn \"exchange_rate\" client/src supabase)",
+      "Bash(echo \"exit=$?\")"
     ]
   }
 }

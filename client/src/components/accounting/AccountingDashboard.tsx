@@ -3,7 +3,7 @@ import {
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
   computeAccommodationRevenue, computeLessonsRevenue,
   computeRentalsRevenue, computeTaxiRevenue,
-  computeDiningRevenue,
+  computeDiningRevenue, computeCenterAccessRevenue, computeTaxiMarginEur,
   computeInstructorBalance, computeStandaloneTaxiRevenue, computeActivityNetRevenue, fmtEur, countNights,
 } from './utils'
 
@@ -42,7 +42,8 @@ export default function AccountingDashboard({ data }: Props) {
   const taxisRev        = activeBookings.reduce((s, b) => s + computeTaxiRevenue(b, data), 0) + standaloneRev
   const eventsRev       = computeDiningRevenue(diningEvents)
   const activitiesRev   = computeActivityNetRevenue(data)
-  const totalRevenue    = accomRev + lessonsRev + rentalsRev + taxisRev + eventsRev + activitiesRev
+  const centerAccessRev = activeBookings.reduce((s, b) => s + computeCenterAccessRevenue(b), 0)
+  const totalRevenue    = accomRev + lessonsRev + rentalsRev + taxisRev + eventsRev + activitiesRev + centerAccessRev
 
   // ── Collections ────────────────────────────────────────────────────────
   const totalDiscounts = bookings.reduce((s, b) => s + computeBookingDiscounts(b.id, payments), 0)
@@ -61,8 +62,8 @@ export default function AccountingDashboard({ data }: Props) {
     return sum + rate * l.duration_hours
   }, 0)
 
-  // ── Taxi net (EUR revenue minus MZN costs converted to EUR) ─────────
-  const taxiNetMargin = taxiTrips.reduce((s, t) => s + Math.round(t.price_eur - (t.price_driver_mzn + t.margin_manager_mzn) / t.exchange_rate), 0)
+  // ── Taxi net (EUR revenue minus MZN costs converted at the global rate) ─────
+  const taxiNetMargin = taxiTrips.reduce((s, t) => s + computeTaxiMarginEur(t, data.eurMznRate), 0)
 
   // ── Expenses ───────────────────────────────────────────────────────────
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0)
@@ -195,6 +196,7 @@ export default function AccountingDashboard({ data }: Props) {
               { label: 'Taxis',         value: taxisRev,     color: 'bg-amber-500' },
               { label: 'Activities',    value: activitiesRev,color: 'bg-teal-500' },
               { label: 'Events',        value: eventsRev,    color: 'bg-rose-400' },
+              { label: 'Center access', value: centerAccessRev, color: 'bg-cyan-500' },
             ].map(c => (
               <div key={c.label} className="flex items-center gap-3">
                 <div className="w-28 shrink-0">

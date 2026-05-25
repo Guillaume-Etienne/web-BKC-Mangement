@@ -3,8 +3,9 @@ import { supabase } from '../lib/supabase'
 import { useClients } from '../hooks/useClients'
 import { useBookings, useBookingRooms, useBookingRoomPrices, useBookingParticipants } from '../hooks/useBookings'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
+import { useTaxiDrivers } from '../hooks/useTaxis'
 import { useTable } from '../hooks/useSupabase'
-import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate } from '../types/database'
+import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, TaxiDriver } from '../types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,12 +36,14 @@ interface WizardData {
   departure_time: string
   taxi_arrival: boolean
   taxi_departure: boolean
+  taxi_driver_id: string | null  // pre-assigned driver for auto-created trips
   luggage_count: number
   boardbag_count: number
   // Step 5 – KiteCenter
   num_lessons: number        // persons wanting lessons
   num_equipment_rentals: number // persons wanting equipment rental
   num_center_access: number  // persons using center only (no lesson/rental)
+  center_access_rate: number // €/day per center-access person
   // Step 6 – Payment
   amount_paid: number
   notes: string
@@ -53,9 +56,9 @@ const EMPTY_WIZARD: WizardData = {
   check_in: '', check_out: '', visa_entry_date: '', visa_exit_date: '', room_ids: [], room_prices: {}, status: 'provisional',
   participants: [], couples_count: 0, children_count: 0,
   arrival_time: '', departure_time: '',
-  taxi_arrival: false, taxi_departure: false,
+  taxi_arrival: false, taxi_departure: false, taxi_driver_id: null,
   luggage_count: 0, boardbag_count: 0,
-  num_lessons: 0, num_equipment_rentals: 0, num_center_access: 0,
+  num_lessons: 0, num_equipment_rentals: 0, num_center_access: 0, center_access_rate: 5,
   amount_paid: 0, notes: '',
 }
 
@@ -249,6 +252,7 @@ interface WizardProps {
   accommodations: Accommodation[]
   houseRentals: HouseRental[]
   roomRates: RoomRate[]
+  drivers: TaxiDriver[]
   bookings: Booking[]
   bookingRooms: BookingRoom[]
   editingBookingId: string | null
@@ -257,7 +261,7 @@ interface WizardProps {
   onSave: (data: WizardData, isNew: boolean) => void
 }
 
-function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, houseRentals, roomRates, bookings, bookingRooms, editingBookingId, isEditing, onCancel, onSave }: WizardProps) {
+function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, houseRentals, roomRates, drivers, bookings, bookingRooms, editingBookingId, isEditing, onCancel, onSave }: WizardProps) {
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(isEditing ? 6 : 1)
   const [d, setD] = useState<WizardData>(initial)
@@ -338,10 +342,11 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
       accRoomIds.forEach(id => delete newPrices[id])
       update({ room_ids: d.room_ids.filter(id => !accRoomIds.includes(id)), room_prices: newPrices })
     } else {
+      // Full house has a single flat price (default 100€), not the sum of both rooms.
+      // Split evenly across rooms so the per-room total equals the house price.
       const newPrices = { ...d.room_prices }
-      accRoomIds.forEach(id => {
-        if (!(id in newPrices)) newPrices[id] = roomRates.find(r => r.room_id === id)?.price_per_night ?? 0
-      })
+      const each = 100 / accRoomIds.length
+      accRoomIds.forEach(id => { newPrices[id] = each })
       update({ room_ids: [...d.room_ids.filter(id => !accRoomIds.includes(id)), ...accRoomIds], room_prices: newPrices })
     }
   }
@@ -502,6 +507,11 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                     {nights} night{nights > 1 ? 's' : ''}
                   </p>
                 )}
+                {d.check_in && d.check_out && d.check_in >= d.check_out && (
+                  <p className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2 font-medium mt-2">
+                    ⚠ Check-out must be after check-in.
+                  </p>
+                )}
               </div>
 
               {/* Visa / Mozambique dates */}
@@ -590,23 +600,53 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                 <div className="border-t pt-4">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">💰 Pricing</p>
                   <div className="space-y-2">
-                    {d.room_ids.map(rid => {
-                      const room = rooms.find(r => r.id === rid)
-                      const acc = accommodations.find(a => a.id === room?.accommodation_id)
-                      return (
-                        <div key={rid} className="flex items-center gap-2">
-                          <span className="text-sm text-gray-700 flex-1 truncate">{acc?.name} / {room?.name}</span>
-                          <input
-                            type="number" min="0" step="1"
-                            value={d.room_prices[rid] ?? 0}
-                            onChange={e => update({ room_prices: { ...d.room_prices, [rid]: parseFloat(e.target.value) || 0 } })}
-                            className="w-20 px-2 py-1.5 border border-gray-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <span className="text-xs text-gray-400 shrink-0">€/night</span>
-                          <span className="text-xs text-gray-500 w-16 text-right shrink-0">= {(d.room_prices[rid] ?? 0) * nights} €</span>
-                        </div>
-                      )
-                    })}
+                    {(() => {
+                      // Group selected rooms into price units: a house with BOTH rooms
+                      // selected is one "full house" unit (single price), others stay per-room.
+                      type Unit = { key: string; label: string; roomIds: string[] }
+                      const byAcc = new Map<string, string[]>()
+                      for (const rid of d.room_ids) {
+                        const room = rooms.find(r => r.id === rid)
+                        if (!room) continue
+                        byAcc.set(room.accommodation_id, [...(byAcc.get(room.accommodation_id) ?? []), rid])
+                      }
+                      const units: Unit[] = []
+                      for (const [accId, accRoomIds] of byAcc) {
+                        const acc = accommodations.find(a => a.id === accId)
+                        const accTotalRooms = rooms.filter(r => r.accommodation_id === accId).length
+                        const isFullHouse = acc?.type === 'house' && accTotalRooms === 2 && accRoomIds.length === 2
+                        if (isFullHouse) {
+                          units.push({ key: accId, label: `${acc?.name} (full house)`, roomIds: accRoomIds })
+                        } else {
+                          for (const rid of accRoomIds) {
+                            const room = rooms.find(r => r.id === rid)
+                            units.push({ key: rid, label: `${acc?.name} / ${room?.name}`, roomIds: [rid] })
+                          }
+                        }
+                      }
+                      return units.map(unit => {
+                        const price = unit.roomIds.reduce((s, id) => s + (d.room_prices[id] ?? 0), 0)
+                        return (
+                          <div key={unit.key} className="flex items-center gap-2">
+                            <span className="text-sm text-gray-700 flex-1 truncate">{unit.label}</span>
+                            <input
+                              type="number" min="0" step="1"
+                              value={price}
+                              onChange={e => {
+                                const val = parseFloat(e.target.value) || 0
+                                const next = { ...d.room_prices }
+                                const each = val / unit.roomIds.length
+                                unit.roomIds.forEach(id => { next[id] = each })
+                                update({ room_prices: next })
+                              }}
+                              className="w-20 px-2 py-1.5 border border-gray-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-xs text-gray-400 shrink-0">€/night</span>
+                            <span className="text-xs text-gray-500 w-16 text-right shrink-0">= {price * nights} €</span>
+                          </div>
+                        )
+                      })
+                    })()}
                     {d.room_ids.length > 1 && (
                       <div className="flex justify-between items-center pt-2 border-t text-sm font-semibold text-gray-700">
                         <span>Total accommodation</span>
@@ -717,6 +757,22 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                 </div>
               </div>
 
+              {/* Pre-assign taxi driver (only relevant if a taxi is needed; new bookings only) */}
+              {!isEditing && (d.taxi_arrival || d.taxi_departure) && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">🚕 Taxi driver</h3>
+                  <p className="text-xs text-gray-400 mb-2">Optional — pre-assigns this driver and their default prices to the arrival/departure trips. Editable later in the Taxi page.</p>
+                  <select value={d.taxi_driver_id ?? ''}
+                    onChange={e => update({ taxi_driver_id: e.target.value || null })}
+                    className={inputCls}>
+                    <option value="">— Assign later —</option>
+                    {drivers.map(dr => (
+                      <option key={dr.id} value={dr.id}>{dr.name} ({dr.default_price_eur}€ / {dr.default_driver_mzn.toLocaleString()} MZN driver)</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Baggage */}
               <div className="border-t pt-4">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">🧳 Baggage</h3>
@@ -759,12 +815,28 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                 </div>
 
                 {/* Center access only */}
-                <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                  <div>
-                    <p className="font-semibold text-blue-900 text-sm">🏖️ Center access</p>
-                    <p className="text-xs text-blue-600 mt-0.5">Persons using the center only (no lesson, no rental)</p>
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-blue-900 text-sm">🏖️ Center access</p>
+                      <p className="text-xs text-blue-600 mt-0.5">Persons using the center only (no lesson, no rental)</p>
+                    </div>
+                    <Counter value={d.num_center_access} onChange={v => update({ num_center_access: v })} />
                   </div>
-                  <Counter value={d.num_center_access} onChange={v => update({ num_center_access: v })} />
+                  {d.num_center_access > 0 && (
+                    <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-blue-200">
+                      <span className="text-xs text-blue-700">Rate per person / day</span>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number" min="0" step="0.5"
+                          value={d.center_access_rate}
+                          onChange={e => update({ center_access_rate: parseFloat(e.target.value) || 0 })}
+                          className="w-20 px-2 py-1.5 border border-blue-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-xs text-blue-600">€/day</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -945,6 +1017,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   const { data: accommodations } = useAccommodations()
   const { data: houseRentals } = useTable<HouseRental>('house_rentals')
   const { data: roomRatesData } = useTable<RoomRate>('room_rates')
+  const { data: taxiDrivers } = useTaxiDrivers()
   const { data: participantsData } = useBookingParticipants()
   const [bookingParticipants, setBookingParticipants] = useState<BookingParticipant[]>([])
   useEffect(() => setBookingParticipants(participantsData), [participantsData])
@@ -1027,6 +1100,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       num_lessons: data.num_lessons,
       num_equipment_rentals: data.num_equipment_rentals,
       num_center_access: data.num_center_access,
+      center_access_rate: data.center_access_rate,
       arrival_time: data.arrival_time || null,
       departure_time: data.departure_time || null,
       luggage_count: data.luggage_count,
@@ -1149,18 +1223,18 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     // 7. Auto-create taxi trips (new bookings only)
     if (isNew) {
       const nbPersons = (data.num_lessons + data.num_equipment_rentals + data.num_center_access) || 1
+      const driver = data.taxi_driver_id ? taxiDrivers.find(dr => dr.id === data.taxi_driver_id) : null
       const taxiBase = {
         booking_id:         bookingId,
-        taxi_driver_id:     null,
-        status:             'needs_details' as const,
+        taxi_driver_id:     driver?.id ?? null,
+        status:             (driver ? 'confirmed' : 'needs_details') as 'confirmed' | 'needs_details',
         nb_persons:         nbPersons,
         nb_luggage:         data.luggage_count,
         nb_boardbags:       data.boardbag_count,
         notes:              null,
-        price_eur:          0,
-        price_driver_mzn:   0,
-        margin_manager_mzn: 0,
-        exchange_rate:      65,
+        price_eur:          driver?.default_price_eur ?? 0,
+        price_driver_mzn:   driver?.default_driver_mzn ?? 0,
+        margin_manager_mzn: driver?.default_manager_mzn ?? 0,
       }
       if (data.taxi_arrival) {
         await supabase.from('taxi_trips').insert({
@@ -1226,9 +1300,10 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       })(),
       couples_count: b.couples_count, children_count: b.children_count,
       arrival_time: b.arrival_time ?? '', departure_time: b.departure_time ?? '',
-      taxi_arrival: b.taxi_arrival, taxi_departure: b.taxi_departure,
+      taxi_arrival: b.taxi_arrival, taxi_departure: b.taxi_departure, taxi_driver_id: null,
       luggage_count: b.luggage_count, boardbag_count: b.boardbag_count,
       num_lessons: b.num_lessons, num_equipment_rentals: b.num_equipment_rentals, num_center_access: b.num_center_access,
+      center_access_rate: b.center_access_rate ?? 5,
       amount_paid: b.amount_paid, notes: b.notes ?? '',
     }
   }
@@ -1437,6 +1512,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           accommodations={accommodations}
           houseRentals={houseRentals}
           roomRates={roomRatesData}
+          drivers={taxiDrivers}
           bookings={bookings}
           bookingRooms={bookingRooms}
           editingBookingId={wizard.editing?.id ?? null}

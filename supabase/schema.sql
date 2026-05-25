@@ -90,6 +90,7 @@ CREATE TABLE bookings (
   num_lessons               INTEGER NOT NULL DEFAULT 0,
   num_equipment_rentals     INTEGER NOT NULL DEFAULT 0,
   num_center_access         INTEGER NOT NULL DEFAULT 0,
+  center_access_rate        NUMERIC(10,2) NOT NULL DEFAULT 5,  -- €/day per center-access person
   arrival_time              TEXT,     -- HH:MM
   departure_time            TEXT,     -- HH:MM
   luggage_count             INTEGER NOT NULL DEFAULT 0,
@@ -249,6 +250,9 @@ CREATE TABLE taxi_drivers (
   vehicle         TEXT,
   notes           TEXT,
   margin_percent  NUMERIC(5,2) NOT NULL DEFAULT 30,
+  default_price_eur   INTEGER NOT NULL DEFAULT 120,   -- EUR charged to client when this driver is assigned
+  default_driver_mzn  INTEGER NOT NULL DEFAULT 6000,  -- MZN paid to driver
+  default_manager_mzn INTEGER NOT NULL DEFAULT 1000,  -- MZN manager commission
   created_at      TIMESTAMPTZ DEFAULT now()
 );
 
@@ -268,7 +272,6 @@ CREATE TABLE taxi_trips (
   price_eur           INTEGER NOT NULL DEFAULT 120,       -- fixed EUR price charged to client
   price_driver_mzn    INTEGER NOT NULL DEFAULT 6000,      -- what driver gets (MZN)
   margin_manager_mzn  INTEGER NOT NULL DEFAULT 1000,      -- manager commission (MZN)
-  exchange_rate       NUMERIC(10,4) NOT NULL DEFAULT 65.0,-- EUR/MZN reference rate
   created_at          TIMESTAMPTZ DEFAULT now()
 );
 

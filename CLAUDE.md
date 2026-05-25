@@ -36,3 +36,7 @@ React SPA                              PostgreSQL + Auth + RLS + Realtime
 
 Project communication is in french : speak to me in french dude ! and UI in **English**.
 
+## Git Permissions
+
+Claude est autorisé à faire des `git commit` et `git push` sans confirmation préalable.
+

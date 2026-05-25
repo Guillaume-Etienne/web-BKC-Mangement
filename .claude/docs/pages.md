@@ -98,15 +98,17 @@
 
 ### `BookingsPage`
 - **Route :** `'bookings'`
-- **Hooks :** useClients, useBookings, useBookingRooms, **useBookingRoomPrices**, useBookingParticipants, useAccommodations, useRooms, **useTable<HouseRental>**
+- **Hooks :** useClients, useBookings, useBookingRooms, **useBookingRoomPrices**, useBookingParticipants, useAccommodations, useRooms, **useTable<HouseRental>**, **useTaxiDrivers**
 - **State :** `showWizard`, `wizardStep (1-6)` (not 0-5), `wizardData`, `editingBooking`, `selectedBooking`
 - **Wizard steps (1-6):** 1. Client → 2. Stay → 3. Guests → 4. Transport → 5. KiteCenter → 6. Payment
+- **Step 2 (Stay) :** Bandeau rouge si `check_in >= check_out` (Next désactivé). **Full house** = ligne de prix unique (défaut 100€, split 50/50 entre les 2 chambres en interne).
 - **Step 3 (Guests) :** Gère `booking_participants` — delete-all + re-insert au save. Auto-ajoute le client principal si aucun participant saisi (nouveaux bookings).
+- **Step 4 (Transport) :** Si taxi arrivée/départ coché → sélecteur **chauffeur optionnel** (`taxi_driver_id`). Pré-assigne le chauffeur + ses `default_*` aux trajets auto-créés. Nouveaux bookings uniquement.
+- **Step 5 (KiteCenter) :** Si `num_center_access > 0` → champ **tarif center access** (`center_access_rate`, €/jour, défaut 5).
 - **Save (nouveaux bookings, isNew=true) :**
   1. Upsert client → upsert booking → delete+insert `booking_participants` → delete+insert booking_rooms → delete+insert booking_room_prices
   2. Si `amount_paid > 0` → insert `payments` (`method:'transfer'`, `is_verified:false`, note "Auto-created…")
-  3. Si `taxi_arrival` → insert `taxi_trips` (`type:'aero-to-center'`, `date:check_in`, ...)
-  4. Si `taxi_departure` → insert `taxi_trips` (`type:'center-to-aero'`, `date:check_out`, ...)
+  3. Trajets taxi : si chauffeur pré-assigné → trajets avec ses tarifs + statut `confirmed` ; sinon prix 0 + statut `needs_details`. `taxi_arrival` → `aero-to-center`@check_in ; `taxi_departure` → `center-to-aero`@check_out
 
 ### `ClientsPage`
 - **Route :** `'clients'`
@@ -122,9 +124,9 @@
 - **Onglets :**
   - `planning` → Kanban/List views for trip management
   - `finance` → Manager payment history and summaries
-  - `drivers` → Grid de cartes → sélection → `DriverStatementPanel`
+  - `drivers` → Grid de cartes → sélection → `DriverStatementPanel`. Form chauffeur inclut les **tarifs par défaut** (`default_price_eur` / `default_driver_mzn` / `default_manager_mzn`).
 - **DriverStatementPanel :** trips passés/à venir, KPIs MZN, section share link (génère `shared_link` type `'driver'`, params `{ driver_id }`)
-- **Modèle financier :** Client paie `price_eur` (EUR fixe), driver reçoit `price_driver_mzn`, manager reçoit `margin_manager_mzn` (MZN). Plus de `price_client_mzn` / `margin_centre_mzn`.
+- **Modèle financier :** Client paie `price_eur` (EUR fixe par trajet), driver `price_driver_mzn`, manager `margin_manager_mzn` (MZN). **Taux UNIQUE GLOBAL** (`taxi_pricing_defaults.eur_mzn_rate`, réglé dans Management) — plus de taux par trajet. Marge centre affichée par trajet (`computeTaxiMarginEur`). Plus de bandeau migration `schemaOutdated`.
 
 ### `EquipmentPage`
 - **Route :** `'equipment'`

@@ -20,7 +20,7 @@ const FALLBACK_PRICING: TaxiPricingDefaults = {
 }
 
 export default function TaxiPage() {
-  const { data: trips, loading: tripsLoading, error: tripsError, schemaOutdated, refresh: refreshTrips } = useTaxiTrips()
+  const { data: trips, loading: tripsLoading, error: tripsError, refresh: refreshTrips } = useTaxiTrips()
   const { data: drivers, loading: driversLoading, error: driversError, refresh: refreshDrivers } = useTaxiDrivers()
   const { data: bookings } = useTable<BookingRef>('bookings', {
     select: 'id, booking_number, check_in, check_out, luggage_count, boardbag_count, client:clients(first_name, last_name)',
@@ -50,15 +50,6 @@ export default function TaxiPage() {
   useEffect(() => {
     if (pricingDefaultsData.length > 0) setPricingDefaults(pricingDefaultsData[0])
   }, [pricingDefaultsData])
-
-  function updateExchangeRate(rate: number) {
-    setPricingDefaults(d => {
-      if (!d) return d
-      const updated = { ...d, eur_mzn_rate: rate, updated_at: new Date().toISOString() }
-      supabase.from('taxi_pricing_defaults').update({ eur_mzn_rate: rate, updated_at: updated.updated_at }).eq('id', d.id)
-      return updated
-    })
-  }
 
   // ── Trip handlers ─────────────────────────────────────────────────────────
 
@@ -101,7 +92,7 @@ export default function TaxiPage() {
   // ── Driver handlers ───────────────────────────────────────────────────────
 
   function openDriverForm(driver?: TaxiDriver) {
-    setDriverFormData(driver ?? { name: '', phone: null, email: null, vehicle: null, notes: null, margin_percent: 30 })
+    setDriverFormData(driver ?? { name: '', phone: null, email: null, vehicle: null, notes: null, margin_percent: 30, default_price_eur: 120, default_driver_mzn: 6000, default_manager_mzn: 1000 })
     setSelectedDriver(driver ?? null)
     setShowDriverForm(true)
   }
@@ -126,6 +117,9 @@ export default function TaxiPage() {
         vehicle:        driverFormData.vehicle ?? null,
         notes:          driverFormData.notes ?? null,
         margin_percent: driverFormData.margin_percent ?? 30,
+        default_price_eur:   driverFormData.default_price_eur ?? 120,
+        default_driver_mzn:  driverFormData.default_driver_mzn ?? 6000,
+        default_manager_mzn: driverFormData.default_manager_mzn ?? 1000,
       }])
       if (error) alert('Error: ' + error.message)
     }
@@ -179,21 +173,6 @@ export default function TaxiPage() {
           </div>
         )}
 
-        {schemaOutdated && (
-          <div className="mt-4 bg-amber-50 border border-amber-400 text-amber-900 rounded-lg px-4 py-3 text-sm space-y-2">
-            <p className="font-bold">⚠️ Database migration required</p>
-            <p>
-              The Supabase database still uses the <strong>old taxi schema</strong> (EUR columns).
-              Data is displayed in degraded read mode — amounts are mapped from old columns but
-              <strong> edits and additions are disabled</strong> until migration.
-            </p>
-            <p>
-              Run the migration script in the <strong>SQL Editor</strong> of your Supabase dashboard
-              (see comment in <code className="bg-amber-100 px-1 rounded">supabase/schema.sql</code>).
-            </p>
-          </div>
-        )}
-
         {/* Tabs */}
         <div className="flex gap-4 mt-8 mb-8 border-b">
           {(['planning', 'finance', 'drivers'] as const).map(t => (
@@ -224,18 +203,16 @@ export default function TaxiPage() {
             ) : planningView === 'list' ? (
               <TaxiListView
                 trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings} bookingParticipants={bookingParticipants}
-                onAddTrip={schemaOutdated ? async () => { alert('Database migration required before adding/editing trips.'); return null } : addTrip}
-                onUpdateTrip={schemaOutdated ? async () => { alert('Database migration required before editing trips.') } : updateTrip}
+                onAddTrip={addTrip}
+                onUpdateTrip={updateTrip}
                 onDeleteTrip={deleteTrip}
-                onUpdateRate={updateExchangeRate}
               />
             ) : (
               <TaxiKanbanView
                 trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings} bookingParticipants={bookingParticipants}
-                onAddTrip={schemaOutdated ? async () => { alert('Database migration required before adding/editing trips.'); return null } : addTrip}
-                onUpdateTrip={schemaOutdated ? async () => { alert('Database migration required before editing trips.') } : updateTrip}
+                onAddTrip={addTrip}
+                onUpdateTrip={updateTrip}
                 onDeleteTrip={deleteTrip}
-                onUpdateRate={updateExchangeRate}
               />
             )}
           </>
@@ -360,6 +337,29 @@ export default function TaxiPage() {
                 <input type="number" min="0" max="100" value={driverFormData.margin_percent ?? 30}
                   onChange={e => setDriverFormData(d => ({ ...d, margin_percent: parseFloat(e.target.value) || 30 }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div className="border-t pt-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Default rates (applied when pre-assigned to a trip)</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-blue-700 mb-1">Client (EUR)</label>
+                    <input type="number" min="0" step="1" value={driverFormData.default_price_eur ?? 120}
+                      onChange={e => setDriverFormData(d => ({ ...d, default_price_eur: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-amber-700 mb-1">Driver (MZN)</label>
+                    <input type="number" min="0" value={driverFormData.default_driver_mzn ?? 6000}
+                      onChange={e => setDriverFormData(d => ({ ...d, default_driver_mzn: parseInt(e.target.value) || 0 }))}
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-purple-700 mb-1">Manager (MZN)</label>
+                    <input type="number" min="0" value={driverFormData.default_manager_mzn ?? 1000}
+                      onChange={e => setDriverFormData(d => ({ ...d, default_manager_mzn: parseInt(e.target.value) || 0 }))}
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
