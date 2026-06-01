@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { currentEnv } from '../../lib/supabase'
 
 interface NavigationProps {
-  currentPage: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities'
-  onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities') => void
+  currentPage: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions'
+  onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions') => void
   onLogout: () => void
   urgentCount?: number
+  submissionsCount?: number
 }
 
-export default function Navigation({ currentPage, onNavigate, onLogout, urgentCount = 0 }: NavigationProps) {
+export default function Navigation({ currentPage, onNavigate, onLogout, urgentCount = 0, submissionsCount = 0 }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const navItems = [
@@ -22,9 +23,10 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
     { id: 'equipment',  label: 'Equipment',  icon: '🎿' },
     { id: 'taxis',      label: 'Taxis',      icon: '🚕' },
     { id: 'activities', label: 'Activities', icon: '🏕️' },
+    { id: 'submissions',label: 'Submissions',icon: '📝' },
   ] as const
 
-  const handleNavigate = (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities') => {
+  const handleNavigate = (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions') => {
     setMobileMenuOpen(false)
     onNavigate(page)
   }
@@ -71,6 +73,11 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
                   {item.id === 'home' && urgentCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                       {urgentCount}
+                    </span>
+                  )}
+                  {item.id === 'submissions' && submissionsCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-sky-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                      {submissionsCount}
                     </span>
                   )}
                 </button>

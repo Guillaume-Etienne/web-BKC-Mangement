@@ -12,6 +12,8 @@
 | SharedAccountingData (quels champs ?) | `data-model.md` | § Types accounting partagés |
 | Fonctions de calcul (computeXxx) | `data-model.md` | § Types accounting partagés → utils.ts |
 | SharedLink params par type | `data-model.md` | § shared_links |
+| Formulaire public : table file d'attente | `data-model.md` | § form_submissions |
+| BookingFormPayload (champs du form) | `data-model.md` | § form_submissions |
 | ParticipantConsumption (table non alimentée) | `data-model.md` | § ParticipantConsumption |
 | TravelGuideSection (6 sections i18n) | `data-model.md` | § TravelGuideSection |
 | EmailLog / EmailLogType / EmailLogStatus | `data-model.md` | § Email Logs |
@@ -40,6 +42,8 @@
 | TaxiPage (onglets planning/finance/drivers) | `pages.md` | § TaxiPage |
 | ActivitiesPage (state, onglets, CRUD) | `pages.md` | § ActivitiesPage |
 | DriverSharePage / ActivityProviderSharePage | `pages.md` | § Pages publiques |
+| BookingFormPage (form public FR/EN/ES) | `pages.md` | § BookingFormPage |
+| SubmissionsPage (file validation admin) | `pages.md` | § SubmissionsPage |
 | AccountingPage (21 hooks, sharedData) | `pages.md` | § AccountingPage |
 
 ### Composants
@@ -74,4 +78,5 @@
 | Email system | `data-model.md` → § Email Logs + `pages.md` → DocumentsPage | Resend, Edge Function, email_logs |
 | Accounting | `pages.md` → AccountingPage + `components.md` → Accounting | sharedData pattern |
 | Management | `pages.md` → ManagementPage | shared links, pricing |
-| Pages publiques | `pages.md` → Pages publiques | 5 types de SharedLink |
+| Pages publiques | `pages.md` → Pages publiques | 6 types de SharedLink |
+| Formulaire public + validation | `pages.md` → BookingFormPage / SubmissionsPage + `data-model.md` → form_submissions | i18n FR/EN/ES, waiver, file admin |

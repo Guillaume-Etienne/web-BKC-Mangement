@@ -13,7 +13,7 @@ CREATE TYPE day_slot                        AS ENUM ('morning', 'afternoon', 'ev
 CREATE TYPE price_category                  AS ENUM ('lesson', 'activity', 'rental', 'taxi');
 CREATE TYPE taxi_trip_type                  AS ENUM ('aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other');
 CREATE TYPE taxi_trip_status                AS ENUM ('confirmed', 'needs_details', 'done');
-CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'activity_provider');
+CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'activity_provider', 'booking_form');
 CREATE TYPE equipment_category              AS ENUM ('kite', 'board', 'surfboard', 'foilboard');
 CREATE TYPE equipment_condition             AS ENUM ('new', 'good', 'fair', 'damaged', 'retired');
 CREATE TYPE rental_slot                     AS ENUM ('morning', 'afternoon', 'full_day');
@@ -26,6 +26,7 @@ CREATE TYPE event_person_type               AS ENUM ('instructor', 'participant'
 CREATE TYPE activity_provider_type          AS ENUM ('activity', 'safari');
 CREATE TYPE activity_payment_flow           AS ENUM ('we_pay_provider', 'provider_pays_us');
 CREATE TYPE activity_payment_direction      AS ENUM ('to_provider', 'from_provider');
+CREATE TYPE form_submission_status          AS ENUM ('pending', 'approved', 'rejected');
 
 
 -- ── Accommodations ────────────────────────────────────────────────────────────
@@ -100,10 +101,14 @@ CREATE TABLE bookings (
   couples_count             INTEGER NOT NULL DEFAULT 0,
   children_count            INTEGER NOT NULL DEFAULT 0,
   amount_paid               NUMERIC(10,2) NOT NULL DEFAULT 0,
-  import_id                 TEXT,     -- Google Forms dedup key
+  import_id                 TEXT,     -- Google Forms dedup key / form_submission id
   emergency_contact_name    TEXT,
   emergency_contact_phone   TEXT,
   emergency_contact_email   TEXT,
+  has_travel_insurance      BOOLEAN NOT NULL DEFAULT false,
+  waiver_accepted_at        TIMESTAMPTZ,  -- when client accepted the liability waiver
+  waiver_version            TEXT,         -- version string of the accepted waiver text
+  referral_source           TEXT,         -- "how did you hear about us"
   created_at                TIMESTAMPTZ DEFAULT now(),
   CONSTRAINT check_dates CHECK (check_out > check_in)
 );
@@ -315,6 +320,30 @@ CREATE TABLE shared_links (
 );
 
 CREATE INDEX idx_shared_links_token ON shared_links(token);
+
+
+-- ── Public Booking Form Submissions ───────────────────────────────────────────
+-- Buffer/queue for the public booking intake form (FR/EN/ES wizard).
+-- Anon clients INSERT here (status='pending'); admins review and turn an approved
+-- submission into a real client + booking + booking_participants.
+-- `payload` holds the full raw answers; the denormalized columns let the admin
+-- review queue render without parsing JSON.
+
+CREATE TABLE form_submissions (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  submitted_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  status             form_submission_status NOT NULL DEFAULT 'pending',
+  language           TEXT NOT NULL DEFAULT 'en',   -- 'fr' | 'en' | 'es'
+  reference_name     TEXT,                          -- denormalized for the queue list
+  email              TEXT,
+  num_travelers      INTEGER,
+  arrival_date       DATE,
+  payload            JSONB NOT NULL,                -- full raw answers
+  reviewed_at        TIMESTAMPTZ,
+  created_booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_form_submissions_status ON form_submissions(status);
 
 
 -- ── Activities & Safaris ──────────────────────────────────────────────────────
@@ -570,7 +599,7 @@ BEGIN
     'price_items',
     'equipment', 'equipment_rentals',
     'taxi_drivers', 'taxi_trips', 'taxi_pricing_defaults', 'taxi_manager_payments',
-    'shared_links',
+    'shared_links', 'form_submissions',
     'activity_providers', 'activity_bookings', 'activity_payments',
     'seasons', 'house_rentals', 'room_rates', 'booking_room_prices',
     'external_accommodations', 'external_accommodation_bookings',
@@ -592,6 +621,12 @@ END $$;
 CREATE POLICY "anon_read_shared_links" ON shared_links
   FOR SELECT TO anon
   USING (is_active = true AND (expires_at IS NULL OR expires_at >= CURRENT_DATE));
+
+-- Accès anon : le formulaire public peut INSÉRER une soumission, uniquement en 'pending'.
+-- Pas de SELECT/UPDATE/DELETE anon : le client ne relit jamais la file.
+CREATE POLICY "anon_insert_form_submissions" ON form_submissions
+  FOR INSERT TO anon
+  WITH CHECK (status = 'pending');
 
 -- Accès anon : données nécessaires aux pages publiques (forecast, taxi, client, driver, activity)
 CREATE POLICY "anon_read_taxi_trips"    ON taxi_trips     FOR SELECT TO anon USING (true);

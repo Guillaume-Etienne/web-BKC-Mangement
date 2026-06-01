@@ -44,6 +44,7 @@ const LINK_TYPE_LABELS: Record<SharedLinkType, { icon: string; label: string }> 
   client:            { icon: '👤', label: 'Client Account' },
   driver:            { icon: '🚗', label: 'Driver Statement' },
   activity_provider: { icon: '🏕️', label: 'Activity Provider' },
+  booking_form:      { icon: '📝', label: 'Public Booking Form' },
 }
 
 function generateToken(type: SharedLinkType) {

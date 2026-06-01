@@ -31,7 +31,7 @@ export const mockClients: Client[] = [
   { id: 'c5', first_name: 'Luc', last_name: 'Müller', email: 'luc.muller@mail.com', phone: null, notes: 'Aime les bungalows', nationality: 'Suisse', passport_number: 'CH567890', birth_date: '1995-07-20', kite_level: 'beg-total', ...nullEmergency },
 ]
 
-const nullBookingImport = { import_id: null, emergency_contact_name: null, emergency_contact_phone: null, emergency_contact_email: null }
+const nullBookingImport = { import_id: null, emergency_contact_name: null, emergency_contact_phone: null, emergency_contact_email: null, has_travel_insurance: false, waiver_accepted_at: null, waiver_version: null, referral_source: null }
 
 export const mockBookings: Booking[] = [
   { id: 'bk1', booking_number: 1, client_id: 'c1', check_in: '2026-02-05', check_out: '2026-02-12', visa_entry_date: '2026-02-04', visa_exit_date: '2026-02-13', status: 'confirmed', notes: null, num_lessons: 3, num_equipment_rentals: 2, num_center_access: 0, center_access_rate: 5, client: mockClients[0], arrival_time: '14:30', departure_time: '10:00', luggage_count: 2, boardbag_count: 1, taxi_arrival: true, taxi_departure: true, couples_count: 1, children_count: 0, amount_paid: 500, ...nullBookingImport },

@@ -73,10 +73,14 @@ export interface Booking {
   couples_count: number
   children_count: number
   amount_paid: number
-  import_id: string | null                   // Google Forms row timestamp (dedup key)
+  import_id: string | null                   // Google Forms row timestamp / form_submission id (dedup key)
   emergency_contact_name: string | null
   emergency_contact_phone: string | null
   emergency_contact_email: string | null
+  has_travel_insurance: boolean
+  waiver_accepted_at: string | null          // ISO timestamp when liability waiver accepted
+  waiver_version: string | null              // version of the accepted waiver text
+  referral_source: string | null             // "how did you hear about us"
 }
 
 export interface BookingRoom {
@@ -279,7 +283,7 @@ export interface ActivityPayment {
 }
 
 // Shared public links
-export type SharedLinkType = 'forecast' | 'taxi' | 'client' | 'driver' | 'activity_provider'
+export type SharedLinkType = 'forecast' | 'taxi' | 'client' | 'driver' | 'activity_provider' | 'booking_form'
 
 export interface SharedLink {
   id: string
@@ -290,6 +294,71 @@ export interface SharedLink {
   created_at: string             // ISO date
   expires_at: string | null      // ISO date, null = never
   is_active: boolean
+}
+
+// ─── Public booking form submissions ────────────────────────────────────────
+export type Lang = 'fr' | 'en' | 'es'
+export type FormSubmissionStatus = 'pending' | 'approved' | 'rejected'
+
+// One traveler as entered in the public form (maps to a BookingParticipant on approval)
+export interface FormTraveler {
+  first_name: string
+  last_name: string
+  passport_number: string
+}
+
+// Full raw answers captured by the public booking form (stored in form_submissions.payload)
+export interface BookingFormPayload {
+  language: Lang
+  // Group
+  reference_name: string
+  email: string
+  phone: string
+  referral_source: string
+  // Trip — country entry/exit (for visa/accommodation letter) + Bilene nights
+  country_entry_date: string   // ISO date — arrival in Maputo / country entry
+  country_exit_date: string    // ISO date — return / country exit
+  nights_bilene: number
+  arrival_time: string         // HH:MM — arrival flight time at Maputo
+  departure_time: string       // HH:MM — return flight time
+  taxi_arrival: boolean        // needs transfer to Bilene
+  taxi_departure: boolean      // needs transfer back to airport
+  // Transfer pickup/drop-off (only meaningful when the matching taxi flag is true).
+  // Distinct from the flight date/time (e.g. late landing → next-day transfer).
+  transfer_to_bilene_date: string   // ISO date — pickup date for the Maputo→Bilene transfer
+  transfer_to_bilene_time: string   // HH:MM
+  transfer_to_airport_date: string  // ISO date — desired drop-off date for the Bilene→airport transfer
+  transfer_to_airport_time: string  // HH:MM
+  // Logistics
+  luggage_count: number
+  boardbag_count: number
+  double_beds: number
+  single_beds: number
+  has_travel_insurance: boolean
+  // Crew
+  travelers: FormTraveler[]
+  // Emergency contact
+  emergency_contact_name: string
+  emergency_contact_phone: string
+  emergency_contact_email: string
+  emergency_contact_relation: string
+  // Waiver
+  waiver_accepted: boolean
+  waiver_version: string
+}
+
+export interface FormSubmission {
+  id: string
+  submitted_at: string             // ISO timestamp
+  status: FormSubmissionStatus
+  language: Lang
+  reference_name: string | null
+  email: string | null
+  num_travelers: number | null
+  arrival_date: string | null      // ISO date (denormalized = country_entry_date)
+  payload: BookingFormPayload
+  reviewed_at: string | null
+  created_booking_id: string | null
 }
 
 // Equipment

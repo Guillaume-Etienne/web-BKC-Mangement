@@ -16,7 +16,7 @@
 | `PriceCategory` | `'lesson' \| 'activity' \| 'rental' \| 'taxi'` |
 | `TaxiTripType` | `'aero-to-center' \| 'center-to-aero' \| 'aero-to-spot' \| 'spot-to-aero' \| 'center-to-town' \| 'town-to-center' \| 'other'` |
 | `TaxiTripStatus` | `'confirmed' \| 'needs_details' \| 'done'` |
-| `SharedLinkType` | `'forecast' \| 'taxi' \| 'client' \| 'driver' \| 'activity_provider'` |
+| `SharedLinkType` | `'forecast' \| 'taxi' \| 'client' \| 'driver' \| 'activity_provider' \| 'booking_form'` |
 | `EquipmentCategory` | `'kite' \| 'board' \| 'surfboard' \| 'foilboard'` |
 | `EquipmentCondition` | `'new' \| 'good' \| 'fair' \| 'damaged' \| 'retired'` |
 | `RentalSlot` | `'morning' \| 'afternoon' \| 'full_day'` |
@@ -30,6 +30,8 @@
 | `EmailLogType` | `'booking_confirmation' \| 'visa_letter' \| 'travel_guide'` |
 | `EmailLogStatus` | `'pending' \| 'sent' \| 'delivered' \| 'opened' \| 'failed'` |
 | `ActionPriority` | `'urgent' \| 'week' \| 'monitor'` |
+| `Lang` | `'fr' \| 'en' \| 'es'` |
+| `FormSubmissionStatus` | `'pending' \| 'approved' \| 'rejected'` |
 
 ---
 
@@ -110,10 +112,15 @@
 | couples_count | number | |
 | children_count | number | |
 | amount_paid | number (EUR) | |
-| import_id | string \| null | Google Forms dedup |
+| import_id | string \| null | Google Forms / `form_submission.id` dedup |
 | client? | Client | Join optionnel |
 | emergency_contact_* | string \| null | |
+| has_travel_insurance | boolean | Assurance voyage (depuis form public) |
+| waiver_accepted_at | string \| null (ISO ts) | Acceptation décharge (form public) |
+| waiver_version | string \| null | Version du texte waiver acceptée |
+| referral_source | string \| null | "How did you hear about us" |
 > Participants dans `booking_participants` (requête séparée via `useBookingParticipants()`).
+> `has_travel_insurance`/`waiver_*`/`referral_source` ajoutés mai 2026 pour le formulaire public (voir § form_submissions).
 
 **Projection minimale `BookingRef`** (utilisée par taxi/activity pickers) :
 `id, booking_number, check_in, check_out, luggage_count, boardbag_count, client?{first_name, last_name}`
@@ -379,9 +386,28 @@
 | `client` | `{ booking_number: '42' }` |
 | `driver` | `{ driver_id: 'uuid' }` |
 | `activity_provider` | `{ provider_id: 'uuid' }` |
-| `forecast` / `taxi` | `{}` |
+| `forecast` / `taxi` / `booking_form` | `{}` |
 
-> Créés automatiquement (pas via le form links) pour `driver` et `activity_provider` depuis leurs pages dédiées.
+> Créés automatiquement (pas via le form links) pour `driver` et `activity_provider` depuis leurs pages dédiées. `booking_form` créé via Management → Links (un seul lien public permanent).
+
+### `form_submissions` → `FormSubmission`
+File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **INSERT only** (RLS `WITH CHECK (status='pending')`, pas de SELECT anon). L'admin review dans `SubmissionsPage` et transforme en client+booking+participants.
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | sert d'`import_id` au client/booking créés (anti-doublon) |
+| submitted_at | string (ISO ts) | |
+| status | FormSubmissionStatus | `pending` / `approved` / `rejected` |
+| language | Lang | langue choisie par le client |
+| reference_name | string \| null | dénormalisé (affichage file) |
+| email | string \| null | dénormalisé |
+| num_travelers | number \| null | dénormalisé |
+| arrival_date | string \| null (ISO date) | dénormalisé (= `country_entry_date`) |
+| payload | BookingFormPayload | **réponses brutes complètes** (JSONB) |
+| reviewed_at | string \| null | |
+| created_booking_id | string \| null (FK → bookings) | set à l'approbation |
+
+**`BookingFormPayload`** (dans `payload`, type dans `types/database.ts`) — champs : `language`, `reference_name`, `email`, `phone`, `referral_source`, `country_entry_date`/`country_exit_date` (= dates pays → visa), `nights_bilene`, `arrival_time`/`departure_time` (heures de **vol**), `taxi_arrival`/`taxi_departure`, `transfer_to_bilene_date`/`_time` + `transfer_to_airport_date`/`_time` (date/heure de **transfert** distinctes du vol), `luggage_count`, `boardbag_count`, `double_beds`, `single_beds`, `has_travel_insurance`, `travelers: FormTraveler[]` (`{first_name,last_name,passport_number}`), `emergency_contact_*`, `waiver_accepted`, `waiver_version`.
+> Mapping form → booking : dates pays → `visa_entry/exit_date` ; `nights_bilene` → `check_in/out` Bilene (confirmés par l'admin) ; `double_beds` → `couples_count` ; transferts + `single_beds` → notes du booking. i18n des libellés : `data/formI18n.ts`. Waiver : `data/waiver.ts` (`WAIVER_VERSION`).
 
 ---
 
@@ -556,7 +582,7 @@ Types purement calculés, pas de table DB.
 | route | Page | page vers laquelle naviguer |
 | routeLabel | string | label du lien |
 
-**`PendingActionsData`** : `{ bookings: Booking[]; payments: Payment[]; taxiTripUnlinkedCount: number }`
+**`PendingActionsData`** : `{ bookings: Booking[]; payments: Payment[]; taxiTripUnlinkedCount: number; pendingFormSubmissionsCount: number }`
 
 **Règles implémentées :**
 | Priorité | Condition |
@@ -568,9 +594,10 @@ Types purement calculés, pas de table DB.
 | 🟡 week | Provisoire + check_in ≤ J+7 |
 | 🟡 week | Aucun paiement + check_in ≤ J+7 |
 | 🟡 week | `visa_entry_date` J+5 à J+7 |
+| 🟡 week | `form_submissions` `pending` à reviewer (id `pending-submissions`, route `submissions`) |
 | 🟢 monitor | Trajets taxi sans `booking_id` |
 
-Chargé dans `App.tsx` au login (3 requêtes parallèles légères), passé à `HomePage` + `Navigation` (badge rouge).
+Chargé dans `App.tsx` au login (4 requêtes parallèles légères, dont count `form_submissions` pending), passé à `HomePage` + `Navigation` (badge rouge `urgentCount` sur Home, badge bleu `submissionsCount` sur Submissions).
 
 ---
 

@@ -2,7 +2,7 @@ import type { Booking, Payment } from '../../types/database'
 
 export type ActionPriority = 'urgent' | 'week' | 'monitor'
 
-export type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities'
+export type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions'
 
 export interface PendingAction {
   id: string
@@ -17,6 +17,7 @@ export interface PendingActionsData {
   bookings: Booking[]
   payments: Payment[]
   taxiTripUnlinkedCount: number
+  pendingFormSubmissionsCount: number
 }
 
 function addDays(date: Date, days: number): Date {
@@ -177,6 +178,17 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
         })
       }
     }
+  }
+
+  // ── 🟡 New public booking-form submissions to review ───────────────────────
+  if (data.pendingFormSubmissionsCount > 0) {
+    actions.push({
+      id: 'pending-submissions',
+      priority: 'week',
+      message: `${data.pendingFormSubmissionsCount} new booking form${data.pendingFormSubmissionsCount > 1 ? 's' : ''} to review`,
+      route: 'submissions',
+      routeLabel: 'Submissions',
+    })
   }
 
   // ── 🟢 Unlinked taxi trips ─────────────────────────────────────────────────

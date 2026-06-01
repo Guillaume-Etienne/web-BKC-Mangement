@@ -21,10 +21,12 @@ import TaxiSharePage from './pages/TaxiSharePage'
 import ClientSharePage from './pages/ClientSharePage'
 import DriverSharePage from './pages/DriverSharePage'
 import ActivityProviderSharePage from './pages/ActivityProviderSharePage'
+import BookingFormPage from './pages/BookingFormPage'
+import SubmissionsPage from './pages/SubmissionsPage'
 import ActivitiesPage from './pages/ActivitiesPage'
 import type { SharedLink } from './types/database'
 
-type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities'
+type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions'
 
 // ── Public share token from URL (sync, module scope) ──────────────────────
 const shareToken = new URLSearchParams(window.location.search).get('share')
@@ -59,11 +61,12 @@ function App() {
       supabase.from('bookings').select('*, client:clients(first_name, last_name)'),
       supabase.from('payments').select('id, booking_id, is_verified, is_discount'),
       supabase.from('taxi_trips').select('booking_id'),
-    ]).then(([{ data: bookings }, { data: payments }, { data: taxis }]) => {
+      supabase.from('form_submissions').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    ]).then(([{ data: bookings }, { data: payments }, { data: taxis }, { count: pendingSubs }]) => {
       const bkgs = (bookings ?? []) as Booking[]
       const pmts = (payments ?? []) as Payment[]
       const unlinked = (taxis ?? []).filter((t: { booking_id: string | null }) => !t.booking_id).length
-      setPendingActions(computePendingActions({ bookings: bkgs, payments: pmts, taxiTripUnlinkedCount: unlinked }))
+      setPendingActions(computePendingActions({ bookings: bkgs, payments: pmts, taxiTripUnlinkedCount: unlinked, pendingFormSubmissionsCount: pendingSubs ?? 0 }))
     })
   }, [session])
 
@@ -96,6 +99,7 @@ function App() {
     if (sharedLink.type === 'client')   return <ClientSharePage bookingNumber={parseInt(sharedLink.params?.booking_number ?? '0')} />
     if (sharedLink.type === 'driver')            return <DriverSharePage driverId={sharedLink.params?.driver_id ?? ''} />
     if (sharedLink.type === 'activity_provider') return <ActivityProviderSharePage providerId={sharedLink.params?.provider_id ?? ''} />
+    if (sharedLink.type === 'booking_form')      return <BookingFormPage />
   }
 
   // Loading session
@@ -115,7 +119,7 @@ function App() {
   // Authenticated
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={pendingActions.filter(a => a.priority === 'urgent').length} />
+      <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={pendingActions.filter(a => a.priority === 'urgent').length} submissionsCount={pendingActions.filter(a => a.id === 'pending-submissions').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
       <main className="w-full">
         {currentPage === 'home'       && <HomePage onNavigate={setCurrentPage} pendingActions={pendingActions} />}
         {currentPage === 'planning'   && <PlanningView onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
@@ -127,6 +131,7 @@ function App() {
         {currentPage === 'documents'  && <DocumentsPage />}
         {currentPage === 'accounting' && <AccountingPage />}
         {currentPage === 'activities' && <ActivitiesPage />}
+        {currentPage === 'submissions' && <SubmissionsPage />}
       </main>
     </div>
   )

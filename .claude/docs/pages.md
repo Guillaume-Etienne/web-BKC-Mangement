@@ -10,7 +10,7 @@
 2. `session === undefined` → spinner de chargement
 3. `session === null` → `LoginPage`
 4. `session` → app authentifiée avec `Navigation` + page switcher
-5. Au login : charge en parallèle `bookings` (+ join client), `payments` (4 colonnes), `taxi_trips` (booking_id seul) → calcule `pendingActions` via `computePendingActions()` → passe `urgentCount` à `Navigation` + `pendingActions` à `HomePage`
+5. Au login : charge en parallèle `bookings` (+ join client), `payments` (4 colonnes), `taxi_trips` (booking_id seul), **count `form_submissions` `pending`** → calcule `pendingActions` via `computePendingActions()` → passe `urgentCount` + **`submissionsCount`** à `Navigation`, `pendingActions` à `HomePage`
 
 **Pages publiques (SharedLinkType) :**
 | type | Composant | Props |
@@ -20,9 +20,12 @@
 | `'client'` | `ClientSharePage` | `bookingNumber` depuis `sharedLink.params.booking_number` |
 | `'driver'` | `DriverSharePage` | `driverId` depuis `sharedLink.params.driver_id` |
 | `'activity_provider'` | `ActivityProviderSharePage` | `providerId` depuis `sharedLink.params.provider_id` |
+| `'booking_form'` | `BookingFormPage` | — (lien public unique, le client choisit sa langue) |
 
 **Pages authentifiées (type `Page`) :**
-`'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities'`
+`'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions'`
+
+> ⚠️ Le type `Page` est dupliqué dans `App.tsx`, `pendingActions.ts` et `Navigation.tsx` (unions inline) → ajouter une nouvelle page = éditer les 3.
 
 ---
 
@@ -66,6 +69,20 @@
   - **Planning** (toujours visible) : bookings passés/futurs, filtre par année, prix visibles si `show_prices=true`
   - **Accounting** (seulement si `show_prices=true`) : bilan (center owes you / you owe us), lignes bookings avec flux, historique paiements
 - **Filtres :** "All time" + boutons par année
+
+### `BookingFormPage`
+- **Accès :** `?share=<booking_form_token>` (un seul lien public permanent, créé dans Management → Links)
+- **But :** Formulaire public d'inscription client (remplace l'import CSV). Le client crée une demande de réservation lui-même.
+- **Langues :** trilingue **FR/EN/ES** — sélecteur de drapeaux en haut, défaut = langue navigateur (`detectLang()`). Tous les textes dans `data/formI18n.ts` (`tr.key[lang]`), waiver dans `data/waiver.ts`.
+- **Wizard 5 étapes** (barre de progression avec kite 🪁, transitions CSS) :
+  1. 👤 **Group** — nom référent, email, téléphone, "how did you hear about us"
+  2. ✈️ **Trip** — nb nuits Bilene ; bloc **Arrivée** (date+heure vol Maputo + toggle transfert→Bilene + date/heure prise en charge si Oui) ; bloc **Départ** (date+heure vol retour + toggle transfert→aéroport + date/heure dépose si Oui). Le transfert se pré-remplit depuis le vol mais reste éditable.
+  3. 🧳 **Logistics** — bagages, bagages kite, lits doubles, lits simples, assurance voyage
+  4. 🪂 **Crew** — liste **dynamique** de voyageurs (prénom/nom/passeport)
+  5. 🧾 **Finish** — contact d'urgence + waiver déroulant + case obligatoire
+- **Validation par étape** (`canProceed`), submit désactivé tant que waiver non coché.
+- **Submit :** `supabase.from('form_submissions').insert([...])` (status `pending`, `payload`=`BookingFormPayload` complet + colonnes dénormalisées `reference_name`/`email`/`num_travelers`/`arrival_date`). **PAS de `.select()`** (anon n'a pas de SELECT sur la table). Puis écran de fin 🎉.
+- **Composants module-scope** (focus-safe) : `Field`, `Counter`, `YesNo`, `TravelerCard`.
 
 ---
 
@@ -165,9 +182,18 @@
 - **Hooks :** useInstructors, useLessons, useTable<PriceItem>, useTable<TaxiPricingDefaults>, useTable<SharedLink>, useBookings, useBookingParticipants
 - **State :** `tab: 'instructors'|'houses'|'pricing'|'links'|'bookguest'`
 - **Onglets :** Instructors CRUD, Houses, Pricing (items + taxi defaults), Shared links, Bookings & Guests
-- **Shared links :** formulaire manuel pour types `forecast`, `taxi`, `client` uniquement.
-  `driver` et `activity_provider` exclus (créés depuis leurs pages dédiées).
-- **`LINK_TYPE_LABELS`** : utilisé pour afficher le type dans la liste, inclut tous les 5 types.
+- **Shared links :** formulaire manuel pour types `forecast`, `taxi`, `client`, **`booking_form`**.
+  `driver` et `activity_provider` exclus (créés depuis leurs pages dédiées). `booking_form` = lien public du formulaire d'inscription (un seul suffit).
+- **`LINK_TYPE_LABELS`** : utilisé pour afficher le type dans la liste, inclut les 6 types.
+
+### `SubmissionsPage`
+- **Route :** `'submissions'` — nav item "Submissions" 📝 avec **badge bleu** = nombre de soumissions `pending`.
+- **Hooks :** `useTable<FormSubmission>('form_submissions', { order: 'submitted_at', ascending: false })`
+- **But :** File de validation des soumissions du `BookingFormPage`.
+- **State :** `tab: 'pending'|'approved'|'rejected'` (défaut pending), `openId` (ligne dépliée).
+- **Détail (`SubmissionDetail`, module-scope) :** affiche tout le `payload` (trip + transferts taxi avec date/heure, logistics, crew, contact urgence, waiver). Champs date `check_in`/`check_out` Bilene **pré-remplis** (`country_entry_date` + `nights_bilene`) et **éditables** avant création.
+- **« Create booking » :** crée séquentiellement `clients` (nom splitté, email, phone, emergency_*, `import_id = submission.id`) → `bookings` (status `provisional`, `visa_entry/exit_date` = dates pays, `check_in/out` confirmés, taxis, `couples_count`=double_beds, `has_travel_insurance`, `waiver_accepted_at`/`waiver_version`, `referral_source`, transferts + lits simples dans les **notes**, `import_id`) → `booking_participants` (1/voyageur). Puis soumission → `approved` + `created_booking_id`. **Anti-doublon** : bouton désactivé si `created_booking_id` déjà set.
+- **« Reject » :** soumission → `rejected`.
 
 ### `ActivitiesPage`
 - **Route :** `'activities'`

@@ -6,12 +6,14 @@
 ## Layout
 
 ### `Navigation` — `layout/Navigation.tsx`
-**Props :** `{ currentPage: Page; onNavigate: (p: Page) => void; onLogout: () => void; urgentCount?: number }`
-- Navbar sticky top : logo, 10 items, bouton sign out
+**Props :** `{ currentPage: Page; onNavigate: (p: Page) => void; onLogout: () => void; urgentCount?: number; submissionsCount?: number }`
+- Navbar sticky top : logo, 11 items, bouton sign out
 - Mobile : hamburger → dropdown
-- **Items :** Home, Clients, Planning, Bookings, Accounting, Documents, Options, Equipment, Taxis, Activities
-- **Badge Home :** si `urgentCount > 0`, badge rouge sur le bouton Home avec le compte d'actions urgentes (vient de `computePendingActions` dans `App.tsx`)
+- **Items :** Home, Clients, Planning, Bookings, Accounting, Documents, Options, Equipment, Taxis, Activities, **Submissions**
+- **Badge Home :** si `urgentCount > 0`, badge rouge sur Home (actions urgentes, via `computePendingActions` dans `App.tsx`)
+- **Badge Submissions :** si `submissionsCount > 0`, badge bleu = nombre de `form_submissions` en attente
 - State : `mobileMenuOpen: boolean`
+- ⚠️ Le type `Page` est une union inline ici (dupliquée avec `App.tsx` et `pendingActions.ts`)
 
 ---
 

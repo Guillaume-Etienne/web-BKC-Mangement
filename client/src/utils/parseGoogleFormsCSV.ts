@@ -319,6 +319,10 @@ function buildBooking(
       emergency_contact_name:  get(cols.emergencyName)  || null,
       emergency_contact_phone: get(cols.emergencyPhone) || null,
       emergency_contact_email: get(cols.emergencyEmail) || null,
+      has_travel_insurance: false,
+      waiver_accepted_at: null,
+      waiver_version: null,
+      referral_source: null,
     },
   }
 }
