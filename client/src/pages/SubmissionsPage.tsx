@@ -254,6 +254,17 @@ export default function SubmissionsPage() {
         </div>
       </div>
 
+      {/* Reminder: notification emails are hardcoded, not editable in the app */}
+      <div className="mb-4 flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+        <span aria-hidden>✉️</span>
+        <p>
+          When a client submits this form, two emails go out automatically: an acknowledgment to the
+          client and a notification to <span className="font-medium">contact@bilenekite.com</span>.
+          Their wording is hardcoded in the <code className="rounded bg-sky-100 px-1">notify-submission</code> function —
+          <span className="font-medium"> ask Claude to edit them</span>.
+        </p>
+      </div>
+
       {/* Tabs */}
       <div className="flex gap-1 mb-4">
         {tabs.map(t => (
