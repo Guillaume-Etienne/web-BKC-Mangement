@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { tr, LANGS, detectLang } from '../data/formI18n'
 import { waiverText, WAIVER_VERSION } from '../data/waiver'
@@ -168,6 +168,23 @@ export default function BookingFormPage() {
       transfer_to_airport_time: v ? (prev.transfer_to_airport_time || prev.departure_time) : '',
     }))
   }
+
+  // When reaching the crew step, pre-fill traveler #1 from the reference name
+  // (split on first space) so only the passport number is left to enter.
+  // Only fills if still untouched — never clobbers a manual edit.
+  useEffect(() => {
+    if (step !== 4) return
+    const full = d.reference_name.trim()
+    if (!full) return
+    setTravelers(prev => {
+      const first = prev[0]
+      if (!first || first.first_name.trim() || first.last_name.trim()) return prev
+      const parts = full.split(/\s+/)
+      const firstName = parts[0]
+      const lastName = parts.slice(1).join(' ')
+      return prev.map((t, idx) => idx === 0 ? { ...t, first_name: firstName, last_name: lastName } : t)
+    })
+  }, [step, d.reference_name])
 
   function updateTraveler(i: number, patch: Partial<FormTraveler>) {
     setTravelers(prev => prev.map((t, idx) => idx === i ? { ...t, ...patch } : t))
@@ -432,6 +449,9 @@ export default function BookingFormPage() {
                 <div>
                   <h2 className="text-lg font-bold text-gray-800">{tr.s4_title[lang]}</h2>
                   <p className="text-sm text-gray-500 mt-1">{tr.s4_intro[lang]}</p>
+                </div>
+                <div className="rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                  {tr.s4_passport_warning[lang]}
                 </div>
                 {travelers.map((t, i) => (
                   <TravelerCard key={i} index={i} t={t} lang={lang} canRemove={travelers.length > 1}

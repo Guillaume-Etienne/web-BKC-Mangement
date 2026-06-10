@@ -100,6 +100,11 @@ export const tr = {
     en: 'List each traveler exactly as it appears on their passport.',
     es: 'Indica cada viajero tal como aparece en su pasaporte.',
   },
+  s4_passport_warning: {
+    fr: '⚠️ TRÈS IMPORTANT : saisissez les noms et numéros de passeport sans aucune erreur. L\'immigration les vérifie scrupuleusement à l\'entrée.',
+    en: '⚠️ VERY IMPORTANT: enter names and passport numbers without any mistake. Immigration checks them scrupulously on arrival.',
+    es: '⚠️ MUY IMPORTANTE: introduce los nombres y números de pasaporte sin ningún error. Inmigración los verifica escrupulosamente a la llegada.',
+  },
   traveler:        { fr: 'Voyageur', en: 'Traveler', es: 'Viajero' },
   f_first_name:    { fr: 'Prénom(s)', en: 'First name(s)', es: 'Nombre(s)' },
   f_last_name:     { fr: 'Nom de famille', en: 'Last name', es: 'Apellido(s)' },
