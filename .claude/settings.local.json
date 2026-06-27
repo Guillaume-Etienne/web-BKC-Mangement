@@ -29,7 +29,14 @@
       "Bash(ls .claude/projects/*/memory/)",
       "Bash(ls __TRACKED_VAR__/.claude/projects/C--gui-web-2026-Claude-Code-Projet/memory/)",
       "Bash(grep -rn \"exchange_rate\" client/src supabase)",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "WebFetch(domain:docs.google.com)",
+      "Bash(powershell *)",
+      "Bash(nslookup -type=TXT bilenekite.com 8.8.8.8)",
+      "Bash(nslookup -type=TXT _dmarc.bilenekite.com 8.8.8.8)",
+      "Bash(nslookup -type=CNAME resend._domainkey.bilenekite.com 8.8.8.8)",
+      "Bash(nslookup -type=MX bilenekite.com 8.8.8.8)",
+      "PowerShell(try { Resolve-DnsName 'bilenekite.com' -Type SOA -Server 8.8.8.8 -ErrorAction Stop | Where-Object {$_.Type -eq 'SOA'} | Select-Object PrimaryServer, @{n='MinimumTTL_negcache_sec';e={$_.DefaultTTL}}, @{n='MinimumTTL_minutes';e={[math]::Round\\($_.DefaultTTL/60,0\\)}} | Format-List } catch { \"ERREUR: $_\" })"
     ]
   }
 }
