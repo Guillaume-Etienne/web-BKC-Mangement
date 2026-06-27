@@ -1,4 +1,4 @@
-// Supabase Edge Function — notify on new public booking-form submission.
+﻿// Supabase Edge Function — notify on new public booking-form submission.
 //
 // Triggered by a DATABASE WEBHOOK on `form_submissions` INSERT (server-side,
 // so it fires even if the client closes the tab and can't be spammed by anon).
@@ -33,34 +33,34 @@ type Lang = 'fr' | 'en' | 'es'
 // ─── Client acknowledgment copy (mirrors formI18n success_msg) ────────────────
 const ACK = {
   subject: {
-    fr: 'Nous avons bien reçu votre demande 🌊',
-    en: 'We received your request 🌊',
-    es: 'Hemos recibido tu solicitud 🌊',
+    fr: 'Bilene Kite Center : Nous avons bien reçu votre formulaire 🌊',
+    en: 'Bilene Kite Center: We received your booking request 🌊',
+    es: 'Bilene Kite Center: Hemos recibido tu solicitud 🌊',
   },
   heading: {
-    fr: 'Merci pour votre demande !',
-    en: 'Thank you for your request!',
-    es: '¡Gracias por tu solicitud!',
+    fr: 'Merci pour toutes ces informations !',
+    en: 'Thank you for all this information!',
+    es: '¡Gracias por toda esta información!',
   },
   body: {
-    fr: 'Nous avons bien reçu votre demande de réservation et revenons vers vous très vite pour confirmer les détails. Bon vent ! 🌊',
-    en: 'We have received your booking request and will get back to you very soon to confirm the details. Fair winds! 🌊',
-    es: 'Hemos recibido tu solicitud de reserva y te responderemos muy pronto para confirmar los detalles. ¡Buen viento! 🌊',
+    fr: 'Votre demande de réservation est bien reçue, nous reviendrons vers vous très vite pour planifier votre séjour. Bon vent et à bientôt ! 🌊',
+    en: 'Your booking request has been received — we will get back to you very soon to plan your stay. Fair winds and see you soon! 🌊',
+    es: 'Tu solicitud de reserva ha sido recibida — te responderemos muy pronto para planificar tu estancia. ¡Buen viento y hasta pronto! 🌊',
   },
   signoff: {
-    fr: ‘L’équipe Bilene Kite Center’,
-    en: ‘The Bilene Kite Center team’,
-    es: ‘El equipo de Bilene Kite Center’,
+    fr: "L'équipe Bilene Kite Center",
+    en: 'The Bilene Kite Center team',
+    es: 'El equipo de Bilene Kite Center',
   },
   faq_label: {
-    fr: ‘Préparez votre voyage →’,
-    en: ‘Prepare your trip →’,
-    es: ‘Prepara tu viaje →’,
+    fr: 'Préparez votre voyage →',
+    en: 'Prepare your trip →',
+    es: 'Prepara tu viaje →',
   },
   faq_hint: {
-    fr: ‘Tout ce qu’il faut savoir avant d’arriver à Bilene.’,
-    en: ‘Everything you need to know before arriving in Bilene.’,
-    es: ‘Todo lo que necesitas saber antes de llegar a Bilene.’,
+    fr: "Tout ce qu'il faut savoir avant d'arriver à Bilene.",
+    en: 'Everything you need to know before arriving in Bilene.',
+    es: 'Todo lo que necesitas saber antes de llegar a Bilene.',
   },
 }
 
