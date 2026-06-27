@@ -114,7 +114,7 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
           first_name: t.first_name.trim(),
           last_name: t.last_name.trim() || null,
           passport_number: t.passport_number.trim() || null,
-          kite_level: null,
+          kite_level: t.does_kite ? (t.kite_level ?? null) : null,
           client_id: null,
           notes: null,
         }))
@@ -175,12 +175,27 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
       <div>
         <h4 className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Crew ({p.travelers?.length ?? 0})</h4>
         <div className="space-y-1">
-          {(p.travelers ?? []).map((t, i) => (
-            <div key={i} className="text-sm flex justify-between gap-4 py-1 border-b border-gray-50">
-              <span className="font-medium">{t.first_name} {t.last_name}</span>
-              <span className="text-gray-500">{t.passport_number || '— no passport —'}</span>
-            </div>
-          ))}
+          {(p.travelers ?? []).map((t, i) => {
+            const kiteFlags = t.does_kite ? [
+              t.kite_level,
+              t.brings_own_gear ? (t.needs_storage ? 'own gear + storage' : 'own gear') : null,
+              t.wants_kite_lessons ? 'lessons' : null,
+              t.wants_kite_rental ? 'rental' : null,
+              t.wants_wing_lessons ? 'wing' : null,
+            ].filter(Boolean).join(' · ') : null
+            return (
+              <div key={i} className="py-1.5 border-b border-gray-50 space-y-0.5">
+                <div className="text-sm flex justify-between gap-4">
+                  <span className="font-medium">{t.first_name} {t.last_name}</span>
+                  <span className="text-gray-500">{t.passport_number || '— no passport —'}</span>
+                </div>
+                {t.does_kite
+                  ? <p className="text-xs text-sky-600">🪁 {kiteFlags || 'kiter'}</p>
+                  : <p className="text-xs text-gray-400">— no kite</p>
+                }
+              </div>
+            )
+          })}
         </div>
       </div>
 

@@ -305,6 +305,14 @@ export interface FormTraveler {
   first_name: string
   last_name: string
   passport_number: string
+  // Kite activity (all optional — person may not kite)
+  does_kite?: boolean
+  kite_level?: KiteLevel
+  brings_own_gear?: boolean
+  needs_storage?: boolean
+  wants_kite_lessons?: boolean
+  wants_kite_rental?: boolean
+  wants_wing_lessons?: boolean
 }
 
 // Full raw answers captured by the public booking form (stored in form_submissions.payload)

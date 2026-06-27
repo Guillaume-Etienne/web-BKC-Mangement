@@ -112,6 +112,22 @@ export const tr = {
   add_traveler:    { fr: '+ Ajouter un voyageur', en: '+ Add a traveler', es: '+ Añadir un viajero' },
   remove:          { fr: 'Retirer', en: 'Remove', es: 'Quitar' },
 
+  // ── Step 4 : Kite activity (per traveler) ─────────────────────────────────
+  kite_section:          { fr: 'Activité kite 🪁', en: 'Kite activity 🪁', es: 'Actividad kite 🪁' },
+  kite_does_kite:        { fr: 'Pratique le kitesurf ?', en: 'Practices kitesurfing?', es: '¿Practica el kitesurf?' },
+  kite_level_label:      { fr: 'Niveau', en: 'Level', es: 'Nivel' },
+  kite_brings_gear:      { fr: 'Amène son propre matériel ?', en: 'Bringing own gear?', es: '¿Trae su propio material?' },
+  kite_needs_storage:    { fr: 'Besoin d\'un espace de stockage ?', en: 'Needs storage space?', es: '¿Necesita espacio de almacenamiento?' },
+  kite_interests:        { fr: 'Intéressé(e) par…', en: 'Interested in…', es: 'Interesado/a en…' },
+  kite_lessons:          { fr: 'Cours de kite', en: 'Kite lessons', es: 'Clases de kite' },
+  kite_rental:           { fr: 'Location de kite', en: 'Kite rental', es: 'Alquiler de kite' },
+  wing_lessons:          { fr: 'Cours de wing', en: 'Wing lessons', es: 'Clases de wing' },
+  kite_lvl_beg_total:    { fr: 'Débutant — première fois', en: 'Beginner — first time', es: 'Principiante — primera vez' },
+  kite_lvl_bodydrag:     { fr: 'Débutant — bodydrag', en: 'Beginner — body drag', es: 'Principiante — body drag' },
+  kite_lvl_waterstart:   { fr: 'Débutant — waterstart', en: 'Beginner — water start', es: 'Principiante — water start' },
+  kite_lvl_intermediate: { fr: 'Intermédiaire', en: 'Intermediate', es: 'Intermedio/a' },
+  kite_lvl_advanced:     { fr: 'Avancé(e)', en: 'Advanced', es: 'Avanzado/a' },
+
   // ── Step 5 : Finish ───────────────────────────────────────────────────────
   s5_title: { fr: 'Dernière ligne droite 🧾', en: 'Almost there 🧾', es: 'Casi listo 🧾' },
   emergency_heading: { fr: "Contact en cas d'urgence", en: 'Emergency contact', es: 'Contacto de emergencia' },

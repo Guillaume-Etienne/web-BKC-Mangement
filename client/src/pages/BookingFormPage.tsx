@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { tr, LANGS, detectLang } from '../data/formI18n'
 import { waiverText, WAIVER_VERSION } from '../data/waiver'
-import type { Lang, FormTraveler, BookingFormPayload } from '../types/database'
+import type { Lang, FormTraveler, BookingFormPayload, KiteLevel } from '../types/database'
+import type { FormI18nKey } from '../data/formI18n'
 
 // ─── Public booking intake form (no auth) ─────────────────────────────────────
 // Reached via ?share=<token> on a shared_link of type 'booking_form'.
@@ -58,6 +59,15 @@ const STEPS: { icon: string; labelKey: 'step_group' | 'step_trip' | 'step_logist
   { icon: '🧾', labelKey: 'step_finish' },
 ]
 const TOTAL = STEPS.length
+
+// ─── Kite level options ────────────────────────────────────────────────────────
+const KITE_LEVELS: { value: KiteLevel; labelKey: FormI18nKey }[] = [
+  { value: 'beg-total',      labelKey: 'kite_lvl_beg_total' },
+  { value: 'beg-bodydrag',   labelKey: 'kite_lvl_bodydrag' },
+  { value: 'beg-waterstart', labelKey: 'kite_lvl_waterstart' },
+  { value: 'intermediate',   labelKey: 'kite_lvl_intermediate' },
+  { value: 'advanced',       labelKey: 'kite_lvl_advanced' },
+]
 
 // ─── Reusable controls (module scope = focus-safe) ────────────────────────────
 const inputCls = 'w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition'
@@ -132,6 +142,63 @@ function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: Travele
       <Field label={tr.f_passport[lang]}>
         <input className={inputCls} value={t.passport_number} onChange={e => onChange({ passport_number: e.target.value })} />
       </Field>
+
+      {/* Kite activity */}
+      <div className="border-t border-gray-100 pt-3 space-y-3">
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">{tr.kite_section[lang]}</p>
+        <Field label={tr.kite_does_kite[lang]}>
+          <YesNo value={t.does_kite ?? false} onChange={v => onChange({ does_kite: v })} lang={lang} />
+        </Field>
+        {t.does_kite && (
+          <>
+            <Field label={tr.kite_level_label[lang]}>
+              <div className="grid grid-cols-1 gap-1.5">
+                {KITE_LEVELS.map(lv => (
+                  <button key={lv.value} type="button"
+                    onClick={() => onChange({ kite_level: lv.value })}
+                    className={`px-3 py-2 rounded-lg text-sm text-left border-2 transition
+                      ${t.kite_level === lv.value
+                        ? 'bg-sky-600 text-white border-sky-600'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-sky-300'}`}>
+                    {tr[lv.labelKey][lang]}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <Field label={tr.kite_brings_gear[lang]}>
+              <YesNo value={t.brings_own_gear ?? false} onChange={v => onChange({ brings_own_gear: v })} lang={lang} />
+            </Field>
+            {t.brings_own_gear && (
+              <Field label={tr.kite_needs_storage[lang]}>
+                <YesNo value={t.needs_storage ?? false} onChange={v => onChange({ needs_storage: v })} lang={lang} />
+              </Field>
+            )}
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">{tr.kite_interests[lang]}</p>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={t.wants_kite_lessons ?? false}
+                    onChange={e => onChange({ wants_kite_lessons: e.target.checked })}
+                    className="w-4 h-4 accent-sky-600" />
+                  <span className="text-sm text-gray-700">{tr.kite_lessons[lang]}</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={t.wants_kite_rental ?? false}
+                    onChange={e => onChange({ wants_kite_rental: e.target.checked })}
+                    className="w-4 h-4 accent-sky-600" />
+                  <span className="text-sm text-gray-700">{tr.kite_rental[lang]}</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={t.wants_wing_lessons ?? false}
+                    onChange={e => onChange({ wants_wing_lessons: e.target.checked })}
+                    className="w-4 h-4 accent-sky-600" />
+                  <span className="text-sm text-gray-700">{tr.wing_lessons[lang]}</span>
+                </label>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -189,7 +256,7 @@ export default function BookingFormPage() {
   function updateTraveler(i: number, patch: Partial<FormTraveler>) {
     setTravelers(prev => prev.map((t, idx) => idx === i ? { ...t, ...patch } : t))
   }
-  function addTraveler() { setTravelers(prev => [...prev, { first_name: '', last_name: '', passport_number: '' }]) }
+  function addTraveler() { setTravelers(prev => [...prev, { first_name: '', last_name: '', passport_number: '', does_kite: false }]) }
   function removeTraveler(i: number) { setTravelers(prev => prev.filter((_, idx) => idx !== i)) }
 
   const canProceed: Record<number, boolean> = {
@@ -237,6 +304,13 @@ export default function BookingFormPage() {
         first_name: t.first_name.trim(),
         last_name: t.last_name.trim(),
         passport_number: t.passport_number.trim(),
+        does_kite: t.does_kite ?? false,
+        kite_level: t.does_kite ? (t.kite_level ?? undefined) : undefined,
+        brings_own_gear: t.does_kite ? (t.brings_own_gear ?? false) : undefined,
+        needs_storage: (t.does_kite && t.brings_own_gear) ? (t.needs_storage ?? false) : undefined,
+        wants_kite_lessons: t.does_kite ? (t.wants_kite_lessons ?? false) : undefined,
+        wants_kite_rental: t.does_kite ? (t.wants_kite_rental ?? false) : undefined,
+        wants_wing_lessons: t.does_kite ? (t.wants_wing_lessons ?? false) : undefined,
       })),
       emergency_contact_name: d.emergency_contact_name.trim(),
       emergency_contact_phone: d.emergency_contact_phone.trim(),
