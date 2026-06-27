@@ -408,7 +408,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                     <div key={br.room_id} className="text-xs text-gray-500">
                       <div className="flex justify-between items-center">
                         <span>
-                          {roomLabel} × {nights}n @ {fmtEur(rate)}/n
+                          {roomLabel} × {nights}N @ {fmtEur(rate)}/N
                           {snap?.override_note && <span className="ml-2 text-amber-500 italic">({snap.override_note})</span>}
                           {hasNoPrice && <span className="ml-2 text-red-400 font-medium">⚠ no price</span>}
                         </span>
@@ -436,7 +436,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                   const n = countNights(e.check_in, e.check_out)
                   return (
                     <div key={e.id} className="flex justify-between text-xs text-gray-500">
-                      <span>{acc?.name ?? 'External'} × {n}n @ {fmtEur(e.sell_price_per_night)}/n</span>
+                      <span>{acc?.name ?? 'External'} × {n}N @ {fmtEur(e.sell_price_per_night)}/N</span>
                       <span>{fmtEur(e.sell_price_per_night * n)}</span>
                     </div>
                   )
@@ -621,7 +621,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
               </div>
               <div className="px-4 py-2">
                 <div className="flex justify-between text-xs text-gray-500">
-                  <span>{b.num_center_access} person{b.num_center_access > 1 ? 's' : ''} × {nights}n @ {fmtEur(b.center_access_rate)}/day</span>
+                  <span>{b.num_center_access} person{b.num_center_access > 1 ? 's' : ''} × {nights}N @ {fmtEur(b.center_access_rate)}/day</span>
                   <span>{fmtEur(centerAccessRev)}</span>
                 </div>
               </div>

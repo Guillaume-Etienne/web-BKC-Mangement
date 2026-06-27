@@ -88,10 +88,13 @@ CREATE TABLE bookings (
   visa_exit_date            DATE,
   status                    booking_status NOT NULL DEFAULT 'provisional',
   notes                     TEXT,
-  num_lessons               INTEGER NOT NULL DEFAULT 0,
-  num_equipment_rentals     INTEGER NOT NULL DEFAULT 0,
-  num_center_access         INTEGER NOT NULL DEFAULT 0,
-  center_access_rate        NUMERIC(10,2) NOT NULL DEFAULT 5,  -- €/day per center-access person
+  -- Activity counters: denormalized CACHE recomputed from booking_participants flags
+  -- on every participant write (source of truth = booking_participants.*). See deriveActivityCounts().
+  num_lessons               INTEGER NOT NULL DEFAULT 0,   -- = count(participants.wants_kite_lessons)
+  num_equipment_rentals     INTEGER NOT NULL DEFAULT 0,   -- = count(participants.wants_kite_rental)
+  num_wing_lessons          INTEGER NOT NULL DEFAULT 0,   -- = count(participants.wants_wing_lessons)
+  num_center_access         INTEGER NOT NULL DEFAULT 0,   -- = count(participants.brings_own_gear) — billed via center_access_rate
+  center_access_rate        NUMERIC(10,2) NOT NULL DEFAULT 5,  -- €/day per center-access (own-gear) person
   arrival_time              TEXT,     -- HH:MM
   departure_time            TEXT,     -- HH:MM
   luggage_count             INTEGER NOT NULL DEFAULT 0,
@@ -135,6 +138,13 @@ CREATE TABLE booking_participants (
   passport_number  TEXT,
   client_id        UUID REFERENCES clients(id) ON DELETE SET NULL,
   kite_level       kite_level,
+  -- Per-traveler kite activity (source of truth for the booking num_* counters)
+  does_kite          BOOLEAN NOT NULL DEFAULT false,
+  brings_own_gear    BOOLEAN NOT NULL DEFAULT false,  -- own gear → billed center access
+  needs_storage      BOOLEAN NOT NULL DEFAULT false,
+  wants_kite_lessons BOOLEAN NOT NULL DEFAULT false,
+  wants_kite_rental  BOOLEAN NOT NULL DEFAULT false,
+  wants_wing_lessons BOOLEAN NOT NULL DEFAULT false,
   notes            TEXT,
   created_at       TIMESTAMPTZ DEFAULT now()
 );

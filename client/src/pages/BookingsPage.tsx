@@ -6,6 +6,7 @@ import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useTaxiDrivers } from '../hooks/useTaxis'
 import { useTable } from '../hooks/useSupabase'
 import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, TaxiDriver } from '../types/database'
+import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,7 +29,7 @@ interface WizardData {
   room_prices: Record<string, number>
   status: BookingStatus
   // Step 3 – Guests
-  participants: { id: string; first_name: string; last_name: string; passport_number: string; kite_level: KiteLevel | ''; client_id: string }[]
+  participants: ParticipantData[]
   couples_count: number
   children_count: number
   // Step 4 – Transport
@@ -39,11 +40,9 @@ interface WizardData {
   taxi_driver_id: string | null  // pre-assigned driver for auto-created trips
   luggage_count: number
   boardbag_count: number
-  // Step 5 – KiteCenter
-  num_lessons: number        // persons wanting lessons
-  num_equipment_rentals: number // persons wanting equipment rental
-  num_center_access: number  // persons using center only (no lesson/rental)
-  center_access_rate: number // €/day per center-access person
+  // Step 5 – KiteCenter — activity is per-traveler (see ParticipantData flags).
+  // The booking num_* counters are derived from those flags via deriveActivityCounts().
+  center_access_rate: number // €/day per center-access (own-gear) person
   // Step 6 – Payment
   amount_paid: number
   notes: string
@@ -58,7 +57,7 @@ const EMPTY_WIZARD: WizardData = {
   arrival_time: '', departure_time: '',
   taxi_arrival: false, taxi_departure: false, taxi_driver_id: null,
   luggage_count: 0, boardbag_count: 0,
-  num_lessons: 0, num_equipment_rentals: 0, num_center_access: 0, center_access_rate: 5,
+  center_access_rate: 5,
   amount_paid: 0, notes: '',
 }
 
@@ -130,7 +129,21 @@ function Counter({ value, onChange, min = 0 }: { value: number; onChange: (v: nu
 
 // ─── Participant row (module-scope for focus safety) ──────────────────────────
 
-type ParticipantData = { id: string; first_name: string; last_name: string; passport_number: string; kite_level: KiteLevel | ''; client_id: string }
+type ParticipantData = {
+  id: string; first_name: string; last_name: string; passport_number: string; kite_level: KiteLevel | ''; client_id: string
+  // Per-traveler kite activity (source of truth for the booking num_* counters)
+  does_kite: boolean
+  brings_own_gear: boolean
+  needs_storage: boolean
+  wants_kite_lessons: boolean
+  wants_kite_rental: boolean
+  wants_wing_lessons: boolean
+}
+
+const EMPTY_ACTIVITY = {
+  does_kite: false, brings_own_gear: false, needs_storage: false,
+  wants_kite_lessons: false, wants_kite_rental: false, wants_wing_lessons: false,
+}
 
 interface ParticipantRowProps {
   p: ParticipantData
@@ -282,7 +295,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
         const autoClientId = d.client_id || ''
         const autoKiteLevel = d.client_id ? (clients.find(c => c.id === d.client_id)?.kite_level ?? '') : ''
         const autoPassport = d.client_id ? (clients.find(c => c.id === d.client_id)?.passport_number ?? '') : ''
-        update({ participants: [{ id: `p${Date.now()}`, first_name: firstName, last_name: lastName, passport_number: autoPassport, kite_level: autoKiteLevel as ParticipantData['kite_level'], client_id: autoClientId }] })
+        update({ participants: [{ id: `p${Date.now()}`, first_name: firstName, last_name: lastName, passport_number: autoPassport, kite_level: autoKiteLevel as ParticipantData['kite_level'], client_id: autoClientId, ...EMPTY_ACTIVITY }] })
       }
     }
     setStep(n)
@@ -304,7 +317,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
 
   // Participant helpers
   function addParticipant() {
-    update({ participants: [...d.participants, { id: `p${Date.now()}`, first_name: '', last_name: '', passport_number: '', kite_level: '', client_id: '' }] })
+    update({ participants: [...d.participants, { id: `p${Date.now()}`, first_name: '', last_name: '', passport_number: '', kite_level: '', client_id: '', ...EMPTY_ACTIVITY }] })
   }
   function updateParticipant(i: number, patch: Partial<ParticipantData>) {
     const parts = [...d.participants]
@@ -789,64 +802,95 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
           )}
 
           {/* ── Step 5: KiteCenter ──────────────────────────────────────── */}
-          {step === 5 && (
+          {step === 5 && (() => {
+            const counts = deriveActivityCounts(d.participants)
+            return (
             <div className="space-y-5">
               <p className="text-sm text-gray-500">
-                How many people in this group want each service? Each is billed separately.
+                Set what each traveler does at the center. Own-gear riders are billed center access.
               </p>
 
-              <div className="space-y-4">
-                {/* Lessons */}
-                <div className="flex items-center justify-between p-4 bg-purple-50 border border-purple-200 rounded-xl">
-                  <div>
-                    <p className="font-semibold text-purple-900 text-sm">📚 Lessons</p>
-                    <p className="text-xs text-purple-600 mt-0.5">Persons wanting kite lessons</p>
-                  </div>
-                  <Counter value={d.num_lessons} onChange={v => update({ num_lessons: v })} />
-                </div>
+              {d.participants.length === 0 && (
+                <p className="text-sm text-gray-400 italic">No travelers yet — add them in the Guests step first.</p>
+              )}
 
-                {/* Rentals */}
-                <div className="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                  <div>
-                    <p className="font-semibold text-amber-900 text-sm">🪁 Equipment rental</p>
-                    <p className="text-xs text-amber-600 mt-0.5">Persons renting kite, board, etc.</p>
-                  </div>
-                  <Counter value={d.num_equipment_rentals} onChange={v => update({ num_equipment_rentals: v })} />
-                </div>
-
-                {/* Center access only */}
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-blue-900 text-sm">🏖️ Center access</p>
-                      <p className="text-xs text-blue-600 mt-0.5">Persons using the center only (no lesson, no rental)</p>
+              <div className="space-y-3">
+                {d.participants.map((p, i) => (
+                  <div key={p.id} className="p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold text-gray-800 text-sm truncate">
+                        {p.first_name || `Traveler ${i + 1}`}{p.last_name ? ` ${p.last_name}` : ''}
+                      </p>
+                      <label className="flex items-center gap-1.5 text-xs text-gray-600 shrink-0">
+                        <input type="checkbox" checked={p.does_kite}
+                          onChange={e => updateParticipant(i, { does_kite: e.target.checked })} />
+                        🪁 Kites
+                      </label>
                     </div>
-                    <Counter value={d.num_center_access} onChange={v => update({ num_center_access: v })} />
-                  </div>
-                  {d.num_center_access > 0 && (
-                    <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-blue-200">
-                      <span className="text-xs text-blue-700">Rate per person / day</span>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number" min="0" step="0.5"
-                          value={d.center_access_rate}
-                          onChange={e => update({ center_access_rate: parseFloat(e.target.value) || 0 })}
-                          className="w-20 px-2 py-1.5 border border-blue-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <span className="text-xs text-blue-600">€/day</span>
+                    {p.does_kite && (
+                      <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-gray-200 text-xs">
+                        <label className="flex items-center gap-1.5 text-purple-800">
+                          <input type="checkbox" checked={p.wants_kite_lessons}
+                            onChange={e => updateParticipant(i, { wants_kite_lessons: e.target.checked })} />
+                          📚 Lessons
+                        </label>
+                        <label className="flex items-center gap-1.5 text-cyan-800">
+                          <input type="checkbox" checked={p.wants_wing_lessons}
+                            onChange={e => updateParticipant(i, { wants_wing_lessons: e.target.checked })} />
+                          🪽 Wing
+                        </label>
+                        <label className="flex items-center gap-1.5 text-amber-800">
+                          <input type="checkbox" checked={p.wants_kite_rental}
+                            onChange={e => updateParticipant(i, { wants_kite_rental: e.target.checked })} />
+                          🛹 Rental
+                        </label>
+                        <label className="flex items-center gap-1.5 text-blue-800">
+                          <input type="checkbox" checked={p.brings_own_gear}
+                            onChange={e => updateParticipant(i, { brings_own_gear: e.target.checked, needs_storage: e.target.checked ? p.needs_storage : false })} />
+                          🏖️ Own gear (center access)
+                        </label>
+                        {p.brings_own_gear && (
+                          <label className="flex items-center gap-1.5 text-blue-800">
+                            <input type="checkbox" checked={p.needs_storage}
+                              onChange={e => updateParticipant(i, { needs_storage: e.target.checked })} />
+                            📦 Storage
+                          </label>
+                        )}
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                ))}
               </div>
 
-              {(d.num_lessons + d.num_equipment_rentals + d.num_center_access) > 0 && (
+              {/* Center access rate — shown when at least one own-gear traveler */}
+              {counts.centerAccess > 0 && (
+                <div className="flex items-center justify-between gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                  <span className="text-xs text-blue-700">🏖️ Center access rate ({counts.centerAccess} own-gear · per person / day)</span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number" min="0" step="0.5"
+                      value={d.center_access_rate}
+                      onChange={e => update({ center_access_rate: parseFloat(e.target.value) || 0 })}
+                      className="w-20 px-2 py-1.5 border border-blue-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-xs text-blue-600">€/day</span>
+                  </div>
+                </div>
+              )}
+
+              {(counts.lessons + counts.rentals + counts.wing + counts.centerAccess) > 0 && (
                 <p className="text-sm text-gray-500 text-right">
-                  Total: <span className="font-semibold text-gray-700">{d.num_lessons + d.num_equipment_rentals + d.num_center_access} person{(d.num_lessons + d.num_equipment_rentals + d.num_center_access) > 1 ? 's' : ''}</span> using the center
+                  {[
+                    counts.lessons > 0 && `${counts.lessons} lessons`,
+                    counts.wing > 0 && `${counts.wing} wing`,
+                    counts.rentals > 0 && `${counts.rentals} rental`,
+                    counts.centerAccess > 0 && `${counts.centerAccess} center access`,
+                  ].filter(Boolean).join(' · ')}
                 </p>
               )}
             </div>
-          )}
+            )
+          })()}
 
           {/* ── Step 6: Payment ─────────────────────────────────────────── */}
           {step === 6 && (
@@ -867,7 +911,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                 {d.check_in && d.check_out && (
                   <div className="flex justify-between text-gray-600">
                     <span>🏄 Stay</span>
-                    <span>{d.check_in} → {d.check_out} ({nights}n)</span>
+                    <span>{d.check_in} → {d.check_out} ({nights}N)</span>
                   </div>
                 )}
                 {(d.visa_entry_date || d.visa_exit_date) && (
@@ -902,18 +946,23 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                     <span>{d.luggage_count} bag{d.luggage_count !== 1 ? 's' : ''}{d.boardbag_count > 0 ? ` · ${d.boardbag_count} boardbag${d.boardbag_count !== 1 ? 's' : ''}` : ''}</span>
                   </div>
                 )}
-                {(d.num_lessons > 0 || d.num_equipment_rentals > 0 || d.num_center_access > 0) && (
-                  <div className="flex justify-between text-gray-600">
-                    <span>KiteCenter</span>
-                    <span>
-                      {[
-                        d.num_lessons > 0 && `${d.num_lessons} lesson${d.num_lessons > 1 ? 's' : ''}`,
-                        d.num_equipment_rentals > 0 && `${d.num_equipment_rentals} rental${d.num_equipment_rentals > 1 ? 's' : ''}`,
-                        d.num_center_access > 0 && `${d.num_center_access} access`,
-                      ].filter(Boolean).join(' · ')}
-                    </span>
-                  </div>
-                )}
+                {(() => {
+                  const c = deriveActivityCounts(d.participants)
+                  if (c.lessons + c.rentals + c.wing + c.centerAccess === 0) return null
+                  return (
+                    <div className="flex justify-between text-gray-600">
+                      <span>KiteCenter</span>
+                      <span>
+                        {[
+                          c.lessons > 0 && `${c.lessons} lesson${c.lessons > 1 ? 's' : ''}`,
+                          c.wing > 0 && `${c.wing} wing`,
+                          c.rentals > 0 && `${c.rentals} rental${c.rentals > 1 ? 's' : ''}`,
+                          c.centerAccess > 0 && `${c.centerAccess} access`,
+                        ].filter(Boolean).join(' · ')}
+                      </span>
+                    </div>
+                  )
+                })()}
               </div>
 
               <Field label="Internal notes">
@@ -1097,9 +1146,8 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       visa_exit_date: data.visa_exit_date || null,
       status: data.status,
       notes: data.notes || null,
-      num_lessons: data.num_lessons,
-      num_equipment_rentals: data.num_equipment_rentals,
-      num_center_access: data.num_center_access,
+      // num_* counters derived from the per-traveler activity flags (kept in sync below)
+      ...activityCountColumns(data.participants.filter(p => p.first_name.trim())),
       center_access_rate: data.center_access_rate,
       arrival_time: data.arrival_time || null,
       departure_time: data.departure_time || null,
@@ -1157,8 +1205,10 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       return firstName ? [{ first_name: firstName, last_name: lastName }] : []
     })() : []
     const participantsToInsert = [
-      ...named.map(p => ({ first_name: p.first_name.trim(), last_name: p.last_name.trim() || null, passport_number: p.passport_number.trim() || null, kite_level: p.kite_level || null, client_id: p.client_id || null })),
-      ...autoList.map(p => ({ ...p, passport_number: null, kite_level: null, client_id: null })),
+      ...named.map(p => ({ first_name: p.first_name.trim(), last_name: p.last_name.trim() || null, passport_number: p.passport_number.trim() || null, kite_level: p.kite_level || null, client_id: p.client_id || null,
+        does_kite: p.does_kite, brings_own_gear: p.brings_own_gear, needs_storage: p.needs_storage,
+        wants_kite_lessons: p.wants_kite_lessons, wants_kite_rental: p.wants_kite_rental, wants_wing_lessons: p.wants_wing_lessons })),
+      ...autoList.map(p => ({ ...p, passport_number: null, kite_level: null, client_id: null, ...EMPTY_ACTIVITY })),
     ]
     if (participantsToInsert.length > 0) {
       const { data: inserted, error: insErr } = await supabase.from('booking_participants').insert(
@@ -1169,6 +1219,8 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           passport_number: p.passport_number || null,
           kite_level: p.kite_level || null,
           client_id: p.client_id || null,
+          does_kite: p.does_kite, brings_own_gear: p.brings_own_gear, needs_storage: p.needs_storage,
+          wants_kite_lessons: p.wants_kite_lessons, wants_kite_rental: p.wants_kite_rental, wants_wing_lessons: p.wants_wing_lessons,
           notes: null,
         }))
       ).select()
@@ -1222,7 +1274,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
 
     // 7. Auto-create taxi trips (new bookings only)
     if (isNew) {
-      const nbPersons = (data.num_lessons + data.num_equipment_rentals + data.num_center_access) || 1
+      const nbPersons = data.participants.filter(p => p.first_name.trim()).length || 1
       const driver = data.taxi_driver_id ? taxiDrivers.find(dr => dr.id === data.taxi_driver_id) : null
       const taxiBase = {
         booking_id:         bookingId,
@@ -1292,17 +1344,18 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           passport_number: p.passport_number ?? '',
           kite_level: (p.kite_level ?? '') as ParticipantData['kite_level'],
           client_id: p.client_id ?? '',
+          does_kite: p.does_kite, brings_own_gear: p.brings_own_gear, needs_storage: p.needs_storage,
+          wants_kite_lessons: p.wants_kite_lessons, wants_kite_rental: p.wants_kite_rental, wants_wing_lessons: p.wants_wing_lessons,
         }))
         if (existing.length > 0) return existing
         // No participants yet — pre-fill with main client
         const c = clients.find(cl => cl.id === b.client_id)
-        return c ? [{ id: `pre_${b.id}`, first_name: c.first_name, last_name: c.last_name, passport_number: c.passport_number ?? '', kite_level: (c.kite_level ?? '') as ParticipantData['kite_level'], client_id: c.id }] : []
+        return c ? [{ id: `pre_${b.id}`, first_name: c.first_name, last_name: c.last_name, passport_number: c.passport_number ?? '', kite_level: (c.kite_level ?? '') as ParticipantData['kite_level'], client_id: c.id, ...EMPTY_ACTIVITY }] : []
       })(),
       couples_count: b.couples_count, children_count: b.children_count,
       arrival_time: b.arrival_time ?? '', departure_time: b.departure_time ?? '',
       taxi_arrival: b.taxi_arrival, taxi_departure: b.taxi_departure, taxi_driver_id: null,
       luggage_count: b.luggage_count, boardbag_count: b.boardbag_count,
-      num_lessons: b.num_lessons, num_equipment_rentals: b.num_equipment_rentals, num_center_access: b.num_center_access,
       center_access_rate: b.center_access_rate ?? 5,
       amount_paid: b.amount_paid, notes: b.notes ?? '',
     }
@@ -1403,9 +1456,10 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                 // Compact info codes
                 const codes = [
                   bookingParticipants.filter(p => p.booking_id === b.id).length > 0 && `${bookingParticipants.filter(p => p.booking_id === b.id).length}G`,
-                  nights > 0 && `${nights}n`,
-                  b.num_lessons > 0 && `${b.num_lessons}L`,
+                  nights > 0 && `${nights}N`,
+                  b.num_lessons > 0 && `${b.num_lessons}KL`,
                   b.num_equipment_rentals > 0 && `${b.num_equipment_rentals}R`,
+                  b.num_wing_lessons > 0 && `${b.num_wing_lessons}WL`,
                   b.num_center_access > 0 && `${b.num_center_access}C`,
                 ].filter(Boolean).join(' · ')
 

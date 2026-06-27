@@ -45,6 +45,13 @@ export interface BookingParticipant {
   passport_number: string | null
   client_id: string | null   // lien optionnel vers un Client existant
   kite_level: KiteLevel | null
+  // Per-traveler kite activity — source of truth for the booking num_* counters
+  does_kite: boolean
+  brings_own_gear: boolean    // own gear → billed center access
+  needs_storage: boolean
+  wants_kite_lessons: boolean
+  wants_kite_rental: boolean
+  wants_wing_lessons: boolean
   notes: string | null
   created_at: string
 }
@@ -59,10 +66,12 @@ export interface Booking {
   visa_exit_date: string | null   // Mozambique exit date for visa letter
   status: BookingStatus
   notes: string | null
-  num_lessons: number        // nb persons wanting lessons
-  num_equipment_rentals: number // nb persons wanting equipment rental
-  num_center_access: number  // nb persons using center services only (no lesson/rental)
-  center_access_rate: number // €/day per center-access person (default 5)
+  // Denormalized cache recomputed from booking_participants flags (see deriveActivityCounts)
+  num_lessons: number           // = count(participants.wants_kite_lessons)
+  num_equipment_rentals: number // = count(participants.wants_kite_rental)
+  num_wing_lessons: number      // = count(participants.wants_wing_lessons)
+  num_center_access: number     // = count(participants.brings_own_gear) — billed via center_access_rate
+  center_access_rate: number    // €/day per center-access (own-gear) person (default 5)
   client?: Client
   arrival_time: string | null
   departure_time: string | null

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useTable } from '../hooks/useSupabase'
 import type { FormSubmission, FormSubmissionStatus, Lang } from '../types/database'
+import { activityCountColumns } from '../utils/bookingActivity'
 
 // Admin review queue for public booking-form submissions.
 // English UI (admin chrome). Approving turns a submission into a real
@@ -46,6 +47,7 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
   )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmAction, setConfirmAction] = useState<'reject' | 'reopen' | null>(null)
 
   const alreadyCreated = !!s.created_booking_id
   const datesValid = !!(checkIn && checkOut && checkOut > checkIn)
@@ -77,10 +79,13 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
     if (p.taxi_arrival && p.transfer_to_bilene_date) noteBits.push(`Transfer to Bilene: ${p.transfer_to_bilene_date}${p.transfer_to_bilene_time ? ` ${p.transfer_to_bilene_time}` : ''}.`)
     if (p.taxi_departure && p.transfer_to_airport_date) noteBits.push(`Transfer to airport: ${p.transfer_to_airport_date}${p.transfer_to_airport_time ? ` ${p.transfer_to_airport_time}` : ''}.`)
     if (p.referral_source) noteBits.push(`Heard about us: ${p.referral_source}.`)
+    // Activity counters derived from the per-traveler form flags (kept in sync on the participants below)
+    const formTravelers = (p.travelers ?? []).filter(t => t.first_name.trim())
     const { data: booking, error: bErr } = await supabase.from('bookings').insert({
       client_id: client.id,
       check_in: checkIn,
       check_out: checkOut,
+      ...activityCountColumns(formTravelers),
       visa_entry_date: p.country_entry_date || null,
       visa_exit_date: p.country_exit_date || null,
       status: 'provisional',
@@ -105,8 +110,8 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
     }).select('id').single()
     if (bErr || !booking) { setError('Booking: ' + (bErr?.message ?? 'unknown')); setBusy(false); return }
 
-    // 3. Participants
-    const travelers = (p.travelers ?? []).filter(t => t.first_name.trim())
+    // 3. Participants — keep the per-traveler activity flags (source of truth for the counters above)
+    const travelers = formTravelers
     if (travelers.length > 0) {
       const { error: pErr } = await supabase.from('booking_participants').insert(
         travelers.map(t => ({
@@ -115,6 +120,12 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
           last_name: t.last_name.trim() || null,
           passport_number: t.passport_number.trim() || null,
           kite_level: t.does_kite ? (t.kite_level ?? null) : null,
+          does_kite: !!t.does_kite,
+          brings_own_gear: !!t.brings_own_gear,
+          needs_storage: !!t.needs_storage,
+          wants_kite_lessons: !!t.wants_kite_lessons,
+          wants_kite_rental: !!t.wants_kite_rental,
+          wants_wing_lessons: !!t.wants_wing_lessons,
           client_id: null,
           notes: null,
         }))
@@ -137,6 +148,17 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
     setError(null)
     const { error: uErr } = await supabase.from('form_submissions')
       .update({ status: 'rejected', reviewed_at: new Date().toISOString() })
+      .eq('id', s.id)
+    setBusy(false)
+    if (uErr) { setError(uErr.message); return }
+    onDone()
+  }
+
+  async function reopen() {
+    setBusy(true)
+    setError(null)
+    const { error: uErr } = await supabase.from('form_submissions')
+      .update({ status: 'pending', reviewed_at: null })
       .eq('id', s.id)
     setBusy(false)
     if (uErr) { setError(uErr.message); return }
@@ -226,20 +248,58 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
           </div>
           {!datesValid && <p className="text-xs text-rose-500">Check-out must be after check-in.</p>}
           {error && <p className="text-xs text-rose-600">{error}</p>}
-          <div className="flex gap-2 pt-1">
-            <button type="button" onClick={createBooking} disabled={!datesValid || busy || alreadyCreated}
-              className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition ${datesValid && !busy && !alreadyCreated ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
-              {busy ? 'Working…' : alreadyCreated ? 'Already created' : 'Create booking'}
-            </button>
-            <button type="button" onClick={reject} disabled={busy}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 border border-gray-300 hover:bg-gray-100 transition">
-              Reject
-            </button>
-          </div>
+          {confirmAction === 'reject' ? (
+            <div className="flex items-center gap-3 pt-1">
+              <span className="text-sm text-gray-600">Reject this submission?</span>
+              <button type="button" onClick={() => { setConfirmAction(null); reject() }} disabled={busy}
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700 transition">
+                Yes, reject
+              </button>
+              <button type="button" onClick={() => setConfirmAction(null)}
+                className="px-3 py-1.5 rounded-lg text-sm text-gray-500 border border-gray-300 hover:bg-gray-100 transition">
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={createBooking} disabled={!datesValid || busy || alreadyCreated}
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition ${datesValid && !busy && !alreadyCreated ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
+                {busy ? 'Working…' : alreadyCreated ? 'Already created' : 'Create booking'}
+              </button>
+              <button type="button" onClick={() => setConfirmAction('reject')} disabled={busy}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 border border-gray-300 hover:bg-gray-100 transition">
+                Reject
+              </button>
+            </div>
+          )}
         </div>
       )}
       {s.status === 'approved' && s.created_booking_id && (
         <p className="text-sm text-green-700">✅ Approved — booking created.</p>
+      )}
+      {s.status === 'rejected' && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+          <p className="text-sm text-gray-500">This submission was rejected.</p>
+          {error && <p className="text-xs text-rose-600">{error}</p>}
+          {confirmAction === 'reopen' ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600">Move back to pending?</span>
+              <button type="button" onClick={() => { setConfirmAction(null); reopen() }} disabled={busy}
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 transition">
+                Yes, reconsider
+              </button>
+              <button type="button" onClick={() => setConfirmAction(null)}
+                className="px-3 py-1.5 rounded-lg text-sm text-gray-500 border border-gray-300 hover:bg-gray-100 transition">
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setConfirmAction('reopen')} disabled={busy}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 transition">
+              ↩ Reconsider (move back to pending)
+            </button>
+          )}
+        </div>
       )}
     </div>
   )

@@ -707,6 +707,7 @@ export default function ManagementPage() {
                             <div className="mt-3 pt-2 border-t flex gap-4 text-xs text-gray-500">
                               {b.num_lessons > 0 && <span>🏄 {b.num_lessons} lesson{b.num_lessons !== 1 ? 's' : ''}</span>}
                               {b.num_equipment_rentals > 0 && <span>🪁 {b.num_equipment_rentals} rental{b.num_equipment_rentals !== 1 ? 's' : ''}</span>}
+                              {b.num_wing_lessons > 0 && <span>🪽 {b.num_wing_lessons} wing</span>}
                               {b.num_center_access > 0 && <span>🏖 {b.num_center_access} center access</span>}
                             </div>
                           </div>

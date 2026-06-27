@@ -303,6 +303,7 @@ function buildBooking(
       notes: null,
       num_lessons:           0,
       num_equipment_rentals: 0,
+      num_wing_lessons:      0,
       num_center_access:     numPeople,
       center_access_rate:    5,
       client: undefined,

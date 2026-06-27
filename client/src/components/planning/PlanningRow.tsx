@@ -35,11 +35,14 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
     const startOffset = Math.max(0, dateToIdx(b.check_in))
     const endOffset = Math.min(totalDays, dateToIdx(b.check_out))
     const clientName = b.client ? `${b.client.first_name} ${b.client.last_name}` : '?'
+    const guestCount = bookingParticipants.filter(p => p.booking_id === b.id).length
     const label = [
       clientName,
-      bookingParticipants.filter(p => p.booking_id === b.id).length > 0 ? `${bookingParticipants.filter(p => p.booking_id === b.id).length}P` : null,
-      b.num_lessons > 0 ? `${b.num_lessons}L` : null,
+      guestCount > 0 ? `${guestCount}G` : null,
+      b.num_lessons > 0 ? `${b.num_lessons}KL` : null,
       b.num_equipment_rentals > 0 ? `${b.num_equipment_rentals}R` : null,
+      b.num_wing_lessons > 0 ? `${b.num_wing_lessons}WL` : null,
+      b.num_center_access > 0 ? `${b.num_center_access}C` : null,
       b.notes || null,
     ].filter(Boolean).join(' · ')
     return { booking: b, startOffset, endOffset, label }

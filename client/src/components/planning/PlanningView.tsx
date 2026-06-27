@@ -48,6 +48,8 @@ function BookingQuickView({ booking, rooms, accommodations, bookingRooms, partic
     ['Guests',    participants.length > 0 ? participants.map(p => `${p.first_name}${p.last_name ? ` ${p.last_name}` : ''}`).join(', ') : '—'],
     ['Lessons',   String(booking.num_lessons)],
     ['Rentals',   String(booking.num_equipment_rentals)],
+    ['Wing',      String(booking.num_wing_lessons)],
+    ['Center access', String(booking.num_center_access)],
   ]
   if (booking.notes) rows.push(['Notes', booking.notes])
 
