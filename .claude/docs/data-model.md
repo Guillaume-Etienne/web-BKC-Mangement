@@ -88,7 +88,7 @@
 | needs_storage | boolean | Stockage matos |
 | wants_kite_lessons | boolean | |
 | wants_kite_rental | boolean | |
-| wants_wing_lessons | boolean | Wing (WL) |
+| wants_wing_lessons | boolean | Wing lessons (badge LW) |
 | notes | string \| null | |
 | created_at | string (ISO timestamp) | |
 > Remplace l'ancienne table `participants` (supprimée). Modèle unifié visa + activité kite **par voyageur** (flags ajoutés 2026-06-28). Les 6 flags sont la **source de vérité** ; les `bookings.num_*` en sont un cache dérivé (`deriveActivityCounts()` dans `utils/bookingActivity.ts`).

@@ -40,7 +40,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'unverified',  label: 'To Verify',   icon: '⚠️' },
 ]
 
-export default function AccountingPage() {
+export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id: string) => void }) {
   const [tab, setTab] = useState<Tab>('dashboard')
 
   // ── Read-only data (Supabase hooks) ───────────────────────────────────────
@@ -273,7 +273,7 @@ export default function AccountingPage() {
         </div>
 
         {/* Tab content */}
-        {tab === 'dashboard'   && <AccountingDashboard data={sharedData} />}
+        {tab === 'dashboard'   && <AccountingDashboard data={sharedData} onOpenBooking={onOpenBooking} />}
         {tab === 'bookings'    && <BookingFinances     data={sharedData} handlers={handlers} />}
         {tab === 'instructors' && <InstructorPayroll   data={sharedData} handlers={handlers} />}
         {tab === 'houses'      && <HousesTab            data={sharedData} />}

@@ -129,7 +129,7 @@ function App() {
         {currentPage === 'equipment'  && <EquipmentPage />}
         {currentPage === 'taxis'      && <TaxiPage />}
         {currentPage === 'documents'  && <DocumentsPage />}
-        {currentPage === 'accounting' && <AccountingPage />}
+        {currentPage === 'accounting' && <AccountingPage onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
         {currentPage === 'activities' && <ActivitiesPage />}
         {currentPage === 'submissions' && <SubmissionsPage />}
       </main>

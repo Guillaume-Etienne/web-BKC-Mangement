@@ -39,9 +39,9 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
     const label = [
       clientName,
       guestCount > 0 ? `${guestCount}G` : null,
-      b.num_lessons > 0 ? `${b.num_lessons}KL` : null,
+      b.num_lessons > 0 ? `${b.num_lessons}LK` : null,
       b.num_equipment_rentals > 0 ? `${b.num_equipment_rentals}R` : null,
-      b.num_wing_lessons > 0 ? `${b.num_wing_lessons}WL` : null,
+      b.num_wing_lessons > 0 ? `${b.num_wing_lessons}LW` : null,
       b.num_center_access > 0 ? `${b.num_center_access}C` : null,
       b.notes || null,
     ].filter(Boolean).join(' · ')

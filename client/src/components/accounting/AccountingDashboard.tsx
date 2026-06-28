@@ -7,7 +7,7 @@ import {
   computeInstructorBalance, computeStandaloneTaxiRevenue, computeActivityNetRevenue, fmtEur, countNights,
 } from './utils'
 
-interface Props { data: SharedAccountingData }
+interface Props { data: SharedAccountingData; onOpenBooking?: (id: string) => void }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -22,7 +22,7 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
 
 // ────────────────────────────────────────────────────────────────────────────
 
-export default function AccountingDashboard({ data }: Props) {
+export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   const {
     bookings, payments,
     diningEvents, houseRentals,
@@ -301,8 +301,13 @@ export default function AccountingDashboard({ data }: Props) {
                     cancelled:   'bg-gray-100 text-gray-500',
                   }
                   return (
-                    <tr key={b.id} className="border-b last:border-0 hover:bg-gray-50">
+                    <tr
+                      key={b.id}
+                      onClick={onOpenBooking ? () => onOpenBooking(b.id) : undefined}
+                      className={`border-b last:border-0 hover:bg-gray-50 ${onOpenBooking ? 'cursor-pointer' : ''}`}
+                    >
                       <td className="py-2 font-medium text-gray-800">
+                        {onOpenBooking && <span className="text-gray-300 mr-1">↗</span>}
                         {client ? `${client.first_name} ${client.last_name}` : b.id}
                       </td>
                       <td className="py-2 text-gray-500">{b.check_in}</td>

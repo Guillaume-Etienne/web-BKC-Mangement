@@ -736,6 +736,17 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
           {/* ── Step 4: Transport ───────────────────────────────────────── */}
           {step === 4 && (
             <div className="space-y-5">
+              {/* Passenger total — helps pick the right taxi/vehicle */}
+              {(() => {
+                const pax = d.participants.filter(p => p.first_name.trim()).length
+                return (
+                  <div className="flex items-center justify-between p-3 bg-sky-50 border border-sky-200 rounded-xl text-sm">
+                    <span className="text-sky-800 flex items-center gap-2">👥 Total passengers</span>
+                    <span className="font-semibold text-sky-900">{pax} {pax === 1 ? 'person' : 'people'}</span>
+                  </div>
+                )
+              })()}
+
               {/* Arrival */}
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">✈️ Arrival</h3>
@@ -1258,12 +1269,17 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       )
     }
 
-    // 6. Auto-create unverified payment if amount_paid > 0 (new bookings only)
-    if (isNew && data.amount_paid > 0) {
+    // 6. Auto-create an unverified payment for any INCREASE in "amount already paid".
+    //    New booking → previous is 0. Edit → only the added delta (idempotent: re-saving
+    //    without changing the field creates nothing; bumping it creates the difference).
+    //    Reductions are ignored here (adjust manually in Accounting → Bookings).
+    const prevPaid  = isNew ? 0 : (wizard.editing?.amount_paid ?? 0)
+    const paidDelta = data.amount_paid - prevPaid
+    if (paidDelta > 0) {
       await supabase.from('payments').insert({
         booking_id:  bookingId,
         date:        new Date().toISOString().slice(0, 10),
-        amount:      data.amount_paid,
+        amount:      paidDelta,
         method:      'transfer',
         is_deposit:  false,
         is_verified: false,
@@ -1457,9 +1473,9 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                 const codes = [
                   bookingParticipants.filter(p => p.booking_id === b.id).length > 0 && `${bookingParticipants.filter(p => p.booking_id === b.id).length}G`,
                   nights > 0 && `${nights}N`,
-                  b.num_lessons > 0 && `${b.num_lessons}KL`,
+                  b.num_lessons > 0 && `${b.num_lessons}LK`,
                   b.num_equipment_rentals > 0 && `${b.num_equipment_rentals}R`,
-                  b.num_wing_lessons > 0 && `${b.num_wing_lessons}WL`,
+                  b.num_wing_lessons > 0 && `${b.num_wing_lessons}LW`,
                   b.num_center_access > 0 && `${b.num_center_access}C`,
                 ].filter(Boolean).join(' · ')
 
@@ -1518,7 +1534,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
         {/* Legend */}
         <div className="hidden md:flex items-center gap-4 mt-2 text-xs text-gray-400">
           <span>Stay codes:</span>
-          <span><b className="text-gray-500">G</b> guests · <b className="text-gray-500">n</b> nights · <b className="text-gray-500">L</b> lessons · <b className="text-gray-500">R</b> rentals · <b className="text-gray-500">C</b> center access</span>
+          <span><b className="text-gray-500">G</b> guests · <b className="text-gray-500">N</b> nights · <b className="text-gray-500">LK</b> kite lessons · <b className="text-gray-500">LW</b> wing lessons · <b className="text-gray-500">R</b> rentals · <b className="text-gray-500">C</b> center access</span>
           <span className="ml-4 flex items-center gap-1"><span className="inline-block w-3 h-3 bg-blue-100 border-l-2 border-blue-400 rounded-sm" /> Active now</span>
           <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-amber-100 border-l-2 border-amber-400 rounded-sm" /> Incomplete</span>
         </div>
