@@ -83,9 +83,15 @@
 | passport_number | string \| null | Requis pour lettre visa |
 | client_id | string \| null | Lien optionnel vers Client existant |
 | kite_level | `KiteLevel \| null` | |
+| does_kite | boolean | **Source de vérité** activité kite |
+| brings_own_gear | boolean | Propre matos → facturé **center access** |
+| needs_storage | boolean | Stockage matos |
+| wants_kite_lessons | boolean | |
+| wants_kite_rental | boolean | |
+| wants_wing_lessons | boolean | Wing (WL) |
 | notes | string \| null | |
 | created_at | string (ISO timestamp) | |
-> Remplace l'ancienne table `participants` (supprimée). Modèle unifié pour visa + leçons + location.
+> Remplace l'ancienne table `participants` (supprimée). Modèle unifié visa + activité kite **par voyageur** (flags ajoutés 2026-06-28). Les 6 flags sont la **source de vérité** ; les `bookings.num_*` en sont un cache dérivé (`deriveActivityCounts()` dans `utils/bookingActivity.ts`).
 
 ### `bookings` → `Booking`
 | Field | Type | Notes |
@@ -99,10 +105,11 @@
 | visa_exit_date | string \| null | Sortie Mozambique (lettre visa) |
 | status | BookingStatus | |
 | notes | string \| null | |
-| num_lessons | number | Personnes voulant des leçons |
-| num_equipment_rentals | number | |
-| num_center_access | number | Sans leçon ni location |
-| center_access_rate | number (EUR) | €/jour par personne en center access (défaut 5) |
+| num_lessons | number | **Cache** = count(participants.wants_kite_lessons) |
+| num_equipment_rentals | number | **Cache** = count(participants.wants_kite_rental) |
+| num_wing_lessons | number | **Cache** = count(participants.wants_wing_lessons) |
+| num_center_access | number | **Cache** = count(participants.brings_own_gear) |
+| center_access_rate | number (EUR) | €/jour par personne own-gear/center access (défaut 5) |
 | arrival_time | string \| null (HH:MM) | |
 | departure_time | string \| null (HH:MM) | |
 | luggage_count | number | |
@@ -469,17 +476,8 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 > Auto-création : nouveau booking avec `amount_paid > 0` → insert Payment (`method:'transfer'`, `is_verified:false`).
 > Discounts : positif, `is_discount:true`. Réduit outstanding (Total − Paid).
 
-### `participant_consumptions` → `ParticipantConsumption`
-| Field | Type | Notes |
-|-------|------|-------|
-| id | string (UUID) | |
-| booking_id | string (FK) | |
-| participant_id | string (FK → booking_participants) | |
-| type | ConsumptionType | `'lesson' \| 'rental' \| 'activity' \| 'center_access'` |
-| quantity | number | |
-| unit_price | number (EUR) | |
-| notes | string \| null | |
-> ⚠️ Table définie mais jamais alimentée en pratique. ClientSharePage utilise les tables sources directes (lessons, equipment_rentals, activity_bookings) au lieu de cette table.
+### ~~`participant_consumptions`~~ — SUPPRIMÉE (2026-06-28)
+> Table + type `ParticipantConsumption` + enum `consumption_type` supprimés (orphelins, jamais alimentés). ClientSharePage utilise les tables sources directes (lessons, equipment_rentals, activity_bookings).
 
 ### `instructor_debts` → `InstructorDebt`
 | Field | Type |
@@ -530,20 +528,8 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 
 ## Documents
 
-### `travel_guide_sections` → `TravelGuideSection`
-| Field | Type | Notes |
-|-------|------|-------|
-| id | string (UUID) | |
-| key | string (UNIQUE) | Identifiant (e.g. "getting_there", "packing") |
-| title_fr | string | Français |
-| title_en | string | English |
-| title_es | string | Español |
-| body_fr | string | Contenu français |
-| body_en | string | Contenu anglais |
-| body_es | string | Contenu espagnol |
-| sort_order | number | Ordre d'affichage |
-| updated_at | string (ISO timestamp) | |
-> Utilisé dans DocumentsPage (onglet Travel Guide). i18n intégré dans schema.
+### Travel Guide — `TravelGuideSection` (client-side, **pas en DB**)
+> Le type vit dans `client/src/data/travelGuide.ts` (`defaultTravelGuideSections`). DocumentsPage (onglet Travel Guide) charge/sauve les sections en **localStorage**, pas en base. La table `travel_guide_sections` a été **supprimée (2026-06-28)** (orpheline, jamais lue).
 
 ---
 

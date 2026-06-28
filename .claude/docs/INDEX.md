@@ -14,7 +14,6 @@
 | SharedLink params par type | `data-model.md` | § shared_links |
 | Formulaire public : table file d'attente | `data-model.md` | § form_submissions |
 | BookingFormPayload (champs du form) | `data-model.md` | § form_submissions |
-| ParticipantConsumption (table non alimentée) | `data-model.md` | § ParticipantConsumption |
 | TravelGuideSection (6 sections i18n) | `data-model.md` | § TravelGuideSection |
 | EmailLog / EmailLogType / EmailLogStatus | `data-model.md` | § Email Logs |
 | PendingAction / ActionPriority / règles | `data-model.md` | § Pending Actions |

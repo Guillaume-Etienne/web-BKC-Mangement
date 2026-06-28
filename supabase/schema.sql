@@ -18,7 +18,6 @@ CREATE TYPE equipment_category              AS ENUM ('kite', 'board', 'surfboard
 CREATE TYPE equipment_condition             AS ENUM ('new', 'good', 'fair', 'damaged', 'retired');
 CREATE TYPE rental_slot                     AS ENUM ('morning', 'afternoon', 'full_day');
 CREATE TYPE payment_method                  AS ENUM ('cash_eur', 'cash_mzn', 'transfer', 'card_palmeiras');
-CREATE TYPE consumption_type                AS ENUM ('lesson', 'rental', 'activity', 'center_access');
 CREATE TYPE external_accommodation_provider AS ENUM ('palmeiras', 'other');
 CREATE TYPE kite_level                      AS ENUM ('beg-total', 'beg-bodydrag', 'beg-waterstart', 'intermediate', 'advanced');
 CREATE TYPE palmeiras_entry_type            AS ENUM ('expense', 'income');
@@ -473,16 +472,6 @@ CREATE TABLE payments (
 
 CREATE INDEX idx_payments_booking ON payments(booking_id);
 
-CREATE TABLE participant_consumptions (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  booking_id      UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
-  participant_id  UUID NOT NULL REFERENCES booking_participants(id) ON DELETE CASCADE,
-  type            consumption_type NOT NULL,
-  quantity        NUMERIC(8,2) NOT NULL DEFAULT 1,
-  unit_price      NUMERIC(8,2) NOT NULL DEFAULT 0,
-  notes           TEXT
-);
-
 CREATE TABLE instructor_debts (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   instructor_id  UUID NOT NULL REFERENCES instructors(id) ON DELETE CASCADE,
@@ -576,20 +565,8 @@ CREATE TABLE email_logs (
 CREATE INDEX idx_email_logs_booking ON email_logs(booking_id);
 
 
--- ── Travel Guide ──────────────────────────────────────────────────────────────
-
-CREATE TABLE travel_guide_sections (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key         TEXT NOT NULL UNIQUE,   -- e.g. 'weather', 'transport'
-  title_fr    TEXT NOT NULL,
-  title_en    TEXT NOT NULL,
-  title_es    TEXT NOT NULL,
-  body_fr     TEXT NOT NULL DEFAULT '',
-  body_en     TEXT NOT NULL DEFAULT '',
-  body_es     TEXT NOT NULL DEFAULT '',
-  sort_order  INTEGER NOT NULL DEFAULT 0,
-  updated_at  TIMESTAMPTZ DEFAULT now()
-);
+-- Travel guide sections are stored client-side (localStorage) from client/src/data/travelGuide.ts.
+-- The former travel_guide_sections table was never read by the app and was dropped (2026-06-28).
 
 
 -- ============================================================
@@ -613,11 +590,10 @@ BEGIN
     'activity_providers', 'activity_bookings', 'activity_payments',
     'seasons', 'house_rentals', 'room_rates', 'booking_room_prices',
     'external_accommodations', 'external_accommodation_bookings',
-    'payments', 'participant_consumptions',
+    'payments',
     'instructor_debts', 'instructor_payments', 'lesson_rate_overrides',
     'expenses',
     'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries',
-    'travel_guide_sections',
     'email_logs'
   ]) LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
@@ -650,7 +626,6 @@ CREATE POLICY "anon_read_activity_bookings"     ON activity_bookings     FOR SEL
 CREATE POLICY "anon_read_activity_payments"     ON activity_payments     FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_equipment"             ON equipment             FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_equipment_rentals"     ON equipment_rentals     FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_participant_consumptions" ON participant_consumptions FOR SELECT TO anon USING (true);
 
 -- Accès anon : données supplémentaires pour ClientSharePage
 CREATE POLICY "anon_read_booking_participants"  ON booking_participants  FOR SELECT TO anon USING (true);

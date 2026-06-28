@@ -482,19 +482,6 @@ export interface Payment {
   notes: string | null
 }
 
-// Per-participant consumption tracking (optional, for detailed breakdowns)
-export type ConsumptionType = 'lesson' | 'rental' | 'activity' | 'center_access'
-
-export interface ParticipantConsumption {
-  id: string
-  booking_id: string
-  participant_id: string        // references Participant.id
-  type: ConsumptionType
-  quantity: number
-  unit_price: number
-  notes: string | null
-}
-
 // Instructor payroll — debt (advance on dinner, outing, etc.)
 export interface InstructorDebt {
   id: string
@@ -579,16 +566,5 @@ export interface EmailLog {
   created_at: string
 }
 
-// Travel guide sections (Documents page)
-export interface TravelGuideSection {
-  id: string
-  key: string               // unique identifier (e.g., 'getting_there', 'packing', etc.)
-  title_fr: string
-  title_en: string
-  title_es: string
-  body_fr: string
-  body_en: string
-  body_es: string
-  sort_order: number        // display order
-  updated_at: string        // ISO timestamp
-}
+// NOTE: TravelGuideSection lives in client/src/data/travelGuide.ts (the source used app-wide).
+// Guide sections are stored in localStorage, not the DB — the travel_guide_sections table was dropped (2026-06-28).
