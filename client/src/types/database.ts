@@ -218,7 +218,13 @@ export interface TaxiTrip {
   // Financial — client pays EUR, driver & manager paid MZN
   price_eur: number           // fixed EUR price charged to client (e.g. 120€)
   price_driver_mzn: number    // what driver gets (MZN)
-  margin_manager_mzn: number  // manager commission (MZN)
+  // Manager commission (MZN). CONVENTION: margin_manager_mzn === 0 ⟹ "private taxi"
+  // (driver hired outside the manager). Decided per-trip — no flag, no migration. Effects:
+  // (1) manager finances = Σ margin_manager_mzn → private trips add nothing automatically;
+  // (2) the manager share page filters margin_manager_mzn > 0 → private trips stay invisible to him;
+  // (3) the whole MZN margin then goes to the center, tuned via price_eur / price_driver_mzn.
+  // Admin views (List/Kanban) should badge these trips "🔒 Private taxi / Táxi privado".
+  margin_manager_mzn: number
 }
 
 export interface TaxiPricingDefaults {
