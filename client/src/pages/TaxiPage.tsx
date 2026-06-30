@@ -92,7 +92,7 @@ export default function TaxiPage() {
   // ── Driver handlers ───────────────────────────────────────────────────────
 
   function openDriverForm(driver?: TaxiDriver) {
-    setDriverFormData(driver ?? { name: '', phone: null, email: null, vehicle: null, notes: null, margin_percent: 30, default_price_eur: 120, default_driver_mzn: 6000, default_manager_mzn: 1000 })
+    setDriverFormData(driver ?? { name: '', phone: null, email: null, vehicle: null, seats: 3, notes: null, margin_percent: 30, default_price_eur: 120, default_driver_mzn: 6000, default_manager_mzn: 1000 })
     setSelectedDriver(driver ?? null)
     setShowDriverForm(true)
   }
@@ -115,6 +115,7 @@ export default function TaxiPage() {
         phone:          driverFormData.phone ?? null,
         email:          driverFormData.email ?? null,
         vehicle:        driverFormData.vehicle ?? null,
+        seats:          driverFormData.seats ?? 3,
         notes:          driverFormData.notes ?? null,
         margin_percent: driverFormData.margin_percent ?? 30,
         default_price_eur:   driverFormData.default_price_eur ?? 120,
@@ -330,6 +331,13 @@ export default function TaxiPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle</label>
                 <input type="text" placeholder="e.g. White Toyota Corolla" value={driverFormData.vehicle || ''}
                   onChange={e => setDriverFormData(d => ({ ...d, vehicle: e.target.value || null }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Seats (vehicle capacity)</label>
+                <input type="number" min="1" value={driverFormData.seats ?? 3}
+                  onChange={e => setDriverFormData(d => ({ ...d, seats: parseInt(e.target.value) || 1 }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>

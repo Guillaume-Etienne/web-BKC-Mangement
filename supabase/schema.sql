@@ -262,6 +262,7 @@ CREATE TABLE taxi_drivers (
   phone           TEXT,
   email           TEXT,
   vehicle         TEXT,
+  seats           INTEGER NOT NULL DEFAULT 3,  -- vehicle capacity → free seats on the public schedule
   notes           TEXT,
   margin_percent  NUMERIC(5,2) NOT NULL DEFAULT 30,
   default_price_eur   INTEGER NOT NULL DEFAULT 120,   -- EUR charged to client when this driver is assigned

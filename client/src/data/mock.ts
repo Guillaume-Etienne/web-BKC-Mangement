@@ -96,9 +96,9 @@ export const mockDayActivities: DayActivity[] = [
 ]
 
 export const mockTaxiDrivers: TaxiDriver[] = [
-  { id: 'td1', name: 'Ruiz', phone: '+225701234567', email: 'hamid@taxi.local', vehicle: 'Toyota Corolla blanc', notes: 'Fiable, parle français/anglais', margin_percent: 30, default_price_eur: 120, default_driver_mzn: 6000, default_manager_mzn: 1000 },
-  { id: 'td2', name: 'Taxi-2', phone: '+225702345678', email: 'koffi@taxi.local', vehicle: 'Peugeot 307 grise', notes: 'Disponible WE', margin_percent: 25, default_price_eur: 120, default_driver_mzn: 6000, default_manager_mzn: 1000 },
-  { id: 'td3', name: 'Big Taxi', phone: '+225703456789', email: null, vehicle: 'Nissan Almera bleu', notes: 'Nouveau', margin_percent: 35, default_price_eur: 150, default_driver_mzn: 7000, default_manager_mzn: 1500 },
+  { id: 'td1', name: 'Ruiz', phone: '+225701234567', email: 'hamid@taxi.local', vehicle: 'Toyota Corolla blanc', seats: 3, notes: 'Fiable, parle français/anglais', margin_percent: 30, default_price_eur: 120, default_driver_mzn: 6000, default_manager_mzn: 1000 },
+  { id: 'td2', name: 'Taxi-2', phone: '+225702345678', email: 'koffi@taxi.local', vehicle: 'Peugeot 307 grise', seats: 3, notes: 'Disponible WE', margin_percent: 25, default_price_eur: 120, default_driver_mzn: 6000, default_manager_mzn: 1000 },
+  { id: 'td3', name: 'Big Taxi', phone: '+225703456789', email: null, vehicle: 'Nissan Almera bleu', seats: 7, notes: 'Nouveau', margin_percent: 35, default_price_eur: 150, default_driver_mzn: 7000, default_manager_mzn: 1500 },
 ]
 
 export const mockTaxiPricingDefaults: TaxiPricingDefaults = {

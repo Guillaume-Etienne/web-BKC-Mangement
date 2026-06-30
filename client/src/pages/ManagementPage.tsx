@@ -40,10 +40,10 @@ const priceCategoryLabels: Record<PriceCategory, string> = {
 
 const LINK_TYPE_LABELS: Record<SharedLinkType, { icon: string; label: string }> = {
   forecast:          { icon: '📋', label: 'Forecast' },
-  taxi:              { icon: '🚕', label: 'Taxi Schedule' },
+  taxi:              { icon: '🚕', label: 'Public Taxi Schedule' },
   client:            { icon: '👤', label: 'Client Account' },
-  driver:            { icon: '🚗', label: 'Driver Statement' },
-  taxi_manager:      { icon: '🧑‍💼', label: 'Taxi Manager' },
+  driver:            { icon: '🚗', label: 'Taxi Driver Schedule' },
+  taxi_manager:      { icon: '🧑‍💼', label: 'Taxi Manager GERALDO schedule' },
   activity_provider: { icon: '🏕️', label: 'Activity Provider' },
   booking_form:      { icon: '📝', label: 'Public Booking Form' },
 }

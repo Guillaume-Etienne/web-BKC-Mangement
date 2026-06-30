@@ -72,6 +72,17 @@ export const tr = {
   history_title:   { pt: 'Histórico de pagamentos', en: 'Payment history' },
   col_reason:      { pt: 'Motivo', en: 'Reason' },
   no_payments:     { pt: 'Sem pagamentos ainda.', en: 'No payments yet.' },
+
+  // ── Public taxi schedule ────────────────────────────────────────────────
+  public_title:     { pt: 'Horário dos táxis', en: 'Taxi schedule' },
+  public_sub:       { pt: 'Atualizado em tempo real · Sem dados financeiros', en: 'Updated live · No financial data' },
+  filter_all_drivers:{ pt: 'Todos os motoristas', en: 'All drivers' },
+  show_past:        { pt: 'Mostrar viagens passadas', en: 'Show past trips' },
+  today:            { pt: 'Hoje', en: 'Today' },
+  unassigned:       { pt: 'Não atribuído', en: 'Unassigned' },
+  no_upcoming:      { pt: 'Nenhuma viagem prevista', en: 'No upcoming trips' },
+  seats_free:       { pt: '{n} lugares livres', en: '{n} seats free' },
+  seats_full:       { pt: 'Lotado', en: 'Full' },
 } satisfies Record<string, Tr>
 
 // ── Enum label helpers ────────────────────────────────────────────────────────

@@ -195,6 +195,7 @@ export interface TaxiDriver {
   phone: string | null
   email: string | null
   vehicle: string | null // marque/modèle
+  seats: number // vehicle capacity → free seats on the public schedule
   notes: string | null
   margin_percent: number // % marge du driver (ex: 30 pour 30%)
   // Default rates applied when this driver is pre-assigned to a trip
