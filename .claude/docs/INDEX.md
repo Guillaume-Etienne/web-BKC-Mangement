@@ -19,6 +19,9 @@
 | PendingAction / ActionPriority / règles | `data-model.md` | § Pending Actions |
 | Schéma SQL complet | `supabase/schema.sql` | — |
 | Data integrity issues (audit) | `project_accounting_issues.md` | § Issue 1–4 |
+| **Sécurité / RLS / accès anon** ⚠️ | **`security-rls.md`** | **avant toute policy anon ou page partagée** |
+| Quelles tables exposées publiquement | `security-rls.md` | § Ce qui est exposé |
+| Checklist avant page partagée | `security-rls.md` | § Checklist |
 
 ### Hooks
 | Besoin | Fichier | Section |
