@@ -127,6 +127,9 @@ export default function ManagementPage() {
     const b = allBookings.find(b => b.booking_number === num)
     return b?.client ? `${b.client.first_name} ${b.client.last_name}` : null
   }
+  const presentLinkTypes = (Object.keys(LINK_TYPE_LABELS) as SharedLinkType[]).filter(t => sharedLinks.some(l => l.type === t))
+  const allLinkTypesCollapsed = presentLinkTypes.length > 0 && presentLinkTypes.every(t => collapsedLinkTypes.has(t))
+  const toggleAllLinkTypes = () => setCollapsedLinkTypes(allLinkTypesCollapsed ? new Set() : new Set(presentLinkTypes))
 
   useEffect(() => { setSharedLinks(sharedLinksData) }, [sharedLinksData])
 
@@ -839,6 +842,12 @@ export default function ManagementPage() {
               <p className="text-gray-500 text-sm">No shared links yet.</p>
             ) : (
               <div className="space-y-3">
+                <div className="flex justify-end">
+                  <button onClick={toggleAllLinkTypes}
+                    className="text-sm text-blue-600 hover:underline font-medium">
+                    {allLinkTypesCollapsed ? '▼ Expand all' : '▲ Collapse all'}
+                  </button>
+                </div>
                 {(Object.keys(LINK_TYPE_LABELS) as SharedLinkType[])
                   .map(type => ({ type, links: sharedLinks.filter(l => l.type === type) }))
                   .filter(g => g.links.length > 0)
