@@ -97,7 +97,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
     supabase
       .from('bookings')
-      .select('*, client:clients(*)')
+      // Only identity columns from clients are exposed to anon (no email/phone/passport/etc — see security-rls.md)
+      .select('*, client:clients(id, first_name, last_name)')
       .eq('booking_number', bookingNumber)
       .single()
       .then(({ data, error }) => {
@@ -123,7 +124,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       supabase.from('equipment_rentals').select('*').eq('booking_id', id).order('date'),
       supabase.from('taxi_trips').select('*').eq('booking_id', id).order('date'),
       supabase.from('dining_events').select('*'),
-      supabase.from('booking_participants').select('*').eq('booking_id', id),
+      supabase.from('booking_participants').select('id, booking_id, first_name, last_name').eq('booking_id', id),
       supabase.from('external_accommodation_bookings').select('*').eq('booking_id', id),
       supabase.from('external_accommodations').select('*'),
       supabase.from('activity_bookings').select('*').eq('booking_id', id).order('date'),
@@ -143,7 +144,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       setRentals(rentalsRes.data ?? [])
       setTaxis(taxisRes.data ?? [])
       setDiningEvents(diningRes.data ?? [])
-      setParticipants(partRes.data ?? [])
+      // anon only receives id/first_name/last_name (column-restricted); the page uses only those
+      setParticipants((partRes.data ?? []) as unknown as BookingParticipant[])
       setExtAccomBkgs(extBkgRes.data ?? [])
       setExtAccoms(extAccomRes.data ?? [])
       setActivityBkgs(actBkgRes.data ?? [])

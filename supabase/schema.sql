@@ -631,6 +631,15 @@ CREATE POLICY "anon_read_equipment_rentals"     ON equipment_rentals     FOR SEL
 
 -- Accès anon : données supplémentaires pour ClientSharePage
 CREATE POLICY "anon_read_booking_participants"  ON booking_participants  FOR SELECT TO anon USING (true);
+-- Column-level hardening: anon may read ONLY identity columns of clients /
+-- booking_participants (never passport_number, email, phone, birth_date,
+-- emergency contacts, notes). A row policy can't restrict columns, so we use
+-- column privileges. The share pages select() only these columns.
+-- See .claude/docs/security-rls.md.
+REVOKE SELECT ON clients FROM anon;
+GRANT  SELECT (id, first_name, last_name) ON clients TO anon;
+REVOKE SELECT ON booking_participants FROM anon;
+GRANT  SELECT (id, booking_id, first_name, last_name) ON booking_participants TO anon;
 CREATE POLICY "anon_read_dining_events"         ON dining_events         FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_lesson_rate_overrides" ON lesson_rate_overrides FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_ext_accom_bookings"    ON external_accommodation_bookings FOR SELECT TO anon USING (true);

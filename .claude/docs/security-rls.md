@@ -9,6 +9,10 @@ L'app n'a **pas de serveur** : le front React parle directement à Supabase avec
 
 > ⚠️ **Une policy `FOR SELECT TO anon USING (true)` rend TOUTE la table lisible par TOUT LE MONDE sur Internet**, pas seulement par les pages de l'app.
 
+## Cause racine (la leçon à retenir)
+
+Le filtre `.eq('booking_id', id)` dans le code des pages partagées **n'est PAS une sécurité** : c'est l'app qui *demande poliment* une ligne. La base, elle, applique la RLS. Si la policy est `USING (true)`, n'importe qui peut ignorer le filtre de l'app et tout lire via l'API. **La règle de filtrage doit vivre dans la base (RLS / privilèges colonne / Edge Function), jamais seulement dans le `.select()` côté client.** C'est exactement comme ça que les passeports se sont retrouvés exposés (policy large posée par simplicité quand on a branché ClientSharePage sur les tables source en mars 2026).
+
 ## Le piège à connaître absolument : token ≠ protection
 
 Les liens partagés (`?share=<token>`) **ne protègent PAS les données**. Le token sert uniquement à **router l'UI** côté React (`App.tsx` choisit quelle page afficher). Les données, elles, sont lues par la clé `anon` via l'API REST Supabase.
@@ -17,10 +21,12 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 
 ## Ce qui est exposé en lecture publique aujourd'hui (`USING (true)`)
 
+> **Mise à jour 2026-06-30** : `clients` et `booking_participants` sont désormais **restreintes par colonne** pour `anon` (voir migration `2026-06-30_shared_pages_security.sql`). `anon` n'y lit plus que `id / first_name / last_name` (+`booking_id`) — passeports, emails, téléphones, dates de naissance, contacts d'urgence et notes ne sont **plus** exposés.
+
 | Table | Sensibilité | Exposée pour quelle page |
 |-------|-------------|--------------------------|
-| `clients` | 🔴 **perso** (noms, emails, téléphones) | ClientSharePage |
-| `booking_participants` | 🔴 **perso** (passeports !, niveaux, notes) | ClientSharePage |
+| `clients` | 🟢 **identité only** (id, prénom, nom) — email/tél/passeport/naissance/contacts d'urgence **bloqués** | ClientSharePage, ForecastSharePage |
+| `booking_participants` | 🟢 **identité only** (id, prénom, nom) — passeport/notes/client_id **bloqués** | ClientSharePage |
 | `bookings`, `booking_rooms`, `booking_room_prices` | 🟠 résa + prix | ClientSharePage / Forecast |
 | `payments` | 🔴 **finances** (montants, paiements) | ClientSharePage |
 | `taxi_trips`, `taxi_drivers` | 🟠 trajets + tarifs | Taxi / Driver share |

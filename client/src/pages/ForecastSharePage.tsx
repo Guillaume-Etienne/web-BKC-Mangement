@@ -52,7 +52,8 @@ export default function ForecastSharePage() {
   const { data: lessons } = useTable<Lesson>('lessons', { order: 'date' })
   const { data: rentals } = useTable<EquipmentRental>('equipment_rentals', { order: 'date' })
   const { data: instructors } = useTable<Instructor>('instructors', { order: 'last_name' })
-  const { data: clients } = useTable<Client>('clients', { order: 'last_name' })
+  // Anon only gets identity columns from clients (no email/phone/passport/etc — see security-rls.md)
+  const { data: clients } = useTable<Client>('clients', { select: 'id, first_name, last_name', order: 'last_name' })
   const { data: equipment } = useTable<Equipment>('equipment', { order: 'name' })
 
   const iso = dateToISO(selectedDate)
