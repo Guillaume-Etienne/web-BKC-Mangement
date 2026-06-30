@@ -4,8 +4,9 @@ import type { TaxiDriver, TaxiTrip } from '../types/database'
 import {
   tr, TAXI_LANGS, tripTypeLabel,
   fmt, mzn, formatTripDate,
-  type TaxiLang, type DateMode,
+  type TaxiLang, type DateMode, type ViewMode,
 } from '../data/taxiShareI18n'
+import { usePref, Segmented } from './taxiShareUI'
 
 interface Props { driverId: string }
 
@@ -13,18 +14,9 @@ type TripWithClient = TaxiTrip & {
   booking?: { client?: { first_name: string; last_name: string } | null } | null
 }
 
-type ViewMode = 'cards' | 'table'
-
 function clientName(t: TripWithClient): string {
   const c = t.booking?.client
   return c ? `${c.first_name} ${c.last_name}` : '–'
-}
-
-// ── Persisted preference helper ───────────────────────────────────────────────
-function usePref<T extends string>(key: string, fallback: T): [T, (v: T) => void] {
-  const [val, setVal] = useState<T>(() => (localStorage.getItem(key) as T) ?? fallback)
-  const set = (v: T) => { localStorage.setItem(key, v); setVal(v) }
-  return [val, set]
 }
 
 // ── Trip list — cards (mobile-first) or table ─────────────────────────────────
@@ -100,24 +92,6 @@ function TripList({ trips, lang, dateMode, view }: {
           </tr>
         </tfoot>
       </table>
-    </div>
-  )
-}
-
-// ── Options bar (toggles to A/B test, prune later) ────────────────────────────
-function Segmented<T extends string>({ value, options, onChange }: {
-  value: T; options: { v: T; label: string }[]; onChange: (v: T) => void
-}) {
-  return (
-    <div className="inline-flex rounded-lg border border-white/30 overflow-hidden text-xs">
-      {options.map(o => (
-        <button key={o.v} onClick={() => onChange(o.v)}
-          className={`px-2.5 py-1 font-medium transition-colors ${
-            value === o.v ? 'bg-white text-blue-700' : 'text-white/80 hover:bg-white/10'
-          }`}>
-          {o.label}
-        </button>
-      ))}
     </div>
   )
 }

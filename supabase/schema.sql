@@ -617,6 +617,8 @@ CREATE POLICY "anon_insert_form_submissions" ON form_submissions
 -- Accès anon : données nécessaires aux pages publiques (forecast, taxi, client, driver, activity)
 CREATE POLICY "anon_read_taxi_trips"    ON taxi_trips     FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_taxi_drivers"  ON taxi_drivers   FOR SELECT TO anon USING (true);
+-- Manager share page (taxi_manager link) reads the manager's commission history
+CREATE POLICY "anon_read_taxi_manager_payments" ON taxi_manager_payments FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_lessons"       ON lessons        FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_instructors"   ON instructors    FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_bookings"      ON bookings       FOR SELECT TO anon USING (true);

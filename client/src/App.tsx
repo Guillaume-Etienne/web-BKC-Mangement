@@ -20,6 +20,7 @@ import ForecastSharePage from './pages/ForecastSharePage'
 import TaxiSharePage from './pages/TaxiSharePage'
 import ClientSharePage from './pages/ClientSharePage'
 import DriverSharePage from './pages/DriverSharePage'
+import TaxiManagerSharePage from './pages/TaxiManagerSharePage'
 import ActivityProviderSharePage from './pages/ActivityProviderSharePage'
 import BookingFormPage from './pages/BookingFormPage'
 import SubmissionsPage from './pages/SubmissionsPage'
@@ -98,6 +99,7 @@ function App() {
     if (sharedLink.type === 'taxi')     return <TaxiSharePage />
     if (sharedLink.type === 'client')   return <ClientSharePage bookingNumber={parseInt(sharedLink.params?.booking_number ?? '0')} />
     if (sharedLink.type === 'driver')            return <DriverSharePage driverId={sharedLink.params?.driver_id ?? ''} />
+    if (sharedLink.type === 'taxi_manager')      return <TaxiManagerSharePage />
     if (sharedLink.type === 'activity_provider') return <ActivityProviderSharePage providerId={sharedLink.params?.provider_id ?? ''} />
     if (sharedLink.type === 'booking_form')      return <BookingFormPage />
   }

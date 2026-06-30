@@ -4,7 +4,7 @@ import { useInstructors } from '../hooks/useInstructors'
 import { useLessons } from '../hooks/useLessons'
 import { useTable } from '../hooks/useSupabase'
 import { useBookings, useBookingParticipants } from '../hooks/useBookings'
-import type { Instructor, Lesson, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults, BookingStatus, KiteLevel } from '../types/database'
+import type { Instructor, Lesson, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults, TaxiDriver, BookingStatus, KiteLevel } from '../types/database'
 import AccommodationsTab from '../components/management/AccommodationsTab'
 import DatabaseTab from '../components/management/DatabaseTab'
 
@@ -43,6 +43,7 @@ const LINK_TYPE_LABELS: Record<SharedLinkType, { icon: string; label: string }> 
   taxi:              { icon: '🚕', label: 'Taxi Schedule' },
   client:            { icon: '👤', label: 'Client Account' },
   driver:            { icon: '🚗', label: 'Driver Statement' },
+  taxi_manager:      { icon: '🧑‍💼', label: 'Taxi Manager' },
   activity_provider: { icon: '🏕️', label: 'Activity Provider' },
   booking_form:      { icon: '📝', label: 'Public Booking Form' },
 }
@@ -104,10 +105,11 @@ export default function ManagementPage() {
 
   // ── Shared links (Supabase) ───────────────────────────────────────────────
   const { data: sharedLinksData, refresh: refreshSharedLinks } = useTable<SharedLink>('shared_links')
+  const { data: taxiDriversData } = useTable<TaxiDriver>('taxi_drivers')
   const [sharedLinks, setSharedLinks] = useState<SharedLink[]>([])
   const [showLinkForm, setShowLinkForm] = useState(false)
-  const [linkFormData, setLinkFormData] = useState<{ label: string; type: SharedLinkType; expires_at: string; booking_number: string }>({
-    label: '', type: 'forecast', expires_at: '', booking_number: '',
+  const [linkFormData, setLinkFormData] = useState<{ label: string; type: SharedLinkType; expires_at: string; booking_number: string; driver_id: string }>({
+    label: '', type: 'forecast', expires_at: '', booking_number: '', driver_id: '',
   })
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
@@ -220,11 +222,19 @@ export default function ManagementPage() {
     const params: Record<string, string> = {}
     if (linkFormData.type === 'client' && linkFormData.booking_number)
       params.booking_number = linkFormData.booking_number
+    if (linkFormData.type === 'driver' && linkFormData.driver_id)
+      params.driver_id = linkFormData.driver_id
+
+    // Default label: for a driver link, include the driver name so links are distinguishable.
+    const driverName = taxiDriversData.find(d => d.id === linkFormData.driver_id)?.name
+    const defaultLabel = linkFormData.type === 'driver' && driverName
+      ? `Driver – ${driverName}`
+      : LINK_TYPE_LABELS[linkFormData.type].label
 
     const { error } = await supabase.from('shared_links').insert([{
       token:      generateToken(linkFormData.type),
       type:       linkFormData.type,
-      label:      linkFormData.label || LINK_TYPE_LABELS[linkFormData.type].label,
+      label:      linkFormData.label || defaultLabel,
       params,
       created_at: new Date().toISOString().slice(0, 10),
       expires_at: linkFormData.expires_at || null,
@@ -233,7 +243,7 @@ export default function ManagementPage() {
     if (error) { alert('Error: ' + error.message); return }
     refreshSharedLinks()
     setShowLinkForm(false)
-    setLinkFormData({ label: '', type: 'forecast', expires_at: '', booking_number: '' })
+    setLinkFormData({ label: '', type: 'forecast', expires_at: '', booking_number: '', driver_id: '' })
   }
 
   const toggleLinkActive = async (id: string) => {
@@ -743,7 +753,7 @@ export default function ManagementPage() {
                   <select value={linkFormData.type}
                     onChange={e => setLinkFormData(d => ({ ...d, type: e.target.value as SharedLinkType }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    {(Object.entries(LINK_TYPE_LABELS) as [SharedLinkType, { icon: string; label: string }][]).filter(([k]) => k !== 'driver' && k !== 'activity_provider').map(([k, v]) => (
+                    {(Object.entries(LINK_TYPE_LABELS) as [SharedLinkType, { icon: string; label: string }][]).filter(([k]) => k !== 'activity_provider').map(([k, v]) => (
                       <option key={k} value={k}>{v.icon} {v.label}</option>
                     ))}
                   </select>
@@ -756,6 +766,18 @@ export default function ManagementPage() {
                       placeholder="e.g. 42"
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                )}
+                {linkFormData.type === 'driver' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Driver *</label>
+                    <select value={linkFormData.driver_id}
+                      onChange={e => setLinkFormData(d => ({ ...d, driver_id: e.target.value }))}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                      <option value="">— Select a driver —</option>
+                      {taxiDriversData.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
                   </div>
                 )}
                 <div>

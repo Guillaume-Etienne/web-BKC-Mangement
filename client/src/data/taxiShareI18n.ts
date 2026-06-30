@@ -57,6 +57,21 @@ export const tr = {
   footer_updated: { pt: 'Atualizado', en: 'Updated' },
   not_found:      { pt: 'Não encontrado.', en: 'Not found.' },
   loading:        { pt: 'A carregar…', en: 'Loading…' },
+
+  // ── Manager page ────────────────────────────────────────────────────────
+  col_driver:      { pt: 'Motorista', en: 'Driver' },
+  mgr_all_trips:   { pt: 'Todas as viagens', en: 'All trips' },
+  mgr_by_driver:   { pt: 'Por motorista',    en: 'By driver' },
+  fin_title:       { pt: 'As minhas finanças 💰', en: 'My finances 💰' },
+  fin_earned:      { pt: 'Comissão ganha',        en: 'Commission earned' },
+  fin_paid:        { pt: 'Adiantamentos recebidos', en: 'Advances received' },
+  fin_balance_due: { pt: 'Saldo a receber',       en: 'Balance to receive' },
+  fin_overpaid:    { pt: 'Recebido a mais',       en: 'Overpaid (credit)' },
+  fin_balanced:    { pt: 'Tudo certo',            en: 'All settled' },
+  fin_explain:     { pt: 'Saldo = comissão ganha − adiantamentos recebidos', en: 'Balance = commission earned − advances received' },
+  history_title:   { pt: 'Histórico de pagamentos', en: 'Payment history' },
+  col_reason:      { pt: 'Motivo', en: 'Reason' },
+  no_payments:     { pt: 'Sem pagamentos ainda.', en: 'No payments yet.' },
 } satisfies Record<string, Tr>
 
 // ── Enum label helpers ────────────────────────────────────────────────────────
@@ -98,6 +113,7 @@ const WEEKDAYS: Record<TaxiLang, string[]> = {
 }
 
 export type DateMode = 'readable' | 'iso'
+export type ViewMode = 'cards' | 'table'
 
 /** ISO date → "Seg 30/06" (readable) or the raw ISO string. */
 export function formatTripDate(iso: string, lang: TaxiLang, mode: DateMode): string {
