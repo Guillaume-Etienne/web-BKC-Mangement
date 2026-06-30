@@ -436,7 +436,12 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                   <tr key={trip.id} data-date={trip.date} className={`border-b transition-colors hover:brightness-95 ${sc.row}`}>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-800">{trip.date}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-800">{trip.start_time}</td>
-                    <td className="px-3 py-2 whitespace-nowrap text-xs">{TRIP_TYPE_LABELS[trip.type]}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-xs">
+                      {TRIP_TYPE_LABELS[trip.type]}
+                      {trip.margin_manager_mzn === 0 && (
+                        <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-white" title="No manager commission — private taxi">🔒 Private</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-xs text-gray-500 max-w-[140px] truncate">{trip.notes ?? <span className="italic text-gray-300">—</span>}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-700">{driver?.name ?? <span className="text-red-400 italic">Unassigned</span>}</td>
                     <td className="px-3 py-2 text-xs text-gray-700 whitespace-nowrap">{guestName(trip.booking_id, bookings)}</td>

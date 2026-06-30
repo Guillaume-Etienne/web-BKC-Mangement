@@ -268,9 +268,12 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                         </div>
 
                         <div className="text-xs text-gray-700 mb-2">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="font-medium">{TRIP_TYPE_LABELS[trip.type]}</span>
                             <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${sc.badge}`}>{sc.label}</span>
+                            {trip.margin_manager_mzn === 0 && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-800 text-white" title="No manager commission — private taxi">🔒 Private</span>
+                            )}
                           </div>
                           {guestName(trip.booking_id, bookings) && (
                             <div className="font-semibold text-gray-800">👤 {guestName(trip.booking_id, bookings)}</div>

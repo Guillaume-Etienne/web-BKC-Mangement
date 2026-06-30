@@ -44,7 +44,8 @@ export default function TaxiPage() {
   const [showDriverForm, setShowDriverForm] = useState(false)
   const [driverFormData, setDriverFormData] = useState<Partial<TaxiDriver>>({})
   const [saving, setSaving] = useState(false)
-  const { data: pricingDefaultsData } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults')
+  // Always use the most recently edited row (guards against stale duplicate rows → wrong default price)
+  const { data: pricingDefaultsData } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
   const [pricingDefaults, setPricingDefaults] = useState<TaxiPricingDefaults>(FALLBACK_PRICING)
 
   useEffect(() => {

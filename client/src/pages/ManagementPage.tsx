@@ -91,7 +91,8 @@ export default function ManagementPage() {
   useEffect(() => { setPriceItems(priceItemsData) }, [priceItemsData])
 
   // ── Taxi pricing defaults (Supabase) ──────────────────────────────────────
-  const { data: taxiDefaultsData, loading: taxiDefaultsLoading } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults')
+  // Most recently edited row wins (same ordering as TaxiPage, so both screens agree)
+  const { data: taxiDefaultsData, loading: taxiDefaultsLoading } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
   const [taxiPricingDefaults, setTaxiPricingDefaults] = useState<TaxiPricingDefaults | null>(null)
   const [taxiPricingForm, setTaxiPricingForm] = useState<TaxiPricingDefaults | null>(null)
   const [taxiPricingEditing, setTaxiPricingEditing] = useState(false)
