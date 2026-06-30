@@ -113,6 +113,20 @@ export default function ManagementPage() {
     label: '', type: 'forecast', expires_at: '', booking_number: '', driver_id: '',
   })
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [collapsedLinkTypes, setCollapsedLinkTypes] = useState<Set<string>>(new Set())
+  const toggleLinkType = (t: string) => setCollapsedLinkTypes(prev => {
+    const next = new Set(prev)
+    next.has(t) ? next.delete(t) : next.add(t)
+    return next
+  })
+
+  // Resolve the client name behind a 'client' shared link (via its booking_number param)
+  const clientNameForLink = (link: SharedLink): string | null => {
+    if (link.type !== 'client') return null
+    const num = parseInt(link.params?.booking_number ?? '')
+    const b = allBookings.find(b => b.booking_number === num)
+    return b?.client ? `${b.client.first_name} ${b.client.last_name}` : null
+  }
 
   useEffect(() => { setSharedLinks(sharedLinksData) }, [sharedLinksData])
 
@@ -760,13 +774,30 @@ export default function ManagementPage() {
                   </select>
                 </div>
                 {linkFormData.type === 'client' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Booking number *</label>
-                    <input type="number" min="1" value={linkFormData.booking_number}
-                      onChange={e => setLinkFormData(d => ({ ...d, booking_number: e.target.value }))}
-                      placeholder="e.g. 42"
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Find by client name</label>
+                      <select value={linkFormData.booking_number}
+                        onChange={e => setLinkFormData(d => ({ ...d, booking_number: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">— Select a booking —</option>
+                        {[...allBookings]
+                          .sort((a, b) => `${a.client?.last_name ?? ''}${a.client?.first_name ?? ''}`.localeCompare(`${b.client?.last_name ?? ''}${b.client?.first_name ?? ''}`))
+                          .map(b => (
+                            <option key={b.id} value={b.booking_number}>
+                              {b.client ? `${b.client.first_name} ${b.client.last_name}` : 'Unknown'} — #{String(b.booking_number).padStart(3, '0')} ({b.check_in} → {b.check_out})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">…or booking number *</label>
+                      <input type="number" min="1" value={linkFormData.booking_number}
+                        onChange={e => setLinkFormData(d => ({ ...d, booking_number: e.target.value }))}
+                        placeholder="e.g. 42"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
                   </div>
                 )}
                 {linkFormData.type === 'driver' && (
@@ -803,57 +834,83 @@ export default function ManagementPage() {
               </form>
             )}
 
-            {/* Links list */}
+            {/* Links list — grouped by type, collapsible */}
             {sharedLinks.length === 0 ? (
               <p className="text-gray-500 text-sm">No shared links yet.</p>
             ) : (
               <div className="space-y-3">
-                {sharedLinks.map(link => {
-                  const typeInfo = LINK_TYPE_LABELS[link.type]
-                  const url = `${getBaseUrl()}/?share=${link.token}`
-                  return (
-                    <div key={link.id} className={`bg-white rounded-lg shadow p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${!link.is_active ? 'opacity-60' : ''}`}>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-base">{typeInfo.icon}</span>
-                          <span className="font-semibold text-gray-800">{link.label}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${link.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
-                            {link.is_active ? 'Active' : 'Inactive'}
+                {(Object.keys(LINK_TYPE_LABELS) as SharedLinkType[])
+                  .map(type => ({ type, links: sharedLinks.filter(l => l.type === type) }))
+                  .filter(g => g.links.length > 0)
+                  .map(({ type, links }) => {
+                    const info = LINK_TYPE_LABELS[type]
+                    const isOpen = !collapsedLinkTypes.has(type)
+                    return (
+                      <div key={type} className="bg-white rounded-lg shadow overflow-hidden">
+                        <button onClick={() => toggleLinkType(type)}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                          <span className="font-semibold text-gray-800 flex items-center gap-2">
+                            <span className="text-base">{info.icon}</span>
+                            {info.label}
+                            <span className="text-xs font-normal text-gray-400">({links.length})</span>
                           </span>
-                        </div>
-                        <div className="text-xs text-gray-400 truncate font-mono">{url}</div>
-                        <div className="text-xs text-gray-400 mt-0.5">
-                          Created {link.created_at}
-                          {link.expires_at && ` · Expires ${link.expires_at}`}
-                        </div>
+                          <span className="text-gray-400 text-xs">{isOpen ? '▲' : '▼'}</span>
+                        </button>
+                        {isOpen && (
+                          <div className="border-t border-gray-100 divide-y divide-gray-100">
+                            {links.map(link => {
+                              const url = `${getBaseUrl()}/?share=${link.token}`
+                              const clientName = clientNameForLink(link)
+                              return (
+                                <div key={link.id} className={`px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 ${!link.is_active ? 'opacity-60' : ''}`}>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                      <span className="font-semibold text-gray-800">{link.label}</span>
+                                      {clientName && (
+                                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">👤 {clientName}</span>
+                                      )}
+                                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${link.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
+                                        {link.is_active ? 'Active' : 'Inactive'}
+                                      </span>
+                                    </div>
+                                    <div className="text-xs text-gray-400 truncate font-mono">{url}</div>
+                                    <div className="text-xs text-gray-400 mt-0.5">
+                                      Created {link.created_at}
+                                      {link.expires_at && ` · Expires ${link.expires_at}`}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                      onClick={() => copyLink(link.token, link.id)}
+                                      className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                                        copiedId === link.id
+                                          ? 'bg-green-100 text-green-700'
+                                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                      }`}
+                                    >
+                                      {copiedId === link.id ? '✓ Copied!' : '📋 Copy'}
+                                    </button>
+                                    <button
+                                      onClick={() => toggleLinkActive(link.id)}
+                                      className="px-3 py-1.5 rounded text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                                    >
+                                      {link.is_active ? 'Disable' : 'Enable'}
+                                    </button>
+                                    <button
+                                      onClick={() => deleteLink(link.id)}
+                                      className="px-3 py-1.5 rounded text-sm font-medium bg-red-50 hover:bg-red-100 text-red-700 transition-colors"
+                                    >
+                                      🗑️
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => copyLink(link.token, link.id)}
-                          className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                            copiedId === link.id
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                          }`}
-                        >
-                          {copiedId === link.id ? '✓ Copied!' : '📋 Copy'}
-                        </button>
-                        <button
-                          onClick={() => toggleLinkActive(link.id)}
-                          className="px-3 py-1.5 rounded text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
-                        >
-                          {link.is_active ? 'Disable' : 'Enable'}
-                        </button>
-                        <button
-                          onClick={() => deleteLink(link.id)}
-                          className="px-3 py-1.5 rounded text-sm font-medium bg-red-50 hover:bg-red-100 text-red-700 transition-colors"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
               </div>
             )}
           </div>
