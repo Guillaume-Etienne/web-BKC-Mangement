@@ -12,13 +12,14 @@
 4. `session` → app authentifiée avec `Navigation` + page switcher
 5. Au login : charge en parallèle `bookings` (+ join client), `payments` (4 colonnes), `taxi_trips` (booking_id seul), **count `form_submissions` `pending`** → calcule `pendingActions` via `computePendingActions()` → passe `urgentCount` + **`submissionsCount`** à `Navigation`, `pendingActions` à `HomePage`
 
-**Pages publiques (SharedLinkType) :**
+**Pages publiques (SharedLinkType) :** → réf. complète + runbooks dans **`taxi-and-shares.md`**
 | type | Composant | Props |
 |------|-----------|-------|
 | `'forecast'` | `ForecastSharePage` | — |
-| `'taxi'` | `TaxiSharePage` | — |
+| `'taxi'` | `TaxiSharePage` | — (Public Taxi Schedule, PT/EN, places libres) |
 | `'client'` | `ClientSharePage` | `bookingNumber` depuis `sharedLink.params.booking_number` |
-| `'driver'` | `DriverSharePage` | `driverId` depuis `sharedLink.params.driver_id` |
+| `'driver'` | `DriverSharePage` | `driverId` depuis `sharedLink.params.driver_id` (PT/EN) |
+| `'taxi_manager'` | `TaxiManagerSharePage` | — (Geraldo, PT/EN, finances + tous trajets managés) |
 | `'activity_provider'` | `ActivityProviderSharePage` | `providerId` depuis `sharedLink.params.provider_id` |
 | `'booking_form'` | `BookingFormPage` | — (lien public unique, le client choisit sa langue) |
 

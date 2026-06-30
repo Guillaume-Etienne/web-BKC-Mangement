@@ -1,5 +1,17 @@
 # Index rapide — où chercher quoi ?
 
+## 🔧 Runbooks — « comment faire X » (étapes prêtes à suivre)
+| Je veux… | Où |
+|----------|-----|
+| Ajouter un **type de page partagée** (type TS + enum migration + dispatch + label…) | `taxi-and-shares.md` § RUNBOOK — Ajouter un nouveau type |
+| Ajouter un **champ à une page partagée** | `taxi-and-shares.md` § RUNBOOK — Ajouter un champ |
+| Ajouter/modifier une **policy anon** (sans fuiter de données) | `security-rls.md` § Checklist |
+| Ajouter un **enum** (valeur) en base | migration `ALTER TYPE … ADD VALUE IF NOT EXISTS` (seule, hors txn) + `schema.sql` |
+| Ajouter une **colonne** | migration + `schema.sql` + type TS + **`mock.ts`** (sinon build strict casse) + form admin |
+| Créer une **migration** | `supabase/migrations/AAAA-MM-JJ_nom.sql`, idempotent, appliquer **TEST puis PROD** |
+
+> ⚠️ Toujours `npm run build` avant push (Vercel = TS strict : unused/locals, types incomplets dans `mock.ts`).
+
 ## Par sujet
 
 ### Données / Base de données
@@ -38,6 +50,11 @@
 |--------|---------|---------|
 | Routing App.tsx (sharedLink → page) | `pages.md` | § Logique de routing |
 | Liste des pages publiques + props | `pages.md` | § Pages publiques |
+| **Pages partagées + liens (réf.)** ⭐ | **`taxi-and-shares.md`** | tout le fichier |
+| Les 3 pages partagées taxi | `taxi-and-shares.md` | § Les 3 pages partagées TAXI |
+| Où se créent les liens (Shared Links) | `taxi-and-shares.md` | § Où se créent les liens |
+| Convention taxi privé / seats | `taxi-and-shares.md` | § Conventions taxi |
+| i18n PT/EN pages partagées | `taxi-and-shares.md` | § infra i18n/UI |
 | Quelle page utilise quels hooks | `pages.md` | Page concernée |
 | PlanningView (draft mode, validation) | `pages.md` | § PlanningView |
 | Wizard booking (étapes 1-6, save logic) | `pages.md` | § BookingsPage |
