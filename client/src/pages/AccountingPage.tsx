@@ -73,8 +73,8 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: lessonOverridesData }    = useTable<LessonRateOverride>('lesson_rate_overrides')
   const { data: expensesData }           = useTable<Expense>('expenses', { order: 'date', ascending: false })
   const { data: palmeirasRentsData }     = useTable<PalmeirasRent>('palmeiras_rents', { order: 'month', ascending: false })
-  const { data: palmeirasReversalsData } = useTable<PalmeirasReversal>('palmeiras_reversals', { order: 'date', ascending: false })
-  const { data: palmeirasEntriesData }   = useTable<PalmeirasEntry>('palmeiras_entries', { order: 'date', ascending: false })
+  const { data: palmeirasReversalsData } = useTable<PalmeirasReversal>('palmeiras_reversals', { order: 'month', ascending: false })
+  const { data: palmeirasEntriesData }   = useTable<PalmeirasEntry>('palmeiras_entries', { order: 'month', ascending: false })
 
   const [bookingRoomPrices,  setBookingRoomPrices]  = useState<BookingRoomPrice[]>([])
   const [payments,           setPayments]           = useState<Payment[]>([])
