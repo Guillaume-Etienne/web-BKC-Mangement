@@ -604,10 +604,27 @@ BEGIN
   END LOOP;
 END $$;
 
--- Accès anon : shared_links (validation token)
-CREATE POLICY "anon_read_shared_links" ON shared_links
-  FOR SELECT TO anon
-  USING (is_active = true AND (expires_at IS NULL OR expires_at >= CURRENT_DATE));
+-- Accès anon : shared_links — AUCUNE lecture directe (sinon on peut énumérer
+-- tous les tokens actifs). La validation passe par resolve_share_token() :
+-- il faut déjà connaître un token pour le résoudre (App.tsx via supabase.rpc).
+REVOKE SELECT ON shared_links FROM anon;
+
+CREATE OR REPLACE FUNCTION resolve_share_token(p_token TEXT)
+RETURNS SETOF shared_links
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT *
+  FROM shared_links
+  WHERE token = p_token
+    AND is_active = true
+    AND (expires_at IS NULL OR expires_at >= CURRENT_DATE);
+$$;
+
+REVOKE EXECUTE ON FUNCTION resolve_share_token(TEXT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION resolve_share_token(TEXT) TO anon, authenticated;
 
 -- Accès anon : le formulaire public peut INSÉRER une soumission, uniquement en 'pending'.
 -- Pas de SELECT/UPDATE/DELETE anon : le client ne relit jamais la file.
@@ -682,4 +699,5 @@ AS $$
   );
 $$;
 
+REVOKE EXECUTE ON FUNCTION get_db_stats() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION get_db_stats() TO authenticated;

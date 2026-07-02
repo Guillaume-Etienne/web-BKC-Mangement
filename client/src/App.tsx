@@ -76,13 +76,12 @@ function App() {
 
   useEffect(() => {
     if (!shareToken) return
+    // anon has no SELECT on shared_links (token enumeration) — resolution goes
+    // through the resolve_share_token() RPC, which needs the exact token.
     supabase
-      .from('shared_links')
-      .select('*')
-      .eq('token', shareToken)
-      .eq('is_active', true)
-      .single()
-      .then(({ data }) => setSharedLink(data ?? null))
+      .rpc('resolve_share_token', { p_token: shareToken })
+      .maybeSingle()
+      .then(({ data }) => setSharedLink((data as SharedLink | null) ?? null))
   }, [])
 
   // Still checking share token
