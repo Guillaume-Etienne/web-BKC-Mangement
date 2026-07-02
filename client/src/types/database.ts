@@ -299,7 +299,7 @@ export interface ActivityPayment {
 }
 
 // Shared public links
-export type SharedLinkType = 'forecast' | 'taxi' | 'client' | 'driver' | 'taxi_manager' | 'activity_provider' | 'booking_form'
+export type SharedLinkType = 'forecast' | 'taxi' | 'client' | 'driver' | 'taxi_manager' | 'activity_provider' | 'booking_form' | 'restaurant'
 
 export interface SharedLink {
   id: string

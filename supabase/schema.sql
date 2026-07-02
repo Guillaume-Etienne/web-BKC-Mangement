@@ -13,7 +13,7 @@ CREATE TYPE day_slot                        AS ENUM ('morning', 'afternoon', 'ev
 CREATE TYPE price_category                  AS ENUM ('lesson', 'activity', 'rental', 'taxi');
 CREATE TYPE taxi_trip_type                  AS ENUM ('aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other');
 CREATE TYPE taxi_trip_status                AS ENUM ('confirmed', 'needs_details', 'done');
-CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form');
+CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form', 'restaurant');
 CREATE TYPE equipment_category              AS ENUM ('kite', 'board', 'surfboard', 'foilboard');
 CREATE TYPE equipment_condition             AS ENUM ('new', 'good', 'fair', 'damaged', 'retired');
 CREATE TYPE rental_slot                     AS ENUM ('morning', 'afternoon', 'full_day');
@@ -314,7 +314,7 @@ CREATE INDEX idx_taxi_trips_booking ON taxi_trips(booking_id);
 
 
 -- ── Shared Public Links ───────────────────────────────────────────────────────
--- Types : forecast | taxi | client | driver | activity_provider
+-- Types : forecast | taxi | client | driver | taxi_manager | activity_provider | booking_form | restaurant
 -- token : '{type}_{10 random chars}'
 -- params : { booking_number } pour client, { driver_id } pour driver, { provider_id } pour activity_provider
 

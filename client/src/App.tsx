@@ -23,6 +23,7 @@ import DriverSharePage from './pages/DriverSharePage'
 import TaxiManagerSharePage from './pages/TaxiManagerSharePage'
 import ActivityProviderSharePage from './pages/ActivityProviderSharePage'
 import BookingFormPage from './pages/BookingFormPage'
+import RestaurantSharePage from './pages/RestaurantSharePage'
 import SubmissionsPage from './pages/SubmissionsPage'
 import ActivitiesPage from './pages/ActivitiesPage'
 import type { SharedLink } from './types/database'
@@ -102,6 +103,7 @@ function App() {
     if (sharedLink.type === 'taxi_manager')      return <TaxiManagerSharePage />
     if (sharedLink.type === 'activity_provider') return <ActivityProviderSharePage providerId={sharedLink.params?.provider_id ?? ''} />
     if (sharedLink.type === 'booking_form')      return <BookingFormPage />
+    if (sharedLink.type === 'restaurant')        return <RestaurantSharePage />
   }
 
   // Loading session

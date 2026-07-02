@@ -27,7 +27,7 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 |-------|-------------|--------------------------|
 | `clients` | 🟢 **identité only** (id, prénom, nom) — email/tél/passeport/naissance/contacts d'urgence **bloqués** | ClientSharePage, ForecastSharePage |
 | `booking_participants` | 🟢 **identité only** (id, prénom, nom) — passeport/notes/client_id **bloqués** | ClientSharePage |
-| `bookings`, `booking_rooms`, `booking_room_prices` | 🟠 résa + prix | ClientSharePage / Forecast |
+| `bookings`, `booking_rooms`, `booking_room_prices` | 🟠 résa + prix | ClientSharePage / Forecast / RestaurantSharePage (dates+status+nom only) |
 | `payments` | 🔴 **finances** (montants, paiements) | ClientSharePage |
 | `taxi_trips`, `taxi_drivers` | 🟠 trajets + tarifs | Taxi / Driver share |
 | `taxi_manager_payments` | 🔴 **finances** (commissions, avances) | TaxiManagerSharePage |

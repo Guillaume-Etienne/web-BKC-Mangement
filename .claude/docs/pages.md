@@ -22,6 +22,7 @@
 | `'taxi_manager'` | `TaxiManagerSharePage` | — (Geraldo, PT/EN, finances + tous trajets managés) |
 | `'activity_provider'` | `ActivityProviderSharePage` | `providerId` depuis `sharedLink.params.provider_id` |
 | `'booking_form'` | `BookingFormPage` | — (lien public unique, le client choisit sa langue) |
+| `'restaurant'` | `RestaurantSharePage` | — (Hotel Restaurant Planning, PT/EN, timeline des séjours) |
 
 **Pages authentifiées (type `Page`) :**
 `'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions'`
@@ -60,6 +61,13 @@
 - **Data :** `taxi_drivers` + `taxi_trips` avec join `booking:bookings(client:clients(first_name, last_name))`
 - **Layout :** 3 KPI cards (Completed/Upcoming/Total MZN) + 2 tables de trips
 - **Colonnes trips :** Date, Time, Route, Client name, Pax, Bags, Boards, Notes, Driver MZN
+
+### `RestaurantSharePage`
+- **Accès :** `?share=<restaurant_token>`
+- **But :** Timeline mensuelle des séjours (qui part quand) pour la manager du restaurant de l'hôtel — encaisser les notes avant le départ
+- **Hooks :** `useTable` bookings (select restreint : id, booking_number, check_in, check_out, status + join clients identité)
+- **State :** `lang` (PT défaut/EN via `usePref`), `month` ('YYYY-MM')
+- **Layout :** Bandeau « Próximas partidas » (3 jours), nav mois, timeline 1 ligne/booking (`CELL_W = 32`), barres vert/ambre par statut, cap foncé 🧳 = jour de départ, annulés exclus
 
 ### `ActivityProviderSharePage`
 - **Accès :** `?share=<activity_provider_token>` où le token a `params.provider_id`

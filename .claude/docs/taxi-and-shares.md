@@ -8,13 +8,16 @@
 
 | type | Page (`App.tsx` dispatch) | `params` | Label UI (`LINK_TYPE_LABELS`) |
 |------|---------------------------|----------|-------------------------------|
-| `forecast` | `ForecastSharePage` | — | Forecast |
+| `forecast` | `ForecastSharePage` | — | Forecast Lesson/Rent |
 | `taxi` | `TaxiSharePage` | — | **Public Taxi Schedule** |
 | `client` | `ClientSharePage` | `booking_number` | Client Account |
 | `driver` | `DriverSharePage` | `driver_id` | **Taxi Driver Schedule** |
 | `taxi_manager` | `TaxiManagerSharePage` | — (un seul manager, Geraldo) | **Taxi Manager GERALDO schedule** |
 | `activity_provider` | `ActivityProviderSharePage` | `provider_id` | Activity Provider |
 | `booking_form` | `BookingFormPage` | — | Public Booking Form |
+| `restaurant` | `RestaurantSharePage` | — | Hotel Restaurant Planning |
+
+**`restaurant` (ajouté 2026-07-02)** : timeline mensuelle en lecture seule pour la **manager du restaurant de l'hôtel** — une ligne par booking (nom client + chegada/partida), statuts confirmed (vert) / provisional (ambre), annulés exclus, cap foncé 🧳 sur le jour de départ + bandeau « Próximas partidas » (3 jours). Objectif : savoir **qui part quand** pour encaisser les notes du restaurant avant le départ. PT défaut + toggle EN (réutilise `usePref`/`Segmented` de `taxiShareUI` + `TAXI_LANGS`, dico local dans la page). Ne lit que `bookings` (id, booking_number, check_in, check_out, status) + `clients` (identité) — déjà anon-readable, **aucune nouvelle policy**. Migration : `2026-07-02_restaurant_share_type.sql` (enum).
 
 ## Où se créent les liens
 
