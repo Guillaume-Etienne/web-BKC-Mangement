@@ -135,10 +135,11 @@ Tous les composants accounting partagent :
 
 ### `AccountingDashboard` — `accounting/AccountingDashboard.tsx`
 **Props :** `{ data }`
-- KPI cards : Total revenue, Collected, Outstanding
-- Ventilation revenus : Accommodation / Lessons / Equipment / Taxis / Activities / Events / **Center access**
-- Coûts : instructor costs, taxi net margin (au taux global `data.eurMznRate`), Palmeiras net, expenses
-- Bandeau net result
+- KPI cards : Total revenue (BRUT), Collected, Outstanding
+- **Tout en brut facturé (refonte 2026-07-02)** : Taxis = Σ `price_eur`, Activities = Σ (`price_client` we_pay / `price_provider` reversé) ; les trips/activités liés à un booking annulé sont exclus des deux côtés (revenu ET coût)
+- Coûts (cards rangée 2) : instructors, house rentals, **bungalow owners** (`cost_per_night × nuits`), **taxi costs** (driver+manager MZN → € au taux global, sous-titre marge), **activity providers** (`price_provider` we_pay), expenses, Palmeiras net (= reversals + entries − rent, SANS marge bungalow — détail dans PalmeirasTab)
+- Bandeau net result = revenue brut + palmeiras − tous les coûts ci-dessus (⚠️ hypothèse : paiements chauffeurs/manager et coûts bungalows ne sont PAS saisis en Expenses, sinon double comptage)
+- Collected/Outstanding = basés sur `billedNet` (Σ computeBookingTotal − discounts des bookings actifs), plus sur totalRevenue ; payments des bookings annulés ignorés
 - Liste des soldes instructeurs
 - Pas de mutations
 

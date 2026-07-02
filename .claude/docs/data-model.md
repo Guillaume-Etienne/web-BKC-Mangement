@@ -606,7 +606,7 @@ Chargé dans `App.tsx` au login (4 requêtes parallèles légères, dont count `
 | `computeStandaloneTaxiRevenue(data)` | Revenu trips taxi sans booking |
 | `computeTaxiMarginEur(trip, rate)` | Marge centre EUR : `price_eur − (driver+manager)/taux` |
 | `computeCenterAccessRevenue(b)` | Center access : `num_center_access × nuits × center_access_rate` |
-| `computeActivityNetRevenue(data)` | Marge nette activités (we_pay: price_client−price_provider ; provider_pays: price_provider) |
+| ~~`computeActivityNetRevenue`~~ | Supprimée 2026-07-02 (dashboard passé en brut) — net activités calculé inline dans CashFlow pour les standalone |
 | `computeInstructorBalance(id, data)` | Solde dû à un instructeur |
 | `fmtEur(n)` | Formatage EUR |
 | `fmtMonth(yyyymm)` | "Feb 2026" |
