@@ -22,7 +22,7 @@ import type {
   ExternalAccommodation, ExternalAccommodationBooking, HouseRental, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride, EquipmentRental,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
-  TaxiPricingDefaults,
+  TaxiPricingDefaults, TaxiManagerPayment,
   DiningEvent, BookingRoomPrice,
 } from '../types/database'
 
@@ -61,7 +61,9 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: equipmentRentalsData }     = useEquipmentRentals()
   const [equipmentRentals, setEquipmentRentals] = useState<EquipmentRental[]>([])
   const { data: taxiTrips }                = useTaxiTrips()
-  const { data: taxiPricingDefaults }      = useTable<TaxiPricingDefaults>('taxi_pricing_defaults')
+  const { data: taxiManagerPayments }      = useTable<TaxiManagerPayment>('taxi_manager_payments', { order: 'date', ascending: false })
+  // order matters: several rows may exist, every screen must pick the most recent (8000€ bug)
+  const { data: taxiPricingDefaults }      = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
   const { data: activityBookings }         = useActivityBookings()
   const { data: activityPayments }         = useActivityPayments()
   const { data: seasons }                  = useTable<Season>('seasons')
@@ -115,6 +117,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     equipment,
     equipmentRentals,
     taxiTrips,
+    taxiManagerPayments,
     eurMznRate: taxiPricingDefaults[0]?.eur_mzn_rate ?? 65,
     seasons,
     payments,

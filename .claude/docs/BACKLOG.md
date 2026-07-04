@@ -35,11 +35,18 @@ mécanique, faisable par Opus en une session.
 
 ## 🟠 Compta
 
-### CashFlow — sorties MZN chauffeurs/manager comptées nulle part
-**✅ Design écrit (2026-07-04) : `cashflow-mzn-design.md`** — manager : brancher
-`taxi_manager_payments` (déjà saisis, jamais comptés) ; chauffeurs : 3 options selon **Q1**
-(quand gui paye-t-il réellement les chauffeurs ?), reco = proxy par trajet `done` (option A,
-zéro migration). **Reste** : poser Q1 à gui, puis implémenter (§4 du design — mécanique, Opus).
+### CashFlow — sorties MZN chauffeurs/manager — ✅ IMPLÉMENTÉ (2026-07-04)
+Q1 répondue (chauffeurs payés au trajet, Geraldo au réel) → colonne « Taxi out » dans CashFlow
+(drivers = trips `done`, manager = `taxi_manager_payments`, MZN→€ taux global) + TaxiFinanceTab
+bi-devise (MZN + ≈€) avec colonne Centre margin. Détail : `cashflow-mzn-design.md`.
+
+### Dashboard compta — « ne montrer que la marge taxi » ? (question ouverte)
+gui (2026-07-04) : « sur la compta générale on ne veut que la marge » taxi. Le **Net result**
+la reflète DÉJÀ (brut en revenue − card Taxi costs, marge en sous-titre de la card). Ce qui
+montre encore du brut : la barre « Taxis » du Revenue breakdown. ⚠️ La garder en brut est
+cohérent avec Billed/Collected/Outstanding (les clients doivent le brut, 120€) — cf. audit
+double-comptage. **À trancher avec gui** : inverser la card (marge en gros, coûts en sous-titre)
+suffit-il, ou veut-il aussi la barre du breakdown en marge (risque d'incohérence visuelle) ?
 
 ---
 

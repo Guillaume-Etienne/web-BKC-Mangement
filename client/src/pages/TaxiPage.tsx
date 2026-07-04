@@ -225,6 +225,7 @@ export default function TaxiPage() {
           <TaxiFinanceTab
             trips={trips}
             payments={payments}
+            eurMznRate={pricingDefaults.eur_mzn_rate}
             onAddPayment={addManagerPayment}
             onDeletePayment={deleteManagerPayment}
           />

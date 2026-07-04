@@ -1,16 +1,32 @@
 import { useState } from 'react'
 import type { TaxiTrip, TaxiManagerPayment } from '../../types/database'
 
+// ── Dual-currency helpers (MZN first, € translation beside) ──────────────────
+const mznToEur = (mzn: number, rate: number) => Math.round(mzn / (rate || 1))
+const fmtMzn   = (mzn: number) => `${mzn.toLocaleString()} MZN`
+
+function MznWithEur({ mzn, rate, className }: { mzn: number; rate: number; className?: string }) {
+  return (
+    <span className={className}>
+      {fmtMzn(mzn)}
+      <span className="block text-[10px] font-normal text-gray-400">≈ {mznToEur(mzn, rate)}€</span>
+    </span>
+  )
+}
+
 // ── Summary table (copy from TaxiListView — avoids refactoring) ──────────────
-function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
+function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
   const today = new Date().toISOString().slice(0, 10)
 
   function stats(subset: TaxiTrip[]) {
+    const clientEur  = subset.reduce((s, t) => s + t.price_eur,          0)
+    const driverMzn  = subset.reduce((s, t) => s + t.price_driver_mzn,   0)
+    const managerMzn = subset.reduce((s, t) => s + t.margin_manager_mzn, 0)
     return {
-      count:      subset.length,
-      clientEur:  subset.reduce((s, t) => s + t.price_eur,           0),
-      driverMzn:  subset.reduce((s, t) => s + t.price_driver_mzn,   0),
-      managerMzn: subset.reduce((s, t) => s + t.margin_manager_mzn, 0),
+      count: subset.length,
+      clientEur, driverMzn, managerMzn,
+      // what the center keeps once driver + manager are paid
+      marginEur: clientEur - (driverMzn + managerMzn) / (rate || 1),
     }
   }
 
@@ -32,6 +48,7 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
             <th className="px-3 py-2 text-right font-semibold text-blue-700">Client EUR</th>
             <th className="px-3 py-2 text-right font-semibold text-amber-700">Driver MZN</th>
             <th className="px-3 py-2 text-right font-semibold text-purple-700">Manager MZN</th>
+            <th className="px-3 py-2 text-right font-semibold text-emerald-700">Centre margin</th>
             <th className="px-3 py-2 text-right font-semibold text-gray-500">Trips</th>
           </tr>
         </thead>
@@ -40,8 +57,9 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
             <tr key={r.label} className={`border-b ${r.bg}`}>
               <td className="px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">{r.label}</td>
               <td className="px-3 py-2 text-right font-bold text-blue-900">{r.clientEur}€</td>
-              <td className="px-3 py-2 text-right text-amber-900">{r.driverMzn.toLocaleString()}</td>
-              <td className="px-3 py-2 text-right text-purple-900">{r.managerMzn.toLocaleString()}</td>
+              <td className="px-3 py-2 text-right text-amber-900"><MznWithEur mzn={r.driverMzn} rate={rate} /></td>
+              <td className="px-3 py-2 text-right text-purple-900"><MznWithEur mzn={r.managerMzn} rate={rate} /></td>
+              <td className="px-3 py-2 text-right font-bold text-emerald-700">{Math.round(r.marginEur)}€</td>
               <td className="px-3 py-2 text-right text-gray-600">{r.count}</td>
             </tr>
           ))}
@@ -50,12 +68,16 @@ function SummaryTable({ trips }: { trips: TaxiTrip[] }) {
           <tr className="bg-gray-100 border-t-2 border-gray-300 font-bold">
             <td className="px-3 py-2 text-gray-800">Total</td>
             <td className="px-3 py-2 text-right text-blue-900">{total.clientEur}€</td>
-            <td className="px-3 py-2 text-right text-amber-900">{total.driverMzn.toLocaleString()}</td>
-            <td className="px-3 py-2 text-right text-purple-900">{total.managerMzn.toLocaleString()}</td>
+            <td className="px-3 py-2 text-right text-amber-900"><MznWithEur mzn={total.driverMzn} rate={rate} /></td>
+            <td className="px-3 py-2 text-right text-purple-900"><MznWithEur mzn={total.managerMzn} rate={rate} /></td>
+            <td className="px-3 py-2 text-right text-emerald-700">{Math.round(total.marginEur)}€</td>
             <td className="px-3 py-2 text-right text-gray-600">{total.count}</td>
           </tr>
         </tfoot>
       </table>
+      <p className="px-3 py-2 text-xs text-gray-400 border-t border-gray-100">
+        Centre margin = Client € − (Driver + Manager MZN → € at global rate {rate})
+      </p>
     </div>
   )
 }
@@ -114,11 +136,12 @@ function AddPaymentForm({ onAdd }: AddPaymentFormProps) {
 interface TaxiFinanceTabProps {
   trips:           TaxiTrip[]
   payments:        TaxiManagerPayment[]
+  eurMznRate:      number
   onAddPayment:    (p: Omit<TaxiManagerPayment, 'id'>) => Promise<void>
   onDeletePayment: (id: string) => Promise<void>
 }
 
-export default function TaxiFinanceTab({ trips, payments, onAddPayment, onDeletePayment }: TaxiFinanceTabProps) {
+export default function TaxiFinanceTab({ trips, payments, eurMznRate, onAddPayment, onDeletePayment }: TaxiFinanceTabProps) {
   const totalEarned = trips.reduce((s, t) => s + t.margin_manager_mzn, 0)
   const totalPaid   = payments.reduce((s, p) => s + p.amount_mzn, 0)
   const balance     = totalEarned - totalPaid  // >0 = we owe manager, <0 = manager overpaid
@@ -143,7 +166,7 @@ export default function TaxiFinanceTab({ trips, payments, onAddPayment, onDelete
       {/* Financial Summary */}
       <div>
         <h2 className="text-lg font-semibold text-gray-800 mb-3">Financial Summary</h2>
-        <SummaryTable trips={trips} />
+        <SummaryTable trips={trips} rate={eurMznRate} />
       </div>
 
       {/* Manager Balance + Add Payment */}
@@ -154,15 +177,18 @@ export default function TaxiFinanceTab({ trips, payments, onAddPayment, onDelete
           <div className="space-y-2 text-sm">
             <div className="flex justify-between items-center py-1 border-b">
               <span className="text-gray-600">Total earned ({trips.length} trip{trips.length !== 1 ? 's' : ''})</span>
-              <span className="font-bold text-purple-900">{totalEarned.toLocaleString()} MZN</span>
+              <MznWithEur mzn={totalEarned} rate={eurMznRate} className="font-bold text-purple-900 text-right" />
             </div>
             <div className="flex justify-between items-center py-1 border-b">
               <span className="text-gray-600">Total paid (advances)</span>
-              <span className="font-bold text-blue-900">{totalPaid.toLocaleString()} MZN</span>
+              <MznWithEur mzn={totalPaid} rate={eurMznRate} className="font-bold text-blue-900 text-right" />
             </div>
             <div className={`flex justify-between items-center p-3 rounded border font-bold ${balanceColor}`}>
               <span>{balanceLabel}</span>
-              <span className="text-lg">{Math.abs(balance).toLocaleString()} MZN</span>
+              <span className="text-lg text-right">
+                {Math.abs(balance).toLocaleString()} MZN
+                <span className="block text-xs font-normal opacity-60">≈ {mznToEur(Math.abs(balance), eurMznRate)}€</span>
+              </span>
             </div>
           </div>
           <p className="text-xs text-gray-400">
@@ -210,7 +236,7 @@ export default function TaxiFinanceTab({ trips, payments, onAddPayment, onDelete
               <tfoot>
                 <tr className="bg-gray-100 border-t-2 border-gray-300 font-bold">
                   <td className="px-3 py-2 text-gray-800">Total</td>
-                  <td className="px-3 py-2 text-right text-blue-900">{totalPaid.toLocaleString()} MZN</td>
+                  <td className="px-3 py-2 text-right text-blue-900"><MznWithEur mzn={totalPaid} rate={eurMznRate} /></td>
                   <td colSpan={2}></td>
                 </tr>
               </tfoot>

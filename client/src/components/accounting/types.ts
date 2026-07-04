@@ -1,7 +1,7 @@
 import type {
   Accommodation, Booking, BookingParticipant, Client, Room, BookingRoom, BookingRoomPrice,
   ExternalAccommodationBooking, ExternalAccommodation,
-  HouseRental, Lesson, Instructor, Equipment, EquipmentRental, TaxiTrip, Season,
+  HouseRental, Lesson, Instructor, Equipment, EquipmentRental, TaxiTrip, TaxiManagerPayment, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   DiningEvent, ActivityBooking, ActivityPayment,
@@ -24,6 +24,7 @@ export interface SharedAccountingData {
   equipment:                 Equipment[]
   equipmentRentals:          EquipmentRental[]
   taxiTrips:                 TaxiTrip[]
+  taxiManagerPayments:       TaxiManagerPayment[]
   eurMznRate:                number    // global EUR/MZN rate (taxi_pricing_defaults)
   seasons:                   Season[]
   payments:                  Payment[]

@@ -93,10 +93,12 @@
 - Carte trip : finance Client/Driver/Manager + **ligne Centre €**
 
 ### `TaxiFinanceTab` — `taxi/TaxiFinanceTab.tsx`
-**Props :** `{ trips: TaxiTrip[]; onAddPayment; onUpdatePayment; onDeletePayment }`
+**Props :** `{ trips: TaxiTrip[]; payments: TaxiManagerPayment[]; eurMznRate: number; onAddPayment; onDeletePayment }`
 - Onglet Finance pour TaxiPage
-- Manager payment history (tableau des paiements)
-- Summaries par statut (completed, pending, total)
+- **Affichage bi-devise (2026-07-04, demande gui)** : MZN en premier + « ≈ X€ » dessous
+  (helper `MznWithEur`), partout (summary, balance manager, historique paiements)
+- SummaryTable : colonne **Centre margin** (€) = Client € − (Driver+Manager MZN)/taux global
+- Manager payment history (tableau des paiements) + balance earned − paid
 - ⚠️ Module-scope form `AddPaymentForm` pour mutations manager payments
 
 ### `DriverStatementPanel` — `taxi/DriverStatementPanel.tsx`
@@ -175,8 +177,11 @@ Tous les composants accounting partagent :
 **Props :** `{ data }`
 - Sélecteur de période : month / season / custom
 - Types de chart : bars / diverging / line
-- Tableau mensuel : billed (incl. activités), collected, palmIn, expenses, rent, instrPaid, net
+- Tableau mensuel : billed (incl. activités), collected, palmIn, expenses, rent, instrPaid, **taxiOut**, net
 - "Billed" inclut : booking totals + taxi standalone + activity net margin par mois
+- **taxiOut (2026-07-04)** : chauffeurs = `price_driver_mzn` des trips `done` au mois du trajet
+  (payés cash au trajet, décision gui) + manager = `taxi_manager_payments` réels au mois du
+  paiement ; MZN→€ au taux global. Net cash = collected + palmIn − toutes les sorties.
 - Pas de mutations
 
 ### `ExpensesTab` — `accounting/ExpensesTab.tsx`

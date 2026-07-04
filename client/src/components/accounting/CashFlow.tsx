@@ -15,13 +15,15 @@ interface MonthRow {
   expenses:  number
   rent:      number
   instrPaid: number
+  taxiOut:   number
   net:       number
 }
 
 export default function CashFlow({ data }: Props) {
   const {
     payments, expenses, palmeirasRents, palmeirasReversals,
-    seasons, bookings, instructorPayments, taxiTrips, activityBookings,
+    seasons, bookings, instructorPayments, taxiTrips, taxiManagerPayments,
+    activityBookings, eurMznRate,
   } = data
 
   const currentSeason = seasons[seasons.length - 1]
@@ -36,7 +38,7 @@ export default function CashFlow({ data }: Props) {
     const idx: Record<string, MonthRow> = {}
 
     const ensure = (m: string) => {
-      if (!idx[m]) idx[m] = { month: m, billed: 0, collected: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, net: 0 }
+      if (!idx[m]) idx[m] = { month: m, billed: 0, collected: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, net: 0 }
       return idx[m]
     }
 
@@ -89,13 +91,27 @@ export default function CashFlow({ data }: Props) {
       ensure(m).instrPaid += p.amount
     }
 
+    // Taxi cash out, MZN→EUR at the global rate:
+    // drivers are paid cash right after each trip → count price_driver_mzn of DONE trips
+    // at the trip month (no payment table exists for drivers, and none is needed);
+    // the manager (Geraldo) is paid irregularly → use his real dated payments.
+    const rate = eurMznRate || 1
+    for (const t of taxiTrips.filter(t => t.status === 'done')) {
+      const m = t.date.slice(0, 7)
+      ensure(m).taxiOut += t.price_driver_mzn / rate
+    }
+    for (const p of taxiManagerPayments) {
+      const m = p.date.slice(0, 7)
+      ensure(m).taxiOut += p.amount_mzn / rate
+    }
+
     // Compute net for each month
     for (const row of Object.values(idx)) {
-      row.net = row.collected + row.palmIn - row.expenses - row.rent - row.instrPaid
+      row.net = row.collected + row.palmIn - row.expenses - row.rent - row.instrPaid - row.taxiOut
     }
 
     return Object.values(idx).sort((a, b) => b.month.localeCompare(a.month)) // newest first
-  }, [bookings, payments, palmeirasReversals, expenses, palmeirasRents, instructorPayments, taxiTrips, activityBookings, data])
+  }, [bookings, payments, palmeirasReversals, expenses, palmeirasRents, instructorPayments, taxiTrips, taxiManagerPayments, eurMznRate, activityBookings, data])
 
   // ── Filter by period ────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -119,9 +135,10 @@ export default function CashFlow({ data }: Props) {
       expenses:  acc.expenses  + r.expenses,
       rent:      acc.rent      + r.rent,
       instrPaid: acc.instrPaid + r.instrPaid,
+      taxiOut:   acc.taxiOut   + r.taxiOut,
       net:       acc.net       + r.net,
     }),
-    { billed: 0, collected: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, net: 0 }
+    { billed: 0, collected: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, net: 0 }
   )
 
   // ── Running balance (cumulative net, oldest→newest) ─────────────────────
@@ -172,7 +189,7 @@ export default function CashFlow({ data }: Props) {
         {[
           { label: 'Billed',      value: totals.billed,    color: 'text-gray-700',    note: 'Revenue generated' },
           { label: 'Collected',   value: totals.collected, color: 'text-emerald-700', note: 'Cash actually received' },
-          { label: 'Total out',   value: -(totals.expenses + totals.rent + totals.instrPaid), color: 'text-red-700', note: 'Expenses + rent + instructors' },
+          { label: 'Total out',   value: -(totals.expenses + totals.rent + totals.instrPaid + totals.taxiOut), color: 'text-red-700', note: 'Expenses + rent + instructors + taxi' },
           { label: 'Net cash',    value: totals.net,       color: totals.net >= 0 ? 'text-emerald-700' : 'text-red-700', note: 'Collected − all outflows' },
         ].map(k => (
           <div key={k.label} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
@@ -322,6 +339,7 @@ export default function CashFlow({ data }: Props) {
               <th className="px-4 py-3 text-right font-semibold text-red-500">Expenses</th>
               <th className="px-4 py-3 text-right font-semibold text-red-500">Rent</th>
               <th className="px-4 py-3 text-right font-semibold text-red-500">Instructors</th>
+              <th className="px-4 py-3 text-right font-semibold text-red-500">Taxi out</th>
               <th className="px-4 py-3 text-right font-semibold text-gray-600">Net cash</th>
               <th className="px-4 py-3 text-right font-semibold text-gray-400">Running</th>
             </tr>
@@ -348,6 +366,9 @@ export default function CashFlow({ data }: Props) {
                   <td className="px-4 py-3 text-right text-red-500">
                     {r.instrPaid ? `− ${fmtEur(r.instrPaid)}` : '–'}
                   </td>
+                  <td className="px-4 py-3 text-right text-red-500">
+                    {r.taxiOut ? `− ${fmtEur(r.taxiOut)}` : '–'}
+                  </td>
                   <td className={`px-4 py-3 text-right font-bold ${r.net >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                     {r.net >= 0 ? '+' : ''}{fmtEur(r.net)}
                   </td>
@@ -367,6 +388,7 @@ export default function CashFlow({ data }: Props) {
               <td className="px-4 py-3 text-right text-red-500">− {fmtEur(totals.expenses)}</td>
               <td className="px-4 py-3 text-right text-red-500">− {fmtEur(totals.rent)}</td>
               <td className="px-4 py-3 text-right text-red-500">− {fmtEur(totals.instrPaid)}</td>
+              <td className="px-4 py-3 text-right text-red-500">− {fmtEur(totals.taxiOut)}</td>
               <td className={`px-4 py-3 text-right ${totals.net >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                 {totals.net >= 0 ? '+' : ''}{fmtEur(totals.net)}
               </td>
@@ -380,6 +402,7 @@ export default function CashFlow({ data }: Props) {
       <div className="flex flex-wrap gap-4 text-xs text-gray-400">
         <span><strong>Billed</strong> = computed total of active bookings (by check-in month)</span>
         <span><strong>Collected</strong> = actual payments received (by payment date)</span>
+        <span><strong>Taxi out</strong> = drivers (paid per done trip) + manager payments, MZN→€ at global rate</span>
         <span><strong>Running</strong> = cumulative net cash (oldest → newest)</span>
       </div>
     </div>

@@ -1,8 +1,10 @@
 # CashFlow — sorties MZN chauffeurs & manager (design, 2026-07-04)
 
-> **Statut : DESIGN — rien d'implémenté.** Une question opérationnelle (Q1) à poser à gui,
-> puis l'implémentation est mécanique (voir §4). Contexte : audit 2026-07-02 — le « Net cash »
-> de CashFlow est optimiste car les décaissements taxi (MZN) n'y figurent pas.
+> **Statut : ✅ IMPLÉMENTÉ le 2026-07-04** (même session que le design). **Q1 répondue par
+> gui** : chauffeurs payés cash **au trajet** → option A ; Geraldo payé irrégulièrement
+> (« liberté d'action ») → ses paiements réels `taxi_manager_payments`. En bonus, demande gui :
+> TaxiFinanceTab passé en **bi-devise** (MZN d'abord + ≈€ dessous) + colonne **Centre margin**.
+> Question dashboard encore ouverte : voir BACKLOG (« compta générale : que la marge »).
 
 ## 1. État des lieux (vérifié dans le code le 2026-07-04)
 
