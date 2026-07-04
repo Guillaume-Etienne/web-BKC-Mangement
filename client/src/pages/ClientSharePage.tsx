@@ -11,7 +11,12 @@ import type {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type BookingWithClient = Omit<Booking, 'client'> & { client: Client | null }
+// anon may only read these bookings columns (column-level GRANT — see security-rls.md);
+// selecting more (or '*') would fail with 42501 for public visitors.
+type BookingWithClient = Pick<Booking,
+  'id' | 'booking_number' | 'check_in' | 'check_out' | 'status' |
+  'num_center_access' | 'center_access_rate'
+> & { client: Pick<Client, 'id' | 'first_name' | 'last_name'> | null }
 
 interface Props {
   bookingNumber: number
@@ -97,13 +102,15 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
     supabase
       .from('bookings')
-      // Only identity columns from clients are exposed to anon (no email/phone/passport/etc — see security-rls.md)
-      .select('*, client:clients(id, first_name, last_name)')
+      // Column-restricted for anon on BOTH tables (no emergency contacts, notes,
+      // amount_paid, visa dates… and no email/phone/passport on clients) — see security-rls.md
+      .select('id, booking_number, check_in, check_out, status, num_center_access, center_access_rate, client:clients(id, first_name, last_name)')
       .eq('booking_number', bookingNumber)
       .single()
       .then(({ data, error }) => {
         if (error || !data) { setBooking('not_found'); setLoading(false); return }
-        setBooking(data as BookingWithClient)
+        // supabase types the FK embed as an array; at runtime .single() returns an object
+        setBooking(data as unknown as BookingWithClient)
       })
   }, [bookingNumber])
 

@@ -12,20 +12,12 @@
 
 Contexte : `.claude/docs/security-rls.md` (état exposé + checklist). Lot A ✅ fait (commit `b2e4255`).
 
-### Lot B — `bookings` full read (LE trou 🔴) — PROCHAINE TÂCHE
-`bookings` est en `USING(true)` sans GRANT colonne : emergency_contact_*, notes, amount_paid,
-visa dates, waiver, referral_source lisibles par tout Internet.
-**Runbook** :
-1. Inventorier les champs `Booking` réellement lus par `ClientSharePage.tsx` (~l.99-101, seule page
-   anon qui lit `bookings` directement — dates, statuts, rates pour `computeBookingTotal`, discounts).
-   Forecast ne lit PAS bookings.
-2. Garder au minimum `id / booking_number / check_in / check_out / status / client_id`
-   (RestaurantSharePage, TaxiSharePage, App.tsx pending actions).
-3. Migration : `REVOKE SELECT ON bookings FROM anon; GRANT SELECT (colonnes…) ON bookings TO anon;`
-   (pattern de `2026-06-30_shared_pages_security.sql`). Appliquer TEST + PROD.
-4. Narrower le `select('*')` de ClientSharePage en liste explicite.
-5. Vérifier : curl anon direct sur les 2 bases (clés dans `client/.env.local`) — les colonnes
-   sensibles doivent renvoyer 42501 ; puis ouvrir pages client/restaurant/taxi en TEST.
+### Lot B — `bookings` full read (LE trou 🔴) — ✅ codé 2026-07-04, ⏳ migration à appliquer
+Fait : migration `2026-07-04_lot_b_bookings_columns.sql` (REVOKE + GRANT colonnes
+`id, booking_number, check_in, check_out, status, client_id, num_center_access,
+center_access_rate`), select de ClientSharePage narrowé, schema.sql à jour, build OK.
+**Reste** : gui applique la migration **TEST + PROD** → puis vérifier par curl anon
+(commandes en bas du fichier de migration) + ouvrir pages client/restaurant/taxi en TEST.
 
 ### Lot C — instructors / taxi_drivers / activity_providers
 phone/email/notes lisibles anon. **Décisions métier champ par champ AVEC gui** (le phone du

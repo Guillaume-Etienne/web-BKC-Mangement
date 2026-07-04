@@ -22,12 +22,14 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 ## Ce qui est exposé en lecture publique aujourd'hui (`USING (true)`)
 
 > **Mise à jour 2026-06-30** : `clients` et `booking_participants` sont désormais **restreintes par colonne** pour `anon` (voir migration `2026-06-30_shared_pages_security.sql`). `anon` n'y lit plus que `id / first_name / last_name` (+`booking_id`) — passeports, emails, téléphones, dates de naissance, contacts d'urgence et notes ne sont **plus** exposés.
+> **Mise à jour 2026-07-04 (Lot B)** : `bookings` restreinte par colonne aussi (migration `2026-07-04_lot_b_bookings_columns.sql`) : `anon` ne lit que `id / booking_number / check_in / check_out / status / client_id / num_center_access / center_access_rate` — contacts d'urgence, notes, amount_paid, dates visa, waiver, referral_source ne sont **plus** exposés. ⚠️ Tout `.select()` anon sur bookings doit lister ces colonnes explicitement (`*` → 42501).
 
 | Table | Sensibilité | Exposée pour quelle page |
 |-------|-------------|--------------------------|
 | `clients` | 🟢 **identité only** (id, prénom, nom) — email/tél/passeport/naissance/contacts d'urgence **bloqués** | ClientSharePage, ForecastSharePage |
 | `booking_participants` | 🟢 **identité only** (id, prénom, nom) — passeport/notes/client_id **bloqués** | ClientSharePage |
-| `bookings`, `booking_rooms`, `booking_room_prices` | 🟠 résa + prix | ClientSharePage / Forecast / RestaurantSharePage (dates+status+nom only) |
+| `bookings` | 🟢 **planning only** (id, n°, dates, status, client_id, center access) — contacts urgence/notes/amount_paid/visa/waiver **bloqués** | ClientSharePage / RestaurantSharePage / embeds taxi |
+| `booking_rooms`, `booking_room_prices` | 🟠 chambres + prix | ClientSharePage / Forecast |
 | `payments` | 🔴 **finances** (montants, paiements) | ClientSharePage |
 | `taxi_trips`, `taxi_drivers` | 🟠 trajets + tarifs | Taxi / Driver share |
 | `taxi_manager_payments` | 🔴 **finances** (commissions, avances) | TaxiManagerSharePage |
@@ -62,7 +64,7 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 ## Durcissement — plan validé par gui (3 lots + phase 2, suivi dans `BACKLOG.md`)
 
 - **Lot A ✅ fait (2026-07-02)** : `get_db_stats()` admin-only, `shared_links` non listable, RPC `resolve_share_token`.
-- **Lot B (🔴 prochain)** : GRANT colonnes sur `bookings` + narrowing du `select('*')` de ClientSharePage.
+- **Lot B ✅ fait (2026-07-04)** : GRANT colonnes sur `bookings` + narrowing du `select('*')` de ClientSharePage.
 - **Lot C** : instructors / taxi_drivers / activity_providers — décisions champ par champ avec gui.
 - **Phase 2 (lignes, pas seulement colonnes)** : **RLS token-aware** (header `x-share-token` + policies vérifiant `shared_links`) — **choix retenu par gui**, préféré aux Edge Functions service-role (écartées) et aux vues filtrées. Design à écrire avant d'implémenter.
 

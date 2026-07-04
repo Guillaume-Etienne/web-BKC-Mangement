@@ -658,6 +658,12 @@ REVOKE SELECT ON clients FROM anon;
 GRANT  SELECT (id, first_name, last_name) ON clients TO anon;
 REVOKE SELECT ON booking_participants FROM anon;
 GRANT  SELECT (id, booking_id, first_name, last_name) ON booking_participants TO anon;
+-- bookings: anon only reads scheduling/identity columns (Lot B 2026-07-04) —
+-- never emergency contacts, notes, amount_paid, visa dates, waiver, referral.
+REVOKE SELECT ON bookings FROM anon;
+GRANT  SELECT (id, booking_number, check_in, check_out, status, client_id,
+               num_center_access, center_access_rate)
+  ON bookings TO anon;
 CREATE POLICY "anon_read_dining_events"         ON dining_events         FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_lesson_rate_overrides" ON lesson_rate_overrides FOR SELECT TO anon USING (true);
 CREATE POLICY "anon_read_ext_accom_bookings"    ON external_accommodation_bookings FOR SELECT TO anon USING (true);
