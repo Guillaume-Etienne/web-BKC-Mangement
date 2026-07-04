@@ -176,10 +176,12 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
           <p className="text-xs font-semibold uppercase tracking-wide text-red-500 mb-1">Bungalow owners</p>
           <p className="text-2xl font-bold text-red-800">−{fmt(bungalowCosts)}</p>
         </div>
+        {/* gui (2026-07-04): the number that matters on the general dashboard is the MARGIN
+            (what's left after paying drivers + manager); costs stay as the subtitle detail */}
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-purple-500 mb-1">Taxi costs</p>
-          <p className="text-2xl font-bold text-purple-800">−{fmt(taxiCosts)}</p>
-          <p className="text-xs text-purple-500 mt-1">margin {sign(taxiMargin)}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-purple-500 mb-1">Taxi margin</p>
+          <p className="text-2xl font-bold text-purple-800">{sign(taxiMargin)}</p>
+          <p className="text-xs text-purple-500 mt-1">{fmt(taxisRev)} billed − {fmt(taxiCosts)} costs (MZN→€)</p>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-red-500 mb-1">Activity providers</p>

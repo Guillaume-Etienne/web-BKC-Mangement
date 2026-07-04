@@ -40,13 +40,10 @@ Q1 répondue (chauffeurs payés au trajet, Geraldo au réel) → colonne « Taxi
 (drivers = trips `done`, manager = `taxi_manager_payments`, MZN→€ taux global) + TaxiFinanceTab
 bi-devise (MZN + ≈€) avec colonne Centre margin. Détail : `cashflow-mzn-design.md`.
 
-### Dashboard compta — « ne montrer que la marge taxi » ? (question ouverte)
-gui (2026-07-04) : « sur la compta générale on ne veut que la marge » taxi. Le **Net result**
-la reflète DÉJÀ (brut en revenue − card Taxi costs, marge en sous-titre de la card). Ce qui
-montre encore du brut : la barre « Taxis » du Revenue breakdown. ⚠️ La garder en brut est
-cohérent avec Billed/Collected/Outstanding (les clients doivent le brut, 120€) — cf. audit
-double-comptage. **À trancher avec gui** : inverser la card (marge en gros, coûts en sous-titre)
-suffit-il, ou veut-il aussi la barre du breakdown en marge (risque d'incohérence visuelle) ?
+### Dashboard compta — marge taxi mise en avant — ✅ FAIT (2026-07-04, validé gui)
+Card inversée : « Taxi margin » en gros chiffre, « X€ billed − Y€ costs (MZN→€) » en sous-titre.
+La barre « Taxis » du Revenue breakdown reste en BRUT (cohérence Billed/Collected/Outstanding —
+les clients doivent le brut). Formule du Net result inchangée.
 
 ---
 
