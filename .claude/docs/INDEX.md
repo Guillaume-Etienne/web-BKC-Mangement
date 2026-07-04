@@ -36,6 +36,7 @@
 | Schéma SQL complet | `supabase/schema.sql` | — |
 | Data integrity issues (audit) | `project_accounting_issues.md` | § Issue 1–4 |
 | **Sécurité / RLS / accès anon** ⚠️ | **`security-rls.md`** | **avant toute policy anon ou page partagée** |
+| Design Phase 2 (RLS token-aware, lignes) | `phase2-rls-token-aware.md` | matrice d'accès + rollout |
 | Quelles tables exposées publiquement | `security-rls.md` | § Ce qui est exposé |
 | Checklist avant page partagée | `security-rls.md` | § Checklist |
 

@@ -66,7 +66,7 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 - **Lot A ✅ fait (2026-07-02)** : `get_db_stats()` admin-only, `shared_links` non listable, RPC `resolve_share_token`.
 - **Lot B ✅ fait (2026-07-04)** : GRANT colonnes sur `bookings` + narrowing du `select('*')` de ClientSharePage.
 - **Lot C** : instructors / taxi_drivers / activity_providers — décisions champ par champ avec gui.
-- **Phase 2 (lignes, pas seulement colonnes)** : **RLS token-aware** (header `x-share-token` + policies vérifiant `shared_links`) — **choix retenu par gui**, préféré aux Edge Functions service-role (écartées) et aux vues filtrées. Design à écrire avant d'implémenter.
+- **Phase 2 (lignes, pas seulement colonnes)** : **RLS token-aware** (header `x-share-token` + policies vérifiant `shared_links`) — **choix retenu par gui**, préféré aux Edge Functions service-role (écartées) et aux vues filtrées. **Design complet : `phase2-rls-token-aware.md`** (matrice d'accès, helpers, rollout, pièges).
 
 > Tant que ce n'est pas fait, considérer toutes les tables du tableau comme **publiques**. Ne jamais y stocker un secret.
 

@@ -25,10 +25,11 @@ chauffeur est peut-être volontairement visible sur les pages taxi). Ensuite : m
 GRANT colonnes que Lot B. ⚠️ ClientSharePage a besoin des rates instructeurs.
 
 ### Phase 2 — RLS token-aware (filtrer les LIGNES, pas juste les colonnes)
-Aujourd'hui anon lit toutes les lignes des tables exposées (tous bookings, tous clients en
-identité…). Cible décidée : **RLS token-aware** (header `x-share-token` + policies vérifiant
-`shared_links`), préférée aux Edge Functions. **Étape 1 = écrire le design** (quelles tables,
-quelles policies, ordre de migration, compat pages existantes) avant toute implémentation.
+**✅ Design écrit (2026-07-04) : `phase2-rls-token-aware.md`** — mécanisme header
+`x-share-token`, helpers SQL, matrice d'accès complète (7 types × 20 tables), pièges
+(ordre front→DB, realtime, embeds), runbook de rollout + curls de vérif.
+**Reste** : (1) trancher D1–D4 avec gui (§5 du design), (2) implémenter en suivant le §6 —
+mécanique, faisable par Opus en une session.
 
 ---
 
