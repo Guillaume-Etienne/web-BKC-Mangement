@@ -12,12 +12,12 @@
 
 Contexte : `.claude/docs/security-rls.md` (état exposé + checklist). Lot A ✅ fait (commit `b2e4255`).
 
-### Lot B — `bookings` full read (LE trou 🔴) — ✅ codé 2026-07-04, ⏳ migration à appliquer
-Fait : migration `2026-07-04_lot_b_bookings_columns.sql` (REVOKE + GRANT colonnes
-`id, booking_number, check_in, check_out, status, client_id, num_center_access,
-center_access_rate`), select de ClientSharePage narrowé, schema.sql à jour, build OK.
-**Reste** : gui applique la migration **TEST + PROD** → puis vérifier par curl anon
-(commandes en bas du fichier de migration) + ouvrir pages client/restaurant/taxi en TEST.
+### Lot B — `bookings` full read — ✅ TERMINÉ & VÉRIFIÉ (2026-07-04)
+Migration `2026-07-04_lot_b_bookings_columns.sql` appliquée **TEST + PROD** par gui, vérifiée
+par curl anon direct sur les 2 bases : 42501 sur `select=*` / notes / amount_paid /
+emergency_contact / visa ; 200 sur les 8 colonnes autorisées + embed `client:clients`.
+ClientSharePage narrowé (commit `86b6a5a`). Dernier check visuel : ouvrir la page client
+du seed en TEST après le prochain déploiement Vercel.
 
 ### Lot C — instructors / taxi_drivers / activity_providers
 phone/email/notes lisibles anon. **Décisions métier champ par champ AVEC gui** (le phone du
