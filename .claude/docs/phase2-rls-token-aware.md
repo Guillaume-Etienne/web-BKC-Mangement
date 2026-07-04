@@ -124,6 +124,10 @@ Même gabarit pour chaque table de la matrice. Référentiel : `USING (share_ctx
 
 ## 5. Décisions à prendre avec gui AVANT d'implémenter
 
+> **2026-07-04 : gui n'a pas encore tranché** (AFK au moment du design). Défauts retenus =
+> les recos ci-dessous (D1 a, D2 a, D3 toutes, D4 oui). À confirmer en 30 secondes avant
+> d'écrire la migration ; si gui dévie, seule la policy concernée change.
+
 - **D1 `dining_events`** : (a) filtrage SQL par JSONB (`EXISTS` sur booking_participants du
   booking cible ∩ attendees) — propre mais requête velue ; (b) laisser « toutes » pour token
   `client` (expose noms des convives des autres groupes + prix/repas). Reco : **(a)**.

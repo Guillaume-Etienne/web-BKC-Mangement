@@ -36,10 +36,10 @@ mécanique, faisable par Opus en une session.
 ## 🟠 Compta
 
 ### CashFlow — sorties MZN chauffeurs/manager comptées nulle part
-Les paiements réels aux chauffeurs et au manager taxi (MZN) ne sont saisis ni en Expenses ni
-ailleurs → le net cash mensuel de CashFlow est optimiste. **D'abord une décision de modèle avec
-gui** (où saisir ces sorties : Expenses ? table dédiée ? depuis TaxiFinanceTab ?), puis spécifier,
-puis coder. Ne pas coder avant la décision.
+**✅ Design écrit (2026-07-04) : `cashflow-mzn-design.md`** — manager : brancher
+`taxi_manager_payments` (déjà saisis, jamais comptés) ; chauffeurs : 3 options selon **Q1**
+(quand gui paye-t-il réellement les chauffeurs ?), reco = proxy par trajet `done` (option A,
+zéro migration). **Reste** : poser Q1 à gui, puis implémenter (§4 du design — mécanique, Opus).
 
 ---
 
