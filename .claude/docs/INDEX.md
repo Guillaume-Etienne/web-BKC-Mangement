@@ -1,5 +1,9 @@
 # Index rapide — où chercher quoi ?
 
+> 📋 **Reste à faire / tâches en cours** → **`BACKLOG.md`** (source de vérité unique, à jour).
+> 🗄️ Chantiers clos & audits historiques → `.claude/archive/memory/`.
+> 🌱 Seed de démo base TEST → `supabase/seed/README.md` (jamais en PROD).
+
 ## 🔧 Runbooks — « comment faire X » (étapes prêtes à suivre)
 | Je veux… | Où |
 |----------|-----|
@@ -41,7 +45,7 @@
 | Signature d'un hook spécifique | `hooks.md` | Section du hook |
 | useTable (générique) | `hooks.md` | § Base Hook |
 | useActivityProviders/Bookings/Payments | `hooks.md` | § useActivities.ts |
-| useTaxiTrips (normalisation, schemaOutdated) | `hooks.md` | § useTaxis.ts |
+| useTaxiTrips (mapping direct) | `hooks.md` | § useTaxis.ts |
 | Pattern mutation optimiste | `hooks.md` | § Pattern : données mutables |
 | Quand refresh() vs optimistic | `hooks.md` | § Pattern : données mutables |
 

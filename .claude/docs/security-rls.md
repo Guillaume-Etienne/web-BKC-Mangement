@@ -59,12 +59,12 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 4. **Mettre à jour ce fichier** (tableau ci-dessus) + `schema.sql` + une **migration** datée à appliquer TEST → PROD.
 5. Ne jamais croire que le token protège : il ne protège pas.
 
-## Durcissement recommandé (chantier futur, non fait)
+## Durcissement — plan validé par gui (3 lots + phase 2, suivi dans `BACKLOG.md`)
 
-Pour supprimer la fuite sans casser les pages partagées, par ordre de préférence :
-1. **Edge Functions** (service role) : la page publique appelle une fonction qui valide le token et ne renvoie **que** les données autorisées (colonnes + lignes filtrées). C'est le plus propre.
-2. **RLS token-aware** : passer le token de partage à la requête et vérifier dans `shared_links` (plus complexe, couple chaque table au token).
-3. **Vues `security_invoker` filtrées** exposées à `anon` à la place des tables brutes (limite au moins les colonnes).
+- **Lot A ✅ fait (2026-07-02)** : `get_db_stats()` admin-only, `shared_links` non listable, RPC `resolve_share_token`.
+- **Lot B (🔴 prochain)** : GRANT colonnes sur `bookings` + narrowing du `select('*')` de ClientSharePage.
+- **Lot C** : instructors / taxi_drivers / activity_providers — décisions champ par champ avec gui.
+- **Phase 2 (lignes, pas seulement colonnes)** : **RLS token-aware** (header `x-share-token` + policies vérifiant `shared_links`) — **choix retenu par gui**, préféré aux Edge Functions service-role (écartées) et aux vues filtrées. Design à écrire avant d'implémenter.
 
 > Tant que ce n'est pas fait, considérer toutes les tables du tableau comme **publiques**. Ne jamais y stocker un secret.
 

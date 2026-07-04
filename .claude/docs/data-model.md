@@ -173,6 +173,8 @@
 | rate_supervision | number (EUR/h) |
 | notes | string \| null |
 
+> ⚠️ **Modèle cours groupe (dual rate)** : côté client, `rate_group` = prix **par personne** par heure → revenu = rate × durée × `participant_ids.length` (`computeLessonsRevenue` multiplie). Côté instructeur, forfait fixe : rate × durée, **quel que soit** le nombre d'élèves (`computeInstructorEarned` ne multiplie PAS). La marge du centre sur les groupes vient de là.
+
 ### `lessons` → `Lesson`
 | Field | Type | Notes |
 |-------|------|-------|
