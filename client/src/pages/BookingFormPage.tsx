@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { tr, LANGS, detectLang } from '../data/formI18n'
 import { waiverText, WAIVER_VERSION } from '../data/waiver'
@@ -214,6 +214,9 @@ export default function BookingFormPage() {
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState(false)
+  // Anti-spam: honeypot (hidden field humans never see) + page-load timestamp
+  const [honeypot, setHoneypot] = useState('')
+  const mountedAt = useRef(Date.now())
 
   function update(patch: Partial<FormData>) { setD(prev => ({ ...prev, ...patch })) }
 
@@ -276,6 +279,10 @@ export default function BookingFormPage() {
 
   async function submit() {
     if (!canProceed[5]) return
+    // Anti-spam (see BACKLOG): honeypot filled, or submitted <3s after page load
+    // (impossible for a human on a 5-step wizard) → fake success, insert nothing.
+    // Silent on purpose: don't teach bots what tripped them.
+    if (honeypot.trim() || Date.now() - mountedAt.current < 3000) { setDone(true); return }
     setSubmitting(true)
     setError(false)
     const payload: BookingFormPayload = {
@@ -367,6 +374,19 @@ export default function BookingFormPage() {
             ))}
           </div>
         </div>
+
+        {/* Honeypot — moved off-screen (not display:none), humans never see or tab
+            into it; bots autofilling every field will trip it. Checked in submit(). */}
+        <input
+          type="text"
+          name="website"
+          value={honeypot}
+          onChange={e => setHoneypot(e.target.value)}
+          autoComplete="off"
+          tabIndex={-1}
+          aria-hidden="true"
+          className="absolute -left-[9999px] w-px h-px opacity-0"
+        />
 
         {/* Progress bar with advancing kite */}
         <div className="relative h-7 mb-5">
