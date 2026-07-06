@@ -24,15 +24,19 @@ phone/email/notes lisibles anon. **Décisions métier champ par champ AVEC gui**
 chauffeur est peut-être volontairement visible sur les pages taxi). Ensuite : même pattern
 GRANT colonnes que Lot B. ⚠️ ClientSharePage a besoin des rates instructeurs.
 
-### Phase 2 — RLS token-aware — ✅ CODE PRÊT (2026-07-06), reste le rollout
-D1–D4 tranchés par gui (= les 4 recos). Implémenté : header `x-share-token` dans
-`supabase.ts` + migration `2026-07-06_phase2_token_rls.sql` (helpers + 22 policies) +
-`schema.sql` sync. **Reste (ordre impératif, cf. §6 du design)** :
-1. gui push → attendre le déploiement Vercel (le front doit envoyer le header AVANT la migration) ;
-2. appliquer la migration sur **TEST** → smoke des 7 liens du seed + curls §7 du design ;
-3. appliquer sur **PROD le même jour** → re-curls ;
-4. cocher ici + màj finale `security-rls.md` si écarts.
-⚠️ Realtime : les pages partagées perdent le live-update (websocket sans header) — assumé.
+### Phase 2 — RLS token-aware — ✅ TERMINÉ & VÉRIFIÉ TEST + PROD (2026-07-06)
+D1–D4 tranchés par gui (= les 4 recos). Header `x-share-token` dans `supabase.ts` +
+migration `2026-07-06_phase2_token_rls.sql` (5 helpers + 22 policies) + `schema.sql` sync.
+Vérifié par curls anon sur les 2 bases : sans token / token bidon → `[]` sur les 22 tables ;
+en TEST avec les 5 tokens du seed : chaque type ne voit que SES lignes (D1 prouvé — Beach BBQ
+invisible pour le client ; D4 prouvé — trajet margin=0 invisible pour Geraldo). Smoke visuel
+des pages partagées TEST fait par gui. ⚠️ Piège vécu : première « application PROD » était en
+fait sur TEST (SQL editor sur le mauvais projet, migration idempotente = aucun message
+d'erreur) — détecté par curl, refaite sur le vrai PROD `oslsbansxaajcpwhivmx`.
+**Micro-reste** : (a) gui ouvre ses vrais liens PROD (Geraldo, driver, client) pour smoke
+visuel ; (b) tokens `restaurant` / `activity_provider` absents du seed → types non
+curl-testés (policies identiques aux autres ; à couvrir si un lien de ces types déconne).
+⚠️ Realtime : pages partagées sans live-update (websocket sans header) — assumé, refresh OK.
 
 ---
 
