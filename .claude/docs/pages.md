@@ -142,7 +142,7 @@
 - **Props :** `{ onNavigate }`
 - **Hooks :** useClients, useBookings
 - **State :** `showImport`, `searchTerm`, `filterLevel`, `filterNationality`, `selectedClient`
-- **Features :** Recherche/filtres, tiroir détail (infos + historique bookings), import CSV via `ImportCSVModal`
+- **Features :** Recherche/filtres, tiroir détail (infos + historique bookings). (Import CSV supprimé 2026-07-06 — remplacé par le formulaire public.)
 
 ### `TaxiPage`
 - **Route :** `'taxis'`

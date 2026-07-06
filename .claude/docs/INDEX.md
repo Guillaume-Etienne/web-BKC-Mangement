@@ -94,7 +94,7 @@
 |--------|----------------|-------|
 | Planning / Grille | `components.md` → PlanningView | CELL_W=32, drag |
 | Bookings | `pages.md` → BookingsPage | wizard 6 étapes |
-| Clients | `pages.md` → ClientsPage | import CSV |
+| Clients | `pages.md` → ClientsPage | recherche, filtres, détail |
 | Taxis | `pages.md` → TaxiPage + `data-model.md` → taxi | modèle MZN |
 | Activities | `pages.md` → ActivitiesPage + `data-model.md` → Activities | modèle EUR bidirectionnel |
 | Equipment | `pages.md` → EquipmentPage | |

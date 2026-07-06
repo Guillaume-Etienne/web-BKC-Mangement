@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 import { useClients } from '../hooks/useClients'
 import { useBookings } from '../hooks/useBookings'
 import type { Client, Booking, KiteLevel } from '../types/database'
-import ImportCSVModal from '../components/clients/ImportCSVModal'
 
 interface ClientsPageProps {
   onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients') => void
@@ -39,9 +38,8 @@ const bookingStatusColor: Record<string, string> = {
 
 export default function ClientsPage({ onNavigate }: ClientsPageProps) {
   const { data: clients, loading, error, refresh: refreshClients } = useClients()
-  const { data: bookings, refresh: refreshBookings } = useBookings()
+  const { data: bookings } = useBookings()
 
-  const [showImport, setShowImport] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterLevel, setFilterLevel] = useState<'' | KiteLevel>('')
   const [filterNationality, setFilterNationality] = useState('')
@@ -66,51 +64,6 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
 
   const getClientBookings = (clientId: string): Booking[] =>
     bookings.filter(b => b.client_id === clientId)
-
-  const handleImport = async (newClients: Client[], newBookings: Booking[]) => {
-    const existingIds = new Set(clients.map(c => c.id))
-
-    // Split new vs updates (updates have real existing UUIDs)
-    const toInsert = newClients.filter(c => !existingIds.has(c.id))
-    const toUpdate = newClients.filter(c => existingIds.has(c.id))
-
-    // Map local temp ID → supabase UUID (for booking.client_id remapping)
-    const idMap = new Map<string, string>()
-
-    // Insert new clients
-    for (const client of toInsert) {
-      const { id: _localId, ...clientData } = client
-      const { data, error: err } = await supabase
-        .from('clients')
-        .insert(clientData)
-        .select('id')
-        .single()
-      if (err) { alert('Import error (clients): ' + err.message); return }
-      idMap.set(_localId, data.id)
-    }
-
-    // Update existing clients (conflict resolved to 'replace')
-    for (const client of toUpdate) {
-      const { id, ...updates } = client
-      await supabase.from('clients').update(updates).eq('id', id)
-      idMap.set(id, id)
-    }
-
-    // Insert bookings
-    for (const booking of newBookings) {
-      const realClientId = idMap.get(booking.client_id) ?? booking.client_id
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id: _bookingId, client: _client, ...bookingData } = booking
-
-      const { error: bErr } = await supabase
-        .from('bookings')
-        .insert({ ...bookingData, client_id: realClientId })
-      if (bErr) { alert('Import error (bookings): ' + bErr.message); return }
-    }
-
-    refreshClients()
-    refreshBookings()
-  }
 
   const openForm = (client?: Client) => {
     if (client) {
@@ -194,8 +147,6 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
     setFilterNationality('')
   }
 
-  const nextBookingNumber = bookings.reduce((max, b) => Math.max(max, b.booking_number), 0) + 1
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -226,12 +177,6 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
             <p className="text-gray-500 mt-1">{clients.length} total · {filteredClients.length} shown</p>
           </div>
           <div className="flex gap-2 w-full md:w-auto">
-            <button
-              onClick={() => setShowImport(true)}
-              className="flex-1 md:flex-none px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold transition-colors border border-gray-300"
-            >
-              ⬆ Import CSV
-            </button>
             <button
               onClick={() => openForm()}
               className="flex-1 md:flex-none px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors"
@@ -498,17 +443,6 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
             </div>
           )}
         </div>
-
-        {/* Import CSV Modal */}
-        {showImport && (
-          <ImportCSVModal
-            existingClients={clients}
-            existingBookings={bookings}
-            nextBookingNumber={nextBookingNumber}
-            onImport={handleImport}
-            onClose={() => setShowImport(false)}
-          />
-        )}
 
         {/* Form Modal */}
         {showForm && (

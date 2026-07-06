@@ -72,8 +72,9 @@ les clients doivent le brut). Formule du Net result inchangée.
   inchangé (`shared_links.is_active=false`). Turnstile seulement si le lien devient vraiment
   public un jour (nécessiterait une Edge Function pour l'insert).
 - **Waiver EN/ES** — traductions auto à faire relire (FR = source gui). `WAIVER_VERSION = 'v1-2026'`.
-- **Supprimer l'import CSV** — `ImportCSVModal` + `parseGoogleFormsCSV.ts` toujours branchés dans
-  ClientsPage ; à retirer maintenant que le formulaire public est validé en prod.
+- ~~**Supprimer l'import CSV**~~ ✅ FAIT (2026-07-06) : `ImportCSVModal` + `parseGoogleFormsCSV.ts`
+  supprimés, ClientsPage nettoyée (bouton, state, handleImport). `import_id` conservé
+  (dédup SubmissionsPage).
 - **Logo sur documents** — préciser avec gui QUELS documents avant d'agir.
   Assets : `client/public/docs/logo-mas.png`, `signature-mas.png`.
 - **Lien partagé `restaurant` en PROD** — à créer depuis Options → Shared Links quand besoin.

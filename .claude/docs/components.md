@@ -112,19 +112,9 @@
 
 ## Clients
 
-### `ImportCSVModal` — `clients/ImportCSVModal.tsx`
-**Props :**
-```ts
-{
-  existingClients: Client[]; existingBookings: Booking[]
-  nextBookingNumber: number
-  onImport: (newClients: Client[], newBookings: Booking[]) => void
-  onClose: () => void
-}
-```
-- Wizard 4 étapes : Choisir fichier → Réviser lignes → Résoudre conflits → Confirmer
-- Parse CSV Google Forms → extrait données client + booking
-- Clé dedup : `import_id` (timestamp Google Forms)
+> `ImportCSVModal` + `utils/parseGoogleFormsCSV.ts` **supprimés le 2026-07-06** (remplacés
+> par le formulaire public `BookingFormPage`). La colonne `import_id` reste : réutilisée par
+> `SubmissionsPage` comme clé de dédup (id de la form_submission).
 
 ---
 
@@ -269,7 +259,6 @@ App
     │   ├── NowView          (sub-tab 'now')
     │   └── ForecastView     (sub-tab 'forecast')
     ├── BookingsPage  (wizard 6 étapes)
-    ├── ClientsPage → ImportCSVModal
     ├── TaxiPage
     │   ├── TaxiListView | TaxiKanbanView  (onglet 'planning')
     │   └── DriverStatementPanel           (onglet 'drivers')
