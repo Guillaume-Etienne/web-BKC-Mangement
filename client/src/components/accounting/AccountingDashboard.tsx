@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import type { SharedAccountingData } from './types'
+import CollectionsModal from './CollectionsModal'
 import {
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
   computeAccommodationRevenue, computeLessonsRevenue,
@@ -23,6 +25,7 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
 // ────────────────────────────────────────────────────────────────────────────
 
 export default function AccountingDashboard({ data, onOpenBooking }: Props) {
+  const [showCollections, setShowCollections] = useState(false)
   const {
     bookings, payments,
     diningEvents, houseRentals,
@@ -260,19 +263,22 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
             </div>
           </div>
 
-          {/* Collection progress */}
-          <div className="space-y-2">
+          {/* Collection progress — click → who owes what (CollectionsModal) */}
+          <button onClick={() => setShowCollections(true)} className="w-full space-y-2 text-left group">
             <div className="flex justify-between text-xs text-gray-500">
-              <span>Collection progress</span>
+              <span>
+                Collection progress
+                <span className="ml-2 text-blue-500 group-hover:underline">who owes? →</span>
+              </span>
               <span>{fmt(totalPaid)} / {fmt(billedNet)} billed</span>
             </div>
-            <div className="bg-gray-100 rounded-full h-4 overflow-hidden">
+            <div className="bg-gray-100 rounded-full h-4 overflow-hidden group-hover:ring-2 group-hover:ring-blue-200">
               <div
                 className="h-full bg-blue-500 rounded-full transition-all"
                 style={{ width: `${billedNet > 0 ? Math.min(100, (totalPaid / billedNet) * 100) : 0}%` }}
               />
             </div>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -299,6 +305,15 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
             ))}
           </div>
         </div>
+      )}
+
+      {showCollections && (
+        <CollectionsModal
+          rows={unpaidBookings}
+          clients={data.clients}
+          onClose={() => setShowCollections(false)}
+          onOpenBooking={onOpenBooking}
+        />
       )}
 
       {/* ── Unpaid bookings ── */}
