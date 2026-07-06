@@ -21,4 +21,12 @@ export function switchEnv(env: SupabaseEnv) {
 const url = currentEnv === 'test' ? testUrl! : prodUrl
 const key = currentEnv === 'test' ? testKey! : prodKey
 
-export const supabase = createClient(url, key)
+// Pages partagées (?share=<token>) : le token part dans un header sur CHAQUE requête
+// REST, pour que les policies RLS token-aware filtrent les lignes côté base.
+// Voir .claude/docs/phase2-rls-token-aware.md. L'app admin n'a pas de ?share= → pas
+// de header → policies authenticated inchangées.
+const shareToken = new URLSearchParams(window.location.search).get('share')
+
+export const supabase = createClient(url, key, {
+  ...(shareToken ? { global: { headers: { 'x-share-token': shareToken } } } : {}),
+})

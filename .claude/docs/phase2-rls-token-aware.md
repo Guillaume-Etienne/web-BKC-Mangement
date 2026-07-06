@@ -1,8 +1,13 @@
-# Phase 2 — RLS token-aware (design, 2026-07-04)
+# Phase 2 — RLS token-aware (design 2026-07-04, implémenté 2026-07-06)
 
-> **Statut : DESIGN — rien d'implémenté.** Écrit par Fable avant le passage à Opus, pour que
-> l'implémentation soit mécanique. Lire d'abord `security-rls.md` (état actuel) et suivre le
-> § Rollout à la lettre (l'ordre front → TEST → PROD évite de casser les pages en prod).
+> **Statut : IMPLÉMENTÉ (2026-07-06).** D1–D4 tranchés par gui = les 4 recos (D1a, D2a,
+> D3 toutes, D4 oui). Code : header dans `client/src/lib/supabase.ts`, migration
+> `supabase/migrations/2026-07-06_phase2_token_rls.sql` (+ `schema.sql` synchronisé).
+> Écarts vs design : helpers `share_param(key)` et `share_client_id()` ajoutés (policies
+> plus lisibles, clients indépendant de la policy bookings) ; le référentiel teste
+> `share_type() IS NOT NULL` et non `share_ctx() IS NOT NULL` (piège : composite avec
+> `expires_at NULL` → `IS NOT NULL` toujours faux). Rollout : suivre §6 (front déployé
+> AVANT migration).
 
 ## 1. Objectif
 

@@ -632,23 +632,139 @@ CREATE POLICY "anon_insert_form_submissions" ON form_submissions
   FOR INSERT TO anon
   WITH CHECK (status = 'pending');
 
--- Accès anon : données nécessaires aux pages publiques (forecast, taxi, client, driver, activity)
-CREATE POLICY "anon_read_taxi_trips"    ON taxi_trips     FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_taxi_drivers"  ON taxi_drivers   FOR SELECT TO anon USING (true);
--- Manager share page (taxi_manager link) reads the manager's commission history
-CREATE POLICY "anon_read_taxi_manager_payments" ON taxi_manager_payments FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_lessons"       ON lessons        FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_instructors"   ON instructors    FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_bookings"      ON bookings       FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_clients"       ON clients        FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_activity_providers"    ON activity_providers    FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_activity_bookings"     ON activity_bookings     FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_activity_payments"     ON activity_payments     FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_equipment"             ON equipment             FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_equipment_rentals"     ON equipment_rentals     FOR SELECT TO anon USING (true);
+-- ── Accès anon : RLS token-aware (Phase 2, 2026-07-06) ────────────────────────
+-- Le front des pages partagées (?share=<token>) envoie le token dans le header
+-- `x-share-token` (client/src/lib/supabase.ts). Les policies anon ne laissent
+-- passer une ligne QUE si le header correspond à un shared_link actif dont le
+-- type donne droit à cette ligne. Sans token valide → 0 ligne partout.
+-- Design + matrice d'accès : .claude/docs/phase2-rls-token-aware.md.
 
--- Accès anon : données supplémentaires pour ClientSharePage
-CREATE POLICY "anon_read_booking_participants"  ON booking_participants  FOR SELECT TO anon USING (true);
+-- Helpers (share_ctx/share_booking_id/share_client_id sont SECURITY DEFINER :
+-- ils lisent shared_links/bookings hors policy).
+CREATE OR REPLACE FUNCTION share_ctx() RETURNS shared_links
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT s.* FROM shared_links s
+  WHERE s.token = current_setting('request.headers', true)::json->>'x-share-token'
+    AND s.is_active
+    AND (s.expires_at IS NULL OR s.expires_at >= CURRENT_DATE)
+  LIMIT 1;
+$$;
+
+-- Type du token présenté, ou NULL. (Test scalaire sûr — ne PAS tester
+-- share_ctx() IS NOT NULL : composite avec expires_at NULL → toujours faux.)
+CREATE OR REPLACE FUNCTION share_type() RETURNS shared_link_type
+LANGUAGE sql STABLE AS $$ SELECT (share_ctx()).type $$;
+
+CREATE OR REPLACE FUNCTION share_param(p_key TEXT) RETURNS TEXT
+LANGUAGE sql STABLE AS $$ SELECT (share_ctx()).params->>p_key $$;
+
+-- L'id (resp. le client) du booking ciblé par un token 'client', sinon NULL.
+CREATE OR REPLACE FUNCTION share_booking_id() RETURNS uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT b.id FROM bookings b
+  WHERE (share_ctx()).type = 'client'
+    AND b.booking_number = ((share_ctx()).params->>'booking_number')::int;
+$$;
+
+CREATE OR REPLACE FUNCTION share_client_id() RETURNS uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT b.client_id FROM bookings b WHERE b.id = share_booking_id();
+$$;
+
+REVOKE EXECUTE ON FUNCTION share_ctx(), share_type(), share_param(TEXT),
+                           share_booking_id(), share_client_id() FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION share_ctx(), share_type(), share_param(TEXT),
+                           share_booking_id(), share_client_id() TO anon, authenticated;
+
+-- Cœur booking : token client → uniquement le booking du token ;
+-- taxi/driver/manager/restaurant → toutes les lignes (embeds de noms).
+CREATE POLICY "anon_read_bookings" ON bookings FOR SELECT TO anon USING (
+  share_type() IN ('taxi', 'driver', 'taxi_manager', 'restaurant')
+  OR (share_type() = 'client' AND id = share_booking_id())
+);
+CREATE POLICY "anon_read_clients" ON clients FOR SELECT TO anon USING (
+  share_type() IN ('forecast', 'taxi', 'driver', 'taxi_manager', 'restaurant')
+  OR (share_type() = 'client' AND id = share_client_id())
+);
+CREATE POLICY "anon_read_booking_participants" ON booking_participants
+  FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());
+CREATE POLICY "anon_read_booking_rooms" ON booking_rooms
+  FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());
+CREATE POLICY "anon_read_booking_room_prices" ON booking_room_prices
+  FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());
+CREATE POLICY "anon_read_payments" ON payments
+  FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());
+CREATE POLICY "anon_read_ext_accom_bookings" ON external_accommodation_bookings
+  FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());
+
+-- Cours & matériel : client → son booking ; forecast → tout (raison d'être de la page).
+CREATE POLICY "anon_read_lessons" ON lessons FOR SELECT TO anon USING (
+  share_type() = 'forecast'
+  OR (share_type() = 'client' AND booking_id = share_booking_id())
+);
+CREATE POLICY "anon_read_equipment_rentals" ON equipment_rentals FOR SELECT TO anon USING (
+  share_type() = 'forecast'
+  OR (share_type() = 'client' AND booking_id = share_booking_id())
+);
+CREATE POLICY "anon_read_lesson_rate_overrides" ON lesson_rate_overrides
+  FOR SELECT TO anon USING (
+    share_type() = 'client'
+    AND lesson_id IN (SELECT l.id FROM lessons l WHERE l.booking_id = share_booking_id())
+  );
+-- Repas : uniquement ceux où participe un participant du booking (match JSONB attendees).
+CREATE POLICY "anon_read_dining_events" ON dining_events FOR SELECT TO anon USING (
+  share_type() = 'client'
+  AND EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(attendees) AS a
+    JOIN booking_participants bp ON bp.id::text = a->>'person_id'
+    WHERE bp.booking_id = share_booking_id()
+      AND a->>'person_type' = 'participant'
+      AND (a->>'is_attending')::boolean
+  )
+);
+
+-- Taxi : le manager ne voit que les trajets avec commission ; le driver, les siens.
+CREATE POLICY "anon_read_taxi_trips" ON taxi_trips FOR SELECT TO anon USING (
+  share_type() = 'taxi'
+  OR (share_type() = 'taxi_manager' AND margin_manager_mzn > 0)
+  OR (share_type() = 'driver' AND taxi_driver_id = share_param('driver_id')::uuid)
+  OR (share_type() = 'client' AND booking_id = share_booking_id())
+);
+CREATE POLICY "anon_read_taxi_drivers" ON taxi_drivers FOR SELECT TO anon USING (
+  share_type() IN ('taxi', 'taxi_manager')
+  OR (share_type() = 'driver' AND id = share_param('driver_id')::uuid)
+);
+CREATE POLICY "anon_read_taxi_manager_payments" ON taxi_manager_payments
+  FOR SELECT TO anon USING (share_type() = 'taxi_manager');
+
+-- Activités : chaque provider ne voit que ses lignes.
+CREATE POLICY "anon_read_activity_providers" ON activity_providers
+  FOR SELECT TO anon USING (
+    share_type() = 'activity_provider' AND id = share_param('provider_id')::uuid
+  );
+CREATE POLICY "anon_read_activity_bookings" ON activity_bookings
+  FOR SELECT TO anon USING (
+    (share_type() = 'activity_provider' AND provider_id = share_param('provider_id')::uuid)
+    OR (share_type() = 'client' AND booking_id = share_booking_id())
+  );
+CREATE POLICY "anon_read_activity_payments" ON activity_payments
+  FOR SELECT TO anon USING (
+    share_type() = 'activity_provider' AND provider_id = share_param('provider_id')::uuid
+  );
+
+-- Référentiel : lisible avec n'importe quel token valide.
+CREATE POLICY "anon_read_rooms" ON rooms
+  FOR SELECT TO anon USING (share_type() IS NOT NULL);
+CREATE POLICY "anon_read_accommodations" ON accommodations
+  FOR SELECT TO anon USING (share_type() IS NOT NULL);
+CREATE POLICY "anon_read_instructors" ON instructors
+  FOR SELECT TO anon USING (share_type() IS NOT NULL);
+CREATE POLICY "anon_read_equipment" ON equipment
+  FOR SELECT TO anon USING (share_type() IS NOT NULL);
+CREATE POLICY "anon_read_ext_accommodations" ON external_accommodations
+  FOR SELECT TO anon USING (share_type() IS NOT NULL);
+
 -- Column-level hardening: anon may read ONLY identity columns of clients /
 -- booking_participants (never passport_number, email, phone, birth_date,
 -- emergency contacts, notes). A row policy can't restrict columns, so we use
@@ -664,15 +780,6 @@ REVOKE SELECT ON bookings FROM anon;
 GRANT  SELECT (id, booking_number, check_in, check_out, status, client_id,
                num_center_access, center_access_rate)
   ON bookings TO anon;
-CREATE POLICY "anon_read_dining_events"         ON dining_events         FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_lesson_rate_overrides" ON lesson_rate_overrides FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_ext_accom_bookings"    ON external_accommodation_bookings FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_ext_accommodations"    ON external_accommodations FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_booking_rooms"         ON booking_rooms         FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_booking_room_prices"   ON booking_room_prices   FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_rooms"                 ON rooms                 FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_accommodations"        ON accommodations        FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_payments"              ON payments              FOR SELECT TO anon USING (true);
 
 
 

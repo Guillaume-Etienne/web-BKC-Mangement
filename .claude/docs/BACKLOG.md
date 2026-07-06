@@ -24,12 +24,15 @@ phone/email/notes lisibles anon. **Décisions métier champ par champ AVEC gui**
 chauffeur est peut-être volontairement visible sur les pages taxi). Ensuite : même pattern
 GRANT colonnes que Lot B. ⚠️ ClientSharePage a besoin des rates instructeurs.
 
-### Phase 2 — RLS token-aware (filtrer les LIGNES, pas juste les colonnes)
-**✅ Design écrit (2026-07-04) : `phase2-rls-token-aware.md`** — mécanisme header
-`x-share-token`, helpers SQL, matrice d'accès complète (7 types × 20 tables), pièges
-(ordre front→DB, realtime, embeds), runbook de rollout + curls de vérif.
-**Reste** : (1) trancher D1–D4 avec gui (§5 du design), (2) implémenter en suivant le §6 —
-mécanique, faisable par Opus en une session.
+### Phase 2 — RLS token-aware — ✅ CODE PRÊT (2026-07-06), reste le rollout
+D1–D4 tranchés par gui (= les 4 recos). Implémenté : header `x-share-token` dans
+`supabase.ts` + migration `2026-07-06_phase2_token_rls.sql` (helpers + 22 policies) +
+`schema.sql` sync. **Reste (ordre impératif, cf. §6 du design)** :
+1. gui push → attendre le déploiement Vercel (le front doit envoyer le header AVANT la migration) ;
+2. appliquer la migration sur **TEST** → smoke des 7 liens du seed + curls §7 du design ;
+3. appliquer sur **PROD le même jour** → re-curls ;
+4. cocher ici + màj finale `security-rls.md` si écarts.
+⚠️ Realtime : les pages partagées perdent le live-update (websocket sans header) — assumé.
 
 ---
 
