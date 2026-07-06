@@ -66,10 +66,11 @@ les clients doivent le brut). Formule du Net result inchangée.
 - **Bug prix taxi 8000 €** — fix code fait (`order updated_at desc` des 2 côtés, commit `4364316`).
   Reste : lancer `supabase/migrations/diagnostics_taxi_pricing.sql` sur TEST+PROD, corriger
   `default_price_eur` (=120), supprimer les lignes en double de `taxi_pricing_defaults`.
-- **Anti-spam formulaire public** — risque réel = quota Resend (2 emails auto/soumission), pas la DB.
-  Combo **honeypot + délai mini 3s** (~15 min, zéro DB) ; kill switch déjà dispo
-  (`shared_links.is_active=false`). Turnstile seulement si le lien devient vraiment public
-  (nécessiterait une Edge Function pour l'insert).
+- ~~**Anti-spam formulaire public**~~ ✅ FAIT (2026-07-06, `318e467`) : honeypot off-screen
+  (`website`) + refus silencieux des soumissions <3s après chargement — les deux tombent sur
+  le faux écran de succès (zéro insert, zéro email, le bot n'apprend rien). Kill switch
+  inchangé (`shared_links.is_active=false`). Turnstile seulement si le lien devient vraiment
+  public un jour (nécessiterait une Edge Function pour l'insert).
 - **Waiver EN/ES** — traductions auto à faire relire (FR = source gui). `WAIVER_VERSION = 'v1-2026'`.
 - **Supprimer l'import CSV** — `ImportCSVModal` + `parseGoogleFormsCSV.ts` toujours branchés dans
   ClientsPage ; à retirer maintenant que le formulaire public est validé en prod.
