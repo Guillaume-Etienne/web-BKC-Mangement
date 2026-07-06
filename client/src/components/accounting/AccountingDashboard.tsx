@@ -42,13 +42,19 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   const rentalsRev      = activeBookings.reduce((s, b) => s + computeRentalsRevenue(b, data), 0)
   const activeTrips     = taxiTrips.filter(t => t.booking_id === null || activeIds.has(t.booking_id))
   const standaloneTrips = activeTrips.filter(t => t.booking_id === null)
-  const taxisRev        = activeTrips.reduce((s, t) => s + t.price_eur, 0)
+  const taxisRevGross   = activeTrips.reduce((s, t) => s + t.price_eur, 0)
+  // gui (2026-07-06): in accounting, the taxi figure is the CENTER MARGIN — billed minus
+  // driver pay minus manager commission (MZN→EUR at the global rate). The gross total
+  // stays in the taxi view (TaxiFinanceTab); Billed/Collected/Outstanding stay gross too
+  // (clients owe the gross). Taxi costs are therefore NOT re-subtracted in Net result.
+  const taxiCosts  = Math.round(activeTrips.reduce((s, t) => s + t.price_driver_mzn + t.margin_manager_mzn, 0) / (data.eurMznRate || 1))
+  const taxiMargin = taxisRevGross - taxiCosts
   const activeActs      = activityBookings.filter(a => a.booking_id === null || activeIds.has(a.booking_id))
   // we_pay_provider → client pays us price_client ; provider_pays_us → provider reverses price_provider
   const activitiesRev   = activeActs.reduce((s, a) => s + (a.payment_flow === 'we_pay_provider' ? a.price_client : a.price_provider), 0)
   const eventsRev       = computeDiningRevenue(diningEvents)
   const centerAccessRev = activeBookings.reduce((s, b) => s + computeCenterAccessRevenue(b), 0)
-  const totalRevenue    = accomRev + lessonsRev + rentalsRev + taxisRev + eventsRev + activitiesRev + centerAccessRev
+  const totalRevenue    = accomRev + lessonsRev + rentalsRev + taxiMargin + eventsRev + activitiesRev + centerAccessRev
 
   // ── Collections (billed on active bookings vs collected) ───────────────
   const bookingFinances = activeBookings.map(b => {
@@ -72,11 +78,6 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
       : instr.rate_supervision
     return sum + rate * l.duration_hours
   }, 0)
-
-  // ── Taxi costs (driver + manager MZN → EUR at the global rate) ─────────
-  // Not entered anywhere else (no Expense rows), so they are subtracted here.
-  const taxiCosts  = Math.round(activeTrips.reduce((s, t) => s + t.price_driver_mzn + t.margin_manager_mzn, 0) / (data.eurMznRate || 1))
-  const taxiMargin = taxisRev - taxiCosts
 
   // ── Activity provider costs (we_pay_provider flow only) ────────────────
   const activityCosts = activeActs.reduce((s, a) => s + (a.payment_flow === 'we_pay_provider' ? a.price_provider : 0), 0)
@@ -111,10 +112,10 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   // ── House rental costs ──────────────────────────────────────────────────
   const houseRentalCosts = houseRentals.reduce((s, r) => s + r.total_cost, 0)
 
-  // ── Net result ─────────────────────────────────────────────────────────
+  // ── Net result (taxi costs already netted inside totalRevenue) ─────────
   const netResult = totalRevenue + palmeirasNet
     - instructorCosts - houseRentalCosts - bungalowCosts
-    - taxiCosts - activityCosts - totalExpenses
+    - activityCosts - totalExpenses
 
   // ── Instructor balances ────────────────────────────────────────────────
   const instrBalances = instructors.map(i => ({
@@ -181,7 +182,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-purple-500 mb-1">Taxi margin</p>
           <p className="text-2xl font-bold text-purple-800">{sign(taxiMargin)}</p>
-          <p className="text-xs text-purple-500 mt-1">{fmt(taxisRev)} billed − {fmt(taxiCosts)} costs (MZN→€)</p>
+          <p className="text-xs text-purple-500 mt-1">{fmt(taxisRevGross)} billed − {fmt(taxiCosts)} costs (MZN→€)</p>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-red-500 mb-1">Activity providers</p>
@@ -202,7 +203,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
       <div className={`rounded-xl border-2 p-5 flex items-center justify-between ${netResult >= 0 ? 'bg-emerald-50 border-emerald-400' : 'bg-red-50 border-red-400'}`}>
         <div>
           <p className={`text-sm font-semibold uppercase tracking-wide ${netResult >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>Net result (season)</p>
-          <p className="text-xs text-gray-500 mt-0.5">Revenue + palmeiras − instructors − houses − bungalows − taxi costs − activity providers − expenses</p>
+          <p className="text-xs text-gray-500 mt-0.5">Revenue (taxis net of driver + manager) + palmeiras − instructors − houses − bungalows − activity providers − expenses</p>
         </div>
         <p className={`text-4xl font-bold ${netResult >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{sign(netResult)}</p>
       </div>
@@ -218,7 +219,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
               { label: 'Accommodation', value: accomRev,      color: 'bg-blue-500' },
               { label: 'Lessons',       value: lessonsRev,   color: 'bg-emerald-500' },
               { label: 'Equipment',     value: rentalsRev,   color: 'bg-purple-500' },
-              { label: 'Taxis',         value: taxisRev,     color: 'bg-amber-500' },
+              { label: 'Taxi margin',   value: taxiMargin,   color: 'bg-amber-500' },
               { label: 'Activities',    value: activitiesRev,color: 'bg-teal-500' },
               { label: 'Events',        value: eventsRev,    color: 'bg-rose-400' },
               { label: 'Center access', value: centerAccessRev, color: 'bg-cyan-500' },
@@ -226,7 +227,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
               <div key={c.label} className="flex items-center gap-3">
                 <div className="w-28 shrink-0">
                   <p className="text-sm text-gray-600">{c.label}</p>
-                  {c.label === 'Taxis' && standaloneTrips.length > 0 && (
+                  {c.label === 'Taxi margin' && standaloneTrips.length > 0 && (
                     <p className="text-xs text-amber-500">incl. {standaloneTrips.length} unlinked</p>
                   )}
                 </div>
