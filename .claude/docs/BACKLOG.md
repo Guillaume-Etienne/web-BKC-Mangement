@@ -82,10 +82,12 @@ les clients doivent le brut). Formule du Net result inchangée.
 ## 🧹 Housekeeping
 
 - **Révoquer le PAT Supabase** du 2026-06-26 (https://supabase.com/dashboard/account/tokens) — gui.
-- Supprimer `supabase/seed/supabase_logs.json` (283 Ko, non commité) — gui.
+- ~~Supprimer `supabase/seed/supabase_logs.json`~~ ✅ FAIT (2026-07-06).
 - Redéployer `notify-submission` (TEST et/ou PROD) **seulement si** l'email admin semble pauvre —
   la chaîne fonctionne, c'est juste la richesse du récap (non bloquant).
-- Nettoyer `client/.env.local` des restes de session (records DNS, secrets collés).
+- ~~Nettoyer `client/.env.local`~~ ✅ FAIT (2026-07-06) : clés Resend + records DNS retirés,
+  ne restent que URLs + clés anon des 2 bases (utiles curls). ⚠️ Les clés Resend ne sont plus
+  QUE dans les secrets Edge Functions Supabase (et le dashboard Resend).
 
 ## 🧊 Gelé / à NE PAS faire
 
