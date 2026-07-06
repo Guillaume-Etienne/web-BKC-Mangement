@@ -91,6 +91,7 @@
   5. 🧾 **Finish** — contact d'urgence + waiver déroulant + case obligatoire
 - **Validation par étape** (`canProceed`), submit désactivé tant que waiver non coché.
 - **Submit :** `supabase.from('form_submissions').insert([...])` (status `pending`, `payload`=`BookingFormPayload` complet + colonnes dénormalisées `reference_name`/`email`/`num_travelers`/`arrival_date`). **PAS de `.select()`** (anon n'a pas de SELECT sur la table). Puis écran de fin 🎉.
+- **Anti-spam (2026-07-06)** : honeypot `website` hors écran (pas `display:none`, `tabIndex=-1`) + refus des submits **<3 s** après chargement (`mountedAt` ref). Les deux tombent **silencieusement** sur l'écran de succès — zéro insert, zéro email Resend, le bot n'apprend rien. Kill switch = désactiver le lien.
 - **Composants module-scope** (focus-safe) : `Field`, `Counter`, `YesNo`, `TravelerCard`.
 
 ---
