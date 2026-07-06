@@ -136,14 +136,34 @@ Tous les composants accounting partagent :
 - **Types :** `components/accounting/types.ts` — SharedAccountingData, AccountingHandlers
 
 ### `AccountingDashboard` — `accounting/AccountingDashboard.tsx`
-**Props :** `{ data }`
-- KPI cards : Total revenue (BRUT), Collected, Outstanding
-- **Tout en brut facturé (refonte 2026-07-02)** : Taxis = Σ `price_eur`, Activities = Σ (`price_client` we_pay / `price_provider` reversé) ; les trips/activités liés à un booking annulé sont exclus des deux côtés (revenu ET coût)
-- Coûts (cards rangée 2) : instructors, house rentals, **bungalow owners** (`cost_per_night × nuits`), **taxi MARGIN** (2026-07-04, demande gui : la card affiche la marge en gros — brut − coûts en sous-titre ; le net soustrait toujours `taxiCosts`), **activity providers** (`price_provider` we_pay), expenses, Palmeiras net (= reversals + entries − rent, SANS marge bungalow — détail dans PalmeirasTab)
-- Bandeau net result = revenue brut + palmeiras − tous les coûts ci-dessus (⚠️ hypothèse : paiements chauffeurs/manager et coûts bungalows ne sont PAS saisis en Expenses, sinon double comptage)
+**Props :** `{ data, onOpenBooking? }`
+- KPI cards : Total revenue, Collected, Outstanding
+- **⚠️ Taxi = MARGE CENTRE dans le revenu (2026-07-06, demande gui)** : `taxiMargin` =
+  Σ `price_eur` − (Σ `price_driver_mzn + margin_manager_mzn`)/taux → entre dans Total revenue
+  et la barre « Taxi margin » du breakdown. Le net result ne re-soustrait PLUS `taxiCosts`
+  (netté dans le revenu ; chiffre final inchangé). Le BRUT taxi reste dans TaxiFinanceTab,
+  Billed/Collected/Outstanding (les clients doivent le brut) et CashFlow.
+- Autres revenus en brut facturé (refonte 2026-07-02) : Activities = Σ (`price_client` we_pay /
+  `price_provider` reversé) ; trips/activités liés à un booking annulé exclus des deux côtés
+- Coûts (cards rangée 2) : instructors, house rentals, **bungalow owners** (`cost_per_night ×
+  nuits`), card **Taxi margin** (marge en gros, brut − coûts en sous-titre), **activity
+  providers** (`price_provider` we_pay), expenses, Palmeiras net (= reversals + entries − rent,
+  SANS marge bungalow — détail dans PalmeirasTab)
+- Bandeau net result = revenue (taxi netté) + palmeiras − tous les coûts ci-dessus (⚠️ hypothèse :
+  paiements chauffeurs/manager et coûts bungalows ne sont PAS saisis en Expenses, sinon double comptage)
 - Collected/Outstanding = basés sur `billedNet` (Σ computeBookingTotal − discounts des bookings actifs), plus sur totalRevenue ; payments des bookings annulés ignorés
-- Liste des soldes instructeurs
+- « Collection progress » cliquable → **CollectionsModal** (ci-dessous)
+- Liste des soldes instructeurs ; table « Outstanding payments » (top 6, clic → booking)
 - Pas de mutations
+
+### `CollectionsModal` — `accounting/CollectionsModal.tsx` (2026-07-06)
+**Props :** `{ rows: UnpaidRow[], clients, onClose, onOpenBooking? }`
+- « Qui me doit quoi » : TOUS les bookings à solde dû (`unpaidBookings` du dashboard),
+  groupés par urgence de recouvrement, sections dépliables/repliables avec sous-totaux :
+  **Currently here** (check-in ≤ today ≤ check-out, tri check-out proche, déplié),
+  **Departed** (à relancer, plus vieux d'abord, déplié), **Upcoming** (replié par défaut)
+- Ligne : client + statut + dates + 📞/✉️ (lookup `data.clients`, **affichage seul**) +
+  dû / (payé/total) ; clic → `onOpenBooking(id)` + fermeture. Zéro accès DB propre.
 
 ### `BookingFinances` — `accounting/BookingFinances.tsx`
 **Props :** `{ data, handlers }`
