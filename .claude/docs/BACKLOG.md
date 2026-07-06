@@ -83,7 +83,10 @@ les clients doivent le brut). Formule du Net result inchangée.
 
 ## 🧹 Housekeeping
 
-- **Révoquer le PAT Supabase** du 2026-06-26 (https://supabase.com/dashboard/account/tokens) — gui.
+- ~~Révoquer le PAT Supabase du 2026-06-26~~ ✅ RÉGLÉ (2026-07-06) : le token `Juin2026TEMP`
+  était temporaire et est **Expired** de lui-même (vérifié dashboard). Reste cosmétique :
+  supprimer sa ligne + révoquer le token `cli_gui@LAPTOP…` (login CLI, jamais utilisé,
+  n'expire jamais) — gui.
 - ~~Supprimer `supabase/seed/supabase_logs.json`~~ ✅ FAIT (2026-07-06).
 - Redéployer `notify-submission` (TEST et/ou PROD) **seulement si** l'email admin semble pauvre —
   la chaîne fonctionne, c'est juste la richesse du récap (non bloquant).
