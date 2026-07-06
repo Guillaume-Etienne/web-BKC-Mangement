@@ -8,9 +8,13 @@
 
 ---
 
-## 🔴 Sécurité anon — chantier en cours (validé par gui en 3 lots)
+## ✅ Sécurité anon — CHANTIER TERMINÉ (2026-07-06)
 
-Contexte : `.claude/docs/security-rls.md` (état exposé + checklist). Lot A ✅ fait (commit `b2e4255`).
+Lots A+B+C (colonnes) + Phase 2 (lignes token-aware) tous appliqués & vérifiés par curl anon
+sur TEST **et** PROD. État final + pièges : `.claude/docs/security-rls.md`. Ce qui reste de
+sécu vit dans « Quand gui veut » (anti-spam) et Housekeeping (PAT).
+**Micro-reste** : smoke visuel des vrais liens PROD par gui (Geraldo/driver/client) —
+les curls sont verts, il s'agit juste de confirmer l'affichage des pages.
 
 ### Lot B — `bookings` full read — ✅ TERMINÉ & VÉRIFIÉ (2026-07-04)
 Migration `2026-07-04_lot_b_bookings_columns.sql` appliquée **TEST + PROD** par gui, vérifiée
@@ -19,12 +23,13 @@ emergency_contact / visa ; 200 sur les 8 colonnes autorisées + embed `client:cl
 ClientSharePage narrowé (commit `86b6a5a`). Dernier check visuel : ouvrir la page client
 du seed en TEST après le prochain déploiement Vercel.
 
-### Lot C — instructors / taxi_drivers / activity_providers — ✅ CODE PRÊT (2026-07-06)
+### Lot C — instructors / taxi_drivers / activity_providers — ✅ TERMINÉ & VÉRIFIÉ (2026-07-06)
 Décisions gui (recos confirmées) : instructors → identité + tarifs (ClientSharePage en a
 besoin) ; taxi_drivers → id/name/phone (gardé volontairement)/vehicle/seats ; providers →
 tout sauf `notes`. Migration `2026-07-06_lot_c_columns.sql` + 6 pages narrowées + schema.sql.
-**Reste** : gui push → Vercel déployé → appliquer la migration **TEST + PROD** (⚠️ vérifier
-le nom du projet !) → curls de vérif (42501 sur `select=*`, 200 sur colonnes autorisées).
+Vérifié par curl sur TEST (6 types de tokens, colonnes bloquées → 42501, pages non cassées)
+et PROD (grants). Seul type jamais curl-testé avec token : `activity_provider` (policies du
+même gabarit ; à tester si un lien provider déconne un jour).
 
 ### Phase 2 — RLS token-aware — ✅ TERMINÉ & VÉRIFIÉ TEST + PROD (2026-07-06)
 D1–D4 tranchés par gui (= les 4 recos). Header `x-share-token` dans `supabase.ts` +
