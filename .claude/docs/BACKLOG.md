@@ -64,8 +64,10 @@ les clients doivent le brut). Formule du Net result inchangée.
 ## 🟡 Quand gui veut
 
 - **Bug prix taxi 8000 €** — fix code fait (`order updated_at desc` des 2 côtés, commit `4364316`).
-  Reste : lancer `supabase/migrations/diagnostics_taxi_pricing.sql` sur TEST+PROD, corriger
-  `default_price_eur` (=120), supprimer les lignes en double de `taxi_pricing_defaults`.
+  Diag `diagnostics_taxi_pricing.sql` : **TEST fait le 06/07 → OK, rien à corriger** ;
+  **PROD en attente** (incident Supabase le 06/07 au soir) → relancer sur PROD dès que
+  rétabli, puis corriger si besoin (`default_price_eur`=120, purger doublons
+  `taxi_pricing_defaults`).
 - ~~**Anti-spam formulaire public**~~ ✅ FAIT (2026-07-06, `318e467`) : honeypot off-screen
   (`website`) + refus silencieux des soumissions <3s après chargement — les deux tombent sur
   le faux écran de succès (zéro insert, zéro email, le bot n'apprend rien). Kill switch
