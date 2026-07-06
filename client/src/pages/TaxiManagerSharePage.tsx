@@ -101,7 +101,8 @@ export default function TaxiManagerSharePage() {
   useEffect(() => {
     async function load() {
       const [driversRes, tripsRes, paymentsRes] = await Promise.all([
-        supabase.from('taxi_drivers').select('*'),
+        // Column-restricted for anon (see security-rls.md, Lot C)
+        supabase.from('taxi_drivers').select('id, name, phone, vehicle, seats'),
         supabase
           .from('taxi_trips')
           .select('*, booking:bookings(client:clients(first_name, last_name))')

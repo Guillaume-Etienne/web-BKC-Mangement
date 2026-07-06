@@ -780,6 +780,20 @@ REVOKE SELECT ON bookings FROM anon;
 GRANT  SELECT (id, booking_number, check_in, check_out, status, client_id,
                num_center_access, center_access_rate)
   ON bookings TO anon;
+-- Lot C (2026-07-06): instructors → identity + rates (ClientSharePage prices
+-- lessons with them); never email/phone/notes/specialties.
+REVOKE SELECT ON instructors FROM anon;
+GRANT  SELECT (id, first_name, last_name, rate_private, rate_group, rate_supervision)
+  ON instructors TO anon;
+-- taxi_drivers → identity + contact + vehicle (phone kept on purpose: guests can
+-- call their taxi); never email/notes/margin_percent/default pricing.
+REVOKE SELECT ON taxi_drivers FROM anon;
+GRANT  SELECT (id, name, phone, vehicle, seats) ON taxi_drivers TO anon;
+-- activity_providers → own public sheet (rows already scoped by Phase 2);
+-- never internal notes.
+REVOKE SELECT ON activity_providers FROM anon;
+GRANT  SELECT (id, name, type, phone, email, website, show_prices)
+  ON activity_providers TO anon;
 
 
 

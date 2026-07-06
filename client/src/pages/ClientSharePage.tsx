@@ -126,7 +126,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       supabase.from('accommodations').select('*'),
       supabase.from('payments').select('*').eq('booking_id', id).order('date'),
       supabase.from('lessons').select('*').eq('booking_id', id).order('date'),
-      supabase.from('instructors').select('*'),
+      // Column-restricted for anon: identity + rates only (see security-rls.md, Lot C)
+      supabase.from('instructors').select('id, first_name, last_name, rate_private, rate_group, rate_supervision'),
       supabase.from('lesson_rate_overrides').select('*'),
       supabase.from('equipment_rentals').select('*').eq('booking_id', id).order('date'),
       supabase.from('taxi_trips').select('*').eq('booking_id', id).order('date'),
@@ -146,7 +147,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       setAccoms(acomsRes.data ?? [])
       setPayments(paymentsRes.data ?? [])
       setLessons(lessonsRes.data ?? [])
-      setInstructors(instrRes.data ?? [])
+      // anon only receives identity + rates (column-restricted); the page uses only those
+      setInstructors((instrRes.data ?? []) as unknown as Instructor[])
       setLessonOverrides(overridesRes.data ?? [])
       setRentals(rentalsRes.data ?? [])
       setTaxis(taxisRes.data ?? [])

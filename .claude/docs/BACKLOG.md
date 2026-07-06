@@ -19,10 +19,12 @@ emergency_contact / visa ; 200 sur les 8 colonnes autorisées + embed `client:cl
 ClientSharePage narrowé (commit `86b6a5a`). Dernier check visuel : ouvrir la page client
 du seed en TEST après le prochain déploiement Vercel.
 
-### Lot C — instructors / taxi_drivers / activity_providers
-phone/email/notes lisibles anon. **Décisions métier champ par champ AVEC gui** (le phone du
-chauffeur est peut-être volontairement visible sur les pages taxi). Ensuite : même pattern
-GRANT colonnes que Lot B. ⚠️ ClientSharePage a besoin des rates instructeurs.
+### Lot C — instructors / taxi_drivers / activity_providers — ✅ CODE PRÊT (2026-07-06)
+Décisions gui (recos confirmées) : instructors → identité + tarifs (ClientSharePage en a
+besoin) ; taxi_drivers → id/name/phone (gardé volontairement)/vehicle/seats ; providers →
+tout sauf `notes`. Migration `2026-07-06_lot_c_columns.sql` + 6 pages narrowées + schema.sql.
+**Reste** : gui push → Vercel déployé → appliquer la migration **TEST + PROD** (⚠️ vérifier
+le nom du projet !) → curls de vérif (42501 sur `select=*`, 200 sur colonnes autorisées).
 
 ### Phase 2 — RLS token-aware — ✅ TERMINÉ & VÉRIFIÉ TEST + PROD (2026-07-06)
 D1–D4 tranchés par gui (= les 4 recos). Header `x-share-token` dans `supabase.ts` +

@@ -65,7 +65,7 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 
 - **Lot A ✅ fait (2026-07-02)** : `get_db_stats()` admin-only, `shared_links` non listable, RPC `resolve_share_token`.
 - **Lot B ✅ fait (2026-07-04)** : GRANT colonnes sur `bookings` + narrowing du `select('*')` de ClientSharePage.
-- **Lot C** : instructors / taxi_drivers / activity_providers — décisions champ par champ avec gui.
+- **Lot C ✅ fait (2026-07-06, décisions gui)** : GRANT colonnes sur les 3 tables restantes (migration `2026-07-06_lot_c_columns.sql`) + narrowing des `select('*')` des 6 pages partagées. `instructors` → identité + tarifs (nécessaires au détail de prix de ClientSharePage) ; `taxi_drivers` → id/name/**phone** (gardé volontairement : appeler son taxi)/vehicle/seats — jamais email/notes/margin_percent/tarifs par défaut ; `activity_providers` → fiche publique sans les notes internes.
 - **Phase 2 ✅ implémentée (2026-07-06)** : **RLS token-aware** — le front des pages partagées envoie le token dans le header `x-share-token` (`client/src/lib/supabase.ts`) et TOUTES les policies anon SELECT exigent un `shared_link` actif du bon type, scopé à SES lignes (token client → son booking, driver → ses trajets, manager → trajets avec commission, etc.). **Sans token valide, `anon` ne lit plus AUCUNE ligne.** Migration : `2026-07-06_phase2_token_rls.sql` ; matrice d'accès et pièges : `phase2-rls-token-aware.md`. Conséquences : le tableau « exposé » ci-dessus se lit désormais « exposé au porteur d'un token du bon type » ; les pages partagées perdent le live-update Realtime (le websocket n'envoie pas le header) — elles chargent normalement au refresh ; tout nouveau type de lien doit être ajouté aux policies.
 
 ## Autres surfaces (rappel)

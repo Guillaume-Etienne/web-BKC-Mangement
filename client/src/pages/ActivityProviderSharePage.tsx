@@ -305,11 +305,12 @@ export default function ActivityProviderSharePage({ providerId }: Props) {
   useEffect(() => {
     async function load() {
       const [provRes, bkgRes, payRes] = await Promise.all([
-        supabase.from('activity_providers').select('*').eq('id', providerId).single(),
+        // Column-restricted for anon: no internal notes (see security-rls.md, Lot C)
+        supabase.from('activity_providers').select('id, name, type, phone, email, website, show_prices').eq('id', providerId).single(),
         supabase.from('activity_bookings').select('*').eq('provider_id', providerId).order('date', { ascending: false }),
         supabase.from('activity_payments').select('*').eq('provider_id', providerId).order('date', { ascending: false }),
       ])
-      setProvider(provRes.data ?? null)
+      setProvider((provRes.data ?? null) as ActivityProvider | null)
       setBookings((bkgRes.data ?? []) as ActivityBooking[])
       setPayments((payRes.data ?? []) as ActivityPayment[])
       setLoading(false)

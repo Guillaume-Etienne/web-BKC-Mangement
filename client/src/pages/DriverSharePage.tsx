@@ -108,14 +108,15 @@ export default function DriverSharePage({ driverId }: Props) {
   useEffect(() => {
     async function load() {
       const [driverRes, tripsRes] = await Promise.all([
-        supabase.from('taxi_drivers').select('*').eq('id', driverId).single(),
+        // Column-restricted for anon (see security-rls.md, Lot C)
+        supabase.from('taxi_drivers').select('id, name, phone, vehicle, seats').eq('id', driverId).single(),
         supabase
           .from('taxi_trips')
           .select('*, booking:bookings(client:clients(first_name, last_name))')
           .eq('taxi_driver_id', driverId)
           .order('date', { ascending: false }),
       ])
-      setDriver(driverRes.data ?? null)
+      setDriver((driverRes.data ?? null) as TaxiDriver | null)
       setTrips((tripsRes.data ?? []) as TripWithClient[])
       setLoading(false)
     }

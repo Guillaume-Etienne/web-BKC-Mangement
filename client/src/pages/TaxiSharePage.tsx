@@ -16,7 +16,8 @@ export default function TaxiSharePage() {
   const [dateMode, setDateMode] = usePref<DateMode>('taxi_share_datemode', 'readable')
 
   const { data: allTrips,   loading: tripsLoading   } = useTable<TaxiTrip>('taxi_trips',   { order: 'date' })
-  const { data: allDrivers                           } = useTable<TaxiDriver>('taxi_drivers', { order: 'name' })
+  // Column-restricted for anon (see security-rls.md, Lot C): no email/notes/pricing defaults
+  const { data: allDrivers                           } = useTable<TaxiDriver>('taxi_drivers', { select: 'id, name, phone, vehicle, seats', order: 'name' })
   const { data: allBookings                          } = useTable<Booking & { client: Client | null }>('bookings', { select: 'id, client_id, client:clients(first_name, last_name)' })
 
   function guestName(bookingId: string | null): string {
