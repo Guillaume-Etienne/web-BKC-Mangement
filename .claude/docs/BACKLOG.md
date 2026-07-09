@@ -61,6 +61,17 @@ les clients doivent le brut). Formule du Net result inchangée.
 
 ---
 
+## ✅ Responsive mobile — Home/Clients/Planning/Management (2026-07-09)
+
+Commit `5b32f44`. Home : 6 raccourcis compacts (+ Accounting/Equipment/Taxis/Activities) +
+pending actions sur une ligne (troncature). Clients : toggle List/Cards mobile (défaut
+List si écran <768px), bouton delete ajouté au panneau détail. Planning : contrôles
+saison/mois/now + barre d'onglets compressés sur une ligne mobile (libellés abrégés).
+Management : barre d'onglets qui débordait à droite en mobile — corrigée (scroll fallback
++ libellés compacts). Pas de vérif visuelle par Claude (login admin requis) — testé par gui.
+
+---
+
 ## 🟡 Quand gui veut
 
 - **Bug prix taxi 8000 €** — fix code fait (`order updated_at desc` des 2 côtés, commit `4364316`).
