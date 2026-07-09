@@ -238,14 +238,14 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
 
   // Month groups for the two-row header
   const monthGroups = useMemo(() => {
-    const groups: { label: string; days: number; colStart: number }[] = []
+    const groups: { label: string; shortLabel: string; days: number; colStart: number }[] = []
     let col = 0
     let cursor = new Date(seasonStart)
     while (cursor <= seasonEnd) {
       const m = cursor.getMonth()
       const y = cursor.getFullYear()
       const days = new Date(y, m + 1, 0).getDate()
-      groups.push({ label: `${MONTH_NAMES[m]} ${y}`, days, colStart: col })
+      groups.push({ label: `${MONTH_NAMES[m]} ${y}`, shortLabel: MONTH_SHORT[m], days, colStart: col })
       col += days
       cursor = new Date(y, m + 1, 1)
     }
@@ -626,11 +626,11 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-full mx-auto px-4 py-6 md:py-8">
+      <div className="max-w-full mx-auto px-4 py-3 md:py-8">
 
         {/* Page header */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 md:mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 md:gap-4 mb-3 md:mb-8">
+          <h1 className="text-lg md:text-3xl font-bold text-gray-800">
             {planningTab === 'accommodations' ? 'Accommodation Planning'
               : planningTab === 'lessons' ? 'Daily Planning'
               : planningTab === 'forecast' ? 'Forecast'
@@ -638,51 +638,53 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
           </h1>
 
           {planningTab === 'accommodations' && (
-            <div className="flex flex-col sm:flex-row items-center gap-2">
+            <div className="flex items-center flex-wrap justify-center gap-1.5 md:gap-2 w-full md:w-auto">
               {/* Season selector */}
-              <div className="flex items-center gap-1 bg-blue-50 border border-blue-200 rounded-lg px-1 py-1">
-                <button onClick={() => changeSeason(-1)} className="px-2 py-1 rounded hover:bg-blue-100 text-sm text-blue-700">←</button>
-                <span className="text-sm font-bold text-blue-800 min-w-[90px] text-center">
-                  {seasonYear}/{String(seasonYear + 1).slice(2)}
+              <div className="flex items-center gap-0.5 bg-blue-50 border border-blue-200 rounded-lg px-1 py-0.5 md:py-1">
+                <button onClick={() => changeSeason(-1)} className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 text-xs md:text-sm text-blue-700">←</button>
+                <span className="text-xs md:text-sm font-bold text-blue-800 min-w-[46px] md:min-w-[90px] text-center">
+                  <span className="md:hidden">{String(seasonYear).slice(2)}/{String(seasonYear + 1).slice(2)}</span>
+                  <span className="hidden md:inline">{seasonYear}/{String(seasonYear + 1).slice(2)}</span>
                 </span>
-                <button onClick={() => changeSeason(+1)} className="px-2 py-1 rounded hover:bg-blue-100 text-sm text-blue-700">→</button>
+                <button onClick={() => changeSeason(+1)} className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 text-xs md:text-sm text-blue-700">→</button>
               </div>
               {/* Month nav */}
-              <div className="flex items-center gap-1">
-                <button onClick={prevMonth} disabled={navMonthIdx === 0} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 text-sm">←</button>
-                <span className="text-sm font-semibold min-w-[130px] text-center text-gray-700">
-                  {monthGroups[navMonthIdx]?.label ?? ''}
+              <div className="flex items-center gap-0.5">
+                <button onClick={prevMonth} disabled={navMonthIdx === 0} className="px-2 py-1 md:px-3 md:py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 text-xs md:text-sm">←</button>
+                <span className="text-xs md:text-sm font-semibold min-w-[32px] md:min-w-[130px] text-center text-gray-700">
+                  <span className="md:hidden">{monthGroups[navMonthIdx]?.shortLabel ?? ''}</span>
+                  <span className="hidden md:inline">{monthGroups[navMonthIdx]?.label ?? ''}</span>
                 </span>
-                <button onClick={nextMonth} disabled={navMonthIdx === monthGroups.length - 1} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 text-sm">→</button>
+                <button onClick={nextMonth} disabled={navMonthIdx === monthGroups.length - 1} className="px-2 py-1 md:px-3 md:py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 text-xs md:text-sm">→</button>
               </div>
-              <button onClick={goToNow} className="px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">Now</button>
+              <button onClick={goToNow} className="px-2 py-1 md:px-3 md:py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm font-medium">Now</button>
             </div>
           )}
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b">
+        <div className="flex gap-1 md:gap-2 mb-3 md:mb-6 border-b overflow-x-auto">
           <button
             onClick={() => handleTabChange('accommodations')}
-            className={`px-4 py-2 font-medium transition-colors ${planningTab === 'accommodations' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+            className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'accommodations' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
           >
             🏠 Accommodations
           </button>
           <button
             onClick={() => handleTabChange('lessons')}
-            className={`px-4 py-2 font-medium transition-colors ${planningTab === 'lessons' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+            className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'lessons' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
           >
             🗓️ Daily
           </button>
           <button
             onClick={() => handleTabChange('now')}
-            className={`px-4 py-2 font-medium transition-colors ${planningTab === 'now' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+            className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'now' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
           >
             🍽️ Now
           </button>
           <button
             onClick={() => handleTabChange('forecast')}
-            className={`px-4 py-2 font-medium transition-colors ${planningTab === 'forecast' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+            className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'forecast' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
           >
             📋 Forecast
           </button>
@@ -711,7 +713,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             )}
 
             {/* Legend */}
-            <div className="flex flex-wrap gap-3 md:gap-4 mb-4 text-xs md:text-sm">
+            <div className="flex flex-wrap gap-3 md:gap-4 mb-3 md:mb-4 text-xs md:text-sm">
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> Confirmed</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-400 inline-block" /> Provisional</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-300 inline-block" /> Cancelled</span>

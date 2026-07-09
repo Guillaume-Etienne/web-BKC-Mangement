@@ -298,18 +298,18 @@ export default function ManagementPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-4 mt-8 mb-8 border-b">
+        <div className="flex gap-1 md:gap-4 mt-4 md:mt-8 mb-4 md:mb-8 border-b overflow-x-auto">
           {(['instructors', 'houses', 'pricing', 'links', 'bookguest', 'database'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2 font-medium capitalize transition-colors ${
+              className={`shrink-0 whitespace-nowrap px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium capitalize transition-colors ${
                 tab === t ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'
               }`}>
               {t === 'instructors' ? '📚 Instructors'
                 : t === 'houses'   ? '🏠 Accommodations'
                 : t === 'pricing'  ? '💰 Pricing'
-                : t === 'links'    ? '🔗 Shared Links'
+                : t === 'links'    ? <>🔗 <span className="hidden sm:inline">Shared </span>Links</>
                 : t === 'database' ? '🗄️ Database'
-                : '👥 Bookings & Guests'}
+                : <>👥 Bookings<span className="hidden sm:inline"> & Guests</span></>}
             </button>
           ))}
         </div>

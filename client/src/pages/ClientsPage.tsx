@@ -36,6 +36,16 @@ const bookingStatusColor: Record<string, string> = {
   cancelled: 'bg-gray-100 text-gray-800',
 }
 
+const kiteLevelShort: Record<KiteLevel, string> = {
+  'beg-total':      'Beg1',
+  'beg-bodydrag':   'Beg2',
+  'beg-waterstart': 'Beg3',
+  intermediate:     'Int',
+  advanced:         'Adv',
+}
+
+const MOBILE_VIEW_KEY = 'clients_mobile_view'
+
 export default function ClientsPage({ onNavigate }: ClientsPageProps) {
   const { data: clients, loading, error, refresh: refreshClients } = useClients()
   const { data: bookings } = useBookings()
@@ -44,6 +54,15 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
   const [filterLevel, setFilterLevel] = useState<'' | KiteLevel>('')
   const [filterNationality, setFilterNationality] = useState('')
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [mobileView, setMobileView] = useState<'list' | 'cards'>(() => {
+    const stored = localStorage.getItem(MOBILE_VIEW_KEY)
+    if (stored === 'list' || stored === 'cards') return stored
+    return typeof window !== 'undefined' && window.innerWidth < 768 ? 'list' : 'cards'
+  })
+  const setMobileViewPersisted = (mode: 'list' | 'cards') => {
+    setMobileView(mode)
+    localStorage.setItem(MOBILE_VIEW_KEY, mode)
+  }
   const [detailTab, setDetailTab] = useState<'info' | 'bookings'>('info')
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState<Partial<Client>>({})
@@ -284,47 +303,98 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
               </table>
             </div>
 
-            {/* Mobile Cards */}
-            <div className="md:hidden space-y-4">
-              {filteredClients.length === 0 && (
-                <p className="text-center text-gray-400 py-8">No clients found</p>
-              )}
-              {filteredClients.map((client) => {
-                const bookingCount = getClientBookings(client.id).length
-                return (
-                  <div
-                    key={client.id}
-                    className="bg-white rounded-lg shadow p-4 cursor-pointer"
-                    onClick={() => { setSelectedClient(client); setDetailTab('info') }}
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <p className="font-bold text-gray-800">{client.first_name} {client.last_name}</p>
-                        <p className="text-sm text-gray-600">{client.nationality || '–'}</p>
-                      </div>
+            {/* Mobile: view toggle */}
+            <div className="md:hidden flex justify-end mb-3">
+              <div className="inline-flex rounded-lg border border-gray-300 overflow-hidden">
+                <button
+                  onClick={() => setMobileViewPersisted('list')}
+                  className={`px-3 py-1.5 text-sm font-medium ${mobileView === 'list' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
+                >
+                  ☰ List
+                </button>
+                <button
+                  onClick={() => setMobileViewPersisted('cards')}
+                  className={`px-3 py-1.5 text-sm font-medium ${mobileView === 'cards' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
+                >
+                  ▦ Cards
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile List (compact, one row per client) */}
+            {mobileView === 'list' && (
+              <div className="md:hidden bg-white rounded-lg shadow divide-y divide-gray-100">
+                {filteredClients.length === 0 && (
+                  <p className="text-center text-gray-400 py-8">No clients found</p>
+                )}
+                {filteredClients.map((client) => {
+                  const bookingCount = getClientBookings(client.id).length
+                  return (
+                    <button
+                      key={client.id}
+                      onClick={() => { setSelectedClient(client); setDetailTab('info') }}
+                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-gray-50 ${selectedClient?.id === client.id ? 'bg-blue-50' : ''}`}
+                    >
+                      <p className="flex-1 min-w-0 truncate text-sm">
+                        <span className="font-medium text-gray-800">{client.first_name} {client.last_name}</span>
+                        {client.nationality && <span className="text-gray-400"> · {client.nationality}</span>}
+                      </p>
                       {client.kite_level && (
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${kiteLevelColors[client.kite_level]}`}>
-                          {kiteLevelLabels[client.kite_level]}
+                        <span className={`flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold ${kiteLevelColors[client.kite_level]}`}>
+                          {kiteLevelShort[client.kite_level]}
                         </span>
                       )}
+                      <span className="flex-shrink-0 text-xs text-gray-500 whitespace-nowrap">📋 {bookingCount}</span>
+                      <span className="flex-shrink-0 text-gray-300">›</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Mobile Cards */}
+            {mobileView === 'cards' && (
+              <div className="md:hidden space-y-4">
+                {filteredClients.length === 0 && (
+                  <p className="text-center text-gray-400 py-8">No clients found</p>
+                )}
+                {filteredClients.map((client) => {
+                  const bookingCount = getClientBookings(client.id).length
+                  return (
+                    <div
+                      key={client.id}
+                      className="bg-white rounded-lg shadow p-4 cursor-pointer"
+                      onClick={() => { setSelectedClient(client); setDetailTab('info') }}
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <p className="font-bold text-gray-800">{client.first_name} {client.last_name}</p>
+                          <p className="text-sm text-gray-600">{client.nationality || '–'}</p>
+                        </div>
+                        {client.kite_level && (
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${kiteLevelColors[client.kite_level]}`}>
+                            {kiteLevelLabels[client.kite_level]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-600 space-y-1 mb-3">
+                        {client.email && <p>📧 {client.email}</p>}
+                        {client.phone && <p>📞 {client.phone}</p>}
+                        <p>📋 {bookingCount} booking{bookingCount !== 1 ? 's' : ''}</p>
+                      </div>
+                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => openForm(client)} className="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded font-medium text-sm hover:bg-blue-200">
+                          ✏️ Edit
+                        </button>
+                        <button onClick={() => handleDelete(client.id)} className="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded font-medium text-sm hover:bg-red-200">
+                          🗑️ Delete
+                        </button>
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-600 space-y-1 mb-3">
-                      {client.email && <p>📧 {client.email}</p>}
-                      {client.phone && <p>📞 {client.phone}</p>}
-                      <p>📋 {bookingCount} booking{bookingCount !== 1 ? 's' : ''}</p>
-                    </div>
-                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => openForm(client)} className="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded font-medium text-sm hover:bg-blue-200">
-                        ✏️ Edit
-                      </button>
-                      <button onClick={() => handleDelete(client.id)} className="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded font-medium text-sm hover:bg-red-200">
-                        🗑️ Delete
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* Client detail */}
@@ -386,12 +456,20 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                       <p className="text-sm font-medium text-gray-500">Notes</p>
                       <p className="text-gray-800 whitespace-pre-wrap">{selectedClient.notes || '–'}</p>
                     </div>
-                    <button
-                      onClick={() => openForm(selectedClient)}
-                      className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                    >
-                      ✏️ Edit
-                    </button>
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={() => openForm(selectedClient)}
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(selectedClient.id)}
+                        className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                 )}
 

@@ -11,18 +11,34 @@ interface HomePageProps {
   pendingActions?: PendingAction[]
 }
 
+interface Shortcut {
+  page: Page
+  icon: string
+  label: string
+  description: string
+}
+
+const SHORTCUTS: Shortcut[] = [
+  { page: 'planning',   icon: '📅',  label: 'Planning',   description: 'Booking plan' },
+  { page: 'bookings',   icon: '📋',  label: 'Bookings',   description: 'Manage bookings' },
+  { page: 'accounting', icon: '💰',  label: 'Accounting', description: 'Revenue & payments' },
+  { page: 'equipment',  icon: '🎿',  label: 'Equipment',  description: 'Gear & rentals' },
+  { page: 'taxis',      icon: '🚕',  label: 'Taxis',      description: 'Transfers & drivers' },
+  { page: 'activities', icon: '🏕️', label: 'Activities', description: 'External providers' },
+]
+
 export default function HomePage({ onNavigate, pendingActions = [] }: HomePageProps) {
   const urgentCount = pendingActions.filter(a => a.priority === 'urgent').length
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="max-w-6xl mx-auto px-4 py-8 md:py-16">
+      <div className="max-w-6xl mx-auto px-4 py-6 md:py-16">
         {/* Header */}
-        <div className="text-center mb-12 md:mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
+        <div className="text-center mb-6 md:mb-16">
+          <h1 className="text-2xl md:text-5xl font-bold text-gray-800 mb-1 md:mb-4">
             🏄 BKC-Management
           </h1>
-          <p className="text-lg md:text-xl text-gray-600">
+          <p className="text-sm md:text-xl text-gray-600 hidden sm:block">
             Manage everything from here: reservations, planning, clients and more!
           </p>
         </div>
@@ -44,20 +60,16 @@ export default function HomePage({ onNavigate, pendingActions = [] }: HomePagePr
                 return (
                   <div
                     key={action.id}
-                    className={`flex items-start gap-3 px-4 py-3 rounded-lg border ${style.bg} ${style.border}`}
+                    className={`flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-3 rounded-lg border ${style.bg} ${style.border}`}
                   >
-                    <span className={`mt-1.5 flex-shrink-0 w-2.5 h-2.5 rounded-full ${style.dot}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          {style.label}
-                        </span>
-                        {action.bookingRef && (
-                          <span className="text-sm font-semibold text-gray-700">{action.bookingRef}</span>
-                        )}
-                        <span className="text-sm text-gray-700">{action.message}</span>
-                      </div>
-                    </div>
+                    <span className={`flex-shrink-0 w-2.5 h-2.5 rounded-full ${style.dot}`} />
+                    <span className="hidden sm:inline flex-shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      {style.label}
+                    </span>
+                    {action.bookingRef && (
+                      <span className="flex-shrink-0 text-sm font-semibold text-gray-700">{action.bookingRef}</span>
+                    )}
+                    <span className="flex-1 min-w-0 truncate text-sm text-gray-700">{action.message}</span>
                     <button
                       onClick={() => onNavigate(action.route)}
                       className="flex-shrink-0 text-sm font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap"
@@ -71,37 +83,24 @@ export default function HomePage({ onNavigate, pendingActions = [] }: HomePagePr
           </div>
         )}
 
-        {/* Cards */}
-        <div className="grid md:grid-cols-2 gap-6 md:gap-8">
-          {/* Planning Card */}
-          <button
-            onClick={() => onNavigate('planning')}
-            className="group bg-white rounded-xl shadow-lg hover:shadow-xl transition-all p-8 text-left"
-          >
-            <div className="text-5xl mb-4">📅</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">Planning</h2>
-            <p className="text-gray-600 mb-4">
-              Booking Plan
-            </p>
-            <div className="inline-flex items-center text-blue-600 font-semibold group-hover:gap-2 transition-all">
-              Open <span className="ml-1">→</span>
-            </div>
-          </button>
-
-          {/* Bookings Card */}
-          <button
-            onClick={() => onNavigate('bookings')}
-            className="group bg-white rounded-xl shadow-lg hover:shadow-xl transition-all p-8 text-left"
-          >
-            <div className="text-5xl mb-4">📋</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">Bookings</h2>
-            <p className="text-gray-600 mb-4">
-              Manage bookings
-            </p>
-            <div className="inline-flex items-center text-blue-600 font-semibold group-hover:gap-2 transition-all">
-              Open <span className="ml-1">→</span>
-            </div>
-          </button>
+        {/* Shortcuts */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-8">
+          {SHORTCUTS.map(s => (
+            <button
+              key={s.page}
+              onClick={() => onNavigate(s.page)}
+              className="group bg-white rounded-xl shadow-lg hover:shadow-xl transition-all p-4 md:p-8 text-left flex flex-col"
+            >
+              <div className="text-3xl md:text-5xl mb-1 md:mb-4">{s.icon}</div>
+              <h2 className="text-base md:text-2xl font-bold text-gray-800 mb-0.5 md:mb-3">{s.label}</h2>
+              <p className="hidden md:block text-gray-600 mb-4">
+                {s.description}
+              </p>
+              <div className="hidden md:inline-flex items-center text-blue-600 font-semibold group-hover:gap-2 transition-all">
+                Open <span className="ml-1">→</span>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
     </div>
