@@ -6,16 +6,32 @@ const LOGO_URL = `${window.location.origin}/docs/logo-mas.png`
 const BLUE     = '#4472C4'
 const TEAL     = '#0f766e'
 
-const TITLES: Record<Lang, string> = {
-  fr: 'Guide du Voyageur',
-  en: "Traveller's Guide",
-  es: 'Guía del Viajero',
+type GuideKind = 'travel' | 'welcome'
+
+const TITLES: Record<GuideKind, Record<Lang, string>> = {
+  travel: {
+    fr: 'Guide du Voyageur',
+    en: "Traveller's Guide",
+    es: 'Guía del Viajero',
+  },
+  welcome: {
+    fr: "Guide d'Accueil",
+    en: 'Welcome Guide',
+    es: 'Guía de Bienvenida',
+  },
 }
 
-const INTROS: Record<Lang, string> = {
-  fr: 'Voici quelques informations utiles pour préparer votre séjour.',
-  en: 'Here is some useful information to help you prepare for your stay.',
-  es: 'Aquí encontrará información útil para preparar su estancia.',
+const INTROS: Record<GuideKind, Record<Lang, string>> = {
+  travel: {
+    fr: 'Voici quelques informations utiles pour préparer votre séjour.',
+    en: 'Here is some useful information to help you prepare for your stay.',
+    es: 'Aquí encontrará información útil para preparar su estancia.',
+  },
+  welcome: {
+    fr: 'Bienvenue à Bilene ! Voici tout ce qu\'il faut savoir sur la vie au centre.',
+    en: 'Welcome to Bilene! Here is everything you need to know about life at the center.',
+    es: '¡Bienvenido a Bilene! Aquí encontrará todo lo que necesita saber sobre la vida en el centro.',
+  },
 }
 
 export function printTravelGuide(
@@ -23,8 +39,25 @@ export function printTravelGuide(
   lang: Lang,
   sections: TravelGuideSection[]
 ): void {
-  const title    = TITLES[lang]
-  const intro    = INTROS[lang]
+  printGuideDoc('travel', booking, lang, sections)
+}
+
+export function printWelcomeGuide(
+  booking: Booking | null,
+  lang: Lang,
+  sections: TravelGuideSection[]
+): void {
+  printGuideDoc('welcome', booking, lang, sections)
+}
+
+function printGuideDoc(
+  kind: GuideKind,
+  booking: Booking | null,
+  lang: Lang,
+  sections: TravelGuideSection[]
+): void {
+  const title    = TITLES[kind][lang]
+  const intro    = INTROS[kind][lang]
   const client   = booking?.client
   const subtitle = client
     ? `${client.first_name} ${client.last_name} — Booking #${String(booking!.booking_number).padStart(3, '0')}`

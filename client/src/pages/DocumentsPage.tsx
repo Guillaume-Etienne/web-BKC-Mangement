@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useBookings, useBookingRooms, useBookingParticipants } from '../hooks/useBookings'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
+import { useDocumentSections } from '../hooks/useDocumentTemplates'
 import type { Room, Accommodation, EmailLog, EmailLogType } from '../types/database'
 import { defaultTravelGuideSections } from '../data/travelGuide'
+import { defaultWelcomeGuideSections } from '../data/welcomeGuide'
 import type { TravelGuideSection } from '../data/travelGuide'
 import { printVisaLetter } from '../utils/printVisaLetter'
 import { printBookingSummary } from '../utils/printBookingSummary'
-import { printTravelGuide } from '../utils/printTravelGuide'
-import { emailVisaLetter, emailBookingConfirmation, emailTravelGuide } from '../utils/emailTemplates'
+import { printTravelGuide, printWelcomeGuide } from '../utils/printTravelGuide'
+import { emailVisaLetter, emailBookingConfirmation, emailTravelGuide, emailWelcomeGuide } from '../utils/emailTemplates'
 import type { Lang } from '../utils/printBookingSummary'
 import type { Booking } from '../types/database'
 import { supabase } from '../lib/supabase'
@@ -16,21 +18,20 @@ import {
   computeTaxiRevenue, computeDiningForBooking, computeActivityRevenueForBooking,
 } from '../components/accounting/utils'
 
-// ── Guide sections — localStorage persistence ──────────────────────────────────
+// ── Guide sections — legacy localStorage fallback ──────────────────────────────
+// Sections now live in the document_templates table. This read-only fallback
+// recovers content edited before 2026-07-09 (localStorage era) so the first
+// Save migrates it to the DB instead of losing it.
 
 const GUIDE_KEY = 'bkc_guide_sections'
 
-function loadGuideSections(): TravelGuideSection[] {
+function loadLegacyGuideSections(): TravelGuideSection[] {
   try {
     const stored = localStorage.getItem(GUIDE_KEY)
     return stored ? (JSON.parse(stored) as TravelGuideSection[]) : defaultTravelGuideSections
   } catch {
     return defaultTravelGuideSections
   }
-}
-
-function saveGuideSections(sections: TravelGuideSection[]) {
-  localStorage.setItem(GUIDE_KEY, JSON.stringify(sections))
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -176,7 +177,7 @@ function TravelGuideEditor({
   return (
     <div className="space-y-3">
       <p className="text-sm text-gray-500 italic">
-        Toggle sections on/off and edit per language. Changes are saved in your browser.
+        Toggle sections on/off and edit per language. Don't forget to Save below.
       </p>
       {sections.map(sec => (
         <div key={sec.id} className={`border rounded-lg overflow-hidden ${sec.is_active ? 'border-teal-300' : 'border-gray-200'}`}>
@@ -222,6 +223,46 @@ function TravelGuideEditor({
   )
 }
 
+// ── Save / Cancel bar for template editors ─────────────────────────────────────
+
+function SaveBar({
+  dirty, saving, neverSaved, onSave, onCancel,
+}: {
+  dirty: boolean
+  saving: boolean
+  neverSaved: boolean
+  onSave: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="flex items-center gap-3 flex-wrap pt-3 mt-3 border-t border-gray-100">
+      {neverSaved ? (
+        <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+          ⚠️ Not stored in the database yet — click Save to publish these templates.
+        </span>
+      ) : dirty ? (
+        <span className="text-xs font-medium text-amber-600">● Unsaved changes</span>
+      ) : (
+        <span className="text-xs text-gray-400">✓ All changes saved</span>
+      )}
+      <div className="flex gap-2 ml-auto">
+        <button
+          onClick={onCancel}
+          disabled={!dirty || saving}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 transition-colors">
+          Cancel
+        </button>
+        <button
+          onClick={onSave}
+          disabled={!dirty || saving}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-40 transition-colors">
+          {saving ? '⏳ Saving…' : '💾 Save'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Send email row ─────────────────────────────────────────────────────────────
 
 function SendEmailRow({
@@ -260,7 +301,7 @@ function SendEmailRow({
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
-type Tab = 'visa' | 'summary' | 'guide' | 'templates'
+type Tab = 'visa' | 'summary' | 'guide' | 'welcome' | 'templates'
 
 export default function DocumentsPage() {
   const { data: allBookings, loading } = useBookings()
@@ -274,12 +315,47 @@ export default function DocumentsPage() {
   const [summaryBookingId, setSummaryBookingId] = useState('')
   const [lang, setLang]                         = useState<Lang>('en')
   const [totalAmountStr,   setTotalAmountStr]   = useState('')
-  const [guideSections,    setGuideSections]    = useState<TravelGuideSection[]>(loadGuideSections)
+
+  // Guide sections — DB-backed working copies (null until loaded)
+  const guideDb   = useDocumentSections('travel_guide')
+  const welcomeDb = useDocumentSections('welcome_guide')
+  const [guideSections,   setGuideSections]   = useState<TravelGuideSection[] | null>(null)
+  const [welcomeSections, setWelcomeSections] = useState<TravelGuideSection[] | null>(null)
+  const [templatesDoc,    setTemplatesDoc]    = useState<'travel' | 'welcome'>('travel')
+
+  useEffect(() => {
+    if (!guideDb.loading && guideSections === null) {
+      setGuideSections(guideDb.saved ?? loadLegacyGuideSections())
+    }
+  }, [guideDb.loading])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!welcomeDb.loading && welcomeSections === null) {
+      setWelcomeSections(welcomeDb.saved ?? defaultWelcomeGuideSections)
+    }
+  }, [welcomeDb.loading])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const guideDirty   = guideSections   !== null && (guideDb.saved   === null || JSON.stringify(guideSections)   !== JSON.stringify(guideDb.saved))
+  const welcomeDirty = welcomeSections !== null && (welcomeDb.saved === null || JSON.stringify(welcomeSections) !== JSON.stringify(welcomeDb.saved))
+
+  async function saveGuide() {
+    if (!guideSections) return
+    const err = await guideDb.save(guideSections)
+    if (err) alert(`Failed to save templates: ${err}`)
+  }
+  async function saveWelcome() {
+    if (!welcomeSections) return
+    const err = await welcomeDb.save(welcomeSections)
+    if (err) alert(`Failed to save templates: ${err}`)
+  }
+  function cancelGuide()   { setGuideSections(guideDb.saved ?? loadLegacyGuideSections()) }
+  function cancelWelcome() { setWelcomeSections(welcomeDb.saved ?? defaultWelcomeGuideSections) }
 
   // Email state
   const [visaEmail,    setVisaEmail]    = useState('')
   const [summaryEmail, setSummaryEmail] = useState('')
   const [guideEmail,   setGuideEmail]   = useState('')
+  const [welcomeEmail, setWelcomeEmail] = useState('')
   const [sending,      setSending]      = useState<EmailLogType | null>(null)
   const [emailLogs,    setEmailLogs]    = useState<EmailLog[]>([])
   const [logsRefresh,  setLogsRefresh]  = useState(0)  // counter to trigger re-fetch
@@ -293,7 +369,8 @@ export default function DocumentsPage() {
   const summaryBooking = activeBookings.find(b => b.id === effectiveSummaryId)
   const summaryRooms   = getRoomLabels(effectiveSummaryId, bookingRooms, rooms, accommodations)
   const totalAmount    = totalAmountStr !== '' ? parseFloat(totalAmountStr) : null
-  const activeSections = guideSections.filter(s => s.is_active)
+  const activeSections        = (guideSections   ?? []).filter(s => s.is_active)
+  const activeWelcomeSections = (welcomeSections ?? []).filter(s => s.is_active)
 
   // Pre-fill email when booking changes
   useEffect(() => {
@@ -304,6 +381,7 @@ export default function DocumentsPage() {
     if (summaryBooking) {
       setSummaryEmail(clientEmail(summaryBooking))
       setGuideEmail(clientEmail(summaryBooking))
+      setWelcomeEmail(clientEmail(summaryBooking))
     }
   }, [effectiveSummaryId])
 
@@ -368,19 +446,15 @@ export default function DocumentsPage() {
     }
   }
 
-  function handleGuideSectionsChange(sections: TravelGuideSection[]) {
-    setGuideSections(sections)
-    saveGuideSections(sections)
-  }
-
   const tabs: { id: Tab; label: string }[] = [
     { id: 'visa',      label: '📋 Visa Letter' },
     { id: 'summary',   label: '📄 Booking Summary' },
     { id: 'guide',     label: '🌍 Travel Guide' },
+    { id: 'welcome',   label: '🏝️ Welcome Guide' },
     { id: 'templates', label: '✏️ Templates' },
   ]
 
-  if (loading) {
+  if (loading || !guideSections || !welcomeSections) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-6">📄 Documents</h1>
@@ -579,10 +653,12 @@ export default function DocumentsPage() {
         <div className="space-y-5">
           <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 text-sm text-teal-800">
             Configure the travel tips included in every Booking Summary.
-            Changes are saved in your browser automatically.
+            Changes are stored in the database once saved — shared across browsers and devices.
           </div>
           <div className="bg-white border border-gray-200 rounded-lg p-5">
-            <TravelGuideEditor sections={guideSections} onChange={handleGuideSectionsChange} />
+            <TravelGuideEditor sections={guideSections} onChange={setGuideSections} />
+            <SaveBar dirty={guideDirty} saving={guideDb.saving} neverSaved={guideDb.saved === null}
+              onSave={saveGuide} onCancel={cancelGuide} />
           </div>
 
           {activeBookings.length > 0 && (
@@ -636,33 +712,118 @@ export default function DocumentsPage() {
         </div>
       )}
 
+      {/* ── Welcome Guide ──────────────────────────────────────────── */}
+      {tab === 'welcome' && (
+        <div className="space-y-5">
+          <div className="bg-sky-50 border border-sky-200 rounded-lg p-4 text-sm text-sky-800">
+            On-site info for arriving clients — wifi, meals, drinking water, schedules…
+            Everything guests always ask, handed over on arrival or emailed a few days before.
+          </div>
+          <div className="bg-white border border-gray-200 rounded-lg p-5">
+            <TravelGuideEditor sections={welcomeSections} onChange={setWelcomeSections} />
+            <SaveBar dirty={welcomeDirty} saving={welcomeDb.saving} neverSaved={welcomeDb.saved === null}
+              onSave={saveWelcome} onCancel={cancelWelcome} />
+          </div>
+
+          {activeBookings.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+              <h2 className="font-semibold text-gray-700">Send welcome guide</h2>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Booking</label>
+                <select value={effectiveSummaryId} onChange={e => setSummaryBookingId(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+                  {activeBookings.map(b => <option key={b.id} value={b.id}>{bookingLabel(b)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Language</label>
+                <div className="flex gap-2">
+                  {(['fr', 'en', 'es'] as Lang[]).map(l => (
+                    <button key={l} onClick={() => setLang(l)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                        lang === l ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}>
+                      {l === 'fr' ? '🇫🇷 Français' : l === 'en' ? '🇬🇧 English' : '🇪🇸 Español'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => summaryBooking && printWelcomeGuide(summaryBooking, lang, activeWelcomeSections)}
+                  disabled={!summaryBooking}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors">
+                  🖨️ Generate PDF
+                </button>
+              </div>
+              <p className="text-xs text-gray-400">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
+
+              {summaryBooking && (
+                <SendEmailRow
+                  label="Send welcome guide by email"
+                  emailValue={welcomeEmail}
+                  onEmailChange={setWelcomeEmail}
+                  onSend={() => {
+                    const html = emailWelcomeGuide(summaryBooking, lang, activeWelcomeSections)
+                    sendEmail('welcome_guide', welcomeEmail, `Welcome guide — BKC`, html)
+                  }}
+                  sending={sending === 'welcome_guide'}
+                  logs={logsForType('welcome_guide')}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Templates ──────────────────────────────────────────────── */}
       {tab === 'templates' && (
         <div className="space-y-5">
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
-            Edit the base content of travel guide sections in all languages.
-            These texts are used in every Booking Summary and standalone Travel Guide.
-            Toggle sections on/off per-send in the <button onClick={() => setTab('guide')} className="underline hover:text-gray-800">Travel Guide</button> tab.
+            Edit the base content of guide sections in all languages.
+            Toggle sections on/off per-send in the{' '}
+            <button onClick={() => setTab('guide')} className="underline hover:text-gray-800">Travel Guide</button> and{' '}
+            <button onClick={() => setTab('welcome')} className="underline hover:text-gray-800">Welcome Guide</button> tabs.
           </div>
+
+          {/* Document switcher */}
+          <div className="flex gap-2">
+            {([['travel', '🌍 Travel Guide'], ['welcome', '🏝️ Welcome Guide']] as const).map(([doc, label]) => (
+              <button key={doc} onClick={() => setTemplatesDoc(doc)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  templatesDoc === doc ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
           <div className="bg-white border border-gray-200 rounded-lg p-5">
-            <TemplatesEditor sections={guideSections} onChange={handleGuideSectionsChange} />
+            {templatesDoc === 'travel' ? (
+              <>
+                <TemplatesEditor sections={guideSections} onChange={setGuideSections} />
+                <SaveBar dirty={guideDirty} saving={guideDb.saving} neverSaved={guideDb.saved === null}
+                  onSave={saveGuide} onCancel={cancelGuide} />
+              </>
+            ) : (
+              <>
+                <TemplatesEditor sections={welcomeSections} onChange={setWelcomeSections} />
+                <SaveBar dirty={welcomeDirty} saving={welcomeDb.saving} neverSaved={welcomeDb.saved === null}
+                  onSave={saveWelcome} onCancel={cancelWelcome} />
+              </>
+            )}
           </div>
+
           <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => printTravelGuide(null, 'fr', guideSections)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition-colors">
-              🖨️ Preview FR
-            </button>
-            <button
-              onClick={() => printTravelGuide(null, 'en', guideSections)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition-colors">
-              🖨️ Preview EN
-            </button>
-            <button
-              onClick={() => printTravelGuide(null, 'es', guideSections)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition-colors">
-              🖨️ Preview ES
-            </button>
+            {(['fr', 'en', 'es'] as Lang[]).map(l => (
+              <button key={l}
+                onClick={() => templatesDoc === 'travel'
+                  ? printTravelGuide(null, l, guideSections)
+                  : printWelcomeGuide(null, l, welcomeSections)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition-colors">
+                🖨️ Preview {l.toUpperCase()}
+              </button>
+            ))}
           </div>
           <p className="text-xs text-gray-400">Previews all sections (including inactive ones) in the selected language.</p>
         </div>

@@ -326,12 +326,19 @@ export function emailBookingConfirmation(
   return emailWrapper(`${t.title} — #${String(booking.booking_number).padStart(3, '0')}`, body)
 }
 
-// ── Travel Guide (standalone) ──────────────────────────────────────────────────
+// ── Travel Guide / Welcome Guide (standalone) ──────────────────────────────────
 
-const GUIDE_T: Record<Lang, { title: string; intro: string }> = {
-  fr: { title: 'Guide du Voyageur', intro: 'Voici quelques informations utiles pour préparer votre séjour.' },
-  en: { title: "Traveller's Guide", intro: 'Here is some useful information to help you prepare for your stay.' },
-  es: { title: 'Guía del Viajero',  intro: 'Aquí encontrará información útil para preparar su estancia.' },
+const GUIDE_T: Record<'travel' | 'welcome', Record<Lang, { title: string; intro: string }>> = {
+  travel: {
+    fr: { title: 'Guide du Voyageur', intro: 'Voici quelques informations utiles pour préparer votre séjour.' },
+    en: { title: "Traveller's Guide", intro: 'Here is some useful information to help you prepare for your stay.' },
+    es: { title: 'Guía del Viajero',  intro: 'Aquí encontrará información útil para preparar su estancia.' },
+  },
+  welcome: {
+    fr: { title: "Guide d'Accueil",   intro: 'Bienvenue à Bilene ! Voici tout ce qu\'il faut savoir sur la vie au centre.' },
+    en: { title: 'Welcome Guide',     intro: 'Welcome to Bilene! Here is everything you need to know about life at the center.' },
+    es: { title: 'Guía de Bienvenida', intro: '¡Bienvenido a Bilene! Aquí encontrará todo lo que necesita saber sobre la vida en el centro.' },
+  },
 }
 
 export function emailTravelGuide(
@@ -339,7 +346,24 @@ export function emailTravelGuide(
   lang: Lang,
   activeSections: TravelGuideSection[]
 ): string {
-  const gt = GUIDE_T[lang]
+  return emailGuideDoc('travel', booking, lang, activeSections)
+}
+
+export function emailWelcomeGuide(
+  booking: Booking,
+  lang: Lang,
+  activeSections: TravelGuideSection[]
+): string {
+  return emailGuideDoc('welcome', booking, lang, activeSections)
+}
+
+function emailGuideDoc(
+  kind: 'travel' | 'welcome',
+  booking: Booking,
+  lang: Lang,
+  activeSections: TravelGuideSection[]
+): string {
+  const gt = GUIDE_T[kind][lang]
   const client = booking.client
   const clientName = client ? `${client.first_name} ${client.last_name}` : '—'
 

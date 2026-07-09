@@ -30,7 +30,7 @@
 | SharedLink params par type | `data-model.md` | § shared_links |
 | Formulaire public : table file d'attente | `data-model.md` | § form_submissions |
 | BookingFormPayload (champs du form) | `data-model.md` | § form_submissions |
-| TravelGuideSection (6 sections i18n) | `data-model.md` | § TravelGuideSection |
+| Guides clients (Travel/Welcome, table document_templates) | `data-model.md` | § Guides — document_templates |
 | EmailLog / EmailLogType / EmailLogStatus | `data-model.md` | § Email Logs |
 | PendingAction / ActionPriority / règles | `data-model.md` | § Pending Actions |
 | Schéma SQL complet | `supabase/schema.sql` | — |

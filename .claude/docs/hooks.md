@@ -58,6 +58,17 @@ useTable<T>(table: string, options?: {
 
 ---
 
+### `useDocumentTemplates.ts`
+| Hook | Table | Retourne |
+|------|-------|---------|
+| `useDocumentSections(docType)` | `document_templates` (filtré `doc_type`, order `sort_order`) | `{ saved, loading, saving, save }` |
+
+- `docType` : `'travel_guide' \| 'welcome_guide'` — `saved: TravelGuideSection[] \| null` (**null = table vide** pour ce doc, l'appelant retombe sur les défauts / localStorage legacy).
+- `save(sections)` : upsert (`onConflict: 'doc_type,id'`) + delete des ids disparus, met à jour `saved`. Retourne `null` ou le message d'erreur.
+- Utilisé uniquement par DocumentsPage (SaveBar explicite, pas d'autosave).
+
+---
+
 ### `useEquipment.ts`
 | Hook | Table | Order | Retourne |
 |------|-------|-------|---------|

@@ -72,6 +72,31 @@ Management : barre d'onglets qui débordait à droite en mobile — corrigée (s
 
 ---
 
+## 🔴 Templates de documents en DB + Welcome Guide (2026-07-09) — MIGRATION À APPLIQUER
+
+Code fait & build OK. Découverte : les sections des guides vivaient en **localStorage**
+(par navigateur, perdues au clear cache, pas partagées entre admins) et chaque frappe
+était « sauvée » sans validation. Refonte :
+- Table **`document_templates`** (admin-only, REVOKE anon) — sections des 2 guides.
+- Nouveau document **Welcome Guide** 🏝️ (infos sur place : wifi, repas, eau, élec,
+  programme, linge, argent, urgences, check-out — défauts avec placeholders `[…]` à
+  personnaliser dans Templates) : onglet dédié, PDF FR/EN/ES + email (`welcome_guide`).
+- Édition en brouillon + **bouton Save explicite** (Cancel, indicateur unsaved) dans les
+  onglets Travel Guide / Welcome Guide / Templates (switcher Travel/Welcome).
+- Premier Save sème la table (fallback : localStorage legacy pour le travel guide → les
+  éditions existantes de gui sont récupérées **dans le navigateur habituel**).
+
+**Reste à faire :**
+1. gui applique `2026-07-09_document_templates.sql` sur **TEST puis PROD** (SQL editor —
+   ⚠️ vérifier le projet, cf. piège Phase 2).
+2. Claude vérifie par curl anon sur les 2 bases : `GET /rest/v1/document_templates` doit
+   renvoyer **401/42501** (REVOKE) — pas `[]`, pas de lignes.
+3. gui ouvre Documents → Travel Guide dans son navigateur habituel et clique **Save**
+   (migre ses textes localStorage vers la DB) ; idem Welcome Guide après avoir rempli
+   les placeholders.
+
+---
+
 ## 🟡 Quand gui veut
 
 - **Bug prix taxi 8000 €** — fix code fait (`order updated_at desc` des 2 côtés, commit `4364316`).

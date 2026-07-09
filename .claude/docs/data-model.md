@@ -27,7 +27,7 @@
 | `ActivityProviderType` | `'activity' \| 'safari'` |
 | `ActivityPaymentFlow` | `'we_pay_provider' \| 'provider_pays_us'` |
 | `ActivityPaymentDirection` | `'to_provider' \| 'from_provider'` |
-| `EmailLogType` | `'booking_confirmation' \| 'visa_letter' \| 'travel_guide'` |
+| `EmailLogType` | `'booking_confirmation' \| 'visa_letter' \| 'travel_guide' \| 'welcome_guide'` |
 | `EmailLogStatus` | `'pending' \| 'sent' \| 'delivered' \| 'opened' \| 'failed'` |
 | `ActionPriority` | `'urgent' \| 'week' \| 'monitor'` |
 | `Lang` | `'fr' \| 'en' \| 'es'` |
@@ -530,8 +530,23 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 
 ## Documents
 
-### Travel Guide — `TravelGuideSection` (client-side, **pas en DB**)
-> Le type vit dans `client/src/data/travelGuide.ts` (`defaultTravelGuideSections`). DocumentsPage (onglet Travel Guide) charge/sauve les sections en **localStorage**, pas en base. La table `travel_guide_sections` a été **supprimée (2026-06-28)** (orpheline, jamais lue).
+### Guides — `document_templates` → `TravelGuideSection` (**en DB depuis 2026-07-09**)
+
+Table `document_templates` (admin-only, **aucun accès anon**, REVOKE explicite) : sections éditables des deux guides clients.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | TEXT (PK avec doc_type) | id de section : `tg1`… (travel), `wg1`… (welcome) |
+| doc_type | TEXT CHECK | `travel_guide \| welcome_guide` (`DocumentTemplateType`) |
+| sort_order | INT | ordre d'affichage |
+| is_active | BOOLEAN | section incluse dans PDF/email |
+| title / content | JSONB | `{ fr, en, es }` |
+| updated_at | TIMESTAMPTZ | |
+
+- Type TS ligne : `DocumentTemplateRow` (`types/database.ts`) ; côté app tout circule en `TravelGuideSection` (`client/src/data/travelGuide.ts`).
+- Défauts : `defaultTravelGuideSections` (travelGuide.ts) et `defaultWelcomeGuideSections` (welcomeGuide.ts, avec placeholders `[…]` à personnaliser). **Pas de seed SQL** : l'app sème la table au premier Save (fallback legacy : localStorage `bkc_guide_sections` pour le travel guide, lecture seule).
+- Hook : `useDocumentSections(docType)` (`hooks/useDocumentTemplates.ts`) — `saved` (null = table vide), `save()` upsert + delete des ids disparus.
+- Historique : sections en localStorage jusqu'au 2026-07-09 ; l'ancienne table `travel_guide_sections` supprimée le 2026-06-28 (jamais lue).
 
 ---
 
@@ -541,7 +556,7 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 |-------|------|-------|
 | id | string (UUID) | |
 | booking_id | string (FK → bookings) | |
-| type | EmailLogType | `booking_confirmation \| visa_letter \| travel_guide` |
+| type | EmailLogType | `booking_confirmation \| visa_letter \| travel_guide \| welcome_guide` |
 | status | EmailLogStatus | `pending \| sent \| delivered \| opened \| failed` |
 | recipient_email | string | |
 | sent_at | string (ISO) \| null | |

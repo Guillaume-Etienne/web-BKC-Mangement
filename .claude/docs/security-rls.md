@@ -45,7 +45,7 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 - `shared_links` : **aucune lecture anon directe** (depuis Lot A 2026-07-02) — résolution via la RPC `resolve_share_token(token)` (SECURITY DEFINER, token exact + actif + non expiré requis) → plus d'énumération possible des tokens.
 - `get_db_stats()` : EXECUTE révoqué pour PUBLIC/anon (Lot A 2026-07-02), admin only.
 - `form_submissions` : `anon` peut **INSÉRER** uniquement en `status = 'pending'`, et **ne peut rien lire** (les soumissions ne fuient pas).
-- Tables **non exposées** (donc privées) : `expenses`, `instructor_debts/payments`, `palmeiras_*`, `email_logs`, `seasons`, `house_rentals`, `room_rates`, `price_items`, `day_activities`, `taxi_pricing_defaults`, `form_submissions` (lecture).
+- Tables **non exposées** (donc privées) : `expenses`, `instructor_debts/payments`, `palmeiras_*`, `email_logs`, `seasons`, `house_rentals`, `room_rates`, `price_items`, `day_activities`, `taxi_pricing_defaults`, `document_templates` (REVOKE anon explicite), `form_submissions` (lecture).
 
 ## Le risque réel, calibré
 

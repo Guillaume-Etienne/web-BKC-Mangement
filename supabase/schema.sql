@@ -547,7 +547,7 @@ CREATE TABLE palmeiras_entries (
 
 -- ── Email Logs ───────────────────────────────────────────────────────────────
 
-CREATE TYPE email_log_type   AS ENUM ('booking_confirmation', 'visa_letter', 'travel_guide');
+CREATE TYPE email_log_type   AS ENUM ('booking_confirmation', 'visa_letter', 'travel_guide', 'welcome_guide');
 CREATE TYPE email_log_status AS ENUM ('pending', 'sent', 'delivered', 'opened', 'failed');
 
 CREATE TABLE email_logs (
@@ -566,8 +566,25 @@ CREATE TABLE email_logs (
 CREATE INDEX idx_email_logs_booking ON email_logs(booking_id);
 
 
--- Travel guide sections are stored client-side (localStorage) from client/src/data/travelGuide.ts.
--- The former travel_guide_sections table was never read by the app and was dropped (2026-06-28).
+-- ── Document templates ───────────────────────────────────────────────────────
+-- Editable sections of the client-facing guides (Travel Guide + Welcome Guide),
+-- edited in DocumentsPage. Defaults live in client/src/data/travelGuide.ts /
+-- welcomeGuide.ts; the app seeds this table on first Save.
+-- (History: sections lived in localStorage until 2026-07-09; the former
+-- travel_guide_sections table was dropped 2026-06-28 as it was never read.)
+
+CREATE TABLE document_templates (
+  id         TEXT NOT NULL,                -- section id ('tg1'…, 'wg1'…)
+  doc_type   TEXT NOT NULL CHECK (doc_type IN ('travel_guide', 'welcome_guide')),
+  sort_order INT  NOT NULL DEFAULT 0,
+  is_active  BOOLEAN NOT NULL DEFAULT TRUE,
+  title      JSONB NOT NULL DEFAULT '{}'::jsonb,   -- { fr, en, es }
+  content    JSONB NOT NULL DEFAULT '{}'::jsonb,   -- { fr, en, es }
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (doc_type, id)
+);
+
+REVOKE ALL ON document_templates FROM anon;  -- admin only, jamais anon
 
 
 -- ============================================================
@@ -595,7 +612,7 @@ BEGIN
     'instructor_debts', 'instructor_payments', 'lesson_rate_overrides',
     'expenses',
     'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries',
-    'email_logs'
+    'email_logs', 'document_templates'
   ]) LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format(

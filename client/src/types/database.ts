@@ -557,7 +557,7 @@ export interface PalmeirasEntry {
 // and booking_rooms / booking_room_prices. Margin auto-calculated.
 
 // Email logs — transactional emails sent to clients
-export type EmailLogType   = 'booking_confirmation' | 'visa_letter' | 'travel_guide'
+export type EmailLogType   = 'booking_confirmation' | 'visa_letter' | 'travel_guide' | 'welcome_guide'
 export type EmailLogStatus = 'pending' | 'sent' | 'delivered' | 'opened' | 'failed'
 
 export interface EmailLog {
@@ -574,4 +574,16 @@ export interface EmailLog {
 }
 
 // NOTE: TravelGuideSection lives in client/src/data/travelGuide.ts (the source used app-wide).
-// Guide sections are stored in localStorage, not the DB — the travel_guide_sections table was dropped (2026-06-28).
+
+// Document templates — editable guide sections stored in DB (document_templates)
+export type DocumentTemplateType = 'travel_guide' | 'welcome_guide'
+
+export interface DocumentTemplateRow {
+  id: string                          // section id ('tg1'…, 'wg1'…)
+  doc_type: DocumentTemplateType
+  sort_order: number
+  is_active: boolean
+  title: { fr: string; en: string; es: string }
+  content: { fr: string; en: string; es: string }
+  updated_at?: string
+}
