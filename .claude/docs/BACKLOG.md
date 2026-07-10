@@ -72,7 +72,7 @@ Management : barre d'onglets qui débordait à droite en mobile — corrigée (s
 
 ---
 
-## 🔴 Templates de documents en DB + Welcome Guide (2026-07-09) — MIGRATION À APPLIQUER
+## 🟠 Templates de documents en DB + Welcome Guide (2026-07-09) — reste le Save initial par gui
 
 Code fait & build OK. Découverte : les sections des guides vivaient en **localStorage**
 (par navigateur, perdues au clear cache, pas partagées entre admins) et chaque frappe
@@ -86,14 +86,14 @@ Code fait & build OK. Découverte : les sections des guides vivaient en **localS
 - Premier Save sème la table (fallback : localStorage legacy pour le travel guide → les
   éditions existantes de gui sont récupérées **dans le navigateur habituel**).
 
-**Reste à faire :**
-1. gui applique `2026-07-09_document_templates.sql` sur **TEST puis PROD** (SQL editor —
-   ⚠️ vérifier le projet, cf. piège Phase 2).
-2. Claude vérifie par curl anon sur les 2 bases : `GET /rest/v1/document_templates` doit
-   renvoyer **401/42501** (REVOKE) — pas `[]`, pas de lignes.
-3. gui ouvre Documents → Travel Guide dans son navigateur habituel et clique **Save**
-   (migre ses textes localStorage vers la DB) ; idem Welcome Guide après avoir rempli
-   les placeholders.
+1. ~~Migration TEST + PROD~~ ✅ appliquée par gui (2026-07-10).
+2. ~~Vérif curl anon~~ ✅ FAIT (2026-07-10) sur les 2 bases : SELECT **et** INSERT anon sur
+   `document_templates` → `42501 permission denied` (pas `[]` — REVOKE effectif, table
+   présente). Enum `welcome_guide` prouvé présent : `email_logs?type=eq.welcome_guide`
+   passe le parseur (`[]`) alors que `eq.zzz_bidon` → `22P02 invalid input value`.
+3. **RESTE** : gui ouvre Documents → Travel Guide **dans son navigateur habituel** et clique
+   **Save** (migre ses textes localStorage vers la DB — sur PROD **et** TEST si les textes
+   diffèrent) ; idem Welcome Guide après avoir rempli les placeholders `[…]`.
 
 ---
 
