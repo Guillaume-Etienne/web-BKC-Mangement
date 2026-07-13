@@ -94,6 +94,13 @@ Code fait & build OK. Découverte : les sections des guides vivaient en **localS
 3. **RESTE** : gui ouvre Documents → Travel Guide **dans son navigateur habituel** et clique
    **Save** (migre ses textes localStorage vers la DB — sur PROD **et** TEST si les textes
    diffèrent) ; idem Welcome Guide après avoir rempli les placeholders `[…]`.
+4. **RESTE — traductions EN/ES des textes FR de gui** (workflow convenu 2026-07-10,
+   Claude n'a pas accès à la table — anon 42501) : gui rédige le FR dans l'app + Save,
+   puis colle à Claude le résultat de
+   `SELECT id, title->>'fr', content->>'fr' FROM document_templates WHERE doc_type='welcome_guide' ORDER BY sort_order;`
+   → Claude rend un script `UPDATE … jsonb_set(…)` en/es idempotent → gui l'applique
+   **TEST + PROD**. Retouches ponctuelles ensuite : simple copier-coller chat → éditeur
+   Templates. (Plan C : Claude in Chrome sur la session admin — lent, dernier recours.)
 
 ---
 
