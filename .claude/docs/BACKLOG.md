@@ -104,6 +104,73 @@ Code fait & build OK. Découverte : les sections des guides vivaient en **localS
 
 ---
 
+## 🔴 Audit externe 2026-07-25 — findings vérifiés (à traiter plus tard)
+
+Audit lancé par gui depuis Claude **web** sur le même repo. Rapport `docs/audit-2026-07.md`
+**perdu** (conteneur éphémère, push 403) — gui a le .md téléchargé de son côté. Les findings
+ci-dessous ont été **revérifiés dans le code par Claude Code le 2026-07-25** : deux
+descriptions de l'audit web étaient fausses dans le détail, c'est la version corrigée qui
+fait foi. Rien n'est corrigé à ce stade, décision gui = « on y revient plus tard ».
+
+### C1 — Full house : le tarif configuré n'est JAMAIS lu 💸
+`BookingsPage.tsx:361` → `const each = 100 / accRoomIds.length` — **100 € codé en dur**.
+Le tarif saisi dans Management est bien stocké (`room_rates` clé `full_{accommodation.id}`,
+cf. `management/HousesTab.tsx:169` et `AccommodationsTab.tsx:224`) mais `full_` n'est lu
+**nulle part** dans BookingsPage. Mettre 180 € en config ⇒ la résa facture quand même 100 €.
+(L'audit web disait « facturé 70+50=120 au lieu de 100 » : faux, c'est 100 en dur toujours.)
+**Fix** : lire `roomRates` clé `full_${accId}` dans `toggleFullHouse`, fallback 100 si absent.
+
+### C2 — `getRoomNightlyRate` renvoie 0 sans fallback 💸
+`components/accounting/utils.ts:13` → `return snapshot?.price_per_night ?? 0`, alors que le
+commentaire ligne 4 annonce « snapshot → base rate fallback ». Toute ligne
+`booking_room_prices` manquante ⇒ hébergement à 0 €. Impacte `computeAccommodationRevenue`
+(utils.ts:32), `BookingFinances.tsx:402`, `HousesTab.tsx:40`.
+**Atténuations que l'audit a ratées** : `BookingFinances.tsx:413` affiche un « ⚠ no price »
+rouge, et `bookingToWizard` (BookingsPage.tsx:1345) retombe déjà sur `room_rates`. Donc
+visible, pas 100 % silencieux. **Fix** : mettre le même fallback `room_rates` dans le util.
+Corollaire mineur : le save fait delete+réinsert avec `?? 0` (BookingsPage.tsx:1266) — ne
+mord que si ni snapshot ni base rate n'existent.
+
+### S1 — `send-email` = relais mail — réel mais **surestimé** par l'audit
+`supabase/functions/send-email/index.ts:19` accepte `to`/`subject`/`html` arbitraires, envoie
+en `no-reply@bilenekite.com` avec le service_role ; seul rempart = `verify_jwt` que la clé
+anon (publique, dans le bundle Vercel) satisfait.
+**MAIS** la fonction exige un `booking_id` et `email_logs.booking_id` est
+`NOT NULL REFERENCES bookings(id)` (`schema.sql:555`) : sans UUID de booking **valide**,
+l'insert échoue → 500 → **aucun mail parti**. Et depuis la Phase 2, anon ne lit plus
+`bookings` sans token valide. ⇒ Le périmètre réel n'est pas « tout internet » mais
+**« quelqu'un qui détient un lien partagé »** (ex-client, chauffeur, Geraldo) et voit un
+booking_id — aggravé par le fait que **les tokens n'expirent jamais**. Chaque abus laisse
+une ligne dans `email_logs`. Priorité : à réparer, pas un incendie.
+**Fix le plus simple** : rejeter si le rôle du JWT appelant ≠ `authenticated` (garder les
+templates côté front, pas de refonte). Fix fort (plus tard) : construire le HTML côté serveur
+depuis `booking_id` + `type`.
+
+### S2 — vérif dashboard Supabase (30 s, **non vérifiable par Claude**)
+Authentication → « Allow new users to sign up » doit être **OFF** sur PROD *et* TEST : la
+policy admin est `FOR ALL TO authenticated USING (true)` sur les 38 tables, donc si
+l'inscription est ouverte, n'importe qui crée un compte via `/auth/v1/signup` et lit
+passeports, paiements et compta. **À faire par gui.**
+
+### S3 — `notify-submission` fail-open (1 ligne)
+`notify-submission/index.ts:182` → `if (secret && req.headers.get(...) !== secret)` : si
+`NOTIFY_SECRET` disparaît des secrets, plus **aucun** contrôle. Fix : 401 aussi quand
+`!secret`. Risque faible (le secret est en place), mais gratuit.
+
+### Findings non revérifiés par Claude Code (à instruire le jour venu)
+- « Net result (season) » pas filtré par saison (cumul depuis l'origine) ; cours d'un booking
+  annulé comptés en coût instructeur sans revenu en face.
+- CashFlow ignorerait `palmeiras_entries` et `activity_payments` que le Dashboard compte.
+- Formulaire public sans captcha/rate-limit → **déjà traité** : honeypot + délai 3s
+  (`318e467`, cf. « Quand gui veut »). Turnstile toujours hors périmètre.
+- Un lien `restaurant` lit toute la liste clients du centre ; tokens sans expiration.
+- **Divergence `bookings.amount_paid` vs table `payments`** : ce n'est PAS un bug, c'est
+  assumé — `payments` est la source de vérité (cf. mémoire projet).
+- **Question ouverte pour gui** : le tarif instructeur sert de prix client ET de coût ⇒ marge
+  nulle sur les cours particuliers. Modèle voulu (marge sur hébergement/location) ou bug ?
+
+---
+
 ## 🟡 Quand gui veut
 
 - **Bug prix taxi 8000 €** — fix code fait (`order updated_at desc` des 2 côtés, commit `4364316`).
