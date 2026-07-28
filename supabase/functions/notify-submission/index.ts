@@ -178,8 +178,11 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
   // Verify the shared secret set on the webhook (anon can't forge it).
+  // Fail CLOSED: if NOTIFY_SECRET ever goes missing from the secrets, refuse
+  // every call rather than becoming an open endpoint.
   const secret = Deno.env.get('NOTIFY_SECRET')
-  if (secret && req.headers.get('x-notify-secret') !== secret) {
+  if (!secret) console.error('NOTIFY_SECRET is not set — refusing all calls')
+  if (!secret || req.headers.get('x-notify-secret') !== secret) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...CORS, 'Content-Type': 'application/json' },
     })

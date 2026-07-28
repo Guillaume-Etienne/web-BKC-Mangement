@@ -15,6 +15,24 @@ const FROM = 'BKC <no-reply@bilenekite.com>'
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
+  // Auth — `verify_jwt` alone only proves the caller holds *a* valid key, and the
+  // anon key is public (shipped in the Vercel bundle). Since this function sends
+  // arbitrary `to`/`subject`/`html` from no-reply@bilenekite.com, require a real
+  // logged-in admin: otherwise anyone holding a shared link could use it as a
+  // mail relay. getUser() re-verifies the token itself (signature + expiry).
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '')
+  const { data: auth, error: authErr } = await createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!
+  ).auth.getUser(token)
+
+  if (authErr || !auth?.user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+    })
+  }
+
   try {
     const { booking_id, type, to, subject, html } = await req.json()
 

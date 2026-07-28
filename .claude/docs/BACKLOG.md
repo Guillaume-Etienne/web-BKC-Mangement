@@ -132,11 +132,34 @@ Utilisé par `getRoomNightlyRate` (donc AccountingDashboard/HousesTab/BookingFin
 rooms/accommodations/roomRates au calcul du total Summary, même bug là-bas).
 `BookingFinances` : le badge rouge dit maintenant « ⚠ base rate » quand un tarif de repli est
 appliqué, « ⚠ no price » quand il n'y a vraiment rien (0 €).
-**Reste (hors périmètre, à voir un jour)** : `ClientSharePage.tsx:196` a le même `?? 0` — le
-client verrait 0 €/nuit si le snapshot manque. Le fallback y demanderait un GRANT anon sur
-`room_rates` (donc une migration) ; les résas créées par le wizard ont toujours leur snapshot.
+**Reste → tâche C3 ci-dessous** (décidé avec gui le 2026-07-28 : on le fait ensuite).
 
-### S1 — `send-email` = relais mail — réel mais **surestimé** par l'audit
+### C3 — Même fallback sur la page client partagée — 🔜 À FAIRE (migration requise)
+`ClientSharePage.tsx:196` (`priceRow?.price_per_night ?? 0`) : sans snapshot, le client voit
+**0 €/nuit** sur sa propre facture. Le fallback `getBaseNightlyRate()` y est réutilisable tel
+quel (la page charge déjà `rooms` et `accommodations`), **mais `room_rates` n'est pas lisible
+par anon** — aucun GRANT nulle part dans `supabase/` aujourd'hui.
+**Ce qu'il faudra migrer (TEST + PROD)** — à préparer par Claude, à appliquer par gui :
+1. `GRANT SELECT (room_id, price_per_night) ON room_rates TO anon;` (surtout PAS `notes` —
+   même logique que le Lot C : on narrow les colonnes).
+2. Une policy RLS token-aware sur `room_rates` du même gabarit que la Phase 2 — les tarifs de
+   base ne sont pas nominatifs, donc « token valide de type `client` » suffit (à trancher :
+   tous types de token, ou `client` seulement ?).
+3. `SELECT` narrowé dans ClientSharePage + `schema.sql` synchronisé.
+**Vérif obligatoire** : curl anon sur les 2 bases (sans token → `[]`, avec token client →
+lignes, colonne `notes` → 42501). ⚠️ Réfléchir avant : ça expose la grille tarifaire de base à
+qui détient un lien client. Alternative sans migration = faire écrire le snapshot manquant par
+l'admin (le badge « ⚠ base rate » de BookingFinances le signale déjà).
+
+### S1 — `send-email` = relais mail — ✅ CORRIGÉ (2026-07-28) — ⏳ REDÉPLOIEMENT REQUIS
+La fonction exige désormais un **utilisateur connecté** : le JWT `Authorization` est revérifié
+par `auth.getUser()` (clé anon) et tout ce qui n'est pas un vrai compte admin → **401**.
+La clé anon publique et les liens partagés ne suffisent donc plus. Rien d'autre ne change
+(templates toujours côté front) ; seul appelant = `DocumentsPage` (admin loggué).
+**gui doit redéployer `send-email` sur TEST *et* PROD** — tant que ce n'est pas fait, le code
+du repo et celui qui tourne divergent. Test après déploiement : envoyer un document depuis
+Documents (doit marcher) ; `curl` avec la clé anon en Bearer → doit rendre 401.
+_Contexte d'origine ci-dessous._
 `supabase/functions/send-email/index.ts:19` accepte `to`/`subject`/`html` arbitraires, envoie
 en `no-reply@bilenekite.com` avec le service_role ; seul rempart = `verify_jwt` que la clé
 anon (publique, dans le bundle Vercel) satisfait.
@@ -157,10 +180,13 @@ policy admin est `FOR ALL TO authenticated USING (true)` sur les 38 tables, donc
 l'inscription est ouverte, n'importe qui crée un compte via `/auth/v1/signup` et lit
 passeports, paiements et compta. **À faire par gui.**
 
-### S3 — `notify-submission` fail-open (1 ligne)
-`notify-submission/index.ts:182` → `if (secret && req.headers.get(...) !== secret)` : si
-`NOTIFY_SECRET` disparaît des secrets, plus **aucun** contrôle. Fix : 401 aussi quand
-`!secret`. Risque faible (le secret est en place), mais gratuit.
+### S3 — `notify-submission` fail-open — ✅ CORRIGÉ (2026-07-28) — ⏳ REDÉPLOIEMENT REQUIS
+Était `if (secret && …)` : sans `NOTIFY_SECRET`, plus aucun contrôle. Devenu `if (!secret || …)`
+→ fail **closed** (+ `console.error` explicite dans les logs).
+⚠️ **Conséquence** : après redéploiement, si `NOTIFY_SECRET` n'est pas dans les secrets de la
+base concernée, le webhook du formulaire public ne notifiera plus rien (401) — vérifier que le
+secret est bien présent sur **TEST et PROD** avant/juste après le redéploiement, puis envoyer
+une soumission de test pour confirmer que l'email admin arrive toujours.
 
 ### Findings non revérifiés par Claude Code (à instruire le jour venu)
 - « Net result (season) » pas filtré par saison (cumul depuis l'origine) ; cours d'un booking
