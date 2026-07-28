@@ -151,14 +151,15 @@ lignes, colonne `notes` → 42501). ⚠️ Réfléchir avant : ça expose la gri
 qui détient un lien client. Alternative sans migration = faire écrire le snapshot manquant par
 l'admin (le badge « ⚠ base rate » de BookingFinances le signale déjà).
 
-### S1 — `send-email` = relais mail — ✅ CORRIGÉ (2026-07-28) — ⏳ REDÉPLOIEMENT REQUIS
+### S1 — `send-email` = relais mail — ✅ CORRIGÉ & DÉPLOYÉ PROD (2026-07-28)
 La fonction exige désormais un **utilisateur connecté** : le JWT `Authorization` est revérifié
-par `auth.getUser()` (clé anon) et tout ce qui n'est pas un vrai compte admin → **401**.
-La clé anon publique et les liens partagés ne suffisent donc plus. Rien d'autre ne change
+par `auth.getUser()` (clé anon) et tout ce qui n'est pas un vrai compte → **401**.
+La clé anon publique et les liens partagés ne suffisent plus. Rien d'autre ne change
 (templates toujours côté front) ; seul appelant = `DocumentsPage` (admin loggué).
-**gui doit redéployer `send-email` sur TEST *et* PROD** — tant que ce n'est pas fait, le code
-du repo et celui qui tourne divergent. Test après déploiement : envoyer un document depuis
-Documents (doit marcher) ; `curl` avec la clé anon en Bearer → doit rendre 401.
+**Redéployée en PROD par gui + VÉRIFIÉE par curl** : avant = `400 Missing required fields`
+(la clé anon publique passait), après = **401** y compris avec un payload complet.
+⚠️ **TEST n'a pas la fonction `send-email` du tout** (curl → `404`) — rien à y déployer, et
+donc pas de faille de ce côté. La bascule PROD/TEST ne sert qu'en `npm run dev` local.
 _Contexte d'origine ci-dessous._
 `supabase/functions/send-email/index.ts:19` accepte `to`/`subject`/`html` arbitraires, envoie
 en `no-reply@bilenekite.com` avec le service_role ; seul rempart = `verify_jwt` que la clé
@@ -174,19 +175,22 @@ une ligne dans `email_logs`. Priorité : à réparer, pas un incendie.
 templates côté front, pas de refonte). Fix fort (plus tard) : construire le HTML côté serveur
 depuis `booking_id` + `type`.
 
-### S2 — vérif dashboard Supabase (30 s, **non vérifiable par Claude**)
-Authentication → « Allow new users to sign up » doit être **OFF** sur PROD *et* TEST : la
-policy admin est `FOR ALL TO authenticated USING (true)` sur les 38 tables, donc si
-l'inscription est ouverte, n'importe qui crée un compte via `/auth/v1/signup` et lit
-passeports, paiements et compta. **À faire par gui.**
+### S2 — signup Supabase — ✅ FERMÉ par gui (2026-07-28)
+Authentication → « Allow new users to sign up » : **était ON sur les 2 bases**, passé **OFF**
+sur PROD et TEST. C'était le finding le plus grave : policy admin
+`FOR ALL TO authenticated USING (true)` sur 38 tables ⇒ n'importe qui pouvait créer un compte
+via `/auth/v1/signup` et lire passeports, paiements et compta.
+⏳ **Contrôle associé (à confirmer par gui)** : Authentication → Users sur les 2 bases, il ne
+doit y avoir QUE les 2 comptes admin. Un compte inconnu = ne pas supprimer avant d'avoir noté
+email + `Created at`.
 
-### S3 — `notify-submission` fail-open — ✅ CORRIGÉ (2026-07-28) — ⏳ REDÉPLOIEMENT REQUIS
+### S3 — `notify-submission` fail-open — ✅ CORRIGÉ & DÉPLOYÉ PROD (2026-07-28)
 Était `if (secret && …)` : sans `NOTIFY_SECRET`, plus aucun contrôle. Devenu `if (!secret || …)`
 → fail **closed** (+ `console.error` explicite dans les logs).
-⚠️ **Conséquence** : après redéploiement, si `NOTIFY_SECRET` n'est pas dans les secrets de la
-base concernée, le webhook du formulaire public ne notifiera plus rien (401) — vérifier que le
-secret est bien présent sur **TEST et PROD** avant/juste après le redéploiement, puis envoyer
-une soumission de test pour confirmer que l'email admin arrive toujours.
+`NOTIFY_SECRET` vérifié présent sur les 2 bases par gui avant redéploiement (indispensable,
+sinon le webhook tomberait en 401). Curl sans le header → 401 sur PROD **et** TEST.
+⏳ **TEST tourne encore l'ancienne version** (le fix n'y change rien tant que le secret est en
+place) — à redéployer un jour par cohérence repo↔runtime, non urgent.
 
 ### Findings non revérifiés par Claude Code (à instruire le jour venu)
 - « Net result (season) » pas filtré par saison (cumul depuis l'origine) ; cours d'un booking
