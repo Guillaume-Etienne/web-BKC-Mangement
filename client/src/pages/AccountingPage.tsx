@@ -23,7 +23,7 @@ import type {
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride, EquipmentRental,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   TaxiPricingDefaults, TaxiManagerPayment,
-  DiningEvent, BookingRoomPrice,
+  DiningEvent, BookingRoomPrice, RoomRate,
 } from '../types/database'
 
 type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'cashflow' | 'expenses' | 'events' | 'unverified'
@@ -52,6 +52,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: rooms }                    = useRooms()
   const { data: bookingRooms }             = useBookingRooms()
   const { data: bookingRoomPricesData }    = useBookingRoomPrices()
+  const { data: roomRates }                = useTable<RoomRate>('room_rates')
   const { data: externalAccommodations }   = useTable<ExternalAccommodation>('external_accommodations')
   const { data: externalAccommodationBkgs }= useTable<ExternalAccommodationBooking>('external_accommodation_bookings')
   const { data: diningEvents }             = useTable<DiningEvent>('dining_events', { order: 'date', ascending: false })
@@ -109,6 +110,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     rooms,
     bookingRooms,
     bookingRoomPrices,
+    roomRates,
     externalAccommodationBkgs,
     externalAccommodations,
     diningEvents,

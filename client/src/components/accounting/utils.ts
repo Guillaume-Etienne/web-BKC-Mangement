@@ -1,7 +1,10 @@
 import type { Booking, BookingParticipant, Payment, Lesson, Instructor, LessonRateOverride, DiningEvent } from '../../types/database'
 import type { SharedAccountingData } from './types'
+import { getBaseNightlyRate } from '../../utils/roomPricing'
 
-/** Nightly rate for a room within a booking (snapshot → base rate fallback) */
+/** Nightly rate for a room within a booking (snapshot → base rate fallback).
+ *  Without the fallback, any booking saved before booking_room_prices existed —
+ *  or whose snapshot was deleted — would be counted at 0 €. */
 export function getRoomNightlyRate(
   bookingId: string,
   roomId: string,
@@ -10,7 +13,11 @@ export function getRoomNightlyRate(
   const snapshot = data.bookingRoomPrices.find(
     p => p.booking_id === bookingId && p.room_id === roomId
   )
-  return snapshot?.price_per_night ?? 0
+  if (snapshot) return snapshot.price_per_night
+  const bookedRoomIds = data.bookingRooms
+    .filter(br => br.booking_id === bookingId)
+    .map(br => br.room_id)
+  return getBaseNightlyRate(roomId, bookedRoomIds, data.rooms, data.accommodations, data.roomRates)
 }
 
 /** Number of nights between check_in and check_out */

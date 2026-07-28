@@ -7,6 +7,7 @@ import { useTaxiDrivers } from '../hooks/useTaxis'
 import { useTable } from '../hooks/useSupabase'
 import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, TaxiDriver } from '../types/database'
 import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
+import { getFullHouseRate, getBaseNightlyRate, DEFAULT_FULL_HOUSE_RATE } from '../utils/roomPricing'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -348,17 +349,19 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
       })
     }
   }
-  function toggleFullHouse(accRoomIds: string[]) {
+  function toggleFullHouse(accId: string, accRoomIds: string[]) {
     const allSelected = accRoomIds.every(id => d.room_ids.includes(id))
     if (allSelected) {
       const newPrices = { ...d.room_prices }
       accRoomIds.forEach(id => delete newPrices[id])
       update({ room_ids: d.room_ids.filter(id => !accRoomIds.includes(id)), room_prices: newPrices })
     } else {
-      // Full house has a single flat price (default 100€), not the sum of both rooms.
-      // Split evenly across rooms so the per-room total equals the house price.
+      // Full house has a single flat price (Management → "Full house €/night"),
+      // not the sum of both rooms. Split evenly across rooms so the per-room
+      // total equals the house price.
       const newPrices = { ...d.room_prices }
-      const each = 100 / accRoomIds.length
+      const houseRate = getFullHouseRate(accId, roomRates) ?? DEFAULT_FULL_HOUSE_RATE
+      const each = houseRate / accRoomIds.length
       accRoomIds.forEach(id => { newPrices[id] = each })
       update({ room_ids: [...d.room_ids.filter(id => !accRoomIds.includes(id)), ...accRoomIds], room_prices: newPrices })
     }
@@ -573,7 +576,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                               </div>
                               <div className="space-y-1">
                                 {isHouse && accRooms.length === 2 && (
-                                  <button type="button" onClick={() => toggleFullHouse(accRoomIds)}
+                                  <button type="button" onClick={() => toggleFullHouse(acc.id, accRoomIds)}
                                     className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors font-medium
                                       ${allSelected ? 'border-purple-500 bg-purple-50 text-purple-800' : 'border-gray-200 hover:border-gray-300 text-gray-700'}`}>
                                     🏠 Full house (F + B)
@@ -1340,9 +1343,11 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     const brs = bookingRooms.filter(r => r.booking_id === b.id)
     const existingPrices = bookingRoomPricesData.filter(p => p.booking_id === b.id)
     const room_prices: Record<string, number> = {}
+    const bookedRoomIds = brs.map(br => br.room_id)
     brs.forEach(br => {
       const snap = existingPrices.find(p => p.room_id === br.room_id)
-      room_prices[br.room_id] = snap?.price_per_night ?? roomRatesData.find(r => r.room_id === br.room_id)?.price_per_night ?? 0
+      room_prices[br.room_id] = snap?.price_per_night
+        ?? getBaseNightlyRate(br.room_id, bookedRoomIds, rooms, accommodations, roomRatesData)
     })
     return {
       ...EMPTY_WIZARD,

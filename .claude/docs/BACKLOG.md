@@ -104,7 +104,7 @@ Code fait & build OK. Découverte : les sections des guides vivaient en **localS
 
 ---
 
-## 🔴 Audit externe 2026-07-25 — findings vérifiés (à traiter plus tard)
+## 🔴 Audit externe 2026-07-25 — findings vérifiés (C1+C2 corrigés le 2026-07-28)
 
 Audit lancé par gui depuis Claude **web** sur le même repo. Rapport `docs/audit-2026-07.md`
 **perdu** (conteneur éphémère, push 403) — gui a le .md téléchargé de son côté. Les findings
@@ -112,24 +112,29 @@ ci-dessous ont été **revérifiés dans le code par Claude Code le 2026-07-25**
 descriptions de l'audit web étaient fausses dans le détail, c'est la version corrigée qui
 fait foi. Rien n'est corrigé à ce stade, décision gui = « on y revient plus tard ».
 
-### C1 — Full house : le tarif configuré n'est JAMAIS lu 💸
-`BookingsPage.tsx:361` → `const each = 100 / accRoomIds.length` — **100 € codé en dur**.
-Le tarif saisi dans Management est bien stocké (`room_rates` clé `full_{accommodation.id}`,
-cf. `management/HousesTab.tsx:169` et `AccommodationsTab.tsx:224`) mais `full_` n'est lu
-**nulle part** dans BookingsPage. Mettre 180 € en config ⇒ la résa facture quand même 100 €.
-(L'audit web disait « facturé 70+50=120 au lieu de 100 » : faux, c'est 100 en dur toujours.)
-**Fix** : lire `roomRates` clé `full_${accId}` dans `toggleFullHouse`, fallback 100 si absent.
+### C1 — Full house : le tarif configuré n'est JAMAIS lu 💸 — ✅ CORRIGÉ (2026-07-28)
+Était : `BookingsPage.tsx:361` → `const each = 100 / accRoomIds.length` (100 € en dur), le
+tarif saisi dans Management (`room_rates` clé `full_{accommodation.id}`) n'était lu nulle part.
+**Fix** : nouveau module `client/src/utils/roomPricing.ts` (`getFullHouseRate`,
+`DEFAULT_FULL_HOUSE_RATE = 100`) ; `toggleFullHouse(accId, accRoomIds)` lit
+`full_${accId}` et retombe sur 100 seulement si le tarif n'est pas configuré.
 
-### C2 — `getRoomNightlyRate` renvoie 0 sans fallback 💸
-`components/accounting/utils.ts:13` → `return snapshot?.price_per_night ?? 0`, alors que le
-commentaire ligne 4 annonce « snapshot → base rate fallback ». Toute ligne
-`booking_room_prices` manquante ⇒ hébergement à 0 €. Impacte `computeAccommodationRevenue`
-(utils.ts:32), `BookingFinances.tsx:402`, `HousesTab.tsx:40`.
-**Atténuations que l'audit a ratées** : `BookingFinances.tsx:413` affiche un « ⚠ no price »
-rouge, et `bookingToWizard` (BookingsPage.tsx:1345) retombe déjà sur `room_rates`. Donc
-visible, pas 100 % silencieux. **Fix** : mettre le même fallback `room_rates` dans le util.
-Corollaire mineur : le save fait delete+réinsert avec `?? 0` (BookingsPage.tsx:1266) — ne
-mord que si ni snapshot ni base rate n'existent.
+### C2 — `getRoomNightlyRate` renvoie 0 sans fallback 💸 — ✅ CORRIGÉ (2026-07-28)
+Était : `components/accounting/utils.ts:13` → `snapshot?.price_per_night ?? 0` malgré le
+commentaire « snapshot → base rate fallback » ⇒ hébergement à 0 € dès qu'une ligne
+`booking_room_prices` manque.
+**Fix** : `getBaseNightlyRate()` dans `utils/roomPricing.ts` — fallback `room_rates`,
+**full-house-aware** (si TOUTES les chambres d'une maison sont sur la résa, on prend le tarif
+`full_{accId}` divisé par le nombre de chambres, pas la somme F+B qui surfacturerait).
+Utilisé par `getRoomNightlyRate` (donc AccountingDashboard/HousesTab/BookingFinances/CashFlow)
+**et** par `bookingToWizard` (qui avait un fallback naïf, non full-house). `roomRates` ajouté à
+`SharedAccountingData` (fourni par AccountingPage ; DocumentsPage passe aussi
+rooms/accommodations/roomRates au calcul du total Summary, même bug là-bas).
+`BookingFinances` : le badge rouge dit maintenant « ⚠ base rate » quand un tarif de repli est
+appliqué, « ⚠ no price » quand il n'y a vraiment rien (0 €).
+**Reste (hors périmètre, à voir un jour)** : `ClientSharePage.tsx:196` a le même `?? 0` — le
+client verrait 0 €/nuit si le snapshot manque. Le fallback y demanderait un GRANT anon sur
+`room_rates` (donc une migration) ; les résas créées par le wizard ont toujours leur snapshot.
 
 ### S1 — `send-email` = relais mail — réel mais **surestimé** par l'audit
 `supabase/functions/send-email/index.ts:19` accepte `to`/`subject`/`html` arbitraires, envoie

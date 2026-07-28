@@ -410,7 +410,11 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                         <span>
                           {roomLabel} × {nights}N @ {fmtEur(rate)}/N
                           {snap?.override_note && <span className="ml-2 text-amber-500 italic">({snap.override_note})</span>}
-                          {hasNoPrice && <span className="ml-2 text-red-400 font-medium">⚠ no price</span>}
+                          {hasNoPrice && (
+                            <span className="ml-2 text-red-400 font-medium">
+                              {rate > 0 ? '⚠ base rate' : '⚠ no price'}
+                            </span>
+                          )}
                         </span>
                         <div className="flex items-center gap-2">
                           <span>{fmtEur(rate * nights)}</span>

@@ -399,13 +399,14 @@ export default function DocumentsPage() {
       supabase.from('dining_events').select('*'),
       supabase.from('activity_bookings').select('*').eq('booking_id', bId),
       supabase.from('external_accommodation_bookings').select('*').eq('booking_id', bId),
-    ]).then(([brp, lessons, instrs, lro, rentals, taxis, dining, activities, extAccom]) => {
+      supabase.from('room_rates').select('*'),
+    ]).then(([brp, lessons, instrs, lro, rentals, taxis, dining, activities, extAccom, rates]) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const d = (extra: object) => ({ ...extra } as any)
       const bkParts = bookingParticipants.filter(p => p.booking_id === bId)
       const bkRooms = bookingRooms.filter(br => br.booking_id === bId)
       const total =
-        computeAccommodationRevenue(summaryBooking, d({ bookingRooms: bkRooms, bookingRoomPrices: brp.data ?? [], externalAccommodationBkgs: extAccom.data ?? [] })) +
+        computeAccommodationRevenue(summaryBooking, d({ bookingRooms: bkRooms, bookingRoomPrices: brp.data ?? [], externalAccommodationBkgs: extAccom.data ?? [], rooms, accommodations, roomRates: rates.data ?? [] })) +
         computeLessonsRevenue(summaryBooking, d({ lessons: lessons.data ?? [], instructors: instrs.data ?? [], lessonRateOverrides: lro.data ?? [] })) +
         computeRentalsRevenue(summaryBooking, d({ equipmentRentals: rentals.data ?? [] })) +
         computeTaxiRevenue(summaryBooking, d({ taxiTrips: taxis.data ?? [] })) +
