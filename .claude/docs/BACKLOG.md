@@ -206,6 +206,31 @@ place) — à redéployer un jour par cohérence repo↔runtime, non urgent.
 
 ---
 
+## 📧 Emails — demandes de gui (2026-07-28)
+
+### Retouches sur l'email de documents — 🔜 gui doit préciser
+Test d'envoi depuis Documents fait le 2026-07-28 (post-fix S1) : **ça marche**, mais gui veut
+des **modifications sur le contenu de ce mail**. À préciser : *lequel* (`visa_letter`,
+`booking_confirmation`, `travel_guide`, `welcome_guide`) et *quoi*.
+👉 Ces templates sont **côté front** (`client/src/utils/emailTemplates.ts`) : modification
+simple, pas de redéploiement d'Edge Function, juste un build + push Vercel.
+⚠️ Ne pas confondre avec les textes de `notify-submission` (formulaire public), eux **en dur
+dans l'Edge Function** — décision gui, demander avant de toucher.
+
+### Email admin `contact@bilenekite.com` — ✅ FAUSSE ALERTE (2026-07-28)
+Test du formulaire public post-fix S3 : accusé client OK, notif admin « manquante »… en fait
+**simple latence POP3**. `contact@bilenekite.com` est une boîte **Infomaniak** que le Gmail
+`kitesurfingmozambique@gmail.com` relève en POP3 ; le mail est apparu dès le cycle de relève
+suivant. Chaîne d'envoi 100 % fonctionnelle, rien à corriger dans le code.
+**Config DNS vérifiée au passage (RAS, ne pas y toucher)** : MX `mta-gw.infomaniak.ch`,
+SPF racine `include:spf.infomaniak.ch -all`, DMARC `p=reject`, et Resend correctement câblé
+sur `send.bilenekite.com` (SPF amazonses) + DKIM `resend._domainkey` → alignement DMARC par
+DKIM. ⚠️ **Ne PAS ajouter Resend au SPF racine** : l'enveloppe part de `send.bilenekite.com`,
+c'est déjà autorisé là-bas.
+**Suggestion non faite** (choix de gui) : remplacer la relève POP3 par une **redirection**
+Infomaniak → Gmail, pour recevoir les demandes de résa instantanément au lieu d'attendre
+jusqu'à ~1 h.
+
 ## 🟡 Quand gui veut
 
 - **Bug prix taxi 8000 €** — fix code fait (`order updated_at desc` des 2 côtés, commit `4364316`).
