@@ -263,6 +263,110 @@ export function computeInstructorDiningCharges(instructorId: string, diningEvent
   }, 0)
 }
 
+/** Season-wide totals shown on the accounting dashboard. */
+export interface SeasonTotals {
+  accomRev: number
+  lessonsRev: number
+  rentalsRev: number
+  taxiRevGross: number
+  taxiCosts: number
+  taxiMargin: number
+  activitiesRev: number
+  eventsRev: number
+  centerAccessRev: number
+  totalRevenue: number
+  billedNet: number
+  totalPaid: number
+  totalDue: number
+  instructorCosts: number
+  activityCosts: number
+  houseRentalCosts: number
+  bungalowCosts: number
+  totalExpenses: number
+  palmeirasNet: number
+  netResult: number
+}
+
+/** Every headline figure of the accounting dashboard, in one pure function.
+ *
+ *  Conventions that are easy to get wrong, so they live here rather than in a
+ *  component:
+ *  - Cancelled bookings are excluded from revenue, and so are the taxi trips and
+ *    activities attached to them. Standalone ones (no booking) are kept.
+ *  - The taxi figure is the centre MARGIN, not the gross: billed minus driver pay
+ *    minus manager commission. Taxi costs are therefore never subtracted again in
+ *    the net result. Margins are rounded per trip so the total equals the sum of
+ *    the lines shown elsewhere.
+ *  - Instructor cost covers ALL lessons, including any attached to a cancelled
+ *    booking: the instructor taught, so the centre owes them. That asymmetry is
+ *    deliberate — such a booking is a real loss, and the result should show it.
+ *  - Dining revenue covers every event, including instructor meals, which are
+ *    deducted from their payroll separately.
+ */
+export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
+  const activeBookings = data.bookings.filter(b => b.status !== 'cancelled')
+  const activeIds = new Set(activeBookings.map(b => b.id))
+
+  const accomRev        = activeBookings.reduce((s, b) => s + computeAccommodationRevenue(b, data), 0)
+  const lessonsRev      = activeBookings.reduce((s, b) => s + computeLessonsRevenue(b, data), 0)
+  const rentalsRev      = activeBookings.reduce((s, b) => s + computeRentalsRevenue(b, data), 0)
+  const centerAccessRev = activeBookings.reduce((s, b) => s + computeCenterAccessRevenue(b), 0)
+
+  const activeTrips  = data.taxiTrips.filter(t => t.booking_id === null || activeIds.has(t.booking_id))
+  const taxiRevGross = activeTrips.reduce((s, t) => s + t.price_eur, 0)
+  const taxiMargin   = activeTrips.reduce((s, t) => s + computeTaxiMarginEur(t, data.eurMznRate), 0)
+  const taxiCosts    = taxiRevGross - taxiMargin
+
+  // we_pay_provider → the client pays us; provider_pays_us → the provider reverses their cut
+  const activeActs    = data.activityBookings.filter(a => a.booking_id === null || activeIds.has(a.booking_id))
+  const activitiesRev = activeActs.reduce((s, a) => s + (a.payment_flow === 'we_pay_provider' ? a.price_client : a.price_provider), 0)
+  const activityCosts = activeActs.reduce((s, a) => s + (a.payment_flow === 'we_pay_provider' ? a.price_provider : 0), 0)
+
+  const eventsRev    = computeDiningRevenue(data.diningEvents)
+  const totalRevenue = accomRev + lessonsRev + rentalsRev + taxiMargin + eventsRev + activitiesRev + centerAccessRev
+
+  const billedNet = activeBookings.reduce(
+    (s, b) => s + computeBookingTotal(b, data) - computeBookingDiscounts(b.id, data.payments), 0)
+  const totalPaid = activeBookings.reduce((s, b) => s + computeBookingPaid(b.id, data.payments), 0)
+  const totalDue  = billedNet - totalPaid
+
+  const instructorCosts  = data.instructors.reduce((s, i) => s + computeInstructorEarned(i.id, data), 0)
+  const houseRentalCosts = data.houseRentals.reduce((s, r) => s + r.total_cost, 0)
+  const totalExpenses    = data.expenses.reduce((s, e) => s + e.amount, 0)
+
+  // Bungalows are sub-let: their sell price is already inside accomRev, only the
+  // nightly cost paid to the owner is subtracted here.
+  const bungalows = data.accommodations.filter(a => a.type === 'bungalow')
+  const bungalowRoomIds = new Set(
+    data.rooms.filter(r => bungalows.some(b => b.id === r.accommodation_id)).map(r => r.id)
+  )
+  const bungalowCosts = data.bookingRooms.reduce((sum, br) => {
+    if (!bungalowRoomIds.has(br.room_id)) return sum
+    const bk = data.bookings.find(b => b.id === br.booking_id)
+    if (!bk || bk.status === 'cancelled') return sum
+    const room = data.rooms.find(r => r.id === br.room_id)
+    const acc  = bungalows.find(b => b.id === room?.accommodation_id)
+    return sum + (acc?.cost_per_night ?? 0) * countNights(bk.check_in, bk.check_out)
+  }, 0)
+
+  const palmeirasNet =
+    data.palmeirasReversals.reduce((s, r) => s + r.net_amount, 0)
+    + data.palmeirasEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
+    - data.palmeirasRents.reduce((s, r) => s + r.amount, 0)
+    - data.palmeirasEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
+
+  const netResult = totalRevenue + palmeirasNet
+    - instructorCosts - houseRentalCosts - bungalowCosts - activityCosts - totalExpenses
+
+  return {
+    accomRev, lessonsRev, rentalsRev, taxiRevGross, taxiCosts, taxiMargin,
+    activitiesRev, eventsRev, centerAccessRev, totalRevenue,
+    billedNet, totalPaid, totalDue,
+    instructorCosts, activityCosts, houseRentalCosts, bungalowCosts, totalExpenses,
+    palmeirasNet, netResult,
+  }
+}
+
 /** Format euros */
 export function fmtEur(amount: number): string {
   return `${Math.round(amount).toLocaleString('fr-FR')} €`

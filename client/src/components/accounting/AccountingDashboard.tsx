@@ -2,11 +2,9 @@ import { useState } from 'react'
 import type { SharedAccountingData } from './types'
 import CollectionsModal from './CollectionsModal'
 import {
+  computeSeasonTotals,
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
-  computeAccommodationRevenue, computeLessonsRevenue,
-  computeRentalsRevenue,
-  computeDiningRevenue, computeCenterAccessRevenue,
-  computeInstructorBalance, getInstructorRate, computeTaxiMarginEur, fmtEur, countNights,
+  computeInstructorBalance, fmtEur,
 } from './utils'
 
 interface Props { data: SharedAccountingData; onOpenBooking?: (id: string) => void }
@@ -26,97 +24,33 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
 
 export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   const [showCollections, setShowCollections] = useState(false)
-  const {
-    bookings, payments,
-    diningEvents, houseRentals,
-    lessons, instructors, lessonRateOverrides,
-    taxiTrips, activityBookings, expenses,
-    palmeirasRents, palmeirasReversals, palmeirasEntries,
-  } = data
+  const { bookings, payments, instructors, taxiTrips } = data
 
   const activeBookings = bookings.filter(b => b.status !== 'cancelled')
   const activeIds = new Set(activeBookings.map(b => b.id))
 
-  // ── Revenue (gross — what the center bills/earns) ──────────────────────
-  // Taxi trips & activity bookings attached to a cancelled booking are excluded
-  // from both the revenue AND the cost side (standalone ones are kept).
-  const accomRev        = activeBookings.reduce((s, b) => s + computeAccommodationRevenue(b, data), 0)
-  const lessonsRev      = activeBookings.reduce((s, b) => s + computeLessonsRevenue(b, data), 0)
-  const rentalsRev      = activeBookings.reduce((s, b) => s + computeRentalsRevenue(b, data), 0)
+  // Every headline figure comes from one pure, unit-tested function. The
+  // conventions behind them — cancelled bookings excluded from revenue, taxi
+  // counted as centre margin, instructor cost covering every lesson taught —
+  // are documented on computeSeasonTotals rather than scattered here.
+  const {
+    accomRev, lessonsRev, rentalsRev, taxiRevGross, taxiCosts, taxiMargin,
+    activitiesRev, eventsRev, centerAccessRev, totalRevenue,
+    billedNet, totalPaid, totalDue,
+    instructorCosts, activityCosts, houseRentalCosts, bungalowCosts, totalExpenses,
+    palmeirasNet, netResult,
+  } = computeSeasonTotals(data)
+
   const activeTrips     = taxiTrips.filter(t => t.booking_id === null || activeIds.has(t.booking_id))
   const standaloneTrips = activeTrips.filter(t => t.booking_id === null)
-  const taxisRevGross   = activeTrips.reduce((s, t) => s + t.price_eur, 0)
-  // gui (2026-07-06): in accounting, the taxi figure is the CENTER MARGIN — billed minus
-  // driver pay minus manager commission (MZN→EUR at the global rate). The gross total
-  // stays in the taxi view (TaxiFinanceTab); Billed/Collected/Outstanding stay gross too
-  // (clients owe the gross). Taxi costs are therefore NOT re-subtracted in Net result.
-  // Rounded per trip, like every detailed view, so the dashboard figure is exactly
-  // the sum of the lines it summarises (rounding the aggregate drifted by ~1 €).
-  const taxiMargin = activeTrips.reduce((s, t) => s + computeTaxiMarginEur(t, data.eurMznRate), 0)
-  const taxiCosts  = taxisRevGross - taxiMargin
-  const activeActs      = activityBookings.filter(a => a.booking_id === null || activeIds.has(a.booking_id))
-  // we_pay_provider → client pays us price_client ; provider_pays_us → provider reverses price_provider
-  const activitiesRev   = activeActs.reduce((s, a) => s + (a.payment_flow === 'we_pay_provider' ? a.price_client : a.price_provider), 0)
-  const eventsRev       = computeDiningRevenue(diningEvents)
-  const centerAccessRev = activeBookings.reduce((s, b) => s + computeCenterAccessRevenue(b), 0)
-  const totalRevenue    = accomRev + lessonsRev + rentalsRev + taxiMargin + eventsRev + activitiesRev + centerAccessRev
 
-  // ── Collections (billed on active bookings vs collected) ───────────────
+  // Per-booking detail, for the "who still owes us" list below
   const bookingFinances = activeBookings.map(b => {
     const total     = computeBookingTotal(b, data)
     const discounts = computeBookingDiscounts(b.id, payments)
     const paid      = computeBookingPaid(b.id, payments)
     return { ...b, total, discounts, paid, due: total - discounts - paid }
   })
-  const billedNet = bookingFinances.reduce((s, b) => s + b.total - b.discounts, 0)
-  const totalPaid = bookingFinances.reduce((s, b) => s + b.paid, 0)
-  const totalDue  = billedNet - totalPaid
-
-  // ── Instructor costs ───────────────────────────────────────────────────
-  // Payout scale, flat per hour — never the client price (see getInstructorRate)
-  const instructorCosts = lessons.reduce((sum, l) => {
-    const instr = instructors.find(i => i.id === l.instructor_id)
-    if (!instr) return sum
-    return sum + getInstructorRate(l, instr, lessonRateOverrides) * l.duration_hours
-  }, 0)
-
-  // ── Activity provider costs (we_pay_provider flow only) ────────────────
-  const activityCosts = activeActs.reduce((s, a) => s + (a.payment_flow === 'we_pay_provider' ? a.price_provider : 0), 0)
-
-  // ── Expenses ───────────────────────────────────────────────────────────
-  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0)
-
-  // ── Palmeiras (cash flows: reversals + free entries − rent) ────────────
-  // Bungalow sell price is already inside accommodation revenue; only the cost
-  // paid to the owners is subtracted below. The bungalow margin detail lives
-  // in the Palmeiras tab.
-  const palmRent      = palmeirasRents.reduce((s, r) => s + r.amount, 0)
-  const palmReversals = palmeirasReversals.reduce((s, r) => s + r.net_amount, 0)
-  const palmFreeInc   = palmeirasEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
-  const palmFreeExp   = palmeirasEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
-  const palmeirasNet  = palmReversals + palmFreeInc - palmRent - palmFreeExp
-
-  // ── Bungalow owner costs (cost_per_night × nights, non-cancelled) ──────
-  const bungalows = data.accommodations.filter(a => a.type === 'bungalow')
-  const bungalowRoomIds = new Set(
-    data.rooms.filter(r => bungalows.some(b => b.id === r.accommodation_id)).map(r => r.id)
-  )
-  const bungalowCosts = data.bookingRooms.reduce((sum, br) => {
-    if (!bungalowRoomIds.has(br.room_id)) return sum
-    const bk = data.bookings.find(b => b.id === br.booking_id)
-    if (!bk || bk.status === 'cancelled') return sum
-    const room = data.rooms.find(r => r.id === br.room_id)
-    const acc = bungalows.find(b => b.id === room?.accommodation_id)
-    return sum + (acc?.cost_per_night ?? 0) * countNights(bk.check_in, bk.check_out)
-  }, 0)
-
-  // ── House rental costs ──────────────────────────────────────────────────
-  const houseRentalCosts = houseRentals.reduce((s, r) => s + r.total_cost, 0)
-
-  // ── Net result (taxi costs already netted inside totalRevenue) ─────────
-  const netResult = totalRevenue + palmeirasNet
-    - instructorCosts - houseRentalCosts - bungalowCosts
-    - activityCosts - totalExpenses
 
   // ── Instructor balances ────────────────────────────────────────────────
   const instrBalances = instructors.map(i => ({
@@ -183,7 +117,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-purple-500 mb-1">Taxi margin</p>
           <p className="text-2xl font-bold text-purple-800">{sign(taxiMargin)}</p>
-          <p className="text-xs text-purple-500 mt-1">{fmt(taxisRevGross)} billed − {fmt(taxiCosts)} costs (MZN→€)</p>
+          <p className="text-xs text-purple-500 mt-1">{fmt(taxiRevGross)} billed − {fmt(taxiCosts)} costs (MZN→€)</p>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-red-500 mb-1">Activity providers</p>

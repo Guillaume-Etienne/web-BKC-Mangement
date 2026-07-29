@@ -7,7 +7,7 @@ import {
   computeDiningForBooking, computeDiningRevenue, computeInstructorDiningCharges,
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
   computeInstructorEarned, computeInstructorDebts, computeInstructorPaid, computeInstructorBalance,
-  suggestDeposit, fmtEur, fmtMonth,
+  computeSeasonTotals, suggestDeposit, fmtEur, fmtMonth,
 } from './utils'
 import {
   mkAccommodation, mkActivityBooking, mkAttendee, mkBooking, mkBookingRoom, mkBookingRoomPrice,
@@ -686,7 +686,158 @@ describe('computeBookingTotal', () => {
   })
 })
 
-// ─── 14. Deposit suggestion & formatting ──────────────────────────────────────
+// ─── 14. Season totals (accounting dashboard) ─────────────────────────────────
+
+describe('computeSeasonTotals', () => {
+  /** One booking carrying every revenue source, plus every cost line. */
+  function fullSeason() {
+    const { acc, roomF, rates } = mkHouseSetup(100)
+    return mkData({
+      accommodations: [acc], rooms: [roomF], roomRates: rates,
+      bookings: [mkBooking({ num_center_access: 2, center_access_rate: 5 })],   // 7 nights
+      bookingRooms: [mkBookingRoom({ room_id: 'roomF' })],
+      bookingRoomPrices: [mkBookingRoomPrice({ room_id: 'roomF', price_per_night: 60 })], // 420
+      priceItems: mkLessonPrices(),
+      instructors: [mkInstructor()],
+      lessons: [mkLesson({ type: 'private', duration_hours: 2 })],              // rev 120 / cost 80
+      equipmentRentals: [mkRental({ price: 45 })],                              // 45
+      taxiTrips: [mkTaxiTrip()],                                                // gross 120, margin 24
+      bookingParticipants: [mkParticipant({ id: 'p1' })],
+      diningEvents: [mkDiningEvent({ price_per_person: 12, attendees: [mkAttendee({ person_id: 'p1' })] })], // 12
+      activityBookings: [mkActivityBooking({ payment_flow: 'we_pay_provider', price_client: 100, price_provider: 70 })],
+      payments: [mkPayment({ amount: 300 })],
+      expenses: [{ id: 'e1', date: '2026-11-02', category: 'fuel', amount: 50, description: 'x' }],
+      houseRentals: [{ id: 'h1', accommodation_id: 'accH', start_date: '2026-11-01', end_date: '2026-11-30', total_cost: 100, notes: null }],
+      palmeirasReversals: [{ id: 'pr1', month: '2026-11', gross_amount: 300, percent: 10, net_amount: 30, notes: null }],
+      palmeirasRents: [{ id: 'prt1', month: '2026-11', amount: 20, notes: null }],
+      palmeirasEntries: [
+        { id: 'pe1', month: '2026-11', type: 'income', description: 'misc', amount: 10 },
+        { id: 'pe2', month: '2026-11', type: 'expense', description: 'misc', amount: 5 },
+      ],
+    })
+  }
+
+  it('breaks revenue down by source', () => {
+    const t = computeSeasonTotals(fullSeason())
+    expect(t.accomRev).toBe(420)
+    expect(t.lessonsRev).toBe(120)
+    expect(t.rentalsRev).toBe(45)
+    expect(t.eventsRev).toBe(12)
+    expect(t.activitiesRev).toBe(100)
+    expect(t.centerAccessRev).toBe(70)
+  })
+
+  it('counts taxi as the centre margin, not the gross fare', () => {
+    const t = computeSeasonTotals(fullSeason())
+    expect(t.taxiRevGross).toBe(120)
+    expect(t.taxiMargin).toBe(24)          // 120 − (6000+1000)/73
+    expect(t.taxiCosts).toBe(96)
+    expect(t.totalRevenue).toBe(791)       // includes the 24, not the 120
+  })
+
+  it('bills the client the gross fare while the centre only books the margin', () => {
+    const t = computeSeasonTotals(fullSeason())
+    // The client owes 887, the centre counts 791 — the 96 € gap is the taxi cost,
+    // already netted off, which is why it must not be subtracted again.
+    expect(t.billedNet).toBe(887)
+    expect(t.billedNet - t.totalRevenue).toBe(t.taxiCosts)
+  })
+
+  it('tracks what is collected and what is still due', () => {
+    const t = computeSeasonTotals(fullSeason())
+    expect(t.totalPaid).toBe(300)
+    expect(t.totalDue).toBe(587)
+  })
+
+  it('excludes discounts from the billed total', () => {
+    const data = fullSeason()
+    data.payments = [mkPayment({ amount: 300 }), mkPayment({ id: 'd1', amount: 87, is_discount: true })]
+    const t = computeSeasonTotals(data)
+    expect(t.billedNet).toBe(800)   // 887 − 87
+    expect(t.totalPaid).toBe(300)   // the discount is not money received
+    expect(t.totalDue).toBe(500)
+  })
+
+  it('lists every cost line', () => {
+    const t = computeSeasonTotals(fullSeason())
+    expect(t.instructorCosts).toBe(80)     // 40 × 2, payout scale
+    expect(t.activityCosts).toBe(70)
+    expect(t.houseRentalCosts).toBe(100)
+    expect(t.totalExpenses).toBe(50)
+    expect(t.palmeirasNet).toBe(15)        // 30 + 10 − 20 − 5
+  })
+
+  it('lands the net result on revenue + palmeiras − every cost', () => {
+    const t = computeSeasonTotals(fullSeason())
+    expect(t.netResult).toBe(506)
+    expect(t.netResult).toBe(
+      t.totalRevenue + t.palmeirasNet
+      - t.instructorCosts - t.houseRentalCosts - t.bungalowCosts
+      - t.activityCosts - t.totalExpenses
+    )
+  })
+
+  it('totals zero on an empty season', () => {
+    const t = computeSeasonTotals(mkData())
+    expect(t.totalRevenue).toBe(0)
+    expect(t.netResult).toBe(0)
+    expect(t.totalDue).toBe(0)
+  })
+
+  it('drops the revenue of a cancelled booking but keeps the instructor cost', () => {
+    // Deliberate asymmetry: the lesson was taught, so the instructor is owed.
+    // Such a booking is a genuine loss and the result must show it.
+    const data = mkData({
+      bookings: [mkBooking({ status: 'cancelled' })],
+      priceItems: mkLessonPrices(),
+      instructors: [mkInstructor()],
+      lessons: [mkLesson({ type: 'private', duration_hours: 2 })],
+    })
+    const t = computeSeasonTotals(data)
+    expect(t.lessonsRev).toBe(0)
+    expect(t.instructorCosts).toBe(80)
+    expect(t.netResult).toBe(-80)
+  })
+
+  it('keeps standalone taxi trips but drops those of a cancelled booking', () => {
+    const data = mkData({
+      bookings: [mkBooking({ id: 'dead', status: 'cancelled' })],
+      taxiTrips: [
+        mkTaxiTrip({ id: 't1', booking_id: null }),      // standalone → kept
+        mkTaxiTrip({ id: 't2', booking_id: 'dead' }),    // cancelled → dropped
+      ],
+    })
+    const t = computeSeasonTotals(data)
+    expect(t.taxiRevGross).toBe(120)
+    expect(t.taxiMargin).toBe(24)
+  })
+
+  it('books the provider reversal as revenue when the client pays the provider', () => {
+    const data = mkData({
+      bookings: [mkBooking()],
+      activityBookings: [mkActivityBooking({ payment_flow: 'provider_pays_us', price_client: 100, price_provider: 70 })],
+    })
+    const t = computeSeasonTotals(data)
+    expect(t.activitiesRev).toBe(70)   // their cut comes to us
+    expect(t.activityCosts).toBe(0)    // we never pay them
+  })
+
+  it('subtracts the bungalow owner cost only for live bookings', () => {
+    const bung = mkAccommodation({ id: 'accBu', type: 'bungalow', total_rooms: 1, cost_per_night: 25 })
+    const room = mkRoom({ id: 'roomBu', accommodation_id: 'accBu' })
+    const base = {
+      accommodations: [bung], rooms: [room],
+      roomRates: [mkRoomRate({ room_id: 'roomBu', price_per_night: 35 })],
+      bookingRooms: [mkBookingRoom({ room_id: 'roomBu' })],
+    }
+    const live = computeSeasonTotals(mkData({ ...base, bookings: [mkBooking()] }))
+    expect(live.bungalowCosts).toBe(175)   // 25 × 7 nights
+    const dead = computeSeasonTotals(mkData({ ...base, bookings: [mkBooking({ status: 'cancelled' })] }))
+    expect(dead.bungalowCosts).toBe(0)
+  })
+})
+
+// ─── 15. Deposit suggestion & formatting ──────────────────────────────────────
 
 describe('suggestDeposit', () => {
   it('suggests 30% of the total', () => {
