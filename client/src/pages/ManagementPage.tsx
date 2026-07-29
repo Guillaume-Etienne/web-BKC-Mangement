@@ -339,9 +339,9 @@ export default function ManagementPage() {
                     <tr>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Name</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Specialties</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Private €/h</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Group €/h</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Supervision €/h</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Pay · private €/h</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Pay · group €/h</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Pay · supervision €/h</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">Email</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
                     </tr>
@@ -378,9 +378,9 @@ export default function ManagementPage() {
                       </div>
                     </div>
                     <div className="text-sm text-gray-600 space-y-1 mb-3">
-                      <p>💰 Private: {instructor.rate_private}€/h</p>
-                      <p>👥 Group: {instructor.rate_group}€/h</p>
-                      <p>🎓 Supervision: {instructor.rate_supervision}€/h</p>
+                      <p>💰 Pay · private: {instructor.rate_private}€/h</p>
+                      <p>👥 Pay · group: {instructor.rate_group}€/h</p>
+                      <p>🎓 Pay · supervision: {instructor.rate_supervision}€/h</p>
                     </div>
                     <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => openInstructorForm(instructor)}
@@ -423,7 +423,7 @@ export default function ManagementPage() {
                       <div><p className="text-sm font-medium text-gray-600">Phone</p><p className="text-gray-800">{selectedInstructor.phone || '-'}</p></div>
                       <div><p className="text-sm font-medium text-gray-600">Specialties</p><p className="text-gray-800">{selectedInstructor.specialties.length > 0 ? selectedInstructor.specialties.join(', ') : '-'}</p></div>
                       <div className="border-t pt-4">
-                        <p className="text-sm font-medium text-gray-600">Rates</p>
+                        <p className="text-sm font-medium text-gray-600">Pay rates <span className="font-normal text-gray-400">— what the centre pays, not what the client is billed</span></p>
                         <div className="text-sm text-gray-800 space-y-1 mt-2">
                           <p>Private: {selectedInstructor.rate_private}€/h</p>
                           <p>Group: {selectedInstructor.rate_group}€/h</p>
@@ -985,21 +985,25 @@ export default function ManagementPage() {
                     ))}
                   </div>
                 </div>
+                <p className="text-xs text-gray-500 -mb-2">
+                  What this instructor <strong>earns</strong> per hour — 0 is fine for an owner
+                  teaching their own guests. What the client pays is set in the Pricing tab.
+                </p>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Private €/h</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pay · private €/h</label>
                     <input type="number" value={instructorFormData.rate_private || ''}
                       onChange={(e) => setInstructorFormData({ ...instructorFormData, rate_private: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Group €/h</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pay · group €/h</label>
                     <input type="number" value={instructorFormData.rate_group || ''}
                       onChange={(e) => setInstructorFormData({ ...instructorFormData, rate_group: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Supervision €/h</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pay · supervision €/h</label>
                     <input type="number" value={instructorFormData.rate_supervision || ''}
                       onChange={(e) => setInstructorFormData({ ...instructorFormData, rate_supervision: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />

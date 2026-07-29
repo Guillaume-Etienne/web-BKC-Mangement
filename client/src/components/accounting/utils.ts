@@ -78,7 +78,9 @@ export function computeExternalAccommodationCost(booking: Booking, data: SharedA
  *  currently configured in Options → Pricing. This is what the CLIENT pays and
  *  has nothing to do with what the instructor earns (see getInstructorRate). */
 export function getLessonClientRate(lesson: Lesson, priceItems: PriceItem[]): number {
-  if (lesson.price_per_hour !== null) return lesson.price_per_hour
+  // Loose != on purpose: before the migration lands, rows come back without the
+  // column at all, and `undefined !== null` would return undefined → NaN amounts.
+  if (lesson.price_per_hour != null) return lesson.price_per_hour
   return priceItems.find(p => p.lesson_type === lesson.type)?.price ?? 0
 }
 

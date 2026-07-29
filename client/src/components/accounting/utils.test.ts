@@ -15,6 +15,7 @@ import {
   mkInstructor, mkInstructorDebt, mkInstructorPayment, mkLesson, mkLessonOverride, mkLessonPrices,
   mkParticipant, mkPayment, mkRental, mkRoom, mkRoomRate, mkTaxiTrip,
 } from './utils.fixtures'
+import type { Lesson } from '../../types/database'
 
 /** fr-FR / en-GB use narrow no-break spaces — normalise before comparing. */
 const norm = (s: string) => s.replace(/\s/gu, ' ')
@@ -305,6 +306,12 @@ describe('getLessonClientRate', () => {
   })
   it('returns 0 when the type has no price row', () => {
     expect(getLessonClientRate(mkLesson({ type: 'group' }), [])).toBe(0)
+  })
+  it('survives a row loaded before the migration added the column', () => {
+    // Deploy lands before the migration: the column is absent, not null
+    const legacy = { ...mkLesson(), price_per_hour: undefined } as unknown as Lesson
+    expect(getLessonClientRate(legacy, priceItems)).toBe(60)
+    expect(Number.isNaN(getLessonClientRate(legacy, priceItems))).toBe(false)
   })
 })
 
