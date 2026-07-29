@@ -48,16 +48,13 @@ export function computeAccommodationRevenue(booking: Booking, data: SharedAccoun
   return ownRooms + extAccomm
 }
 
-/** External accommodation cost for a booking (what we pay to the provider) */
+/** External accommodation cost for a booking (what we pay the provider).
+ *  Uses the booking's own cost snapshot — same rule as the sell price — so that
+ *  changing the master rate never rewrites the cost of past stays. */
 export function computeExternalAccommodationCost(booking: Booking, data: SharedAccountingData): number {
   return data.externalAccommodationBkgs
     .filter(e => e.booking_id === booking.id)
-    .reduce((sum, e) => {
-      const acc = data.externalAccommodations.find(a => a.id === e.external_accommodation_id)
-      if (!acc) return sum
-      const n = countNights(e.check_in, e.check_out)
-      return sum + (acc.cost_per_night ?? 0) * n
-    }, 0)
+    .reduce((sum, e) => sum + e.cost_per_night * countNights(e.check_in, e.check_out), 0)
 }
 
 /** Lessons revenue for a booking (respects lesson_rate_overrides).

@@ -55,7 +55,8 @@
       "Bash(echo \"=== TEST: anon SELECT document_templates \\(attendu: erreur permission, PAS []\\) ===\")",
       "Bash(echo \"=== PROD: anon SELECT document_templates \\(attendu: erreur permission, PAS []\\) ===\")",
       "Bash(echo \"=== TEST: anon INSERT \\(attendu: refus\\) ===\")",
-      "Bash(echo \"=== PROD: anon INSERT \\(attendu: refus\\) ===\")"
+      "Bash(echo \"=== PROD: anon INSERT \\(attendu: refus\\) ===\")",
+      "Bash(npm test *)"
     ]
   }
 }
