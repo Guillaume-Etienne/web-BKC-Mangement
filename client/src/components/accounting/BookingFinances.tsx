@@ -3,7 +3,7 @@ import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { Payment, PaymentMethod, Booking, EquipmentRental, Lesson, LessonRateOverride } from '../../types/database'
 import {
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
-  computeAccommodationRevenue, computeLessonsRevenue, computeRentalsRevenue,
+  computeAccommodationRevenue, computeExternalAccommodationCost, computeLessonsRevenue, computeRentalsRevenue,
   computeTaxiRevenue, computeActivityRevenueForBooking, computeCenterAccessRevenue,
   computeDiningForBooking, getLessonRate, computeStandaloneTaxiRevenue,
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate,
@@ -329,6 +329,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
 
   // Breakdown lines
   const accommodationRev = computeAccommodationRevenue(b, data)
+  void computeExternalAccommodationCost(b, data) // cost display is inline per external acc
   const lessonsRev       = computeLessonsRevenue(b, data)
   const rentalsRev       = computeRentalsRevenue(b, data)
   const taxiRev          = computeTaxiRevenue(b, data)
@@ -437,11 +438,33 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                 })}
                 {extAccomm.map(e => {
                   const acc = data.externalAccommodations.find(a => a.id === e.external_accommodation_id)
+                  if (!acc) return null
                   const n = countNights(e.check_in, e.check_out)
+                  const revenue = e.sell_price_per_night * n
+                  const cost = (acc.cost_per_night ?? 0) * n
+                  const margin = revenue - cost
                   return (
-                    <div key={e.id} className="flex justify-between text-xs text-gray-500">
-                      <span>{acc?.name ?? 'External'} × {n}N @ {fmtEur(e.sell_price_per_night)}/N</span>
-                      <span>{fmtEur(e.sell_price_per_night * n)}</span>
+                    <div key={e.id} className="space-y-0.5">
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>{acc.name} × {n}N</span>
+                        <span />
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-400 pl-4">
+                        <span>Revenue @ {fmtEur(e.sell_price_per_night)}/N</span>
+                        <span>{fmtEur(revenue)}</span>
+                      </div>
+                      {cost > 0 && (
+                        <>
+                          <div className="flex justify-between text-xs text-gray-400 pl-4">
+                            <span>Cost @ {fmtEur(acc.cost_per_night)}/N</span>
+                            <span className="text-red-400">−{fmtEur(cost)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs font-medium pl-4">
+                            <span className="text-emerald-600">Margin</span>
+                            <span className="text-emerald-600">{fmtEur(margin)}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )
                 })}

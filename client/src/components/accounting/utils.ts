@@ -48,6 +48,18 @@ export function computeAccommodationRevenue(booking: Booking, data: SharedAccoun
   return ownRooms + extAccomm
 }
 
+/** External accommodation cost for a booking (what we pay to the provider) */
+export function computeExternalAccommodationCost(booking: Booking, data: SharedAccountingData): number {
+  return data.externalAccommodationBkgs
+    .filter(e => e.booking_id === booking.id)
+    .reduce((sum, e) => {
+      const acc = data.externalAccommodations.find(a => a.id === e.external_accommodation_id)
+      if (!acc) return sum
+      const n = countNights(e.check_in, e.check_out)
+      return sum + (acc.cost_per_night ?? 0) * n
+    }, 0)
+}
+
 /** Lessons revenue for a booking (respects lesson_rate_overrides).
  *  Group lessons: rate is per person, so multiply by participant count. */
 export function computeLessonsRevenue(booking: Booking, data: SharedAccountingData): number {

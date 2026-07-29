@@ -36,7 +36,26 @@
       "Bash(nslookup -type=TXT _dmarc.bilenekite.com 8.8.8.8)",
       "Bash(nslookup -type=CNAME resend._domainkey.bilenekite.com 8.8.8.8)",
       "Bash(nslookup -type=MX bilenekite.com 8.8.8.8)",
-      "PowerShell(try { Resolve-DnsName 'bilenekite.com' -Type SOA -Server 8.8.8.8 -ErrorAction Stop | Where-Object {$_.Type -eq 'SOA'} | Select-Object PrimaryServer, @{n='MinimumTTL_negcache_sec';e={$_.DefaultTTL}}, @{n='MinimumTTL_minutes';e={[math]::Round\\($_.DefaultTTL/60,0\\)}} | Format-List } catch { \"ERREUR: $_\" })"
+      "PowerShell(try { Resolve-DnsName 'bilenekite.com' -Type SOA -Server 8.8.8.8 -ErrorAction Stop | Where-Object {$_.Type -eq 'SOA'} | Select-Object PrimaryServer, @{n='MinimumTTL_negcache_sec';e={$_.DefaultTTL}}, @{n='MinimumTTL_minutes';e={[math]::Round\\($_.DefaultTTL/60,0\\)}} | Format-List } catch { \"ERREUR: $_\" })",
+      "PowerShell(npm run *)",
+      "PowerShell(git *)",
+      "Bash(supabase --version)",
+      "Bash(supabase projects *)",
+      "PowerShell($c = Get-Command supabase -ErrorAction SilentlyContinue; if \\($c\\) { \"supabase: $\\($c.Source\\)\"; supabase --version } else { \"supabase not on PATH\" }; \"---scoop---\"; if \\(Test-Path \"$env:USERPROFILE\\\\scoop\\\\shims\\\\supabase.exe\"\\) { \"scoop has it\" } else { \"no scoop shim\" })",
+      "PowerShell(gh run *)",
+      "Bash(git add *)",
+      "Bash(git rm *)",
+      "Bash(git -C /c/gui/web/2026/Claude-Code-Projet status -sb)",
+      "Bash(cd *)",
+      "PowerShell(Get-ChildItem -Force supabase\\\\.temp; Write-Output '---APPDATA---'; if \\(Test-Path \"$env:APPDATA\\\\supabase\"\\) { Get-ChildItem -Force \"$env:APPDATA\\\\supabase\" } else { Write-Output 'absent' }; Write-Output '---HOME---'; if \\(Test-Path \"$env:USERPROFILE\\\\.supabase\"\\) { Get-ChildItem -Force \"$env:USERPROFILE\\\\.supabase\" } else { Write-Output 'absent' })",
+      "Skill(run)",
+      "Bash(python -m http.server 8123)",
+      "Bash(netstat -ano)",
+      "PowerShell(Stop-Process *)",
+      "Bash(echo \"=== TEST: anon SELECT document_templates \\(attendu: erreur permission, PAS []\\) ===\")",
+      "Bash(echo \"=== PROD: anon SELECT document_templates \\(attendu: erreur permission, PAS []\\) ===\")",
+      "Bash(echo \"=== TEST: anon INSERT \\(attendu: refus\\) ===\")",
+      "Bash(echo \"=== PROD: anon INSERT \\(attendu: refus\\) ===\")"
     ]
   }
 }

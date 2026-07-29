@@ -272,7 +272,7 @@ interface WizardProps {
   editingBookingId: string | null
   isEditing: boolean
   onCancel: () => void
-  onSave: (data: WizardData, isNew: boolean) => void
+  onSave: (data: WizardData, isNew: boolean, editingId?: string | null) => void
 }
 
 function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, houseRentals, roomRates, drivers, bookings, bookingRooms, editingBookingId, isEditing, onCancel, onSave }: WizardProps) {
@@ -1003,7 +1003,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
               Next →
             </button>
           ) : (
-            <button type="button" onClick={() => onSave(d, !isEditing)}
+            <button type="button" onClick={() => onSave(d, !isEditing, editingBookingId)}
               className="px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors">
               ✓ Save booking
             </button>
@@ -1114,15 +1114,15 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     if (b) { openEdit(b); onEditOpened?.() }
   }, [initialEditBookingId, bookings, loading])
 
-  async function handleSave(data: WizardData, isNew: boolean) {
+  async function handleSave(data: WizardData, isNew: boolean, editingId: string | null = null) {
     setSaving(true)
     let clientId = data.client_id
 
     // 0. Check for date conflicts on rooms
     const hasConflict = data.room_ids.some(roomId => {
       const existingBookings = bookings.filter(b =>
-        b.id !== data.booking_id && // exclude current booking if editing
-        b.booking_rooms.some(br => br.room_id === roomId)
+        b.id !== editingId && // exclude current booking if editing
+        bookingRooms.some(br => br.booking_id === b.id && br.room_id === roomId)
       )
       return existingBookings.some(b => {
         const checkIn = new Date(data.check_in).getTime()
