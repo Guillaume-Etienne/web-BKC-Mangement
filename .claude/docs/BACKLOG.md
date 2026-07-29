@@ -18,7 +18,11 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
-| `2026-07-29_lesson_pricing.sql` | `price_items.lesson_type` + `lessons.price_per_hour` + REVOKE anon sur `instructors.rate_*` et `lesson_rate_overrides` | ⬜ | ⬜ |
+| `2026-07-29_lesson_pricing.sql` | `price_items.lesson_type` + `lessons.price_per_hour` + REVOKE anon sur `instructors.rate_*` et `lesson_rate_overrides` | ✅ 2026-07-29 | ⬜ **à faire** |
+
+**TEST : appliquée et vérifiée le 2026-07-29** — les 4 contrôles verts (tarifs rattachés,
+zéro orpheline, colonne snapshot présente, `rate_private` en anon → 42501 et
+`id,first_name` → 200/0 ligne). Revenu leçons passé de 687 € à **1 052 €** comme prédit.
 
 ### ⛔ Ne PAS déployer le code sans passer la migration
 
@@ -47,6 +51,44 @@ aujourd'hui, donc la fenêtre est sans danger tant qu'aucune leçon n'y est cré
 **0**, vérifier Rémi et Tere (encore aux défauts 50/35/25 — seul Pierrot est renseigné).
 
 Contexte complet : `.claude/docs/LESSON_PRICING.md`.
+
+---
+
+## 🎯 OÙ ON EN EST — chantier fiabilité compta (2026-07-29)
+
+**Plan convenu avec gui, dans cet ordre.** Les étapes 1 et 2 sont faites.
+
+1. ✅ **Faire atterrir la tarification des leçons** — migration TEST passée et vérifiée,
+   code committé. ⬜ **Reste : migration PROD**, puis le push, puis corriger la paie
+   (Options → Instructors : gui et sa compagne à **0**, vérifier Rémi et Tere qui portent
+   encore les défauts 50/35/25 — seul Pierrot est renseigné).
+2. ✅ **Extraire les agrégats** dashboard + CashFlow en fonctions pures et les tester.
+   Vérifié iso-comportement sur TEST (4 413 € / +891 €). Détail : `TEST_SUITE_ACCOUNTING.md`.
+3. ⬜ **Trancher les 5 décisions métier** en attente (`TEST_SUITE_ACCOUNTING.md`, section
+   « Comportements encodés à confirmer »). Important : les tests ont **figé le comportement
+   actuel**, donc si l'un est faux on a verrouillé une erreur.
+4. ⬜ **Tests côté base** : `handleSave` (auto-création snapshots / paiements / `taxi_trips`)
+   et smoke des liens partagés. Débloqué depuis que la session TEST tient.
+5. ⬜ **Locations : lien explicite `rental_type`** sur `price_items` — même piège de
+   rapprochement par nom que les leçons (`LessonWeekView` matche `p.name.toLowerCase()`,
+   avec des prix en dur en repli). Peu grave car le prix est figé sur `equipment_rentals.price`,
+   donc seules les **futures** locations seraient mal tarifées. **À grouper avec la prochaine
+   migration**, pas à faire seule — décision explicite de gui de ne pas court-circuiter.
+
+**Écarté volontairement** (rediscuter seulement si le problème se manifeste) : contrainte
+`EXCLUDE` / trigger en base pour doubler les garde-fous applicatifs (conflit de dates, refus
+d'annulation) ; normalisation des convives de repas (`dining_events.attendees` est du JSON,
+`person_id` sans FK → repas orphelins si un participant est supprimé).
+
+**État des tests** : `cd client && npm test` → **133 tests, ~0,7 s**. `npm run build`
+type-checke aussi les tests. Deux suites : `utils.test.ts` (couche de calcul + agrégats
+saison) et `cashFlowUtils.test.ts`.
+
+**Corrigé pendant ce chantier** (tout committé) : conflit de dates au save, coût des
+hébergements externes lu sur le snapshot et non le référentiel, override sur repas gratuit
+(garde-fou dupliqué à 5 endroits), arrondi taxi du dashboard désaligné du détail, refus
+d'annuler une résa avec leçons/locations, `NaN` possible avant migration, fuite des salaires
+moniteurs via les liens partagés, `as any` de `DocumentsPage` qui masquait un crash.
 
 ---
 
