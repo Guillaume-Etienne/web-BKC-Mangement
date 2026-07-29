@@ -5,7 +5,7 @@ import {
   computeInstructorEarned, computeInstructorDebts,
   computeInstructorPaid, computeInstructorBalance,
   computeInstructorDiningCharges,
-  getLessonRate, fmtEur,
+  getInstructorRate, fmtEur,
 } from './utils'
 
 interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
@@ -233,7 +233,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
                 : l.type === 'group' ? instructor.rate_group
                 : instructor.rate_supervision
               const override = data.lessonRateOverrides.find(o => o.lesson_id === l.id)
-              const effectiveRate = getLessonRate(l, instructor, data.lessonRateOverrides)
+              const effectiveRate = getInstructorRate(l, instructor, data.lessonRateOverrides)
               const total = effectiveRate * l.duration_hours
               const isOverriding = overridingLesson === l.id
               const clientNames = (l.participant_ids ?? [])

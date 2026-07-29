@@ -4,10 +4,11 @@
 import type {
   Accommodation, ActivityBooking, Booking, BookingParticipant, BookingRoom, BookingRoomPrice,
   DiningEvent, EquipmentRental, EventAttendee, ExternalAccommodation, ExternalAccommodationBooking,
-  Instructor, InstructorDebt, InstructorPayment, Lesson, LessonRateOverride,
+  Instructor, InstructorDebt, InstructorPayment, Lesson, LessonRateOverride, LessonType, PriceItem,
   Payment, Room, RoomRate, TaxiTrip,
 } from '../../types/database'
 import type { SharedAccountingData } from './types'
+import { emptyAccountingData } from './utils'
 
 export function mkAccommodation(over: Partial<Accommodation> = {}): Accommodation {
   return { id: 'acc1', name: 'House 1', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null, ...over }
@@ -72,9 +73,18 @@ export function mkLesson(over: Partial<Lesson> = {}): Lesson {
   return {
     id: 'les1', booking_id: 'bk1', instructor_id: 'ins1', participant_ids: ['p1'],
     date: '2026-11-02', start_time: '09:00', duration_hours: 2, type: 'private',
-    notes: null, kite_id: null, board_id: null,
+    notes: null, kite_id: null, board_id: null, price_per_hour: null,
     ...over,
   }
+}
+
+/** Options → Pricing rows for the three lesson types (PROD values). */
+export function mkLessonPrices(over: Partial<Record<LessonType, number>> = {}): PriceItem[] {
+  const base: Record<LessonType, number> = { private: 60, group: 36, supervision: 40, ...over }
+  return (Object.keys(base) as LessonType[]).map(t => ({
+    id: `pi_${t}`, category: 'lesson', name: t, description: null,
+    price: base[t], unit: '€/hour', lesson_type: t,
+  }))
 }
 
 export function mkLessonOverride(over: Partial<LessonRateOverride> = {}): LessonRateOverride {
@@ -161,17 +171,7 @@ export function mkActivityBooking(over: Partial<ActivityBooking> = {}): Activity
 
 /** Empty accounting dataset — spread overrides on top for each scenario. */
 export function mkData(over: Partial<SharedAccountingData> = {}): SharedAccountingData {
-  return {
-    accommodations: [], bookingParticipants: [], houseRentals: [], bookings: [], clients: [],
-    rooms: [], bookingRooms: [], bookingRoomPrices: [], roomRates: [],
-    externalAccommodationBkgs: [], externalAccommodations: [], diningEvents: [],
-    lessons: [], instructors: [], equipment: [], equipmentRentals: [],
-    taxiTrips: [], taxiManagerPayments: [], eurMznRate: 73, seasons: [],
-    payments: [], instructorDebts: [], instructorPayments: [], lessonRateOverrides: [],
-    expenses: [], palmeirasRents: [], palmeirasReversals: [], palmeirasEntries: [],
-    activityBookings: [], activityPayments: [],
-    ...over,
-  }
+  return { ...emptyAccountingData(), eurMznRate: 73, ...over }
 }
 
 /** A two-room house (F + B) with base rates and a full-house rate. */

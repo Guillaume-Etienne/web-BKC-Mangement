@@ -6,7 +6,7 @@ import {
   computeAccommodationRevenue, computeLessonsRevenue,
   computeRentalsRevenue,
   computeDiningRevenue, computeCenterAccessRevenue,
-  computeInstructorBalance, fmtEur, countNights,
+  computeInstructorBalance, getInstructorRate, fmtEur, countNights,
 } from './utils'
 
 interface Props { data: SharedAccountingData; onOpenBooking?: (id: string) => void }
@@ -71,15 +71,11 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   const totalDue  = billedNet - totalPaid
 
   // ── Instructor costs ───────────────────────────────────────────────────
+  // Payout scale, flat per hour — never the client price (see getInstructorRate)
   const instructorCosts = lessons.reduce((sum, l) => {
     const instr = instructors.find(i => i.id === l.instructor_id)
     if (!instr) return sum
-    const override = lessonRateOverrides.find(o => o.lesson_id === l.id)
-    const rate = override ? override.rate
-      : l.type === 'private' ? instr.rate_private
-      : l.type === 'group'   ? instr.rate_group
-      : instr.rate_supervision
-    return sum + rate * l.duration_hours
+    return sum + getInstructorRate(l, instr, lessonRateOverrides) * l.duration_hours
   }, 0)
 
   // ── Activity provider costs (we_pay_provider flow only) ────────────────

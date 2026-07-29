@@ -1,6 +1,23 @@
-import type { Booking, BookingParticipant, Payment, Lesson, Instructor, LessonRateOverride, DiningEvent } from '../../types/database'
+import type { Booking, BookingParticipant, Payment, Lesson, Instructor, LessonRateOverride, DiningEvent, PriceItem } from '../../types/database'
 import type { SharedAccountingData } from './types'
 import { getBaseNightlyRate } from '../../utils/roomPricing'
+
+/** An accounting dataset with every collection empty.
+ *  Spread a partial on top when a caller only needs a few slices — that keeps the
+ *  compiler in play instead of casting to `any` and discovering a missing field
+ *  as a runtime crash. */
+export function emptyAccountingData(): SharedAccountingData {
+  return {
+    accommodations: [], bookingParticipants: [], houseRentals: [], bookings: [], clients: [],
+    rooms: [], bookingRooms: [], bookingRoomPrices: [], roomRates: [],
+    externalAccommodationBkgs: [], externalAccommodations: [], diningEvents: [],
+    lessons: [], instructors: [], priceItems: [], equipment: [], equipmentRentals: [],
+    taxiTrips: [], taxiManagerPayments: [], eurMznRate: 65, seasons: [],
+    payments: [], instructorDebts: [], instructorPayments: [], lessonRateOverrides: [],
+    expenses: [], palmeirasRents: [], palmeirasReversals: [], palmeirasEntries: [],
+    activityBookings: [], activityPayments: [],
+  }
+}
 
 /** Nightly rate for a room within a booking (snapshot → base rate fallback).
  *  Without the fallback, any booking saved before booking_room_prices existed —
@@ -57,15 +74,21 @@ export function computeExternalAccommodationCost(booking: Booking, data: SharedA
     .reduce((sum, e) => sum + e.cost_per_night * countNights(e.check_in, e.check_out), 0)
 }
 
-/** Lessons revenue for a booking (respects lesson_rate_overrides).
- *  Group lessons: rate is per person, so multiply by participant count. */
+/** Client price €/h for a lesson: the snapshot taken at creation, else the rate
+ *  currently configured in Options → Pricing. This is what the CLIENT pays and
+ *  has nothing to do with what the instructor earns (see getInstructorRate). */
+export function getLessonClientRate(lesson: Lesson, priceItems: PriceItem[]): number {
+  if (lesson.price_per_hour !== null) return lesson.price_per_hour
+  return priceItems.find(p => p.lesson_type === lesson.type)?.price ?? 0
+}
+
+/** Lessons revenue for a booking.
+ *  Group lessons are priced per head, so multiply by participant count. */
 export function computeLessonsRevenue(booking: Booking, data: SharedAccountingData): number {
   return data.lessons
     .filter(l => l.booking_id === booking.id)
     .reduce((sum, l) => {
-      const instr = data.instructors.find(i => i.id === l.instructor_id)
-      if (!instr) return sum
-      const base = getLessonRate(l, instr, data.lessonRateOverrides) * l.duration_hours
+      const base = getLessonClientRate(l, data.priceItems) * l.duration_hours
       return sum + (l.type === 'group' ? base * l.participant_ids.length : base)
     }, 0)
 }
@@ -144,8 +167,10 @@ export function computeBookingPaid(bookingId: string, payments: Payment[]): numb
     .reduce((sum, p) => sum + p.amount, 0)
 }
 
-/** Effective rate for a lesson (override or base) */
-export function getLessonRate(
+/** Payout rate €/h for a lesson — what the INSTRUCTOR earns, from their own
+ *  Options → Instructors rates (may legitimately be 0 for the owners), or the
+ *  per-lesson override when one was recorded. Never the client price. */
+export function getInstructorRate(
   lesson: Lesson,
   instructor: Instructor,
   overrides: LessonRateOverride[]
@@ -157,20 +182,20 @@ export function getLessonRate(
     : instructor.rate_supervision
 }
 
-/** Total earned by an instructor (lessons × rates, after overrides).
+/** Total earned by an instructor (lessons × payout rates, after overrides).
+ *  Flat per hour: a group lesson pays the same whatever the number of students
+ *  (the centre keeps the difference — the client is billed per head).
  *  Includes ALL lessons regardless of booking_id — day activities and
  *  scheduled trips (no booking) are center revenue, not booking-specific. */
 export function computeInstructorEarned(
   instructorId: string,
   data: SharedAccountingData
 ): number {
+  const instr = data.instructors.find(i => i.id === instructorId)
+  if (!instr) return 0
   return data.lessons
     .filter(l => l.instructor_id === instructorId)
-    .reduce((sum, l) => {
-      const instr = data.instructors.find(i => i.id === instructorId)
-      if (!instr) return sum
-      return sum + getLessonRate(l, instr, data.lessonRateOverrides) * l.duration_hours
-    }, 0)
+    .reduce((sum, l) => sum + getInstructorRate(l, instr, data.lessonRateOverrides) * l.duration_hours, 0)
 }
 
 /** Total debts owed by an instructor to the centre */

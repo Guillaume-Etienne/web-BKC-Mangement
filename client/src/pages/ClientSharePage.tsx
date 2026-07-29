@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import type {
   Booking, Client, BookingRoom, BookingRoomPrice,
   Room, Accommodation, Payment, Lesson, Instructor,
-  LessonRateOverride, EquipmentRental, TaxiTrip,
+  EquipmentRental, TaxiTrip,
   DiningEvent, BookingParticipant,
   ExternalAccommodationBooking, ExternalAccommodation,
   ActivityBooking,
@@ -44,12 +44,10 @@ function roomLabel(room: Room, accom: Accommodation): string {
   return accom.type === 'house' ? `${house}/${side}` : accom.name
 }
 
-function getLessonRate(l: Lesson, instr: Instructor, overrides: LessonRateOverride[]): number {
-  const ov = overrides.find(o => o.lesson_id === l.id)
-  if (ov) return ov.rate
-  return l.type === 'private' ? instr.rate_private
-    : l.type === 'group' ? instr.rate_group
-    : instr.rate_supervision
+/** Client price €/h for a lesson — the snapshot taken when the lesson was booked.
+ *  Instructor payout rates are deliberately NOT readable from a share link. */
+function getLessonRate(l: Lesson): number {
+  return l.price_per_hour ?? 0
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -86,7 +84,6 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const [payments,       setPayments]       = useState<Payment[]>([])
   const [lessons,        setLessons]        = useState<Lesson[]>([])
   const [instructors,    setInstructors]    = useState<Instructor[]>([])
-  const [lessonOverrides,setLessonOverrides]= useState<LessonRateOverride[]>([])
   const [rentals,        setRentals]        = useState<EquipmentRental[]>([])
   const [taxis,          setTaxis]          = useState<TaxiTrip[]>([])
   const [diningEvents,   setDiningEvents]   = useState<DiningEvent[]>([])
@@ -126,9 +123,9 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       supabase.from('accommodations').select('*'),
       supabase.from('payments').select('*').eq('booking_id', id).order('date'),
       supabase.from('lessons').select('*').eq('booking_id', id).order('date'),
-      // Column-restricted for anon: identity + rates only (see security-rls.md, Lot C)
-      supabase.from('instructors').select('id, first_name, last_name, rate_private, rate_group, rate_supervision'),
-      supabase.from('lesson_rate_overrides').select('*'),
+      // Column-restricted for anon: identity ONLY. The rate_* columns are the
+      // instructor payout scale and are no longer readable from a share link.
+      supabase.from('instructors').select('id, first_name, last_name'),
       supabase.from('equipment_rentals').select('*').eq('booking_id', id).order('date'),
       supabase.from('taxi_trips').select('*').eq('booking_id', id).order('date'),
       supabase.from('dining_events').select('*'),
@@ -138,7 +135,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       supabase.from('activity_bookings').select('*').eq('booking_id', id).order('date'),
     ]).then(([
       bkgRoomsRes, pricesRes, roomsRes, acomsRes, paymentsRes,
-      lessonsRes, instrRes, overridesRes, rentalsRes, taxisRes,
+      lessonsRes, instrRes, rentalsRes, taxisRes,
       diningRes, partRes, extBkgRes, extAccomRes, actBkgRes,
     ]) => {
       setBkgRooms(bkgRoomsRes.data ?? [])
@@ -147,9 +144,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       setAccoms(acomsRes.data ?? [])
       setPayments(paymentsRes.data ?? [])
       setLessons(lessonsRes.data ?? [])
-      // anon only receives identity + rates (column-restricted); the page uses only those
+      // anon only receives id/first_name/last_name (column-restricted); the page uses only those
       setInstructors((instrRes.data ?? []) as unknown as Instructor[])
-      setLessonOverrides(overridesRes.data ?? [])
       setRentals(rentalsRes.data ?? [])
       setTaxis(taxisRes.data ?? [])
       setDiningEvents(diningRes.data ?? [])
@@ -225,7 +221,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   // Lessons
   const lessonRows = lessons.map(l => {
     const instr = instructors.find(i => i.id === l.instructor_id)
-    const rate = instr ? getLessonRate(l, instr, lessonOverrides) : 0
+    const rate = getLessonRate(l)
     return {
       id: l.id,
       date: l.date,
@@ -556,9 +552,12 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             for (const l of lessons) {
               if (!l.participant_ids.includes(part.id)) continue
               const instr = instructors.find(i => i.id === l.instructor_id)
-              if (!instr) continue
-              const rate = getLessonRate(l, instr, lessonOverrides)
-              lines.push({ date: l.date, label: `${l.type} lesson ${l.duration_hours}h (${instr.first_name})`, amount: rate * l.duration_hours })
+              const rate = getLessonRate(l)
+              lines.push({
+                date: l.date,
+                label: `${l.type} lesson ${l.duration_hours}h${instr ? ` (${instr.first_name})` : ''}`,
+                amount: rate * l.duration_hours,
+              })
             }
 
             for (const r of rentals) {

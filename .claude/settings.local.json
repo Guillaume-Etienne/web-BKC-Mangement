@@ -57,7 +57,9 @@
       "Bash(echo \"=== TEST: anon INSERT \\(attendu: refus\\) ===\")",
       "Bash(echo \"=== PROD: anon INSERT \\(attendu: refus\\) ===\")",
       "Bash(npm test *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(npx tsc *)",
+      "Bash(node -e ' *)"
     ]
   }
 }

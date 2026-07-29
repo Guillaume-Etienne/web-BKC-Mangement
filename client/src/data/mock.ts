@@ -59,32 +59,32 @@ export const mockInstructors: Instructor[] = [
 ]
 
 export const mockLessons: Lesson[] = [
-  { id: 'l1', booking_id: 'bk1', instructor_id: 'i1', participant_ids: ['c1'],            date: '2026-02-05', start_time: '09:00', duration_hours: 1,   type: 'private',    notes: null,              kite_id: 'eq1', board_id: 'eq4' },
-  { id: 'l2', booking_id: 'bk1', instructor_id: 'i2', participant_ids: ['c1'],            date: '2026-02-07', start_time: '14:00', duration_hours: 1.5, type: 'private',    notes: 'Vagues!',         kite_id: 'eq2', board_id: null  },
-  { id: 'l3', booking_id: 'bk1', instructor_id: 'i1', participant_ids: ['c1','c2','c3'],  date: '2026-02-10', start_time: '10:00', duration_hours: 1,   type: 'group',      notes: null,              kite_id: null,  board_id: null  },
-  { id: 'l4', booking_id: 'bk2', instructor_id: 'i3', participant_ids: ['c2'],            date: '2026-02-12', start_time: '15:00', duration_hours: 2,   type: 'private',    notes: 'Freestyle basics',kite_id: 'eq3', board_id: 'eq6' },
-  { id: 'l5', booking_id: 'bk3', instructor_id: 'i2', participant_ids: ['c3'],            date: '2026-02-18', start_time: '09:30', duration_hours: 1.5, type: 'supervision',notes: null,              kite_id: 'eq1', board_id: 'eq5' },
-  { id: 'l6', booking_id: 'bk3', instructor_id: 'i1', participant_ids: ['c1','c3'],       date: '2026-02-20', start_time: '16:00', duration_hours: 1,   type: 'group',      notes: null,              kite_id: null,  board_id: 'eq4' },
+  { id: 'l1', booking_id: 'bk1', instructor_id: 'i1', participant_ids: ['c1'],            date: '2026-02-05', start_time: '09:00', duration_hours: 1,   type: 'private',    notes: null,              kite_id: 'eq1', board_id: 'eq4' , price_per_hour: null },
+  { id: 'l2', booking_id: 'bk1', instructor_id: 'i2', participant_ids: ['c1'],            date: '2026-02-07', start_time: '14:00', duration_hours: 1.5, type: 'private',    notes: 'Vagues!',         kite_id: 'eq2', board_id: null  , price_per_hour: null },
+  { id: 'l3', booking_id: 'bk1', instructor_id: 'i1', participant_ids: ['c1','c2','c3'],  date: '2026-02-10', start_time: '10:00', duration_hours: 1,   type: 'group',      notes: null,              kite_id: null,  board_id: null  , price_per_hour: null },
+  { id: 'l4', booking_id: 'bk2', instructor_id: 'i3', participant_ids: ['c2'],            date: '2026-02-12', start_time: '15:00', duration_hours: 2,   type: 'private',    notes: 'Freestyle basics',kite_id: 'eq3', board_id: 'eq6' , price_per_hour: null },
+  { id: 'l5', booking_id: 'bk3', instructor_id: 'i2', participant_ids: ['c3'],            date: '2026-02-18', start_time: '09:30', duration_hours: 1.5, type: 'supervision',notes: null,              kite_id: 'eq1', board_id: 'eq5' , price_per_hour: null },
+  { id: 'l6', booking_id: 'bk3', instructor_id: 'i1', participant_ids: ['c1','c3'],       date: '2026-02-20', start_time: '16:00', duration_hours: 1,   type: 'group',      notes: null,              kite_id: null,  board_id: 'eq4' , price_per_hour: null },
 ]
 
 export const mockPriceItems: PriceItem[] = [
   // Cours
-  { id: 'p1', category: 'lesson', name: 'Cours privé 1h', description: 'Leçon privée 1 heure', price: 50, unit: '/ heure' },
-  { id: 'p2', category: 'lesson', name: 'Cours privé 2h', description: 'Leçon privée 2 heures', price: 95, unit: '/ 2 heures' },
-  { id: 'p3', category: 'lesson', name: 'Cours groupe 1h', description: 'Cours collectif 1 heure', price: 35, unit: '/ heure' },
-  { id: 'p4', category: 'lesson', name: 'Supervision 1h', description: 'Supervision 1 heure', price: 25, unit: '/ heure' },
+  { id: 'p1', category: 'lesson', name: 'Cours privé 1h', description: 'Leçon privée 1 heure', price: 50, unit: '/ heure', lesson_type: 'private' },
+  { id: 'p2', category: 'lesson', name: 'Cours privé 2h', description: 'Leçon privée 2 heures', price: 95, unit: '/ 2 heures', lesson_type: 'private' },
+  { id: 'p3', category: 'lesson', name: 'Cours groupe 1h', description: 'Cours collectif 1 heure', price: 35, unit: '/ heure', lesson_type: 'group' },
+  { id: 'p4', category: 'lesson', name: 'Supervision 1h', description: 'Supervision 1 heure', price: 25, unit: '/ heure', lesson_type: 'supervision' },
   // Activités
-  { id: 'p5', category: 'activity', name: 'Sortie découverte', description: null, price: 60, unit: '/ personne' },
-  { id: 'p6', category: 'activity', name: 'Cours théorie', description: null, price: 20, unit: '/ personne' },
+  { id: 'p5', category: 'activity', name: 'Sortie découverte', description: null, price: 60, unit: '/ personne', lesson_type: null },
+  { id: 'p6', category: 'activity', name: 'Cours théorie', description: null, price: 20, unit: '/ personne', lesson_type: null },
   // Locations
-  { id: 'p7', category: 'rental', name: 'Planche + kite', description: null, price: 40, unit: '/ jour' },
-  { id: 'p8', category: 'rental', name: 'Kite seul', description: null, price: 20, unit: '/ jour' },
-  { id: 'p9', category: 'rental', name: 'Harnais', description: null, price: 10, unit: '/ jour' },
-  { id: 'p10', category: 'rental', name: 'Combinaison', description: null, price: 8, unit: '/ jour' },
+  { id: 'p7', category: 'rental', name: 'Planche + kite', description: null, price: 40, unit: '/ jour', lesson_type: null },
+  { id: 'p8', category: 'rental', name: 'Kite seul', description: null, price: 20, unit: '/ jour', lesson_type: null },
+  { id: 'p9', category: 'rental', name: 'Harnais', description: null, price: 10, unit: '/ jour', lesson_type: null },
+  { id: 'p10', category: 'rental', name: 'Combinaison', description: null, price: 8, unit: '/ jour', lesson_type: null },
   // Taxis
-  { id: 'p11', category: 'taxi', name: 'Aéroport aller', description: null, price: 35, unit: 'aller simple' },
-  { id: 'p12', category: 'taxi', name: 'Aéroport retour', description: null, price: 35, unit: 'retour simple' },
-  { id: 'p13', category: 'taxi', name: 'Ville centre', description: null, price: 15, unit: 'aller/retour' },
+  { id: 'p11', category: 'taxi', name: 'Aéroport aller', description: null, price: 35, unit: 'aller simple', lesson_type: null },
+  { id: 'p12', category: 'taxi', name: 'Aéroport retour', description: null, price: 35, unit: 'retour simple', lesson_type: null },
+  { id: 'p13', category: 'taxi', name: 'Ville centre', description: null, price: 15, unit: 'aller/retour', lesson_type: null },
 ]
 
 export const mockDayActivities: DayActivity[] = [

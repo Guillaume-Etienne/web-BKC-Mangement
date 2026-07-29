@@ -1,7 +1,7 @@
 import type {
   Accommodation, Booking, BookingParticipant, Client, Room, RoomRate, BookingRoom, BookingRoomPrice,
   ExternalAccommodationBooking, ExternalAccommodation,
-  HouseRental, Lesson, Instructor, Equipment, EquipmentRental, TaxiTrip, TaxiManagerPayment, Season,
+  HouseRental, Lesson, Instructor, Equipment, EquipmentRental, TaxiTrip, TaxiManagerPayment, Season, PriceItem,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   DiningEvent, ActivityBooking, ActivityPayment,
@@ -22,6 +22,7 @@ export interface SharedAccountingData {
   diningEvents:              DiningEvent[]
   lessons:                   Lesson[]
   instructors:               Instructor[]
+  priceItems:                PriceItem[]  // client-facing rates; lesson rows keyed by lesson_type
   equipment:                 Equipment[]
   equipmentRentals:          EquipmentRental[]
   taxiTrips:                 TaxiTrip[]
@@ -52,6 +53,9 @@ export interface AccountingHandlers {
   deleteInstructorDebt:    (id: string)            => void
   addInstructorPayment:    (p: InstructorPayment)  => void
   deleteInstructorPayment: (id: string)            => void
+  /** Client price €/h billed for one lesson; null → back to the price list */
+  setLessonPrice:          (lesson_id: string, price_per_hour: number | null) => void
+  /** Instructor payout exception on one lesson (Instructors tab only) */
   setLessonOverride:       (o: LessonRateOverride) => void
   removeLessonOverride:    (lesson_id: string)     => void
   addExpense:              (e: Expense)            => void

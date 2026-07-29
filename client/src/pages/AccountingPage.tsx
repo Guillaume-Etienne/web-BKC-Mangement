@@ -23,7 +23,7 @@ import type {
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride, EquipmentRental,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   TaxiPricingDefaults, TaxiManagerPayment,
-  DiningEvent, BookingRoomPrice, RoomRate,
+  DiningEvent, BookingRoomPrice, RoomRate, PriceItem, Lesson,
 } from '../types/database'
 
 type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'cashflow' | 'expenses' | 'events' | 'unverified'
@@ -56,7 +56,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: externalAccommodations }   = useTable<ExternalAccommodation>('external_accommodations')
   const { data: externalAccommodationBkgs }= useTable<ExternalAccommodationBooking>('external_accommodation_bookings')
   const { data: diningEvents }             = useTable<DiningEvent>('dining_events', { order: 'date', ascending: false })
-  const { data: lessons }                  = useLessons()
+  const { data: lessonsData }              = useLessons()
   const { data: instructors }              = useInstructors()
   const { data: equipment }                = useEquipment()
   const { data: equipmentRentalsData }     = useEquipmentRentals()
@@ -68,6 +68,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: activityBookings }         = useActivityBookings()
   const { data: activityPayments }         = useActivityPayments()
   const { data: seasons }                  = useTable<Season>('seasons')
+  const { data: priceItems }               = useTable<PriceItem>('price_items')
 
   // ── Mutable state (Supabase) ──────────────────────────────────────────────
   const { data: paymentsData }           = usePayments()
@@ -79,6 +80,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: palmeirasReversalsData } = useTable<PalmeirasReversal>('palmeiras_reversals', { order: 'month', ascending: false })
   const { data: palmeirasEntriesData }   = useTable<PalmeirasEntry>('palmeiras_entries', { order: 'month', ascending: false })
 
+  const [lessons,            setLessons]            = useState<Lesson[]>([])
   const [bookingRoomPrices,  setBookingRoomPrices]  = useState<BookingRoomPrice[]>([])
   const [payments,           setPayments]           = useState<Payment[]>([])
   const [instructorDebts,    setInstructorDebts]    = useState<InstructorDebt[]>([])
@@ -89,6 +91,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const [palmeirasReversals, setPalmeirasReversals] = useState<PalmeirasReversal[]>([])
   const [palmeirasEntries,   setPalmeirasEntries]   = useState<PalmeirasEntry[]>([])
 
+  useEffect(() => setLessons(lessonsData),                     [lessonsData])
   useEffect(() => setBookingRoomPrices(bookingRoomPricesData), [bookingRoomPricesData])
   useEffect(() => setEquipmentRentals(equipmentRentalsData),  [equipmentRentalsData])
   useEffect(() => setPayments(paymentsData),                   [paymentsData])
@@ -116,6 +119,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     diningEvents,
     lessons,
     instructors,
+    priceItems,
     equipment,
     equipmentRentals,
     taxiTrips,
@@ -187,6 +191,11 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     deleteInstructorPayment: (id: string) => {
       setInstructorPayments(prev => prev.filter(x => x.id !== id))
       supabase.from('instructor_payments').delete().eq('id', id)
+    },
+
+    setLessonPrice: (lesson_id: string, price_per_hour: number | null) => {
+      setLessons(prev => prev.map(l => l.id === lesson_id ? { ...l, price_per_hour } : l))
+      supabase.from('lessons').update({ price_per_hour }).eq('id', lesson_id)
     },
 
     setLessonOverride: (o: LessonRateOverride) => {

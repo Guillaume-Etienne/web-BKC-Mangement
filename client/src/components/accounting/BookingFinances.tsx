@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
-import type { Payment, PaymentMethod, Booking, EquipmentRental, Lesson, LessonRateOverride } from '../../types/database'
+import type { Payment, PaymentMethod, Booking, EquipmentRental } from '../../types/database'
 import {
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
   computeAccommodationRevenue, computeExternalAccommodationCost, computeLessonsRevenue, computeRentalsRevenue,
   computeTaxiRevenue, computeActivityRevenueForBooking, computeCenterAccessRevenue,
-  computeDiningForBooking, getLessonRate, computeStandaloneTaxiRevenue,
+  computeDiningForBooking, getLessonClientRate, computeStandaloneTaxiRevenue,
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate,
 } from './utils'
 
@@ -94,47 +94,44 @@ function EditRentalForm({ rental, onSave, onCancel }: EditRentalFormProps) {
   )
 }
 
-// ── Override Lesson Rate Form (module-scope) ────────────────────────────────
+// ── Lesson client price form (module-scope) ─────────────────────────────────
+// Edits what the CLIENT is billed for this lesson. The instructor payout is a
+// separate scale, adjusted from the Instructors tab.
 
-interface LessonRateFormProps {
-  lesson: Lesson
+interface LessonPriceFormProps {
   currentRate: number
-  hasOverride: boolean
-  onSave: (o: LessonRateOverride) => void
-  onRemove: () => void
+  isCustom: boolean
+  listRate: number
+  onSave: (pricePerHour: number) => void
+  onReset: () => void
   onCancel: () => void
 }
-function LessonRateForm({ lesson, currentRate, hasOverride, onSave, onRemove, onCancel }: LessonRateFormProps) {
+function LessonPriceForm({ currentRate, isCustom, listRate, onSave, onReset, onCancel }: LessonPriceFormProps) {
   const [rate, setRate] = useState(String(currentRate))
-  const [note, setNote] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const parsed = parseFloat(rate)
-    if (!parsed || !note.trim()) return
-    onSave({ id: `lro_${Date.now()}`, lesson_id: lesson.id, rate: parsed, note: note.trim() })
+    if (isNaN(parsed) || parsed < 0) return
+    onSave(parsed)
   }
 
   return (
     <form onSubmit={handleSubmit} className="mt-1 p-2 bg-amber-50 border border-amber-200 rounded space-y-1.5">
-      <div className="flex gap-2">
+      <div className="flex items-end gap-2">
         <div>
-          <label className="text-xs text-gray-500 block mb-0.5">Rate (€/h)</label>
+          <label className="text-xs text-gray-500 block mb-0.5">Client price (€/h)</label>
           <input type="number" min="0" step="0.5" value={rate} onChange={e => setRate(e.target.value)} autoFocus
-            className="w-20 px-2 py-0.5 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
+            className="w-24 px-2 py-0.5 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
         </div>
-        <div className="flex-1">
-          <label className="text-xs text-gray-500 block mb-0.5">Reason *</label>
-          <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="Required"
-            className="w-full px-2 py-0.5 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
-        </div>
+        <p className="text-xs text-gray-400 pb-1">Price list: {fmtEur(listRate)}/h</p>
       </div>
       <div className="flex gap-1">
         <button type="button" onClick={onCancel}
           className="px-2 py-0.5 bg-white border border-gray-300 rounded text-xs text-gray-600 hover:bg-gray-50">Cancel</button>
-        {hasOverride && (
-          <button type="button" onClick={onRemove}
-            className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200">Remove override</button>
+        {isCustom && (
+          <button type="button" onClick={onReset}
+            className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200">Back to price list</button>
         )}
         <button type="submit"
           className="flex-1 px-2 py-0.5 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700">Save</button>
@@ -316,7 +313,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
   const [editingRoomPriceId, setEditingRoomPriceId] = useState<string | null>(null)
   const [editingRentalId, setEditingRentalId] = useState<string | null>(null)
-  const [overridingLessonId, setOverridingLessonId] = useState<string | null>(null)
+  const [editingLessonPriceId, setEditingLessonPriceId] = useState<string | null>(null)
 
   const total        = computeBookingTotal(b, data)
   const discounts    = computeBookingDiscounts(b.id, data.payments)
@@ -476,34 +473,39 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
               <div className="px-4 py-2 space-y-1">
                 {bkLessons.map(l => {
                   const instr = data.instructors.find(i => i.id === l.instructor_id)
-                  if (!instr) return null
-                  const override = data.lessonRateOverrides.find(o => o.lesson_id === l.id)
-                  const rate = getLessonRate(l, instr, data.lessonRateOverrides)
-                  const isOverriding = overridingLessonId === l.id
+                  const rate = getLessonClientRate(l, data.priceItems)
+                  const listRate = data.priceItems.find(p => p.lesson_type === l.type)?.price ?? 0
+                  const isCustom = l.price_per_hour !== null && l.price_per_hour !== listRate
+                  const heads = l.type === 'group' ? l.participant_ids.length : 1
+                  const isEditing = editingLessonPriceId === l.id
                   return (
                     <div key={l.id} className="text-xs text-gray-500">
                       <div className="flex justify-between items-center">
                         <span>
-                          {l.type} · {l.duration_hours}h · {l.date} ({instr.first_name})
+                          {l.type} · {l.duration_hours}h · {l.date}{instr ? ` (${instr.first_name})` : ''}
+                          {l.type === 'group' && <span className="ml-1">× {heads}</span>}
                           {l.participant_ids.length > 0 && (
                             <span className="ml-1 text-blue-400">— {partNames(l.participant_ids)}</span>
                           )}
-                          {override && <span className="ml-1 text-amber-500 italic">(override)</span>}
+                          {isCustom && <span className="ml-1 text-amber-500 italic">(custom price)</span>}
+                          {rate === 0 && (
+                            <span className="ml-2 text-red-400 font-medium">no price configured</span>
+                          )}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span>{fmtEur(rate * l.duration_hours * (l.type === 'group' ? l.participant_ids.length : 1))}</span>
-                          <button onClick={() => setOverridingLessonId(isOverriding ? null : l.id)}
-                            className={`transition-colors ${override ? 'text-amber-400 hover:text-amber-600' : 'text-gray-300 hover:text-amber-500'}`}>✏️</button>
+                          <span>{fmtEur(rate * l.duration_hours * heads)}</span>
+                          <button onClick={() => setEditingLessonPriceId(isEditing ? null : l.id)}
+                            className={`transition-colors ${isCustom ? 'text-amber-400 hover:text-amber-600' : 'text-gray-300 hover:text-amber-500'}`}>✏️</button>
                         </div>
                       </div>
-                      {isOverriding && (
-                        <LessonRateForm
-                          lesson={l}
+                      {isEditing && (
+                        <LessonPriceForm
                           currentRate={rate}
-                          hasOverride={!!override}
-                          onSave={o => { handlers.setLessonOverride(o); setOverridingLessonId(null) }}
-                          onRemove={() => { handlers.removeLessonOverride(l.id); setOverridingLessonId(null) }}
-                          onCancel={() => setOverridingLessonId(null)}
+                          isCustom={isCustom}
+                          listRate={listRate}
+                          onSave={p => { handlers.setLessonPrice(l.id, p); setEditingLessonPriceId(null) }}
+                          onReset={() => { handlers.setLessonPrice(l.id, null); setEditingLessonPriceId(null) }}
+                          onCancel={() => setEditingLessonPriceId(null)}
                         />
                       )}
                     </div>
@@ -676,9 +678,13 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           for (const l of bkLessons) {
             if (!l.participant_ids.includes(part.id)) continue
             const instr = data.instructors.find(i => i.id === l.instructor_id)
-            if (!instr) continue
-            const rate = getLessonRate(l, instr, data.lessonRateOverrides)
-            lines.push({ date: l.date, label: `${l.type} lesson ${l.duration_hours}h (${instr.first_name})`, amount: rate * l.duration_hours })
+            // Group lessons are billed per head, so each participant carries one share
+            const rate = getLessonClientRate(l, data.priceItems)
+            lines.push({
+              date: l.date,
+              label: `${l.type} lesson ${l.duration_hours}h${instr ? ` (${instr.first_name})` : ''}`,
+              amount: rate * l.duration_hours,
+            })
           }
 
           // Rentals assigned to this participant

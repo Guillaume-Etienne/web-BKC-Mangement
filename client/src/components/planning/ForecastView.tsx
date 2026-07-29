@@ -76,6 +76,8 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
       notes: notes || null,
       kite_id: null,
       board_id: null,
+      // No price list in this view — null falls back to the current rate
+      price_per_hour: null,
     })
   }
 

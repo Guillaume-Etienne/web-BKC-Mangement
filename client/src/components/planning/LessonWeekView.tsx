@@ -163,6 +163,11 @@ export default function LessonWeekView({
     return item?.price ?? FALLBACK_RENTAL_PRICES[type] ?? 0
   }
 
+  /** Client price €/h from Options → Pricing, keyed by lesson_type (never by name). */
+  function lessonPrice(type: LessonType): number | null {
+    return priceItems.find(p => p.lesson_type === type)?.price ?? null
+  }
+
   // ── Booking lookup ────────────────────────────────────────────────────────
   function bookingForParticipant(participantId: string): string {
     return bookingParticipants.find(p => p.id === participantId)?.booking_id ?? ''
@@ -260,6 +265,9 @@ export default function LessonWeekView({
         notes: addForm.notes || null,
         kite_id: addForm.kite_id,
         board_id: addForm.board_id,
+        // Freeze today's client rate: changing the price list later must not
+        // reprice this lesson (same rule as booking_room_prices).
+        price_per_hour: lessonPrice(addForm.type),
       })
     } else if (addForm.kind === 'activity') {
       onAddActivity({

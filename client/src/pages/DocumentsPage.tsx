@@ -16,7 +16,9 @@ import { supabase } from '../lib/supabase'
 import {
   computeAccommodationRevenue, computeLessonsRevenue, computeRentalsRevenue,
   computeTaxiRevenue, computeDiningForBooking, computeActivityRevenueForBooking,
+  emptyAccountingData,
 } from '../components/accounting/utils'
+import type { SharedAccountingData } from '../components/accounting/types'
 
 // ── Guide sections — legacy localStorage fallback ──────────────────────────────
 // Sections now live in the document_templates table. This read-only fallback
@@ -400,14 +402,15 @@ export default function DocumentsPage() {
       supabase.from('activity_bookings').select('*').eq('booking_id', bId),
       supabase.from('external_accommodation_bookings').select('*').eq('booking_id', bId),
       supabase.from('room_rates').select('*'),
-    ]).then(([brp, lessons, instrs, lro, rentals, taxis, dining, activities, extAccom, rates]) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const d = (extra: object) => ({ ...extra } as any)
+      supabase.from('price_items').select('*'),
+    ]).then(([brp, lessons, instrs, lro, rentals, taxis, dining, activities, extAccom, rates, prices]) => {
+      const d = (extra: Partial<SharedAccountingData>): SharedAccountingData =>
+        ({ ...emptyAccountingData(), ...extra })
       const bkParts = bookingParticipants.filter(p => p.booking_id === bId)
       const bkRooms = bookingRooms.filter(br => br.booking_id === bId)
       const total =
         computeAccommodationRevenue(summaryBooking, d({ bookingRooms: bkRooms, bookingRoomPrices: brp.data ?? [], externalAccommodationBkgs: extAccom.data ?? [], rooms, accommodations, roomRates: rates.data ?? [] })) +
-        computeLessonsRevenue(summaryBooking, d({ lessons: lessons.data ?? [], instructors: instrs.data ?? [], lessonRateOverrides: lro.data ?? [] })) +
+        computeLessonsRevenue(summaryBooking, d({ lessons: lessons.data ?? [], instructors: instrs.data ?? [], lessonRateOverrides: lro.data ?? [], priceItems: prices.data ?? [] })) +
         computeRentalsRevenue(summaryBooking, d({ equipmentRentals: rentals.data ?? [] })) +
         computeTaxiRevenue(summaryBooking, d({ taxiTrips: taxis.data ?? [] })) +
         computeDiningForBooking(summaryBooking, dining.data ?? [], bkParts) +

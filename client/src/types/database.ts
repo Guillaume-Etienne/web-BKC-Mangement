@@ -159,6 +159,10 @@ export interface Lesson {
   notes: string | null
   kite_id: string | null
   board_id: string | null
+  /** Client price €/h, snapshotted at creation from price_items so that changing
+   *  a rate never reprices past lessons. Editable per lesson. null → fall back
+   *  to the current price_items rate. Distinct from what the instructor is paid. */
+  price_per_hour: number | null
   instructor?: Instructor
   clients?: Client[]
 }
@@ -183,6 +187,9 @@ export interface PriceItem {
   description: string | null
   price: number
   unit: string | null
+  // Explicit link to a lesson type — only set on category='lesson' rows.
+  // Never match a price to a lesson by name: renaming would silently reprice.
+  lesson_type: LessonType | null
 }
 
 // Taxis

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   countNights, getRoomNightlyRate, computeAccommodationRevenue, computeExternalAccommodationCost,
-  computeLessonsRevenue, getLessonRate, computeRentalsRevenue,
+  computeLessonsRevenue, getLessonClientRate, getInstructorRate, computeRentalsRevenue,
   computeTaxiRevenue, computeStandaloneTaxiRevenue, computeTaxiMarginEur,
   computeActivityRevenueForBooking, computeCenterAccessRevenue,
   computeDiningForBooking, computeDiningRevenue, computeInstructorDiningCharges,
@@ -12,7 +12,7 @@ import {
 import {
   mkAccommodation, mkActivityBooking, mkAttendee, mkBooking, mkBookingRoom, mkBookingRoomPrice,
   mkData, mkDiningEvent, mkExternalAccommodation, mkExternalBooking, mkHouseSetup,
-  mkInstructor, mkInstructorDebt, mkInstructorPayment, mkLesson, mkLessonOverride,
+  mkInstructor, mkInstructorDebt, mkInstructorPayment, mkLesson, mkLessonOverride, mkLessonPrices,
   mkParticipant, mkPayment, mkRental, mkRoom, mkRoomRate, mkTaxiTrip,
 } from './utils.fixtures'
 
@@ -223,69 +223,108 @@ describe('computeExternalAccommodationCost', () => {
 describe('computeLessonsRevenue', () => {
   const booking = mkBooking()
   const instructor = mkInstructor()
+  const priceItems = mkLessonPrices() // private 60 · group 36 · supervision 40
 
-  it('bills a private lesson at the private rate × hours', () => {
-    const data = mkData({ instructors: [instructor], lessons: [mkLesson({ type: 'private', duration_hours: 2 })] })
-    expect(computeLessonsRevenue(booking, data)).toBe(80) // 40 × 2
-  })
-
-  it('bills a supervision at the supervision rate', () => {
-    const data = mkData({ instructors: [instructor], lessons: [mkLesson({ type: 'supervision', duration_hours: 3 })] })
-    expect(computeLessonsRevenue(booking, data)).toBe(45) // 15 × 3
-  })
-
-  it('bills a group lesson per participant', () => {
-    const data = mkData({
-      instructors: [instructor],
-      lessons: [mkLesson({ type: 'group', duration_hours: 2, participant_ids: ['p1', 'p2', 'p3'] })],
-    })
-    expect(computeLessonsRevenue(booking, data)).toBe(150) // 25 × 2 × 3
-  })
-
-  it('applies a rate override instead of the instructor rate', () => {
-    const data = mkData({
-      instructors: [instructor],
-      lessons: [mkLesson({ type: 'private', duration_hours: 2 })],
-      lessonRateOverrides: [mkLessonOverride({ lesson_id: 'les1', rate: 60 })],
-    })
+  it('bills a private lesson at the price-list rate × hours', () => {
+    const data = mkData({ priceItems, instructors: [instructor], lessons: [mkLesson({ type: 'private', duration_hours: 2 })] })
     expect(computeLessonsRevenue(booking, data)).toBe(120) // 60 × 2
   })
 
-  it('skips a lesson whose instructor no longer exists', () => {
-    const data = mkData({ instructors: [], lessons: [mkLesson()] })
+  it('bills a supervision at the supervision rate', () => {
+    const data = mkData({ priceItems, instructors: [instructor], lessons: [mkLesson({ type: 'supervision', duration_hours: 3 })] })
+    expect(computeLessonsRevenue(booking, data)).toBe(120) // 40 × 3
+  })
+
+  it('bills a group lesson per head', () => {
+    const data = mkData({
+      priceItems, instructors: [instructor],
+      lessons: [mkLesson({ type: 'group', duration_hours: 2, participant_ids: ['p1', 'p2', 'p3'] })],
+    })
+    expect(computeLessonsRevenue(booking, data)).toBe(216) // 36 × 2 × 3
+  })
+
+  it('never bills the client at the instructor payout rate', () => {
+    // Instructor costs 40/h, the client owes the 60/h list price
+    const data = mkData({ priceItems, instructors: [instructor], lessons: [mkLesson({ duration_hours: 1 })] })
+    expect(computeLessonsRevenue(booking, data)).toBe(60)
+  })
+
+  it('uses the price snapshot frozen on the lesson over the current price list', () => {
+    const data = mkData({
+      priceItems, instructors: [instructor],
+      lessons: [mkLesson({ duration_hours: 2, price_per_hour: 50 })],
+    })
+    expect(computeLessonsRevenue(booking, data)).toBe(100) // 50 × 2, not 60 × 2
+  })
+
+  it('honours a snapshot of 0 — a free lesson stays free', () => {
+    const data = mkData({ priceItems, lessons: [mkLesson({ duration_hours: 2, price_per_hour: 0 })] })
     expect(computeLessonsRevenue(booking, data)).toBe(0)
+  })
+
+  it('bills nothing when the type has no configured price and no snapshot', () => {
+    const data = mkData({ priceItems: [], lessons: [mkLesson({ duration_hours: 2 })] })
+    expect(computeLessonsRevenue(booking, data)).toBe(0)
+  })
+
+  it('still bills a lesson whose instructor was deleted', () => {
+    const data = mkData({ priceItems, instructors: [], lessons: [mkLesson({ duration_hours: 2 })] })
+    expect(computeLessonsRevenue(booking, data)).toBe(120)
   })
 
   it('sums several lessons on the booking', () => {
     const data = mkData({
-      instructors: [instructor],
+      priceItems, instructors: [instructor],
       lessons: [
         mkLesson({ id: 'l1', type: 'private', duration_hours: 2 }),
         mkLesson({ id: 'l2', type: 'supervision', duration_hours: 1 }),
       ],
     })
-    expect(computeLessonsRevenue(booking, data)).toBe(95) // 80 + 15
+    expect(computeLessonsRevenue(booking, data)).toBe(160) // 120 + 40
   })
 
   it('ignores lessons attached to another booking', () => {
-    const data = mkData({ instructors: [instructor], lessons: [mkLesson({ booking_id: 'other' })] })
+    const data = mkData({ priceItems, instructors: [instructor], lessons: [mkLesson({ booking_id: 'other' })] })
     expect(computeLessonsRevenue(booking, data)).toBe(0)
   })
 })
 
-describe('getLessonRate', () => {
+describe('getLessonClientRate', () => {
+  const priceItems = mkLessonPrices()
+  it('reads the price list for each lesson type', () => {
+    expect(getLessonClientRate(mkLesson({ type: 'private' }), priceItems)).toBe(60)
+    expect(getLessonClientRate(mkLesson({ type: 'group' }), priceItems)).toBe(36)
+    expect(getLessonClientRate(mkLesson({ type: 'supervision' }), priceItems)).toBe(40)
+  })
+  it('prefers the snapshot frozen on the lesson', () => {
+    expect(getLessonClientRate(mkLesson({ price_per_hour: 45 }), priceItems)).toBe(45)
+  })
+  it('matches on lesson_type, never on the price row name', () => {
+    const renamed = mkLessonPrices().map(p => ({ ...p, name: 'Renamed by the owner' }))
+    expect(getLessonClientRate(mkLesson({ type: 'private' }), renamed)).toBe(60)
+  })
+  it('returns 0 when the type has no price row', () => {
+    expect(getLessonClientRate(mkLesson({ type: 'group' }), [])).toBe(0)
+  })
+})
+
+describe('getInstructorRate', () => {
   const instructor = mkInstructor()
-  it('uses the private rate for a private lesson', () => {
-    expect(getLessonRate(mkLesson({ type: 'private' }), instructor, [])).toBe(40)
+  it('uses the private payout rate for a private lesson', () => {
+    expect(getInstructorRate(mkLesson({ type: 'private' }), instructor, [])).toBe(40)
   })
-  it('uses the group rate for a group lesson', () => {
-    expect(getLessonRate(mkLesson({ type: 'group' }), instructor, [])).toBe(25)
+  it('uses the group payout rate for a group lesson', () => {
+    expect(getInstructorRate(mkLesson({ type: 'group' }), instructor, [])).toBe(25)
   })
-  it('uses the supervision rate for a supervision', () => {
-    expect(getLessonRate(mkLesson({ type: 'supervision' }), instructor, [])).toBe(15)
+  it('uses the supervision payout rate for a supervision', () => {
+    expect(getInstructorRate(mkLesson({ type: 'supervision' }), instructor, [])).toBe(15)
   })
-  it('lets an override win over the instructor rate', () => {
-    expect(getLessonRate(mkLesson(), instructor, [mkLessonOverride({ rate: 70 })])).toBe(70)
+  it('lets a payout override win over the instructor rate', () => {
+    expect(getInstructorRate(mkLesson(), instructor, [mkLessonOverride({ rate: 70 })])).toBe(70)
+  })
+  it('pays nothing for an owner-instructor set to 0', () => {
+    const owner = mkInstructor({ rate_private: 0, rate_group: 0, rate_supervision: 0 })
+    expect(getInstructorRate(mkLesson({ type: 'private' }), owner, [])).toBe(0)
   })
 })
 
@@ -531,14 +570,31 @@ describe('instructor payroll', () => {
     expect(computeInstructorEarned('ins1', data)).toBe(120)
   })
 
-  it('is paid once for a group lesson while the client is billed per head', () => {
+  it('is paid a flat hourly rate for a group lesson while the client is billed per head', () => {
     const booking = mkBooking()
     const data = mkData({
-      instructors: [instructor],
+      priceItems: mkLessonPrices(), instructors: [instructor],
       lessons: [mkLesson({ type: 'group', duration_hours: 2, participant_ids: ['p1', 'p2', 'p3'] })],
     })
-    expect(computeInstructorEarned('ins1', data)).toBe(50)      // 25 × 2
-    expect(computeLessonsRevenue(booking, data)).toBe(150)      // 25 × 2 × 3 — centre margin
+    expect(computeInstructorEarned('ins1', data)).toBe(50)  // 25 × 2, whatever the group size
+    expect(computeLessonsRevenue(booking, data)).toBe(216) // 36 × 2 × 3 → centre keeps 166
+  })
+
+  it('pays a bigger group the same as a small one', () => {
+    const small = mkData({ instructors: [instructor], lessons: [mkLesson({ type: 'group', duration_hours: 2, participant_ids: ['p1'] })] })
+    const big   = mkData({ instructors: [instructor], lessons: [mkLesson({ type: 'group', duration_hours: 2, participant_ids: ['p1', 'p2', 'p3', 'p4'] })] })
+    expect(computeInstructorEarned('ins1', small)).toBe(computeInstructorEarned('ins1', big))
+  })
+
+  it('costs nothing when an owner teaches at a 0 payout rate', () => {
+    const owner = mkInstructor({ id: 'owner', rate_private: 0, rate_group: 0, rate_supervision: 0 })
+    const booking = mkBooking()
+    const data = mkData({
+      priceItems: mkLessonPrices(), instructors: [owner],
+      lessons: [mkLesson({ instructor_id: 'owner', type: 'private', duration_hours: 2 })],
+    })
+    expect(computeInstructorEarned('owner', data)).toBe(0)
+    expect(computeLessonsRevenue(booking, data)).toBe(120) // client still pays full price
   })
 
   it('earns the overridden rate when a lesson is overridden', () => {
@@ -589,15 +645,16 @@ describe('computeBookingTotal', () => {
       accommodations: [acc], rooms: [roomF], roomRates: rates,
       bookingRooms: [mkBookingRoom({ room_id: 'roomF' })],
       bookingRoomPrices: [mkBookingRoomPrice({ room_id: 'roomF', price_per_night: 60 })],  // 420
+      priceItems: mkLessonPrices(),
       instructors: [mkInstructor()],
-      lessons: [mkLesson({ type: 'private', duration_hours: 2 })],                          // 80
+      lessons: [mkLesson({ type: 'private', duration_hours: 2 })],                          // 120
       equipmentRentals: [mkRental({ price: 45 })],                                          // 45
       taxiTrips: [mkTaxiTrip({ price_eur: 120 })],                                          // 120
       bookingParticipants: [mkParticipant({ id: 'p1' })],
       diningEvents: [mkDiningEvent({ price_per_person: 12, attendees: [mkAttendee({ person_id: 'p1' })] })], // 12
       activityBookings: [mkActivityBooking({ payment_flow: 'we_pay_provider', price_client: 100 })],        // 100
     })
-    expect(computeBookingTotal(booking, data)).toBe(847) // + 70 center access
+    expect(computeBookingTotal(booking, data)).toBe(887) // + 70 center access
   })
 
   it('totals 0 for a booking with nothing on it', () => {
