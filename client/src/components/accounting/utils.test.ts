@@ -380,6 +380,18 @@ describe('taxi revenue and margin', () => {
     expect(computeTaxiMarginEur({ price_eur: 50, price_driver_mzn: 6000, margin_manager_mzn: 1000 }, 73)).toBe(-46)
   })
 
+  it('sums per-trip margins rather than rounding the aggregate', () => {
+    // The dashboard total must equal the sum of the lines it summarises. Rounding the
+    // aggregate instead drifts: 3 trips at 6100+1000 MZN / 73 give 69 € per-trip
+    // but 68 € if the total cost is rounded once.
+    const trips = [1, 2, 3].map(() => ({ price_eur: 120, price_driver_mzn: 6100, margin_manager_mzn: 1000 }))
+    const perTrip = trips.reduce((s, t) => s + computeTaxiMarginEur(t, 73), 0)
+    const aggregate = trips.reduce((s, t) => s + t.price_eur, 0)
+      - Math.round(trips.reduce((s, t) => s + t.price_driver_mzn + t.margin_manager_mzn, 0) / 73)
+    expect(perTrip).toBe(69)
+    expect(aggregate).toBe(68)
+  })
+
   it('guards against a zero exchange rate instead of dividing by zero', () => {
     expect(computeTaxiMarginEur({ price_eur: 120, price_driver_mzn: 6000, margin_manager_mzn: 1000 }, 0)).toBe(-6880)
   })

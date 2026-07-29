@@ -6,7 +6,7 @@ import {
   computeAccommodationRevenue, computeLessonsRevenue,
   computeRentalsRevenue,
   computeDiningRevenue, computeCenterAccessRevenue,
-  computeInstructorBalance, getInstructorRate, fmtEur, countNights,
+  computeInstructorBalance, getInstructorRate, computeTaxiMarginEur, fmtEur, countNights,
 } from './utils'
 
 interface Props { data: SharedAccountingData; onOpenBooking?: (id: string) => void }
@@ -50,8 +50,10 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   // driver pay minus manager commission (MZN→EUR at the global rate). The gross total
   // stays in the taxi view (TaxiFinanceTab); Billed/Collected/Outstanding stay gross too
   // (clients owe the gross). Taxi costs are therefore NOT re-subtracted in Net result.
-  const taxiCosts  = Math.round(activeTrips.reduce((s, t) => s + t.price_driver_mzn + t.margin_manager_mzn, 0) / (data.eurMznRate || 1))
-  const taxiMargin = taxisRevGross - taxiCosts
+  // Rounded per trip, like every detailed view, so the dashboard figure is exactly
+  // the sum of the lines it summarises (rounding the aggregate drifted by ~1 €).
+  const taxiMargin = activeTrips.reduce((s, t) => s + computeTaxiMarginEur(t, data.eurMznRate), 0)
+  const taxiCosts  = taxisRevGross - taxiMargin
   const activeActs      = activityBookings.filter(a => a.booking_id === null || activeIds.has(a.booking_id))
   // we_pay_provider → client pays us price_client ; provider_pays_us → provider reverses price_provider
   const activitiesRev   = activeActs.reduce((s, a) => s + (a.payment_flow === 'we_pay_provider' ? a.price_client : a.price_provider), 0)

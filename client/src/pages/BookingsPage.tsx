@@ -5,7 +5,7 @@ import { useBookings, useBookingRooms, useBookingRoomPrices, useBookingParticipa
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useTaxiDrivers } from '../hooks/useTaxis'
 import { useTable } from '../hooks/useSupabase'
-import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, TaxiDriver } from '../types/database'
+import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, TaxiDriver, Lesson, EquipmentRental } from '../types/database'
 import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
 import { getFullHouseRate, getBaseNightlyRate, DEFAULT_FULL_HOUSE_RATE } from '../utils/roomPricing'
 
@@ -1082,6 +1082,8 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   const { data: roomRatesData } = useTable<RoomRate>('room_rates')
   const { data: taxiDrivers } = useTaxiDrivers()
   const { data: participantsData } = useBookingParticipants()
+  const { data: lessonsData } = useTable<Lesson>('lessons')
+  const { data: rentalsData } = useTable<EquipmentRental>('equipment_rentals')
   const [bookingParticipants, setBookingParticipants] = useState<BookingParticipant[]>([])
   useEffect(() => setBookingParticipants(participantsData), [participantsData])
 
@@ -1136,6 +1138,28 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       alert('⚠️ This room is already booked during this period. Please choose different dates or rooms.')
       setSaving(false)
       return
+    }
+
+    // 0 bis. Refuse to cancel a booking that already consumed billable services.
+    // Cancelling would drop the revenue while the instructor still gets paid —
+    // a silent loss on the season result. Taxi transfers are excluded: they are
+    // auto-created with the booking, long before anything actually happened.
+    if (data.status === 'cancelled' && editingId) {
+      const lessonCount = lessonsData.filter(l => l.booking_id === editingId).length
+      const rentalCount = rentalsData.filter(r => r.booking_id === editingId).length
+      if (lessonCount > 0 || rentalCount > 0) {
+        const what = [
+          lessonCount > 0 && `${lessonCount} lesson${lessonCount > 1 ? 's' : ''}`,
+          rentalCount > 0 && `${rentalCount} rental${rentalCount > 1 ? 's' : ''}`,
+        ].filter(Boolean).join(' and ')
+        alert(
+          `⛔ This booking cannot be cancelled — it already has ${what} recorded.\n\n` +
+          `Those are billed to the client and paid to the instructor. Remove them from ` +
+          `the Planning first if they really did not happen, then cancel the booking.`
+        )
+        setSaving(false)
+        return
+      }
     }
 
     // 1. Create new client if needed
