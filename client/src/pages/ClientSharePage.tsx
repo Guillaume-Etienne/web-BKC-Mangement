@@ -248,11 +248,11 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const partIds = new Set(participants.map(p => p.id))
   const diningRows: { id: string; date: string; name: string; count: number; pricePerPerson: number; guests: string; total: number }[] = []
   for (const ev of diningEvents) {
-    if (ev.price_per_person === 0) continue
     const attending = (ev.attendees ?? [])
       .filter(a => a.is_attending && a.person_type === 'participant' && partIds.has(a.person_id))
     if (attending.length === 0) continue
     const total = attending.reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
+    if (total === 0) continue
     const guests = attending.map(a => partName(a.person_id) ?? a.person_name).join(', ')
     diningRows.push({ id: ev.id, date: ev.date, name: ev.name, count: attending.length, pricePerPerson: ev.price_per_person, guests, total })
   }
@@ -567,10 +567,11 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             }
 
             for (const ev of diningEvents) {
-              if (ev.price_per_person === 0) continue
               const att = (ev.attendees ?? []).find(a => a.is_attending && a.person_type === 'participant' && a.person_id === part.id)
               if (!att) continue
-              lines.push({ date: ev.date, label: ev.name || 'dining', amount: att.price_override ?? ev.price_per_person })
+              const amount = att.price_override ?? ev.price_per_person
+              if (amount === 0) continue
+              lines.push({ date: ev.date, label: ev.name || 'dining', amount })
             }
 
             for (const a of activityBkgs.filter(a => a.payment_flow === 'we_pay_provider')) {

@@ -197,10 +197,11 @@ export function computeInstructorBalance(instructorId: string, data: SharedAccou
   )
 }
 
-/** Revenue from dining events (price_per_person × attendees, with individual overrides) */
+/** Revenue from dining events (price_per_person × attendees, with individual overrides).
+ *  A free event bills nothing by default, but an attendee carrying an explicit
+ *  price_override is still charged — that is the whole point of the override. */
 export function computeDiningRevenue(events: DiningEvent[]): number {
   return events.reduce((total, ev) => {
-    if (ev.price_per_person === 0) return total
     const attendees = ev.attendees ?? []
     return total + attendees
       .filter(a => a.is_attending)
@@ -220,7 +221,6 @@ export function computeDiningForBooking(booking: Booking, diningEvents: DiningEv
       : [booking.client_id]
   )
   return diningEvents.reduce((total, ev) => {
-    if (ev.price_per_person === 0) return total
     return total + (ev.attendees ?? [])
       .filter(a => a.is_attending && a.person_type === 'participant' && matchIds.has(a.person_id))
       .reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
@@ -230,7 +230,6 @@ export function computeDiningForBooking(booking: Booking, diningEvents: DiningEv
 /** Dining charges attributable to an instructor (deducted from their payroll) */
 export function computeInstructorDiningCharges(instructorId: string, diningEvents: DiningEvent[]): number {
   return diningEvents.reduce((total, ev) => {
-    if (ev.price_per_person === 0) return total
     return total + (ev.attendees ?? [])
       .filter(a => a.is_attending && a.person_type === 'instructor' && a.person_id === instructorId)
       .reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)

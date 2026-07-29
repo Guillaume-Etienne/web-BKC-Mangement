@@ -690,10 +690,11 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
 
           // Dining events where this participant attended
           for (const ev of data.diningEvents) {
-            if (ev.price_per_person === 0) continue
             const att = (ev.attendees ?? []).find(a => a.is_attending && a.person_type === 'participant' && a.person_id === part.id)
             if (!att) continue
-            lines.push({ date: ev.date, label: ev.name || 'dining', amount: att.price_override ?? ev.price_per_person })
+            const amount = att.price_override ?? ev.price_per_person
+            if (amount === 0) continue
+            lines.push({ date: ev.date, label: ev.name || 'dining', amount })
           }
 
           // Activities where this participant is listed

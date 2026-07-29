@@ -47,6 +47,24 @@ Corrigé : le coût lit `e.cost_per_night` (snapshot), symétrique du prix de ve
 Vérifié par mutation — en réintroduisant le bug, 2 tests tombent
 (`expected 3996 to be 320`). `BookingFinances` affiche aussi le snapshot désormais.
 
+## 🔴 Bug trouvé et corrigé (2) — repas gratuit, override ignoré
+
+Un event repas à `price_per_person = 0` était sauté **en entier**, donc un convive portant
+un `price_override` explicite n'était jamais facturé. Confirmé comme bug par gui.
+
+Le garde-fou `if (ev.price_per_person === 0)` était **dupliqué à 5 endroits** ; ne corriger
+que `utils.ts` aurait désynchronisé les totaux des lignes de détail :
+
+| Fichier | Rôle | Correction |
+|---|---|---|
+| `utils.ts` ×3 | revenu global, charge booking, charge instructeur | garde-fou supprimé |
+| `EventsTab.tsx:8` | total par event | garde-fou supprimé — le fichier listait déjà (l. 20) les events gratuits porteurs d'un override, mais les totalisait à 0 |
+| `BookingFinances.tsx` | lignes de détail par participant | ligne poussée si montant ≠ 0 |
+| `ClientSharePage.tsx` ×2 | total + détail côté client | idem |
+
+Règle désormais : c'est le **montant effectif** (`price_override ?? price_per_person`) qui
+décide, pas le prix de l'event. Un override explicite à 0 € reste donc gratuit.
+
 ## ⚠️ Comportements encodés à confirmer par gui
 
 Ces points sont **testés tels qu'ils sont aujourd'hui**. Ce ne sont pas forcément des bugs,
@@ -56,10 +74,7 @@ dit exactement quoi modifier.
 1. **Leçon de groupe : asymétrie client / instructeur.** Le client est facturé
    `tarif × heures × nb participants`, l'instructeur touche `tarif × heures` (une fois).
    Cohérent avec une marge centre sur les groupes — à confirmer.
-2. **Event repas gratuit → override ignoré.** Si `price_per_person === 0`, l'event est
-   sauté en entier : un convive avec un `price_override` à 20 € n'est jamais facturé.
-   Probablement une vraie coquille.
-3. **Paiement « à vérifier » compté comme encaissé.** Il réduit déjà l'outstanding avant
+2. **Paiement « à vérifier » compté comme encaissé.** Il réduit déjà l'outstanding avant
    vérification.
 4. **Booking à 0 nuit** : le revenu hébergement retourne 0 (y compris l'externe, à cause du
    garde-fou en tête de fonction) alors que le coût externe, lui, est toujours calculé

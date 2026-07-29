@@ -411,8 +411,18 @@ describe('dining charges', () => {
     expect(computeDiningForBooking(booking, [ev], participants)).toBe(20)
   })
 
-  it('skips a free event entirely, even for an attendee with an override', () => {
+  it('bills an individual override even when the event itself is free', () => {
     const ev = mkDiningEvent({ price_per_person: 0, attendees: [mkAttendee({ person_id: 'p1', price_override: 20 })] })
+    expect(computeDiningForBooking(booking, [ev], participants)).toBe(20)
+  })
+
+  it('bills nothing for a free event when no one has an override', () => {
+    const ev = mkDiningEvent({ price_per_person: 0, attendees: [mkAttendee({ person_id: 'p1' })] })
+    expect(computeDiningForBooking(booking, [ev], participants)).toBe(0)
+  })
+
+  it('bills an explicit 0 override even on a paying event', () => {
+    const ev = mkDiningEvent({ price_per_person: 12, attendees: [mkAttendee({ person_id: 'p1', price_override: 0 })] })
     expect(computeDiningForBooking(booking, [ev], participants)).toBe(0)
   })
 
@@ -441,6 +451,25 @@ describe('dining charges', () => {
       ],
     })
     expect(computeDiningRevenue([ev])).toBe(24)
+  })
+
+  it('counts an override on a free event in the global dining revenue', () => {
+    const ev = mkDiningEvent({
+      price_per_person: 0,
+      attendees: [
+        mkAttendee({ id: 'a1', person_id: 'p1', price_override: 20 }),
+        mkAttendee({ id: 'a2', person_id: 'p2' }),
+      ],
+    })
+    expect(computeDiningRevenue([ev])).toBe(20)
+  })
+
+  it('charges an instructor an override taken on a free event', () => {
+    const ev = mkDiningEvent({
+      price_per_person: 0,
+      attendees: [mkAttendee({ person_id: 'ins1', person_type: 'instructor', price_override: 15 })],
+    })
+    expect(computeInstructorDiningCharges('ins1', [ev])).toBe(15)
   })
 
   it('charges an instructor only for their own meals', () => {

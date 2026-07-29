@@ -5,7 +5,6 @@ import type { DiningEvent } from '../../types/database'
 interface Props { data: SharedAccountingData }
 
 function eventRevenue(ev: DiningEvent): number {
-  if (ev.price_per_person === 0) return 0
   return (ev.attendees ?? [])
     .filter(a => a.is_attending)
     .reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
