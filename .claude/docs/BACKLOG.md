@@ -8,6 +8,36 @@
 
 ---
 
+## 🚨 MIGRATIONS SQL EN ATTENTE D'APPLICATION (gui)
+
+> Registre des migrations écrites mais **pas encore passées**. Une ligne par migration ;
+> on la raye seulement après vérification **par curl anon** sur les DEUX bases.
+> Rappel : TEST + PROD dans la foulée, et ne jamais croire « c'est passé » sans test réel
+> (piège vécu le 2026-07-06 : SQL editor ouvert sur le mauvais projet, migration idempotente
+> → zéro erreur et faux positif).
+
+| Migration | Contenu | TEST | PROD |
+|---|---|---|---|
+| `2026-07-29_lesson_pricing.sql` | `price_items.lesson_type` + `lessons.price_per_hour` + REVOKE anon sur `instructors.rate_*` et `lesson_rate_overrides` | ⬜ | ⬜ |
+
+**Vérifications** (détail en bas du fichier SQL) :
+1. `SELECT name, price, lesson_type FROM price_items WHERE category='lesson';`
+   → PROD : Private/60/private, Group/36/group, Supervision/40/supervision.
+2. **Orphelines** : `SELECT name FROM price_items WHERE category='lesson' AND lesson_type IS NULL;`
+   → doit être vide. ⚠️ Le rattachement auto ne matche que les noms exacts
+   `private`/`group`/`supervision` — **le seed TEST est en français**, rattachement manuel
+   probable, sinon **ces leçons seront facturées 0**.
+3. **Curl anon** : `instructors?select=rate_private` → **42501** (c'était une fuite de
+   salaires : ces colonnes étaient lisibles depuis n'importe quel lien client, cf. Lot C) ;
+   `instructors?select=id,first_name` → `[]` (RLS Phase 2), **pas** 42501.
+
+**Puis, côté données** : Options → Instructors, mettre la paie de gui et de sa compagne à
+**0**, vérifier Rémi et Tere (encore aux défauts 50/35/25 — seul Pierrot est renseigné).
+
+Contexte complet : `.claude/docs/LESSON_PRICING.md`.
+
+---
+
 ## ✅ Sécurité anon — CHANTIER TERMINÉ (2026-07-06)
 
 Lots A+B+C (colonnes) + Phase 2 (lignes token-aware) tous appliqués & vérifiés par curl anon
