@@ -1118,6 +1118,26 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     setSaving(true)
     let clientId = data.client_id
 
+    // 0. Check for date conflicts on rooms
+    const hasConflict = data.room_ids.some(roomId => {
+      const existingBookings = bookings.filter(b =>
+        b.id !== data.booking_id && // exclude current booking if editing
+        b.booking_rooms.some(br => br.room_id === roomId)
+      )
+      return existingBookings.some(b => {
+        const checkIn = new Date(data.check_in).getTime()
+        const checkOut = new Date(data.check_out).getTime()
+        const existingIn = new Date(b.check_in).getTime()
+        const existingOut = new Date(b.check_out).getTime()
+        return !(checkOut <= existingIn || checkIn >= existingOut)
+      })
+    })
+    if (hasConflict) {
+      alert('⚠️ This room is already booked during this period. Please choose different dates or rooms.')
+      setSaving(false)
+      return
+    }
+
     // 1. Create new client if needed
     if (!clientId && data.new_client_first_name) {
       const { data: newClientData, error: clientErr } = await supabase
