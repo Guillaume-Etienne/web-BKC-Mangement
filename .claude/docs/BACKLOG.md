@@ -20,16 +20,28 @@
 |---|---|---|---|
 | `2026-07-29_lesson_pricing.sql` | `price_items.lesson_type` + `lessons.price_per_hour` + REVOKE anon sur `instructors.rate_*` et `lesson_rate_overrides` | ⬜ | ⬜ |
 
+### ⛔ Ne PAS déployer le code sans passer la migration
+
+Vérifié sur TEST le 2026-07-29 (app locale branchée sur TEST, migration non passée) :
+le dashboard affiche **Lessons = 0 €** alors que la base contient 8 leçons. C'est le repli
+sûr (pas de crash, pas de NaN), mais c'est bien 0 € facturé. Vercel déploie au push →
+**passer la migration avant ou en même temps que le push**. PROD n'a aucune leçon
+aujourd'hui, donc la fenêtre est sans danger tant qu'aucune leçon n'y est créée.
+
 **Vérifications** (détail en bas du fichier SQL) :
 1. `SELECT name, price, lesson_type FROM price_items WHERE category='lesson';`
-   → PROD : Private/60/private, Group/36/group, Supervision/40/supervision.
+   → Private/60/private, Group/36/group, Supervision/40/supervision.
 2. **Orphelines** : `SELECT name FROM price_items WHERE category='lesson' AND lesson_type IS NULL;`
-   → doit être vide. ⚠️ Le rattachement auto ne matche que les noms exacts
-   `private`/`group`/`supervision` — **le seed TEST est en français**, rattachement manuel
-   probable, sinon **ces leçons seront facturées 0**.
+   → doit être vide. ✅ **Vérifié le 2026-07-29 : les deux bases nomment leurs lignes
+   `Private`/`Group`/`Supervision`**, le rattachement auto marchera partout (ma crainte d'un
+   seed TEST en français était infondée — contrôlé par API sur TEST).
 3. **Curl anon** : `instructors?select=rate_private` → **42501** (c'était une fuite de
    salaires : ces colonnes étaient lisibles depuis n'importe quel lien client, cf. Lot C) ;
    `instructors?select=id,first_name` → `[]` (RLS Phase 2), **pas** 42501.
+4. **Chiffres attendus sur TEST après migration** (mesurés avant, le 2026-07-29) :
+   revenu leçons **687 € → 1 052 €**, coûts moniteurs **517 € inchangés**
+   (dont un override à 60 € « TEST override » qui ne joue désormais que sur la paie).
+   Marge du centre sur les cours : 200 € → 565 €.
 
 **Puis, côté données** : Options → Instructors, mettre la paie de gui et de sa compagne à
 **0**, vérifier Rémi et Tere (encore aux défauts 50/35/25 — seul Pierrot est renseigné).
