@@ -59,7 +59,8 @@
       "Bash(npm test *)",
       "Bash(git stash *)",
       "Bash(npx tsc *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(echo \"tsc=$?\")"
     ]
   }
 }

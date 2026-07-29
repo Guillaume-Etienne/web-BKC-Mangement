@@ -65,6 +65,33 @@ que `utils.ts` aurait désynchronisé les totaux des lignes de détail :
 Règle désormais : c'est le **montant effectif** (`price_override ?? price_per_person`) qui
 décide, pas le prix de l'event. Un override explicite à 0 € reste donc gratuit.
 
+## Agrégats extraits et testés (2026-07-29)
+
+Les chiffres de tête du dashboard et du CashFlow étaient calculés **inline dans les
+composants**, donc intestables — c'est comme ça que l'arrondi taxi avait dérivé du détail.
+Ils vivent désormais dans deux fonctions pures :
+
+- `computeSeasonTotals(data)` → répartition du revenu, encaissements, chaque ligne de coût,
+  net Palmeiras, résultat. Les conventions faciles à rater sont documentées dessus
+  (annulés hors revenu, taxi en marge jamais resoustrait, coût moniteur sur toute leçon donnée).
+- `cashFlowUtils.ts` → `buildCashFlowRows` / `filterRowsByPeriod` / `sumCashFlowRows` /
+  `runningBalances`. Base **encaissements** et non facturation.
+
+**Vérifié iso-comportement sur la base TEST** : après refactor, chaque montant du dashboard
+est identique à l'euro (4 413 € de revenu, +891 € de résultat). Et les deux vues se
+réconcilient — CashFlow « All time » encaissé = 3 080 € = le chiffre du dashboard.
+
+### ⚠️ « Billed » ne veut pas dire la même chose dans les deux onglets
+
+Sur TEST : dashboard **4 818 €**, CashFlow **5 008 €**. L'écart de 190 € se décompose
+exactement en remises **30 €** + taxis standalone **160 €**.
+
+- Dashboard = ce que doivent les clients sur leurs résas, **net de remises**, résas seules.
+- CashFlow = revenu généré dans le mois, **brut de remises**, + les trajets sans résa.
+
+Les deux sont défendables, mais portent le même mot. Le point discutable est le brut : une
+remise de 30 € accordée laisse quand même 30 € en « revenue generated ». À trancher par gui.
+
 ## ⚠️ Comportements encodés à confirmer par gui
 
 Ces points sont **testés tels qu'ils sont aujourd'hui**. Ce ne sont pas forcément des bugs,

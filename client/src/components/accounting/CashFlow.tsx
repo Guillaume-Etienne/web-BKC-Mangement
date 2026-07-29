@@ -1,30 +1,15 @@
 import { useState, useMemo } from 'react'
 import type { SharedAccountingData } from './types'
-import { computeBookingTotal, fmtEur, fmtMonth } from './utils'
+import { fmtEur, fmtMonth } from './utils'
+import { buildCashFlowRows, filterRowsByPeriod, sumCashFlowRows, runningBalances } from './cashFlowUtils'
 
 interface Props { data: SharedAccountingData }
 
 type PeriodMode  = 'month' | 'season' | 'custom'
 type ChartType   = 'bars' | 'diverging' | 'line'
 
-interface MonthRow {
-  month: string
-  billed:    number
-  collected: number
-  palmIn:    number
-  expenses:  number
-  rent:      number
-  instrPaid: number
-  taxiOut:   number
-  net:       number
-}
-
 export default function CashFlow({ data }: Props) {
-  const {
-    payments, expenses, palmeirasRents, palmeirasReversals,
-    seasons, bookings, instructorPayments, taxiTrips, taxiManagerPayments,
-    activityBookings, eurMznRate,
-  } = data
+  const { seasons } = data
 
   const currentSeason = seasons[seasons.length - 1]
 
@@ -33,122 +18,22 @@ export default function CashFlow({ data }: Props) {
   const [customFrom, setFrom] = useState(currentSeason?.start_date.slice(0, 7) ?? '')
   const [customTo,   setTo]   = useState(currentSeason?.end_date.slice(0, 7)   ?? '')
 
-  // ── Build month index ───────────────────────────────────────────────────
-  const allRows = useMemo<MonthRow[]>(() => {
-    const idx: Record<string, MonthRow> = {}
+  // All the money maths lives in ./cashFlowUtils — pure and unit-tested. The
+  // conventions (cash basis, check-in month, done-trips only) are documented there.
+  const allRows = useMemo(() => buildCashFlowRows(data), [data])
 
-    const ensure = (m: string) => {
-      if (!idx[m]) idx[m] = { month: m, billed: 0, collected: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, net: 0 }
-      return idx[m]
-    }
-
-    // Revenue billed (by check_in month)
-    for (const b of bookings.filter(b => b.status !== 'cancelled')) {
-      const m = b.check_in.slice(0, 7)
-      ensure(m).billed += computeBookingTotal(b, data)
-    }
-
-    // Standalone taxi trips (no booking) — billed by trip date
-    for (const t of taxiTrips.filter(t => t.booking_id === null)) {
-      const m = t.date.slice(0, 7)
-      ensure(m).billed += t.price_eur
-    }
-
-    // Activity net margin — only standalone (no booking); booking-linked are in computeBookingTotal
-    for (const b of activityBookings.filter(a => a.booking_id === null)) {
-      const m = b.date.slice(0, 7)
-      const net = b.payment_flow === 'we_pay_provider'
-        ? b.price_client - b.price_provider
-        : b.price_provider
-      ensure(m).billed += net
-    }
-
-    // Cash collected (by payment date, excludes discounts)
-    for (const p of payments.filter(p => !p.is_discount)) {
-      const m = p.date.slice(0, 7)
-      ensure(m).collected += p.amount
-    }
-
-    // Palmeiras reversals in
-    for (const r of palmeirasReversals) {
-      ensure(r.month).palmIn += r.net_amount
-    }
-
-    // Expenses out
-    for (const e of expenses) {
-      const m = e.date.slice(0, 7)
-      ensure(m).expenses += e.amount
-    }
-
-    // Rent out
-    for (const r of palmeirasRents) {
-      ensure(r.month).rent += r.amount
-    }
-
-    // Instructor payments out
-    for (const p of instructorPayments) {
-      const m = p.date.slice(0, 7)
-      ensure(m).instrPaid += p.amount
-    }
-
-    // Taxi cash out, MZN→EUR at the global rate:
-    // drivers are paid cash right after each trip → count price_driver_mzn of DONE trips
-    // at the trip month (no payment table exists for drivers, and none is needed);
-    // the manager (Geraldo) is paid irregularly → use his real dated payments.
-    const rate = eurMznRate || 1
-    for (const t of taxiTrips.filter(t => t.status === 'done')) {
-      const m = t.date.slice(0, 7)
-      ensure(m).taxiOut += t.price_driver_mzn / rate
-    }
-    for (const p of taxiManagerPayments) {
-      const m = p.date.slice(0, 7)
-      ensure(m).taxiOut += p.amount_mzn / rate
-    }
-
-    // Compute net for each month
-    for (const row of Object.values(idx)) {
-      row.net = row.collected + row.palmIn - row.expenses - row.rent - row.instrPaid - row.taxiOut
-    }
-
-    return Object.values(idx).sort((a, b) => b.month.localeCompare(a.month)) // newest first
-  }, [bookings, payments, palmeirasReversals, expenses, palmeirasRents, instructorPayments, taxiTrips, taxiManagerPayments, eurMznRate, activityBookings, data])
-
-  // ── Filter by period ────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     if (mode === 'season' && currentSeason) {
-      const from = currentSeason.start_date.slice(0, 7)
-      const to   = currentSeason.end_date.slice(0, 7)
-      return allRows.filter(r => r.month >= from && r.month <= to)
+      return filterRowsByPeriod(allRows, currentSeason.start_date.slice(0, 7), currentSeason.end_date.slice(0, 7))
     }
     if (mode === 'custom' && customFrom && customTo) {
-      return allRows.filter(r => r.month >= customFrom && r.month <= customTo)
+      return filterRowsByPeriod(allRows, customFrom, customTo)
     }
     return allRows
   }, [allRows, mode, currentSeason, customFrom, customTo])
 
-  // ── Totals ──────────────────────────────────────────────────────────────
-  const totals = filtered.reduce(
-    (acc, r) => ({
-      billed:    acc.billed    + r.billed,
-      collected: acc.collected + r.collected,
-      palmIn:    acc.palmIn    + r.palmIn,
-      expenses:  acc.expenses  + r.expenses,
-      rent:      acc.rent      + r.rent,
-      instrPaid: acc.instrPaid + r.instrPaid,
-      taxiOut:   acc.taxiOut   + r.taxiOut,
-      net:       acc.net       + r.net,
-    }),
-    { billed: 0, collected: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, net: 0 }
-  )
-
-  // ── Running balance (cumulative net, oldest→newest) ─────────────────────
-  const orderedAsc = [...filtered].sort((a, b) => a.month.localeCompare(b.month))
-  const runningBalance: Record<string, number> = {}
-  let cumul = 0
-  for (const r of orderedAsc) {
-    cumul += r.net
-    runningBalance[r.month] = cumul
-  }
+  const totals = sumCashFlowRows(filtered)
+  const runningBalance = runningBalances(filtered)
 
   // ── Bar chart scale ──────────────────────────────────────────────────────
   const maxVal = Math.max(...filtered.map(r => Math.abs(r.net)), 1)
