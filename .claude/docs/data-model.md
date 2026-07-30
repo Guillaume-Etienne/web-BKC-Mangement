@@ -221,6 +221,7 @@
 | room_label | string | e.g. "H-1/F" |
 | is_attending | boolean | |
 | price_override? | number | Surcharge individuelle |
+| paid? | boolean | **`extra` uniquement** (2026-07-30). Le repas d'un participant part sur sa résa, celui d'un moniteur est déduit de sa paie ; un extra n'a ni l'un ni l'autre, donc c'est le seul endroit où l'on sait s'il a réglé. Champ JSON → **aucune migration**. Absent = non payé. |
 | starter | string | Menu item (always present) |
 | main | string | Menu item (always present) |
 | side | string | Menu item (always present) |

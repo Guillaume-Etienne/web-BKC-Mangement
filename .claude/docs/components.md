@@ -58,6 +58,11 @@
 - Sélecteur de date (±1 jour)
 - EventType : `'count'` (effectif) ou `'menu'` (champs par personne)
 - Calcule room_label des participants à partir de bookingRooms/rooms/accommodations
+- **Bouton Unpaid/✓ Paid (2026-07-30)** sur les convives `extra` payants uniquement : leur
+  repas n'atterrit sur aucune résa ni aucune paie, donc c'est le seul suivi de leur règlement.
+  Compteur « €X to collect » à côté du total du repas **et** dans l'historique (pour qu'un
+  oubli se voie sans rouvrir chaque repas). Stocké dans le JSON `attendees`, aucune migration ;
+  la compta n'a pas bougé (le revenu repas comptait déjà ces convives).
 - ⚠️ Formulaires au **scope module**
 
 ### `ForecastView` — `planning/ForecastView.tsx`

@@ -178,9 +178,10 @@ dit exactement quoi modifier.
    le total de la résa qu'on a ouverte — voulu). Le risque est un **futur** appelant.
 2. **Repli sur `client_id`** quand un booking n'a pas de participants : ne matche que les
    convives enregistrés avec `person_type = 'participant'`. Cohérent avec `NowView`, qui
-   inscrit justement le client sous ce type quand la résa n'a pas de participants. En
-   revanche un convive ajouté à la main en **`extra`** n'est facturé à aucune résa (il
-   compte quand même dans le revenu repas global).
+   inscrit justement le client sous ce type quand la résa n'a pas de participants —
+   **vérifié, pas un bug**. Le convive `extra`, lui, n'est facturé à aucune résa : décision
+   gui du 2026-07-30 → il paie sur place, et un bouton **Unpaid / ✓ Paid** dans Now suit son
+   règlement (cf. `components.md` §NowView). Les calculs compta sont inchangés.
 
 **Tranchés depuis** : leçon de groupe facturée par tête et payée à plat — c'est le modèle
 retenu le 2026-07-29, cf. `LESSON_PRICING.md` (client `36 × 2 × 3 = 216 €`, moniteur

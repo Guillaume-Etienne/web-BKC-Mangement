@@ -15,6 +15,19 @@ const MENU_FIELDS: { key: keyof Pick<EventAttendee, 'starter' | 'main' | 'side' 
 const personIcon = (type: EventAttendee['person_type']) =>
   type === 'instructor' ? '👨‍🏫' : type === 'participant' ? '🏄' : '👤'
 
+/** A participant's meal goes on their booking, an instructor's comes off their pay.
+ *  An extra has neither, so what they owe for dinner is only ever tracked here. */
+const owesForMeal = (a: EventAttendee, eventPrice: number) =>
+  a.person_type === 'extra' && a.is_attending && (a.price_override ?? eventPrice) > 0
+
+function unpaidExtras(ev: DiningEvent): { count: number; amount: number } {
+  const rows = (ev.attendees ?? []).filter(a => owesForMeal(a, ev.price_per_person) && a.paid !== true)
+  return {
+    count: rows.length,
+    amount: rows.reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0),
+  }
+}
+
 // ─── Top-level sub-components (MUST be outside NowView to avoid focus loss) ──
 
 interface AttendeeProps {
@@ -23,6 +36,23 @@ interface AttendeeProps {
   eventPrice: number
   onUpdate: (id: string, changes: Partial<EventAttendee>) => void
   onRemove: (id: string) => void
+}
+
+function PaidToggle({ a, onUpdate }: Pick<AttendeeProps, 'a' | 'onUpdate'>) {
+  const paid = a.paid === true
+  return (
+    <button
+      onClick={() => onUpdate(a.id, { paid: !paid })}
+      title={paid ? 'Paid — click to mark as unpaid' : 'Not paid yet — click once the money is in'}
+      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-colors shrink-0 ${
+        paid
+          ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100'
+          : 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100'
+      }`}
+    >
+      {paid ? '✓ Paid' : 'Unpaid'}
+    </button>
+  )
 }
 
 function AttendeeTableRow({ a, isMenu, eventPrice, onUpdate, onRemove }: AttendeeProps) {
@@ -70,7 +100,10 @@ function AttendeeTableRow({ a, isMenu, eventPrice, onUpdate, onRemove }: Attende
       )}
       {eventPrice > 0 && (
         <td className="px-3 py-1 text-xs text-right font-medium text-gray-600 whitespace-nowrap">
-          {a.is_attending ? `€${effectivePrice}` : '—'}
+          <div className="flex items-center justify-end gap-2">
+            {a.is_attending ? `€${effectivePrice}` : '—'}
+            {owesForMeal(a, eventPrice) && <PaidToggle a={a} onUpdate={onUpdate} />}
+          </div>
         </td>
       )}
     </tr>
@@ -89,6 +122,7 @@ function AttendeeCard({ a, isMenu, eventPrice, onUpdate, onRemove }: AttendeePro
           {a.room_label && <span className="text-xs text-gray-400 shrink-0">({a.room_label})</span>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {owesForMeal(a, eventPrice) && <PaidToggle a={a} onUpdate={onUpdate} />}
           {eventPrice > 0 && a.is_attending && (
             <input
               type="number" min="0"
@@ -333,6 +367,11 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
     [activeEvent]
   )
 
+  const unpaid = useMemo(
+    () => activeEvent ? unpaidExtras(activeEvent) : { count: 0, amount: 0 },
+    [activeEvent]
+  )
+
   const instrAttendees = activeEvent?.attendees.filter(a => a.person_type === 'instructor') ?? []
   const guests         = activeEvent?.attendees.filter(a => a.person_type !== 'instructor') ?? []
   const isMenu      = activeEvent?.type === 'menu'
@@ -443,6 +482,12 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
                   <span className="text-xs text-gray-400">total</span>
                 </div>
               )}
+              {unpaid.count > 0 && (
+                <div className="flex items-center gap-1 border-l pl-4" title="Extras have no booking to charge — collect on the spot">
+                  <span className="text-sm font-semibold text-amber-600">€{unpaid.amount.toFixed(0)}</span>
+                  <span className="text-xs text-amber-500">to collect ({unpaid.count})</span>
+                </div>
+              )}
             </div>
             <div className="flex rounded-lg border border-gray-200 overflow-hidden">
               {(['table', 'cards'] as View[]).map(v => (
@@ -547,6 +592,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
               const evAttendees = ev.attendees ?? []
               const evAttending = evAttendees.filter(a => a.is_attending).length
               const evTotal = evAttendees.filter(a => a.is_attending).reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
+              const evUnpaid = unpaidExtras(ev)
               return (
                 <div
                   key={ev.id}
@@ -560,6 +606,11 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
                   <span className="text-gray-400 shrink-0">{ev.date} · {ev.time}</span>
                   <span className="text-emerald-600 font-semibold shrink-0">{evAttending} pers.</span>
                   {ev.price_per_person > 0 && <span className="text-blue-600 font-semibold shrink-0">€{evTotal}</span>}
+                  {evUnpaid.count > 0 && (
+                    <span className="text-amber-600 font-semibold shrink-0 text-xs" title={`${evUnpaid.count} extra guest(s) still to pay`}>
+                      €{evUnpaid.amount} to collect
+                    </span>
+                  )}
                   <button onClick={e => { e.stopPropagation(); duplicateEvent(ev) }} className="text-gray-300 hover:text-blue-500 shrink-0">⧉</button>
                   <button onClick={e => { e.stopPropagation(); deleteEvent(ev.id) }} className="text-gray-300 hover:text-red-400 shrink-0">🗑</button>
                 </div>

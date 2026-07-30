@@ -72,9 +72,10 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
    `104a9ec`) ; marge bungalow Palmeiras tab ≠ dashboard (**voulu**, verrouillé par un test).
    ✅ Aussi tranché : **leçon de groupe** facturée par tête / payée à plat = le modèle
    décidé le 2026-07-29 (`LESSON_PRICING.md`) — l'entrée « à confirmer » était périmée.
-   ⬜ **Restent 2, plutôt des garde-fous que des décisions** : (a) `computeBookingTotal` ne
-   filtre pas les annulés (les 5 appelants actuels filtrent bien, le risque est un futur
-   appelant) ; (b) convives repas en `person_type = 'extra'` facturés à aucune résa.
+   ✅ **Tranché aussi le 2026-07-30** : (a) `computeBookingTotal` ne filtre pas les annulés →
+   **on ne touche à rien** (les 5 appelants filtrent correctement, et le panneau de détail a
+   besoin du total d'une résa annulée) ; (b) convives `extra` d'un repas → ils paient sur
+   place, bouton **Unpaid / ✓ Paid** dans Now + total « to collect ». **Étape 3 close.**
 4. ✅ **Tests côté base — FAIT**. Les 2 garde-fous, la non-duplication des `taxi_trips`, le
    snapshot `booking_room_prices` (écriture, mise à jour et rechargement) et le delta de
    paiement sont vérifiés bout-en-bout sur TEST — tableau complet dans

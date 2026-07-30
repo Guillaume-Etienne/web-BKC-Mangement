@@ -108,6 +108,8 @@ export interface EventAttendee {
   room_label: string      // e.g. "H-1/F" for clients, "" for instructors
   is_attending: boolean
   price_override?: number // overrides event-level price_per_person if set
+  paid?: boolean          // 'extra' guests only: their meal lands on no booking and no
+                          // payroll, so whether they settled up is tracked here or nowhere
   starter: string
   main: string
   side: string
