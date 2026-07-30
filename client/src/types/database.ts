@@ -165,6 +165,11 @@ export interface Lesson {
    *  a rate never reprices past lessons. Editable per lesson. null → fall back
    *  to the current price_items rate. Distinct from what the instructor is paid. */
   price_per_hour: number | null
+  /** Instructor pay €/h, snapshotted at creation from instructors.rate_* — the
+   *  other scale entirely. Without it, raising a rate would raise what is owed for
+   *  past lessons. null → fall back to the current rate. A per-lesson override
+   *  still outranks it: that is an explicit decision on this lesson. */
+  instructor_rate: number | null
   instructor?: Instructor
   clients?: Client[]
 }
@@ -180,7 +185,7 @@ export interface DayActivity {
   notes: string | null
 }
 
-export type PriceCategory = 'lesson' | 'activity' | 'rental' | 'taxi'
+export type PriceCategory = 'lesson' | 'activity' | 'rental' | 'meal' | 'center_access'
 
 export interface PriceItem {
   id: string
@@ -189,16 +194,25 @@ export interface PriceItem {
   description: string | null
   price: number
   unit: string | null
-  // Explicit link to what this rate bills — only one of them is ever set, and
-  // only on a row of the matching category. Never match a rate by name: renaming
-  // it would silently reprice, which is exactly the bug these columns closed.
-  lesson_type: LessonType | null
-  rental_type: RentalType | null
+  // What this rate bills, explicitly. The name bills nothing — matching a rate by
+  // name is the bug this column closed, three times over. null = free catalogue row.
+  billable_type: BillableType | null
 }
 
-/** Rental types that carry a rate. 'free' is not one: it is 0 by definition,
- *  so it is never stored and never configurable. */
+/** Every post the app bills automatically. One rate row per value (unique index),
+ *  so adding a billable post later is one enum value, not one more column. */
+export type BillableType =
+  | 'lesson_private' | 'lesson_group' | 'lesson_supervision'
+  | 'rental_kite' | 'rental_board' | 'rental_full' | 'rental_surfboard' | 'rental_foilboard'
+  | 'center_access' | 'meal'
+
+/** Rental kinds that carry a rate. 'free' is not one: it is 0 by definition. */
 export type RentalType = 'kite' | 'board' | 'full' | 'surfboard' | 'foilboard'
+
+/** The rate row a lesson / a rental is billed with. Keeps the enum values in one
+ *  place so no screen has to build the string itself. */
+export const lessonBillable = (t: LessonType): BillableType => `lesson_${t}` as BillableType
+export const rentalBillable = (t: RentalType): BillableType => `rental_${t}` as BillableType
 
 // Taxis
 export type TaxiTripType   = 'aero-to-center' | 'center-to-aero' | 'aero-to-spot' | 'spot-to-aero' | 'center-to-town' | 'town-to-center' | 'other'

@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import type { Lesson, LessonType, EquipmentRental, Instructor, Client, Equipment } from '../../types/database'
+import { currentInstructorRate } from '../accounting/utils'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -76,8 +77,13 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
       notes: notes || null,
       kite_id: null,
       board_id: null,
-      // No price list in this view — null falls back to the current rate
+      // No price list in this view — null falls back to the current client rate
       price_per_hour: null,
+      // The pay scale IS available here, so freeze it like the planning does
+      instructor_rate: (() => {
+        const instr = instructors.find(i => i.id === instrId)
+        return instr ? currentInstructorRate({ type }, instr) : null
+      })(),
     })
   }
 

@@ -5,8 +5,9 @@ import type {
   Accommodation, ActivityBooking, Booking, BookingParticipant, BookingRoom, BookingRoomPrice,
   DiningEvent, EquipmentRental, EventAttendee, ExternalAccommodation, ExternalAccommodationBooking,
   Instructor, InstructorDebt, InstructorPayment, Lesson, LessonRateOverride, LessonType, PriceItem,
-  Payment, Room, RoomRate, TaxiTrip,
+  Payment, Room, RoomRate, TaxiTrip, BillableType,
 } from '../../types/database'
+import { lessonBillable } from '../../types/database'
 import type { SharedAccountingData } from './types'
 import { emptyAccountingData } from './utils'
 
@@ -73,7 +74,7 @@ export function mkLesson(over: Partial<Lesson> = {}): Lesson {
   return {
     id: 'les1', booking_id: 'bk1', instructor_id: 'ins1', participant_ids: ['p1'],
     date: '2026-11-02', start_time: '09:00', duration_hours: 2, type: 'private',
-    notes: null, kite_id: null, board_id: null, price_per_hour: null,
+    notes: null, kite_id: null, board_id: null, price_per_hour: null, instructor_rate: null,
     ...over,
   }
 }
@@ -83,8 +84,16 @@ export function mkLessonPrices(over: Partial<Record<LessonType, number>> = {}): 
   const base: Record<LessonType, number> = { private: 60, group: 36, supervision: 40, ...over }
   return (Object.keys(base) as LessonType[]).map(t => ({
     id: `pi_${t}`, category: 'lesson', name: t, description: null,
-    price: base[t], unit: '€/hour', lesson_type: t, rental_type: null,
+    price: base[t], unit: '€/hour', billable_type: lessonBillable(t),
   }))
+}
+
+/** A rate row for any billable post — meals, center access, rentals. */
+export function mkPrice(billable: BillableType, price: number, over: Partial<PriceItem> = {}): PriceItem {
+  return {
+    id: `pi_${billable}`, category: 'lesson', name: billable, description: null,
+    price, unit: null, billable_type: billable, ...over,
+  }
 }
 
 export function mkLessonOverride(over: Partial<LessonRateOverride> = {}): LessonRateOverride {

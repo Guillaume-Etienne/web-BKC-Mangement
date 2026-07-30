@@ -1,4 +1,5 @@
-import type { Booking, BookingParticipant, Payment, Lesson, Instructor, LessonRateOverride, DiningEvent, PriceItem } from '../../types/database'
+import type { Booking, BookingParticipant, Payment, Lesson, Instructor, LessonRateOverride, DiningEvent, PriceItem, BillableType } from '../../types/database'
+import { lessonBillable } from '../../types/database'
 import type { SharedAccountingData } from './types'
 import { getBaseNightlyRate } from '../../utils/roomPricing'
 
@@ -83,7 +84,14 @@ export function getLessonClientRate(lesson: Lesson, priceItems: PriceItem[]): nu
   // Loose != on purpose: before the migration lands, rows come back without the
   // column at all, and `undefined !== null` would return undefined → NaN amounts.
   if (lesson.price_per_hour != null) return lesson.price_per_hour
-  return priceItems.find(p => p.lesson_type === lesson.type)?.price ?? 0
+  return getConfiguredRate(priceItems, lessonBillable(lesson.type)) ?? 0
+}
+
+/** The configured rate for a billable post, or null when none is set.
+ *  null and 0 mean different things: 0 is "this is free", null is "nobody said" —
+ *  the screens show the second in red instead of quietly billing nothing. */
+export function getConfiguredRate(priceItems: PriceItem[], type: BillableType): number | null {
+  return priceItems.find(p => p.billable_type === type)?.price ?? null
 }
 
 /** Lessons revenue for a booking.
@@ -189,8 +197,20 @@ export function getInstructorRate(
   instructor: Instructor,
   overrides: LessonRateOverride[]
 ): number {
+  // An override is a decision taken on THIS lesson, so it outranks everything.
   const override = overrides.find(o => o.lesson_id === lesson.id)
   if (override) return override.rate
+  // Then the rate frozen when the lesson was given. Without it, raising someone's
+  // rate in October would raise what we owe them for July — payroll rewritten
+  // backwards. Loose != so a pre-migration row (no column) falls through cleanly.
+  if (lesson.instructor_rate != null) return lesson.instructor_rate
+  return lesson.type === 'private' ? instructor.rate_private
+    : lesson.type === 'group'     ? instructor.rate_group
+    : instructor.rate_supervision
+}
+
+/** Pay rate to freeze on a lesson being created, from the instructor's current scale. */
+export function currentInstructorRate(lesson: Pick<Lesson, 'type'>, instructor: Instructor): number {
   return lesson.type === 'private' ? instructor.rate_private
     : lesson.type === 'group'     ? instructor.rate_group
     : instructor.rate_supervision

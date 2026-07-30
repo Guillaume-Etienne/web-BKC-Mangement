@@ -186,7 +186,8 @@
 | start_time | string (HH:MM) | |
 | duration_hours | number | |
 | type | LessonType | |
-| price_per_hour | number \| null | 2026-07-29. Prix **client** €/h figé à la création depuis `price_items.lesson_type`, éditable leçon par leçon. `NULL` → repli sur le tarif courant. La paie du moniteur n'est PAS ici (`instructors.rate_*`). |
+| price_per_hour | number \| null | 2026-07-29. Prix **client** €/h figé à la création depuis `price_items`, éditable leçon par leçon. `NULL` → repli sur le tarif courant. |
+| instructor_rate | number \| null | 2026-07-30. **Paie** moniteur €/h figée à la création depuis `instructors.rate_*` — l'autre barème. Sans elle, augmenter un tarif augmentait ce qu'on devait pour le passé. `NULL` → repli sur le tarif courant ; un `lesson_rate_overrides` sur cette leçon reste prioritaire (décision explicite). |
 | notes | string \| null | |
 | kite_id | string \| null (FK → equipment) | |
 | board_id | string \| null (FK → equipment) | |
@@ -378,14 +379,21 @@
 | description | string \| null | |
 | price | number | |
 | unit | string \| null | |
-| lesson_type | LessonType \| null | 2026-07-29. Le lien qui facture les leçons. Un seul par type (index unique partiel), interdit hors `category='lesson'` (CHECK). |
-| rental_type | RentalType \| null | 2026-07-30. Idem pour les locations (`kite/board/full/surfboard/foilboard` — « Other » = 0 par définition, hors enum). |
+| billable_type | BillableType \| null | 2026-07-30. **Le** lien qui facture. Un seul tarif par poste (index unique partiel) et la catégorie doit correspondre (CHECK). `null` = catalogue libre, lu par aucun calcul. |
 
-> ⚠️ **Ne jamais rapprocher un tarif par son nom.** C'est le bug qu'on a payé trois fois
-> (full house à 100 € en dur, leçons par nom, locations par nom) : renommer une ligne
-> faisait basculer la facturation sur un prix qu'aucun écran ne montrait. Depuis le
-> 2026-07-30, une ligne liée ne peut plus être renommée, déplacée ni supprimée dans
-> Options → Pricing, et plus aucun prix de repli ne vit dans le code.
+**Les 10 postes facturables** (`billable_type`) : `lesson_private`, `lesson_group`,
+`lesson_supervision`, `rental_kite`, `rental_board`, `rental_full`, `rental_surfboard`,
+`rental_foilboard`, `center_access`, `meal`. Brancher un poste de plus demain = **une
+valeur d'enum**, pas une colonne — c'est pour ça que `lesson_type` et `rental_type`
+(éphémères, 29 et 30 juillet) ont fusionné ici.
+
+> ⚠️ **Ne jamais rapprocher un tarif par son nom.** Bug payé trois fois (full house à
+> 100 € en dur, leçons par nom, locations par nom) : renommer une ligne faisait basculer
+> la facturation sur un prix qu'aucun écran ne montrait. Depuis le 2026-07-30, une ligne
+> liée ne peut être ni renommée, ni déplacée, ni supprimée dans Options → Pricing, et
+> **plus aucun prix ne vit dans le code** (accès centre 5 €, full house 100 €, tarifs de
+> location : tous sortis en base). `category='taxi'` a disparu — ces lignes n'étaient
+> lues par personne, le vrai réglage taxi est dans `taxi_pricing_defaults`.
 
 ### `shared_links` → `SharedLink`
 | Field | Type | Notes |

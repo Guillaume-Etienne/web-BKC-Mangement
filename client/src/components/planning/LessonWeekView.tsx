@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import type { Lesson, DayActivity, DaySlot, LessonType, RentalType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem } from '../../types/database'
+import { lessonBillable, rentalBillable } from '../../types/database'
+import { currentInstructorRate } from '../accounting/utils'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -157,16 +159,23 @@ export default function LessonWeekView({
   const [dropTarget, setDropTarget] = useState<{ date: string; slot: Slot } | null>(null)
 
   // ── Pricing lookup ────────────────────────────────────────────────────────
-  /** Rate from Options → Pricing, keyed by rental_type (never by name).
+  /** Rate from Options → Pricing, keyed by what it bills (never by name).
    *  null = nothing configured for that type; 'free' is 0 by definition. */
   function rentalPrice(type: RentalKind): number | null {
     if (type === 'free') return 0
-    return priceItems.find(p => p.rental_type === type)?.price ?? null
+    return priceItems.find(p => p.billable_type === rentalBillable(type))?.price ?? null
   }
 
-  /** Client price €/h from Options → Pricing, keyed by lesson_type (never by name). */
+  /** What the instructor is paid, frozen onto the lesson at creation. A different
+   *  scale from what the client pays — Options → Instructors, not Pricing. */
+  function instructorPay(instructorId: string, type: LessonType): number | null {
+    const instr = instructors.find(i => i.id === instructorId)
+    return instr ? currentInstructorRate({ type }, instr) : null
+  }
+
+  /** Client price €/h from Options → Pricing, keyed by what it bills (never by name). */
   function lessonPrice(type: LessonType): number | null {
-    return priceItems.find(p => p.lesson_type === type)?.price ?? null
+    return priceItems.find(p => p.billable_type === lessonBillable(type))?.price ?? null
   }
 
   // ── Booking lookup ────────────────────────────────────────────────────────
@@ -266,9 +275,10 @@ export default function LessonWeekView({
         notes: addForm.notes || null,
         kite_id: addForm.kite_id,
         board_id: addForm.board_id,
-        // Freeze today's client rate: changing the price list later must not
-        // reprice this lesson (same rule as booking_room_prices).
+        // Freeze BOTH of today's scales: changing the price list or someone's pay
+        // later must not reprice this lesson (same rule as booking_room_prices).
         price_per_hour: lessonPrice(addForm.type),
+        instructor_rate: instructorPay(addForm.instructor_id, addForm.type),
       })
     } else if (addForm.kind === 'activity') {
       onAddActivity({

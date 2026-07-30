@@ -1,8 +1,5 @@
 import type { Accommodation, Room, RoomRate } from '../types/database'
 
-/** Fallback when a house has no "Full house" rate configured in Management */
-export const DEFAULT_FULL_HOUSE_RATE = 100
-
 /** Flat nightly price of a whole house — Management → "Full house (€/night)",
  *  stored in room_rates with room_id = `full_{accommodation_id}`.
  *  It is a single price, NOT the sum of the two room rates. */

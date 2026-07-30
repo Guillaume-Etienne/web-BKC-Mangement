@@ -1,7 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import type { Booking, BookingParticipant, BookingRoom, DiningEvent, EventAttendee, EventType, Room, Accommodation, Instructor } from '../../types/database'
+import type { Booking, BookingParticipant, BookingRoom, DiningEvent, EventAttendee, EventType, Room, Accommodation, Instructor, PriceItem } from '../../types/database'
 import { useTable } from '../../hooks/useSupabase'
 import { supabase } from '../../lib/supabase'
+import { getConfiguredRate } from '../accounting/utils'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -204,6 +205,8 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
 
   // ── Dining events from Supabase ───────────────────────────────────
   const { data: diningEventsData } = useTable<DiningEvent>('dining_events', { order: 'date', ascending: false })
+  const { data: priceItems } = useTable<PriceItem>('price_items')
+  const defaultMealPrice = getConfiguredRate(priceItems, 'meal') ?? 0
 
   // ── Instructor presence ───────────────────────────────────────────
   const [presence, setPresence] = useState<Record<string, boolean>>({})
@@ -263,8 +266,11 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
   // ── Event mutations ───────────────────────────────────────────────
   const createEvent = async () => {
     const ev: DiningEvent = {
+      // Opens at the configured meal rate (Options → Pricing) instead of 0, which
+      // had to be retyped every single time. Still editable per event — a free
+      // dinner is just this one set back to 0.
       id: crypto.randomUUID(), name: '', date: today, time: '20:00',
-      type: 'count', price_per_person: 0, notes: '', attendees: buildAttendees(),
+      type: 'count', price_per_person: defaultMealPrice, notes: '', attendees: buildAttendees(),
     }
     setEvents(prev => [ev, ...prev])
     setActiveId(ev.id)

@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { Payment, PaymentMethod, Booking, EquipmentRental } from '../../types/database'
+import { lessonBillable } from '../../types/database'
 import {
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
   computeAccommodationRevenue, computeExternalAccommodationCost, computeLessonsRevenue, computeRentalsRevenue,
   computeTaxiRevenue, computeActivityRevenueForBooking, computeCenterAccessRevenue,
-  computeDiningForBooking, getLessonClientRate, computeStandaloneTaxiRevenue,
+  computeDiningForBooking, getLessonClientRate, getConfiguredRate, computeStandaloneTaxiRevenue,
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate,
 } from './utils'
 
@@ -474,7 +475,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                 {bkLessons.map(l => {
                   const instr = data.instructors.find(i => i.id === l.instructor_id)
                   const rate = getLessonClientRate(l, data.priceItems)
-                  const listRate = data.priceItems.find(p => p.lesson_type === l.type)?.price ?? 0
+                  const listRate = getConfiguredRate(data.priceItems, lessonBillable(l.type)) ?? 0
                   const isCustom = l.price_per_hour !== null && l.price_per_hour !== listRate
                   const heads = l.type === 'group' ? l.participant_ids.length : 1
                   const isEditing = editingLessonPriceId === l.id

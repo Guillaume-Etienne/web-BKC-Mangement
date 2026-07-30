@@ -10,13 +10,21 @@ CREATE TYPE accommodation_type              AS ENUM ('house', 'bungalow', 'other
 CREATE TYPE booking_status                  AS ENUM ('confirmed', 'provisional', 'cancelled');
 CREATE TYPE lesson_type                     AS ENUM ('private', 'group', 'supervision');
 CREATE TYPE day_slot                        AS ENUM ('morning', 'afternoon', 'evening');
-CREATE TYPE price_category                  AS ENUM ('lesson', 'activity', 'rental', 'taxi');
+-- 'taxi' retiré le 2026-07-30 : ces lignes n'étaient lues par aucun calcul et ne
+-- s'affichaient nulle part (le réglage taxi vit dans taxi_pricing_defaults).
+CREATE TYPE price_category                  AS ENUM ('lesson', 'activity', 'rental', 'meal', 'center_access');
 CREATE TYPE taxi_trip_type                  AS ENUM ('aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other');
 CREATE TYPE taxi_trip_status                AS ENUM ('confirmed', 'needs_details', 'done');
 CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form', 'restaurant');
 CREATE TYPE equipment_category              AS ENUM ('kite', 'board', 'surfboard', 'foilboard');
--- Types de location qui portent un tarif ('free'/« Other » = 0 par définition, hors enum)
-CREATE TYPE rental_price_type               AS ENUM ('kite', 'board', 'full', 'surfboard', 'foilboard');
+-- Tout ce que l'app facture automatiquement : une valeur = un tarif (index unique sur
+-- price_items). Brancher un nouveau poste = ajouter une valeur, pas une colonne.
+-- ('free'/« Other » en location n'y est pas : 0 par définition.)
+CREATE TYPE billable_type                   AS ENUM (
+  'lesson_private', 'lesson_group', 'lesson_supervision',
+  'rental_kite', 'rental_board', 'rental_full', 'rental_surfboard', 'rental_foilboard',
+  'center_access', 'meal'
+);
 CREATE TYPE equipment_condition             AS ENUM ('new', 'good', 'fair', 'damaged', 'retired');
 CREATE TYPE rental_slot                     AS ENUM ('morning', 'afternoon', 'full_day');
 CREATE TYPE payment_method                  AS ENUM ('cash_eur', 'cash_mzn', 'transfer', 'card_palmeiras');
@@ -178,10 +186,10 @@ CREATE TABLE lessons (
   start_time       TEXT NOT NULL,   -- HH:MM
   duration_hours   NUMERIC(4,2) NOT NULL DEFAULT 1,
   type             lesson_type NOT NULL,
-  -- Prix client €/h figé à la création (source : price_items.lesson_type), éditable
-  -- par leçon. NULL → repli sur le tarif courant. Même principe que
-  -- booking_room_prices : changer un tarif ne refacture pas le passé.
-  price_per_hour   NUMERIC(8,2),
+  -- Deux barèmes distincts, tous deux figés à la création (comme booking_room_prices :
+  -- changer un tarif ne refacture pas le passé). NULL → repli sur le tarif courant.
+  price_per_hour   NUMERIC(8,2),   -- prix CLIENT €/h (source : price_items)
+  instructor_rate  NUMERIC(8,2),   -- PAIE moniteur €/h (source : instructors.rate_*)
   notes            TEXT,
   kite_id          UUID,            -- FK to equipment (nullable)
   board_id         UUID,            -- FK to equipment (nullable)
@@ -218,26 +226,35 @@ CREATE TABLE dining_events (
 
 -- ── Pricing ───────────────────────────────────────────────────────────────────
 
--- ⚠️ Une ligne de tarif facture par son LIEN (lesson_type / rental_type), jamais par
--- son nom : rapprocher par le nom faisait basculer la facturation sur un prix codé en
--- dur dès qu'on renommait la ligne (leçons 2026-07-29, locations 2026-07-30).
+-- ⚠️ Une ligne de tarif facture par son LIEN (`billable_type`), jamais par son nom :
+-- rapprocher par le nom faisait basculer la facturation sur un prix codé en dur dès
+-- qu'on renommait la ligne. Payé trois fois (full house, leçons, locations).
+-- Une ligne sans lien = catalogue libre, lue par aucun calcul.
 CREATE TABLE price_items (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  category     price_category NOT NULL,
-  name         TEXT NOT NULL,
-  description  TEXT,
-  price        NUMERIC(10,2) NOT NULL,
-  unit         TEXT,
-  lesson_type  lesson_type,
-  rental_type  rental_price_type,
-  created_at   TIMESTAMPTZ DEFAULT now(),
-  CONSTRAINT price_items_lesson_type_category_chk CHECK (lesson_type IS NULL OR category = 'lesson'),
-  CONSTRAINT price_items_rental_type_category_chk CHECK (rental_type IS NULL OR category = 'rental')
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  category      price_category NOT NULL,
+  name          TEXT NOT NULL,
+  description   TEXT,
+  price         NUMERIC(10,2) NOT NULL,
+  unit          TEXT,
+  billable_type billable_type,
+  created_at    TIMESTAMPTZ DEFAULT now(),
+  -- La catégorie doit correspondre au poste : une ligne 'meal' ne se range pas
+  -- dans les leçons. Le front duplique cette table (CATEGORY_BILLABLES).
+  CONSTRAINT price_items_billable_category_chk CHECK (
+    billable_type IS NULL OR category = (CASE
+      WHEN billable_type IN ('lesson_private', 'lesson_group', 'lesson_supervision') THEN 'lesson'
+      WHEN billable_type IN ('rental_kite', 'rental_board', 'rental_full',
+                             'rental_surfboard', 'rental_foilboard')                 THEN 'rental'
+      WHEN billable_type = 'center_access'                                           THEN 'center_access'
+      WHEN billable_type = 'meal'                                                    THEN 'meal'
+    END)::price_category
+  )
 );
 
--- Un seul tarif par type facturable, sinon la facturation serait ambiguë
-CREATE UNIQUE INDEX idx_price_items_lesson_type ON price_items(lesson_type) WHERE lesson_type IS NOT NULL;
-CREATE UNIQUE INDEX idx_price_items_rental_type ON price_items(rental_type) WHERE rental_type IS NOT NULL;
+-- Un seul tarif par poste facturable, sinon la facturation serait ambiguë
+CREATE UNIQUE INDEX idx_price_items_billable_type
+  ON price_items(billable_type) WHERE billable_type IS NOT NULL;
 
 
 -- ── Equipment ─────────────────────────────────────────────────────────────────

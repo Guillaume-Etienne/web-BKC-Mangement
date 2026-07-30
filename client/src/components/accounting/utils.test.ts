@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   countNights, getRoomNightlyRate, computeAccommodationRevenue, computeExternalAccommodationCost,
-  computeLessonsRevenue, getLessonClientRate, getInstructorRate, computeRentalsRevenue,
+  computeLessonsRevenue, getLessonClientRate, getInstructorRate, getConfiguredRate, computeRentalsRevenue,
   computeTaxiRevenue, computeStandaloneTaxiRevenue, computeTaxiMarginEur,
   computeActivityRevenueForBooking, computeCenterAccessRevenue,
   computeDiningForBooking, computeDiningRevenue, computeInstructorDiningCharges,
@@ -13,7 +13,7 @@ import {
   mkAccommodation, mkActivityBooking, mkAttendee, mkBooking, mkBookingRoom, mkBookingRoomPrice,
   mkData, mkDiningEvent, mkExternalAccommodation, mkExternalBooking, mkHouseSetup,
   mkInstructor, mkInstructorDebt, mkInstructorPayment, mkLesson, mkLessonOverride, mkLessonPrices,
-  mkParticipant, mkPayment, mkRental, mkRoom, mkRoomRate, mkTaxiTrip,
+  mkParticipant, mkPayment, mkPrice, mkRental, mkRoom, mkRoomRate, mkTaxiTrip,
 } from './utils.fixtures'
 import type { Lesson } from '../../types/database'
 
@@ -314,7 +314,7 @@ describe('getLessonClientRate', () => {
   it('prefers the snapshot frozen on the lesson', () => {
     expect(getLessonClientRate(mkLesson({ price_per_hour: 45 }), priceItems)).toBe(45)
   })
-  it('matches on lesson_type, never on the price row name', () => {
+  it('matches on what the rate bills, never on the price row name', () => {
     const renamed = mkLessonPrices().map(p => ({ ...p, name: 'Renamed by the owner' }))
     expect(getLessonClientRate(mkLesson({ type: 'private' }), renamed)).toBe(60)
   })
@@ -346,6 +346,45 @@ describe('getInstructorRate', () => {
   it('pays nothing for an owner-instructor set to 0', () => {
     const owner = mkInstructor({ rate_private: 0, rate_group: 0, rate_supervision: 0 })
     expect(getInstructorRate(mkLesson({ type: 'private' }), owner, [])).toBe(0)
+  })
+
+  it('pays the rate frozen on the lesson, not the one in force today', () => {
+    // The whole point of the snapshot: raising someone's rate in October must not
+    // raise what is owed for the lessons they gave in July.
+    const lesson = mkLesson({ type: 'private', instructor_rate: 40 })
+    const afterRaise = mkInstructor({ rate_private: 55 })
+    expect(getInstructorRate(lesson, afterRaise, [])).toBe(40)
+  })
+
+  it('still lets an override win over the frozen rate', () => {
+    const lesson = mkLesson({ instructor_rate: 40 })
+    expect(getInstructorRate(lesson, instructor, [mkLessonOverride({ rate: 70 })])).toBe(70)
+  })
+
+  it('falls back to the current rate for a lesson given before the snapshot existed', () => {
+    const legacy = { ...mkLesson({ type: 'private' }), instructor_rate: undefined } as unknown as Lesson
+    expect(getInstructorRate(legacy, instructor, [])).toBe(40)
+  })
+
+  it('freezes 0 as a real rate, not as "nothing recorded"', () => {
+    // An owner giving the lesson is paid 0. That is a decision, and a later raise
+    // of the scale must not resurrect a debt towards them.
+    const lesson = mkLesson({ type: 'private', instructor_rate: 0 })
+    expect(getInstructorRate(lesson, mkInstructor({ rate_private: 55 }), [])).toBe(0)
+  })
+})
+
+describe('getConfiguredRate', () => {
+  it('tells "not configured" apart from "configured at zero"', () => {
+    // 0 is a decision (free), null is nobody said — the screens colour them differently
+    expect(getConfiguredRate([mkPrice('meal', 0)], 'meal')).toBe(0)
+    expect(getConfiguredRate([], 'meal')).toBeNull()
+  })
+  it('reads the posts that used to be hardcoded', () => {
+    const items = [mkPrice('center_access', 5), mkPrice('rental_kite', 40)]
+    expect(getConfiguredRate(items, 'center_access')).toBe(5)
+    expect(getConfiguredRate(items, 'rental_kite')).toBe(40)
+    expect(getConfiguredRate(items, 'rental_foilboard')).toBeNull()
   })
 })
 

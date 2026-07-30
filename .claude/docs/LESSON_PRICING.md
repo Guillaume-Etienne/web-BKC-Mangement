@@ -19,7 +19,13 @@ Conséquences :
 | | Source | Formule |
 |---|---|---|
 | **Prix client** | `price_items` (Options → Pricing), figé sur la leçon | tarif horaire × durée × nb élèves si groupe |
-| **Paie moniteur** | `instructors.rate_*` (Options → Instructors) | tarif horaire × durée, **à plat** |
+| **Paie moniteur** | `instructors.rate_*` (Options → Instructors), figée sur la leçon | tarif horaire × durée, **à plat** |
+
+**Depuis le 2026-07-30, les DEUX barèmes sont figés à la création** : `lessons.price_per_hour`
+côté client, `lessons.instructor_rate` côté paie. Avant, la paie était lue au tarif *courant* —
+augmenter un moniteur en octobre augmentait ce qu'on lui devait pour juillet. Ordre de
+priorité pour la paie : **override de la leçon > taux figé > taux courant**. Un 0 figé reste
+un 0 (le proprio qui donne cours n'a pas de dette qui ressuscite à la prochaine hausse).
 
 Deux écrans, deux barèmes, aucun couplage. Un moniteur peut être à **0 €** (les
 propriétaires qui donnent cours eux-mêmes) sans que ça change ce que paie le client.

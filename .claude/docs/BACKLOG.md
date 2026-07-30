@@ -19,16 +19,20 @@
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
 | ~~`2026-07-29_lesson_pricing.sql`~~ | `price_items.lesson_type` + `lessons.price_per_hour` + REVOKE anon sur `instructors.rate_*` et `lesson_rate_overrides` | ✅ 2026-07-29 | ✅ 2026-07-30 |
-| `2026-07-30_rental_pricing_and_room_rates.sql` | `price_items.rental_type` (+ semis des 5 tarifs aux prix jusque-là codés en dur) et **C3** : `room_rates` lisible par un lien client, limité à SES chambres | ⬜ **à faire** | ⬜ **à faire** |
+| `2026-07-30_billable_types.sql` | `price_items.billable_type` (fusionne et remplace `lesson_type`), semis des 10 postes aux montants jusque-là codés en dur, suppression des lignes `taxi` fantômes, **snapshot de la paie moniteur** (`lessons.instructor_rate`), et **C3** : `room_rates` lisible par un lien client, limité à SES chambres | ⬜ **à faire** | ⬜ **à faire** |
 
 ### ⛔ Ne PAS déployer ce code sans passer la migration du 2026-07-30
 
-Même piège que les leçons : sans la colonne `rental_type`, `rentalPrice()` ne trouve
-aucun tarif et **une nouvelle location est proposée à 0 €** (l'écran l'affiche en rouge
-« No rate set for this type », donc c'est visible, mais c'est 0). Les locations déjà
-enregistrées ne bougent pas : leur prix est figé sur `equipment_rentals.price`.
-Côté C3, sans la migration la page client garde son comportement actuel (0 €/nuit quand
-le prix figé manque) — pas de crash, la requête `room_rates` revient juste vide.
+Sans la colonne `billable_type`, **plus aucun tarif n'est trouvé** : leçons, locations,
+accès centre et repas se proposent à 0 €. C'est visible (rouge à l'écran, « no rate
+configured ») et non destructeur — les montants déjà enregistrés sont figés sur leurs
+lignes — mais l'app est inutilisable pour saisir. La migration et le déploiement vont
+ensemble. Côté C3, sans la migration la page client garde son comportement actuel
+(0 €/nuit quand le prix figé manque) : la requête `room_rates` revient juste vide.
+
+⚠️ La migration **supprime `price_items.lesson_type`**, appliquée le 2026-07-29. C'est
+assumé : la PROD ne contient aucune donnée réelle avant l'ouverture de mi-septembre 2026.
+Ne pas reprendre cette liberté après.
 
 **TEST : appliquée et vérifiée le 2026-07-29** — les 4 contrôles verts (tarifs rattachés,
 zéro orpheline, colonne snapshot présente, `rate_private` en anon → 42501 et
@@ -112,15 +116,23 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
    `amount_paid` et la table `payments` divergeaient en silence (mesuré : 200 vs 260).
    Le wizard annonce désormais l'effet du save — avertissement si le montant est sous ce
    qui est déjà encaissé, ligne explicite sur le paiement créé sinon (`104a9ec`).
-5. ✅ **Locations : lien explicite `rental_type`** — fait le 2026-07-30, groupé avec C3
-   dans une seule migration comme demandé. `LessonWeekView` ne rapproche plus par nom et
-   **n'a plus aucun prix codé en dur** : les 5 tarifs (kite 40 / board 20 / full 55 /
-   surfboard 25 / foilboard 35) sont semés en base par la migration, donc rien ne change
-   dans ce qui est facturé — ils deviennent simplement visibles et modifiables.
-   ⬜ Reste : appliquer la migration (TEST + PROD).
+5. ✅ **Tous les prix passent par un lien unique `billable_type`** — audit du 2026-07-30
+   à la demande de gui (« TOUS les prix devraient être comme ça »). Résultat de l'audit :
+   sur 11 sources de montants, `price_items` catégories **activity et taxi n'étaient lues
+   par personne** (donnée morte, comme les leçons avant le 29/07), les **repas** et
+   l'**accès centre** n'avaient aucun écran de réglage, et trois montants vivaient dans le
+   code (accès centre 5 €, full house 100 €, tarifs de location 40/20/55/25/35).
+   Tout est semé en base **aux montants d'avant**, donc rien ne change dans ce qui est
+   facturé — ces prix deviennent visibles et modifiables. ⬜ Reste : appliquer la migration.
+
+7. ✅ **Snapshot de la paie moniteur** (`lessons.instructor_rate`, 2026-07-30). C'était la
+   seule source de montant sans gel : la paie était lue au tarif **courant**, donc monter
+   le tarif d'un moniteur en octobre augmentait ce qu'on lui devait pour juillet. Le taux
+   est désormais figé à la création de la leçon (planning **et** forecast). L'ordre reste :
+   override par leçon > taux figé > taux courant. Testé, dont le cas « 0 figé reste 0 ».
 
 6. ✅ **Tarifs qui facturent = verrouillés** (demande gui du 2026-07-30). Une ligne de
-   Options → Pricing liée à un `lesson_type`/`rental_type` ne peut plus être **renommée**,
+   Options → Pricing liée à un `billable_type` ne peut plus être **renommée**,
    **déplacée** vers un autre type, ni **supprimée** : elle porte un badge « 🔒 bills … »,
    seul son prix reste éditable. Raison : le nom ne facture rien, le lien si — laisser le
    nom modifiable entretenait exactement l'illusion qui a coûté de l'argent trois fois

@@ -5,9 +5,10 @@ import { useBookings, useBookingRooms, useBookingRoomPrices, useBookingParticipa
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useTaxiDrivers } from '../hooks/useTaxis'
 import { useTable } from '../hooks/useSupabase'
-import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, TaxiDriver, Lesson, EquipmentRental, Payment } from '../types/database'
+import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, Lesson, EquipmentRental, Payment } from '../types/database'
 import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
-import { getFullHouseRate, getBaseNightlyRate, DEFAULT_FULL_HOUSE_RATE } from '../utils/roomPricing'
+import { getFullHouseRate, getBaseNightlyRate } from '../utils/roomPricing'
+import { getConfiguredRate } from '../components/accounting/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,7 +59,9 @@ const EMPTY_WIZARD: WizardData = {
   arrival_time: '', departure_time: '',
   taxi_arrival: false, taxi_departure: false, taxi_driver_id: null,
   luggage_count: 0, boardbag_count: 0,
-  center_access_rate: 5,
+  // Filled from Options → Pricing when the wizard opens: the rate used to be a 5
+  // hardcoded here, which nobody could change without a developer.
+  center_access_rate: 0,
   amount_paid: 0, notes: '',
 }
 
@@ -361,9 +364,10 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
       // Full house has a single flat price (Management → "Full house €/night"),
       // not the sum of both rooms. Split evenly across rooms so the per-room
       // total equals the house price.
+      // No configured full-house rate → 0, and the wizard shows it: better an
+      // obvious zero to correct than a 100 nobody chose (it was hardcoded here).
       const newPrices = { ...d.room_prices }
-      const houseRate = getFullHouseRate(accId, roomRates) ?? DEFAULT_FULL_HOUSE_RATE
-      const each = houseRate / accRoomIds.length
+      const each = (getFullHouseRate(accId, roomRates) ?? 0) / accRoomIds.length
       accRoomIds.forEach(id => { newPrices[id] = each })
       update({ room_ids: [...d.room_ids.filter(id => !accRoomIds.includes(id)), ...accRoomIds], room_prices: newPrices })
     }
@@ -1105,6 +1109,10 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   const { data: accommodations } = useAccommodations()
   const { data: houseRentals } = useTable<HouseRental>('house_rentals')
   const { data: roomRatesData } = useTable<RoomRate>('room_rates')
+  const { data: priceItemsData } = useTable<PriceItem>('price_items')
+  // €/day per own-gear guest, from Options → Pricing. 0 when nothing is configured:
+  // the rate is shown and editable on the booking, so a missing one is visible.
+  const centerAccessRate = getConfiguredRate(priceItemsData, 'center_access') ?? 0
   const { data: taxiDrivers } = useTaxiDrivers()
   const { data: participantsData } = useBookingParticipants()
   const { data: lessonsData } = useTable<Lesson>('lessons')
@@ -1447,7 +1455,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       arrival_time: b.arrival_time ?? '', departure_time: b.departure_time ?? '',
       taxi_arrival: b.taxi_arrival, taxi_departure: b.taxi_departure, taxi_driver_id: null,
       luggage_count: b.luggage_count, boardbag_count: b.boardbag_count,
-      center_access_rate: b.center_access_rate ?? 5,
+      center_access_rate: b.center_access_rate ?? centerAccessRate,
       amount_paid: b.amount_paid, notes: b.notes ?? '',
     }
   }
@@ -1650,7 +1658,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       {/* Wizard */}
       {wizard.open && (
         <BookingWizard
-          initial={wizard.editing ? bookingToWizard(wizard.editing) : EMPTY_WIZARD}
+          initial={wizard.editing ? bookingToWizard(wizard.editing) : { ...EMPTY_WIZARD, center_access_rate: centerAccessRate }}
           clients={clients}
           clientsLoading={clientsLoading}
           rooms={rooms}

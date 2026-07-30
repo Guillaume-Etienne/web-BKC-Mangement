@@ -4,7 +4,7 @@ import { useInstructors } from '../hooks/useInstructors'
 import { useLessons } from '../hooks/useLessons'
 import { useTable } from '../hooks/useSupabase'
 import { useBookings, useBookingParticipants } from '../hooks/useBookings'
-import type { Instructor, Lesson, LessonType, RentalType, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults, TaxiDriver, BookingStatus, KiteLevel } from '../types/database'
+import type { Instructor, Lesson, BillableType, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults, TaxiDriver, BookingStatus, KiteLevel } from '../types/database'
 import AccommodationsTab from '../components/management/AccommodationsTab'
 import DatabaseTab from '../components/management/DatabaseTab'
 
@@ -35,34 +35,41 @@ const priceCategoryLabels: Record<PriceCategory, string> = {
   'lesson': 'Lessons',
   'activity': 'Activities',
   'rental': 'Rentals',
-  'taxi': 'Taxis',
+  'meal': 'Meals',
+  'center_access': 'Center access',
 }
 
 // ── Rates that actually bill something ───────────────────────────────────────
-// A row carrying one of these links is what the app charges for a lesson or a
-// rental. Its NAME bills nothing — the link does. So the name, the category and
-// the link itself are locked once set, and the row cannot be deleted: renaming
-// or deleting it used to silently fall back to a price no screen ever showed.
-// Everything without a link stays a free catalogue entry, fully editable.
+// A row carrying a billable_type is what the app charges for that post. Its NAME
+// bills nothing — the link does. So the name, the category and the link itself are
+// locked once set, and the row cannot be deleted: renaming or deleting it used to
+// silently fall back to a price no screen ever showed. Everything without a link
+// stays a free catalogue entry, fully editable.
 
-const LESSON_TYPE_LABELS: Record<LessonType, string> = {
-  private:     'Private lessons',
-  group:       'Group lessons (per student)',
-  supervision: 'Supervision',
+const BILLABLE_LABELS: Record<BillableType, string> = {
+  lesson_private:     'Private lessons',
+  lesson_group:       'Group lessons (per student)',
+  lesson_supervision: 'Supervision',
+  rental_kite:        'Kite',
+  rental_board:       'Board',
+  rental_full:        'Full (kite + board)',
+  rental_surfboard:   'Surfboard',
+  rental_foilboard:   'Foilboard',
+  center_access:      'Center access (per person per day)',
+  meal:               'Default price of a new dinner',
 }
 
-const RENTAL_TYPE_LABELS: Record<RentalType, string> = {
-  kite:      'Kite',
-  board:     'Board',
-  full:      'Full (kite + board)',
-  surfboard: 'Surfboard',
-  foilboard: 'Foilboard',
+/** Which posts belong to which section of the screen. Mirrors the CHECK in
+ *  2026-07-30_billable_types.sql — the two must stay in step. */
+const CATEGORY_BILLABLES: Partial<Record<PriceCategory, BillableType[]>> = {
+  lesson:        ['lesson_private', 'lesson_group', 'lesson_supervision'],
+  rental:        ['rental_kite', 'rental_board', 'rental_full', 'rental_surfboard', 'rental_foilboard'],
+  center_access: ['center_access'],
+  meal:          ['meal'],
 }
 
 const billedBy = (p: PriceItem): string | null =>
-  p.lesson_type ? LESSON_TYPE_LABELS[p.lesson_type]
-  : p.rental_type ? RENTAL_TYPE_LABELS[p.rental_type]
-  : null
+  p.billable_type ? BILLABLE_LABELS[p.billable_type] : null
 
 const LINK_TYPE_LABELS: Record<SharedLinkType, { icon: string; label: string }> = {
   forecast:          { icon: '📋', label: 'Forecast Lesson/Rent' },
@@ -232,30 +239,17 @@ export default function ManagementPage() {
 
   const closePriceForm = () => { setShowPriceForm(false); setPriceFormData({}) }
 
-  /** Billable types of a category that no rate row covers — they bill 0 today. */
-  const missingRates = (category: PriceCategory): string[] => {
-    if (category === 'lesson') {
-      return (Object.keys(LESSON_TYPE_LABELS) as LessonType[])
-        .filter(t => !priceItems.some(p => p.lesson_type === t))
-        .map(t => LESSON_TYPE_LABELS[t])
-    }
-    if (category === 'rental') {
-      return (Object.keys(RENTAL_TYPE_LABELS) as RentalType[])
-        .filter(t => !priceItems.some(p => p.rental_type === t))
-        .map(t => RENTAL_TYPE_LABELS[t])
-    }
-    return []
-  }
+  /** Billable posts of a category that no rate row covers — they bill 0 today. */
+  const missingRates = (category: PriceCategory): string[] =>
+    (CATEGORY_BILLABLES[category] ?? [])
+      .filter(t => !priceItems.some(p => p.billable_type === t))
+      .map(t => BILLABLE_LABELS[t])
 
-  /** Types still free to claim, so the picker can never create a duplicate the
-   *  unique index would reject. A row keeps its own type when editing. */
-  const availableLessonTypes = (current: LessonType | null | undefined) =>
-    (Object.keys(LESSON_TYPE_LABELS) as LessonType[])
-      .filter(t => t === current || !priceItems.some(p => p.lesson_type === t))
-
-  const availableRentalTypes = (current: RentalType | null | undefined) =>
-    (Object.keys(RENTAL_TYPE_LABELS) as RentalType[])
-      .filter(t => t === current || !priceItems.some(p => p.rental_type === t))
+  /** Posts still free to claim, so the picker can never create a duplicate the
+   *  unique index would reject. A row keeps its own post when editing. */
+  const availableBillables = (category: PriceCategory, current: BillableType | null | undefined) =>
+    (CATEGORY_BILLABLES[category] ?? [])
+      .filter(t => t === current || !priceItems.some(p => p.billable_type === t))
 
   const handlePriceSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -270,8 +264,7 @@ export default function ManagementPage() {
         description: priceFormData.description || null,
         price:       priceFormData.price       || 0,
         unit:        priceFormData.unit        || null,
-        lesson_type: priceFormData.lesson_type ?? null,
-        rental_type: priceFormData.rental_type ?? null,
+        billable_type: priceFormData.billable_type ?? null,
       }])
       if (error) { alert('Error: ' + error.message); return }
     }
@@ -520,7 +513,7 @@ export default function ManagementPage() {
         {tab === 'pricing' && (
           <div className="space-y-8">
             {/* Generic categories: lesson, activity, rental */}
-            {(['lesson', 'activity', 'rental'] as const).map((category) => {
+            {(['lesson', 'rental', 'meal', 'center_access', 'activity'] as const).map((category) => {
               const categoryPrices = priceItems.filter(p => p.category === category)
               return (
                 <div key={category}>
@@ -565,7 +558,8 @@ export default function ManagementPage() {
                               <td className="px-4 py-3 text-sm space-x-2 whitespace-nowrap">
                                 <button onClick={() => openPriceForm(price)} className="text-blue-600 hover:text-blue-800 font-medium">✏️</button>
                                 {bills ? (
-                                  <span className="text-gray-300 cursor-not-allowed" title="Cannot be deleted: the app bills with it. Set its price to 0 if you stop charging for it.">🗑️</span>
+                                  // opacity, not a text colour: the bin is an emoji and keeps its own colours
+                                  <span className="opacity-25 cursor-not-allowed grayscale" title="Cannot be deleted: the app bills with it. Set its price to 0 if you stop charging for it.">🗑️</span>
                                 ) : (
                                   <button onClick={() => handleDeletePrice(price.id)} className="text-red-600 hover:text-red-800 font-medium">🗑️</button>
                                 )}
@@ -1148,41 +1142,22 @@ export default function ManagementPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                 </div>
-                {(priceFormData.category || selectedPriceCategory) === 'lesson' && (
+                {(CATEGORY_BILLABLES[priceFormData.category || selectedPriceCategory] ?? []).length > 0 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Applies to *</label>
-                    <select value={priceFormData.lesson_type ?? ''}
-                      disabled={!!priceFormData.lesson_type}
-                      onChange={(e) => setPriceFormData({ ...priceFormData, lesson_type: (e.target.value || null) as LessonType | null })}
+                    <select value={priceFormData.billable_type ?? ''}
+                      disabled={!!priceFormData.billable_type}
+                      onChange={(e) => setPriceFormData({ ...priceFormData, billable_type: (e.target.value || null) as BillableType | null })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500">
                       <option value="">— not billed —</option>
-                      {availableLessonTypes(priceFormData.lesson_type).map(t => (
-                        <option key={t} value={t}>{LESSON_TYPE_LABELS[t]}</option>
+                      {availableBillables(priceFormData.category || selectedPriceCategory, priceFormData.billable_type).map(t => (
+                        <option key={t} value={t}>{BILLABLE_LABELS[t]}</option>
                       ))}
                     </select>
                     <p className="text-xs text-gray-400 mt-1">
-                      {priceFormData.lesson_type
-                        ? '🔒 Locked once set — moving a rate to another type would reprice past work silently.'
-                        : 'Links this rate to the lessons it bills. Without it the lesson is billed 0. One rate per type.'}
-                    </p>
-                  </div>
-                )}
-                {(priceFormData.category || selectedPriceCategory) === 'rental' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Applies to *</label>
-                    <select value={priceFormData.rental_type ?? ''}
-                      disabled={!!priceFormData.rental_type}
-                      onChange={(e) => setPriceFormData({ ...priceFormData, rental_type: (e.target.value || null) as RentalType | null })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500">
-                      <option value="">— not billed —</option>
-                      {availableRentalTypes(priceFormData.rental_type).map(t => (
-                        <option key={t} value={t}>{RENTAL_TYPE_LABELS[t]}</option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {priceFormData.rental_type
-                        ? '🔒 Locked once set — moving a rate to another type would reprice past work silently.'
-                        : 'Links this rate to the rentals it bills. Without it the rental is billed 0. One rate per type.'}
+                      {priceFormData.billable_type
+                        ? '🔒 Locked once set — moving a rate to another post would reprice past work silently.'
+                        : 'Links this rate to what it bills. Without it, that post is billed 0. One rate per post.'}
                     </p>
                   </div>
                 )}

@@ -198,12 +198,18 @@
 - **Hooks :** useInstructors, useLessons, useTable<PriceItem>, useTable<TaxiPricingDefaults>, useTable<SharedLink>, useBookings, useBookingParticipants
 - **State :** `tab: 'instructors'|'houses'|'pricing'|'links'|'bookguest'`
 - **Onglets :** Instructors CRUD, Houses, Pricing (items + taxi defaults), Shared links, Bookings & Guests
-- **Pricing — deux natures de lignes (2026-07-30)** : celles qui portent un `lesson_type`
-  ou un `rental_type` **facturent** (badge « 🔒 bills … ») → nom, catégorie et lien
-  verrouillés, suppression interdite, **seul le prix reste éditable** ; les autres sont un
-  catalogue libre. Un type facturable sans tarif s'affiche en rouge « no rate configured,
-  billed 0€ ». Le sélecteur « Applies to » ne propose que les types encore libres, donc
-  l'index unique en base ne peut plus être heurté par l'écran.
+- **Pricing — deux natures de lignes (2026-07-30)** : celles qui portent un `billable_type`
+  **facturent** (badge « 🔒 bills … ») → nom, catégorie et lien verrouillés, suppression
+  interdite, **seul le prix reste éditable** ; les autres sont un catalogue libre. Un poste
+  facturable sans tarif s'affiche en rouge « no rate configured, billed 0€ ». Le sélecteur
+  « Applies to » ne propose que les postes encore libres, donc l'index unique en base ne
+  peut plus être heurté par l'écran.
+- **5 sections** : Lessons, Rentals, **Meals**, **Center access**, Activities. Les deux du
+  milieu sont nées le 2026-07-30 : ces montants vivaient dans le code (repas 0 € à retaper,
+  accès centre 5 €/jour). Activities reste un catalogue libre — **aucun calcul ne le lit**,
+  les prix d'une activité se saisissent sur la réservation d'activité.
+- ⚠️ `CATEGORY_BILLABLES` duplique le CHECK de la base (`price_items_billable_category_chk`)
+  — les deux doivent bouger ensemble.
 - **Shared links :** formulaire manuel pour types `forecast`, `taxi`, `client`, **`booking_form`**.
   `driver` et `activity_provider` exclus (créés depuis leurs pages dédiées). `booking_form` = lien public du formulaire d'inscription (un seul suffit).
 - **`LINK_TYPE_LABELS`** : utilisé pour afficher le type dans la liste, inclut les 6 types.
