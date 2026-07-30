@@ -157,6 +157,20 @@ describe('computeAccommodationRevenue', () => {
     expect(computeAccommodationRevenue(sameDay, data)).toBe(0)
   })
 
+  it('still credits an external stay on a zero-night booking, so the margin stays honest', () => {
+    // The external stay carries its own dates. Bailing out on the booking nights
+    // credited nothing while the cost was still charged → a phantom loss.
+    const sameDay = mkBooking({ check_in: '2026-11-01', check_out: '2026-11-01' })
+    const data = mkData({
+      externalAccommodations: [mkExternalAccommodation()],
+      externalAccommodationBkgs: [mkExternalBooking({ check_in: '2026-11-01', check_out: '2026-11-05' })],
+    })
+    expect(computeAccommodationRevenue(sameDay, data)).toBe(600)              // 150 × 4
+    expect(computeExternalAccommodationCost(sameDay, data)).toBe(320)         // 80 × 4
+    expect(computeAccommodationRevenue(sameDay, data)
+      - computeExternalAccommodationCost(sameDay, data)).toBe(280)            // a margin, not a loss
+  })
+
   it('bills a room with no rate at all as 0 rather than crashing', () => {
     const data = mkData({
       accommodations: [acc], rooms: [roomF], roomRates: [],

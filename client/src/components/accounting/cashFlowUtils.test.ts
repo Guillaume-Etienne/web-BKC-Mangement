@@ -147,10 +147,7 @@ describe('buildCashFlowRows', () => {
     expect(r.net).toBe(0)      // nothing banked yet
   })
 
-  it('reports billed GROSS of discounts, unlike the dashboard figure', () => {
-    // ⚠️ Encodes current behaviour, not an endorsement. The dashboard "Billed"
-    // subtracts discounts, this one does not — same word, two definitions. On the
-    // TEST database the two tabs differ by exactly discounts + standalone taxi.
+  it('reports billed net of discounts, like the dashboard figure', () => {
     const { acc, roomF, rates } = mkHouseSetup(100)
     const rows = buildCashFlowRows(mkData({
       accommodations: [acc], rooms: [roomF], roomRates: rates,
@@ -159,8 +156,21 @@ describe('buildCashFlowRows', () => {
       bookingRoomPrices: [mkBookingRoomPrice({ room_id: 'roomF', price_per_night: 60 })],
       payments: [mkPayment({ date: '2026-11-05', amount: 30, is_discount: true })],
     }))
-    expect(month(rows, '2026-11')?.billed).toBe(420)      // not 390
+    expect(month(rows, '2026-11')?.billed).toBe(390)      // 420 − 30
     expect(month(rows, '2026-11')?.collected).toBe(0)     // a discount is not cash
+  })
+
+  it('books the discount on the check-in month, not the month it was granted', () => {
+    const { acc, roomF, rates } = mkHouseSetup(100)
+    const rows = buildCashFlowRows(mkData({
+      accommodations: [acc], rooms: [roomF], roomRates: rates,
+      bookings: [mkBooking({ check_in: '2026-11-01', check_out: '2026-11-08' })],
+      bookingRooms: [mkBookingRoom({ room_id: 'roomF' })],
+      bookingRoomPrices: [mkBookingRoomPrice({ room_id: 'roomF', price_per_night: 60 })],
+      payments: [mkPayment({ date: '2026-12-20', amount: 30, is_discount: true })],
+    }))
+    expect(month(rows, '2026-11')?.billed).toBe(390)   // the booking stays coherent
+    expect(month(rows, '2026-12')).toBeUndefined()     // no phantom month
   })
 
   it('sorts months newest first', () => {

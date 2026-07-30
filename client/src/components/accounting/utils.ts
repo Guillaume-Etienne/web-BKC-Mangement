@@ -46,10 +46,12 @@ export function countNights(checkIn: string, checkOut: string): number {
   )
 }
 
-/** Accommodation revenue for a booking (own rooms + external) */
+/** Accommodation revenue for a booking (own rooms + external).
+ *  No early return on a zero-night booking: own rooms fall out at 0 on their own,
+ *  and an external stay carries its own dates — bailing out early credited no
+ *  revenue for it while computeExternalAccommodationCost still charged the cost. */
 export function computeAccommodationRevenue(booking: Booking, data: SharedAccountingData): number {
   const nights = countNights(booking.check_in, booking.check_out)
-  if (nights === 0) return 0
 
   const ownRooms = data.bookingRooms
     .filter(br => br.booking_id === booking.id)

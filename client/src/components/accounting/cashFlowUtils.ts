@@ -1,5 +1,5 @@
 import type { SharedAccountingData } from './types'
-import { computeBookingTotal } from './utils'
+import { computeBookingTotal, computeBookingDiscounts } from './utils'
 
 /** One month of cash movements. Amounts in EUR. */
 export interface MonthRow {
@@ -50,7 +50,11 @@ export function buildCashFlowRows(data: SharedAccountingData): MonthRow[] {
   const ensure = (m: string) => (idx[m] ??= EMPTY(m))
 
   for (const b of bookings.filter(b => b.status !== 'cancelled')) {
-    ensure(b.check_in.slice(0, 7)).billed += computeBookingTotal(b, data)
+    // Net of discounts, like the dashboard: a gesture granted to a client is not
+    // revenue generated. Both are booked on the check-in month so a booking always
+    // shows one coherent figure, whatever date the discount carries.
+    ensure(b.check_in.slice(0, 7)).billed +=
+      computeBookingTotal(b, data) - computeBookingDiscounts(b.id, payments)
   }
 
   for (const t of taxiTrips.filter(t => t.booking_id === null)) {
