@@ -19,8 +19,9 @@
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
 | ~~`2026-07-29_lesson_pricing.sql`~~ | `price_items.lesson_type` + `lessons.price_per_hour` + REVOKE anon sur `instructors.rate_*` et `lesson_rate_overrides` | ✅ 2026-07-29 | ✅ 2026-07-30 |
-| `2026-07-30a_price_category_values.sql` | **À passer SEUL et EN PREMIER** : ajoute les catégories `meal` et `center_access` | ⬜ **à faire** | ⬜ **à faire** |
-| `2026-07-30b_billable_types.sql` | `price_items.billable_type` (fusionne et remplace `lesson_type`), semis des 10 postes aux montants jusque-là codés en dur, suppression des lignes `taxi` fantômes, **snapshot de la paie moniteur** (`lessons.instructor_rate`), et **C3** : `room_rates` lisible par un lien client, limité à SES chambres | ⬜ **à faire** | ⬜ **à faire** |
+| `2026-07-30a_price_category_values.sql` | **À passer SEUL et EN PREMIER** : ajoute les catégories `meal` et `center_access` | ✅ 2026-07-30 | ⬜ **à faire** |
+| `2026-07-30b_billable_types.sql` | `price_items.billable_type` (fusionne et remplace `lesson_type`), semis des 10 postes aux montants jusque-là codés en dur, suppression des lignes `taxi` fantômes, **snapshot de la paie moniteur** (`lessons.instructor_rate`), et **C3** : `room_rates` lisible par un lien client, limité à SES chambres | ✅ 2026-07-30 | ⬜ **à faire** |
+| `2026-07-30c_room_rates_revoke.sql` | Correctif du REVOKE manquant sur `room_rates` (2 lignes). **Inutile en PROD** : déjà intégré dans (b), qui n'y est pas encore passé | ⬜ **à faire** | — (inclus dans b) |
 
 > ⚠️ **Deux fichiers, pas un — et dans cet ordre.** PostgreSQL refuse d'utiliser une
 > valeur d'enum ajoutée dans la même transaction, et l'éditeur SQL du dashboard exécute
@@ -42,6 +43,33 @@ ensemble. Côté C3, sans la migration la page client garde son comportement act
 ⚠️ La migration **supprime `price_items.lesson_type`**, appliquée le 2026-07-29. C'est
 assumé : la PROD ne contient aucune donnée réelle avant l'ouverture de mi-septembre 2026.
 Ne pas reprendre cette liberté après.
+
+### ✅ Vérifié sur TEST le 2026-07-30 (app locale pilotée au navigateur + curl anon)
+
+| Contrôle | Résultat |
+|---|---|
+| Options → Pricing | 5 sections, **10 badges 🔒**, **zéro ligne rouge** |
+| Les 5 lignes de location de TEST | rattachées par leur nom, **prix et libellés inchangés**, rien semé en double |
+| Repas / Accès centre | lignes créées (0 € et 5 €), verrouillées comme les autres |
+| Tarif de location dans le planning | Kite → 40 €, Board → 20 €, lus en base |
+| Accès centre dans le wizard | pré-rempli à **5 €/jour** (la constante `5` n'existe plus dans le code) |
+| Full house sans tarif configuré | **0 €/nuit** au lieu du 100 € inventé |
+| Verrou d'une ligne qui facture | nom `readOnly` (« ZZZ » tapé dedans reste « Group »), « Applies to » `disabled`, prix éditable, corbeille éteinte |
+| **C3 par curl anon** | token client → **sa seule chambre** (H1/F, 60 €), **pas** le tarif du bungalow ; sans token → `[]` ; token taxi → `[]` |
+
+Aucune donnée créée pendant les tests (toujours 9 réservations, wizard fermé sans
+enregistrer). **Seule modification laissée dans TEST** : tarif **H1 / chambre F = 60 €/nuit**,
+posé pour prouver le filtrage par ligne — à garder ou vider selon l'envie de gui.
+
+#### 🔴 Bug trouvé par le curl (et corrigé) — le REVOKE manquant
+
+`room_rates?select=notes` répondait `[]` au lieu de **42501** : anon gardait le `SELECT`
+**de table** que Supabase pose par défaut sur tout le schéma public, donc les GRANT de
+colonnes ne restreignaient **rien** — les notes internes des tarifs seraient devenues
+lisibles depuis n'importe quel lien client dès qu'une ligne passe la policy. Aucune fuite
+réelle (aucune maison de TEST n'avait de tarif → zéro ligne rendue). C'est le gabarit du
+Lot C (REVOKE puis GRANT colonnes), appliqué à 4 tables en juillet et oublié ici.
+**Leçon : un GRANT de colonnes ne protège que si le GRANT de table a été retiré avant.**
 
 **TEST : appliquée et vérifiée le 2026-07-29** — les 4 contrôles verts (tarifs rattachés,
 zéro orpheline, colonne snapshot présente, `rate_private` en anon → 42501 et
@@ -99,9 +127,17 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
 
 1. ✅ **Faire atterrir la tarification des leçons** — migrations TEST (29/07) et **PROD
    (30/07)** passées et vérifiées par curl anon, code poussé et déployé.
-   ⬜ **Reste, côté données** : Options → Instructors, mettre la paie de gui et de sa
-   compagne à **0**, vérifier Rémi et Tere (encore aux défauts 50/35/25 — seul Pierrot est
-   renseigné). Et un coup d'œil à Options → Pricing pour confirmer les 3 « Applies to ».
+
+### ⬜ RÉGLAGES QUI ATTENDENT gui (données, pas code)
+
+- **Options → Instructors** : paie de gui et de sa compagne à **0**, vérifier Rémi et Tere
+  (encore aux défauts 50/35/25 — seul Pierrot est renseigné).
+- **Options → Pricing → Meals** : le prix du dîner est à **0 €** (c'est ce que faisait le
+  code avant, donc rien n'a changé) — mettre le vrai prix, les nouveaux repas s'ouvriront
+  dessus.
+- **Options → Accommodations** : **aucune des 3 maisons n'a de tarif** (`F: — B: — Full: —`).
+  Avant, une maison entière sans tarif partait à 100 € en dur ; désormais elle part à **0 €**
+  bien visible. À renseigner avant l'ouverture, sinon les résas maison démarrent à 0.
 2. ✅ **Extraire les agrégats** dashboard + CashFlow en fonctions pures et les tester.
    Vérifié iso-comportement sur TEST (4 413 € / +891 €). Détail : `TEST_SUITE_ACCOUNTING.md`.
 3. 🔶 **Trancher les décisions métier** (`TEST_SUITE_ACCOUNTING.md`, section « Comportements
