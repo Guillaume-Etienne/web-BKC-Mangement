@@ -5,7 +5,7 @@ import { useBookings, useBookingRooms, useBookingRoomPrices, useBookingParticipa
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useTaxiDrivers } from '../hooks/useTaxis'
 import { useTable } from '../hooks/useSupabase'
-import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, TaxiDriver, Lesson, EquipmentRental } from '../types/database'
+import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, TaxiDriver, Lesson, EquipmentRental, Payment } from '../types/database'
 import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
 import { getFullHouseRate, getBaseNightlyRate, DEFAULT_FULL_HOUSE_RATE } from '../utils/roomPricing'
 
@@ -271,11 +271,13 @@ interface WizardProps {
   bookingRooms: BookingRoom[]
   editingBookingId: string | null
   isEditing: boolean
+  /** Sum of non-discount payments already recorded — the accounting source of truth */
+  recordedPaid: number
   onCancel: () => void
   onSave: (data: WizardData, isNew: boolean, editingId?: string | null) => void
 }
 
-function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, houseRentals, roomRates, drivers, bookings, bookingRooms, editingBookingId, isEditing, onCancel, onSave }: WizardProps) {
+function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, houseRentals, roomRates, drivers, bookings, bookingRooms, editingBookingId, isEditing, recordedPaid, onCancel, onSave }: WizardProps) {
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(isEditing ? 6 : 1)
   const [d, setD] = useState<WizardData>(initial)
@@ -915,6 +917,29 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                   placeholder="0" className={numCls} />
               </Field>
 
+              {/* Saving only ever ADDS the difference as a new payment. Lowering this
+                  field writes nothing, so it would silently disagree with the payments
+                  already recorded — which is what the accounting actually reads. */}
+              {isEditing && d.amount_paid < recordedPaid && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">
+                  <p className="font-semibold text-amber-800">
+                    ⚠️ Lowering this will not remove anything
+                  </p>
+                  <p className="text-amber-700 mt-1">
+                    {recordedPaid} € of payments are already recorded on this booking.
+                    Saving {d.amount_paid} € here adds nothing, and the accounting will keep
+                    showing {recordedPaid} € collected. To take money back off, edit or delete
+                    the payment in <strong>Accounting → Bookings</strong>.
+                  </p>
+                </div>
+              )}
+              {isEditing && d.amount_paid > recordedPaid && (
+                <p className="text-xs text-gray-500">
+                  Saving will add a payment of {d.amount_paid - recordedPaid} € (to verify),
+                  on top of the {recordedPaid} € already recorded.
+                </p>
+              )}
+
               {/* Summary */}
               <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-2 text-sm">
                 <p className="font-semibold text-gray-700 mb-2">Summary</p>
@@ -1084,6 +1109,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   const { data: participantsData } = useBookingParticipants()
   const { data: lessonsData } = useTable<Lesson>('lessons')
   const { data: rentalsData } = useTable<EquipmentRental>('equipment_rentals')
+  const { data: paymentsData } = useTable<Payment>('payments')
   const [bookingParticipants, setBookingParticipants] = useState<BookingParticipant[]>([])
   useEffect(() => setBookingParticipants(participantsData), [participantsData])
 
@@ -1636,6 +1662,9 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           bookingRooms={bookingRooms}
           editingBookingId={wizard.editing?.id ?? null}
           isEditing={!!wizard.editing}
+          recordedPaid={paymentsData
+            .filter(p => p.booking_id === wizard.editing?.id && !p.is_discount)
+            .reduce((s, p) => s + p.amount, 0)}
           onCancel={closeWizard}
           onSave={handleSave}
         />
