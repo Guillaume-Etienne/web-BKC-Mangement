@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { PalmeirasRent, PalmeirasReversal, PalmeirasEntry } from '../../types/database'
-import { fmtEur, fmtMonth, countNights } from './utils'
+import { fmtEur, fmtMonth } from './utils'
+import { buildBungalowRows, computePalmeirasTotals } from './palmeirasUtils'
 
 interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
 
@@ -138,18 +139,6 @@ function EntryForm({ month, type, onSave, onCancel }: {
 }
 
 // ── Bungalow margin row (computed from bookings) ─────────────────────────────
-interface BungalowRow {
-  bungalow: string
-  bookingRef: string
-  checkIn: string
-  checkOut: string
-  nights: number
-  costRate: number
-  sellRate: number
-  margin: number
-  month: string
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 export default function PalmeirasTab({ data, handlers }: Props) {
   const { palmeirasRents, palmeirasReversals, palmeirasEntries, seasons } = data
@@ -173,36 +162,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
   }
 
   // ── Auto-computed bungalow margin from bookings ──────────────────────────
-  const bungalowRows = useMemo(() => {
-    const bungalows = data.accommodations.filter(a => a.type === 'bungalow')
-    const bungalowRoomIds = new Set(
-      data.rooms.filter(r => bungalows.some(b => b.id === r.accommodation_id)).map(r => r.id)
-    )
-    const rows: BungalowRow[] = []
-    for (const br of data.bookingRooms) {
-      if (!bungalowRoomIds.has(br.room_id)) continue
-      const booking = data.bookings.find(b => b.id === br.booking_id)
-      if (!booking || booking.status === 'cancelled') continue
-      const room = data.rooms.find(r => r.id === br.room_id)
-      const acc  = bungalows.find(b => b.id === room?.accommodation_id)
-      const sellRate = data.bookingRoomPrices.find(p => p.booking_id === br.booking_id && p.room_id === br.room_id)?.price_per_night ?? 0
-      const costRate = acc?.cost_per_night ?? 0
-      const nights = countNights(booking.check_in, booking.check_out)
-      const client = data.clients.find(c => c.id === booking.client_id)
-      rows.push({
-        bungalow:   acc?.name ?? '?',
-        bookingRef: client ? `${client.first_name} ${client.last_name}` : `#${booking.booking_number}`,
-        checkIn:    booking.check_in,
-        checkOut:   booking.check_out,
-        nights,
-        costRate,
-        sellRate,
-        margin:     (sellRate - costRate) * nights,
-        month:      booking.check_in.slice(0, 7),
-      })
-    }
-    return rows
-  }, [data.accommodations, data.rooms, data.bookingRooms, data.bookings, data.bookingRoomPrices, data.clients])
+  const bungalowRows = useMemo(() => buildBungalowRows(data), [data])
 
   // ── Period filter ─────────────────────────────────────────────────────────
   const inRange = (month: string) => {
@@ -223,12 +183,12 @@ export default function PalmeirasTab({ data, handlers }: Props) {
   const filteredBungalows  = useMemo(() => bungalowRows.filter(b => inRange(b.month)),       [bungalowRows, ...deps])
 
   // ── Totals ────────────────────────────────────────────────────────────────
-  const totalRent         = filteredRents.reduce((s, r) => s + r.amount, 0)
-  const totalReversals    = filteredReversals.reduce((s, r) => s + r.net_amount, 0)
-  const totalBungMargin   = filteredBungalows.reduce((s, b) => s + b.margin, 0)
-  const totalFreeInc      = filteredEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
-  const totalFreeExp      = filteredEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
-  const net               = totalReversals + totalBungMargin + totalFreeInc - totalRent - totalFreeExp
+  // Pure and unit-tested. Note that this `net` includes the bungalow margin,
+  // unlike the dashboard's Palmeiras KPI — see computePalmeirasTotals for why
+  // both are right and must not be aligned.
+  const totals = computePalmeirasTotals(filteredRents, filteredReversals, filteredEntries, filteredBungalows)
+  const { rent: totalRent, reversals: totalReversals, bungalowMargin: totalBungMargin,
+          freeIncome: totalFreeInc, freeExpenses: totalFreeExp, net } = totals
 
   // ── Month list for table ──────────────────────────────────────────────────
   const allMonths = useMemo(() => [...new Set([

@@ -182,6 +182,12 @@ Tous les composants accounting partagent :
 - Sélecteur de mois
 - 4 sub-tabs : Rent | Reversals | Sub-lets | Free Entries
 - Résumé mensuel en bas
+- **Calculs dans `accounting/palmeirasUtils.ts`** (purs, testés) : `buildBungalowRows`
+  dérive les séjours bungalow des réservations (annulées exclues, prix = snapshot),
+  `computePalmeirasTotals` fait le net de la période.
+  ⚠️ Ce net **inclut** la marge bungalow, le KPI Palmeiras du dashboard **l'exclut** :
+  écart voulu et verrouillé par un test (sinon la marge serait comptée deux fois côté
+  dashboard). Cf. `TEST_SUITE_ACCOUNTING.md`.
 
 ### `CashFlow` — `accounting/CashFlow.tsx`
 **Props :** `{ data }`

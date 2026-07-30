@@ -64,18 +64,25 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
    encore les défauts 50/35/25 — seul Pierrot est renseigné).
 2. ✅ **Extraire les agrégats** dashboard + CashFlow en fonctions pures et les tester.
    Vérifié iso-comportement sur TEST (4 413 € / +891 €). Détail : `TEST_SUITE_ACCOUNTING.md`.
-3. ⬜ **Trancher les 5 décisions métier** en attente (`TEST_SUITE_ACCOUNTING.md`, section
-   « Comportements encodés à confirmer »). Important : les tests ont **figé le comportement
-   actuel**, donc si l'un est faux on a verrouillé une erreur.
+3. 🔶 **Trancher les décisions métier** (`TEST_SUITE_ACCOUNTING.md`, section « Comportements
+   encodés à confirmer »). Important : les tests ont **figé le comportement actuel**, donc
+   si l'un est faux on a verrouillé une erreur.
+   ✅ Tranchés : paiement « à vérifier » (compté, + ligne « still to verify », `b027763`) ;
+   booking à 0 nuit (corrigé, `cee05fb`) ; baisse du montant payé (avertissement wizard,
+   `104a9ec`) ; marge bungalow Palmeiras tab ≠ dashboard (**voulu**, verrouillé par un test).
+   ⬜ **Restent 3, à trancher par gui** : (a) leçon de groupe, client facturé × participants
+   mais instructeur payé une fois ; (b) `computeBookingTotal` ne filtre pas les annulés
+   (c'est à l'appelant) ; (c) repli sur `client_id` pour les convives d'un booking sans
+   participants.
 4. ✅ **Tests côté base — FAIT**. Les 2 garde-fous, la non-duplication des `taxi_trips`, le
    snapshot `booking_room_prices` (écriture, mise à jour et rechargement) et le delta de
    paiement sont vérifiés bout-en-bout sur TEST — tableau complet dans
    `TEST_SUITE_ACCOUNTING.md`. Les 5 liens partagés PROD testés en anon, aucun 42501.
    Base TEST restaurée à l'identique après les tests.
-   ⬜ **Un point remonté à trancher** : baisser le montant payé ne crée aucune écriture, donc
-   `amount_paid` et la table `payments` divergent en silence (mesuré : 200 vs 260). Délibéré
-   côté code, mais muet côté écran. Proposition d'avertissement dans le wizard, en attente
-   de gui.
+   ✅ **Point remonté, réglé** : baisser le montant payé ne crée aucune écriture, donc
+   `amount_paid` et la table `payments` divergeaient en silence (mesuré : 200 vs 260).
+   Le wizard annonce désormais l'effet du save — avertissement si le montant est sous ce
+   qui est déjà encaissé, ligne explicite sur le paiement créé sinon (`104a9ec`).
 5. ⬜ **Locations : lien explicite `rental_type`** sur `price_items` — même piège de
    rapprochement par nom que les leçons (`LessonWeekView` matche `p.name.toLowerCase()`,
    avec des prix en dur en repli). Peu grave car le prix est figé sur `equipment_rentals.price`,
@@ -87,9 +94,9 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
 d'annulation) ; normalisation des convives de repas (`dining_events.attendees` est du JSON,
 `person_id` sans FK → repas orphelins si un participant est supprimé).
 
-**État des tests** : `cd client && npm test` → **133 tests, ~0,7 s**. `npm run build`
-type-checke aussi les tests. Deux suites : `utils.test.ts` (couche de calcul + agrégats
-saison) et `cashFlowUtils.test.ts`.
+**État des tests** : `cd client && npm test` → **147 tests, ~1 s**. `npm run build`
+type-checke aussi les tests. Trois suites : `utils.test.ts` (couche de calcul + agrégats
+saison), `cashFlowUtils.test.ts` et `palmeirasUtils.test.ts`.
 
 **Corrigé pendant ce chantier** (tout committé) : conflit de dates au save, coût des
 hébergements externes lu sur le snapshot et non le référentiel, override sur repas gratuit

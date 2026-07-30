@@ -1,6 +1,8 @@
 # Suite de tests comptables (vitest)
 
-**Créée le** 2026-07-29 · `client/src/components/accounting/utils.test.ts` (83 tests, ~0,7 s)
+**Créée le** 2026-07-29 · **147 tests, ~1 s**, trois fichiers dans
+`client/src/components/accounting/` : `utils.test.ts` (couche de calcul + agrégats saison),
+`cashFlowUtils.test.ts`, `palmeirasUtils.test.ts`.
 
 ```bash
 cd client
@@ -140,6 +142,30 @@ Le premier scénario est le plus important : un faux positif sur le conflit de d
 empêché **toute** modification de réservation — pire que le bug corrigé. La base TEST a été
 remise dans son état d'origine après les tests (#008 rebasculée en `provisional`).
 
+## Palmeiras extrait et testé (2026-07-30)
+
+`PalmeirasTab` calculait tout inline : la dérivation des séjours bungalow depuis les
+réservations, et le net de la période. C'est désormais `palmeirasUtils.ts`
+(`buildBungalowRows`, `computePalmeirasTotals`), 10 tests. Cas couverts : marge
+(sell − cost) × nuits, résa annulée ignorée, chambres non-bungalow ignorées, marge
+négative, **snapshot de prix absent = vendu 0 et non offert** (le proprio est toujours dû),
+repli sur le numéro de résa si le client est inconnu.
+
+### L'écart tab / dashboard sur Palmeiras est voulu — ne pas l'aligner
+
+Question tranchée : le net de l'onglet **inclut** la marge bungalow, le KPI Palmeiras du
+dashboard **l'exclut**, donc les deux chiffres diffèrent sur les mêmes données. Les deux
+sont justes dans leur périmètre :
+
+- L'onglet répond « qu'est-ce que le partenariat rapporte ? » → reversals + marge bungalow
+  + écritures libres − loyer.
+- Le dashboard a déjà le prix de vente du bungalow dans le revenu hébergement et en
+  soustrait le coût sur sa propre ligne ; recompter la marge la compterait **deux fois**.
+
+Un test le prouve sur un jeu de données unique : `tab.net = 175` et
+`dash.palmeirasNet = 0`, avec `dash.accomRev − dash.bungalowCosts = 175`. Si un jour les
+deux chiffres sont « harmonisés », ce test tombe — c'est le but.
+
 ## ⚠️ Comportements encodés à confirmer par gui
 
 Ces points sont **testés tels qu'ils sont aujourd'hui**. Ce ne sont pas forcément des bugs,
@@ -149,14 +175,15 @@ dit exactement quoi modifier.
 1. **Leçon de groupe : asymétrie client / instructeur.** Le client est facturé
    `tarif × heures × nb participants`, l'instructeur touche `tarif × heures` (une fois).
    Cohérent avec une marge centre sur les groupes — à confirmer.
-2. **Paiement « à vérifier » compté comme encaissé.** Il réduit déjà l'outstanding avant
-   vérification.
-4. **Booking à 0 nuit** : le revenu hébergement retourne 0 (y compris l'externe, à cause du
-   garde-fou en tête de fonction) alors que le coût externe, lui, est toujours calculé
-   → marge négative sur un cas limite.
-5. **`computeBookingTotal` ne filtre pas les annulés** — c'est à l'appelant de le faire.
-6. **Repli sur `client_id`** quand un booking n'a pas de participants : ne matche que les
+2. **`computeBookingTotal` ne filtre pas les annulés** — c'est à l'appelant de le faire.
+3. **Repli sur `client_id`** quand un booking n'a pas de participants : ne matche que les
    convives enregistrés avec `person_type = 'participant'`.
+
+**Tranchés depuis** : paiement « à vérifier » compté comme encaissé (confirmé, avec une
+ligne « still to verify » sous les KPI — `b027763`) ; booking à 0 nuit qui perdait le
+revenu externe tout en gardant son coût (corrigé — `cee05fb`) ; baisse du montant payé
+silencieuse (avertissement dans le wizard — `104a9ec`) ; marge bungalow comptée ici et pas
+au dashboard (voulu, cf. ci-dessus).
 
 ## Ce que cette suite ne couvre pas
 
