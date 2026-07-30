@@ -164,10 +164,20 @@ export function computeBookingDiscounts(bookingId: string, payments: Payment[]):
     .reduce((sum, p) => sum + p.amount, 0)
 }
 
-/** Total actual money received for a booking (excludes discounts) */
+/** Total actual money received for a booking (excludes discounts).
+ *  Counts payments that are still flagged "to verify": they come from the amount
+ *  the owner typed on the booking, so excluding them would overstate what the
+ *  client still owes. Use computeBookingUnverifiedPaid to surface that share. */
 export function computeBookingPaid(bookingId: string, payments: Payment[]): number {
   return payments
     .filter(p => p.booking_id === bookingId && !p.is_discount)
+    .reduce((sum, p) => sum + p.amount, 0)
+}
+
+/** Share of the money received that has not been reconciled yet. */
+export function computeBookingUnverifiedPaid(bookingId: string, payments: Payment[]): number {
+  return payments
+    .filter(p => p.booking_id === bookingId && !p.is_discount && !p.is_verified)
     .reduce((sum, p) => sum + p.amount, 0)
 }
 
@@ -279,6 +289,7 @@ export interface SeasonTotals {
   totalRevenue: number
   billedNet: number
   totalPaid: number
+  unverifiedPaid: number
   totalDue: number
   instructorCosts: number
   activityCosts: number
@@ -330,6 +341,7 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
   const billedNet = activeBookings.reduce(
     (s, b) => s + computeBookingTotal(b, data) - computeBookingDiscounts(b.id, data.payments), 0)
   const totalPaid = activeBookings.reduce((s, b) => s + computeBookingPaid(b.id, data.payments), 0)
+  const unverifiedPaid = activeBookings.reduce((s, b) => s + computeBookingUnverifiedPaid(b.id, data.payments), 0)
   const totalDue  = billedNet - totalPaid
 
   const instructorCosts  = data.instructors.reduce((s, i) => s + computeInstructorEarned(i.id, data), 0)
@@ -363,7 +375,7 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
   return {
     accomRev, lessonsRev, rentalsRev, taxiRevGross, taxiCosts, taxiMargin,
     activitiesRev, eventsRev, centerAccessRev, totalRevenue,
-    billedNet, totalPaid, totalDue,
+    billedNet, totalPaid, unverifiedPaid, totalDue,
     instructorCosts, activityCosts, houseRentalCosts, bungalowCosts, totalExpenses,
     palmeirasNet, netResult,
   }

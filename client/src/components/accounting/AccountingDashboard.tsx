@@ -36,7 +36,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   const {
     accomRev, lessonsRev, rentalsRev, taxiRevGross, taxiCosts, taxiMargin,
     activitiesRev, eventsRev, centerAccessRev, totalRevenue,
-    billedNet, totalPaid, totalDue,
+    billedNet, totalPaid, unverifiedPaid, totalDue,
     instructorCosts, activityCosts, houseRentalCosts, bungalowCosts, totalExpenses,
     palmeirasNet, netResult,
   } = computeSeasonTotals(data)
@@ -90,6 +90,9 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
             <div className="h-full bg-blue-500 rounded-full" style={{ width: `${billedNet > 0 ? Math.min(100, (totalPaid / billedNet) * 100) : 0}%` }} />
           </div>
           <p className="text-xs text-blue-500 mt-1">{billedNet > 0 ? Math.round((totalPaid / billedNet) * 100) : 0}% of {fmt(billedNet)} billed</p>
+          {unverifiedPaid > 0 && (
+            <p className="text-xs text-amber-600 mt-1">⚠ {fmt(unverifiedPaid)} still to verify</p>
+          )}
         </div>
         <div className={`border rounded-xl p-5 ${totalDue > 0 ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
           <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${totalDue > 0 ? 'text-amber-600' : 'text-gray-500'}`}>Outstanding</p>

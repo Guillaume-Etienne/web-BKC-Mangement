@@ -761,6 +761,19 @@ describe('computeSeasonTotals', () => {
     const t = computeSeasonTotals(fullSeason())
     expect(t.totalPaid).toBe(300)
     expect(t.totalDue).toBe(587)
+    expect(t.unverifiedPaid).toBe(0)   // the fixture payment is verified
+  })
+
+  it('surfaces how much of the collected cash is still unverified', () => {
+    const data = fullSeason()
+    data.payments = [
+      mkPayment({ id: 'p1', amount: 200, is_verified: true }),
+      mkPayment({ id: 'p2', amount: 100, is_verified: false }),
+    ]
+    const t = computeSeasonTotals(data)
+    expect(t.totalPaid).toBe(300)        // both count towards what the client owes
+    expect(t.unverifiedPaid).toBe(100)   // but a third of it is not reconciled
+    expect(t.totalDue).toBe(587)         // unchanged: the flag is informational
   })
 
   it('excludes discounts from the billed total', () => {

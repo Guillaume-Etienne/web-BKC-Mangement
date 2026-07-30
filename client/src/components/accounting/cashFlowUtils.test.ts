@@ -57,11 +57,25 @@ describe('buildCashFlowRows', () => {
     expect(month(rows, '2026-11')?.collected).toBe(300)
   })
 
-  it('counts an unverified payment as cash', () => {
+  it('counts an unverified payment as cash, and flags how much is unverified', () => {
+    // It counts because the amount comes from what the owner typed on the booking:
+    // excluding it would overstate what the client still owes. The share is
+    // surfaced separately so the headline figure can be trusted at a glance.
     const rows = buildCashFlowRows(mkData({
-      payments: [mkPayment({ date: '2026-11-05', amount: 120, is_verified: false })],
+      payments: [
+        mkPayment({ id: 'p1', date: '2026-11-05', amount: 120, is_verified: false }),
+        mkPayment({ id: 'p2', date: '2026-11-06', amount: 80,  is_verified: true }),
+      ],
     }))
-    expect(month(rows, '2026-11')?.collected).toBe(120)
+    expect(month(rows, '2026-11')?.collected).toBe(200)
+    expect(month(rows, '2026-11')?.unverified).toBe(120)
+  })
+
+  it('never counts a discount as unverified cash', () => {
+    const rows = buildCashFlowRows(mkData({
+      payments: [mkPayment({ date: '2026-11-05', amount: 50, is_discount: true, is_verified: false })],
+    }))
+    expect(month(rows, '2026-11')).toBeUndefined()
   })
 
   it('bills standalone taxi trips on the trip date', () => {
@@ -187,7 +201,7 @@ describe('buildCashFlowRows', () => {
 
 /** A month row carrying only the fields a test cares about. */
 const row = (month: string, net = 0): MonthRow =>
-  ({ month, billed: 0, collected: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, net })
+  ({ month, billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, net })
 
 describe('filterRowsByPeriod', () => {
   const rows = ['2026-12', '2026-11', '2026-10', '2026-09'].map(m => row(m))
@@ -203,11 +217,11 @@ describe('filterRowsByPeriod', () => {
 describe('sumCashFlowRows', () => {
   it('sums every column', () => {
     const rows: MonthRow[] = [
-      { month: '2026-10', billed: 100, collected: 60, palmIn: 5, expenses: 10, rent: 20, instrPaid: 8, taxiOut: 2, net: 25 },
-      { month: '2026-11', billed: 200, collected: 40, palmIn: 5, expenses: 10, rent: 20, instrPaid: 2, taxiOut: 3, net: 10 },
+      { month: '2026-10', billed: 100, collected: 60, unverified: 20, palmIn: 5, expenses: 10, rent: 20, instrPaid: 8, taxiOut: 2, net: 25 },
+      { month: '2026-11', billed: 200, collected: 40, unverified: 0,  palmIn: 5, expenses: 10, rent: 20, instrPaid: 2, taxiOut: 3, net: 10 },
     ]
     expect(sumCashFlowRows(rows)).toEqual({
-      billed: 300, collected: 100, palmIn: 10, expenses: 20, rent: 40, instrPaid: 10, taxiOut: 5, net: 35,
+      billed: 300, collected: 100, unverified: 20, palmIn: 10, expenses: 20, rent: 40, instrPaid: 10, taxiOut: 5, net: 35,
     })
   })
 

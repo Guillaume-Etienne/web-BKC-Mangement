@@ -73,7 +73,8 @@ export default function CashFlow({ data }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: 'Billed',      value: totals.billed,    color: 'text-gray-700',    note: 'Revenue generated' },
-          { label: 'Collected',   value: totals.collected, color: 'text-emerald-700', note: 'Cash actually received' },
+          { label: 'Collected',   value: totals.collected, color: 'text-emerald-700', note: 'Cash received',
+            warn: totals.unverified > 0 ? `⚠ ${fmtEur(totals.unverified)} still to verify` : null },
           { label: 'Total out',   value: -(totals.expenses + totals.rent + totals.instrPaid + totals.taxiOut), color: 'text-red-700', note: 'Expenses + rent + instructors + taxi' },
           { label: 'Net cash',    value: totals.net,       color: totals.net >= 0 ? 'text-emerald-700' : 'text-red-700', note: 'Collected − all outflows' },
         ].map(k => (
@@ -81,6 +82,7 @@ export default function CashFlow({ data }: Props) {
             <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{k.label}</p>
             <p className={`text-xl font-bold ${k.color}`}>{fmtEur(k.value)}</p>
             <p className="text-xs text-gray-400 mt-1">{k.note}</p>
+            {'warn' in k && k.warn && <p className="text-xs text-amber-600 mt-1">{k.warn}</p>}
           </div>
         ))}
       </div>

@@ -5,7 +5,8 @@ import { computeBookingTotal, computeBookingDiscounts } from './utils'
 export interface MonthRow {
   month: string      // YYYY-MM
   billed: number     // invoiced to clients (accrual, by check-in month)
-  collected: number  // cash actually received (by payment date)
+  collected: number  // cash received (by payment date), verified or not
+  unverified: number // share of the above still flagged "to verify"
   palmIn: number     // Palmeiras reversals owed to us
   expenses: number
   rent: number       // Palmeiras monthly lease
@@ -17,7 +18,7 @@ export interface MonthRow {
 export type CashFlowTotals = Omit<MonthRow, 'month'>
 
 const EMPTY = (month: string): MonthRow => ({
-  month, billed: 0, collected: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, net: 0,
+  month, billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, net: 0,
 })
 
 /** Monthly cash movements, newest month first.
@@ -69,7 +70,9 @@ export function buildCashFlowRows(data: SharedAccountingData): MonthRow[] {
   }
 
   for (const p of payments.filter(p => !p.is_discount)) {
-    ensure(p.date.slice(0, 7)).collected += p.amount
+    const row = ensure(p.date.slice(0, 7))
+    row.collected += p.amount
+    if (!p.is_verified) row.unverified += p.amount
   }
 
   for (const r of palmeirasReversals) ensure(r.month).palmIn += r.net_amount
@@ -102,13 +105,14 @@ export function sumCashFlowRows(rows: MonthRow[]): CashFlowTotals {
   return rows.reduce<CashFlowTotals>((acc, r) => ({
     billed:    acc.billed    + r.billed,
     collected: acc.collected + r.collected,
+    unverified: acc.unverified + r.unverified,
     palmIn:    acc.palmIn    + r.palmIn,
     expenses:  acc.expenses  + r.expenses,
     rent:      acc.rent      + r.rent,
     instrPaid: acc.instrPaid + r.instrPaid,
     taxiOut:   acc.taxiOut   + r.taxiOut,
     net:       acc.net       + r.net,
-  }), { billed: 0, collected: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, net: 0 })
+  }), { billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, net: 0 })
 }
 
 /** Cumulative net per month, walking oldest → newest. */
