@@ -67,8 +67,12 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
 3. ⬜ **Trancher les 5 décisions métier** en attente (`TEST_SUITE_ACCOUNTING.md`, section
    « Comportements encodés à confirmer »). Important : les tests ont **figé le comportement
    actuel**, donc si l'un est faux on a verrouillé une erreur.
-4. ⬜ **Tests côté base** : `handleSave` (auto-création snapshots / paiements / `taxi_trips`)
-   et smoke des liens partagés. Débloqué depuis que la session TEST tient.
+4. 🟡 **Tests côté base** — bien avancé. ✅ Les 2 garde-fous (conflit de dates, refus
+   d'annulation) et la non-duplication des `taxi_trips` à l'édition sont vérifiés bout-en-bout
+   sur TEST (tableau dans `TEST_SUITE_ACCOUNTING.md`). ✅ Les 5 liens partagés PROD testés en
+   anon après la migration, aucun 42501. ⬜ Restent : le **snapshot `booking_room_prices`** et
+   le **delta de paiement à l'édition** (créer une résa payée 150 €, la passer à 200 € →
+   un second paiement de 50 € seulement, pas 200 €).
 5. ⬜ **Locations : lien explicite `rental_type`** sur `price_items` — même piège de
    rapprochement par nom que les leçons (`LessonWeekView` matche `p.name.toLowerCase()`,
    avec des prix en dur en repli). Peu grave car le prix est figé sur `equipment_rentals.price`,

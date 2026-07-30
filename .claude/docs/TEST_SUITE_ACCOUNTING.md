@@ -92,6 +92,27 @@ exactement en remises **30 €** + taxis standalone **160 €**.
 Les deux sont défendables, mais portent le même mot. Le point discutable est le brut : une
 remise de 30 € accordée laisse quand même 30 € en « revenue generated ». À trancher par gui.
 
+## Vérifications bout-en-bout sur la base TEST (2026-07-30)
+
+Les garde-fous et l'auto-création de `handleSave` ne sont pas couverts par les tests
+unitaires (ils vivent dans un composant React et écrivent en base). Testés à la main via
+Claude in Chrome, sur la vraie base TEST. Astuce utile : `window.alert` est **intercepté**
+(`window.alert = m => window.__alerts.push(m)`) — sinon une boîte de dialogue gèle
+l'extension et on perd la main sur le navigateur.
+
+| Scénario | Attendu | Résultat |
+|---|---|---|
+| Éditer une résa **sans rien changer** | passe | ✅ aucune alerte, modale fermée |
+| Déplacer la #009 sur les dates de la #007, **même chambre** | bloqué | ✅ message affiché, modale maintenue, **rien écrit en base** |
+| Annuler la #009 (**1 leçon**) | bloqué | ✅ message au singulier, **statut inchangé en base** |
+| Annuler la #008 (**0 leçon, 2 taxis**) | passe | ✅ annulée — l'exclusion taxi fonctionne |
+| Ré-enregistrer la #008 (taxis déjà créés) | pas de doublon | ✅ toujours **2** trajets, pas 4 (garde `isNew`) |
+| Ré-enregistrer avec `amount_paid = 0` | pas de paiement | ✅ 0 paiement créé |
+
+Le premier scénario est le plus important : un faux positif sur le conflit de dates aurait
+empêché **toute** modification de réservation — pire que le bug corrigé. La base TEST a été
+remise dans son état d'origine après les tests (#008 rebasculée en `provisional`).
+
 ## ⚠️ Comportements encodés à confirmer par gui
 
 Ces points sont **testés tels qu'ils sont aujourd'hui**. Ce ne sont pas forcément des bugs,
