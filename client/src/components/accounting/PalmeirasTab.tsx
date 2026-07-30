@@ -367,6 +367,17 @@ export default function PalmeirasTab({ data, handlers }: Props) {
         </div>
       </div>
 
+      {/* Why this Net is not the dashboard's Palmeiras figure */}
+      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-600 leading-relaxed">
+        <span className="font-semibold text-gray-700">Reading this Net.</span>{' '}
+        It answers <em>what does the Palmeiras partnership bring in?</em> — reversals
+        + bungalow margin + free income, minus rent and free expenses.
+        It is <span className="font-semibold">not</span> the smaller “Palmeiras” figure on the
+        accounting dashboard, and it should not be: there, what a bungalow is sold for is already
+        counted in accommodation revenue and what it costs is subtracted on its own line, so adding
+        the margin again would count it twice. Each figure is right for its own scope.
+      </div>
+
       {/* Monthly table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="flex flex-wrap justify-between items-center px-5 py-4 border-b gap-2">

@@ -172,18 +172,23 @@ Ces points sont **testés tels qu'ils sont aujourd'hui**. Ce ne sont pas forcém
 mais ils méritent une décision explicite — si l'un doit changer, le test correspondant
 dit exactement quoi modifier.
 
-1. **Leçon de groupe : asymétrie client / instructeur.** Le client est facturé
-   `tarif × heures × nb participants`, l'instructeur touche `tarif × heures` (une fois).
-   Cohérent avec une marge centre sur les groupes — à confirmer.
-2. **`computeBookingTotal` ne filtre pas les annulés** — c'est à l'appelant de le faire.
-3. **Repli sur `client_id`** quand un booking n'a pas de participants : ne matche que les
-   convives enregistrés avec `person_type = 'participant'`.
+1. **`computeBookingTotal` ne filtre pas les annulés** — c'est à l'appelant de le faire.
+   Les 5 appelants actuels le font correctement (dashboard et CashFlow filtrent, la liste
+   Bookings n'affiche les annulées que si la case est cochée, le panneau de détail montre
+   le total de la résa qu'on a ouverte — voulu). Le risque est un **futur** appelant.
+2. **Repli sur `client_id`** quand un booking n'a pas de participants : ne matche que les
+   convives enregistrés avec `person_type = 'participant'`. Cohérent avec `NowView`, qui
+   inscrit justement le client sous ce type quand la résa n'a pas de participants. En
+   revanche un convive ajouté à la main en **`extra`** n'est facturé à aucune résa (il
+   compte quand même dans le revenu repas global).
 
-**Tranchés depuis** : paiement « à vérifier » compté comme encaissé (confirmé, avec une
+**Tranchés depuis** : leçon de groupe facturée par tête et payée à plat — c'est le modèle
+retenu le 2026-07-29, cf. `LESSON_PRICING.md` (client `36 × 2 × 3 = 216 €`, moniteur
+`20 × 2 = 40 €`) ; paiement « à vérifier » compté comme encaissé (confirmé, avec une
 ligne « still to verify » sous les KPI — `b027763`) ; booking à 0 nuit qui perdait le
 revenu externe tout en gardant son coût (corrigé — `cee05fb`) ; baisse du montant payé
 silencieuse (avertissement dans le wizard — `104a9ec`) ; marge bungalow comptée ici et pas
-au dashboard (voulu, cf. ci-dessus).
+au dashboard (voulu, cf. ci-dessus + encart d'explication dans l'onglet).
 
 ## Ce que cette suite ne couvre pas
 

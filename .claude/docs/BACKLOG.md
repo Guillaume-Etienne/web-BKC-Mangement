@@ -70,10 +70,11 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
    ✅ Tranchés : paiement « à vérifier » (compté, + ligne « still to verify », `b027763`) ;
    booking à 0 nuit (corrigé, `cee05fb`) ; baisse du montant payé (avertissement wizard,
    `104a9ec`) ; marge bungalow Palmeiras tab ≠ dashboard (**voulu**, verrouillé par un test).
-   ⬜ **Restent 3, à trancher par gui** : (a) leçon de groupe, client facturé × participants
-   mais instructeur payé une fois ; (b) `computeBookingTotal` ne filtre pas les annulés
-   (c'est à l'appelant) ; (c) repli sur `client_id` pour les convives d'un booking sans
-   participants.
+   ✅ Aussi tranché : **leçon de groupe** facturée par tête / payée à plat = le modèle
+   décidé le 2026-07-29 (`LESSON_PRICING.md`) — l'entrée « à confirmer » était périmée.
+   ⬜ **Restent 2, plutôt des garde-fous que des décisions** : (a) `computeBookingTotal` ne
+   filtre pas les annulés (les 5 appelants actuels filtrent bien, le risque est un futur
+   appelant) ; (b) convives repas en `person_type = 'extra'` facturés à aucune résa.
 4. ✅ **Tests côté base — FAIT**. Les 2 garde-fous, la non-duplication des `taxi_trips`, le
    snapshot `booking_room_prices` (écriture, mise à jour et rechargement) et le delta de
    paiement sont vérifiés bout-en-bout sur TEST — tableau complet dans
