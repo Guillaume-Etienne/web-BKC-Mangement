@@ -18,13 +18,31 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
-| `2026-07-29_lesson_pricing.sql` | `price_items.lesson_type` + `lessons.price_per_hour` + REVOKE anon sur `instructors.rate_*` et `lesson_rate_overrides` | ✅ 2026-07-29 | ⬜ **à faire** |
+| ~~`2026-07-29_lesson_pricing.sql`~~ | `price_items.lesson_type` + `lessons.price_per_hour` + REVOKE anon sur `instructors.rate_*` et `lesson_rate_overrides` | ✅ 2026-07-29 | ✅ 2026-07-30 |
+
+**Registre vide — plus aucune migration en attente.**
 
 **TEST : appliquée et vérifiée le 2026-07-29** — les 4 contrôles verts (tarifs rattachés,
 zéro orpheline, colonne snapshot présente, `rate_private` en anon → 42501 et
 `id,first_name` → 200/0 ligne). Revenu leçons passé de 687 € à **1 052 €** comme prédit.
 
-### ⛔ Ne PAS déployer le code sans passer la migration
+**PROD : appliquée le 2026-07-30, vérifiée par curl anon le jour même** — `rate_private` et
+`rate_group,rate_supervision` → **42501** (la fuite de salaires est fermée),
+`id,first_name` → `[]` et **pas** 42501 (les pages partagées lisent encore l'identité),
+`lesson_rate_overrides` → **42501**. Les deux colonnes ajoutées existent bien :
+`lessons?select=price_per_hour` et `price_items?select=lesson_type` répondent `[]`, et le
+**contrôle négatif** `select=nonexistent_col` répond `42703` — donc `[]` prouve que la
+colonne existe, ce n'est pas un champ ignoré en silence. Les 6 contrôles donnent le même
+résultat sur TEST : les deux bases sont alignées.
+
+⚠️ **Ce que le curl ne peut pas prouver** (RLS masque les lignes en anon) : que les 3 lignes
+de tarif ont bien reçu leur `lesson_type`. À contrôler par gui — le plus simple est d'ouvrir
+**Options → Pricing** en PROD : les 3 lignes de cours doivent afficher un « Applies to »
+rempli (Private / Group / Supervision) et **aucune** mention rouge « no price configured ».
+
+### ⛔ ~~Ne PAS déployer le code sans passer la migration~~ — sans objet depuis le 2026-07-30
+
+*(Gardé pour la leçon : le repli silencieux à 0 € est le vrai piège de ce genre de migration.)*
 
 Vérifié sur TEST le 2026-07-29 (app locale branchée sur TEST, migration non passée) :
 le dashboard affiche **Lessons = 0 €** alors que la base contient 8 leçons. C'est le repli
@@ -58,10 +76,11 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
 
 **Plan convenu avec gui, dans cet ordre.** Les étapes 1 et 2 sont faites.
 
-1. ✅ **Faire atterrir la tarification des leçons** — migration TEST passée et vérifiée,
-   code committé. ⬜ **Reste : migration PROD**, puis le push, puis corriger la paie
-   (Options → Instructors : gui et sa compagne à **0**, vérifier Rémi et Tere qui portent
-   encore les défauts 50/35/25 — seul Pierrot est renseigné).
+1. ✅ **Faire atterrir la tarification des leçons** — migrations TEST (29/07) et **PROD
+   (30/07)** passées et vérifiées par curl anon, code poussé et déployé.
+   ⬜ **Reste, côté données** : Options → Instructors, mettre la paie de gui et de sa
+   compagne à **0**, vérifier Rémi et Tere (encore aux défauts 50/35/25 — seul Pierrot est
+   renseigné). Et un coup d'œil à Options → Pricing pour confirmer les 3 « Applies to ».
 2. ✅ **Extraire les agrégats** dashboard + CashFlow en fonctions pures et les tester.
    Vérifié iso-comportement sur TEST (4 413 € / +891 €). Détail : `TEST_SUITE_ACCOUNTING.md`.
 3. 🔶 **Trancher les décisions métier** (`TEST_SUITE_ACCOUNTING.md`, section « Comportements
