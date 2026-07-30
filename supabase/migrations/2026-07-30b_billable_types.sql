@@ -11,7 +11,7 @@
 -- seul contrôle « tarif manquant », et brancher un nouveau poste demain = ajouter
 -- une valeur d'enum. `lesson_type` (appliqué le 2026-07-29) est repris puis supprimé.
 --
--- Contenu :
+-- Contenu (fichier 2/2 — voir le prérequis juste en dessous) :
 --   1. enum `billable_type` + colonne unique sur price_items
 --   2. reprise de lesson_type, rattachement des locations, semis des manquants
 --   3. accès centre et repas deviennent réglables (ils vivaient dans le code)
@@ -26,11 +26,12 @@
 -- ROLLBACK : voir en bas du fichier.
 -- ═══════════════════════════════════════════════════════════════════════════════
 
--- ── 0. Nouvelles catégories ────────────────────────────────────────────────────
--- HORS transaction : PostgreSQL interdit d'UTILISER une valeur d'enum ajoutée dans
--- la même transaction. Ces deux lignes doivent donc être committées avant le BEGIN.
-ALTER TYPE price_category ADD VALUE IF NOT EXISTS 'meal';
-ALTER TYPE price_category ADD VALUE IF NOT EXISTS 'center_access';
+-- ⚠️ PRÉREQUIS : passer d'abord `2026-07-30a_price_category_values.sql` et attendre
+-- son « Success ». Il ajoute les catégories 'meal' et 'center_access', que ce
+-- fichier-ci utilise. PostgreSQL refuse d'utiliser une valeur d'enum ajoutée dans la
+-- même transaction, et l'éditeur SQL du dashboard exécute tout un script dans UNE
+-- transaction — d'où deux fichiers. Erreur si on l'oublie :
+--   55P04 unsafe use of new value "center_access" of enum type price_category
 
 BEGIN;
 

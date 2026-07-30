@@ -19,7 +19,16 @@
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
 | ~~`2026-07-29_lesson_pricing.sql`~~ | `price_items.lesson_type` + `lessons.price_per_hour` + REVOKE anon sur `instructors.rate_*` et `lesson_rate_overrides` | ✅ 2026-07-29 | ✅ 2026-07-30 |
-| `2026-07-30_billable_types.sql` | `price_items.billable_type` (fusionne et remplace `lesson_type`), semis des 10 postes aux montants jusque-là codés en dur, suppression des lignes `taxi` fantômes, **snapshot de la paie moniteur** (`lessons.instructor_rate`), et **C3** : `room_rates` lisible par un lien client, limité à SES chambres | ⬜ **à faire** | ⬜ **à faire** |
+| `2026-07-30a_price_category_values.sql` | **À passer SEUL et EN PREMIER** : ajoute les catégories `meal` et `center_access` | ⬜ **à faire** | ⬜ **à faire** |
+| `2026-07-30b_billable_types.sql` | `price_items.billable_type` (fusionne et remplace `lesson_type`), semis des 10 postes aux montants jusque-là codés en dur, suppression des lignes `taxi` fantômes, **snapshot de la paie moniteur** (`lessons.instructor_rate`), et **C3** : `room_rates` lisible par un lien client, limité à SES chambres | ⬜ **à faire** | ⬜ **à faire** |
+
+> ⚠️ **Deux fichiers, pas un — et dans cet ordre.** PostgreSQL refuse d'utiliser une
+> valeur d'enum ajoutée dans la même transaction, et l'éditeur SQL du dashboard exécute
+> tout un script dans UNE transaction (contrairement à `psql`, où des `ALTER TYPE` placés
+> avant le `BEGIN` s'auto-committent). Erreur si on les fusionne :
+> `55P04 unsafe use of new value "center_access" of enum type price_category`.
+> **Leçon générale** : toute migration qui ajoute une valeur d'enum *et* s'en sert doit
+> être coupée en deux fichiers.
 
 ### ⛔ Ne PAS déployer ce code sans passer la migration du 2026-07-30
 
