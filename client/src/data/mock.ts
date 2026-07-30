@@ -69,22 +69,22 @@ export const mockLessons: Lesson[] = [
 
 export const mockPriceItems: PriceItem[] = [
   // Cours
-  { id: 'p1', category: 'lesson', name: 'Cours privé 1h', description: 'Leçon privée 1 heure', price: 50, unit: '/ heure', lesson_type: 'private' },
-  { id: 'p2', category: 'lesson', name: 'Cours privé 2h', description: 'Leçon privée 2 heures', price: 95, unit: '/ 2 heures', lesson_type: 'private' },
-  { id: 'p3', category: 'lesson', name: 'Cours groupe 1h', description: 'Cours collectif 1 heure', price: 35, unit: '/ heure', lesson_type: 'group' },
-  { id: 'p4', category: 'lesson', name: 'Supervision 1h', description: 'Supervision 1 heure', price: 25, unit: '/ heure', lesson_type: 'supervision' },
+  { id: 'p1', category: 'lesson', name: 'Cours privé 1h', description: 'Leçon privée 1 heure', price: 50, unit: '/ heure', lesson_type: 'private', rental_type: null },
+  { id: 'p2', category: 'lesson', name: 'Cours privé 2h', description: 'Leçon privée 2 heures', price: 95, unit: '/ 2 heures', lesson_type: 'private', rental_type: null },
+  { id: 'p3', category: 'lesson', name: 'Cours groupe 1h', description: 'Cours collectif 1 heure', price: 35, unit: '/ heure', lesson_type: 'group', rental_type: null },
+  { id: 'p4', category: 'lesson', name: 'Supervision 1h', description: 'Supervision 1 heure', price: 25, unit: '/ heure', lesson_type: 'supervision', rental_type: null },
   // Activités
-  { id: 'p5', category: 'activity', name: 'Sortie découverte', description: null, price: 60, unit: '/ personne', lesson_type: null },
-  { id: 'p6', category: 'activity', name: 'Cours théorie', description: null, price: 20, unit: '/ personne', lesson_type: null },
+  { id: 'p5', category: 'activity', name: 'Sortie découverte', description: null, price: 60, unit: '/ personne', lesson_type: null, rental_type: null },
+  { id: 'p6', category: 'activity', name: 'Cours théorie', description: null, price: 20, unit: '/ personne', lesson_type: null, rental_type: null },
   // Locations
-  { id: 'p7', category: 'rental', name: 'Planche + kite', description: null, price: 40, unit: '/ jour', lesson_type: null },
-  { id: 'p8', category: 'rental', name: 'Kite seul', description: null, price: 20, unit: '/ jour', lesson_type: null },
-  { id: 'p9', category: 'rental', name: 'Harnais', description: null, price: 10, unit: '/ jour', lesson_type: null },
-  { id: 'p10', category: 'rental', name: 'Combinaison', description: null, price: 8, unit: '/ jour', lesson_type: null },
+  { id: 'p7', category: 'rental', name: 'Planche + kite', description: null, price: 40, unit: '/ jour', lesson_type: null, rental_type: 'full' },
+  { id: 'p8', category: 'rental', name: 'Kite seul', description: null, price: 20, unit: '/ jour', lesson_type: null, rental_type: 'kite' },
+  { id: 'p9', category: 'rental', name: 'Harnais', description: null, price: 10, unit: '/ jour', lesson_type: null, rental_type: null },
+  { id: 'p10', category: 'rental', name: 'Combinaison', description: null, price: 8, unit: '/ jour', lesson_type: null, rental_type: null },
   // Taxis
-  { id: 'p11', category: 'taxi', name: 'Aéroport aller', description: null, price: 35, unit: 'aller simple', lesson_type: null },
-  { id: 'p12', category: 'taxi', name: 'Aéroport retour', description: null, price: 35, unit: 'retour simple', lesson_type: null },
-  { id: 'p13', category: 'taxi', name: 'Ville centre', description: null, price: 15, unit: 'aller/retour', lesson_type: null },
+  { id: 'p11', category: 'taxi', name: 'Aéroport aller', description: null, price: 35, unit: 'aller simple', lesson_type: null, rental_type: null },
+  { id: 'p12', category: 'taxi', name: 'Aéroport retour', description: null, price: 35, unit: 'retour simple', lesson_type: null, rental_type: null },
+  { id: 'p13', category: 'taxi', name: 'Ville centre', description: null, price: 15, unit: 'aller/retour', lesson_type: null, rental_type: null },
 ]
 
 export const mockDayActivities: DayActivity[] = [

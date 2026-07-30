@@ -61,7 +61,8 @@
       "Bash(npx tsc *)",
       "Bash(node -e ' *)",
       "Bash(echo \"tsc=$?\")",
-      "Bash(npx vitest *)"
+      "Bash(npx vitest *)",
+      "Bash(python -c ' *)"
     ]
   }
 }

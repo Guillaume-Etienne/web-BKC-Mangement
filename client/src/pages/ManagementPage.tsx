@@ -4,7 +4,7 @@ import { useInstructors } from '../hooks/useInstructors'
 import { useLessons } from '../hooks/useLessons'
 import { useTable } from '../hooks/useSupabase'
 import { useBookings, useBookingParticipants } from '../hooks/useBookings'
-import type { Instructor, Lesson, LessonType, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults, TaxiDriver, BookingStatus, KiteLevel } from '../types/database'
+import type { Instructor, Lesson, LessonType, RentalType, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults, TaxiDriver, BookingStatus, KiteLevel } from '../types/database'
 import AccommodationsTab from '../components/management/AccommodationsTab'
 import DatabaseTab from '../components/management/DatabaseTab'
 
@@ -37,6 +37,32 @@ const priceCategoryLabels: Record<PriceCategory, string> = {
   'rental': 'Rentals',
   'taxi': 'Taxis',
 }
+
+// ── Rates that actually bill something ───────────────────────────────────────
+// A row carrying one of these links is what the app charges for a lesson or a
+// rental. Its NAME bills nothing — the link does. So the name, the category and
+// the link itself are locked once set, and the row cannot be deleted: renaming
+// or deleting it used to silently fall back to a price no screen ever showed.
+// Everything without a link stays a free catalogue entry, fully editable.
+
+const LESSON_TYPE_LABELS: Record<LessonType, string> = {
+  private:     'Private lessons',
+  group:       'Group lessons (per student)',
+  supervision: 'Supervision',
+}
+
+const RENTAL_TYPE_LABELS: Record<RentalType, string> = {
+  kite:      'Kite',
+  board:     'Board',
+  full:      'Full (kite + board)',
+  surfboard: 'Surfboard',
+  foilboard: 'Foilboard',
+}
+
+const billedBy = (p: PriceItem): string | null =>
+  p.lesson_type ? LESSON_TYPE_LABELS[p.lesson_type]
+  : p.rental_type ? RENTAL_TYPE_LABELS[p.rental_type]
+  : null
 
 const LINK_TYPE_LABELS: Record<SharedLinkType, { icon: string; label: string }> = {
   forecast:          { icon: '📋', label: 'Forecast Lesson/Rent' },
@@ -206,6 +232,31 @@ export default function ManagementPage() {
 
   const closePriceForm = () => { setShowPriceForm(false); setPriceFormData({}) }
 
+  /** Billable types of a category that no rate row covers — they bill 0 today. */
+  const missingRates = (category: PriceCategory): string[] => {
+    if (category === 'lesson') {
+      return (Object.keys(LESSON_TYPE_LABELS) as LessonType[])
+        .filter(t => !priceItems.some(p => p.lesson_type === t))
+        .map(t => LESSON_TYPE_LABELS[t])
+    }
+    if (category === 'rental') {
+      return (Object.keys(RENTAL_TYPE_LABELS) as RentalType[])
+        .filter(t => !priceItems.some(p => p.rental_type === t))
+        .map(t => RENTAL_TYPE_LABELS[t])
+    }
+    return []
+  }
+
+  /** Types still free to claim, so the picker can never create a duplicate the
+   *  unique index would reject. A row keeps its own type when editing. */
+  const availableLessonTypes = (current: LessonType | null | undefined) =>
+    (Object.keys(LESSON_TYPE_LABELS) as LessonType[])
+      .filter(t => t === current || !priceItems.some(p => p.lesson_type === t))
+
+  const availableRentalTypes = (current: RentalType | null | undefined) =>
+    (Object.keys(RENTAL_TYPE_LABELS) as RentalType[])
+      .filter(t => t === current || !priceItems.some(p => p.rental_type === t))
+
   const handlePriceSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (priceFormData.id) {
@@ -220,6 +271,7 @@ export default function ManagementPage() {
         price:       priceFormData.price       || 0,
         unit:        priceFormData.unit        || null,
         lesson_type: priceFormData.lesson_type ?? null,
+        rental_type: priceFormData.rental_type ?? null,
       }])
       if (error) { alert('Error: ' + error.message); return }
     }
@@ -479,7 +531,7 @@ export default function ManagementPage() {
                       + Add
                     </button>
                   </div>
-                  {categoryPrices.length === 0 ? (
+                  {categoryPrices.length === 0 && missingRates(category).length === 0 ? (
                     <p className="text-gray-600 text-sm">No price entries</p>
                   ) : (
                     <div className="bg-white rounded-lg shadow overflow-x-auto">
@@ -494,16 +546,39 @@ export default function ManagementPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {categoryPrices.map((price) => (
+                          {categoryPrices.map((price) => {
+                            const bills = billedBy(price)
+                            return (
                             <tr key={price.id} className="border-b hover:bg-gray-50">
-                              <td className="px-4 py-3 text-sm font-medium text-gray-800">{price.name}</td>
+                              <td className="px-4 py-3 text-sm font-medium text-gray-800">
+                                {price.name}
+                                {bills && (
+                                  <span className="ml-2 text-xs font-normal text-blue-600 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 whitespace-nowrap"
+                                    title="This rate is what the app bills. Its name is a label only — you can change the price, not what it applies to.">
+                                    🔒 bills {bills}
+                                  </span>
+                                )}
+                              </td>
                               <td className="px-4 py-3 text-sm text-gray-600">{price.description || '-'}</td>
                               <td className="px-4 py-3 text-sm text-gray-800 font-medium">{price.price}€</td>
                               <td className="px-4 py-3 text-sm text-gray-600">{price.unit || '-'}</td>
                               <td className="px-4 py-3 text-sm space-x-2 whitespace-nowrap">
                                 <button onClick={() => openPriceForm(price)} className="text-blue-600 hover:text-blue-800 font-medium">✏️</button>
-                                <button onClick={() => handleDeletePrice(price.id)} className="text-red-600 hover:text-red-800 font-medium">🗑️</button>
+                                {bills ? (
+                                  <span className="text-gray-300 cursor-not-allowed" title="Cannot be deleted: the app bills with it. Set its price to 0 if you stop charging for it.">🗑️</span>
+                                ) : (
+                                  <button onClick={() => handleDeletePrice(price.id)} className="text-red-600 hover:text-red-800 font-medium">🗑️</button>
+                                )}
                               </td>
+                            </tr>
+                          )})}
+                          {/* A billable type with no rate is billed 0 — say so rather than let it pass */}
+                          {missingRates(category).map(label => (
+                            <tr key={label} className="border-b bg-red-50">
+                              <td className="px-4 py-3 text-sm font-medium text-red-700" colSpan={4}>
+                                ⚠️ {label} — no rate configured, billed 0€
+                              </td>
+                              <td className="px-4 py-3 text-sm text-red-400">—</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1041,7 +1116,16 @@ export default function ManagementPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
                   <input type="text" value={priceFormData.name || ''}
                     onChange={(e) => setPriceFormData({ ...priceFormData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    readOnly={!!billedBy(priceFormData as PriceItem)}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      billedBy(priceFormData as PriceItem) ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
+                    }`} />
+                  {billedBy(priceFormData as PriceItem) && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      🔒 Locked: this rate bills {billedBy(priceFormData as PriceItem)}. The name is a label only —
+                      what it applies to is set below and cannot change. Edit the price freely.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -1068,16 +1152,37 @@ export default function ManagementPage() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Applies to *</label>
                     <select value={priceFormData.lesson_type ?? ''}
+                      disabled={!!priceFormData.lesson_type}
                       onChange={(e) => setPriceFormData({ ...priceFormData, lesson_type: (e.target.value || null) as LessonType | null })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500">
                       <option value="">— not billed —</option>
-                      <option value="private">Private lessons</option>
-                      <option value="group">Group lessons (per student)</option>
-                      <option value="supervision">Supervision</option>
+                      {availableLessonTypes(priceFormData.lesson_type).map(t => (
+                        <option key={t} value={t}>{LESSON_TYPE_LABELS[t]}</option>
+                      ))}
                     </select>
                     <p className="text-xs text-gray-400 mt-1">
-                      Links this rate to the lessons it bills. Without it the lesson is billed 0.
-                      One rate per type.
+                      {priceFormData.lesson_type
+                        ? '🔒 Locked once set — moving a rate to another type would reprice past work silently.'
+                        : 'Links this rate to the lessons it bills. Without it the lesson is billed 0. One rate per type.'}
+                    </p>
+                  </div>
+                )}
+                {(priceFormData.category || selectedPriceCategory) === 'rental' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Applies to *</label>
+                    <select value={priceFormData.rental_type ?? ''}
+                      disabled={!!priceFormData.rental_type}
+                      onChange={(e) => setPriceFormData({ ...priceFormData, rental_type: (e.target.value || null) as RentalType | null })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500">
+                      <option value="">— not billed —</option>
+                      {availableRentalTypes(priceFormData.rental_type).map(t => (
+                        <option key={t} value={t}>{RENTAL_TYPE_LABELS[t]}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {priceFormData.rental_type
+                        ? '🔒 Locked once set — moving a rate to another type would reprice past work silently.'
+                        : 'Links this rate to the rentals it bills. Without it the rental is billed 0. One rate per type.'}
                     </p>
                   </div>
                 )}

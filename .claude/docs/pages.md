@@ -53,6 +53,11 @@
 - **But :** Compte client (hébergement, services, paiements, solde)
 - **Data :** Requêtes Supabase directes (booking → rooms → payments → consumptions)
 - **Layout :** 4 sections : tableau hébergement, services, paiements, carte solde
+- **Prix des chambres (C3, 2026-07-30)** : `booking_room_prices` (le prix figé) puis repli
+  sur `getBaseNightlyRate()` — avant, une résa sans prix figé affichait **0 €/nuit** au
+  client. Le repli lit `room_rates` en anon, ce qui n'est possible **qu'après** la migration
+  `2026-07-30_rental_pricing_and_room_rates.sql` ; sans elle la requête revient vide et la
+  page retombe sur l'ancien comportement (pas de crash).
 
 ### `DriverSharePage`
 - **Accès :** `?share=<driver_token>` où le token a `params.driver_id`
@@ -193,6 +198,12 @@
 - **Hooks :** useInstructors, useLessons, useTable<PriceItem>, useTable<TaxiPricingDefaults>, useTable<SharedLink>, useBookings, useBookingParticipants
 - **State :** `tab: 'instructors'|'houses'|'pricing'|'links'|'bookguest'`
 - **Onglets :** Instructors CRUD, Houses, Pricing (items + taxi defaults), Shared links, Bookings & Guests
+- **Pricing — deux natures de lignes (2026-07-30)** : celles qui portent un `lesson_type`
+  ou un `rental_type` **facturent** (badge « 🔒 bills … ») → nom, catégorie et lien
+  verrouillés, suppression interdite, **seul le prix reste éditable** ; les autres sont un
+  catalogue libre. Un type facturable sans tarif s'affiche en rouge « no rate configured,
+  billed 0€ ». Le sélecteur « Applies to » ne propose que les types encore libres, donc
+  l'index unique en base ne peut plus être heurté par l'écran.
 - **Shared links :** formulaire manuel pour types `forecast`, `taxi`, `client`, **`booking_form`**.
   `driver` et `activity_provider` exclus (créés depuis leurs pages dédiées). `booking_form` = lien public du formulaire d'inscription (un seul suffit).
 - **`LINK_TYPE_LABELS`** : utilisé pour afficher le type dans la liste, inclut les 6 types.

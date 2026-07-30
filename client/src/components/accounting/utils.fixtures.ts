@@ -83,7 +83,7 @@ export function mkLessonPrices(over: Partial<Record<LessonType, number>> = {}): 
   const base: Record<LessonType, number> = { private: 60, group: 36, supervision: 40, ...over }
   return (Object.keys(base) as LessonType[]).map(t => ({
     id: `pi_${t}`, category: 'lesson', name: t, description: null,
-    price: base[t], unit: '€/hour', lesson_type: t,
+    price: base[t], unit: '€/hour', lesson_type: t, rental_type: null,
   }))
 }
 

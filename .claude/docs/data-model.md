@@ -186,6 +186,7 @@
 | start_time | string (HH:MM) | |
 | duration_hours | number | |
 | type | LessonType | |
+| price_per_hour | number \| null | 2026-07-29. Prix **client** €/h figé à la création depuis `price_items.lesson_type`, éditable leçon par leçon. `NULL` → repli sur le tarif courant. La paie du moniteur n'est PAS ici (`instructors.rate_*`). |
 | notes | string \| null | |
 | kite_id | string \| null (FK → equipment) | |
 | board_id | string \| null (FK → equipment) | |
@@ -369,14 +370,22 @@
 ## Management
 
 ### `price_items` → `PriceItem`
-| Field | Type |
-|-------|------|
-| id | string (UUID) |
-| category | PriceCategory |
-| name | string |
-| description | string \| null |
-| price | number |
-| unit | string \| null |
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| category | PriceCategory | |
+| name | string | **Décoratif** : ne facture rien. Verrouillé dans l'UI sur une ligne liée. |
+| description | string \| null | |
+| price | number | |
+| unit | string \| null | |
+| lesson_type | LessonType \| null | 2026-07-29. Le lien qui facture les leçons. Un seul par type (index unique partiel), interdit hors `category='lesson'` (CHECK). |
+| rental_type | RentalType \| null | 2026-07-30. Idem pour les locations (`kite/board/full/surfboard/foilboard` — « Other » = 0 par définition, hors enum). |
+
+> ⚠️ **Ne jamais rapprocher un tarif par son nom.** C'est le bug qu'on a payé trois fois
+> (full house à 100 € en dur, leçons par nom, locations par nom) : renommer une ligne
+> faisait basculer la facturation sur un prix qu'aucun écran ne montrait. Depuis le
+> 2026-07-30, une ligne liée ne peut plus être renommée, déplacée ni supprimée dans
+> Options → Pricing, et plus aucun prix de repli ne vit dans le code.
 
 ### `shared_links` → `SharedLink`
 | Field | Type | Notes |

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Lesson, DayActivity, DaySlot, LessonType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem } from '../../types/database'
+import type { Lesson, DayActivity, DaySlot, LessonType, RentalType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem } from '../../types/database'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -23,14 +23,13 @@ const DAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DURATION_OPTIONS = [0.5, 1, 1.5, 2, 2.5, 3]
 
-// Fallback prices used only when price_items table has no matching entry
-const FALLBACK_RENTAL_PRICES: Record<string, number> = {
-  kite: 40, board: 20, full: 55, surfboard: 25, foilboard: 35, free: 0,
-}
+/** What the picker offers: every billable type, plus "Other" which is free by
+ *  definition. There is deliberately no fallback price table here — a rate lives
+ *  in Options → Pricing or nowhere, so it can never be silently different from
+ *  what the screen shows. */
+type RentalKind = RentalType | 'free'
 
-type RentalType = 'kite' | 'board' | 'full' | 'surfboard' | 'foilboard' | 'free'
-
-const RENTAL_TYPES: { key: RentalType; label: string; icon: string; sub?: string }[] = [
+const RENTAL_TYPES: { key: RentalKind; label: string; icon: string; sub?: string }[] = [
   { key: 'kite',      label: 'Kite',            icon: '🪁' },
   { key: 'board',     label: 'Board',           icon: '🏄' },
   { key: 'full',      label: 'Full',            icon: '🪁🏄', sub: 'Kite + Board' },
@@ -71,7 +70,7 @@ interface AddForm {
   // rental fields
   rental_participant_id: string
   rental_slot: 'morning' | 'afternoon' | 'full_day'
-  rental_type: RentalType
+  rental_type: RentalKind
   rental_price: number
   rental_kite_id: string | null
   rental_board_id: string | null
@@ -127,8 +126,8 @@ export default function LessonWeekView({
     name: '', actNotes: '',
     rental_participant_id: firstParticipant,
     rental_slot: slot === 'morning' ? 'morning' : slot === 'afternoon' ? 'afternoon' : 'full_day',
-    rental_type: 'kite' as RentalType,
-    rental_price: rentalPrice('kite'),
+    rental_type: 'kite' as RentalKind,
+    rental_price: rentalPrice('kite') ?? 0,
     rental_kite_id: null,
     rental_board_id: null,
     rental_notes: '',
@@ -145,7 +144,7 @@ export default function LessonWeekView({
   const [editRentalPrice, setEditRentalPrice] = useState('')
   const [editRentalSlot, setEditRentalSlot] = useState<'morning' | 'afternoon' | 'full_day'>('morning')
   const [editRentalParticipantId, setEditRentalParticipantId] = useState('')
-  const [editRentalType, setEditRentalType] = useState<RentalType>('kite')
+  const [editRentalType, setEditRentalType] = useState<RentalKind>('kite')
   const [editRentalKiteId, setEditRentalKiteId] = useState<string | null>(null)
   const [editRentalBoardId, setEditRentalBoardId] = useState<string | null>(null)
   const [editRentalNotes, setEditRentalNotes] = useState('')
@@ -158,9 +157,11 @@ export default function LessonWeekView({
   const [dropTarget, setDropTarget] = useState<{ date: string; slot: Slot } | null>(null)
 
   // ── Pricing lookup ────────────────────────────────────────────────────────
-  function rentalPrice(type: RentalType): number {
-    const item = priceItems.find(p => p.category === 'rental' && p.name.toLowerCase().trim() === type)
-    return item?.price ?? FALLBACK_RENTAL_PRICES[type] ?? 0
+  /** Rate from Options → Pricing, keyed by rental_type (never by name).
+   *  null = nothing configured for that type; 'free' is 0 by definition. */
+  function rentalPrice(type: RentalKind): number | null {
+    if (type === 'free') return 0
+    return priceItems.find(p => p.rental_type === type)?.price ?? null
   }
 
   /** Client price €/h from Options → Pricing, keyed by lesson_type (never by name). */
@@ -212,7 +213,7 @@ export default function LessonWeekView({
 
   function openEditRental(r: EquipmentRental) {
     const equip = equipment.find(e => e.id === r.equipment_id)
-    const type = (RENTAL_TYPES.find(t => t.key === (equip?.category ?? r.equipment_id))?.key ?? 'free') as RentalType
+    const type = (RENTAL_TYPES.find(t => t.key === (equip?.category ?? r.equipment_id))?.key ?? 'free') as RentalKind
     setEditRental(r)
     setEditRentalPrice(String(r.price))
     setEditRentalSlot(r.slot as 'morning' | 'afternoon' | 'full_day')
@@ -578,7 +579,7 @@ export default function LessonWeekView({
                                     onClick={() => setAddForm(f => f && {
                                       ...f,
                                       rental_type: rt.key,
-                                      rental_price: rentalPrice(rt.key),
+                                      rental_price: rentalPrice(rt.key) ?? 0,
                                     })}
                                     className={`text-xs py-1 px-1 rounded border transition-colors text-center leading-tight ${
                                       addForm?.rental_type === rt.key
@@ -637,6 +638,11 @@ export default function LessonWeekView({
                                 />
                                 <span className="text-xs text-gray-500">€</span>
                               </div>
+                              {addForm && rentalPrice(addForm.rental_type) === null && (
+                                <p className="text-[10px] text-red-500 leading-tight">
+                                  No rate set for this type — see Options → Pricing. Type the price here to bill this one.
+                                </p>
+                              )}
                               <input
                                 type="text"
                                 placeholder="Notes (optional)"

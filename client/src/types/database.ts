@@ -189,10 +189,16 @@ export interface PriceItem {
   description: string | null
   price: number
   unit: string | null
-  // Explicit link to a lesson type — only set on category='lesson' rows.
-  // Never match a price to a lesson by name: renaming would silently reprice.
+  // Explicit link to what this rate bills — only one of them is ever set, and
+  // only on a row of the matching category. Never match a rate by name: renaming
+  // it would silently reprice, which is exactly the bug these columns closed.
   lesson_type: LessonType | null
+  rental_type: RentalType | null
 }
+
+/** Rental types that carry a rate. 'free' is not one: it is 0 by definition,
+ *  so it is never stored and never configurable. */
+export type RentalType = 'kite' | 'board' | 'full' | 'surfboard' | 'foilboard'
 
 // Taxis
 export type TaxiTripType   = 'aero-to-center' | 'center-to-aero' | 'aero-to-spot' | 'spot-to-aero' | 'center-to-town' | 'town-to-center' | 'other'

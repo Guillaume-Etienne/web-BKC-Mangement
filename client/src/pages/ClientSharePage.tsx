@@ -6,8 +6,9 @@ import type {
   EquipmentRental, TaxiTrip,
   DiningEvent, BookingParticipant,
   ExternalAccommodationBooking, ExternalAccommodation,
-  ActivityBooking,
+  ActivityBooking, RoomRate,
 } from '../types/database'
+import { getBaseNightlyRate } from '../utils/roomPricing'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const [booking,        setBooking]        = useState<BookingWithClient | 'not_found' | undefined>(undefined)
   const [bkgRooms,       setBkgRooms]       = useState<BookingRoom[]>([])
   const [roomPrices,     setRoomPrices]     = useState<BookingRoomPrice[]>([])
+  const [roomRates,      setRoomRates]      = useState<RoomRate[]>([])
   const [rooms,          setRooms]          = useState<Room[]>([])
   const [accoms,         setAccoms]         = useState<Accommodation[]>([])
   const [payments,       setPayments]       = useState<Payment[]>([])
@@ -133,10 +135,13 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       supabase.from('external_accommodation_bookings').select('*').eq('booking_id', id),
       supabase.from('external_accommodations').select('*'),
       supabase.from('activity_bookings').select('*').eq('booking_id', id).order('date'),
+      // Base rates, used only when this booking has no price snapshot. Column-restricted
+      // for anon (no `notes`), and RLS only returns the rooms of this very booking.
+      supabase.from('room_rates').select('room_id, price_per_night'),
     ]).then(([
       bkgRoomsRes, pricesRes, roomsRes, acomsRes, paymentsRes,
       lessonsRes, instrRes, rentalsRes, taxisRes,
-      diningRes, partRes, extBkgRes, extAccomRes, actBkgRes,
+      diningRes, partRes, extBkgRes, extAccomRes, actBkgRes, roomRatesRes,
     ]) => {
       setBkgRooms(bkgRoomsRes.data ?? [])
       setRoomPrices(pricesRes.data ?? [])
@@ -154,6 +159,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       setExtAccomBkgs(extBkgRes.data ?? [])
       setExtAccoms(extAccomRes.data ?? [])
       setActivityBkgs(actBkgRes.data ?? [])
+      // anon only receives room_id/price_per_night (column-restricted); the page uses only those
+      setRoomRates((roomRatesRes.data ?? []) as unknown as RoomRate[])
       setLoading(false)
     })
   }, [booking])
@@ -189,7 +196,11 @@ export default function ClientSharePage({ bookingNumber }: Props) {
     const room  = rooms.find(r => r.id === br.room_id)
     const accom = room ? accoms.find(a => a.id === room.accommodation_id) : null
     const priceRow = roomPrices.find(p => p.room_id === br.room_id)
-    const pricePerNight = priceRow?.price_per_night ?? 0
+    // No snapshot on this booking (older ones, or a room added without a price):
+    // fall back to the base rate rather than show the client 0 €/night. Same rule
+    // as the admin side, full-house aware — see utils/roomPricing.ts.
+    const pricePerNight = priceRow?.price_per_night
+      ?? getBaseNightlyRate(br.room_id, bkgRooms.map(r => r.room_id), rooms, accoms, roomRates)
     return {
       label: room && accom ? roomLabel(room, accom) : br.room_id,
       nights,

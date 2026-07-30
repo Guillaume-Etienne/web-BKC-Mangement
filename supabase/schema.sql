@@ -15,6 +15,8 @@ CREATE TYPE taxi_trip_type                  AS ENUM ('aero-to-center', 'center-t
 CREATE TYPE taxi_trip_status                AS ENUM ('confirmed', 'needs_details', 'done');
 CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form', 'restaurant');
 CREATE TYPE equipment_category              AS ENUM ('kite', 'board', 'surfboard', 'foilboard');
+-- Types de location qui portent un tarif ('free'/« Other » = 0 par définition, hors enum)
+CREATE TYPE rental_price_type               AS ENUM ('kite', 'board', 'full', 'surfboard', 'foilboard');
 CREATE TYPE equipment_condition             AS ENUM ('new', 'good', 'fair', 'damaged', 'retired');
 CREATE TYPE rental_slot                     AS ENUM ('morning', 'afternoon', 'full_day');
 CREATE TYPE payment_method                  AS ENUM ('cash_eur', 'cash_mzn', 'transfer', 'card_palmeiras');
@@ -176,6 +178,10 @@ CREATE TABLE lessons (
   start_time       TEXT NOT NULL,   -- HH:MM
   duration_hours   NUMERIC(4,2) NOT NULL DEFAULT 1,
   type             lesson_type NOT NULL,
+  -- Prix client €/h figé à la création (source : price_items.lesson_type), éditable
+  -- par leçon. NULL → repli sur le tarif courant. Même principe que
+  -- booking_room_prices : changer un tarif ne refacture pas le passé.
+  price_per_hour   NUMERIC(8,2),
   notes            TEXT,
   kite_id          UUID,            -- FK to equipment (nullable)
   board_id         UUID,            -- FK to equipment (nullable)
@@ -212,6 +218,9 @@ CREATE TABLE dining_events (
 
 -- ── Pricing ───────────────────────────────────────────────────────────────────
 
+-- ⚠️ Une ligne de tarif facture par son LIEN (lesson_type / rental_type), jamais par
+-- son nom : rapprocher par le nom faisait basculer la facturation sur un prix codé en
+-- dur dès qu'on renommait la ligne (leçons 2026-07-29, locations 2026-07-30).
 CREATE TABLE price_items (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   category     price_category NOT NULL,
@@ -219,8 +228,16 @@ CREATE TABLE price_items (
   description  TEXT,
   price        NUMERIC(10,2) NOT NULL,
   unit         TEXT,
-  created_at   TIMESTAMPTZ DEFAULT now()
+  lesson_type  lesson_type,
+  rental_type  rental_price_type,
+  created_at   TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT price_items_lesson_type_category_chk CHECK (lesson_type IS NULL OR category = 'lesson'),
+  CONSTRAINT price_items_rental_type_category_chk CHECK (rental_type IS NULL OR category = 'rental')
 );
+
+-- Un seul tarif par type facturable, sinon la facturation serait ambiguë
+CREATE UNIQUE INDEX idx_price_items_lesson_type ON price_items(lesson_type) WHERE lesson_type IS NOT NULL;
+CREATE UNIQUE INDEX idx_price_items_rental_type ON price_items(rental_type) WHERE rental_type IS NOT NULL;
 
 
 -- ── Equipment ─────────────────────────────────────────────────────────────────
@@ -688,10 +705,22 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT b.client_id FROM bookings b WHERE b.id = share_booking_id();
 $$;
 
+-- Clés room_rates auxquelles un token 'client' a droit (2026-07-30) : les chambres de
+-- SA réservation + la clé maison entière de leurs hébergements. Sert au repli tarifaire
+-- quand la résa n'a pas de prix figé — jamais toute la grille.
+CREATE OR REPLACE FUNCTION share_room_keys() RETURNS SETOF text
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT br.room_id::text FROM booking_rooms br WHERE br.booking_id = share_booking_id()
+  UNION
+  SELECT 'full_' || r.accommodation_id::text
+    FROM booking_rooms br JOIN rooms r ON r.id = br.room_id
+   WHERE br.booking_id = share_booking_id();
+$$;
+
 REVOKE EXECUTE ON FUNCTION share_ctx(), share_type(), share_param(TEXT),
-                           share_booking_id(), share_client_id() FROM PUBLIC;
+                           share_booking_id(), share_client_id(), share_room_keys() FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION share_ctx(), share_type(), share_param(TEXT),
-                           share_booking_id(), share_client_id() TO anon, authenticated;
+                           share_booking_id(), share_client_id(), share_room_keys() TO anon, authenticated;
 
 -- Cœur booking : token client → uniquement le booking du token ;
 -- taxi/driver/manager/restaurant → toutes les lignes (embeds de noms).
@@ -723,11 +752,8 @@ CREATE POLICY "anon_read_equipment_rentals" ON equipment_rentals FOR SELECT TO a
   share_type() = 'forecast'
   OR (share_type() = 'client' AND booking_id = share_booking_id())
 );
-CREATE POLICY "anon_read_lesson_rate_overrides" ON lesson_rate_overrides
-  FOR SELECT TO anon USING (
-    share_type() = 'client'
-    AND lesson_id IN (SELECT l.id FROM lessons l WHERE l.booking_id = share_booking_id())
-  );
+-- (lesson_rate_overrides : plus AUCUNE policy anon depuis le 2026-07-29 — c'est de la
+--  paie moniteur. La page client lit lessons.price_per_hour, pas les overrides.)
 -- Repas : uniquement ceux où participe un participant du booking (match JSONB attendees).
 CREATE POLICY "anon_read_dining_events" ON dining_events FOR SELECT TO anon USING (
   share_type() = 'client'
@@ -770,6 +796,14 @@ CREATE POLICY "anon_read_activity_payments" ON activity_payments
     share_type() = 'activity_provider' AND provider_id = share_param('provider_id')::uuid
   );
 
+-- Tarifs de base (C3, 2026-07-30) : un lien CLIENT seulement, et uniquement les clés
+-- de sa propre réservation — sert au repli quand la résa n'a pas de prix figé, sinon
+-- le client verrait 0 €/nuit. Colonnes narrowées plus bas (jamais `notes`).
+CREATE POLICY "anon_read_room_rates" ON room_rates FOR SELECT TO anon USING (
+  share_type() = 'client'
+  AND room_id IN (SELECT share_room_keys())
+);
+
 -- Référentiel : lisible avec n'importe quel token valide.
 CREATE POLICY "anon_read_rooms" ON rooms
   FOR SELECT TO anon USING (share_type() IS NOT NULL);
@@ -797,11 +831,17 @@ REVOKE SELECT ON bookings FROM anon;
 GRANT  SELECT (id, booking_number, check_in, check_out, status, client_id,
                num_center_access, center_access_rate)
   ON bookings TO anon;
--- Lot C (2026-07-06): instructors → identity + rates (ClientSharePage prices
--- lessons with them); never email/phone/notes/specialties.
+-- Lot C (2026-07-06) puis resserré le 2026-07-29 : instructors → IDENTITÉ SEULE.
+-- Les rate_* sont devenus de la paie (le prix client vient de price_items et est figé
+-- sur lessons.price_per_hour), donc plus aucune raison de les exposer : c'était une
+-- fuite de salaires lisible depuis n'importe quel lien client.
 REVOKE SELECT ON instructors FROM anon;
-GRANT  SELECT (id, first_name, last_name, rate_private, rate_group, rate_supervision)
-  ON instructors TO anon;
+GRANT  SELECT (id, first_name, last_name) ON instructors TO anon;
+-- Même raison : un override est une exception sur la paie d'un moniteur (2026-07-29).
+REVOKE SELECT ON lesson_rate_overrides FROM anon;
+-- room_rates (2026-07-30) : le prix, jamais les notes internes. La policy ci-dessus
+-- limite déjà les lignes aux chambres du booking porté par le token client.
+GRANT  SELECT (room_id, price_per_night) ON room_rates TO anon;
 -- taxi_drivers → identity + contact + vehicle (phone kept on purpose: guests can
 -- call their taxi); never email/notes/margin_percent/default pricing.
 REVOKE SELECT ON taxi_drivers FROM anon;

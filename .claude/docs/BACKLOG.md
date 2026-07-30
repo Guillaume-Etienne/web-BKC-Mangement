@@ -19,8 +19,16 @@
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
 | ~~`2026-07-29_lesson_pricing.sql`~~ | `price_items.lesson_type` + `lessons.price_per_hour` + REVOKE anon sur `instructors.rate_*` et `lesson_rate_overrides` | ✅ 2026-07-29 | ✅ 2026-07-30 |
+| `2026-07-30_rental_pricing_and_room_rates.sql` | `price_items.rental_type` (+ semis des 5 tarifs aux prix jusque-là codés en dur) et **C3** : `room_rates` lisible par un lien client, limité à SES chambres | ⬜ **à faire** | ⬜ **à faire** |
 
-**Registre vide — plus aucune migration en attente.**
+### ⛔ Ne PAS déployer ce code sans passer la migration du 2026-07-30
+
+Même piège que les leçons : sans la colonne `rental_type`, `rentalPrice()` ne trouve
+aucun tarif et **une nouvelle location est proposée à 0 €** (l'écran l'affiche en rouge
+« No rate set for this type », donc c'est visible, mais c'est 0). Les locations déjà
+enregistrées ne bougent pas : leur prix est figé sur `equipment_rentals.price`.
+Côté C3, sans la migration la page client garde son comportement actuel (0 €/nuit quand
+le prix figé manque) — pas de crash, la requête `room_rates` revient juste vide.
 
 **TEST : appliquée et vérifiée le 2026-07-29** — les 4 contrôles verts (tarifs rattachés,
 zéro orpheline, colonne snapshot présente, `rate_private` en anon → 42501 et
@@ -104,11 +112,21 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
    `amount_paid` et la table `payments` divergeaient en silence (mesuré : 200 vs 260).
    Le wizard annonce désormais l'effet du save — avertissement si le montant est sous ce
    qui est déjà encaissé, ligne explicite sur le paiement créé sinon (`104a9ec`).
-5. ⬜ **Locations : lien explicite `rental_type`** sur `price_items` — même piège de
-   rapprochement par nom que les leçons (`LessonWeekView` matche `p.name.toLowerCase()`,
-   avec des prix en dur en repli). Peu grave car le prix est figé sur `equipment_rentals.price`,
-   donc seules les **futures** locations seraient mal tarifées. **À grouper avec la prochaine
-   migration**, pas à faire seule — décision explicite de gui de ne pas court-circuiter.
+5. ✅ **Locations : lien explicite `rental_type`** — fait le 2026-07-30, groupé avec C3
+   dans une seule migration comme demandé. `LessonWeekView` ne rapproche plus par nom et
+   **n'a plus aucun prix codé en dur** : les 5 tarifs (kite 40 / board 20 / full 55 /
+   surfboard 25 / foilboard 35) sont semés en base par la migration, donc rien ne change
+   dans ce qui est facturé — ils deviennent simplement visibles et modifiables.
+   ⬜ Reste : appliquer la migration (TEST + PROD).
+
+6. ✅ **Tarifs qui facturent = verrouillés** (demande gui du 2026-07-30). Une ligne de
+   Options → Pricing liée à un `lesson_type`/`rental_type` ne peut plus être **renommée**,
+   **déplacée** vers un autre type, ni **supprimée** : elle porte un badge « 🔒 bills … »,
+   seul son prix reste éditable. Raison : le nom ne facture rien, le lien si — laisser le
+   nom modifiable entretenait exactement l'illusion qui a coûté de l'argent trois fois
+   (full house 100 €, leçons par nom, locations par nom). Un type facturable sans tarif
+   apparaît en rouge « no rate configured, billed 0€ » au lieu de passer inaperçu.
+   Le reste du catalogue (activités, taxi) reste librement éditable.
 
 **Écarté volontairement** (rediscuter seulement si le problème se manifeste) : contrainte
 `EXCLUDE` / trigger en base pour doubler les garde-fous applicatifs (conflit de dates, refus
@@ -253,22 +271,20 @@ rooms/accommodations/roomRates au calcul du total Summary, même bug là-bas).
 appliqué, « ⚠ no price » quand il n'y a vraiment rien (0 €).
 **Reste → tâche C3 ci-dessous** (décidé avec gui le 2026-07-28 : on le fait ensuite).
 
-### C3 — Même fallback sur la page client partagée — 🔜 À FAIRE (migration requise)
-`ClientSharePage.tsx:196` (`priceRow?.price_per_night ?? 0`) : sans snapshot, le client voit
-**0 €/nuit** sur sa propre facture. Le fallback `getBaseNightlyRate()` y est réutilisable tel
-quel (la page charge déjà `rooms` et `accommodations`), **mais `room_rates` n'est pas lisible
-par anon** — aucun GRANT nulle part dans `supabase/` aujourd'hui.
-**Ce qu'il faudra migrer (TEST + PROD)** — à préparer par Claude, à appliquer par gui :
-1. `GRANT SELECT (room_id, price_per_night) ON room_rates TO anon;` (surtout PAS `notes` —
-   même logique que le Lot C : on narrow les colonnes).
-2. Une policy RLS token-aware sur `room_rates` du même gabarit que la Phase 2 — les tarifs de
-   base ne sont pas nominatifs, donc « token valide de type `client` » suffit (à trancher :
-   tous types de token, ou `client` seulement ?).
-3. `SELECT` narrowé dans ClientSharePage + `schema.sql` synchronisé.
-**Vérif obligatoire** : curl anon sur les 2 bases (sans token → `[]`, avec token client →
-lignes, colonne `notes` → 42501). ⚠️ Réfléchir avant : ça expose la grille tarifaire de base à
-qui détient un lien client. Alternative sans migration = faire écrire le snapshot manquant par
-l'admin (le badge « ⚠ base rate » de BookingFinances le signale déjà).
+### C3 — Même fallback sur la page client partagée — ✅ CODÉ (2026-07-30), ⬜ migration à appliquer
+`ClientSharePage` retombe désormais sur `getBaseNightlyRate()` quand la résa n'a pas de prix
+figé, au lieu d'afficher **0 €/nuit** au client. Code fait ; il ne s'allume qu'une fois la
+migration `2026-07-30_rental_pricing_and_room_rates.sql` passée.
+
+**Décision gui (2026-07-30) : liens `client` uniquement**, et j'ai resserré plus loin que la
+spec d'origine — un token client ne lit **que les clés de sa propre réservation**
+(ses chambres + la clé `full_{accId}` de leur maison), pas toute la grille. Helper
+`share_room_keys()` (SECURITY DEFINER, gabarit Phase 2) + `GRANT SELECT (room_id,
+price_per_night)` — jamais `notes`.
+**Pourquoi ce resserrage** : un lien partagé est une URL, et une URL circule (WhatsApp, mail
+transféré). Ce qui sort par cette porte doit être la facture du porteur, pas le catalogue.
+**Vérif obligatoire, 4 curls par base** (détaillés en bas du fichier SQL) : sans token → `[]`,
+avec token client → seulement ses chambres, `notes` → 42501, token taxi → `[]`.
 
 ### S1 — `send-email` = relais mail — ✅ CORRIGÉ & DÉPLOYÉ PROD (2026-07-28)
 La fonction exige désormais un **utilisateur connecté** : le JWT `Authorization` est revérifié
