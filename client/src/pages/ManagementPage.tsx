@@ -56,7 +56,7 @@ const BILLABLE_LABELS: Record<BillableType, string> = {
   rental_surfboard:   'Surfboard',
   rental_foilboard:   'Foilboard',
   center_access:      'Center access (per person per day)',
-  meal:               'Default price of a new dinner',
+  meal:               'Dinners (the price a new one opens at)',
 }
 
 /** Which posts belong to which section of the screen. Mirrors the CHECK in

@@ -174,7 +174,12 @@ REVOKE EXECUTE ON FUNCTION share_room_keys() FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION share_room_keys() TO anon, authenticated;
 
 -- Colonnes narrowées comme au Lot C : surtout PAS `notes` (commentaires internes).
-GRANT SELECT (room_id, price_per_night) ON room_rates TO anon;
+-- ⚠️ Le REVOKE est INDISPENSABLE : Supabase pose un GRANT SELECT de table à anon sur
+-- tout le schéma public. Sans le retirer, ajouter des privilèges de colonne ne
+-- restreint RIEN — `notes` resterait lisible dès qu'une ligne passe la policy.
+-- Vérifié le 2026-07-30 sur TEST : `select=notes` répondait `[]` au lieu de 42501.
+REVOKE SELECT ON room_rates FROM anon;
+GRANT  SELECT (room_id, price_per_night) ON room_rates TO anon;
 
 DROP POLICY IF EXISTS "anon_read_room_rates" ON room_rates;
 CREATE POLICY "anon_read_room_rates" ON room_rates FOR SELECT TO anon USING (

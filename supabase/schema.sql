@@ -858,6 +858,8 @@ GRANT  SELECT (id, first_name, last_name) ON instructors TO anon;
 REVOKE SELECT ON lesson_rate_overrides FROM anon;
 -- room_rates (2026-07-30) : le prix, jamais les notes internes. La policy ci-dessus
 -- limite déjà les lignes aux chambres du booking porté par le token client.
+-- Le REVOKE d'abord, sinon le GRANT de table posé par Supabase laisse tout lisible.
+REVOKE SELECT ON room_rates FROM anon;
 GRANT  SELECT (room_id, price_per_night) ON room_rates TO anon;
 -- taxi_drivers → identity + contact + vehicle (phone kept on purpose: guests can
 -- call their taxi); never email/notes/margin_percent/default pricing.
