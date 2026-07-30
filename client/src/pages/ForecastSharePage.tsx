@@ -51,8 +51,10 @@ export default function ForecastSharePage() {
 
   const { data: lessons } = useTable<Lesson>('lessons', { order: 'date' })
   const { data: rentals } = useTable<EquipmentRental>('equipment_rentals', { order: 'date' })
-  // Column-restricted for anon: identity + rates only (see security-rls.md, Lot C)
-  const { data: instructors } = useTable<Instructor>('instructors', { select: 'id, first_name, last_name, rate_private, rate_group, rate_supervision', order: 'last_name' })
+  // Column-restricted for anon: identity ONLY. rate_* is instructor payroll and is
+  // revoked from anon (2026-07-29_lesson_pricing.sql) — asking for it returns 42501
+  // and empties the whole page. This view never needed them.
+  const { data: instructors } = useTable<Instructor>('instructors', { select: 'id, first_name, last_name', order: 'last_name' })
   // Anon only gets identity columns from clients (no email/phone/passport/etc — see security-rls.md)
   const { data: clients } = useTable<Client>('clients', { select: 'id, first_name, last_name', order: 'last_name' })
   const { data: equipment } = useTable<Equipment>('equipment', { order: 'name' })

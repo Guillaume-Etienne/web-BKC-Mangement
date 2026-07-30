@@ -33,7 +33,9 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 | `payments` | 🔴 **finances** (montants, paiements) | ClientSharePage |
 | `taxi_trips`, `taxi_drivers` | 🟠 trajets + tarifs | Taxi / Driver share |
 | `taxi_manager_payments` | 🔴 **finances** (commissions, avances) | TaxiManagerSharePage |
-| `lessons`, `instructors`, `lesson_rate_overrides` | 🟠 cours + tarifs instructeurs | ClientSharePage / Forecast |
+| `lessons` | 🟠 cours — inclut `price_per_hour`, le prix **client** figé (c'est ce que la page client affiche) | ClientSharePage / Forecast |
+| `instructors` | 🟢 **identité only** (id, prénom, nom) — `rate_*` = **paie**, révoqué depuis `2026-07-29_lesson_pricing.sql` | ClientSharePage / Forecast |
+| `lesson_rate_overrides` | ⛔ **non exposée** — exception sur la paie d'un moniteur (révoquée le 2026-07-29) | — |
 | `activity_providers`, `activity_bookings`, `activity_payments` | 🟠 activités + finances | ActivityProviderSharePage |
 | `equipment`, `equipment_rentals` | 🟡 matériel | ClientSharePage |
 | `dining_events` | 🟡 repas | ClientSharePage |
@@ -45,7 +47,14 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 - `shared_links` : **aucune lecture anon directe** (depuis Lot A 2026-07-02) — résolution via la RPC `resolve_share_token(token)` (SECURITY DEFINER, token exact + actif + non expiré requis) → plus d'énumération possible des tokens.
 - `get_db_stats()` : EXECUTE révoqué pour PUBLIC/anon (Lot A 2026-07-02), admin only.
 - `form_submissions` : `anon` peut **INSÉRER** uniquement en `status = 'pending'`, et **ne peut rien lire** (les soumissions ne fuient pas).
-- Tables **non exposées** (donc privées) : `expenses`, `instructor_debts/payments`, `palmeiras_*`, `email_logs`, `seasons`, `house_rentals`, `room_rates`, `price_items`, `day_activities`, `taxi_pricing_defaults`, `document_templates` (REVOKE anon explicite), `form_submissions` (lecture).
+- Tables **non exposées** (donc privées) : `expenses`, `instructor_debts/payments`, `palmeiras_*`, `email_logs`, `seasons`, `house_rentals`, `room_rates`, `price_items`, `day_activities`, `taxi_pricing_defaults`, `document_templates` (REVOKE anon explicite), `lesson_rate_overrides` (depuis 2026-07-29), `form_submissions` (lecture).
+
+⚠️ **Piège vécu (2026-07-29)** : révoquer des colonnes casse tout `.select()` anon qui les
+liste encore — la requête entière part en **42501** et la page se vide. En révoquant
+`instructors.rate_*`, `ClientSharePage` avait été narrowée mais **`ForecastSharePage` avait
+été oubliée** (elle sur-récupérait les tarifs sans jamais s'en servir). Aucun lien `forecast`
+n'était actif, donc rien n'a cassé en production, mais le réflexe est : après tout REVOKE de
+colonne, **grepper le repo** pour la colonne et vérifier chaque page partagée.
 
 ## Le risque réel, calibré
 
