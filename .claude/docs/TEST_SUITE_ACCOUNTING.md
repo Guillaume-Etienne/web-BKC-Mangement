@@ -108,6 +108,33 @@ l'extension et on perd la main sur le navigateur.
 | Annuler la #008 (**0 leçon, 2 taxis**) | passe | ✅ annulée — l'exclusion taxi fonctionne |
 | Ré-enregistrer la #008 (taxis déjà créés) | pas de doublon | ✅ toujours **2** trajets, pas 4 (garde `isNew`) |
 | Ré-enregistrer avec `amount_paid = 0` | pas de paiement | ✅ 0 paiement créé |
+| Éditer une résa dont la chambre est à 50 €/nuit | prix conservé | ✅ le wizard recharge le snapshot, pas de remise à 0 |
+| Changer le prix chambre 0 → 40 € | snapshot réécrit | ✅ `booking_room_prices` = 40, puis 0 au retour |
+| Monter le payé 200 → 260 € | **delta seul** | ✅ paiements `[150, 50, 60]` = 260, pas de doublon de 260 |
+| Baisser le payé 260 → 200 € | ignoré (par choix) | ⚠️ aucun paiement de correction — voir ci-dessous |
+
+Le test « prix conservé » méritait d'être fait : `handleSave` réécrit le snapshot à **chaque**
+sauvegarde depuis `room_prices` du wizard. Si `bookingToWizard` ne rechargeait pas les prix
+existants, éditer une réservation aurait remis tous ses prix à zéro. Il les recharge bien.
+
+### ⚠️ Baisser le montant payé crée une divergence silencieuse
+
+`handleSave` ne crée un paiement que pour une **hausse** (`paidDelta > 0`) ; les baisses sont
+ignorées, c'est écrit dans le code (« adjust manually in Accounting → Bookings »). Mesuré :
+après un passage de 260 à 200, `bookings.amount_paid` vaut **200** alors que la table
+`payments` totalise toujours **260**.
+
+Or la compta lit la table `payments`, pas `amount_paid`. Le client reste donc affiché à 260 €
+encaissés alors que gui a saisi 200, sans aucun signal. Le comportement est délibéré, mais le
+wizard n'en dit rien.
+
+**Proposition** : avertir dans le wizard quand le montant saisi est **inférieur** à la somme
+des paiements déjà enregistrés, en renvoyant vers Accounting → Bookings pour la correction.
+Ça ne change aucun calcul, seulement l'information donnée au moment de la saisie.
+
+**État de la base TEST après ces tests** : restaurée à l'identique (#009 remise à 200 € / prix 0,
+paiement de test supprimé, #008 en `provisional`). Contrôle global : sur les 9 réservations,
+`amount_paid` égale la somme des paiements non-remise — aucune divergence résiduelle.
 
 Le premier scénario est le plus important : un faux positif sur le conflit de dates aurait
 empêché **toute** modification de réservation — pire que le bug corrigé. La base TEST a été

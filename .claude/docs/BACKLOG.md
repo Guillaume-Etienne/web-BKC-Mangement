@@ -67,12 +67,15 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
 3. ⬜ **Trancher les 5 décisions métier** en attente (`TEST_SUITE_ACCOUNTING.md`, section
    « Comportements encodés à confirmer »). Important : les tests ont **figé le comportement
    actuel**, donc si l'un est faux on a verrouillé une erreur.
-4. 🟡 **Tests côté base** — bien avancé. ✅ Les 2 garde-fous (conflit de dates, refus
-   d'annulation) et la non-duplication des `taxi_trips` à l'édition sont vérifiés bout-en-bout
-   sur TEST (tableau dans `TEST_SUITE_ACCOUNTING.md`). ✅ Les 5 liens partagés PROD testés en
-   anon après la migration, aucun 42501. ⬜ Restent : le **snapshot `booking_room_prices`** et
-   le **delta de paiement à l'édition** (créer une résa payée 150 €, la passer à 200 € →
-   un second paiement de 50 € seulement, pas 200 €).
+4. ✅ **Tests côté base — FAIT**. Les 2 garde-fous, la non-duplication des `taxi_trips`, le
+   snapshot `booking_room_prices` (écriture, mise à jour et rechargement) et le delta de
+   paiement sont vérifiés bout-en-bout sur TEST — tableau complet dans
+   `TEST_SUITE_ACCOUNTING.md`. Les 5 liens partagés PROD testés en anon, aucun 42501.
+   Base TEST restaurée à l'identique après les tests.
+   ⬜ **Un point remonté à trancher** : baisser le montant payé ne crée aucune écriture, donc
+   `amount_paid` et la table `payments` divergent en silence (mesuré : 200 vs 260). Délibéré
+   côté code, mais muet côté écran. Proposition d'avertissement dans le wizard, en attente
+   de gui.
 5. ⬜ **Locations : lien explicite `rental_type`** sur `price_items` — même piège de
    rapprochement par nom que les leçons (`LessonWeekView` matche `p.name.toLowerCase()`,
    avec des prix en dur en repli). Peu grave car le prix est figé sur `equipment_rentals.price`,
