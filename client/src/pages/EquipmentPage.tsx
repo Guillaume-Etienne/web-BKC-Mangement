@@ -1,19 +1,36 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useEquipment, useEquipmentRentals } from '../hooks/useEquipment'
-import type { Equipment, EquipmentRental, EquipmentCategory, EquipmentCondition } from '../types/database'
+import { useLessons } from '../hooks/useLessons'
+import type { Equipment, EquipmentRental, EquipmentCategory, EquipmentCondition, Lesson, RentalSlot } from '../types/database'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getUseCount(equipmentId: string, rentals: EquipmentRental[]): number {
-  // Lessons not yet migrated — counting rentals only for now
-  return rentals.filter(r => r.equipment_id === equipmentId).length
+// No duration is recorded on a rental (just a slot) — hours are an estimate.
+const RENTAL_SLOT_HOURS: Record<RentalSlot, number> = { morning: 3, afternoon: 3, full_day: 6 }
+
+function lessonsFor(eq: Equipment, lessons: Lesson[]): Lesson[] {
+  const field = eq.category === 'kite' ? 'kite_id' : 'board_id'
+  return lessons.filter(l => l[field] === eq.id)
 }
 
-function getRecentUsage(equipmentId: string, rentals: EquipmentRental[]): Array<{ date: string; type: 'rental' }> {
-  return rentals
-    .filter(r => r.equipment_id === equipmentId)
-    .map(r => ({ date: r.date, type: 'rental' as const }))
+function getUseCount(eq: Equipment, rentals: EquipmentRental[], lessons: Lesson[]): number {
+  return rentals.filter(r => r.equipment_id === eq.id).length + lessonsFor(eq, lessons).length
+}
+
+function getUseHours(eq: Equipment, rentals: EquipmentRental[], lessons: Lesson[]): number {
+  const rentalHours = rentals.filter(r => r.equipment_id === eq.id).reduce((sum, r) => sum + RENTAL_SLOT_HOURS[r.slot], 0)
+  const lessonHours = lessonsFor(eq, lessons).reduce((sum, l) => sum + l.duration_hours, 0)
+  return rentalHours + lessonHours
+}
+
+function getRecentUsage(eq: Equipment, rentals: EquipmentRental[], lessons: Lesson[]): Array<{ date: string; type: 'rental' | 'lesson'; hours: number }> {
+  const rentalEvents = rentals
+    .filter(r => r.equipment_id === eq.id)
+    .map(r => ({ date: r.date, type: 'rental' as const, hours: RENTAL_SLOT_HOURS[r.slot] }))
+  const lessonEvents = lessonsFor(eq, lessons)
+    .map(l => ({ date: l.date, type: 'lesson' as const, hours: l.duration_hours }))
+  return [...rentalEvents, ...lessonEvents]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 5)
 }
@@ -60,6 +77,7 @@ interface EditModalState {
 export default function EquipmentPage() {
   const { data: equipment, refresh: refreshEquipment } = useEquipment()
   const { data: rentals, refresh: refreshRentals } = useEquipmentRentals()
+  const { data: lessons } = useLessons()
 
   const [activeTab, setActiveTab]           = useState<'inventory' | 'rentals'>('inventory')
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null)
@@ -220,7 +238,8 @@ export default function EquipmentPage() {
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">Catégorie</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">Taille</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">État</th>
-                    <th className="px-4 py-3 text-center font-semibold text-gray-700">Util.</th>
+                    <th className="px-4 py-3 text-center font-semibold text-gray-700">Sorties</th>
+                    <th className="px-4 py-3 text-center font-semibold text-gray-700">≈ Heures</th>
                     <th className="px-4 py-3 text-center font-semibold text-gray-700">Actif</th>
                     <th className="px-4 py-3 text-right font-semibold text-gray-700">Actions</th>
                   </tr>
@@ -240,7 +259,8 @@ export default function EquipmentPage() {
                           {getConditionLabel(eq.condition)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center text-gray-600">{getUseCount(eq.id, rentals)}</td>
+                      <td className="px-4 py-3 text-center text-gray-600">{getUseCount(eq, rentals, lessons)}</td>
+                      <td className="px-4 py-3 text-center text-gray-600">{getUseHours(eq, rentals, lessons)}h</td>
                       <td className="px-4 py-3 text-center">
                         {eq.is_active ? <span className="text-green-600 font-semibold">✓</span> : <span className="text-gray-400">—</span>}
                       </td>
@@ -274,9 +294,15 @@ export default function EquipmentPage() {
                 </div>
 
                 <div className="p-4 space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-2xl font-bold text-blue-900">{getUseCount(selectedEquipment.id, rentals)}</p>
-                    <p className="text-xs text-blue-700">Locations</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-2xl font-bold text-blue-900">{getUseCount(selectedEquipment, rentals, lessons)}</p>
+                      <p className="text-xs text-blue-700">Sorties</p>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-2xl font-bold text-blue-900">≈{getUseHours(selectedEquipment, rentals, lessons)}h</p>
+                      <p className="text-xs text-blue-700">Heures d'utilisation</p>
+                    </div>
                   </div>
 
                   <div className="space-y-2 text-sm">
@@ -306,14 +332,16 @@ export default function EquipmentPage() {
                     )}
                   </div>
 
-                  {getRecentUsage(selectedEquipment.id, rentals).length > 0 && (
+                  {getRecentUsage(selectedEquipment, rentals, lessons).length > 0 && (
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-2">5 dernières locations</p>
+                      <p className="text-xs font-medium text-gray-500 mb-2">5 dernières sorties</p>
                       <div className="space-y-1.5">
-                        {getRecentUsage(selectedEquipment.id, rentals).map((usage, idx) => (
+                        {getRecentUsage(selectedEquipment, rentals, lessons).map((usage, idx) => (
                           <div key={idx} className="flex items-center justify-between text-xs bg-gray-50 px-2 py-1.5 rounded">
-                            <span className="text-gray-600">📦 {formatDate(usage.date)}</span>
-                            <span className="text-gray-500">Location</span>
+                            <span className="text-gray-600">
+                              {usage.type === 'rental' ? '📦' : '🏄'} {formatDate(usage.date)}
+                            </span>
+                            <span className="text-gray-500">{usage.type === 'rental' ? 'Location' : 'Cours'} · ≈{usage.hours}h</span>
                           </div>
                         ))}
                       </div>
