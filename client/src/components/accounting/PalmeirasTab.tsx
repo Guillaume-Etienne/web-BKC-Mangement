@@ -3,6 +3,7 @@ import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { PalmeirasRent, PalmeirasReversal, PalmeirasEntry } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
 import { buildBungalowRows, computePalmeirasTotals } from './palmeirasUtils'
+import { thisMonthISO } from '../../utils/dates'
 
 interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
 
@@ -17,7 +18,7 @@ function shiftMonth(ym: string, delta: number): string {
 // ── Forms (module-scope) ──────────────────────────────────────────────────────
 
 function RentForm({ existing, onSave, onCancel }: { existing?: PalmeirasRent; onSave: (r: PalmeirasRent) => void; onCancel: () => void }) {
-  const [month,  setMonth]  = useState(existing?.month  ?? new Date().toISOString().slice(0, 7))
+  const [month,  setMonth]  = useState(existing?.month  ?? thisMonthISO())
   const [amount, setAmount] = useState(String(existing?.amount ?? 850))
   const [notes,  setNotes]  = useState(existing?.notes  ?? '')
   const submit = (e: React.FormEvent) => {
@@ -55,7 +56,7 @@ function RentForm({ existing, onSave, onCancel }: { existing?: PalmeirasRent; on
 }
 
 function ReversalForm({ existing, onSave, onCancel }: { existing?: PalmeirasReversal; onSave: (r: PalmeirasReversal) => void; onCancel: () => void }) {
-  const [month,   setMonth]   = useState(existing?.month   ?? new Date().toISOString().slice(0, 7))
+  const [month,   setMonth]   = useState(existing?.month   ?? thisMonthISO())
   const [gross,   setGross]   = useState(String(existing?.gross_amount ?? ''))
   const [percent, setPercent] = useState(String(existing?.percent      ?? 15))
   const [notes,   setNotes]   = useState(existing?.notes   ?? '')
@@ -147,7 +148,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
   const [period,    setPeriod]    = useState<PeriodMode>('season')
   const [customFrom,setFrom]      = useState(currentSeason?.start_date.slice(0, 7) ?? '')
   const [customTo,  setTo]        = useState(currentSeason?.end_date.slice(0, 7)   ?? '')
-  const [singleMonth, setSingle]  = useState(new Date().toISOString().slice(0, 7))
+  const [singleMonth, setSingle]  = useState(thisMonthISO())
 
   const [addingEntry, setAddingEntry] = useState<'expense' | 'income' | null>(null)
 
@@ -404,7 +405,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
             {editingReversal  && <ReversalForm existing={editingReversal} onSave={r => { handlers.updatePalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
             {addingEntry && (
               <EntryForm
-                month={period === 'single' ? singleMonth : new Date().toISOString().slice(0, 7)}
+                month={period === 'single' ? singleMonth : thisMonthISO()}
                 type={addingEntry}
                 onSave={e => { handlers.addPalmeirasEntry(e); setAddingEntry(null) }}
                 onCancel={() => setAddingEntry(null)}

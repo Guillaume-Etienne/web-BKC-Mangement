@@ -8,6 +8,7 @@ import type {
   ActivityProviderType, ActivityPaymentFlow, ActivityPaymentDirection,
   SharedLink, BookingRef,
 } from '../types/database'
+import { todayISO } from '../utils/dates'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -21,7 +22,7 @@ const FLOW_LABELS: Record<ActivityPaymentFlow, string> = {
   provider_pays_us: 'Provider pays us',
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => todayISO()
 
 // ── Module-scope forms ─────────────────────────────────────────────────────────
 
@@ -678,7 +679,7 @@ export default function ActivitiesPage() {
       token, type: 'activity_provider',
       label:      `${TYPE_LABELS[provider.type]}: ${provider.name}`,
       params:     { provider_id: provider.id },
-      created_at: new Date().toISOString().slice(0, 10),
+      created_at: todayISO(),
       expires_at: null, is_active: true,
     }])
     refreshLinks()

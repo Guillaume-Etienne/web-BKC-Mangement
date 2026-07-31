@@ -9,6 +9,7 @@ import {
   computeDiningForBooking, getLessonClientRate, getConfiguredRate, computeStandaloneTaxiRevenue,
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate,
 } from './utils'
+import { todayISO } from '../../utils/dates'
 
 interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
 
@@ -153,7 +154,7 @@ interface DiscountFormProps {
 function DiscountForm({ bookingId, initial, onSave, onCancel }: DiscountFormProps) {
   const [amount, setAmount] = useState(initial ? String(initial.amount) : '')
   const [notes,  setNotes]  = useState(initial?.notes ?? '')
-  const [date,   setDate]   = useState(initial?.date ?? new Date().toISOString().slice(0, 10))
+  const [date,   setDate]   = useState(initial?.date ?? todayISO())
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -222,7 +223,7 @@ function PaymentForm({ bookingId, initial, suggestedDeposit = 0, onSave, onCance
   const [isDeposit,  setIsDeposit]  = useState(initial?.is_deposit ?? false)
   const [isVerified, setIsVerified] = useState(initial?.is_verified ?? true)
   const [notes,      setNotes]      = useState(initial?.notes ?? '')
-  const [date,       setDate]       = useState(initial?.date ?? new Date().toISOString().slice(0, 10))
+  const [date,       setDate]       = useState(initial?.date ?? todayISO())
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

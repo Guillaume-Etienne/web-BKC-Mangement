@@ -3,6 +3,7 @@ import { useTable } from '../hooks/useSupabase'
 import type { Booking, BookingStatus, Client } from '../types/database'
 import { TAXI_LANGS, type TaxiLang } from '../data/taxiShareI18n'
 import { usePref, Segmented } from './taxiShareUI'
+import { todayISO as isoToday, addDaysISO as addDays } from '../utils/dates'
 
 // Public read-only stay planning for the hotel restaurant manager:
 // one timeline row per booking (guest name + arrival/departure), so she knows
@@ -37,17 +38,8 @@ const BAR_COLOR: Record<Exclude<BookingStatus, 'cancelled'>, { bar: string; cap:
   provisional: { bar: 'bg-amber-400',   cap: 'bg-amber-600' },
 }
 
-// Local calendar day, NOT `.toISOString()` — that converts to UTC first, which
-// silently shifts the date back a day for any timezone ahead of UTC (e.g.
-// Mozambique, UTC+2).
-const toLocalISO = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-const isoToday = () => toLocalISO(new Date())
-const addDays = (iso: string, n: number) => {
-  const d = new Date(iso + 'T00:00:00')
-  d.setDate(d.getDate() + n)
-  return toLocalISO(d)
-}
+// Calendar-day helpers live in utils/dates — never `.toISOString()` on a date
+// the user thinks of as a day (it shifts a day back east of Greenwich).
 const fmtDay = (iso: string, lang: TaxiLang) =>
   new Date(iso + 'T00:00:00').toLocaleDateString(LOCALE[lang], { weekday: 'short', day: 'numeric', month: 'short' })
 

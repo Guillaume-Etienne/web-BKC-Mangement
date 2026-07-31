@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
 import { useTable } from '../../hooks/useSupabase'
 import type { Accommodation, AccommodationType, Room, RoomRate, HouseRental } from '../../types/database'
+import { todayISO } from '../../utils/dates'
 
 const TYPE_META: Record<AccommodationType, { icon: string; label: string; plural: string }> = {
   house:    { icon: '🏠', label: 'House',    plural: 'Houses' },
@@ -102,7 +103,7 @@ interface RentalFormProps {
   onAdd: (r: Omit<HouseRental, 'id'>) => Promise<void>
 }
 function RentalForm({ accommodationId, onAdd }: RentalFormProps) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISO()
   const [startDate, setStartDate] = useState(today)
   const [endDate,   setEndDate]   = useState(today)
   const [cost,      setCost]      = useState('')

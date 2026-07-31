@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { Expense } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
+import { todayISO } from '../../utils/dates'
 
 const DEFAULT_CATEGORIES: string[] = ['Equipment', 'Maintenance', 'Transport', 'Staff', 'Admin', 'Other']
 
@@ -25,7 +26,7 @@ interface AddFormProps {
   onCancel: () => void
 }
 function AddExpenseForm({ categories, onAdd, onCancel }: AddFormProps) {
-  const [date,        setDate]        = useState(new Date().toISOString().slice(0, 10))
+  const [date,        setDate]        = useState(todayISO())
   const [category,   setCategory]    = useState(categories[0] ?? 'Other')
   const [amount,     setAmount]      = useState('')
   const [description,setDescription] = useState('')

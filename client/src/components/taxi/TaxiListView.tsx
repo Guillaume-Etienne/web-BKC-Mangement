@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef, BookingParticipant } from '../../types/database'
 import { computeTaxiMarginEur } from '../accounting/utils'
+import { todayISO } from '../../utils/dates'
 
 const STATUS_CONFIG: Record<TaxiTripStatus, { label: string; row: string; badge: string }> = {
   confirmed:    { label: 'Confirmed',     row: '',            badge: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' },
@@ -31,7 +32,7 @@ const TRIP_TYPE_LABELS: Record<string, string> = {
 
 // ── Summary table — réalisés vs prévus ───────────────────────────────────────
 function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISO()
 
   function stats(subset: TaxiTrip[]) {
     return {
@@ -315,7 +316,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
   async function addNewTrip() {
     const d = pricingDefaults
     const created = await onAddTrip({
-      date: new Date().toISOString().slice(0, 10),
+      date: todayISO(),
       start_time: '10:00',
       type: 'aero-to-center',
       status: 'confirmed',
@@ -344,7 +345,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
   }
 
   function scrollToToday() {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayISO()
     const container = tableContainerRef.current
     if (!container) return
     const rows = container.querySelectorAll<HTMLTableRowElement>('tr[data-date]')

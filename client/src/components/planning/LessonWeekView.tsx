@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Lesson, DayActivity, DaySlot, LessonType, RentalType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem } from '../../types/database'
 import { lessonBillable, rentalBillable } from '../../types/database'
 import { currentInstructorRate } from '../accounting/utils'
+import { toISODate as dateToISO } from '../../utils/dates'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -42,15 +43,8 @@ const RENTAL_TYPES: { key: RentalKind; label: string; icon: string; sub?: string
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-// Local calendar day, NOT `.toISOString()` — that converts to UTC first, which
-// silently shifts the date back a day for any timezone ahead of UTC (e.g.
-// Mozambique, UTC+2) whenever the Date sits at local midnight.
-function dateToISO(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
+// Calendar-day helpers live in utils/dates — never `.toISOString()` on a date
+// the user thinks of as a day (it shifts a day back east of Greenwich).
 
 function getSlotForTime(time: string): Slot {
   if (time < '12:00') return 'morning'

@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import type { Lesson, LessonType, EquipmentRental, Instructor, Client, Equipment } from '../../types/database'
 import { currentInstructorRate } from '../accounting/utils'
+import { toISODate as dateToISO, addDays } from '../../utils/dates'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -25,16 +26,8 @@ const RENTAL_TYPE_LABELS: Record<string, { icon: string; label: string }> = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-// Local calendar day, NOT `.toISOString()` — that converts to UTC first, which
-// silently shifts the date back a day for any timezone ahead of UTC (e.g.
-// Mozambique, UTC+2).
-function dateToISO(d: Date) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDate() + n); return r }
+// Calendar-day helpers live in utils/dates — never `.toISOString()` on a date
+// the user thinks of as a day (it shifts a day back east of Greenwich).
 
 function timeToSlot(time: string, startHour: number): number {
   const [h, m] = time.split(':').map(Number)

@@ -9,6 +9,7 @@ import { useTable } from '../hooks/useSupabase'
 import { supabase } from '../lib/supabase'
 
 import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults, TaxiManagerPayment, BookingRef, SharedLink } from '../types/database'
+import { todayISO } from '../utils/dates'
 
 const FALLBACK_PRICING: TaxiPricingDefaults = {
   id: '',
@@ -148,7 +149,7 @@ export default function TaxiPage() {
       type:       'driver',
       label:      `Driver: ${driver.name}`,
       params:     { driver_id: driver.id },
-      created_at: new Date().toISOString().slice(0, 10),
+      created_at: todayISO(),
       expires_at: null,
       is_active:  true,
     }])

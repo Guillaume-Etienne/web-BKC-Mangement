@@ -7,6 +7,7 @@ import {
   computeInstructorDiningCharges,
   getInstructorRate, fmtEur,
 } from './utils'
+import { todayISO } from '../../utils/dates'
 
 interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
 
@@ -25,7 +26,7 @@ interface AddDebtFormProps {
   onCancel: () => void
 }
 function AddDebtForm({ instructorId, onAdd, onCancel }: AddDebtFormProps) {
-  const [date, setDate]              = useState(new Date().toISOString().slice(0, 10))
+  const [date, setDate]              = useState(todayISO())
   const [amount, setAmount]          = useState('')
   const [description, setDescription] = useState('')
 
@@ -74,7 +75,7 @@ interface AddPaymentFormProps {
   onCancel: () => void
 }
 function AddPaymentForm({ instructorId, suggestedAmount, onAdd, onCancel }: AddPaymentFormProps) {
-  const [date, setDate]     = useState(new Date().toISOString().slice(0, 10))
+  const [date, setDate]     = useState(todayISO())
   const [amount, setAmount] = useState(String(Math.max(0, Math.round(suggestedAmount))))
   const [method, setMethod] = useState<PaymentMethod>('cash_eur')
   const [notes, setNotes]   = useState('')

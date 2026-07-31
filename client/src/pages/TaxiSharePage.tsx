@@ -6,9 +6,10 @@ import {
   type TaxiLang, type DateMode,
 } from '../data/taxiShareI18n'
 import { usePref, Segmented } from './taxiShareUI'
+import { todayISO } from '../utils/dates'
 
 export default function TaxiSharePage() {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISO()
   const [showPast, setShowPast] = useState(false)
   const [filterDriver, setFilterDriver] = useState<string>('all')
 

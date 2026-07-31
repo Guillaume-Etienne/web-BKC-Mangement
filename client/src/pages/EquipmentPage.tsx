@@ -9,6 +9,7 @@ import type {
   Equipment, EquipmentRental, EquipmentCategory, EquipmentCondition, Lesson, RentalSlot,
   Instructor, PriceItem, LessonRateOverride, EquipmentPricingDefaults,
 } from '../types/database'
+import { todayISO } from '../utils/dates'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -257,7 +258,7 @@ export default function EquipmentPage() {
       equipment_id: firstActive.id,
       booking_id:   null,
       client_id:    null,
-      date:         new Date().toISOString().slice(0, 10),
+      date:         todayISO(),
       slot:         'morning',
       price:        25,
       notes:        null,

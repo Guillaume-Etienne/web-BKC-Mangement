@@ -1,12 +1,13 @@
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import type { ActivityProvider, ActivityBooking, ActivityPayment } from '../types/database'
+import { todayISO } from '../utils/dates'
 
 interface Props { providerId: string }
 
 type FilterOption = 'all' | string  // 'all' or a year like '2026'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => todayISO()
 
 function getYears(dates: string[]): string[] {
   const set = new Set(dates.map(d => d.slice(0, 4)))

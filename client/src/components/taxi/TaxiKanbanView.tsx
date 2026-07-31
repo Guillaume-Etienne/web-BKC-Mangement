@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef, BookingParticipant } from '../../types/database'
 import { computeTaxiMarginEur } from '../accounting/utils'
+import { todayISO } from '../../utils/dates'
 
 const STATUS_CONFIG: Record<TaxiTripStatus, { label: string; card: string; badge: string }> = {
   confirmed:    { label: 'Confirmed',     card: 'from-slate-50 dark:from-slate-800 to-gray-50 dark:to-gray-800 border-gray-200 dark:border-gray-800',     badge: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' },
@@ -21,7 +22,7 @@ function bookingLabel(b: BookingRef): string {
 
 // ── Summary table — réalisés vs prévus ───────────────────────────────────────
 function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISO()
 
   function stats(subset: TaxiTrip[]) {
     return {
@@ -144,7 +145,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
   async function addNewTrip(driverId: string | null) {
     const d = pricingDefaults
     const created = await onAddTrip({
-      date: new Date().toISOString().slice(0, 10),
+      date: todayISO(),
       start_time: '10:00',
       type: 'aero-to-center',
       status: 'confirmed',

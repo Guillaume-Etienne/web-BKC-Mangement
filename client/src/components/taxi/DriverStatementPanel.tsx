@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { TaxiDriver, TaxiTrip, SharedLink } from '../../types/database'
+import { todayISO } from '../../utils/dates'
 
 const TRIP_TYPE_LABELS: Record<string, string> = {
   'aero-to-center':  'Airport → Center',
@@ -159,7 +160,7 @@ function ShareLinkSection({ driverLink, onGenerateLink }: {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function DriverStatementPanel({ driver, trips, driverLink, onGenerateLink, onEdit, onDelete }: Props) {
-  const today    = new Date().toISOString().slice(0, 10)
+  const today    = todayISO()
   const past     = trips.filter(t => t.date <  today).sort((a, b) => b.date.localeCompare(a.date))
   const upcoming = trips.filter(t => t.date >= today).sort((a, b) => a.date.localeCompare(b.date))
 

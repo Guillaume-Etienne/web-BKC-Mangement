@@ -7,6 +7,7 @@ import { useBookings, useBookingParticipants } from '../hooks/useBookings'
 import type { Instructor, Lesson, BillableType, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults, TaxiDriver, BookingStatus, KiteLevel } from '../types/database'
 import AccommodationsTab from '../components/management/AccommodationsTab'
 import DatabaseTab from '../components/management/DatabaseTab'
+import { todayISO } from '../utils/dates'
 
 const KITE_LEVEL_LABELS: Record<KiteLevel, string> = {
   'beg-total':      'Beg-Total',
@@ -301,7 +302,7 @@ export default function ManagementPage() {
       type:       linkFormData.type,
       label:      linkFormData.label || defaultLabel,
       params,
-      created_at: new Date().toISOString().slice(0, 10),
+      created_at: todayISO(),
       expires_at: linkFormData.expires_at || null,
       is_active:  true,
     }])
@@ -742,7 +743,7 @@ export default function ManagementPage() {
         {/* ── Shared Links Tab ──────────────────────────────────────────────── */}
         {/* ── Bookings & Guests Tab ─────────────────────────────────────── */}
         {tab === 'bookguest' && (() => {
-          const today = new Date().toISOString().slice(0, 10)
+          const today = todayISO()
           const activeNow   = allBookings.filter(b => b.check_in <= today && b.check_out >= today && b.status !== 'cancelled').length
           const upcomingCnt = allBookings.filter(b => b.check_in > today && b.status !== 'cancelled').length
           const confirmedCnt = allBookings.filter(b => b.status === 'confirmed').length

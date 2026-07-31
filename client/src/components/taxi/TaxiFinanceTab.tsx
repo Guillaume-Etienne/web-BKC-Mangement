@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { TaxiTrip, TaxiManagerPayment } from '../../types/database'
+import { todayISO } from '../../utils/dates'
 
 // ── Dual-currency helpers (MZN first, € translation beside) ──────────────────
 const mznToEur = (mzn: number, rate: number) => Math.round(mzn / (rate || 1))
@@ -16,7 +17,7 @@ function MznWithEur({ mzn, rate, className }: { mzn: number; rate: number; class
 
 // ── Summary table (copy from TaxiListView — avoids refactoring) ──────────────
 function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISO()
 
   function stats(subset: TaxiTrip[]) {
     const clientEur  = subset.reduce((s, t) => s + t.price_eur,          0)
@@ -88,7 +89,7 @@ interface AddPaymentFormProps {
 }
 
 function AddPaymentForm({ onAdd }: AddPaymentFormProps) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISO()
   const [date,   setDate]   = useState(today)
   const [amount, setAmount] = useState('')
   const [notes,  setNotes]  = useState('')

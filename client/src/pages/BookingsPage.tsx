@@ -9,6 +9,7 @@ import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, R
 import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
 import { getFullHouseRate, getBaseNightlyRate } from '../utils/roomPricing'
 import { getConfiguredRate } from '../components/accounting/utils'
+import { todayISO } from '../utils/dates'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1359,7 +1360,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     if (paidDelta > 0) {
       await supabase.from('payments').insert({
         booking_id:  bookingId,
-        date:        new Date().toISOString().slice(0, 10),
+        date:        todayISO(),
         amount:      paidDelta,
         method:      'transfer',
         is_deposit:  false,
@@ -1460,7 +1461,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     }
   }
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISO()
 
   const filteredBookings = bookings.filter(b => {
     const hasRoom = bookingRooms.some(br => br.booking_id === b.id)

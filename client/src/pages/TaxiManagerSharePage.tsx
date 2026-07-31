@@ -7,6 +7,7 @@ import {
   type TaxiLang, type DateMode, type ViewMode,
 } from '../data/taxiShareI18n'
 import { usePref, Segmented } from './taxiShareUI'
+import { todayISO } from '../utils/dates'
 
 type TripWithClient = TaxiTrip & {
   booking?: { client?: { first_name: string; last_name: string } | null } | null
@@ -127,7 +128,7 @@ export default function TaxiManagerSharePage() {
     )
   }
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISO()
   // "Managed" trips only: margin_manager_mzn === 0 means a private taxi, invisible to the manager.
   const managed  = trips.filter(t => t.margin_manager_mzn > 0)
   const upcoming = managed.filter(t => t.date >= today).sort((a, b) => a.date.localeCompare(b.date))

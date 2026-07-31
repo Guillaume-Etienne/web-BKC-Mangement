@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useTable } from '../hooks/useSupabase'
 import type { FormSubmission, FormSubmissionStatus, Lang } from '../types/database'
 import { activityCountColumns } from '../utils/bookingActivity'
+import { addDaysISO as addDays } from '../utils/dates'
 
 // Admin review queue for public booking-form submissions.
 // English UI (admin chrome). Approving turns a submission into a real
@@ -16,16 +17,6 @@ const STATUS_BADGE: Record<FormSubmissionStatus, string> = {
   rejected: 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400',
 }
 
-function addDays(iso: string, days: number): string {
-  if (!iso) return ''
-  const d = new Date(iso + 'T00:00:00')
-  d.setDate(d.getDate() + days)
-  // Format from local parts (avoid UTC shift from toISOString)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
 
 function splitName(full: string): { first: string; last: string } {
   const parts = full.trim().split(/\s+/)

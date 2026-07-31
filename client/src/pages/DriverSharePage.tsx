@@ -7,6 +7,7 @@ import {
   type TaxiLang, type DateMode, type ViewMode,
 } from '../data/taxiShareI18n'
 import { usePref, Segmented } from './taxiShareUI'
+import { todayISO } from '../utils/dates'
 
 interface Props { driverId: string }
 
@@ -139,7 +140,7 @@ export default function DriverSharePage({ driverId }: Props) {
     )
   }
 
-  const today    = new Date().toISOString().slice(0, 10)
+  const today    = todayISO()
   const past     = trips.filter(t => t.date <  today).sort((a, b) => b.date.localeCompare(a.date))
   const upcoming = trips.filter(t => t.date >= today).sort((a, b) => a.date.localeCompare(b.date))
 

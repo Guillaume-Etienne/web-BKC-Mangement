@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { BookingStatus, Client } from '../../types/database'
 import { fmtEur } from './utils'
+import { todayISO } from '../../utils/dates'
 
 // Row shape produced by AccountingDashboard's bookingFinances (booking + finance fields)
 export interface UnpaidRow {
@@ -37,7 +38,7 @@ const STATUS_COLORS: Record<BookingStatus, string> = {
 }
 
 export default function CollectionsModal({ rows, clients, onClose, onOpenBooking }: Props) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISO()
 
   const groups: Record<GroupKey, UnpaidRow[]> = {
     // most urgent first: leaving soonest / departed longest ago / arriving soonest
