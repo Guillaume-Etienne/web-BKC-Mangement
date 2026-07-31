@@ -9,6 +9,7 @@ import { useEquipment, useEquipmentRentals } from '../hooks/useEquipment'
 import { useTaxiTrips } from '../hooks/useTaxis'
 import { useActivityBookings, useActivityPayments } from '../hooks/useActivities'
 import { useTable } from '../hooks/useSupabase'
+import { persist } from '../components/accounting/persist'
 import AccountingDashboard  from '../components/accounting/AccountingDashboard'
 import BookingFinances      from '../components/accounting/BookingFinances'
 import InstructorPayroll    from '../components/accounting/InstructorPayroll'
@@ -138,114 +139,164 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     activityPayments,
   }
 
-  // ── Handlers (optimistic local update + Supabase fire-and-forget) ─────────
+  // ── Handlers (optimistic local update, rolled back if the DB refuses) ─────
+  //
+  // Every write here is optimistic: the screen changes first and the DB call
+  // follows. Each one passes a snapshot of the state it touched to `persist`,
+  // which puts it back if the write fails — otherwise a rejected write (RLS,
+  // a constraint, a dropped connection) left the books showing money that was
+  // never recorded, and said nothing until the next refresh.
   const handlers = {
     upsertBookingRoomPrice: (p: BookingRoomPrice) => {
+      const before = bookingRoomPrices
       setBookingRoomPrices(prev => {
         const idx = prev.findIndex(x => x.booking_id === p.booking_id && x.room_id === p.room_id)
         return idx >= 0 ? prev.map((x, i) => i === idx ? p : x) : [...prev, p]
       })
-      supabase.from('booking_room_prices').upsert([p])
+      persist(supabase.from('booking_room_prices').upsert([p]),
+        () => setBookingRoomPrices(before), 'the room price')
     },
     deleteBookingRoomPrice: (bookingId: string, roomId: string) => {
+      const before = bookingRoomPrices
       setBookingRoomPrices(prev => prev.filter(x => !(x.booking_id === bookingId && x.room_id === roomId)))
-      supabase.from('booking_room_prices').delete().eq('booking_id', bookingId).eq('room_id', roomId)
+      persist(supabase.from('booking_room_prices').delete().eq('booking_id', bookingId).eq('room_id', roomId),
+        () => setBookingRoomPrices(before), 'the room price removal')
     },
     updateRental: (r: EquipmentRental) => {
+      const before = equipmentRentals
       setEquipmentRentals(prev => prev.map(x => x.id === r.id ? r : x))
       const { id, ...fields } = r
-      supabase.from('equipment_rentals').update(fields).eq('id', id)
+      persist(supabase.from('equipment_rentals').update(fields).eq('id', id),
+        () => setEquipmentRentals(before), 'the rental')
     },
     addPayment: (p: Payment) => {
+      const before = payments
       setPayments(prev => [...prev, p])
       const { id, ...fields } = p
-      supabase.from('payments').insert([{ id, ...fields }])
+      persist(supabase.from('payments').insert([{ id, ...fields }]),
+        () => setPayments(before), 'the payment')
     },
     updatePayment: (p: Payment) => {
+      const before = payments
       setPayments(prev => prev.map(x => x.id === p.id ? p : x))
       const { id, ...fields } = p
-      supabase.from('payments').update(fields).eq('id', id)
+      persist(supabase.from('payments').update(fields).eq('id', id),
+        () => setPayments(before), 'the payment')
     },
     deletePayment: (id: string) => {
+      const before = payments
       setPayments(prev => prev.filter(x => x.id !== id))
-      supabase.from('payments').delete().eq('id', id)
+      persist(supabase.from('payments').delete().eq('id', id),
+        () => setPayments(before), 'the payment deletion')
     },
     verifyPayment: (id: string) => {
+      const before = payments
       setPayments(prev => prev.map(p => p.id === id ? { ...p, is_verified: true } : p))
-      supabase.from('payments').update({ is_verified: true }).eq('id', id)
+      persist(supabase.from('payments').update({ is_verified: true }).eq('id', id),
+        () => setPayments(before), 'the payment verification')
     },
 
     addInstructorDebt: (d: InstructorDebt) => {
+      const before = instructorDebts
       setInstructorDebts(prev => [...prev, d])
-      supabase.from('instructor_debts').insert([d])
+      persist(supabase.from('instructor_debts').insert([d]),
+        () => setInstructorDebts(before), 'the debt')
     },
     deleteInstructorDebt: (id: string) => {
+      const before = instructorDebts
       setInstructorDebts(prev => prev.filter(x => x.id !== id))
-      supabase.from('instructor_debts').delete().eq('id', id)
+      persist(supabase.from('instructor_debts').delete().eq('id', id),
+        () => setInstructorDebts(before), 'the debt deletion')
     },
 
     addInstructorPayment: (p: InstructorPayment) => {
+      const before = instructorPayments
       setInstructorPayments(prev => [...prev, p])
-      supabase.from('instructor_payments').insert([p])
+      persist(supabase.from('instructor_payments').insert([p]),
+        () => setInstructorPayments(before), 'the instructor payment')
     },
     deleteInstructorPayment: (id: string) => {
+      const before = instructorPayments
       setInstructorPayments(prev => prev.filter(x => x.id !== id))
-      supabase.from('instructor_payments').delete().eq('id', id)
+      persist(supabase.from('instructor_payments').delete().eq('id', id),
+        () => setInstructorPayments(before), 'the instructor payment deletion')
     },
 
     setLessonPrice: (lesson_id: string, price_per_hour: number | null) => {
+      const before = lessons
       setLessons(prev => prev.map(l => l.id === lesson_id ? { ...l, price_per_hour } : l))
-      supabase.from('lessons').update({ price_per_hour }).eq('id', lesson_id)
+      persist(supabase.from('lessons').update({ price_per_hour }).eq('id', lesson_id),
+        () => setLessons(before), 'the lesson price')
     },
 
     setLessonOverride: (o: LessonRateOverride) => {
+      const before = lessonRateOverrides
       setLessonRateOverrides(prev => {
         const idx = prev.findIndex(x => x.lesson_id === o.lesson_id)
         return idx >= 0 ? prev.map((x, i) => i === idx ? o : x) : [...prev, o]
       })
-      supabase.from('lesson_rate_overrides').upsert([o])
+      persist(supabase.from('lesson_rate_overrides').upsert([o]),
+        () => setLessonRateOverrides(before), 'the pay override')
     },
     removeLessonOverride: (lesson_id: string) => {
+      const before = lessonRateOverrides
       setLessonRateOverrides(prev => prev.filter(x => x.lesson_id !== lesson_id))
-      supabase.from('lesson_rate_overrides').delete().eq('lesson_id', lesson_id)
+      persist(supabase.from('lesson_rate_overrides').delete().eq('lesson_id', lesson_id),
+        () => setLessonRateOverrides(before), 'the pay override removal')
     },
 
     addExpense: (e: Expense) => {
+      const before = expenses
       setExpenses(prev => [...prev, e])
-      supabase.from('expenses').insert([e])
+      persist(supabase.from('expenses').insert([e]),
+        () => setExpenses(before), 'the expense')
     },
     deleteExpense: (id: string) => {
+      const before = expenses
       setExpenses(prev => prev.filter(x => x.id !== id))
-      supabase.from('expenses').delete().eq('id', id)
+      persist(supabase.from('expenses').delete().eq('id', id),
+        () => setExpenses(before), 'the expense deletion')
     },
 
     addPalmeirasRent: (r: PalmeirasRent) => {
+      const before = palmeirasRents
       setPalmeirasRents(prev => [...prev, r])
-      supabase.from('palmeiras_rents').insert([r])
+      persist(supabase.from('palmeiras_rents').insert([r]),
+        () => setPalmeirasRents(before), 'the rent')
     },
     updatePalmeirasRent: (r: PalmeirasRent) => {
+      const before = palmeirasRents
       setPalmeirasRents(prev => prev.map(x => x.id === r.id ? r : x))
       const { id, ...fields } = r
-      supabase.from('palmeiras_rents').update(fields).eq('id', id)
+      persist(supabase.from('palmeiras_rents').update(fields).eq('id', id),
+        () => setPalmeirasRents(before), 'the rent')
     },
 
     addPalmeirasReversal: (r: PalmeirasReversal) => {
+      const before = palmeirasReversals
       setPalmeirasReversals(prev => [...prev, r])
-      supabase.from('palmeiras_reversals').insert([r])
+      persist(supabase.from('palmeiras_reversals').insert([r]),
+        () => setPalmeirasReversals(before), 'the reversal')
     },
     updatePalmeirasReversal: (r: PalmeirasReversal) => {
+      const before = palmeirasReversals
       setPalmeirasReversals(prev => prev.map(x => x.id === r.id ? r : x))
       const { id, ...fields } = r
-      supabase.from('palmeiras_reversals').update(fields).eq('id', id)
+      persist(supabase.from('palmeiras_reversals').update(fields).eq('id', id),
+        () => setPalmeirasReversals(before), 'the reversal')
     },
 
     addPalmeirasEntry: (e: PalmeirasEntry) => {
+      const before = palmeirasEntries
       setPalmeirasEntries(prev => [...prev, e])
-      supabase.from('palmeiras_entries').insert([e])
+      persist(supabase.from('palmeiras_entries').insert([e]),
+        () => setPalmeirasEntries(before), 'the entry')
     },
     deletePalmeirasEntry: (id: string) => {
+      const before = palmeirasEntries
       setPalmeirasEntries(prev => prev.filter(x => x.id !== id))
-      supabase.from('palmeiras_entries').delete().eq('id', id)
+      persist(supabase.from('palmeiras_entries').delete().eq('id', id),
+        () => setPalmeirasEntries(before), 'the entry deletion')
     },
 
   }
