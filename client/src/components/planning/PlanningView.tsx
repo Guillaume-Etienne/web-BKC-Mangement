@@ -366,6 +366,19 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   const nextWeek = () => setWeekStart(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 7); return nd })
   const goToToday = () => setWeekStart(getMondayOfWeek(new Date()))
 
+  // ── Daily tab, mobile: single focused day (± 1 day) instead of the full week ──
+  const shiftDate = (d: Date, n: number) => { const nd = new Date(d); nd.setDate(nd.getDate() + n); return nd }
+  // Normalized to local midnight (like getMondayOfWeek) so the UTC-based ISO key used
+  // for lookups can't drift a day off from the local calendar date shown on the card.
+  const todayMidnight = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
+  const [isMobileDaily] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768)
+  const [focusedDay, setFocusedDay] = useState<Date>(todayMidnight)
+  const focusedDayLabel = focusedDay.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
+  const prevDay = () => setFocusedDay(d => shiftDate(d, -1))
+  const nextDay = () => setFocusedDay(d => shiftDate(d, 1))
+  const goToTodayDay = () => setFocusedDay(todayMidnight())
+  const daysToShow = isMobileDaily ? [shiftDate(focusedDay, -1), focusedDay, shiftDate(focusedDay, 1)] : weekDays
+
   // ── Accommodations ───────────────────────────────────────────────
   const activeAccommodations = accommodations.filter(a => a.is_active)
   const roomOrder: string[] = []
@@ -574,21 +587,38 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     if (error) console.error('Lesson update error:', error.message)
   }, [])
 
-  const onDeleteLesson = useCallback((id: string) => {
-    setLessons(prev => prev.filter(l => l.id !== id))
-    supabase.from('lessons').delete().eq('id', id)
+  const onDeleteLesson = useCallback(async (id: string) => {
+    let removed: Lesson | undefined
+    setLessons(prev => { removed = prev.find(l => l.id === id); return prev.filter(l => l.id !== id) })
+    const { error } = await supabase.from('lessons').delete().eq('id', id)
+    if (error) {
+      console.error('Lesson delete error:', error.message)
+      if (removed) setLessons(prev => [...prev, removed as Lesson])
+      alert('Error deleting lesson: ' + error.message)
+    }
   }, [])
 
-  const onAddActivity = useCallback((activity: Omit<DayActivity, 'id'>) => {
+  const onAddActivity = useCallback(async (activity: Omit<DayActivity, 'id'>) => {
     const id = crypto.randomUUID()
     const a = { ...activity, id }
     setDayActivities(prev => [...prev, a])
-    supabase.from('day_activities').insert([a])
+    const { error } = await supabase.from('day_activities').insert([a])
+    if (error) {
+      console.error('Activity save error:', error.message)
+      setDayActivities(prev => prev.filter(x => x.id !== id))
+      alert('Error saving activity: ' + error.message)
+    }
   }, [])
 
-  const onDeleteActivity = useCallback((id: string) => {
-    setDayActivities(prev => prev.filter(a => a.id !== id))
-    supabase.from('day_activities').delete().eq('id', id)
+  const onDeleteActivity = useCallback(async (id: string) => {
+    let removed: DayActivity | undefined
+    setDayActivities(prev => { removed = prev.find(a => a.id === id); return prev.filter(a => a.id !== id) })
+    const { error } = await supabase.from('day_activities').delete().eq('id', id)
+    if (error) {
+      console.error('Activity delete error:', error.message)
+      if (removed) setDayActivities(prev => [...prev, removed as DayActivity])
+      alert('Error deleting activity: ' + error.message)
+    }
   }, [])
 
   const onAddRental = useCallback(async (rental: Omit<EquipmentRental, 'id'>) => {
@@ -611,9 +641,15 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     if (error) console.error('Rental update error:', error.message)
   }, [])
 
-  const onDeleteRental = useCallback((id: string) => {
-    setRentals(prev => prev.filter(r => r.id !== id))
-    supabase.from('equipment_rentals').delete().eq('id', id)
+  const onDeleteRental = useCallback(async (id: string) => {
+    let removed: EquipmentRental | undefined
+    setRentals(prev => { removed = prev.find(r => r.id === id); return prev.filter(r => r.id !== id) })
+    const { error } = await supabase.from('equipment_rentals').delete().eq('id', id)
+    if (error) {
+      console.error('Rental delete error:', error.message)
+      if (removed) setRentals(prev => [...prev, removed as EquipmentRental])
+      alert('Error deleting rental: ' + error.message)
+    }
   }, [])
 
   const onBookingTap = useCallback((bookingId: string) => {
@@ -841,13 +877,25 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
         {planningTab === 'lessons' && (
           <>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
-              <div className="flex items-center gap-2">
+              {/* Desktop: week nav */}
+              <div className="hidden md:flex items-center gap-2">
                 <button onClick={prevWeek} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">←</button>
                 <span className="text-base font-semibold min-w-[220px] text-center">
                   Week of {weekLabel}
                 </span>
                 <button onClick={nextWeek} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">→</button>
                 <button onClick={goToToday} className="px-3 py-1.5 rounded bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200">
+                  Today
+                </button>
+              </div>
+              {/* Mobile: single-day nav (± 1 day) */}
+              <div className="flex md:hidden items-center gap-2">
+                <button onClick={prevDay} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">←</button>
+                <span className="text-base font-semibold min-w-[130px] text-center">
+                  {focusedDayLabel}
+                </span>
+                <button onClick={nextDay} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">→</button>
+                <button onClick={goToTodayDay} className="px-3 py-1.5 rounded bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200">
                   Today
                 </button>
               </div>
@@ -868,7 +916,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             </div>
 
             <LessonWeekView
-              weekDays={weekDays}
+              days={daysToShow}
               lessons={lessons}
               dayActivities={dayActivities}
               bookings={bookings}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Lesson, DayActivity, DaySlot, LessonType, RentalType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem } from '../../types/database'
 import { lessonBillable, rentalBillable } from '../../types/database'
 import { currentInstructorRate } from '../accounting/utils'
@@ -79,14 +79,12 @@ interface AddForm {
   rental_notes: string
 }
 
-interface DragState {
-  lessonId: string
-  fromDate: string
-  fromSlot: Slot
-}
+type MoveItem =
+  | { kind: 'lesson'; item: Lesson }
+  | { kind: 'rental'; item: EquipmentRental }
 
 interface LessonWeekViewProps {
-  weekDays: Date[]
+  days: Date[]
   lessons: Lesson[]
   dayActivities: DayActivity[]
   bookings: Booking[]
@@ -110,7 +108,7 @@ interface LessonWeekViewProps {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function LessonWeekView({
-  weekDays, lessons, dayActivities, lessonView,
+  days, lessons, dayActivities, lessonView,
   bookings, instructors, clients, bookingParticipants, equipment, rentals, priceItems,
   onAddLesson, onUpdateLesson, onDeleteLesson,
   onAddActivity, onDeleteActivity,
@@ -154,9 +152,23 @@ export default function LessonWeekView({
   // ── Clipboard ─────────────────────────────────────────────────────────────
   const [clipboard, setClipboard] = useState<Lesson | null>(null)
 
-  // ── Drag state ────────────────────────────────────────────────────────────
-  const [drag, setDrag] = useState<DragState | null>(null)
-  const [dropTarget, setDropTarget] = useState<{ date: string; slot: Slot } | null>(null)
+  // ── Mobile action sheet: kebab button → labeled actions (bigger targets than
+  // 4 tiny adjacent icons, which invited mis-taps). Desktop keeps the hover icons.
+  const [actionSheetItem, setActionSheetItem] = useState<MoveItem | null>(null)
+
+  // ── Move (replaces drag & drop, which has no touch support) ───────────────
+  const [moveItem, setMoveItem] = useState<MoveItem | null>(null)
+  const [moveDate, setMoveDate] = useState('')
+  const [moveLessonSlot, setMoveLessonSlot] = useState<Slot>('morning')
+  const [moveRentalSlot, setMoveRentalSlot] = useState<'morning' | 'afternoon' | 'full_day'>('morning')
+
+  // ── Mobile 3-day carousel: keep the focused (middle) day centered ─────────
+  const dayCardRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  useEffect(() => {
+    if (days.length !== 3) return
+    const focusedIso = dateToISO(days[1])
+    dayCardRefs.current[focusedIso]?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }, [days])
 
   // ── Pricing lookup ────────────────────────────────────────────────────────
   /** Rate from Options → Pricing, keyed by what it bills (never by name).
@@ -344,35 +356,30 @@ export default function LessonWeekView({
     onAddLesson({ ...rest, date, start_time: SLOT_CONFIG[slot].defaultTime })
   }
 
-  // ── Drag handlers ─────────────────────────────────────────────────────────
-  function handleDragStart(lesson: Lesson) {
-    setDrag({
-      lessonId: lesson.id,
-      fromDate: lesson.date,
-      fromSlot: getSlotForTime(lesson.start_time),
-    })
+  // ── Move handlers (lesson or rental → new date/slot) ──────────────────────
+  function openMoveLesson(lesson: Lesson) {
+    setMoveItem({ kind: 'lesson', item: lesson })
+    setMoveDate(lesson.date)
+    setMoveLessonSlot(getSlotForTime(lesson.start_time))
   }
 
-  function handleDragOver(e: React.DragEvent, date: string, slot: Slot) {
-    e.preventDefault()
-    setDropTarget({ date, slot })
+  function openMoveRental(rental: EquipmentRental) {
+    setMoveItem({ kind: 'rental', item: rental })
+    setMoveDate(rental.date)
+    setMoveRentalSlot(rental.slot as 'morning' | 'afternoon' | 'full_day')
   }
 
-  function handleDrop(e: React.DragEvent, date: string, slot: Slot) {
-    e.preventDefault()
-    if (!drag) return
-    const lesson = lessons.find(l => l.id === drag.lessonId)
-    if (!lesson) return
-    const slotChanged = getSlotForTime(lesson.start_time) !== slot
-    const newTime = slotChanged ? SLOT_CONFIG[slot].defaultTime : lesson.start_time
-    onUpdateLesson({ ...lesson, date, start_time: newTime })
-    setDrag(null)
-    setDropTarget(null)
-  }
-
-  function handleDragEnd() {
-    setDrag(null)
-    setDropTarget(null)
+  function submitMove() {
+    if (!moveItem) return
+    if (moveItem.kind === 'lesson') {
+      const lesson = moveItem.item
+      const slotChanged = getSlotForTime(lesson.start_time) !== moveLessonSlot
+      const newTime = slotChanged ? SLOT_CONFIG[moveLessonSlot].defaultTime : lesson.start_time
+      onUpdateLesson({ ...lesson, date: moveDate, start_time: newTime })
+    } else {
+      onUpdateRental({ ...moveItem.item, date: moveDate, slot: moveRentalSlot })
+    }
+    setMoveItem(null)
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -396,9 +403,9 @@ export default function LessonWeekView({
         </div>
       )}
 
-      {/* 7-day cards */}
-      <div className="flex gap-3 overflow-x-auto pb-3">
-        {weekDays.map((day) => {
+      {/* Day cards: 7 on desktop (week), 3 on mobile (yesterday/today/tomorrow, snap-centered) */}
+      <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory md:snap-none">
+        {days.map((day) => {
           const iso = dateToISO(day)
           const isToday = iso === today
           const isWeekend = day.getDay() === 0 || day.getDay() === 6
@@ -406,7 +413,8 @@ export default function LessonWeekView({
           return (
             <div
               key={iso}
-              className={`min-w-[200px] flex-1 rounded-lg shadow-sm border flex flex-col ${
+              ref={el => { dayCardRefs.current[iso] = el }}
+              className={`w-[88vw] shrink-0 snap-center md:w-auto md:min-w-[200px] md:flex-1 md:snap-align-none rounded-lg shadow-sm border flex flex-col ${
                 isToday ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200'
               } bg-white`}
             >
@@ -429,20 +437,16 @@ export default function LessonWeekView({
                   const slotActivities = activitiesForSlot(iso, slot)
                   const slotRentals = slot !== 'evening' ? rentalsForSlot(iso, slot === 'morning' ? 'morning' : 'afternoon') : []
                   const cfg = SLOT_CONFIG[slot]
-                  const isDropping = dropTarget?.date === iso && dropTarget?.slot === slot
                   const isAddOpen = addForm?.date === iso && addForm?.slot === slot
 
                   return (
                     <div
                       key={slot}
-                      className={`p-2 transition-colors ${isDropping ? 'bg-blue-50 ring-1 ring-inset ring-blue-300' : ''}`}
-                      onDragOver={(e) => handleDragOver(e, iso, slot)}
-                      onDragLeave={() => setDropTarget(null)}
-                      onDrop={(e) => handleDrop(e, iso, slot)}
+                      className="p-2 transition-colors"
                     >
                       {/* Slot header */}
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-semibold text-gray-500">
+                        <span className="text-sm md:text-xs font-semibold text-gray-500">
                           {cfg.icon} {cfg.label}
                         </span>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity">
@@ -455,23 +459,30 @@ export default function LessonWeekView({
                         const firstClient = lessonClients[0] ?? bookingClient(lesson.booking_id)
                         const instructor = instructors.find(i => i.id === lesson.instructor_id)
                         const tc = LESSON_TYPE_CFG[lesson.type]
-                        const isDragging = drag?.lessonId === lesson.id
 
                         return (
                           <div
                             key={lesson.id}
-                            draggable
-                            onDragStart={() => handleDragStart(lesson)}
-                            onDragEnd={handleDragEnd}
-                            className={`group/lesson relative rounded border p-1.5 text-xs mb-1 cursor-grab active:cursor-grabbing transition-opacity ${tc.card} ${isDragging ? 'opacity-40' : ''}`}
+                            className={`group/lesson relative rounded border p-2.5 md:p-1.5 text-sm md:text-xs mb-1 ${tc.card}`}
                           >
-                            {/* Action buttons (hover) */}
-                            <div className="absolute top-1 right-1 hidden group-hover/lesson:flex items-center gap-0.5 bg-white/90 rounded px-0.5 py-0.5 shadow-sm">
+                            {/* Mobile: single kebab → action sheet (bigger, unambiguous targets) */}
+                            <button
+                              onClick={() => setActionSheetItem({ kind: 'lesson', item: lesson })}
+                              className="absolute top-0.5 right-0.5 flex md:hidden items-center justify-center w-8 h-8 rounded-full bg-white/90 text-gray-600 shadow-sm text-lg leading-none"
+                              title="Actions"
+                            >⋮</button>
+                            {/* Desktop: hover-reveal icon cluster */}
+                            <div className="absolute top-1 right-1 hidden md:group-hover/lesson:flex items-center gap-0.5 bg-white/90 rounded px-0.5 py-0.5 shadow-sm">
                               <button
                                 onClick={() => copyLesson(lesson)}
                                 className="text-gray-500 hover:text-amber-600 text-xs px-1"
                                 title="Copy"
                               >⎘</button>
+                              <button
+                                onClick={() => openMoveLesson(lesson)}
+                                className="text-gray-500 hover:text-emerald-600 text-xs px-1"
+                                title="Move"
+                              >↔</button>
                               <button
                                 onClick={() => openEdit(lesson)}
                                 className="text-gray-500 hover:text-blue-600 text-xs px-1"
@@ -485,7 +496,7 @@ export default function LessonWeekView({
                             </div>
 
                             {/* Content */}
-                            <div className="flex items-center justify-between mb-0.5 pr-16">
+                            <div className="flex items-center justify-between mb-0.5 pr-9 md:pr-16">
                               <span className="font-bold">{lesson.start_time}</span>
                               <div className="flex items-center gap-1">
                                 <span className="opacity-60">{lesson.duration_hours}h</span>
@@ -517,12 +528,12 @@ export default function LessonWeekView({
                       {slotActivities.map(act => (
                         <div
                           key={act.id}
-                          className="group/act relative rounded border border-orange-200 bg-orange-50 text-orange-900 p-1.5 text-xs mb-1"
+                          className="group/act relative rounded border border-orange-200 bg-orange-50 text-orange-900 p-2.5 md:p-1.5 text-sm md:text-xs mb-1"
                         >
-                          <div className="absolute top-1 right-1 hidden group-hover/act:flex">
+                          <div className="absolute top-1 right-1 flex md:hidden md:group-hover/act:flex">
                             <button
                               onClick={() => deleteActivity(act.id)}
-                              className="text-gray-400 hover:text-red-600 text-xs px-1"
+                              className="text-gray-400 hover:text-red-600 text-sm md:text-xs p-1.5 md:px-1 md:py-0"
                               title="Delete"
                             >✕</button>
                           </div>
@@ -540,9 +551,21 @@ export default function LessonWeekView({
                         return (
                           <div
                             key={r.id}
-                            className="group/rental relative rounded border border-amber-200 bg-amber-50 text-amber-900 p-1.5 text-xs mb-1"
+                            className="group/rental relative rounded border border-amber-200 bg-amber-50 text-amber-900 p-2.5 md:p-1.5 text-sm md:text-xs mb-1"
                           >
-                            <div className="absolute top-1 right-1 hidden group-hover/rental:flex gap-0.5 bg-white/90 rounded px-0.5 shadow-sm">
+                            {/* Mobile: single kebab → action sheet */}
+                            <button
+                              onClick={() => setActionSheetItem({ kind: 'rental', item: r })}
+                              className="absolute top-0.5 right-0.5 flex md:hidden items-center justify-center w-8 h-8 rounded-full bg-white/90 text-gray-600 shadow-sm text-lg leading-none"
+                              title="Actions"
+                            >⋮</button>
+                            {/* Desktop: hover-reveal icon cluster */}
+                            <div className="absolute top-1 right-1 hidden md:group-hover/rental:flex gap-0.5 bg-white/90 rounded px-0.5 shadow-sm">
+                              <button
+                                onClick={() => openMoveRental(r)}
+                                className="text-gray-400 hover:text-emerald-600 text-xs px-1"
+                                title="Move"
+                              >↔</button>
                               <button
                                 onClick={() => openEditRental(r)}
                                 className="text-gray-400 hover:text-blue-600 text-xs px-1"
@@ -554,7 +577,7 @@ export default function LessonWeekView({
                                 title="Delete"
                               >✕</button>
                             </div>
-                            <div className="flex items-center justify-between pr-4">
+                            <div className="flex items-center justify-between pr-9 md:pr-4">
                               <span className="font-semibold">{rt?.icon ?? '📦'} {rt?.label ?? equip?.name ?? r.equipment_id}</span>
                               <span className="text-amber-700 font-semibold">€{r.price}</span>
                             </div>
@@ -573,7 +596,7 @@ export default function LessonWeekView({
                               <select
                                 value={addForm?.rental_participant_id}
                                 onChange={e => setAddForm(f => f && { ...f, rental_participant_id: e.target.value })}
-                                className="w-full text-xs border rounded px-1 py-1"
+                                className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 autoFocus
                               >
                                 {activeParticipantsForDate(addForm?.date ?? '').map(p => (
@@ -591,7 +614,7 @@ export default function LessonWeekView({
                                       rental_type: rt.key,
                                       rental_price: rentalPrice(rt.key) ?? 0,
                                     })}
-                                    className={`text-xs py-1 px-1 rounded border transition-colors text-center leading-tight ${
+                                    className={`text-sm md:text-xs py-2 px-1 md:py-1 rounded border transition-colors text-center leading-tight ${
                                       addForm?.rental_type === rt.key
                                         ? 'bg-amber-500 border-amber-600 text-white font-semibold'
                                         : 'bg-white border-gray-200 text-gray-600 hover:border-amber-300'
@@ -608,7 +631,7 @@ export default function LessonWeekView({
                                 <select
                                   value={addForm?.rental_kite_id ?? ''}
                                   onChange={e => setAddForm(f => f && { ...f, rental_kite_id: e.target.value || null })}
-                                  className="w-full text-xs border rounded px-1 py-1"
+                                  className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 >
                                   <option value="">🪁 Kite — not specified</option>
                                   {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
@@ -620,7 +643,7 @@ export default function LessonWeekView({
                                 <select
                                   value={addForm?.rental_board_id ?? ''}
                                   onChange={e => setAddForm(f => f && { ...f, rental_board_id: e.target.value || null })}
-                                  className="w-full text-xs border rounded px-1 py-1"
+                                  className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 >
                                   <option value="">🏄 Board — not specified</option>
                                   {equipment.filter(e => e.category === 'board' && e.is_active).map(e => (
@@ -633,7 +656,7 @@ export default function LessonWeekView({
                                 <select
                                   value={addForm?.rental_slot}
                                   onChange={e => setAddForm(f => f && { ...f, rental_slot: e.target.value as 'morning' | 'afternoon' | 'full_day' })}
-                                  className="flex-1 text-xs border rounded px-1 py-1"
+                                  className="flex-1 text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 >
                                   <option value="morning">Morning</option>
                                   <option value="afternoon">Afternoon</option>
@@ -643,7 +666,7 @@ export default function LessonWeekView({
                                   type="number"
                                   value={addForm?.rental_price ?? 0}
                                   onChange={e => setAddForm(f => f && { ...f, rental_price: parseFloat(e.target.value) || 0 })}
-                                  className="w-16 text-xs border rounded px-1 py-1 text-right"
+                                  className="w-16 text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1 text-right"
                                   min={0}
                                 />
                                 <span className="text-xs text-gray-500">€</span>
@@ -658,7 +681,7 @@ export default function LessonWeekView({
                                 placeholder="Notes (optional)"
                                 value={addForm?.rental_notes}
                                 onChange={e => setAddForm(f => f && { ...f, rental_notes: e.target.value })}
-                                className="w-full text-xs border rounded px-1 py-1"
+                                className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                               />
                             </>
                           ) : addForm?.kind === 'lesson' ? (
@@ -672,7 +695,7 @@ export default function LessonWeekView({
                                     type: e.target.value as LessonType,
                                     participant_ids: [f.participant_ids[0] ?? activeParticipantsForDate(f.date)[0]?.id ?? ''],
                                   })}
-                                  className="flex-1 text-xs border rounded px-1 py-1"
+                                  className="flex-1 text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 >
                                   <option value="private">Private</option>
                                   <option value="group">Group</option>
@@ -684,7 +707,7 @@ export default function LessonWeekView({
                                 <select
                                   value={addForm?.participant_ids[0] ?? ''}
                                   onChange={e => setAddForm(f => f && { ...f, participant_ids: [e.target.value] })}
-                                  className="w-full text-xs border rounded px-1 py-1"
+                                  className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 >
                                   {activeParticipantsForDate(addForm?.date ?? '').map(p => (
                                     <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>
@@ -701,7 +724,7 @@ export default function LessonWeekView({
                                           const ids = [...f.participant_ids]; ids[idx] = e.target.value
                                           return { ...f, participant_ids: ids }
                                         })}
-                                        className="flex-1 text-xs border rounded px-1 py-1"
+                                        className="flex-1 text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                       >
                                         {activeParticipantsForDate(addForm?.date ?? '').map(p => (
                                           <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>
@@ -710,13 +733,13 @@ export default function LessonWeekView({
                                       {(addForm?.participant_ids.length ?? 0) > 1 && (
                                         <button type="button"
                                           onClick={() => setAddForm(f => f && { ...f, participant_ids: f.participant_ids.filter((_, i) => i !== idx) })}
-                                          className="text-red-400 hover:text-red-600 px-1 text-xs">✕</button>
+                                          className="text-red-400 hover:text-red-600 px-2 md:px-1 text-sm md:text-xs">✕</button>
                                       )}
                                     </div>
                                   ))}
                                   <button type="button"
                                     onClick={() => setAddForm(f => f && { ...f, participant_ids: [...f.participant_ids, activeParticipantsForDate(f.date)[0]?.id ?? ''] })}
-                                    className="text-xs text-green-700 hover:text-green-900 border border-dashed border-green-400 rounded px-2 py-0.5 w-full">
+                                    className="text-sm md:text-xs text-green-700 hover:text-green-900 border border-dashed border-green-400 rounded px-2 py-2 md:py-0.5 w-full">
                                     + Add participant
                                   </button>
                                 </div>
@@ -724,7 +747,7 @@ export default function LessonWeekView({
                               <select
                                 value={addForm?.instructor_id}
                                 onChange={e => setAddForm(f => f && { ...f, instructor_id: e.target.value })}
-                                className="w-full text-xs border rounded px-1 py-1"
+                                className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                               >
                                 {instructors.map(i => (
                                   <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>
@@ -735,12 +758,12 @@ export default function LessonWeekView({
                                   type="time"
                                   value={addForm?.start_time}
                                   onChange={e => setAddForm(f => f && { ...f, start_time: e.target.value })}
-                                  className="flex-1 text-xs border rounded px-1 py-1"
+                                  className="flex-1 text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 />
                                 <select
                                   value={addForm?.duration_hours}
                                   onChange={e => setAddForm(f => f && { ...f, duration_hours: parseFloat(e.target.value) })}
-                                  className="flex-1 text-xs border rounded px-1 py-1"
+                                  className="flex-1 text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 >
                                   {DURATION_OPTIONS.map(d => (
                                     <option key={d} value={d}>{d}h</option>
@@ -752,14 +775,14 @@ export default function LessonWeekView({
                                 placeholder="Notes (optional)"
                                 value={addForm?.notes}
                                 onChange={e => setAddForm(f => f && { ...f, notes: e.target.value })}
-                                className="w-full text-xs border rounded px-1 py-1"
+                                className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                               />
                               <div className="space-y-1">
                                 <label className="text-xs font-medium text-gray-600">Equipment (optional)</label>
                                 <select
                                   value={addForm?.kite_id || ''}
                                   onChange={e => setAddForm(f => f && { ...f, kite_id: e.target.value || null })}
-                                  className="w-full text-xs border rounded px-1 py-1"
+                                  className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 >
                                   <option value="">No kite</option>
                                   {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
@@ -769,7 +792,7 @@ export default function LessonWeekView({
                                 <select
                                   value={addForm?.board_id || ''}
                                   onChange={e => setAddForm(f => f && { ...f, board_id: e.target.value || null })}
-                                  className="w-full text-xs border rounded px-1 py-1"
+                                  className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 >
                                   <option value="">No board</option>
                                   {equipment.filter(e => e.category !== 'kite' && e.is_active).map(e => (
@@ -786,7 +809,7 @@ export default function LessonWeekView({
                                 placeholder="Activity name *"
                                 value={addForm?.name}
                                 onChange={e => setAddForm(f => f && { ...f, name: e.target.value })}
-                                className="w-full text-xs border rounded px-1 py-1"
+                                className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 autoFocus
                               />
                               <input
@@ -794,19 +817,19 @@ export default function LessonWeekView({
                                 placeholder="Notes (optional)"
                                 value={addForm?.actNotes}
                                 onChange={e => setAddForm(f => f && { ...f, actNotes: e.target.value })}
-                                className="w-full text-xs border rounded px-1 py-1"
+                                className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                               />
                             </>
                           )}
                           <div className="flex gap-1 pt-0.5">
                             <button
                               onClick={() => setAddForm(null)}
-                              className="flex-1 text-xs py-1 bg-gray-100 hover:bg-gray-200 rounded font-medium"
+                              className="flex-1 text-sm md:text-xs py-2 md:py-1 bg-gray-100 hover:bg-gray-200 rounded font-medium"
                             >Cancel</button>
                             <button
                               onClick={submitAdd}
                               disabled={addForm?.kind === 'activity' && !addForm?.name}
-                              className="flex-1 text-xs py-1 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium disabled:opacity-40"
+                              className="flex-1 text-sm md:text-xs py-2 md:py-1 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium disabled:opacity-40"
                             >Add</button>
                           </div>
                         </div>
@@ -815,20 +838,20 @@ export default function LessonWeekView({
                         <div className="flex flex-wrap gap-1 mt-1">
                           <button
                             onClick={() => openAdd(iso, slot, 'lesson')}
-                            className="text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded border border-dashed border-gray-300 hover:border-blue-300 transition-colors"
+                            className="text-sm md:text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 hover:border-blue-300 transition-colors"
                           >+ Lesson</button>
                           <button
                             onClick={() => openAdd(iso, slot, 'activity')}
-                            className="text-xs text-gray-400 hover:text-orange-600 hover:bg-orange-50 px-1.5 py-0.5 rounded border border-dashed border-gray-300 hover:border-orange-300 transition-colors"
+                            className="text-sm md:text-xs text-gray-400 hover:text-orange-600 hover:bg-orange-50 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 hover:border-orange-300 transition-colors"
                           >+ Activity</button>
                           <button
                             onClick={() => openAdd(iso, slot, 'rental')}
-                            className="text-xs text-gray-400 hover:text-amber-700 hover:bg-amber-50 px-1.5 py-0.5 rounded border border-dashed border-gray-300 hover:border-amber-400 transition-colors"
+                            className="text-sm md:text-xs text-gray-400 hover:text-amber-700 hover:bg-amber-50 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 hover:border-amber-400 transition-colors"
                           >+ Rental</button>
                           {clipboard && (
                             <button
                               onClick={() => pasteLesson(iso, slot)}
-                              className="text-xs text-amber-700 hover:text-amber-900 hover:bg-amber-50 px-1.5 py-0.5 rounded border border-amber-300 transition-colors font-medium"
+                              className="text-sm md:text-xs text-amber-700 hover:text-amber-900 hover:bg-amber-50 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-amber-300 transition-colors font-medium"
                             >📋 Paste</button>
                           )}
                         </div>
@@ -883,7 +906,7 @@ export default function LessonWeekView({
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" /> Rental
         </span>
-        <span className="text-gray-400 ml-2">· Drag & drop to move · ⎘ to copy</span>
+        <span className="text-gray-400 ml-2">· ↔ to move · ⎘ to copy</span>
       </div>
 
       {/* Edit modal */}
@@ -1147,6 +1170,118 @@ export default function LessonWeekView({
                   className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm">Save</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Mobile action sheet: labeled Copy/Move/Edit/Delete instead of tiny icons ── */}
+      {actionSheetItem && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center md:hidden"
+          onClick={() => setActionSheetItem(null)}
+        >
+          <div className="bg-white rounded-t-xl shadow-xl w-full p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]" onClick={e => e.stopPropagation()}>
+            {actionSheetItem.kind === 'lesson' && (
+              <button
+                onClick={() => { copyLesson(actionSheetItem.item); setActionSheetItem(null) }}
+                className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-base font-medium text-gray-800"
+              >⎘ Copy</button>
+            )}
+            <button
+              onClick={() => {
+                if (actionSheetItem.kind === 'lesson') openMoveLesson(actionSheetItem.item)
+                else openMoveRental(actionSheetItem.item)
+                setActionSheetItem(null)
+              }}
+              className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-base font-medium text-gray-800"
+            >↔ Move</button>
+            <button
+              onClick={() => {
+                if (actionSheetItem.kind === 'lesson') openEdit(actionSheetItem.item)
+                else openEditRental(actionSheetItem.item)
+                setActionSheetItem(null)
+              }}
+              className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-base font-medium text-gray-800"
+            >✏️ Edit</button>
+            <button
+              onClick={() => {
+                if (actionSheetItem.kind === 'lesson') deleteLesson(actionSheetItem.item.id)
+                else deleteRental(actionSheetItem.item.id)
+                setActionSheetItem(null)
+              }}
+              className="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 text-base font-medium text-red-600"
+            >✕ Delete</button>
+            <button
+              onClick={() => setActionSheetItem(null)}
+              className="w-full text-center px-4 py-3 mt-1 border-t text-gray-500 font-medium"
+            >Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Move modal (lesson or rental → new date/slot) ── */}
+      {moveItem && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setMoveItem(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h3 className="font-bold text-gray-800">Move {moveItem.kind}</h3>
+              <button onClick={() => setMoveItem(null)} className="text-gray-400 hover:text-gray-700">✕</button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                <input
+                  type="date"
+                  value={moveDate}
+                  onChange={e => setMoveDate(e.target.value)}
+                  className="w-full text-sm border rounded px-2 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Slot</label>
+                {moveItem.kind === 'lesson' ? (
+                  <div className="grid grid-cols-3 gap-1">
+                    {SLOTS.map(slot => (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => setMoveLessonSlot(slot)}
+                        className={`text-sm py-2 px-1 rounded border text-center transition-colors ${
+                          moveLessonSlot === slot
+                            ? 'bg-emerald-500 border-emerald-600 text-white font-semibold'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-emerald-300'
+                        }`}
+                      >
+                        {SLOT_CONFIG[slot].icon} {SLOT_CONFIG[slot].label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-1">
+                    {(['morning', 'afternoon', 'full_day'] as const).map(slot => (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => setMoveRentalSlot(slot)}
+                        className={`text-sm py-2 px-1 rounded border text-center transition-colors ${
+                          moveRentalSlot === slot
+                            ? 'bg-emerald-500 border-emerald-600 text-white font-semibold'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-emerald-300'
+                        }`}
+                      >
+                        {slot === 'morning' ? 'Morning' : slot === 'afternoon' ? 'Afternoon' : 'Full day'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2 pt-2 border-t">
+                <button type="button" onClick={() => setMoveItem(null)}
+                  className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded font-medium text-sm">Cancel</button>
+                <button type="button" onClick={submitMove}
+                  className="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-medium text-sm">Move</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
