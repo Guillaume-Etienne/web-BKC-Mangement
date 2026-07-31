@@ -21,7 +21,7 @@
 | ~~`2026-07-29_lesson_pricing.sql`~~ | `price_items.lesson_type` + `lessons.price_per_hour` + REVOKE anon sur `instructors.rate_*` et `lesson_rate_overrides` | ✅ 2026-07-29 | ✅ 2026-07-30 |
 | `2026-07-30a_price_category_values.sql` | **À passer SEUL et EN PREMIER** : ajoute les catégories `meal` et `center_access` | ✅ 2026-07-30 | ⬜ **à faire** |
 | `2026-07-30b_billable_types.sql` | `price_items.billable_type` (fusionne et remplace `lesson_type`), semis des 10 postes aux montants jusque-là codés en dur, suppression des lignes `taxi` fantômes, **snapshot de la paie moniteur** (`lessons.instructor_rate`), et **C3** : `room_rates` lisible par un lien client, limité à SES chambres | ✅ 2026-07-30 | ⬜ **à faire** |
-| `2026-07-30c_room_rates_revoke.sql` | Correctif du REVOKE manquant sur `room_rates` (2 lignes). **Inutile en PROD** : déjà intégré dans (b), qui n'y est pas encore passé | ⬜ **à faire** | — (inclus dans b) |
+| ~~`2026-07-30c_room_rates_revoke.sql`~~ | Correctif du REVOKE manquant sur `room_rates` (2 lignes). **Inutile en PROD** : déjà intégré dans (b), qui n'y est pas encore passé | ✅ 2026-07-31 | — (inclus dans b) |
 
 > ⚠️ **Deux fichiers, pas un — et dans cet ordre.** PostgreSQL refuse d'utiliser une
 > valeur d'enum ajoutée dans la même transaction, et l'éditeur SQL du dashboard exécute
@@ -70,6 +70,11 @@ lisibles depuis n'importe quel lien client dès qu'une ligne passe la policy. Au
 réelle (aucune maison de TEST n'avait de tarif → zéro ligne rendue). C'est le gabarit du
 Lot C (REVOKE puis GRANT colonnes), appliqué à 4 tables en juillet et oublié ici.
 **Leçon : un GRANT de colonnes ne protège que si le GRANT de table a été retiré avant.**
+
+✅ **Correctif appliqué sur TEST le 2026-07-31 et vérifié par 5 curls** : `select=notes`
+et `select=*` avec un token client → **42501** (c'était `[]`) ; `select=room_id,
+price_per_night` → **la seule chambre du booking** ; sans token et token taxi → `[]`.
+Colonnes et lignes tiennent désormais ensemble. **C3 est bon sur TEST.**
 
 **TEST : appliquée et vérifiée le 2026-07-29** — les 4 contrôles verts (tarifs rattachés,
 zéro orpheline, colonne snapshot présente, `rate_private` en anon → 42501 et
