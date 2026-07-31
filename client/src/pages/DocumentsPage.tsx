@@ -314,6 +314,7 @@ export default function DocumentsPage() {
 
   const [tab, setTab] = useState<Tab>('visa')
   const [visaBookingId,    setVisaBookingId]    = useState('')
+  const [visaSearch,       setVisaSearch]       = useState('')
   const [summaryBookingId, setSummaryBookingId] = useState('')
   const [lang, setLang]                         = useState<Lang>('en')
   const [totalAmountStr,   setTotalAmountStr]   = useState('')
@@ -367,12 +368,30 @@ export default function DocumentsPage() {
   const effectiveVisaId    = visaBookingId    || activeBookings[0]?.id || ''
   const effectiveSummaryId = summaryBookingId || activeBookings[0]?.id || ''
 
+  const visaSearchBookings = (() => {
+    const q = visaSearch.trim().toLowerCase()
+    if (!q) return activeBookings
+    return activeBookings.filter(b => {
+      const first = b.client?.first_name?.toLowerCase() ?? ''
+      const last  = b.client?.last_name?.toLowerCase() ?? ''
+      return first.includes(q) || last.includes(q) || `${first} ${last}`.includes(q)
+    })
+  })()
+
   const visaBooking    = activeBookings.find(b => b.id === effectiveVisaId)
   const summaryBooking = activeBookings.find(b => b.id === effectiveSummaryId)
   const summaryRooms   = getRoomLabels(effectiveSummaryId, bookingRooms, rooms, accommodations)
   const totalAmount    = totalAmountStr !== '' ? parseFloat(totalAmountStr) : null
   const activeSections        = (guideSections   ?? []).filter(s => s.is_active)
   const activeWelcomeSections = (welcomeSections ?? []).filter(s => s.is_active)
+
+  // Keep the selection valid when search narrows the list past it — otherwise the
+  // <select> shows a different booking than the one actually held in state.
+  useEffect(() => {
+    if (visaSearch.trim() && visaSearchBookings.length > 0 && !visaSearchBookings.some(b => b.id === effectiveVisaId)) {
+      setVisaBookingId(visaSearchBookings[0].id)
+    }
+  }, [visaSearch, visaSearchBookings, effectiveVisaId])
 
   // Pre-fill email when booking changes
   useEffect(() => {
@@ -499,10 +518,23 @@ export default function DocumentsPage() {
             {activeBookings.length === 0 ? (
               <p className="text-sm text-gray-400 italic">No active bookings found.</p>
             ) : (
-              <select value={effectiveVisaId} onChange={e => setVisaBookingId(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
-                {activeBookings.map(b => <option key={b.id} value={b.id}>{bookingLabel(b)}</option>)}
-              </select>
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={visaSearch}
+                  onChange={e => setVisaSearch(e.target.value)}
+                  placeholder="🔍 Search by client name…"
+                  className="w-full border rounded-lg px-3 py-2 text-sm bg-white"
+                />
+                <select value={effectiveVisaId} onChange={e => setVisaBookingId(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+                  {visaSearchBookings.length === 0 ? (
+                    <option value="" disabled>No booking matches "{visaSearch}"</option>
+                  ) : (
+                    visaSearchBookings.map(b => <option key={b.id} value={b.id}>{bookingLabel(b)}</option>)
+                  )}
+                </select>
+              </div>
             )}
 
             {visaBooking && (
