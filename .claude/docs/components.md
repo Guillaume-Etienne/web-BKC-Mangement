@@ -33,12 +33,15 @@
 - `unavailableDays` (optional): Set de day-of-season indices pour highlighting unavailable periods
 - Utilise `bookingParticipants.filter(p => p.booking_id === b.id).length` pour les badges
 - Entièrement contrôlé (pas d'état interne)
+- **Dessine lui-même les barres de réservation** (`statusColors`, ligne ~5) : la couleur
+  dit le statut (emerald/amber/gris) et porte aussi la couleur du texte. Le nom du client
+  est en **texte foncé**, pas blanc : blanc sur emerald ne fait que 2.5:1 et 1.7:1 sur
+  amber, illisible sur un téléphone en plein soleil (corrigé le 2026-07-31, 7:1 et 10:1).
 
-### `BookingBar` — `planning/BookingBar.tsx`
-**Props :** `{ booking, startCol, endCol, totalDays }`
-- Barre colorée : confirmed=emerald, provisional=amber, cancelled=gray
-- Nom client tronqué, tooltip avec détails
-- Positionnement CSS grid
+### ~~`BookingBar` — `planning/BookingBar.tsx`~~ — ⚠️ CODE MORT
+**Importé nulle part** (vérifié le 2026-07-31) — les barres sont dessinées par
+`PlanningRow` ci-dessus. Le fichier existe encore mais ne rend rien ; ne pas le modifier
+en croyant agir sur le planning. À supprimer un jour, décision de gui.
 
 ### `TotalsRow` — `planning/TotalsRow.tsx`
 **Props :** `{ label, totalDays, seasonStart, bookings, bookingParticipants: BookingParticipant[], type: 'lessons'|'equipment'|'guests' }`
@@ -248,10 +251,18 @@ Utilisé dans ClientsPage, BookingsPage, ManagementPage :
 ## Règles architecturales clés
 
 1. **Formulaires au scope module** — tout composant avec des inputs texte qui re-rend sur changement de state DOIT définir le composant formulaire hors de la fonction parent pour éviter la perte de focus à chaque frappe
-2. **Mise à jour optimiste** — pour les mutations : update state local immédiatement, appel Supabase fire-and-forget (sans await)
-3. **Pattern refresh()** — après insert/update/delete dans TaxiPage, ManagementPage, ActivitiesPage (pas d'état local mutable) : `await supabase...` puis `refresh()`
+2. **Mise à jour optimiste — mais JAMAIS fire-and-forget** ⚠️ *(règle réécrite le 2026-07-31 : elle disait « fire-and-forget (sans await) », c'était le bug)*
+   Update du state local immédiatement, puis l'appel Supabase **dont on lit l'erreur**.
+   Un refus (RLS, contrainte, réseau coupé) est silencieux : sans ça, l'écran affichait le
+   paiement encaissé et la base n'avait rien. Utiliser
+   **`components/accounting/persist.ts`** : snapshot du tableau avant mutation, restauré +
+   alerte si l'écriture ne passe pas (testé dans `persist.test.ts`).
+3. **Pattern refresh()** — après insert/update/delete dans TaxiPage, ManagementPage, ActivitiesPage (pas d'état local mutable) : `const { error } = await supabase...`, **dire si ça a échoué**, puis `refresh()`. Le refresh remet l'écran d'accord avec la base, mais sans le message l'échec est indiscernable d'un succès (le formulaire se ferme, la ligne n'apparaît jamais).
 4. **`useEffect` sync** — quand les données du hook alimentent un state local mutable : `useEffect(() => setState(data), [data])`
 5. **`CELL_W = 32`** — px par colonne jour dans la grille planning (doit correspondre au Tailwind `w-8`)
+6. **Dates calendaires** — `client/src/utils/dates.ts`, jamais `.toISOString()` (décale d'un jour à l'est de Greenwich). Cf. INDEX.md.
+7. **Pages chargées à la demande** — `App.tsx` les déclare en `lazy(() => import(...))`, sous un `Suspense` + `ChunkBoundary`. Une nouvelle page suit le même moule.
+8. **Contraste** — le texte doit tenir 4.5:1 (3:1 pour les icônes de contrôle). Sur fond sombre, `gray-500`/`600` échouent : `dark:text-gray-400` pour le texte secondaire, `dark:text-gray-500` pour les icônes. `body` porte une couleur par défaut qui suit le thème, donc un élément sans classe de couleur reste lisible.
 
 ---
 

@@ -147,6 +147,44 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
 
 ---
 
+## 🔎 Audit global du 2026-07-31 (Opus, nuit) — 3 constats qui demandent une DÉCISION de gui
+
+> Le reste de l'audit a été corrigé et committé (6 commits `ae096c1`→`5576d38`). Ces trois-là
+> touchent à des **montants affichés** ou à un choix de design : je n'ai rien changé, exprès.
+
+### 1. 💸 CashFlow ignore `palmeiras_entries`, que le Dashboard compte
+**Vérifié dans le code** : `utils.ts:388-390` fait entrer les `palmeiras_entries`
+(type `income`/`expense`) dans le `palmeirasNet` du **Dashboard**, alors que
+`cashFlowUtils.ts` ne les lit **nulle part** — la colonne `palmIn` n'additionne que les
+`palmeirasReversals`. Donc un même euro Palmeiras apparaît dans le résultat net et pas
+dans le cash flow mensuel. Les entrées portent déjà un `month` (`YYYY-MM`), la clé exacte
+sur laquelle CashFlow regroupe : techniquement c'est 2 lignes à ajouter.
+**Pourquoi je ne l'ai pas fait** : il faut choisir *où* elles atterrissent (income → `palmIn` ?
+expense → `expenses`, qui est aujourd'hui la table `expenses` générale ? ou `palmIn` devient
+le net Palmeiras hors loyer ?). Chaque option change un chiffre affiché, et les tests ont
+figé le comportement actuel. **→ dis-moi la colonne voulue, c'est 10 min.**
+*(L'audit externe accusait aussi `activity_payments` : **c'est faux**, ils ne sont lus par
+aucun calcul comptable, ni Dashboard ni CashFlow — juste affichés dans ActivitiesPage.
+Question ouverte au passage : devraient-ils compter quelque part ?)*
+
+### 2. 📅 « Net result » n'est pas filtré par saison
+`computeSeasonTotals` lit **toutes** les résas, dépenses et leçons depuis l'origine ; la
+table `seasons` est passée dans `SharedAccountingData` mais **jamais utilisée**. Le libellé
+disait « Net result (season) ». Sans donnée réelle et avec une seule saison, ça ne change
+rien aujourd'hui ; à la deuxième saison le chiffre devient un cumul à vie sous une étiquette
+« saison ». **J'ai seulement rendu le libellé honnête (« all time »)** — implémenter un vrai
+filtre demande tes règles : quelle saison est « courante », et on coupe sur la date de résa,
+de check-in ou de paiement ? **→ à trancher avant l'ouverture de mi-septembre.**
+
+### 3. 🧾 Une chambre sans tarif s'affiche « €0 » **sur la page client partagée**
+Constaté en vrai sur le lien client `#021` : `H1/B 11 nuits ×100 € = 1 100 €`, puis
+**`H1/F 11 nuits × 0 € = 0 €`**. C'est le point « tarifs des maisons » déjà listé plus bas,
+mais vu du client : un lien partagé qui circule (WhatsApp, mail transféré) montre une
+chambre facturée 0 €. **→ soit saisir le tarif, soit masquer/étiqueter les lignes à 0 sur
+la page client.**
+
+---
+
 ## 🎯 OÙ ON EN EST — chantier fiabilité compta (2026-07-29)
 
 **Plan convenu avec gui, dans cet ordre.** Les étapes 1 et 2 sont faites.

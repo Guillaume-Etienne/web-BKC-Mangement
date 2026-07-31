@@ -13,8 +13,27 @@
 | Ajouter un **enum** (valeur) en base | migration `ALTER TYPE … ADD VALUE IF NOT EXISTS` (seule, hors txn) + `schema.sql` |
 | Ajouter une **colonne** | migration + `schema.sql` + type TS + **`mock.ts`** (sinon build strict casse) + form admin |
 | Créer une **migration** | `supabase/migrations/AAAA-MM-JJ_nom.sql`, idempotent, appliquer **TEST puis PROD** |
+| Manipuler une **date calendaire** (jour, mois) | `client/src/utils/dates.ts` — **jamais** `.toISOString()`, voir ⚠️ ci-dessous |
+| **Écrire en base** depuis un écran | vérifier l'erreur, toujours — voir ⚠️ ci-dessous |
+| Ajouter une **page** | `App.tsx` : `lazy(() => import(...))` comme les autres (chargement à la demande) |
 
 > ⚠️ Toujours `npm run build` avant push (Vercel = TS strict : unused/locals, types incomplets dans `mock.ts`).
+>
+> ⚠️ **Dates : jamais `new Date().toISOString().slice(0, 10)`.** Ça convertit en UTC
+> d'abord, donc au Mozambique (UTC+2) ça renvoie **la veille** entre minuit et 2h — et
+> toute la journée pour une `Date` calée à minuit local. Ça a mal daté des locations, des
+> trajets taxi et des paiements, et décalé un mois comptable. Tout passe par
+> **`client/src/utils/dates.ts`** (`todayISO`, `toISODate`, `addDaysISO`, `thisMonthISO`,
+> `daysBetween`), testé dans `dates.test.ts`. Corrigé partout le 2026-07-31.
+>
+> ⚠️ **Une écriture Supabase dont on ne lit pas l'erreur ment à l'écran.** Le refus (RLS,
+> contrainte, réseau coupé) est silencieux : l'app affiche la réservation déplacée, le
+> paiement encaissé, le tarif enregistré — et la base n'a rien. Corrigé partout le
+> 2026-07-31. Pattern selon l'écran :
+> - état local optimiste → **`components/accounting/persist.ts`** (snapshot avant,
+>   restauration + alerte si ça échoue ; testé dans `persist.test.ts`)
+> - écriture suivie d'un `refresh()` → lire `{ error }` et le dire (cf. `ActivitiesPage`)
+> - séquence d'écritures (wizard résa) → collecter les échecs et les afficher ensemble
 
 ## Par sujet
 
