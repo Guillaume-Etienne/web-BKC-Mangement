@@ -349,7 +349,6 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
 
   // ── Tabs / lesson view ───────────────────────────────────────────
   const [planningTab, setPlanningTab] = useState<'accommodations' | 'lessons' | 'now' | 'forecast'>('accommodations')
-  const [lessonView, setLessonView] = useState<'by-instructor' | 'by-client'>('by-instructor')
   const [weekStart, setWeekStart] = useState<Date>(() => getMondayOfWeek(new Date()))
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -366,18 +365,21 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   const nextWeek = () => setWeekStart(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 7); return nd })
   const goToToday = () => setWeekStart(getMondayOfWeek(new Date()))
 
-  // ── Daily tab, mobile: single focused day (± 1 day) instead of the full week ──
+  // ── Daily tab: how many days to show — 1 / 3 (± 1 day) / Week ──────────────
   const shiftDate = (d: Date, n: number) => { const nd = new Date(d); nd.setDate(nd.getDate() + n); return nd }
   // Normalized to local midnight (like getMondayOfWeek) so the UTC-based ISO key used
   // for lookups can't drift a day off from the local calendar date shown on the card.
   const todayMidnight = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
-  const [isMobileDaily] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768)
+  const [dayCount, setDayCount] = useState<1 | 3 | 7>(() => (typeof window !== 'undefined' && window.innerWidth < 768) ? 1 : 7)
   const [focusedDay, setFocusedDay] = useState<Date>(todayMidnight)
   const focusedDayLabel = focusedDay.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
   const prevDay = () => setFocusedDay(d => shiftDate(d, -1))
   const nextDay = () => setFocusedDay(d => shiftDate(d, 1))
   const goToTodayDay = () => setFocusedDay(todayMidnight())
-  const daysToShow = isMobileDaily ? [shiftDate(focusedDay, -1), focusedDay, shiftDate(focusedDay, 1)] : weekDays
+  const daysToShow =
+    dayCount === 1 ? [focusedDay] :
+    dayCount === 3 ? [shiftDate(focusedDay, -1), focusedDay, shiftDate(focusedDay, 1)] :
+    weekDays
 
   // ── Accommodations ───────────────────────────────────────────────
   const activeAccommodations = accommodations.filter(a => a.is_active)
@@ -877,41 +879,39 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
         {planningTab === 'lessons' && (
           <>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
-              {/* Desktop: week nav */}
-              <div className="hidden md:flex items-center gap-2">
-                <button onClick={prevWeek} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">←</button>
-                <span className="text-base font-semibold min-w-[220px] text-center">
-                  Week of {weekLabel}
-                </span>
-                <button onClick={nextWeek} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">→</button>
-                <button onClick={goToToday} className="px-3 py-1.5 rounded bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200">
-                  Today
-                </button>
-              </div>
-              {/* Mobile: single-day nav (± 1 day) */}
-              <div className="flex md:hidden items-center gap-2">
-                <button onClick={prevDay} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">←</button>
-                <span className="text-base font-semibold min-w-[130px] text-center">
-                  {focusedDayLabel}
-                </span>
-                <button onClick={nextDay} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">→</button>
-                <button onClick={goToTodayDay} className="px-3 py-1.5 rounded bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200">
-                  Today
-                </button>
-              </div>
+              {dayCount === 7 ? (
+                <div className="flex items-center gap-2">
+                  <button onClick={prevWeek} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">←</button>
+                  <span className="text-base font-semibold min-w-[220px] text-center">
+                    Week of {weekLabel}
+                  </span>
+                  <button onClick={nextWeek} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">→</button>
+                  <button onClick={goToToday} className="px-3 py-1.5 rounded bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200">
+                    Today
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button onClick={prevDay} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">←</button>
+                  <span className="text-base font-semibold min-w-[130px] text-center">
+                    {focusedDayLabel}
+                  </span>
+                  <button onClick={nextDay} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">→</button>
+                  <button onClick={goToTodayDay} className="px-3 py-1.5 rounded bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200">
+                    Today
+                  </button>
+                </div>
+              )}
               <div className="flex gap-2">
-                <button
-                  onClick={() => setLessonView('by-instructor')}
-                  className={`px-3 py-1.5 rounded font-medium text-sm transition-colors ${lessonView === 'by-instructor' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-                >
-                  By instructor
-                </button>
-                <button
-                  onClick={() => setLessonView('by-client')}
-                  className={`px-3 py-1.5 rounded font-medium text-sm transition-colors ${lessonView === 'by-client' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-                >
-                  By client
-                </button>
+                {([[1, '1'], [3, '3'], [7, 'Week']] as const).map(([n, label]) => (
+                  <button
+                    key={n}
+                    onClick={() => setDayCount(n)}
+                    className={`px-3 py-1.5 rounded font-medium text-sm transition-colors ${dayCount === n ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -920,7 +920,6 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
               lessons={lessons}
               dayActivities={dayActivities}
               bookings={bookings}
-              lessonView={lessonView}
               instructors={instructors}
               clients={clients}
               equipment={equipment}

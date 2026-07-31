@@ -88,7 +88,6 @@ interface LessonWeekViewProps {
   lessons: Lesson[]
   dayActivities: DayActivity[]
   bookings: Booking[]
-  lessonView: 'by-instructor' | 'by-client'
   instructors: Instructor[]
   clients: Client[]
   bookingParticipants: BookingParticipant[]
@@ -108,7 +107,7 @@ interface LessonWeekViewProps {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function LessonWeekView({
-  days, lessons, dayActivities, lessonView,
+  days, lessons, dayActivities,
   bookings, instructors, clients, bookingParticipants, equipment, rentals, priceItems,
   onAddLesson, onUpdateLesson, onDeleteLesson,
   onAddActivity, onDeleteActivity,
@@ -403,18 +402,22 @@ export default function LessonWeekView({
         </div>
       )}
 
-      {/* Day cards: 7 on desktop (week), 3 on mobile (yesterday/today/tomorrow, snap-centered) */}
-      <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory md:snap-none">
+      {/* Day cards: layout depends on how many days are shown (1 / 3 / Week button) */}
+      <div className={`flex gap-3 overflow-x-auto pb-3 ${days.length === 3 ? 'snap-x snap-mandatory' : ''}`}>
         {days.map((day) => {
           const iso = dateToISO(day)
           const isToday = iso === today
           const isWeekend = day.getDay() === 0 || day.getDay() === 6
+          const cardWidthClass =
+            days.length === 1 ? 'w-full' :
+            days.length === 3 ? 'w-[85vw] sm:w-80 shrink-0 snap-center' :
+            'min-w-[200px] flex-1'
 
           return (
             <div
               key={iso}
               ref={el => { dayCardRefs.current[iso] = el }}
-              className={`w-[88vw] shrink-0 snap-center md:w-auto md:min-w-[200px] md:flex-1 md:snap-align-none rounded-lg shadow-sm border flex flex-col ${
+              className={`${cardWidthClass} rounded-lg shadow-sm border flex flex-col ${
                 isToday ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200'
               } bg-white`}
             >
@@ -503,23 +506,11 @@ export default function LessonWeekView({
                                 <span className={`px-1 rounded text-xs font-medium ${tc.badge}`}>{tc.label}</span>
                               </div>
                             </div>
-                            {lessonView === 'by-instructor' ? (
-                              <>
-                                <div className="font-semibold truncate">
-                                  {firstClient?.first_name} {firstClient?.last_name}
-                                  {lessonClients.length > 1 && <span className="ml-1 text-[10px] font-normal opacity-70">+{lessonClients.length - 1}</span>}
-                                </div>
-                                <div className="opacity-60 truncate">↳ {instructor?.first_name} {instructor?.last_name}</div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="font-semibold truncate">{instructor?.first_name} {instructor?.last_name}</div>
-                                <div className="opacity-60 truncate">
-                                  ↳ {firstClient?.first_name} {firstClient?.last_name}
-                                  {lessonClients.length > 1 && ` +${lessonClients.length - 1}`}
-                                </div>
-                              </>
-                            )}
+                            <div className="font-semibold truncate">
+                              {firstClient?.first_name} {firstClient?.last_name}
+                              {lessonClients.length > 1 && <span className="ml-1 text-[10px] font-normal opacity-70">+{lessonClients.length - 1}</span>}
+                            </div>
+                            <div className="opacity-60 truncate">↳ {instructor?.first_name} {instructor?.last_name}</div>
                           </div>
                         )
                       })}
