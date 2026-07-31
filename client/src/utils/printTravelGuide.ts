@@ -2,7 +2,7 @@ import type { Booking } from '../types/database'
 import type { TravelGuideSection } from '../data/travelGuide'
 import type { Lang } from './printBookingSummary'
 
-const LOGO_URL = `${window.location.origin}/docs/logo-mas.png`
+const LOGO_URL = `${window.location.origin}/docs/LOGO-bkc.png`
 const BLUE     = '#4472C4'
 const TEAL     = '#0f766e'
 
