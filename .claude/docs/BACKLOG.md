@@ -19,8 +19,8 @@
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
 | ~~`2026-07-29_lesson_pricing.sql`~~ | `price_items.lesson_type` + `lessons.price_per_hour` + REVOKE anon sur `instructors.rate_*` et `lesson_rate_overrides` | ✅ 2026-07-29 | ✅ 2026-07-30 |
-| `2026-07-30a_price_category_values.sql` | **À passer SEUL et EN PREMIER** : ajoute les catégories `meal` et `center_access` | ✅ 2026-07-30 | ⬜ **à faire** |
-| `2026-07-30b_billable_types.sql` | `price_items.billable_type` (fusionne et remplace `lesson_type`), semis des 10 postes aux montants jusque-là codés en dur, suppression des lignes `taxi` fantômes, **snapshot de la paie moniteur** (`lessons.instructor_rate`), et **C3** : `room_rates` lisible par un lien client, limité à SES chambres | ✅ 2026-07-30 | ⬜ **à faire** |
+| ~~`2026-07-30a_price_category_values.sql`~~ | **À passer SEUL et EN PREMIER** : ajoute les catégories `meal` et `center_access` | ✅ 2026-07-30 | ✅ 2026-07-31 |
+| ~~`2026-07-30b_billable_types.sql`~~ | `price_items.billable_type` (fusionne et remplace `lesson_type`), semis des 10 postes aux montants jusque-là codés en dur, suppression des lignes `taxi` fantômes, **snapshot de la paie moniteur** (`lessons.instructor_rate`), et **C3** : `room_rates` lisible par un lien client, limité à SES chambres | ✅ 2026-07-30 | ✅ 2026-07-31 |
 | ~~`2026-07-30c_room_rates_revoke.sql`~~ | Correctif du REVOKE manquant sur `room_rates` (2 lignes). **Inutile en PROD** : déjà intégré dans (b), qui n'y est pas encore passé | ✅ 2026-07-31 | — (inclus dans b) |
 
 > ⚠️ **Deux fichiers, pas un — et dans cet ordre.** PostgreSQL refuse d'utiliser une
@@ -75,6 +75,26 @@ Lot C (REVOKE puis GRANT colonnes), appliqué à 4 tables en juillet et oublié 
 et `select=*` avec un token client → **42501** (c'était `[]`) ; `select=room_id,
 price_per_night` → **la seule chambre du booking** ; sans token et token taxi → `[]`.
 Colonnes et lignes tiennent désormais ensemble. **C3 est bon sur TEST.**
+
+### ✅ PROD appliquée et vérifiée le 2026-07-31 — registre vide
+
+**Structure, par curl anon** : `price_items.billable_type` présent (`[]`) tandis que
+`lesson_type` et `rental_type` répondent **42703 « column does not exist »** — la fusion a
+bien eu lieu, pas seulement l'ajout ; `lessons.instructor_rate` et `price_per_hour`
+présents ; `room_rates` → **42501** sur `notes` et sur `*` (le REVOKE inclus dans (b) a
+mordu) et `[]` sur les colonnes autorisées sans token. Contrôle négatif habituel :
+`select=nonexistent_col` → 42703, donc les `[]` prouvent bien l'existence des colonnes.
+
+**Données, en ouvrant l'app locale sur PROD en lecture seule** (puis rebasculée sur TEST) :
+les 10 postes sont là et **aucune ligne rouge**. Les 3 leçons ont gardé **leurs** prix
+(60 / 36 / 40), les 5 locations les leurs (40 / 20 / 55 / 25 / 35), repas 0 €, accès centre
+5 €. Les lignes `taxi` fantômes ont disparu (le panneau Taxi Pricing Defaults, lui, est
+intact : 120 € / 6 000 MZN / 1 000 MZN / 70). Activités : catalogue libre, sans badge.
+**Rien n'a été modifié en PROD.**
+
+⬜ **Non vérifié en PROD, à contrôler par gui** : Options → Accommodations. Sur TEST les 3
+maisons n'ont aucun tarif ; si c'est pareil en PROD, une résa maison entière démarrera à
+**0 €** (avant, elle prenait 100 € en dur — un montant que personne n'avait choisi).
 
 **TEST : appliquée et vérifiée le 2026-07-29** — les 4 contrôles verts (tarifs rattachés,
 zéro orpheline, colonne snapshot présente, `rate_private` en anon → 42501 et
