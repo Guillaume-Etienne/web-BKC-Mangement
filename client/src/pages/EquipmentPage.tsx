@@ -2,12 +2,26 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useEquipment, useEquipmentRentals } from '../hooks/useEquipment'
 import { useLessons } from '../hooks/useLessons'
-import type { Equipment, EquipmentRental, EquipmentCategory, EquipmentCondition, Lesson, RentalSlot } from '../types/database'
+import { useInstructors } from '../hooks/useInstructors'
+import { useTable } from '../hooks/useSupabase'
+import { getLessonClientRate, getInstructorRate } from '../components/accounting/utils'
+import type {
+  Equipment, EquipmentRental, EquipmentCategory, EquipmentCondition, Lesson, RentalSlot,
+  Instructor, PriceItem, LessonRateOverride,
+} from '../types/database'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // No duration is recorded on a rental (just a slot) — hours are an estimate.
 const RENTAL_SLOT_HOURS: Record<RentalSlot, number> = { morning: 3, afternoon: 3, full_day: 6 }
+
+// A lesson doesn't bill gear separately, so its "equipment value" is a share of
+// what's left once the instructor is paid — split kite / board / everything else
+// we don't track a fiche for (bar, helmet, harness, vest, radio). Confirmed with
+// gui: kite:board follows the existing rental catalogue ratio (40 € vs 20 €).
+const EQUIPMENT_SHARE   = 0.35  // of the lesson's margin (client price − instructor pay)
+const OTHER_GEAR_SHARE  = 0.30  // of that share, reserved for untracked accessories
+const KITE_BOARD_RATIO  = 2     // kite weighs ~2× a board in the split
 
 function lessonsFor(eq: Equipment, lessons: Lesson[]): Lesson[] {
   const field = eq.category === 'kite' ? 'kite_id' : 'board_id'
@@ -22,6 +36,36 @@ function getUseHours(eq: Equipment, rentals: EquipmentRental[], lessons: Lesson[
   const rentalHours = rentals.filter(r => r.equipment_id === eq.id).reduce((sum, r) => sum + RENTAL_SLOT_HOURS[r.slot], 0)
   const lessonHours = lessonsFor(eq, lessons).reduce((sum, l) => sum + l.duration_hours, 0)
   return rentalHours + lessonHours
+}
+
+/** €/h attributed to the kite and to the board (or surf/foilboard — same slot as
+ *  board in the lesson form) for one lesson, from its real client price and real
+ *  instructor pay. */
+function lessonEquipmentRates(
+  lesson: Lesson, instructors: Instructor[], priceItems: PriceItem[], overrides: LessonRateOverride[]
+): { kite: number; board: number } {
+  const instructor = instructors.find(i => i.id === lesson.instructor_id)
+  if (!instructor) return { kite: 0, board: 0 }
+  const margin = Math.max(0, getLessonClientRate(lesson, priceItems) - getInstructorRate(lesson, instructor, overrides))
+  const kiteBoardPool = margin * EQUIPMENT_SHARE * (1 - OTHER_GEAR_SHARE)
+  return {
+    kite:  kiteBoardPool * KITE_BOARD_RATIO / (KITE_BOARD_RATIO + 1),
+    board: kiteBoardPool / (KITE_BOARD_RATIO + 1),
+  }
+}
+
+/** Real rental revenue + estimated lesson-attributed value for one piece of gear. */
+function getEquipmentRevenue(
+  eq: Equipment, rentals: EquipmentRental[], lessons: Lesson[],
+  instructors: Instructor[], priceItems: PriceItem[], overrides: LessonRateOverride[]
+): { real: number; est: number; total: number; hours: number; perHour: number } {
+  const real = rentals.filter(r => r.equipment_id === eq.id).reduce((sum, r) => sum + r.price, 0)
+  const est = lessonsFor(eq, lessons).reduce((sum, l) => {
+    const rates = lessonEquipmentRates(l, instructors, priceItems, overrides)
+    return sum + (eq.category === 'kite' ? rates.kite : rates.board) * l.duration_hours
+  }, 0)
+  const hours = getUseHours(eq, rentals, lessons)
+  return { real, est, total: real + est, hours, perHour: hours > 0 ? (real + est) / hours : 0 }
 }
 
 function getRecentUsage(eq: Equipment, rentals: EquipmentRental[], lessons: Lesson[]): Array<{ date: string; type: 'rental' | 'lesson'; hours: number }> {
@@ -78,8 +122,11 @@ export default function EquipmentPage() {
   const { data: equipment, refresh: refreshEquipment } = useEquipment()
   const { data: rentals, refresh: refreshRentals } = useEquipmentRentals()
   const { data: lessons } = useLessons()
+  const { data: instructors } = useInstructors()
+  const { data: priceItems } = useTable<PriceItem>('price_items')
+  const { data: rateOverrides } = useTable<LessonRateOverride>('lesson_rate_overrides')
 
-  const [activeTab, setActiveTab]           = useState<'inventory' | 'rentals'>('inventory')
+  const [activeTab, setActiveTab]           = useState<'inventory' | 'rentals' | 'revenue'>('inventory')
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<EquipmentCategory | 'all'>('all')
   const [editModal, setEditModal]           = useState<EditModalState>({ open: false, equipment: null, formData: {} })
@@ -173,6 +220,30 @@ export default function EquipmentPage() {
   const afternoonRentals   = rentalItems.filter(r => r.slot === 'afternoon').length
   const fullDayRentals     = rentalItems.filter(r => r.slot === 'full_day').length
 
+  // ── Revenue tab ─────────────────────────────────────────────────────────────
+
+  const revenueRows = equipment
+    .filter(eq => eq.is_active)
+    .map(eq => ({ eq, ...getEquipmentRevenue(eq, rentals, lessons, instructors, priceItems, rateOverrides) }))
+    .sort((a, b) => b.total - a.total)
+
+  const revenueTotalReal  = revenueRows.reduce((sum, r) => sum + r.real, 0)
+  const revenueTotalEst   = revenueRows.reduce((sum, r) => sum + r.est, 0)
+  const revenueTotalHours = revenueRows.reduce((sum, r) => sum + r.hours, 0)
+  const revenueMaxTotal   = revenueRows.reduce((max, r) => Math.max(max, r.total), 1)
+
+  const revenueCategories: EquipmentCategory[] = ['kite', 'board', 'surfboard', 'foilboard']
+  const revenueByCategory = revenueCategories.map(cat => {
+    const rows = revenueRows.filter(r => r.eq.category === cat)
+    return {
+      cat,
+      count: rows.length,
+      sorties: rows.reduce((sum, r) => sum + getUseCount(r.eq, rentals, lessons), 0),
+      real: rows.reduce((sum, r) => sum + r.real, 0),
+      est: rows.reduce((sum, r) => sum + r.est, 0),
+    }
+  })
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -202,6 +273,16 @@ export default function EquipmentPage() {
           }`}
         >
           📋 Locations
+        </button>
+        <button
+          onClick={() => setActiveTab('revenue')}
+          className={`px-4 py-3 font-medium border-b-2 transition-colors ${
+            activeTab === 'revenue'
+              ? 'border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+          }`}
+        >
+          💰 CA
         </button>
       </div>
 
@@ -511,6 +592,94 @@ export default function EquipmentPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* ─── REVENUE TAB ───────────────────────────────────────────────────────── */}
+      {activeTab === 'revenue' && (
+        <div className="space-y-5">
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg p-4 text-sm text-blue-800 dark:text-blue-300">
+            <strong>CA réel</strong> = ce qui a vraiment été facturé en location.{' '}
+            <strong>Valeur estimée cours</strong> = une part de la marge du cours (prix client −
+            paie moniteur) attribuée au kite ou à la planche, le reste allant aux accessoires non
+            suivis (barre, casque, harnais, gilet, radio) et au centre. Une estimation, jamais un
+            encaissement réel.
+          </div>
+
+          {revenueRows.length === 0 ? (
+            <p className="text-sm text-gray-400 dark:text-gray-500 italic">Aucun équipement actif.</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">CA total généré (est.)</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{Math.round(revenueTotalReal + revenueTotalEst)}€</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{Math.round(revenueTotalReal)}€ réel · {Math.round(revenueTotalEst)}€ estimé cours</p>
+                </div>
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Heures d'usage cumulées</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{revenueTotalHours}h</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">sur {revenueRows.length} pièce{revenueRows.length > 1 ? 's' : ''} active{revenueRows.length > 1 ? 's' : ''}</p>
+                </div>
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">€ / h moyen</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                    {revenueTotalHours > 0 ? ((revenueTotalReal + revenueTotalEst) / revenueTotalHours).toFixed(1) : '0'}€
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">meilleur : {revenueRows[0].eq.name} à {Math.round(revenueRows[0].total)}€</p>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-5">
+                <div className="flex items-center gap-5 mb-4 text-xs text-gray-600 dark:text-gray-400">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-blue-600 dark:bg-blue-500 inline-block" />CA réel (locations)</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 dark:bg-orange-500 inline-block" />Valeur estimée (cours)</span>
+                </div>
+                <div className="space-y-2.5">
+                  {revenueRows.map(r => {
+                    const realPct = revenueMaxTotal > 0 ? r.real / revenueMaxTotal * 100 : 0
+                    const estPct  = revenueMaxTotal > 0 ? r.est / revenueMaxTotal * 100 : 0
+                    return (
+                      <div key={r.eq.id} className="grid grid-cols-[1fr_2fr_auto] sm:grid-cols-[160px_1fr_90px] items-center gap-3">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {r.eq.name}
+                          <span className="block text-xs font-normal text-gray-400 dark:text-gray-500">{getCategoryLabel(r.eq.category)}</span>
+                        </div>
+                        <div
+                          className="relative h-5 bg-gray-100 dark:bg-gray-800 rounded overflow-hidden"
+                          title={`${r.eq.name} — ${Math.round(r.total)}€ (${Math.round(r.real)}€ réel · ${Math.round(r.est)}€ estimé · ${r.hours}h)`}
+                        >
+                          <div className="absolute inset-y-0 left-0 bg-blue-600 dark:bg-blue-500 rounded-l" style={{ width: `${realPct}%` }} />
+                          <div className="absolute inset-y-0 bg-orange-500 dark:bg-orange-500 rounded-r" style={{ left: `${realPct}%`, width: `${estPct}%` }} />
+                        </div>
+                        <div className="text-sm font-bold text-gray-900 dark:text-gray-100 text-right">{Math.round(r.total)}€</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                {revenueByCategory.filter(c => c.count > 0).map(c => (
+                  <div key={c.cat} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
+                    <div className="text-lg">{{ kite: '🪁', board: '🏄', surfboard: '🌊', foilboard: '🦈' }[c.cat]}</div>
+                    <div className="font-bold text-sm text-gray-900 dark:text-gray-100 mt-1">{getCategoryLabel(c.cat)}</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500 mb-2">{c.count} pièce{c.count > 1 ? 's' : ''} active{c.count > 1 ? 's' : ''} · {c.sorties} sorties</div>
+                    <div className="text-xl font-extrabold text-gray-900 dark:text-gray-100">{Math.round(c.real + c.est)}€</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500 mb-2">CA total estimé</div>
+                    <div className="flex h-2 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 mb-2">
+                      <span className="bg-blue-600 dark:bg-blue-500" style={{ flexBasis: `${c.real + c.est > 0 ? c.real / (c.real + c.est) * 100 : 50}%`, flexGrow: 0 }} />
+                      <span className="bg-orange-500" style={{ flexBasis: `${c.real + c.est > 0 ? c.est / (c.real + c.est) * 100 : 50}%`, flexGrow: 0 }} />
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                      <span>Réel <b className="text-gray-900 dark:text-gray-100">{Math.round(c.real)}€</b></span>
+                      <span>Cours <b className="text-gray-900 dark:text-gray-100">{Math.round(c.est)}€</b></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
