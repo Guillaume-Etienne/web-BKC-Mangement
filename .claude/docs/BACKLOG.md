@@ -153,16 +153,21 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
 1. ✅ **Faire atterrir la tarification des leçons** — migrations TEST (29/07) et **PROD
    (30/07)** passées et vérifiées par curl anon, code poussé et déployé.
 
-### ⬜ RÉGLAGES QUI ATTENDENT gui (données, pas code)
+### ✅ RÉGLAGES DE DONNÉES — faits en PROD le 2026-07-31
 
-- **Options → Instructors** : paie de gui et de sa compagne à **0**, vérifier Rémi et Tere
-  (encore aux défauts 50/35/25 — seul Pierrot est renseigné).
-- **Options → Pricing → Meals** : le prix du dîner est à **0 €** (c'est ce que faisait le
-  code avant, donc rien n'a changé) — mettre le vrai prix, les nouveaux repas s'ouvriront
-  dessus.
-- **Options → Accommodations** : **aucune des 3 maisons n'a de tarif** (`F: — B: — Full: —`).
-  Avant, une maison entière sans tarif partait à 100 € en dur ; désormais elle part à **0 €**
-  bien visible. À renseigner avant l'ouverture, sinon les résas maison démarrent à 0.
+- **Tarifs des chambres** : H2 et H3 n'avaient **que** leur prix maison entière ; F et B y
+  sont ajoutés à **70 / 50** (les tarifs donnés par gui, identiques à ceux que H1 portait
+  déjà). ⚠️ **Les prix maison entière n'ont PAS été touchés** : gui a dit « 100 € », mais
+  PROD porte **150 / 140 / 160**, un prix distinct par maison — c'était très probablement le
+  100 de l'ancienne constante en dur, répété de mémoire. **En attente de sa confirmation.**
+- **Prix du dîner** : **12 €** (Options → Pricing → Meals). Variable dans les faits, c'est le
+  montant d'ouverture d'un nouveau repas, éditable repas par repas.
+- **Paie des moniteurs** : rien à faire, **déjà correct** — Tere **0/0/0** (compagne de gui),
+  Gui **0/0/0**, Pierrot 18/20/8, Rémi 18/20/5. La note « encore aux défauts 50/35/25 »
+  était périmée.
+- ⬜ **Reste ouvert** : le bungalow **B1 n'a pas de prix de vente** (`—`, coût 45 €/n) et
+  **San Martinho** (catégorie « other ») non plus. À confirmer avec gui — un séjour y sera
+  facturé 0 tant que rien n'est saisi.
 2. ✅ **Extraire les agrégats** dashboard + CashFlow en fonctions pures et les tester.
    Vérifié iso-comportement sur TEST (4 413 € / +891 €). Détail : `TEST_SUITE_ACCOUNTING.md`.
 3. 🔶 **Trancher les décisions métier** (`TEST_SUITE_ACCOUNTING.md`, section « Comportements
