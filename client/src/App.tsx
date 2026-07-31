@@ -1,32 +1,51 @@
 import './index.css'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import Navigation from './components/layout/Navigation'
+import ChunkBoundary from './components/layout/ChunkBoundary'
 import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
 import { computePendingActions } from './components/pending/pendingActions'
 import type { PendingAction } from './components/pending/pendingActions'
 import type { Booking, Payment } from './types/database'
-import PlanningView from './components/planning/PlanningView'
-import BookingsPage from './pages/BookingsPage'
-import ClientsPage from './pages/ClientsPage'
-import ManagementPage from './pages/ManagementPage'
-import TaxiPage from './pages/TaxiPage'
-import EquipmentPage from './pages/EquipmentPage'
-import DocumentsPage from './pages/DocumentsPage'
-import AccountingPage from './pages/AccountingPage'
-import ForecastSharePage from './pages/ForecastSharePage'
-import TaxiSharePage from './pages/TaxiSharePage'
-import ClientSharePage from './pages/ClientSharePage'
-import DriverSharePage from './pages/DriverSharePage'
-import TaxiManagerSharePage from './pages/TaxiManagerSharePage'
-import ActivityProviderSharePage from './pages/ActivityProviderSharePage'
-import BookingFormPage from './pages/BookingFormPage'
-import RestaurantSharePage from './pages/RestaurantSharePage'
-import SubmissionsPage from './pages/SubmissionsPage'
-import ActivitiesPage from './pages/ActivitiesPage'
+
+// Everything past the first screen is fetched when it is actually opened.
+// Before this, one bundle held the whole app: a guest opening a taxi or client
+// share link downloaded the booking wizard, the accounting screens and the
+// management tabs to read a single page — on a phone, on the beach. And the
+// admin downloaded all eight share pages they will never open. Login, Home and
+// the navigation stay eager: they are the first paint, so splitting them would
+// only add a flash.
+const PlanningView              = lazy(() => import('./components/planning/PlanningView'))
+const BookingsPage              = lazy(() => import('./pages/BookingsPage'))
+const ClientsPage               = lazy(() => import('./pages/ClientsPage'))
+const ManagementPage            = lazy(() => import('./pages/ManagementPage'))
+const TaxiPage                  = lazy(() => import('./pages/TaxiPage'))
+const EquipmentPage             = lazy(() => import('./pages/EquipmentPage'))
+const DocumentsPage             = lazy(() => import('./pages/DocumentsPage'))
+const AccountingPage            = lazy(() => import('./pages/AccountingPage'))
+const ActivitiesPage            = lazy(() => import('./pages/ActivitiesPage'))
+const SubmissionsPage           = lazy(() => import('./pages/SubmissionsPage'))
+const ForecastSharePage         = lazy(() => import('./pages/ForecastSharePage'))
+const TaxiSharePage             = lazy(() => import('./pages/TaxiSharePage'))
+const ClientSharePage           = lazy(() => import('./pages/ClientSharePage'))
+const DriverSharePage           = lazy(() => import('./pages/DriverSharePage'))
+const TaxiManagerSharePage      = lazy(() => import('./pages/TaxiManagerSharePage'))
+const ActivityProviderSharePage = lazy(() => import('./pages/ActivityProviderSharePage'))
+const BookingFormPage           = lazy(() => import('./pages/BookingFormPage'))
+const RestaurantSharePage       = lazy(() => import('./pages/RestaurantSharePage'))
 import type { SharedLink } from './types/database'
+
+/** Shown while a page's chunk is on its way. Same look as the session check,
+ *  so a slow connection reads as "still loading" rather than "broken". */
+function PageLoading() {
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+      <div className="text-gray-400 dark:text-gray-400 text-lg">Loading…</div>
+    </div>
+  )
+}
 
 type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions'
 
@@ -95,14 +114,22 @@ function App() {
 
   // Public share pages — no auth required
   if (sharedLink) {
-    if (sharedLink.type === 'forecast') return <ForecastSharePage />
-    if (sharedLink.type === 'taxi')     return <TaxiSharePage />
-    if (sharedLink.type === 'client')   return <ClientSharePage bookingNumber={parseInt(sharedLink.params?.booking_number ?? '0')} />
-    if (sharedLink.type === 'driver')            return <DriverSharePage driverId={sharedLink.params?.driver_id ?? ''} />
-    if (sharedLink.type === 'taxi_manager')      return <TaxiManagerSharePage />
-    if (sharedLink.type === 'activity_provider') return <ActivityProviderSharePage providerId={sharedLink.params?.provider_id ?? ''} />
-    if (sharedLink.type === 'booking_form')      return <BookingFormPage />
-    if (sharedLink.type === 'restaurant')        return <RestaurantSharePage />
+    const sharePage =
+      sharedLink.type === 'forecast'          ? <ForecastSharePage /> :
+      sharedLink.type === 'taxi'              ? <TaxiSharePage /> :
+      sharedLink.type === 'client'            ? <ClientSharePage bookingNumber={parseInt(sharedLink.params?.booking_number ?? '0')} /> :
+      sharedLink.type === 'driver'            ? <DriverSharePage driverId={sharedLink.params?.driver_id ?? ''} /> :
+      sharedLink.type === 'taxi_manager'      ? <TaxiManagerSharePage /> :
+      sharedLink.type === 'activity_provider' ? <ActivityProviderSharePage providerId={sharedLink.params?.provider_id ?? ''} /> :
+      sharedLink.type === 'booking_form'      ? <BookingFormPage /> :
+      sharedLink.type === 'restaurant'        ? <RestaurantSharePage /> :
+      null
+    // An unknown type falls through to the normal app, exactly as before.
+    if (sharePage) return (
+      <ChunkBoundary>
+        <Suspense fallback={<PageLoading />}>{sharePage}</Suspense>
+      </ChunkBoundary>
+    )
   }
 
   // Loading session
@@ -124,17 +151,21 @@ function App() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={pendingActions.filter(a => a.priority === 'urgent').length} submissionsCount={pendingActions.filter(a => a.id === 'pending-submissions').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
       <main className="w-full">
-        {currentPage === 'home'       && <HomePage onNavigate={setCurrentPage} pendingActions={pendingActions} />}
-        {currentPage === 'planning'   && <PlanningView onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
-        {currentPage === 'bookings'   && <BookingsPage initialEditBookingId={pendingEditBookingId} onEditOpened={() => setPendingEditBookingId(null)} />}
-        {currentPage === 'clients'    && <ClientsPage onNavigate={setCurrentPage} />}
-        {currentPage === 'management' && <ManagementPage />}
-        {currentPage === 'equipment'  && <EquipmentPage />}
-        {currentPage === 'taxis'      && <TaxiPage />}
-        {currentPage === 'documents'  && <DocumentsPage />}
-        {currentPage === 'accounting' && <AccountingPage onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
-        {currentPage === 'activities' && <ActivitiesPage />}
-        {currentPage === 'submissions' && <SubmissionsPage />}
+        <ChunkBoundary>
+          <Suspense fallback={<PageLoading />}>
+            {currentPage === 'home'       && <HomePage onNavigate={setCurrentPage} pendingActions={pendingActions} />}
+            {currentPage === 'planning'   && <PlanningView onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
+            {currentPage === 'bookings'   && <BookingsPage initialEditBookingId={pendingEditBookingId} onEditOpened={() => setPendingEditBookingId(null)} />}
+            {currentPage === 'clients'    && <ClientsPage onNavigate={setCurrentPage} />}
+            {currentPage === 'management' && <ManagementPage />}
+            {currentPage === 'equipment'  && <EquipmentPage />}
+            {currentPage === 'taxis'      && <TaxiPage />}
+            {currentPage === 'documents'  && <DocumentsPage />}
+            {currentPage === 'accounting' && <AccountingPage onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
+            {currentPage === 'activities' && <ActivitiesPage />}
+            {currentPage === 'submissions' && <SubmissionsPage />}
+          </Suspense>
+        </ChunkBoundary>
       </main>
     </div>
   )
