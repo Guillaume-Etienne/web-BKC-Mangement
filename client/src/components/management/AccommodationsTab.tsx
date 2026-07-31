@@ -39,22 +39,22 @@ function AccForm({ initial, title, lockType, onSave, onClose }: AccFormProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-sm">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-sm">
         <div className="flex justify-between items-center p-4 border-b">
-          <h3 className="font-bold text-gray-800">{title}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-xl font-bold">✕</button>
+          <h3 className="font-bold text-gray-800 dark:text-gray-200">{title}</h3>
+          <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-xl font-bold">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {/* Type selector */}
           {!lockType && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type *</label>
               <div className="flex gap-2">
                 {(['house', 'bungalow', 'other'] as const).map(t => (
                   <button key={t} type="button"
                     onClick={() => setType(t)}
                     className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
-                      type === t ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                      type === t ? 'border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-400' : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
                     }`}>
                     {TYPE_META[t].icon} {TYPE_META[t].label}
                   </button>
@@ -63,7 +63,7 @@ function AccForm({ initial, title, lockType, onSave, onClose }: AccFormProps) {
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
             <input type="text" value={name} required
               onChange={e => setName(e.target.value)}
               placeholder={type === 'house' ? 'e.g. H-11' : type === 'bungalow' ? 'e.g. B-1' : 'e.g. Apt Maputo'}
@@ -71,20 +71,20 @@ function AccForm({ initial, title, lockType, onSave, onClose }: AccFormProps) {
           </div>
           {type === 'bungalow' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cost per night (€) — what we pay</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cost per night (€) — what we pay</label>
               <input type="number" min="0" step="0.5" value={cost}
                 onChange={e => setCost(e.target.value)}
                 placeholder="e.g. 25"
                 className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           )}
-          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
             <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="rounded" />
             Active (available for bookings)
           </label>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium text-sm">Cancel</button>
+              className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm">Cancel</button>
             <button type="submit" disabled={saving}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm disabled:opacity-60">
               {saving ? 'Saving…' : 'Save'}
@@ -126,17 +126,17 @@ function RentalForm({ accommodationId, onAdd }: RentalFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-3">
-      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Add rental period</p>
+    <form onSubmit={handleSubmit} className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg p-3 space-y-3">
+      <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Add rental period</p>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Start date</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Start date</label>
           <input type="date" value={startDate} required
             onChange={e => setStartDate(e.target.value)}
             className="w-full text-sm border rounded px-2 py-1.5" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">End date</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">End date</label>
           <input type="date" value={endDate} required
             onChange={e => setEndDate(e.target.value)}
             className="w-full text-sm border rounded px-2 py-1.5" />
@@ -144,13 +144,13 @@ function RentalForm({ accommodationId, onAdd }: RentalFormProps) {
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Total cost (€)</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Total cost (€)</label>
           <input type="number" min="0" value={cost} required placeholder="e.g. 2000"
             onChange={e => setCost(e.target.value)}
             className="w-full text-sm border rounded px-2 py-1.5" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
           <input type="text" value={notes} placeholder="Optional"
             onChange={e => setNotes(e.target.value)}
             className="w-full text-sm border rounded px-2 py-1.5" />
@@ -238,19 +238,19 @@ function RatesForm({ accommodation, rooms, rates, onSaved }: RatesFormProps) {
       {isHouse ? (
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">F — Sea view (€/night)</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">F — Sea view (€/night)</label>
             <input type="number" min="0" step="0.5" value={priceF} placeholder="—"
               onChange={e => setPriceF(e.target.value)}
               className="w-full text-sm border rounded px-2 py-1.5" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">B — Back room (€/night)</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">B — Back room (€/night)</label>
             <input type="number" min="0" step="0.5" value={priceB} placeholder="—"
               onChange={e => setPriceB(e.target.value)}
               className="w-full text-sm border rounded px-2 py-1.5" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Full house (€/night)</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Full house (€/night)</label>
             <input type="number" min="0" step="0.5" value={priceFull} placeholder="—"
               onChange={e => setPriceFull(e.target.value)}
               className="w-full text-sm border rounded px-2 py-1.5" />
@@ -260,7 +260,7 @@ function RatesForm({ accommodation, rooms, rates, onSaved }: RatesFormProps) {
         <div className={`grid gap-3 ${rooms.length === 1 ? 'grid-cols-1 max-w-xs' : 'grid-cols-2'}`}>
           {rooms.map(r => (
             <div key={r.id}>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                 {r.name} — Sell price (€/night)
               </label>
               <input type="number" min="0" step="0.5" value={roomPrices[r.id] ?? ''} placeholder="—"
@@ -395,7 +395,7 @@ export default function AccommodationsTab() {
       {/* ── Left: accommodation list ─────────────────────────────────────── */}
       <div className="xl:col-span-1">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">Accommodations</h2>
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Accommodations</h2>
           <button onClick={() => setShowForm(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm">
             + New
@@ -403,7 +403,7 @@ export default function AccommodationsTab() {
         </div>
 
         {accommodations.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 border-2 border-dashed border-gray-200 rounded-lg">
+          <div className="text-center py-12 text-gray-400 dark:text-gray-500 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
             <p className="text-4xl mb-2">🏠</p>
             <p className="text-sm">No accommodations yet</p>
           </div>
@@ -411,11 +411,11 @@ export default function AccommodationsTab() {
           <div className="space-y-5">
             {grouped.map(({ type, items }) => (
               <div key={type}>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
                   {TYPE_META[type].icon} {TYPE_META[type].plural} ({items.length})
                 </p>
                 {items.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic ml-1">None</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 italic ml-1">None</p>
                 ) : (
                   <div className="space-y-2">
                     {items.map(acc => {
@@ -424,11 +424,11 @@ export default function AccommodationsTab() {
                       return (
                         <div key={acc.id}
                           onClick={() => setSelected(isSelected ? null : acc)}
-                          className={`bg-white rounded-lg border-2 p-3 cursor-pointer transition-all ${isSelected ? 'border-blue-500 shadow-md' : 'border-gray-200 hover:border-gray-300'}`}>
+                          className={`bg-white dark:bg-gray-900 rounded-lg border-2 p-3 cursor-pointer transition-all ${isSelected ? 'border-blue-500 dark:border-blue-600 shadow-md' : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'}`}>
                           <div className="flex items-start justify-between">
                             <div>
-                              <p className="font-bold text-gray-800 text-sm">{TYPE_META[acc.type].icon} {acc.name}</p>
-                              <div className="mt-1 flex gap-3 text-xs text-gray-500">
+                              <p className="font-bold text-gray-800 dark:text-gray-200 text-sm">{TYPE_META[acc.type].icon} {acc.name}</p>
+                              <div className="mt-1 flex gap-3 text-xs text-gray-500 dark:text-gray-400">
                                 {acc.type === 'house' ? (
                                   <>
                                     <span>F: {getRateLabel(rms.find(r => r.name === 'F')?.id ?? '')}</span>
@@ -439,26 +439,26 @@ export default function AccommodationsTab() {
                                   <>
                                     {rms.map(r => <span key={r.id}>{getRateLabel(r.id)}</span>)}
                                     {acc.cost_per_night != null && (
-                                      <span className="text-amber-600">cost: {acc.cost_per_night}€/n</span>
+                                      <span className="text-amber-600 dark:text-amber-400">cost: {acc.cost_per_night}€/n</span>
                                     )}
                                   </>
                                 )}
                               </div>
                               {acc.type === 'house' && (
-                                <div className="mt-0.5 text-xs text-gray-400">
+                                <div className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
                                   {accRentals(acc.id).length} rental period(s)
                                 </div>
                               )}
                             </div>
                             <div className="flex flex-col items-end gap-1">
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${acc.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${acc.is_active ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
                                 {acc.is_active ? 'Active' : 'Inactive'}
                               </span>
                               <div className="flex gap-1 mt-1" onClick={e => e.stopPropagation()}>
                                 <button onClick={() => setEditing(acc)}
-                                  className="p-1 text-blue-600 hover:bg-blue-50 rounded text-sm">✏️</button>
+                                  className="p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded text-sm">✏️</button>
                                 <button onClick={() => handleDelete(acc)}
-                                  className="p-1 text-red-600 hover:bg-red-50 rounded text-sm">🗑️</button>
+                                  className="p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded text-sm">🗑️</button>
                               </div>
                             </div>
                           </div>
@@ -476,7 +476,7 @@ export default function AccommodationsTab() {
       {/* ── Right: detail panel ──────────────────────────────────────────── */}
       <div className="xl:col-span-2">
         {!selected ? (
-          <div className="flex items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-200 rounded-lg">
+          <div className="flex items-center justify-center h-64 text-gray-400 dark:text-gray-500 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
             <p className="text-sm">Select an accommodation to view details</p>
           </div>
         ) : (
@@ -484,20 +484,20 @@ export default function AccommodationsTab() {
             {/* Header */}
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-bold text-gray-800">{TYPE_META[selected.type].icon} {selected.name}</h3>
-                <p className="text-sm text-gray-500 mt-0.5">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{TYPE_META[selected.type].icon} {selected.name}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                   {TYPE_META[selected.type].label} — Rooms: {selRooms.map(r => r.name).join(', ') || 'none'}
                   {selected.cost_per_night != null && (
-                    <span className="ml-2 text-amber-600 font-medium">Cost: {selected.cost_per_night}€/night</span>
+                    <span className="ml-2 text-amber-600 dark:text-amber-400 font-medium">Cost: {selected.cost_per_night}€/night</span>
                   )}
                 </p>
               </div>
-              <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-700 text-xl">✕</button>
+              <button onClick={() => setSelected(null)} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl">✕</button>
             </div>
 
             {/* Rates */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h4 className="font-semibold text-gray-700 mb-3">
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+              <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 {selected.type === 'bungalow' ? 'Sell Rate' : 'Nightly Rates'}
               </h4>
               <RatesForm
@@ -510,24 +510,24 @@ export default function AccommodationsTab() {
 
             {/* Rental periods — houses only */}
             {selected.type === 'house' && (
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <h4 className="font-semibold text-gray-700 mb-3">Rental Periods</h4>
+              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+                <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Rental Periods</h4>
 
                 {accRentals(selected.id).length === 0 ? (
-                  <p className="text-sm text-gray-400 italic mb-3">No rental periods yet — house is unavailable for bookings.</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 italic mb-3">No rental periods yet — house is unavailable for bookings.</p>
                 ) : (
                   <div className="space-y-2 mb-4">
                     {accRentals(selected.id).map(rp => (
-                      <div key={rp.id} className="flex items-center justify-between bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-sm">
+                      <div key={rp.id} className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 rounded-lg px-3 py-2 text-sm">
                         <div>
-                          <span className="font-semibold text-gray-800">
+                          <span className="font-semibold text-gray-800 dark:text-gray-200">
                             {rp.start_date} → {rp.end_date}
                           </span>
-                          <span className="ml-3 font-bold text-blue-900">{rp.total_cost.toLocaleString()}€</span>
-                          {rp.notes && <span className="ml-2 text-gray-500 italic">{rp.notes}</span>}
+                          <span className="ml-3 font-bold text-blue-900 dark:text-blue-400">{rp.total_cost.toLocaleString()}€</span>
+                          {rp.notes && <span className="ml-2 text-gray-500 dark:text-gray-400 italic">{rp.notes}</span>}
                         </div>
                         <button onClick={() => handleDeleteRental(rp.id)}
-                          className="text-red-400 hover:text-red-600 ml-2 p-1 rounded hover:bg-red-50">🗑️</button>
+                          className="text-red-400 dark:text-red-300 hover:text-red-600 dark:hover:text-red-400 ml-2 p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/40">🗑️</button>
                       </div>
                     ))}
                   </div>

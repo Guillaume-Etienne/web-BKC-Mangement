@@ -57,12 +57,12 @@ function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Name *</label>
           <input required value={name} onChange={e => setName(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Type</label>
           <select value={type} onChange={e => setType(e.target.value as ActivityProviderType)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
             {(Object.entries(TYPE_LABELS) as [ActivityProviderType, string][]).map(([k, v]) => (
@@ -71,33 +71,33 @@ function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone</label>
           <input value={phone} onChange={e => setPhone(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div className="col-span-2">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Website</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Website</label>
           <input value={website} onChange={e => setWebsite(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div className="col-span-2">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
           <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
       </div>
       <div className="flex gap-6">
-        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
           <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)}
             className="w-4 h-4 rounded" />
           Active
         </label>
-        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
           <input type="checkbox" checked={showPrices} onChange={e => setShowPrices(e.target.checked)}
             className="w-4 h-4 rounded" />
           Show prices on public page
@@ -105,7 +105,7 @@ function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
       </div>
       <div className="flex gap-3 pt-2 border-t">
         <button type="button" onClick={onCancel}
-          className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium">Cancel</button>
+          className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium">Cancel</button>
         <button type="submit"
           className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Save</button>
       </div>
@@ -164,25 +164,25 @@ function BookingForm({ initial, providers, bookingRefs, allParticipants, onSave,
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Provider *</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Provider *</label>
           <select required value={providerId} onChange={e => setProviderId(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
             {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Date *</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date *</label>
           <input type="date" required value={date} onChange={e => setDate(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div className="col-span-2">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Label *</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Label *</label>
           <input required value={label} onChange={e => setLabel(e.target.value)}
             placeholder="e.g. Whale shark tour, Safari day 1…"
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div className="col-span-2">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Booking (optional)</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Booking (optional)</label>
           <select value={bookingId} onChange={e => { setBookingId(e.target.value); setParticipantIds([]) }}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
             <option value="">— No linked booking —</option>
@@ -197,13 +197,13 @@ function BookingForm({ initial, providers, bookingRefs, allParticipants, onSave,
         {/* Participant picker — shown when booking selected */}
         {bookingParticipants.length > 0 && (
           <div className="col-span-2">
-            <label className="block text-xs font-medium text-gray-600 mb-2">Participants (select or leave empty to use count)</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Participants (select or leave empty to use count)</label>
             <div className="flex flex-wrap gap-2">
               {bookingParticipants.map(p => (
                 <label key={p.id} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer text-sm transition-colors ${
                   participantIds.includes(p.id)
-                    ? 'bg-blue-100 border-blue-400 text-blue-800'
-                    : 'bg-gray-50 border-gray-200 text-gray-700'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-400 dark:border-blue-700 text-blue-800 dark:text-blue-400'
+                    : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300'
                 }`}>
                   <input type="checkbox" className="hidden"
                     checked={participantIds.includes(p.id)}
@@ -216,14 +216,14 @@ function BookingForm({ initial, providers, bookingRefs, allParticipants, onSave,
         )}
 
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
             {participantIds.length > 0 ? `Persons (${participantIds.length} selected)` : 'Persons'}
           </label>
           <input type="number" min="1" value={nbPersons} onChange={e => setNbPersons(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Payment flow</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment flow</label>
           <select value={paymentFlow} onChange={e => setPaymentFlow(e.target.value as ActivityPaymentFlow)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
             {(Object.entries(FLOW_LABELS) as [ActivityPaymentFlow, string][]).map(([k, v]) => (
@@ -232,24 +232,24 @@ function BookingForm({ initial, providers, bookingRefs, allParticipants, onSave,
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Client price (€)</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client price (€)</label>
           <input type="number" min="0" step="0.01" value={priceClient} onChange={e => setPriceClient(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Provider price (€)</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Provider price (€)</label>
           <input type="number" min="0" step="0.01" value={priceProvider} onChange={e => setPriceProvider(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div className="col-span-2">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
           <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
       </div>
       <div className="flex gap-3 pt-2 border-t">
         <button type="button" onClick={onCancel}
-          className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium">Cancel</button>
+          className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium">Cancel</button>
         <button type="submit"
           className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Save</button>
       </div>
@@ -277,21 +277,21 @@ function PaymentForm({ providerId, onSave, onCancel }: PaymentFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-      <h4 className="text-sm font-semibold text-gray-700">Add payment</h4>
+    <form onSubmit={handleSubmit} className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg p-4 space-y-3">
+      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Add payment</h4>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date</label>
           <input type="date" required value={date} onChange={e => setDate(e.target.value)}
             className="w-full text-sm border rounded px-2 py-1.5" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Amount (€)</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Amount (€)</label>
           <input type="number" min="0.01" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)}
             className="w-full text-sm border rounded px-2 py-1.5" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Direction</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Direction</label>
           <select value={direction} onChange={e => setDirection(e.target.value as ActivityPaymentDirection)}
             className="w-full text-sm border rounded px-2 py-1.5">
             <option value="to_provider">We paid them</option>
@@ -299,14 +299,14 @@ function PaymentForm({ providerId, onSave, onCancel }: PaymentFormProps) {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
           <input value={notes} onChange={e => setNotes(e.target.value)}
             className="w-full text-sm border rounded px-2 py-1.5" />
         </div>
       </div>
       <div className="flex gap-2">
         <button type="button" onClick={onCancel}
-          className="flex-1 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-sm hover:bg-gray-50">Cancel</button>
+          className="flex-1 px-3 py-1.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-800">Cancel</button>
         <button type="submit"
           className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">+ Add</button>
       </div>
@@ -335,7 +335,7 @@ function ShareLinkSection({ providerLink, onGenerate }: {
 
   if (!shareUrl) return (
     <div className="flex items-center gap-3">
-      <p className="text-sm text-gray-400 italic flex-1">No share link yet</p>
+      <p className="text-sm text-gray-400 dark:text-gray-500 italic flex-1">No share link yet</p>
       <button onClick={handleGenerate} disabled={generating}
         className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
         {generating ? 'Generating…' : 'Generate link'}
@@ -346,13 +346,13 @@ function ShareLinkSection({ providerLink, onGenerate }: {
   return (
     <div className="flex items-center gap-2">
       <input readOnly value={shareUrl} onClick={e => (e.target as HTMLInputElement).select()}
-        className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-mono truncate" />
+        className="flex-1 px-3 py-1.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-xs font-mono truncate" />
       <button onClick={handleCopy}
-        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${copied ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${copied ? 'bg-green-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}>
         {copied ? '✓ Copied' : 'Copy'}
       </button>
       <a href={shareUrl} target="_blank" rel="noopener noreferrer"
-        className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200">Open</a>
+        className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-800">Open</a>
     </div>
   )
 }
@@ -400,7 +400,7 @@ function ProviderPanel({
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
       {/* Header */}
       <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-6 py-4 flex items-start justify-between">
         <div>
@@ -410,7 +410,7 @@ function ProviderPanel({
               {TYPE_LABELS[provider.type]}
             </span>
           </div>
-          <p className="text-emerald-200 text-sm mt-0.5">
+          <p className="text-emerald-200 dark:text-emerald-300 text-sm mt-0.5">
             {[provider.phone, provider.email].filter(Boolean).join(' · ') || 'No contact info'}
           </p>
         </div>
@@ -425,10 +425,10 @@ function ProviderPanel({
       <div className="p-6 space-y-6">
 
         {/* Share link */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg px-4 py-3 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
             Provider share link
-            {!provider.show_prices && <span className="ml-2 text-amber-500">(prices hidden)</span>}
+            {!provider.show_prices && <span className="ml-2 text-amber-500 dark:text-amber-400">(prices hidden)</span>}
           </p>
           <ShareLinkSection providerLink={providerLink} onGenerate={onGenerateLink} />
         </div>
@@ -436,21 +436,21 @@ function ProviderPanel({
         {/* Financial KPIs */}
         <div className="grid grid-cols-2 gap-4">
           {wePayBookings.length > 0 && (
-            <div className={`rounded-lg border px-4 py-3 ${weOwe > 0 ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-200'}`}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">We owe them</p>
-              <p className={`text-2xl font-bold mt-1 ${weOwe > 0 ? 'text-orange-800' : 'text-green-700'}`}>
+            <div className={`rounded-lg border px-4 py-3 ${weOwe > 0 ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-900' : 'bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-900'}`}>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">We owe them</p>
+              <p className={`text-2xl font-bold mt-1 ${weOwe > 0 ? 'text-orange-800 dark:text-orange-400' : 'text-green-700 dark:text-green-400'}`}>
                 {weOwe > 0 ? weOwe.toFixed(2) : '✓ Settled'} {weOwe > 0 ? '€' : ''}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">{wePayBookings.length} booking{wePayBookings.length !== 1 ? 's' : ''}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{wePayBookings.length} booking{wePayBookings.length !== 1 ? 's' : ''}</p>
             </div>
           )}
           {theyPayBookings.length > 0 && (
-            <div className={`rounded-lg border px-4 py-3 ${theyOwe > 0 ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'}`}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">They owe us</p>
-              <p className={`text-2xl font-bold mt-1 ${theyOwe > 0 ? 'text-blue-800' : 'text-green-700'}`}>
+            <div className={`rounded-lg border px-4 py-3 ${theyOwe > 0 ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900' : 'bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-900'}`}>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">They owe us</p>
+              <p className={`text-2xl font-bold mt-1 ${theyOwe > 0 ? 'text-blue-800 dark:text-blue-400' : 'text-green-700 dark:text-green-400'}`}>
                 {theyOwe > 0 ? theyOwe.toFixed(2) : '✓ Settled'} {theyOwe > 0 ? '€' : ''}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">{theyPayBookings.length} booking{theyPayBookings.length !== 1 ? 's' : ''}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{theyPayBookings.length} booking{theyPayBookings.length !== 1 ? 's' : ''}</p>
             </div>
           )}
         </div>
@@ -458,7 +458,7 @@ function ProviderPanel({
         {/* Bookings */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-semibold text-gray-700">Activity bookings ({bookings.length})</h4>
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Activity bookings ({bookings.length})</h4>
             {!showBookingForm && !editingBooking && (
               <button onClick={() => setShowBookingForm(true)}
                 className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700">+ Add booking</button>
@@ -466,8 +466,8 @@ function ProviderPanel({
           </div>
 
           {(showBookingForm || editingBooking) && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3">
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg p-4 mb-3">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 {editingBooking ? 'Edit booking' : 'New booking'}
               </h4>
               <BookingForm
@@ -486,12 +486,12 @@ function ProviderPanel({
           )}
 
           {bookings.length === 0 ? (
-            <p className="text-sm text-gray-400 italic">No bookings yet.</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500 italic">No bookings yet.</p>
           ) : (
-            <div className="rounded-lg border border-gray-200 overflow-hidden">
+            <div className="rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-gray-50 border-b text-gray-500 text-left">
+                  <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-left">
                     <th className="px-3 py-2 font-medium">Date</th>
                     <th className="px-3 py-2 font-medium">Label</th>
                     <th className="px-3 py-2 font-medium">Client</th>
@@ -504,26 +504,26 @@ function ProviderPanel({
                 </thead>
                 <tbody>
                   {bookings.sort((a, b) => b.date.localeCompare(a.date)).map(b => (
-                    <tr key={b.id} className="border-b hover:bg-gray-50">
-                      <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{b.date}</td>
-                      <td className="px-3 py-2 text-gray-700">{b.label}</td>
-                      <td className="px-3 py-2 text-gray-600">{clientName(b)}</td>
-                      <td className="px-3 py-2 text-center text-gray-600">{b.nb_persons}</td>
+                    <tr key={b.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{b.date}</td>
+                      <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{b.label}</td>
+                      <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{clientName(b)}</td>
+                      <td className="px-3 py-2 text-center text-gray-600 dark:text-gray-400">{b.nb_persons}</td>
                       <td className="px-3 py-2">
                         <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
                           b.payment_flow === 'we_pay_provider'
-                            ? 'bg-orange-100 text-orange-700'
-                            : 'bg-blue-100 text-blue-700'
+                            ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
+                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                         }`}>{b.payment_flow === 'we_pay_provider' ? '→ them' : '← us'}</span>
                       </td>
-                      <td className="px-3 py-2 text-right text-gray-700">{b.price_client > 0 ? `${b.price_client}€` : '–'}</td>
-                      <td className="px-3 py-2 text-right font-semibold text-gray-800">{b.price_provider > 0 ? `${b.price_provider}€` : '–'}</td>
+                      <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{b.price_client > 0 ? `${b.price_client}€` : '–'}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-gray-800 dark:text-gray-200">{b.price_provider > 0 ? `${b.price_provider}€` : '–'}</td>
                       <td className="px-3 py-2 text-center">
                         <div className="flex gap-1 justify-center">
                           <button onClick={() => setEditingBooking(b)}
-                            className="text-gray-400 hover:text-blue-600 px-1">✏️</button>
+                            className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 px-1">✏️</button>
                           <button onClick={() => onDeleteBooking(b.id)}
-                            className="text-gray-400 hover:text-red-600 px-1">✕</button>
+                            className="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 px-1">✕</button>
                         </div>
                       </td>
                     </tr>
@@ -537,7 +537,7 @@ function ProviderPanel({
         {/* Payments */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-semibold text-gray-700">Payments ({payments.length})</h4>
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Payments ({payments.length})</h4>
             {!showPaymentForm && (
               <button onClick={() => setShowPaymentForm(true)}
                 className="px-3 py-1.5 bg-gray-600 text-white rounded-lg text-xs font-medium hover:bg-gray-700">+ Add payment</button>
@@ -553,10 +553,10 @@ function ProviderPanel({
           )}
 
           {payments.length > 0 && (
-            <div className="rounded-lg border border-gray-200 overflow-hidden mt-3">
+            <div className="rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden mt-3">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-gray-50 border-b text-gray-500 text-left">
+                  <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-left">
                     <th className="px-3 py-2 font-medium">Date</th>
                     <th className="px-3 py-2 font-medium">Direction</th>
                     <th className="px-3 py-2 font-medium text-right">Amount</th>
@@ -566,18 +566,18 @@ function ProviderPanel({
                 </thead>
                 <tbody>
                   {payments.map(p => (
-                    <tr key={p.id} className="border-b hover:bg-gray-50">
-                      <td className="px-3 py-2 text-gray-700">{p.date}</td>
+                    <tr key={p.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{p.date}</td>
                       <td className="px-3 py-2">
                         <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                          p.direction === 'to_provider' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
+                          p.direction === 'to_provider' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                         }`}>{p.direction === 'to_provider' ? 'We paid them' : 'They paid us'}</span>
                       </td>
-                      <td className="px-3 py-2 text-right font-semibold text-gray-800">{p.amount}€</td>
-                      <td className="px-3 py-2 text-gray-400 italic">{p.notes ?? ''}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-gray-800 dark:text-gray-200">{p.amount}€</td>
+                      <td className="px-3 py-2 text-gray-400 dark:text-gray-500 italic">{p.notes ?? ''}</td>
                       <td className="px-3 py-2 text-right">
                         <button onClick={() => onDeletePayment(p.id)}
-                          className="text-gray-300 hover:text-red-500">✕</button>
+                          className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400">✕</button>
                       </td>
                     </tr>
                   ))}
@@ -699,16 +699,16 @@ export default function ActivitiesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-full mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-800">🏕️ Activities & Safaris</h1>
-        <p className="text-gray-500 mt-1">Manage external activity providers and bookings</p>
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">🏕️ Activities & Safaris</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">Manage external activity providers and bookings</p>
 
         {/* Tabs */}
         <div className="flex gap-4 mt-8 mb-8 border-b">
           {(['providers', 'bookings'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2 font-medium transition-colors ${tab === t ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}>
+              className={`px-4 py-2 font-medium transition-colors ${tab === t ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
               {t === 'providers' ? '🏕️ Providers' : '📋 All Bookings'}
             </button>
           ))}
@@ -718,7 +718,7 @@ export default function ActivitiesPage() {
         {tab === 'providers' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-800">Providers</h2>
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Providers</h2>
               <button onClick={() => { setEditingProvider(null); setShowProviderForm(true) }}
                 className="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold text-sm">
                 + New provider
@@ -727,8 +727,8 @@ export default function ActivitiesPage() {
 
             {/* New/Edit provider form */}
             {showProviderForm && (
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <h3 className="text-base font-semibold text-gray-800 mb-4">
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+                <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-4">
                   {editingProvider ? 'Edit provider' : 'New provider'}
                 </h3>
                 <ProviderForm
@@ -749,18 +749,18 @@ export default function ActivitiesPage() {
                   <button key={p.id} onClick={() => setViewingId(isViewing ? null : p.id)}
                     className={`text-left rounded-xl border p-4 transition-all ${
                       isViewing
-                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-md'
-                        : 'bg-white border-gray-200 hover:border-emerald-300 hover:shadow-sm'
+                        ? 'bg-emerald-600 border-emerald-600 dark:border-emerald-500 text-white shadow-md'
+                        : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-800 hover:shadow-sm'
                     }`}>
-                    <p className={`font-bold text-base ${isViewing ? 'text-white' : 'text-gray-800'}`}>{p.name}</p>
-                    <p className={`text-xs mt-0.5 ${isViewing ? 'text-emerald-200' : 'text-gray-400'}`}>
+                    <p className={`font-bold text-base ${isViewing ? 'text-white' : 'text-gray-800 dark:text-gray-200'}`}>{p.name}</p>
+                    <p className={`text-xs mt-0.5 ${isViewing ? 'text-emerald-200 dark:text-emerald-300' : 'text-gray-400 dark:text-gray-500'}`}>
                       {TYPE_LABELS[p.type]}{!p.is_active ? ' · Inactive' : ''}
                     </p>
                     <div className="mt-2 flex items-center gap-2">
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${isViewing ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${isViewing ? 'bg-emerald-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
                         {pBookings.length} booking{pBookings.length !== 1 ? 's' : ''}
                       </span>
-                      {hasLink && <span className={`text-xs ${isViewing ? 'text-emerald-200' : 'text-green-500'}`}>🔗</span>}
+                      {hasLink && <span className={`text-xs ${isViewing ? 'text-emerald-200 dark:text-emerald-300' : 'text-green-500 dark:text-green-400'}`}>🔗</span>}
                     </div>
                   </button>
                 )
@@ -797,21 +797,21 @@ export default function ActivitiesPage() {
         {tab === 'bookings' && (
           <div className="space-y-4">
             <div className="flex items-center gap-4">
-              <h2 className="text-xl font-semibold text-gray-800 flex-1">All Bookings</h2>
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 flex-1">All Bookings</h2>
               <select value={filterProvider} onChange={e => setFilterProvider(e.target.value)}
-                className="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                className="text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="all">All providers</option>
                 {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
 
             {filteredBookings.length === 0 ? (
-              <p className="text-sm text-gray-400 italic py-8 text-center">No bookings found.</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 italic py-8 text-center">No bookings found.</p>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-gray-50 border-b text-gray-500 text-xs text-left">
+                    <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-xs text-left">
                       <th className="px-4 py-3 font-medium">Date</th>
                       <th className="px-4 py-3 font-medium">Provider</th>
                       <th className="px-4 py-3 font-medium">Label</th>
@@ -825,22 +825,22 @@ export default function ActivitiesPage() {
                   </thead>
                   <tbody>
                     {filteredBookings.sort((a, b) => b.date.localeCompare(a.date)).map(b => (
-                      <tr key={b.id} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{b.date}</td>
-                        <td className="px-4 py-3 text-gray-600">{providerName(b.provider_id)}</td>
-                        <td className="px-4 py-3 text-gray-800 font-medium">{b.label}</td>
-                        <td className="px-4 py-3 text-gray-600">{clientName(b)}</td>
-                        <td className="px-4 py-3 text-center text-gray-600">{b.nb_persons}</td>
+                      <tr key={b.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{b.date}</td>
+                        <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{providerName(b.provider_id)}</td>
+                        <td className="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">{b.label}</td>
+                        <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{clientName(b)}</td>
+                        <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">{b.nb_persons}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                             b.payment_flow === 'we_pay_provider'
-                              ? 'bg-orange-100 text-orange-700'
-                              : 'bg-blue-100 text-blue-700'
+                              ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
+                              : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                           }`}>{b.payment_flow === 'we_pay_provider' ? '→ them' : '← us'}</span>
                         </td>
-                        <td className="px-4 py-3 text-right text-gray-700">{b.price_client > 0 ? `${b.price_client}€` : '–'}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-gray-800">{b.price_provider > 0 ? `${b.price_provider}€` : '–'}</td>
-                        <td className="px-4 py-3 text-gray-400 italic text-xs">{b.notes ?? ''}</td>
+                        <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{b.price_client > 0 ? `${b.price_client}€` : '–'}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{b.price_provider > 0 ? `${b.price_provider}€` : '–'}</td>
+                        <td className="px-4 py-3 text-gray-400 dark:text-gray-500 italic text-xs">{b.notes ?? ''}</td>
                       </tr>
                     ))}
                   </tbody>

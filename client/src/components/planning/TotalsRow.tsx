@@ -36,8 +36,8 @@ export default function TotalsRow({ label, totalDays, seasonStart, bookings, boo
   }
 
   return (
-    <div className="flex min-w-max border-b border-gray-200 bg-gray-50 text-xs">
-      <div className="sticky left-0 z-10 shrink-0 w-20 px-2 py-2 text-xs font-bold bg-gray-100 border-r border-gray-200 flex items-center truncate">
+    <div className="flex min-w-max border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-xs">
+      <div className="sticky left-0 z-10 shrink-0 w-20 px-2 py-2 text-xs font-bold bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-800 flex items-center truncate">
         {label}
       </div>
       <div className="shrink-0" style={{ width: `${totalDays * CELL_W}px`, minHeight: '28px' }}>
@@ -51,8 +51,8 @@ export default function TotalsRow({ label, totalDays, seasonStart, bookings, boo
                 key={i}
                 className={`shrink-0 text-center py-1 border-r flex items-center justify-center ${
                   dow === 0 ? 'border-r-gray-300' : 'border-r-gray-100'
-                } ${dow === 0 || dow === 6 ? 'bg-blue-50' : ''} ${
-                  total > 0 ? 'text-emerald-700 font-semibold' : 'text-gray-300'
+                } ${dow === 0 || dow === 6 ? 'bg-blue-50 dark:bg-blue-950/40' : ''} ${
+                  total > 0 ? 'text-emerald-700 dark:text-emerald-400 font-semibold' : 'text-gray-300 dark:text-gray-600'
                 }`}
                 style={{ width: CELL_W }}
               >

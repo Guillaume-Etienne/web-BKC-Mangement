@@ -9,9 +9,9 @@ const END_HOUR = 19      // grid always ends at 19:00
 const TIME_COL_W = 48    // px for the time label column
 
 const LESSON_CFG: Record<LessonType, { bg: string; border: string; text: string; badge: string }> = {
-  private:    { bg: 'bg-purple-100', border: 'border-purple-400', text: 'text-purple-900', badge: 'bg-purple-500 text-white' },
-  group:      { bg: 'bg-green-100',  border: 'border-green-400',  text: 'text-green-900',  badge: 'bg-green-500 text-white'  },
-  supervision:{ bg: 'bg-blue-100',   border: 'border-blue-400',   text: 'text-blue-900',   badge: 'bg-blue-500 text-white'   },
+  private:    { bg: 'bg-purple-100 dark:bg-purple-900/30', border: 'border-purple-400 dark:border-purple-700', text: 'text-purple-900 dark:text-purple-400', badge: 'bg-purple-500 text-white' },
+  group:      { bg: 'bg-green-100 dark:bg-green-900/30',  border: 'border-green-400 dark:border-green-700',  text: 'text-green-900 dark:text-green-400',  badge: 'bg-green-500 text-white'  },
+  supervision:{ bg: 'bg-blue-100 dark:bg-blue-900/30',   border: 'border-blue-400 dark:border-blue-700',   text: 'text-blue-900 dark:text-blue-400',   badge: 'bg-blue-500 text-white'   },
 }
 
 const RENTAL_TYPE_LABELS: Record<string, { icon: string; label: string }> = {
@@ -97,14 +97,14 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-sm">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-sm">
         <div className="flex justify-between items-center p-4 border-b">
-          <h3 className="font-bold text-gray-800">New lesson</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 font-bold text-lg">✕</button>
+          <h3 className="font-bold text-gray-800 dark:text-gray-200">New lesson</h3>
+          <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold text-lg">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Type</label>
             <select value={type} onChange={e => setType(e.target.value as LessonType)} className="w-full text-sm border rounded px-2 py-1.5">
               <option value="private">Private</option>
               <option value="group">Group</option>
@@ -112,7 +112,7 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{type === 'group' ? 'Clients' : 'Client'}</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{type === 'group' ? 'Clients' : 'Client'}</label>
             {type !== 'group' ? (
               <select value={clientIds[0] ?? ''} onChange={e => setClientIds([e.target.value])} className="w-full text-sm border rounded px-2 py-1.5">
                 {clients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
@@ -127,26 +127,26 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
                     </select>
                     {clientIds.length > 1 && (
                       <button type="button" onClick={() => setClientIds(ids => ids.filter((_, i) => i !== idx))}
-                        className="text-red-400 hover:text-red-600 px-1 text-sm">✕</button>
+                        className="text-red-400 dark:text-red-300 hover:text-red-600 dark:hover:text-red-400 px-1 text-sm">✕</button>
                     )}
                   </div>
                 ))}
                 <button type="button" onClick={() => setClientIds(ids => [...ids, clients[0]?.id ?? ''])}
-                  className="text-xs text-green-700 border border-dashed border-green-400 rounded px-2 py-1 w-full hover:bg-green-50">
+                  className="text-xs text-green-700 dark:text-green-400 border border-dashed border-green-400 dark:border-green-700 rounded px-2 py-1 w-full hover:bg-green-50 dark:hover:bg-green-950/40">
                   + Add client
                 </button>
               </div>
             )}
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Instructor</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Instructor</label>
             <select value={instrId} onChange={e => setInstrId(e.target.value)} className="w-full text-sm border rounded px-2 py-1.5">
               {instructors.map(i => <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Start</label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Start</label>
               <select value={startSlot} onChange={e => setStartSlot(+e.target.value)} className="w-full text-sm border rounded px-2 py-1.5">
                 {Array.from({ length: totalSlots }, (_, i) => (
                   <option key={i} value={i}>{slotToTime(i, startHour)}</option>
@@ -154,20 +154,20 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Duration</label>
               <select value={durSlots} onChange={e => setDurSlots(+e.target.value)} className="w-full text-sm border rounded px-2 py-1.5">
                 {[1, 2, 3, 4, 5, 6].map(s => <option key={s} value={s}>{s * 0.5}h</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
             <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
               className="w-full text-sm border rounded px-2 py-1.5" placeholder="Optional" />
           </div>
           <div className="flex gap-2 pt-2 border-t">
             <button type="button" onClick={onClose}
-              className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded font-medium text-sm">Cancel</button>
+              className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">Cancel</button>
             <button type="submit"
               className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm">Add</button>
           </div>
@@ -206,14 +206,14 @@ function EditLessonModal({ lesson, startHour, totalSlots, clients, instructors, 
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-sm">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-sm">
         <div className="flex justify-between items-center p-4 border-b">
-          <h3 className="font-bold text-gray-800">Edit lesson</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 font-bold text-lg">✕</button>
+          <h3 className="font-bold text-gray-800 dark:text-gray-200">Edit lesson</h3>
+          <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold text-lg">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Type</label>
             <select value={type} onChange={e => setType(e.target.value as LessonType)} className="w-full text-sm border rounded px-2 py-1.5">
               <option value="private">Private</option>
               <option value="group">Group</option>
@@ -221,7 +221,7 @@ function EditLessonModal({ lesson, startHour, totalSlots, clients, instructors, 
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{type === 'group' ? 'Clients' : 'Client'}</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{type === 'group' ? 'Clients' : 'Client'}</label>
             {type !== 'group' ? (
               <select value={clientIds[0] ?? ''} onChange={e => setClientIds([e.target.value])} className="w-full text-sm border rounded px-2 py-1.5">
                 {clients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
@@ -236,26 +236,26 @@ function EditLessonModal({ lesson, startHour, totalSlots, clients, instructors, 
                     </select>
                     {clientIds.length > 1 && (
                       <button type="button" onClick={() => setClientIds(ids => ids.filter((_, i) => i !== idx))}
-                        className="text-red-400 hover:text-red-600 px-1">✕</button>
+                        className="text-red-400 dark:text-red-300 hover:text-red-600 dark:hover:text-red-400 px-1">✕</button>
                     )}
                   </div>
                 ))}
                 <button type="button" onClick={() => setClientIds(ids => [...ids, clients[0]?.id ?? ''])}
-                  className="text-xs text-green-700 border border-dashed border-green-400 rounded px-2 py-1 w-full hover:bg-green-50">
+                  className="text-xs text-green-700 dark:text-green-400 border border-dashed border-green-400 dark:border-green-700 rounded px-2 py-1 w-full hover:bg-green-50 dark:hover:bg-green-950/40">
                   + Add client
                 </button>
               </div>
             )}
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Instructor</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Instructor</label>
             <select value={instrId} onChange={e => setInstrId(e.target.value)} className="w-full text-sm border rounded px-2 py-1.5">
               {instructors.map(i => <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Start</label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Start</label>
               <select value={startSlot} onChange={e => setStartSlot(+e.target.value)} className="w-full text-sm border rounded px-2 py-1.5">
                 {Array.from({ length: totalSlots }, (_, i) => (
                   <option key={i} value={i}>{slotToTime(i, startHour)}</option>
@@ -263,23 +263,23 @@ function EditLessonModal({ lesson, startHour, totalSlots, clients, instructors, 
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Duration</label>
               <select value={durSlots} onChange={e => setDurSlots(+e.target.value)} className="w-full text-sm border rounded px-2 py-1.5">
                 {[1, 2, 3, 4, 5, 6].map(s => <option key={s} value={s}>{s * 0.5}h</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
             <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
               className="w-full text-sm border rounded px-2 py-1.5" placeholder="Optional" />
           </div>
           <div className="flex gap-2 pt-2 border-t">
             <button type="button"
               onClick={() => { if (confirm('Delete this lesson?')) { onDelete(lesson.id); onClose() } }}
-              className="px-3 py-2 bg-red-50 text-red-700 hover:bg-red-100 rounded font-medium text-sm">Delete</button>
+              className="px-3 py-2 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded font-medium text-sm">Delete</button>
             <button type="button" onClick={onClose}
-              className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded font-medium text-sm">Cancel</button>
+              className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">Cancel</button>
             <button type="submit"
               className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm">Save</button>
           </div>
@@ -335,15 +335,15 @@ function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: Re
   return (
     <div className="w-52 shrink-0 flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-gray-700">📦 Rentals</h3>
+        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">📦 Rentals</h3>
         <button
           onClick={() => setShowForm(v => !v)}
-          className="text-xs px-2 py-0.5 rounded border border-dashed border-amber-400 text-amber-700 hover:bg-amber-50 transition-colors"
+          className="text-xs px-2 py-0.5 rounded border border-dashed border-amber-400 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
         >+ Add</button>
       </div>
 
       {showForm && (
-        <form onSubmit={submitRental} className="bg-amber-50 border border-amber-200 rounded-lg p-2 space-y-1.5">
+        <form onSubmit={submitRental} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-2 space-y-1.5">
           <select value={clientId} onChange={e => setClientId(e.target.value)}
             className="w-full text-xs border rounded px-1 py-1">
             {clients.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
@@ -372,11 +372,11 @@ function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: Re
             </select>
             <input type="number" value={price} onChange={e => setPrice(+e.target.value)}
               className="w-14 text-xs border rounded px-1 py-1 text-right" min={0} />
-            <span className="text-xs text-gray-500 self-center">€</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 self-center">€</span>
           </div>
           <div className="flex gap-1">
             <button type="button" onClick={() => setShowForm(false)}
-              className="flex-1 text-xs py-1 bg-gray-100 hover:bg-gray-200 rounded">Cancel</button>
+              className="flex-1 text-xs py-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">Cancel</button>
             <button type="submit"
               className="flex-1 text-xs py-1 bg-amber-500 hover:bg-amber-600 text-white rounded font-medium">Add</button>
           </div>
@@ -389,22 +389,22 @@ function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: Re
         if (items.length === 0) return null
         return (
           <div key={g.key}>
-            <div className="text-xs font-semibold text-gray-500 mb-1">{g.label}</div>
+            <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{g.label}</div>
             <div className="space-y-1">
               {items.map(r => {
                 const client = clients.find(c => c.id === r.participant_id)
                 const equip = equipment.find(e => e.id === r.equipment_id)
                 const rt = RENTAL_TYPE_LABELS[equip?.category ?? r.equipment_id ?? ''] ?? RENTAL_TYPE_LABELS.free
                 return (
-                  <div key={r.id} className="group/r flex items-start justify-between bg-amber-50 border border-amber-200 rounded px-2 py-1.5 text-xs">
+                  <div key={r.id} className="group/r flex items-start justify-between bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded px-2 py-1.5 text-xs">
                     <div>
-                      <div className="font-semibold text-amber-900">{rt.icon} {rt.label}</div>
-                      {r.notes && <div className="text-amber-800 text-[10px] italic truncate">{r.notes}</div>}
-                      <div className="text-amber-700 truncate">{client?.first_name} {client?.last_name}</div>
-                      <div className="text-amber-600 font-medium">€{r.price}</div>
+                      <div className="font-semibold text-amber-900 dark:text-amber-400">{rt.icon} {rt.label}</div>
+                      {r.notes && <div className="text-amber-800 dark:text-amber-400 text-[10px] italic truncate">{r.notes}</div>}
+                      <div className="text-amber-700 dark:text-amber-400 truncate">{client?.first_name} {client?.last_name}</div>
+                      <div className="text-amber-600 dark:text-amber-400 font-medium">€{r.price}</div>
                     </div>
                     <button onClick={() => onDelete(r.id)}
-                      className="opacity-0 group-hover/r:opacity-100 text-gray-400 hover:text-red-600 ml-1 mt-0.5">✕</button>
+                      className="opacity-0 group-hover/r:opacity-100 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 ml-1 mt-0.5">✕</button>
                   </div>
                 )
               })}
@@ -414,7 +414,7 @@ function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: Re
       })}
 
       {rentals.length === 0 && !showForm && (
-        <p className="text-xs text-gray-400 italic">No rentals planned</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 italic">No rentals planned</p>
       )}
     </div>
   )
@@ -545,40 +545,40 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
         {/* Date navigation */}
         <div className="flex items-center gap-2">
           <button onClick={() => setSelectedDate(d => addDays(d, -1))}
-            className="w-8 h-8 rounded bg-gray-200 hover:bg-gray-300 text-sm font-bold">←</button>
+            className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold">←</button>
           <span className="text-base font-semibold min-w-[200px] text-center">{formatDate(selectedDate)}</span>
           <button onClick={() => setSelectedDate(d => addDays(d, 1))}
-            className="w-8 h-8 rounded bg-gray-200 hover:bg-gray-300 text-sm font-bold">→</button>
+            className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold">→</button>
           <button onClick={() => setSelectedDate(addDays(today, 1))}
-            className="px-2.5 py-1 rounded bg-blue-100 text-blue-700 text-xs font-medium hover:bg-blue-200">
+            className="px-2.5 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-800">
             Tomorrow
           </button>
         </div>
 
         {/* Start hour */}
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-gray-500">Start:</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Start:</span>
           <select
             value={startHour}
             onChange={e => setStartHour(+e.target.value)}
-            className="text-sm border rounded px-2 py-1 bg-white"
+            className="text-sm border rounded px-2 py-1 bg-white dark:bg-gray-900"
           >
             {[8, 9, 10, 11, 12, 13, 14, 15, 16].map(h => (
               <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
             ))}
           </select>
-          <span className="text-xs text-gray-400">→ 19:00</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">→ 19:00</span>
         </div>
 
         {/* Copy / paste */}
         <div className="flex items-center gap-2 ml-auto">
           <button onClick={copyDay}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-gray-100 hover:bg-gray-200 text-sm font-medium text-gray-700">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300">
             ⎘ Copy day
           </button>
           {dayClipboard && dayClipboard.length > 0 && (
             <button onClick={pasteDay}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-100 hover:bg-amber-200 text-sm font-medium text-amber-800">
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-800 text-sm font-medium text-amber-800 dark:text-amber-400">
               📋 Paste ({dayClipboard.length} lessons)
             </button>
           )}
@@ -586,23 +586,23 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
       </div>
 
       {/* Mobile: instructor selector */}
-      <div className="flex md:hidden items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+      <div className="flex md:hidden items-center justify-between bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg px-3 py-2">
         <button
           onClick={() => setMobileInstrIdx(i => Math.max(0, i - 1))}
           disabled={mobileInstrIdx === 0}
-          className="w-8 h-8 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 font-bold text-sm"
+          className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 font-bold text-sm"
         >←</button>
         <div className="text-center">
-          <div className="font-bold text-gray-800">{instructors[mobileInstrIdx]?.first_name} {instructors[mobileInstrIdx]?.last_name}</div>
+          <div className="font-bold text-gray-800 dark:text-gray-200">{instructors[mobileInstrIdx]?.first_name} {instructors[mobileInstrIdx]?.last_name}</div>
           {(() => {
             const count = dayLessons.filter(l => l.instructor_id === instructors[mobileInstrIdx]?.id).length
-            return count > 0 ? <div className="text-xs text-blue-600 font-medium">{count} lesson{count > 1 ? 's' : ''}</div> : null
+            return count > 0 ? <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">{count} lesson{count > 1 ? 's' : ''}</div> : null
           })()}
         </div>
         <button
           onClick={() => setMobileInstrIdx(i => Math.min(instructors.length - 1, i + 1))}
           disabled={mobileInstrIdx === instructors.length - 1}
-          className="w-8 h-8 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 font-bold text-sm"
+          className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 font-bold text-sm"
         >→</button>
       </div>
 
@@ -610,18 +610,18 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
       <div className="flex flex-col md:flex-row gap-4 items-start">
 
         {/* Time grid */}
-        <div className="flex-1 w-full overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+        <div className="flex-1 w-full overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
           {/* Instructor headers — desktop only (hidden on mobile, replaced by nav above) */}
-          <div className="hidden md:flex border-b border-gray-200 bg-white sticky top-0 z-20">
-            <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200" />
+          <div className="hidden md:flex border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-20">
+            <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200 dark:border-gray-800" />
             {instructors.map(instr => (
-              <div key={instr.id} className="flex-1 min-w-[130px] px-2 py-2 text-center border-r border-gray-200 last:border-r-0">
-                <div className="text-sm font-bold text-gray-800 truncate">{instr.first_name}</div>
-                <div className="text-xs text-gray-500 truncate">{instr.last_name}</div>
+              <div key={instr.id} className="flex-1 min-w-[130px] px-2 py-2 text-center border-r border-gray-200 dark:border-gray-800 last:border-r-0">
+                <div className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{instr.first_name}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{instr.last_name}</div>
                 {(() => {
                   const count = dayLessons.filter(l => l.instructor_id === instr.id).length
                   return count > 0 ? (
-                    <div className="mt-1 inline-block px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-semibold">
+                    <div className="mt-1 inline-block px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[10px] font-semibold">
                       {count} lesson{count > 1 ? 's' : ''}
                     </div>
                   ) : null
@@ -635,15 +635,15 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
             <div className="flex" style={{ height: gridHeight }}>
 
               {/* Time labels */}
-              <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200 relative bg-gray-50">
+              <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200 dark:border-gray-800 relative bg-gray-50 dark:bg-gray-800">
                 {Array.from({ length: totalSlots }, (_, i) => {
                   const isHour = i % 2 === 0
                   return (
                     <div key={i}
-                      className={`absolute w-full border-t flex items-start justify-end pr-1.5 ${isHour ? 'border-gray-300' : 'border-gray-100'}`}
+                      className={`absolute w-full border-t flex items-start justify-end pr-1.5 ${isHour ? 'border-gray-300 dark:border-gray-700' : 'border-gray-100 dark:border-gray-800'}`}
                       style={{ top: i * SLOT_H, height: SLOT_H }}
                     >
-                      {isHour && <span className="text-[10px] text-gray-400 font-medium -mt-1.5">{slotToTime(i, startHour)}</span>}
+                      {isHour && <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium -mt-1.5">{slotToTime(i, startHour)}</span>}
                     </div>
                   )
                 })}
@@ -658,7 +658,7 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
                   <div
                     key={instr.id}
                     data-instructor-id={instr.id}
-                    className={`relative border-r border-gray-200 last:border-r-0
+                    className={`relative border-r border-gray-200 dark:border-gray-800 last:border-r-0
                       ${isMobileHidden ? 'hidden md:block' : ''}
                       flex-1 min-w-[130px] md:min-w-[130px]`}
                     onClick={e => {
@@ -671,7 +671,7 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
                     {/* Slot lines */}
                     {Array.from({ length: totalSlots }, (_, i) => (
                       <div key={i}
-                        className={`absolute w-full border-t ${i % 2 === 0 ? 'border-gray-200' : 'border-gray-100'}`}
+                        className={`absolute w-full border-t ${i % 2 === 0 ? 'border-gray-200 dark:border-gray-800' : 'border-gray-100 dark:border-gray-800'}`}
                         style={{ top: i * SLOT_H, height: SLOT_H }}
                       />
                     ))}

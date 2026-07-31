@@ -87,8 +87,8 @@ function App() {
   // Still checking share token
   if (sharedLink === undefined) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-400 text-lg">Loading…</div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+        <div className="text-gray-400 dark:text-gray-500 text-lg">Loading…</div>
       </div>
     )
   }
@@ -108,8 +108,8 @@ function App() {
   // Loading session
   if (session === undefined) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-400 text-lg">Loading…</div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+        <div className="text-gray-400 dark:text-gray-500 text-lg">Loading…</div>
       </div>
     )
   }

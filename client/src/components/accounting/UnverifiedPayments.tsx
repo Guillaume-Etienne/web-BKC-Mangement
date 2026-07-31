@@ -22,30 +22,30 @@ export default function UnverifiedPayments({ data, handlers }: Props) {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <h2 className="text-xl font-semibold text-gray-800">Unverified Payments</h2>
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Unverified Payments</h2>
         {unverified.length > 0 && (
-          <span className="px-2.5 py-0.5 rounded-full text-sm font-bold bg-orange-100 text-orange-700">
+          <span className="px-2.5 py-0.5 rounded-full text-sm font-bold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">
             {unverified.length}
           </span>
         )}
       </div>
 
       {unverified.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-8 text-center">
           <div className="text-3xl mb-2">✅</div>
-          <p className="text-gray-500">All payments have been verified.</p>
+          <p className="text-gray-500 dark:text-gray-400">All payments have been verified.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-gray-50 dark:bg-gray-800 border-b">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Booking</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Client</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Method</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Amount</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Notes</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Date</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Booking</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Client</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Method</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Amount</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Notes</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -54,19 +54,19 @@ export default function UnverifiedPayments({ data, handlers }: Props) {
                 const booking = bookings.find(b => b.id === p.booking_id)
                 const client  = booking ? clients.find(c => c.id === booking.client_id) : null
                 return (
-                  <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{p.date}</td>
+                  <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{p.date}</td>
                     <td className="px-4 py-3">
                       {booking
-                        ? <span className="font-mono font-bold text-blue-600">#{String(booking.booking_number).padStart(3, '0')}</span>
-                        : <span className="text-gray-400">—</span>}
+                        ? <span className="font-mono font-bold text-blue-600 dark:text-blue-400">#{String(booking.booking_number).padStart(3, '0')}</span>
+                        : <span className="text-gray-400 dark:text-gray-500">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-gray-800">
+                    <td className="px-4 py-3 text-gray-800 dark:text-gray-200">
                       {client ? `${client.first_name} ${client.last_name}` : '—'}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{METHOD_LABELS[p.method] ?? p.method}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-800">{p.amount.toFixed(2)} €</td>
-                    <td className="px-4 py-3 text-gray-500 italic text-xs max-w-xs truncate">{p.notes ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{METHOD_LABELS[p.method] ?? p.method}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{p.amount.toFixed(2)} €</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 italic text-xs max-w-xs truncate">{p.notes ?? '—'}</td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => handlers.verifyPayment(p.id)}
@@ -79,10 +79,10 @@ export default function UnverifiedPayments({ data, handlers }: Props) {
                 )
               })}
             </tbody>
-            <tfoot className="bg-gray-50 border-t">
+            <tfoot className="bg-gray-50 dark:bg-gray-800 border-t">
               <tr>
-                <td colSpan={4} className="px-4 py-3 text-sm font-medium text-gray-600">Total unverified</td>
-                <td className="px-4 py-3 text-right font-bold text-gray-800">
+                <td colSpan={4} className="px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Total unverified</td>
+                <td className="px-4 py-3 text-right font-bold text-gray-800 dark:text-gray-200">
                   {unverified.reduce((s, p) => s + p.amount, 0).toFixed(2)} €
                 </td>
                 <td colSpan={2}></td>

@@ -5,7 +5,7 @@ import { CELL_W } from '../../hooks/useBookingDrag'
 const statusColors: Record<string, string> = {
   confirmed: 'bg-emerald-500',
   provisional: 'bg-amber-400',
-  cancelled: 'bg-gray-300',
+  cancelled: 'bg-gray-300 dark:bg-gray-600',
 }
 
 interface PlanningRowProps {
@@ -50,11 +50,11 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
 
   return (
     <div
-      className={`flex min-w-max border-b border-gray-200 ${isDropTarget ? 'bg-blue-100' : ''}`}
+      className={`flex min-w-max border-b border-gray-200 dark:border-gray-800 ${isDropTarget ? 'bg-blue-100 dark:bg-blue-900/30' : ''}`}
       data-room-id={roomId}
     >
       {/* Label */}
-      <div className="sticky left-0 z-10 shrink-0 w-20 px-2 py-2 text-xs font-medium bg-gray-50 border-r border-gray-200 flex items-center truncate">
+      <div className="sticky left-0 z-10 shrink-0 w-20 px-2 py-2 text-xs font-medium bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-800 flex items-center truncate">
         {label}
       </div>
       {/* Days grid */}
@@ -71,7 +71,7 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
                 title={isUnavailable ? 'Not rented this period' : undefined}
                 className={`shrink-0 border-r ${
                   dow === 0 ? 'border-r-gray-300' : 'border-r-gray-100'
-                } ${isUnavailable ? 'bg-gray-200' : isWeekend ? 'bg-blue-50' : ''}`}
+                } ${isUnavailable ? 'bg-gray-200 dark:bg-gray-700' : isWeekend ? 'bg-blue-50 dark:bg-blue-950/40' : ''}`}
                 style={{ width: CELL_W }}
               />
             )

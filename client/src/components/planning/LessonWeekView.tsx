@@ -15,10 +15,10 @@ const SLOT_CONFIG: Record<Slot, { label: string; icon: string; defaultTime: stri
   evening:   { label: 'Evening',   icon: '🌙', defaultTime: '19:00' },
 }
 
-const LESSON_TYPE_CFG: Record<LessonType, { label: string; card: string; badge: string; dot: string }> = {
-  private:    { label: 'Private', card: 'bg-purple-50 border-purple-300 text-purple-900', badge: 'bg-purple-500 text-white', dot: 'bg-purple-500' },
-  group:      { label: 'Group',   card: 'bg-green-50  border-green-300  text-green-900',  badge: 'bg-green-500  text-white', dot: 'bg-green-500'  },
-  supervision:{ label: 'Superv.', card: 'bg-blue-50   border-blue-300   text-blue-900',   badge: 'bg-blue-500   text-white', dot: 'bg-blue-500'   },
+const LESSON_TYPE_CFG: Record<LessonType, { label: string; icon: string; card: string; badge: string; dot: string }> = {
+  private:    { label: 'Private', icon: '🧑‍🏫', card: 'bg-purple-50 dark:bg-purple-950/40 border-purple-300 dark:border-purple-800 text-purple-900 dark:text-purple-400', badge: 'bg-purple-500 text-white', dot: 'bg-purple-500' },
+  group:      { label: 'Group',   icon: '👥', card: 'bg-green-50 dark:bg-green-950/40  border-green-300 dark:border-green-800  text-green-900 dark:text-green-400',  badge: 'bg-green-500  text-white', dot: 'bg-green-500'  },
+  supervision:{ label: 'Superv.', icon: '🎓', card: 'bg-blue-50 dark:bg-blue-950/40   border-blue-300 dark:border-blue-800   text-blue-900 dark:text-blue-400',   badge: 'bg-blue-500   text-white', dot: 'bg-blue-500'   },
 }
 
 const DAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -56,6 +56,28 @@ function getSlotForTime(time: string): Slot {
   if (time < '12:00') return 'morning'
   if (time < '18:00') return 'afternoon'
   return 'evening'
+}
+
+// Stable per-person color + initials for the little avatar circle, so the same
+// participant looks the same everywhere (picker and card) without needing a
+// color stored anywhere — just hashed from their id.
+const AVATAR_COLORS = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500', 'bg-pink-500', 'bg-cyan-600', 'bg-orange-500', 'bg-teal-500']
+function avatarColor(id: string): string {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+function participantInitials(p: { first_name: string; last_name?: string | null }): string {
+  const a = p.first_name?.[0] ?? ''
+  const b = p.last_name?.[0] ?? ''
+  return (a + b).toUpperCase() || '?'
+}
+function Avatar({ id, first_name, last_name }: { id: string; first_name: string; last_name?: string | null }) {
+  return (
+    <span className={`w-5 h-5 rounded-full ${avatarColor(id)} text-white text-[10px] font-bold flex items-center justify-center shrink-0`}>
+      {participantInitials({ first_name, last_name })}
+    </span>
+  )
 }
 
 
@@ -207,6 +229,59 @@ export default function LessonWeekView({
     const bid = bookingId ?? ''
     const clientId = bookings.find(b => b.id === bid)?.client_id
     return clients.find(c => c.id === clientId)
+  }
+
+  // ── Participant picker: tappable chips grouped by booking, instead of a
+  // native <select> (can't show a colored avatar inside an <option>). Add-forms
+  // pass only currently-active participants; edit-forms pass everyone, so an
+  // already-assigned person still shows up even if their booking isn't active
+  // today anymore — same distinction the old selects made.
+  function renderParticipantChips(opts: {
+    candidates: BookingParticipant[]
+    selectedIds: string[]
+    onToggle: (id: string) => void
+  }) {
+    const { candidates, selectedIds, onToggle } = opts
+    const byBooking = new Map<string, BookingParticipant[]>()
+    for (const p of candidates) {
+      const arr = byBooking.get(p.booking_id) ?? []
+      arr.push(p)
+      byBooking.set(p.booking_id, arr)
+    }
+    return (
+      <div className="space-y-1.5">
+        {[...byBooking.entries()].map(([bookingId, people]) => {
+          const primary = bookingClient(bookingId)
+          return (
+            <div key={bookingId} className="border border-gray-100 dark:border-gray-800 rounded-lg p-1.5 bg-gray-50/50 dark:bg-gray-800/30">
+              <div className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1 px-0.5">
+                {primary ? `${primary.first_name} ${primary.last_name ?? ''}` : 'Booking'}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {people.map(p => {
+                  const selected = selectedIds.includes(p.id)
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => onToggle(p.id)}
+                      className={`flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full border text-sm transition-colors ${
+                        selected
+                          ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-700 text-blue-900 dark:text-blue-300 ring-1 ring-blue-300 dark:ring-blue-700'
+                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      <Avatar id={p.id} first_name={p.first_name} last_name={p.last_name} />
+                      {p.first_name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
   }
 
   // ── Data helpers ──────────────────────────────────────────────────────────
@@ -386,7 +461,7 @@ export default function LessonWeekView({
     <>
       {/* Clipboard banner */}
       {clipboard && (
-        <div className="mb-4 flex items-center gap-3 px-4 py-2 bg-amber-50 border border-amber-300 rounded-lg text-sm">
+        <div className="mb-4 flex items-center gap-3 px-4 py-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-lg text-sm">
           <span>📋 Lesson copied:</span>
           <span className="font-semibold">
             {bookingParticipants.find(p => p.id === clipboard.participant_ids[0])?.first_name}{' '}
@@ -394,10 +469,10 @@ export default function LessonWeekView({
             {clipboard.participant_ids.length > 1 && ` +${clipboard.participant_ids.length - 1}`}
             {' · '}{LESSON_TYPE_CFG[clipboard.type].label}{' · '}{clipboard.start_time}
           </span>
-          <span className="text-gray-500 text-xs">→ Click "Paste" in a slot</span>
+          <span className="text-gray-500 dark:text-gray-400 text-xs">→ Click "Paste" in a slot</span>
           <button
             onClick={() => setClipboard(null)}
-            className="ml-auto text-gray-500 hover:text-gray-800 font-bold"
+            className="ml-auto text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold"
           >✕</button>
         </div>
       )}
@@ -420,23 +495,23 @@ export default function LessonWeekView({
             <div
               key={iso}
               className={`${cardWidthClass} rounded-lg shadow-sm border flex flex-col ${
-                isToday ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200'
-              } bg-white`}
+                isToday ? 'border-blue-400 dark:border-blue-700 ring-2 ring-blue-200' : 'border-gray-200 dark:border-gray-800'
+              } bg-white dark:bg-gray-900`}
             >
               {/* Card header */}
               <div className={`px-3 py-2 rounded-t-lg border-b ${
-                isToday ? 'bg-blue-600 text-white' : isWeekend ? 'bg-blue-50' : 'bg-gray-50'
+                isToday ? 'bg-blue-600 text-white' : isWeekend ? 'bg-blue-50 dark:bg-blue-950/40' : 'bg-gray-50 dark:bg-gray-800'
               }`}>
-                <div className={`text-xs font-medium ${isToday ? 'text-blue-100' : 'text-gray-500'}`}>
+                <div className={`text-xs font-medium ${isToday ? 'text-blue-100 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`}>
                   {DAY_FULL[day.getDay()]}
                 </div>
-                <div className={`text-lg font-bold leading-tight ${isToday ? 'text-white' : 'text-gray-900'}`}>
+                <div className={`text-lg font-bold leading-tight ${isToday ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>
                   {day.getDate()} {MONTH_SHORT[day.getMonth()]}
                 </div>
               </div>
 
               {/* Slots */}
-              <div className="flex-1 flex flex-col divide-y divide-gray-100">
+              <div className="flex-1 flex flex-col divide-y divide-gray-100 dark:divide-gray-800">
                 {SLOTS.map(slot => {
                   const slotLessons = lessonsForSlot(iso, slot)
                   const slotActivities = activitiesForSlot(iso, slot)
@@ -451,7 +526,7 @@ export default function LessonWeekView({
                     >
                       {/* Slot header */}
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-sm md:text-xs font-semibold text-gray-500">
+                        <span className="text-sm md:text-xs font-semibold text-gray-500 dark:text-gray-400">
                           {cfg.icon} {cfg.label}
                         </span>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity">
@@ -473,29 +548,29 @@ export default function LessonWeekView({
                             {/* Mobile: single kebab → action sheet (bigger, unambiguous targets) */}
                             <button
                               onClick={() => setActionSheetItem({ kind: 'lesson', item: lesson })}
-                              className="absolute top-0.5 right-0.5 flex md:hidden items-center justify-center w-8 h-8 rounded-full bg-white/90 text-gray-600 shadow-sm text-lg leading-none"
+                              className="absolute top-0.5 right-0.5 flex md:hidden items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-gray-900/90 text-gray-600 dark:text-gray-400 shadow-sm text-lg leading-none"
                               title="Actions"
                             >⋮</button>
                             {/* Desktop: hover-reveal icon cluster */}
-                            <div className="absolute top-1 right-1 hidden md:group-hover/lesson:flex items-center gap-0.5 bg-white/90 rounded px-0.5 py-0.5 shadow-sm">
+                            <div className="absolute top-1 right-1 hidden md:group-hover/lesson:flex items-center gap-0.5 bg-white dark:bg-gray-900/90 rounded px-0.5 py-0.5 shadow-sm">
                               <button
                                 onClick={() => copyLesson(lesson)}
-                                className="text-gray-500 hover:text-amber-600 text-xs px-1"
+                                className="text-gray-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 text-xs px-1"
                                 title="Copy"
                               >⎘</button>
                               <button
                                 onClick={() => openMoveLesson(lesson)}
-                                className="text-gray-500 hover:text-emerald-600 text-xs px-1"
+                                className="text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 text-xs px-1"
                                 title="Move"
                               >↔</button>
                               <button
                                 onClick={() => openEdit(lesson)}
-                                className="text-gray-500 hover:text-blue-600 text-xs px-1"
+                                className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 text-xs px-1"
                                 title="Edit"
                               >✏️</button>
                               <button
                                 onClick={() => deleteLesson(lesson.id)}
-                                className="text-gray-500 hover:text-red-600 text-xs px-1"
+                                className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 text-xs px-1"
                                 title="Delete"
                               >✕</button>
                             </div>
@@ -521,12 +596,12 @@ export default function LessonWeekView({
                       {slotActivities.map(act => (
                         <div
                           key={act.id}
-                          className="group/act relative rounded border border-orange-200 bg-orange-50 text-orange-900 p-2.5 md:p-1.5 text-sm md:text-xs mb-1"
+                          className="group/act relative rounded border border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-950/40 text-orange-900 dark:text-orange-400 p-2.5 md:p-1.5 text-sm md:text-xs mb-1"
                         >
                           <div className="absolute top-1 right-1 flex md:hidden md:group-hover/act:flex">
                             <button
                               onClick={() => deleteActivity(act.id)}
-                              className="text-gray-400 hover:text-red-600 text-sm md:text-xs p-1.5 md:px-1 md:py-0"
+                              className="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 text-sm md:text-xs p-1.5 md:px-1 md:py-0"
                               title="Delete"
                             >✕</button>
                           </div>
@@ -544,35 +619,35 @@ export default function LessonWeekView({
                         return (
                           <div
                             key={r.id}
-                            className="group/rental relative rounded border border-amber-200 bg-amber-50 text-amber-900 p-2.5 md:p-1.5 text-sm md:text-xs mb-1"
+                            className="group/rental relative rounded border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-400 p-2.5 md:p-1.5 text-sm md:text-xs mb-1"
                           >
                             {/* Mobile: single kebab → action sheet */}
                             <button
                               onClick={() => setActionSheetItem({ kind: 'rental', item: r })}
-                              className="absolute top-0.5 right-0.5 flex md:hidden items-center justify-center w-8 h-8 rounded-full bg-white/90 text-gray-600 shadow-sm text-lg leading-none"
+                              className="absolute top-0.5 right-0.5 flex md:hidden items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-gray-900/90 text-gray-600 dark:text-gray-400 shadow-sm text-lg leading-none"
                               title="Actions"
                             >⋮</button>
                             {/* Desktop: hover-reveal icon cluster */}
-                            <div className="absolute top-1 right-1 hidden md:group-hover/rental:flex gap-0.5 bg-white/90 rounded px-0.5 shadow-sm">
+                            <div className="absolute top-1 right-1 hidden md:group-hover/rental:flex gap-0.5 bg-white dark:bg-gray-900/90 rounded px-0.5 shadow-sm">
                               <button
                                 onClick={() => openMoveRental(r)}
-                                className="text-gray-400 hover:text-emerald-600 text-xs px-1"
+                                className="text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 text-xs px-1"
                                 title="Move"
                               >↔</button>
                               <button
                                 onClick={() => openEditRental(r)}
-                                className="text-gray-400 hover:text-blue-600 text-xs px-1"
+                                className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 text-xs px-1"
                                 title="Edit"
                               >✏️</button>
                               <button
                                 onClick={() => deleteRental(r.id)}
-                                className="text-gray-400 hover:text-red-600 text-xs px-1"
+                                className="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 text-xs px-1"
                                 title="Delete"
                               >✕</button>
                             </div>
                             <div className="flex items-center justify-between pr-9 md:pr-4">
                               <span className="font-semibold">{rt?.icon ?? '📦'} {rt?.label ?? equip?.name ?? r.equipment_id}</span>
-                              <span className="text-amber-700 font-semibold">€{r.price}</span>
+                              <span className="text-amber-700 dark:text-amber-400 font-semibold">€{r.price}</span>
                             </div>
                             {equip && <div className="text-[11px] opacity-60 truncate">{equip.name}</div>}
                             <div className="opacity-70 truncate">{client?.first_name} {client?.last_name}</div>
@@ -582,20 +657,15 @@ export default function LessonWeekView({
 
                       {/* Inline add form */}
                       {isAddOpen ? (
-                        <div className="mt-1.5 border border-gray-300 rounded-lg bg-white p-2 space-y-1.5 shadow-sm">
+                        <div className="mt-1.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 p-2 space-y-1.5 shadow-sm">
                           {addForm?.kind === 'rental' ? (
                             <>
                               {/* Rental form */}
-                              <select
-                                value={addForm?.rental_participant_id}
-                                onChange={e => setAddForm(f => f && { ...f, rental_participant_id: e.target.value })}
-                                className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
-                                autoFocus
-                              >
-                                {activeParticipantsForDate(addForm?.date ?? '').map(p => (
-                                  <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>
-                                ))}
-                              </select>
+                              {renderParticipantChips({
+                                candidates: activeParticipantsForDate(addForm?.date ?? ''),
+                                selectedIds: addForm?.rental_participant_id ? [addForm.rental_participant_id] : [],
+                                onToggle: id => setAddForm(f => f && { ...f, rental_participant_id: id }),
+                              })}
                               {/* Type buttons */}
                               <div className="grid grid-cols-3 gap-1">
                                 {RENTAL_TYPES.map(rt => (
@@ -609,8 +679,8 @@ export default function LessonWeekView({
                                     })}
                                     className={`text-sm md:text-xs py-2 px-1 md:py-1 rounded border transition-colors text-center leading-tight ${
                                       addForm?.rental_type === rt.key
-                                        ? 'bg-amber-500 border-amber-600 text-white font-semibold'
-                                        : 'bg-white border-gray-200 text-gray-600 hover:border-amber-300'
+                                        ? 'bg-amber-500 border-amber-600 dark:border-amber-500 text-white font-semibold'
+                                        : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-amber-300 dark:hover:border-amber-800'
                                     }`}
                                   >
                                     <div>{rt.icon}</div>
@@ -628,7 +698,7 @@ export default function LessonWeekView({
                                 >
                                   <option value="">🪁 Kite — not specified</option>
                                   {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
-                                    <option key={e.id} value={e.id}>{e.name}</option>
+                                    <option key={e.id} value={e.id}>🪁 {e.name}</option>
                                   ))}
                                 </select>
                               )}
@@ -640,7 +710,7 @@ export default function LessonWeekView({
                                 >
                                   <option value="">🏄 Board — not specified</option>
                                   {equipment.filter(e => e.category === 'board' && e.is_active).map(e => (
-                                    <option key={e.id} value={e.id}>{e.name}</option>
+                                    <option key={e.id} value={e.id}>🏄 {e.name}</option>
                                   ))}
                                 </select>
                               )}
@@ -662,10 +732,10 @@ export default function LessonWeekView({
                                   className="w-16 text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1 text-right"
                                   min={0}
                                 />
-                                <span className="text-xs text-gray-500">€</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">€</span>
                               </div>
                               {addForm && rentalPrice(addForm.rental_type) === null && (
-                                <p className="text-[10px] text-red-500 leading-tight">
+                                <p className="text-[10px] text-red-500 dark:text-red-400 leading-tight">
                                   No rate set for this type — see Options → Pricing. Type the price here to bill this one.
                                 </p>
                               )}
@@ -680,63 +750,42 @@ export default function LessonWeekView({
                           ) : addForm?.kind === 'lesson' ? (
                             <>
                               {/* Lesson form */}
-                              <div className="flex gap-1">
-                                <select
-                                  value={addForm?.type}
-                                  onChange={e => setAddForm(f => f && {
-                                    ...f,
-                                    type: e.target.value as LessonType,
-                                    participant_ids: [f.participant_ids[0] ?? activeParticipantsForDate(f.date)[0]?.id ?? ''],
-                                  })}
-                                  className="flex-1 text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
-                                >
-                                  <option value="private">Private</option>
-                                  <option value="group">Group</option>
-                                  <option value="supervision">Supervision</option>
-                                </select>
-                              </div>
-                              {/* Participant(s) — single for private/supervision, dynamic list for group */}
-                              {addForm?.type !== 'group' ? (
-                                <select
-                                  value={addForm?.participant_ids[0] ?? ''}
-                                  onChange={e => setAddForm(f => f && { ...f, participant_ids: [e.target.value] })}
-                                  className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
-                                >
-                                  {activeParticipantsForDate(addForm?.date ?? '').map(p => (
-                                    <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <div className="space-y-1">
-                                  {(addForm?.participant_ids ?? ['']).map((pid, idx) => (
-                                    <div key={idx} className="flex gap-1">
-                                      <select
-                                        value={pid}
-                                        onChange={e => setAddForm(f => {
-                                          if (!f) return f
-                                          const ids = [...f.participant_ids]; ids[idx] = e.target.value
-                                          return { ...f, participant_ids: ids }
-                                        })}
-                                        className="flex-1 text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
-                                      >
-                                        {activeParticipantsForDate(addForm?.date ?? '').map(p => (
-                                          <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>
-                                        ))}
-                                      </select>
-                                      {(addForm?.participant_ids.length ?? 0) > 1 && (
-                                        <button type="button"
-                                          onClick={() => setAddForm(f => f && { ...f, participant_ids: f.participant_ids.filter((_, i) => i !== idx) })}
-                                          className="text-red-400 hover:text-red-600 px-2 md:px-1 text-sm md:text-xs">✕</button>
-                                      )}
-                                    </div>
-                                  ))}
-                                  <button type="button"
-                                    onClick={() => setAddForm(f => f && { ...f, participant_ids: [...f.participant_ids, activeParticipantsForDate(f.date)[0]?.id ?? ''] })}
-                                    className="text-sm md:text-xs text-green-700 hover:text-green-900 border border-dashed border-green-400 rounded px-2 py-2 md:py-0.5 w-full">
-                                    + Add participant
+                              <div className="grid grid-cols-3 gap-1">
+                                {(['private', 'group', 'supervision'] as LessonType[]).map(t => (
+                                  <button
+                                    key={t}
+                                    type="button"
+                                    onClick={() => setAddForm(f => f && {
+                                      ...f,
+                                      type: t,
+                                      participant_ids: [f.participant_ids[0] ?? activeParticipantsForDate(f.date)[0]?.id ?? ''],
+                                    })}
+                                    className={`text-sm md:text-xs py-2 px-1 md:py-1 rounded border transition-colors text-center leading-tight ${
+                                      addForm?.type === t
+                                        ? `${LESSON_TYPE_CFG[t].card} font-semibold ring-1 ring-inset ring-current`
+                                        : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400'
+                                    }`}
+                                  >
+                                    <div>{LESSON_TYPE_CFG[t].icon}</div>
+                                    <div>{LESSON_TYPE_CFG[t].label}</div>
                                   </button>
-                                </div>
-                              )}
+                                ))}
+                              </div>
+                              {/* Participant(s) — single for private/supervision, multi-toggle for group */}
+                              {renderParticipantChips({
+                                candidates: activeParticipantsForDate(addForm?.date ?? ''),
+                                selectedIds: addForm?.participant_ids ?? [],
+                                onToggle: id => setAddForm(f => {
+                                  if (!f) return f
+                                  if (f.type !== 'group') return { ...f, participant_ids: [id] }
+                                  const has = f.participant_ids.includes(id)
+                                  if (has) {
+                                    if (f.participant_ids.length <= 1) return f
+                                    return { ...f, participant_ids: f.participant_ids.filter(x => x !== id) }
+                                  }
+                                  return { ...f, participant_ids: [...f.participant_ids, id] }
+                                }),
+                              })}
                               <select
                                 value={addForm?.instructor_id}
                                 onChange={e => setAddForm(f => f && { ...f, instructor_id: e.target.value })}
@@ -746,22 +795,25 @@ export default function LessonWeekView({
                                   <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>
                                 ))}
                               </select>
-                              <div className="flex gap-1">
-                                <input
-                                  type="time"
-                                  value={addForm?.start_time}
-                                  onChange={e => setAddForm(f => f && { ...f, start_time: e.target.value })}
-                                  className="flex-1 text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
-                                />
-                                <select
-                                  value={addForm?.duration_hours}
-                                  onChange={e => setAddForm(f => f && { ...f, duration_hours: parseFloat(e.target.value) })}
-                                  className="flex-1 text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
-                                >
-                                  {DURATION_OPTIONS.map(d => (
-                                    <option key={d} value={d}>{d}h</option>
-                                  ))}
-                                </select>
+                              <input
+                                type="time"
+                                value={addForm?.start_time}
+                                onChange={e => setAddForm(f => f && { ...f, start_time: e.target.value })}
+                                className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
+                              />
+                              <div className="grid grid-cols-3 gap-1">
+                                {DURATION_OPTIONS.map(d => (
+                                  <button
+                                    key={d}
+                                    type="button"
+                                    onClick={() => setAddForm(f => f && { ...f, duration_hours: d })}
+                                    className={`text-sm md:text-xs py-2 md:py-1 rounded border transition-colors ${
+                                      addForm?.duration_hours === d
+                                        ? 'bg-blue-600 border-blue-600 text-white font-semibold'
+                                        : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400'
+                                    }`}
+                                  >{d}h</button>
+                                ))}
                               </div>
                               <input
                                 type="text"
@@ -771,7 +823,7 @@ export default function LessonWeekView({
                                 className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                               />
                               <div className="space-y-1">
-                                <label className="text-xs font-medium text-gray-600">Equipment (optional)</label>
+                                <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Equipment (optional)</label>
                                 <select
                                   value={addForm?.kite_id || ''}
                                   onChange={e => setAddForm(f => f && { ...f, kite_id: e.target.value || null })}
@@ -779,7 +831,7 @@ export default function LessonWeekView({
                                 >
                                   <option value="">No kite</option>
                                   {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
-                                    <option key={e.id} value={e.id}>{e.name}</option>
+                                    <option key={e.id} value={e.id}>🪁 {e.name}</option>
                                   ))}
                                 </select>
                                 <select
@@ -789,7 +841,7 @@ export default function LessonWeekView({
                                 >
                                   <option value="">No board</option>
                                   {equipment.filter(e => e.category !== 'kite' && e.is_active).map(e => (
-                                    <option key={e.id} value={e.id}>{e.name}</option>
+                                    <option key={e.id} value={e.id}>🏄 {e.name}</option>
                                   ))}
                                 </select>
                               </div>
@@ -817,7 +869,7 @@ export default function LessonWeekView({
                           <div className="flex gap-1 pt-0.5">
                             <button
                               onClick={() => setAddForm(null)}
-                              className="flex-1 text-sm md:text-xs py-2 md:py-1 bg-gray-100 hover:bg-gray-200 rounded font-medium"
+                              className="flex-1 text-sm md:text-xs py-2 md:py-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium"
                             >Cancel</button>
                             <button
                               onClick={submitAdd}
@@ -831,20 +883,20 @@ export default function LessonWeekView({
                         <div className="flex flex-wrap gap-1 mt-1">
                           <button
                             onClick={() => openAdd(iso, slot, 'lesson')}
-                            className="text-sm md:text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 hover:border-blue-300 transition-colors"
+                            className="text-sm md:text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-800 transition-colors"
                           >+ Lesson</button>
                           <button
                             onClick={() => openAdd(iso, slot, 'activity')}
-                            className="text-sm md:text-xs text-gray-400 hover:text-orange-600 hover:bg-orange-50 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 hover:border-orange-300 transition-colors"
+                            className="text-sm md:text-xs text-gray-400 dark:text-gray-500 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-700 hover:border-orange-300 dark:hover:border-orange-800 transition-colors"
                           >+ Activity</button>
                           <button
                             onClick={() => openAdd(iso, slot, 'rental')}
-                            className="text-sm md:text-xs text-gray-400 hover:text-amber-700 hover:bg-amber-50 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 hover:border-amber-400 transition-colors"
+                            className="text-sm md:text-xs text-gray-400 dark:text-gray-500 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-700 hover:border-amber-400 dark:hover:border-amber-700 transition-colors"
                           >+ Rental</button>
                           {clipboard && (
                             <button
                               onClick={() => pasteLesson(iso, slot)}
-                              className="text-sm md:text-xs text-amber-700 hover:text-amber-900 hover:bg-amber-50 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-amber-300 transition-colors font-medium"
+                              className="text-sm md:text-xs text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-amber-300 dark:border-amber-800 transition-colors font-medium"
                             >📋 Paste</button>
                           )}
                         </div>
@@ -869,12 +921,12 @@ export default function LessonWeekView({
                 const total = lessonTotal + rentalTotal
                 if (total === 0 && dayLessons.length === 0) return null
                 return (
-                  <div className="border-t px-3 py-2 bg-gray-50 rounded-b-lg flex items-center justify-between">
-                    <div className="flex gap-2 text-xs text-gray-400">
+                  <div className="border-t px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-b-lg flex items-center justify-between">
+                    <div className="flex gap-2 text-xs text-gray-400 dark:text-gray-500">
                       {dayLessons.length > 0 && <span>{dayLessons.length} lesson{dayLessons.length > 1 ? 's' : ''}</span>}
                       {dayRentals.length > 0 && <span>{dayRentals.length} rental{dayRentals.length > 1 ? 's' : ''}</span>}
                     </div>
-                    <span className={`text-sm font-bold ${total > 0 ? 'text-emerald-700' : 'text-gray-400'}`}>
+                    <span className={`text-sm font-bold ${total > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'}`}>
                       €{total}
                     </span>
                   </div>
@@ -886,7 +938,7 @@ export default function LessonWeekView({
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 mt-4 text-xs text-gray-500">
+      <div className="flex flex-wrap gap-4 mt-4 text-xs text-gray-500 dark:text-gray-400">
         {(['private', 'group', 'supervision'] as LessonType[]).map(t => (
           <span key={t} className="flex items-center gap-1.5">
             <span className={`w-2.5 h-2.5 rounded-sm ${LESSON_TYPE_CFG[t].dot}`} />
@@ -899,88 +951,68 @@ export default function LessonWeekView({
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" /> Rental
         </span>
-        <span className="text-gray-400 ml-2">· ↔ to move · ⎘ to copy</span>
+        <span className="text-gray-400 dark:text-gray-500 ml-2">· ↔ to move · ⎘ to copy</span>
       </div>
 
       {/* Edit modal */}
       {editLesson && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md">
             <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="font-bold text-gray-800">Edit lesson</h3>
-              <button onClick={() => setEditLesson(null)} className="text-gray-500 hover:text-gray-800 font-bold">✕</button>
+              <h3 className="font-bold text-gray-800 dark:text-gray-200">Edit lesson</h3>
+              <button onClick={() => setEditLesson(null)} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold">✕</button>
             </div>
             <form onSubmit={submitEdit} className="p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
-                  <select
-                    value={editData.type || ''}
-                    onChange={e => setEditData(d => ({ ...d, type: e.target.value as LessonType }))}
-                    className="w-full text-sm border rounded px-2 py-1.5"
-                  >
-                    <option value="private">Private</option>
-                    <option value="group">Group</option>
-                    <option value="supervision">Supervision</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
-                  <input
-                    type="date"
-                    value={editData.date || ''}
-                    onChange={e => setEditData(d => ({ ...d, date: e.target.value }))}
-                    className="w-full text-sm border rounded px-2 py-1.5"
-                  />
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Type</label>
+                <div className="grid grid-cols-3 gap-1">
+                  {(['private', 'group', 'supervision'] as LessonType[]).map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setEditData(d => ({ ...d, type: t }))}
+                      className={`text-sm py-1.5 px-1 rounded border transition-colors text-center leading-tight ${
+                        editData.type === t
+                          ? `${LESSON_TYPE_CFG[t].card} font-semibold ring-1 ring-inset ring-current`
+                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400'
+                      }`}
+                    >
+                      <div>{LESSON_TYPE_CFG[t].icon}</div>
+                      <div>{LESSON_TYPE_CFG[t].label}</div>
+                    </button>
+                  ))}
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date</label>
+                <input
+                  type="date"
+                  value={editData.date || ''}
+                  onChange={e => setEditData(d => ({ ...d, date: e.target.value }))}
+                  className="w-full text-sm border rounded px-2 py-1.5"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                   {editData.type === 'group' ? 'Participants' : 'Participant'}
                 </label>
-                {editData.type !== 'group' ? (
-                  <select
-                    value={editData.participant_ids?.[0] ?? ''}
-                    onChange={e => setEditData(d => ({ ...d, participant_ids: [e.target.value] }))}
-                    className="w-full text-sm border rounded px-2 py-1.5"
-                  >
-                    {bookingParticipants.map(p => (
-                      <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="space-y-1">
-                    {(editData.participant_ids ?? ['']).map((pid, idx) => (
-                      <div key={idx} className="flex gap-1">
-                        <select
-                          value={pid}
-                          onChange={e => setEditData(d => {
-                            const ids = [...(d.participant_ids ?? [])]; ids[idx] = e.target.value
-                            return { ...d, participant_ids: ids }
-                          })}
-                          className="flex-1 text-sm border rounded px-2 py-1.5"
-                        >
-                          {bookingParticipants.map(p => (
-                            <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>
-                          ))}
-                        </select>
-                        {(editData.participant_ids?.length ?? 0) > 1 && (
-                          <button type="button"
-                            onClick={() => setEditData(d => ({ ...d, participant_ids: (d.participant_ids ?? []).filter((_, i) => i !== idx) }))}
-                            className="text-red-400 hover:text-red-600 px-1">✕</button>
-                        )}
-                      </div>
-                    ))}
-                    <button type="button"
-                      onClick={() => setEditData(d => ({ ...d, participant_ids: [...(d.participant_ids ?? []), bookingParticipants[0]?.id ?? ''] }))}
-                      className="text-xs text-green-700 hover:text-green-900 border border-dashed border-green-400 rounded px-2 py-1 w-full">
-                      + Add participant
-                    </button>
-                  </div>
-                )}
+                {renderParticipantChips({
+                  candidates: bookingParticipants,
+                  selectedIds: editData.participant_ids ?? [],
+                  onToggle: id => setEditData(d => {
+                    if (d.type !== 'group') return { ...d, participant_ids: [id] }
+                    const ids = d.participant_ids ?? []
+                    const has = ids.includes(id)
+                    if (has) {
+                      if (ids.length <= 1) return d
+                      return { ...d, participant_ids: ids.filter(x => x !== id) }
+                    }
+                    return { ...d, participant_ids: [...ids, id] }
+                  }),
+                })}
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Instructor</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Instructor</label>
                 <select
                   value={editData.instructor_id || ''}
                   onChange={e => setEditData(d => ({ ...d, instructor_id: e.target.value }))}
@@ -991,29 +1023,34 @@ export default function LessonWeekView({
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Time</label>
-                  <input
-                    type="time"
-                    value={editData.start_time || ''}
-                    onChange={e => setEditData(d => ({ ...d, start_time: e.target.value }))}
-                    className="w-full text-sm border rounded px-2 py-1.5"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
-                  <select
-                    value={editData.duration_hours || 1}
-                    onChange={e => setEditData(d => ({ ...d, duration_hours: parseFloat(e.target.value) }))}
-                    className="w-full text-sm border rounded px-2 py-1.5"
-                  >
-                    {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}h</option>)}
-                  </select>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Time</label>
+                <input
+                  type="time"
+                  value={editData.start_time || ''}
+                  onChange={e => setEditData(d => ({ ...d, start_time: e.target.value }))}
+                  className="w-full text-sm border rounded px-2 py-1.5"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Duration</label>
+                <div className="grid grid-cols-3 gap-1">
+                  {DURATION_OPTIONS.map(d => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setEditData(ed => ({ ...ed, duration_hours: d }))}
+                      className={`text-sm py-1.5 rounded border transition-colors ${
+                        (editData.duration_hours || 1) === d
+                          ? 'bg-blue-600 border-blue-600 text-white font-semibold'
+                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400'
+                      }`}
+                    >{d}h</button>
+                  ))}
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
                 <input
                   type="text"
                   value={editData.notes ?? ''}
@@ -1022,7 +1059,7 @@ export default function LessonWeekView({
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Kite (optional)</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Kite (optional)</label>
                 <select
                   value={editData.kite_id || ''}
                   onChange={e => setEditData(d => ({ ...d, kite_id: e.target.value || null }))}
@@ -1035,7 +1072,7 @@ export default function LessonWeekView({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Board (optional)</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Board (optional)</label>
                 <select
                   value={editData.board_id || ''}
                   onChange={e => setEditData(d => ({ ...d, board_id: e.target.value || null }))}
@@ -1051,14 +1088,14 @@ export default function LessonWeekView({
                 <button
                   type="button"
                   onClick={() => deleteLesson(editLesson.id)}
-                  className="px-3 py-2 bg-red-50 text-red-700 hover:bg-red-100 rounded font-medium text-sm"
+                  className="px-3 py-2 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded font-medium text-sm"
                 >
                   Delete
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditLesson(null)}
-                  className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded font-medium text-sm"
+                  className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm"
                 >
                   Cancel
                 </button>
@@ -1077,15 +1114,15 @@ export default function LessonWeekView({
       {/* ── Rental edit modal ── */}
       {editRental && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditRental(null)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b">
-              <h3 className="font-bold text-gray-800">Edit rental</h3>
-              <button onClick={() => setEditRental(null)} className="text-gray-400 hover:text-gray-700">✕</button>
+              <h3 className="font-bold text-gray-800 dark:text-gray-200">Edit rental</h3>
+              <button onClick={() => setEditRental(null)} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">✕</button>
             </div>
             <form onSubmit={submitEditRental} className="p-4 space-y-3">
               {/* Participant */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Guest</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Guest</label>
                 <select
                   value={editRentalParticipantId}
                   onChange={e => setEditRentalParticipantId(e.target.value)}
@@ -1099,12 +1136,12 @@ export default function LessonWeekView({
               </div>
               {/* Type */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Type</label>
                 <div className="grid grid-cols-3 gap-1">
                   {RENTAL_TYPES.map(rt => (
                     <button key={rt.key} type="button"
                       onClick={() => setEditRentalType(rt.key)}
-                      className={`text-xs py-1.5 px-1 rounded border text-center leading-tight transition-colors ${editRentalType === rt.key ? 'bg-amber-500 border-amber-600 text-white font-semibold' : 'bg-white border-gray-200 text-gray-600 hover:border-amber-300'}`}>
+                      className={`text-xs py-1.5 px-1 rounded border text-center leading-tight transition-colors ${editRentalType === rt.key ? 'bg-amber-500 border-amber-600 dark:border-amber-500 text-white font-semibold' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-amber-300 dark:hover:border-amber-800'}`}>
                       <div>{rt.icon}</div>
                       <div>{rt.label}</div>
                     </button>
@@ -1133,7 +1170,7 @@ export default function LessonWeekView({
               {/* Slot + Price */}
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Slot</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Slot</label>
                   <select value={editRentalSlot} onChange={e => setEditRentalSlot(e.target.value as 'morning' | 'afternoon' | 'full_day')}
                     className="w-full text-sm border rounded px-2 py-1.5">
                     <option value="morning">Morning</option>
@@ -1142,7 +1179,7 @@ export default function LessonWeekView({
                   </select>
                 </div>
                 <div className="w-24">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Price (€)</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Price (€)</label>
                   <input type="number" min="0" step="0.5"
                     value={editRentalPrice} onChange={e => setEditRentalPrice(e.target.value)}
                     className="w-full text-sm border rounded px-2 py-1.5 text-right font-semibold" />
@@ -1150,15 +1187,15 @@ export default function LessonWeekView({
               </div>
               {/* Notes */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
                 <input type="text" value={editRentalNotes} onChange={e => setEditRentalNotes(e.target.value)}
                   placeholder="Optional" className="w-full text-sm border rounded px-2 py-1.5" />
               </div>
               <div className="flex gap-2 pt-2 border-t">
                 <button type="button" onClick={() => deleteRental(editRental.id)}
-                  className="px-3 py-2 bg-red-50 text-red-700 hover:bg-red-100 rounded font-medium text-sm">Delete</button>
+                  className="px-3 py-2 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded font-medium text-sm">Delete</button>
                 <button type="button" onClick={() => setEditRental(null)}
-                  className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded font-medium text-sm">Cancel</button>
+                  className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">Cancel</button>
                 <button type="submit"
                   className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm">Save</button>
               </div>
@@ -1173,11 +1210,11 @@ export default function LessonWeekView({
           className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center md:hidden"
           onClick={() => setActionSheetItem(null)}
         >
-          <div className="bg-white rounded-t-xl shadow-xl w-full p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-t-xl shadow-xl w-full p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]" onClick={e => e.stopPropagation()}>
             {actionSheetItem.kind === 'lesson' && (
               <button
                 onClick={() => { copyLesson(actionSheetItem.item); setActionSheetItem(null) }}
-                className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-base font-medium text-gray-800"
+                className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-base font-medium text-gray-800 dark:text-gray-200"
               >⎘ Copy</button>
             )}
             <button
@@ -1186,7 +1223,7 @@ export default function LessonWeekView({
                 else openMoveRental(actionSheetItem.item)
                 setActionSheetItem(null)
               }}
-              className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-base font-medium text-gray-800"
+              className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-base font-medium text-gray-800 dark:text-gray-200"
             >↔ Move</button>
             <button
               onClick={() => {
@@ -1194,7 +1231,7 @@ export default function LessonWeekView({
                 else openEditRental(actionSheetItem.item)
                 setActionSheetItem(null)
               }}
-              className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-base font-medium text-gray-800"
+              className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-base font-medium text-gray-800 dark:text-gray-200"
             >✏️ Edit</button>
             <button
               onClick={() => {
@@ -1202,11 +1239,11 @@ export default function LessonWeekView({
                 else deleteRental(actionSheetItem.item.id)
                 setActionSheetItem(null)
               }}
-              className="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 text-base font-medium text-red-600"
+              className="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-base font-medium text-red-600 dark:text-red-400"
             >✕ Delete</button>
             <button
               onClick={() => setActionSheetItem(null)}
-              className="w-full text-center px-4 py-3 mt-1 border-t text-gray-500 font-medium"
+              className="w-full text-center px-4 py-3 mt-1 border-t text-gray-500 dark:text-gray-400 font-medium"
             >Cancel</button>
           </div>
         </div>
@@ -1215,14 +1252,14 @@ export default function LessonWeekView({
       {/* ── Move modal (lesson or rental → new date/slot) ── */}
       {moveItem && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setMoveItem(null)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b">
-              <h3 className="font-bold text-gray-800">Move {moveItem.kind}</h3>
-              <button onClick={() => setMoveItem(null)} className="text-gray-400 hover:text-gray-700">✕</button>
+              <h3 className="font-bold text-gray-800 dark:text-gray-200">Move {moveItem.kind}</h3>
+              <button onClick={() => setMoveItem(null)} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">✕</button>
             </div>
             <div className="p-4 space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date</label>
                 <input
                   type="date"
                   value={moveDate}
@@ -1231,7 +1268,7 @@ export default function LessonWeekView({
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Slot</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Slot</label>
                 {moveItem.kind === 'lesson' ? (
                   <div className="grid grid-cols-3 gap-1">
                     {SLOTS.map(slot => (
@@ -1241,8 +1278,8 @@ export default function LessonWeekView({
                         onClick={() => setMoveLessonSlot(slot)}
                         className={`text-sm py-2 px-1 rounded border text-center transition-colors ${
                           moveLessonSlot === slot
-                            ? 'bg-emerald-500 border-emerald-600 text-white font-semibold'
-                            : 'bg-white border-gray-200 text-gray-600 hover:border-emerald-300'
+                            ? 'bg-emerald-500 border-emerald-600 dark:border-emerald-500 text-white font-semibold'
+                            : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-emerald-300 dark:hover:border-emerald-800'
                         }`}
                       >
                         {SLOT_CONFIG[slot].icon} {SLOT_CONFIG[slot].label}
@@ -1258,8 +1295,8 @@ export default function LessonWeekView({
                         onClick={() => setMoveRentalSlot(slot)}
                         className={`text-sm py-2 px-1 rounded border text-center transition-colors ${
                           moveRentalSlot === slot
-                            ? 'bg-emerald-500 border-emerald-600 text-white font-semibold'
-                            : 'bg-white border-gray-200 text-gray-600 hover:border-emerald-300'
+                            ? 'bg-emerald-500 border-emerald-600 dark:border-emerald-500 text-white font-semibold'
+                            : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-emerald-300 dark:hover:border-emerald-800'
                         }`}
                       >
                         {slot === 'morning' ? 'Morning' : slot === 'afternoon' ? 'Afternoon' : 'Full day'}
@@ -1270,7 +1307,7 @@ export default function LessonWeekView({
               </div>
               <div className="flex gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setMoveItem(null)}
-                  className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded font-medium text-sm">Cancel</button>
+                  className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">Cancel</button>
                 <button type="button" onClick={submitMove}
                   className="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-medium text-sm">Move</button>
               </div>

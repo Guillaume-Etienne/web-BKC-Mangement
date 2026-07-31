@@ -23,28 +23,28 @@ function TripList({ trips, driverName, lang, dateMode, view }: {
   lang: TaxiLang; dateMode: DateMode; view: ViewMode
 }) {
   if (trips.length === 0) {
-    return <p className="text-sm text-gray-400 italic py-4 text-center">{tr.no_trips[lang]}</p>
+    return <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">{tr.no_trips[lang]}</p>
   }
   const total = trips.reduce((s, t) => s + t.margin_manager_mzn, 0)
 
   if (view === 'cards') {
     return (
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-gray-100 dark:divide-gray-800">
         {trips.map(t => (
           <div key={t.id} className="px-4 py-3">
             <div className="flex items-baseline justify-between gap-2">
-              <span className="font-bold text-gray-900">{formatTripDate(t.date, lang, dateMode)}</span>
-              <span className="text-gray-500 text-sm">{t.start_time}</span>
+              <span className="font-bold text-gray-900 dark:text-gray-100">{formatTripDate(t.date, lang, dateMode)}</span>
+              <span className="text-gray-500 dark:text-gray-400 text-sm">{t.start_time}</span>
             </div>
-            <div className="mt-0.5 text-sm font-medium text-gray-800">{tripTypeLabel(t.type, lang)}</div>
-            <div className="text-sm text-gray-600">🚗 {driverName(t.taxi_driver_id)} · {clientName(t)}</div>
-            {t.notes && <div className="mt-1 text-xs text-gray-400 italic">💬 {t.notes}</div>}
-            <div className="mt-1.5 text-right font-bold text-purple-800">{mzn(t.margin_manager_mzn)}</div>
+            <div className="mt-0.5 text-sm font-medium text-gray-800 dark:text-gray-200">{tripTypeLabel(t.type, lang)}</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">🚗 {driverName(t.taxi_driver_id)} · {clientName(t)}</div>
+            {t.notes && <div className="mt-1 text-xs text-gray-400 dark:text-gray-500 italic">💬 {t.notes}</div>}
+            <div className="mt-1.5 text-right font-bold text-purple-800 dark:text-purple-400">{mzn(t.margin_manager_mzn)}</div>
           </div>
         ))}
-        <div className="px-4 py-3 bg-gray-100 flex justify-between font-bold">
-          <span className="text-gray-700">{tr.total[lang]}</span>
-          <span className="text-purple-900">{mzn(total)}</span>
+        <div className="px-4 py-3 bg-gray-100 dark:bg-gray-800 flex justify-between font-bold">
+          <span className="text-gray-700 dark:text-gray-300">{tr.total[lang]}</span>
+          <span className="text-purple-900 dark:text-purple-400">{mzn(total)}</span>
         </div>
       </div>
     )
@@ -54,7 +54,7 @@ function TripList({ trips, driverName, lang, dateMode, view }: {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="bg-gray-50 border-b text-gray-500 text-xs text-left">
+          <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-xs text-left">
             <th className="px-4 py-2 font-medium">{tr.col_date[lang]}</th>
             <th className="px-4 py-2 font-medium">{tr.col_time[lang]}</th>
             <th className="px-4 py-2 font-medium">{tr.col_driver[lang]}</th>
@@ -66,21 +66,21 @@ function TripList({ trips, driverName, lang, dateMode, view }: {
         </thead>
         <tbody>
           {trips.map(t => (
-            <tr key={t.id} className="border-b hover:bg-gray-50">
-              <td className="px-4 py-2 text-gray-700 whitespace-nowrap font-medium">{formatTripDate(t.date, lang, dateMode)}</td>
-              <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{t.start_time}</td>
-              <td className="px-4 py-2 text-gray-700 whitespace-nowrap">{driverName(t.taxi_driver_id)}</td>
-              <td className="px-4 py-2 text-gray-700 whitespace-nowrap">{tripTypeLabel(t.type, lang)}</td>
-              <td className="px-4 py-2 text-gray-700">{clientName(t)}</td>
-              <td className="px-4 py-2 text-gray-400 italic text-xs">{t.notes ?? ''}</td>
-              <td className="px-4 py-2 text-right font-semibold text-purple-800 whitespace-nowrap">{mzn(t.margin_manager_mzn)}</td>
+            <tr key={t.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{formatTripDate(t.date, lang, dateMode)}</td>
+              <td className="px-4 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">{t.start_time}</td>
+              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{driverName(t.taxi_driver_id)}</td>
+              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{tripTypeLabel(t.type, lang)}</td>
+              <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{clientName(t)}</td>
+              <td className="px-4 py-2 text-gray-400 dark:text-gray-500 italic text-xs">{t.notes ?? ''}</td>
+              <td className="px-4 py-2 text-right font-semibold text-purple-800 dark:text-purple-400 whitespace-nowrap">{mzn(t.margin_manager_mzn)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr className="bg-gray-100 border-t-2 border-gray-300 font-bold">
-            <td colSpan={6} className="px-4 py-2 text-right text-gray-700 text-sm">{tr.total[lang]}</td>
-            <td className="px-4 py-2 text-right text-purple-900">{mzn(total)}</td>
+          <tr className="bg-gray-100 dark:bg-gray-800 border-t-2 border-gray-300 dark:border-gray-700 font-bold">
+            <td colSpan={6} className="px-4 py-2 text-right text-gray-700 dark:text-gray-300 text-sm">{tr.total[lang]}</td>
+            <td className="px-4 py-2 text-right text-purple-900 dark:text-purple-400">{mzn(total)}</td>
           </tr>
         </tfoot>
       </table>
@@ -121,8 +121,8 @@ export default function TaxiManagerSharePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-400">{tr.loading[lang]}</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+        <p className="text-gray-400 dark:text-gray-500">{tr.loading[lang]}</p>
       </div>
     )
   }
@@ -138,9 +138,9 @@ export default function TaxiManagerSharePage() {
   const balance   = earnedMzn - paidMzn
 
   const balanceLabel = balance > 0 ? tr.fin_balance_due[lang] : balance < 0 ? tr.fin_overpaid[lang] : tr.fin_balanced[lang]
-  const balanceColor = balance > 0 ? 'bg-orange-50 border-orange-200 text-orange-800'
-                     : balance < 0 ? 'bg-green-50 border-green-200 text-green-800'
-                     :               'bg-gray-50 border-gray-200 text-gray-700'
+  const balanceColor = balance > 0 ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-900 text-orange-800 dark:text-orange-400'
+                     : balance < 0 ? 'bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-900 text-green-800 dark:text-green-400'
+                     :               'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300'
 
   // Per-driver summary (managed trips only)
   const perDriver = drivers
@@ -152,14 +152,14 @@ export default function TaxiManagerSharePage() {
     .sort((a, b) => b.commission - a.commission)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
         {/* Header + options */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl text-white px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-blue-200 text-sm font-medium uppercase tracking-wide mb-1">{tr.manager_statement[lang]}</p>
+              <p className="text-blue-200 dark:text-blue-300 text-sm font-medium uppercase tracking-wide mb-1">{tr.manager_statement[lang]}</p>
               <h1 className="text-2xl font-bold">Bilene Kite Center · Taxi</h1>
             </div>
             <Segmented value={lang} onChange={setLang}
@@ -174,42 +174,42 @@ export default function TaxiManagerSharePage() {
         </div>
 
         {/* Finances */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-3 border-b bg-amber-50">
-            <h2 className="text-sm font-bold text-amber-800">{tr.fin_title[lang]}</h2>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <div className="px-5 py-3 border-b bg-amber-50 dark:bg-amber-950/40">
+            <h2 className="text-sm font-bold text-amber-800 dark:text-amber-400">{tr.fin_title[lang]}</h2>
           </div>
           <div className="p-5 space-y-2 text-sm">
             <div className="flex justify-between items-center py-1 border-b">
-              <span className="text-gray-600">{tr.fin_earned[lang]} ({fmt(tr.trips_all[lang], { count: managed.length })})</span>
-              <span className="font-bold text-purple-900">{mzn(earnedMzn)}</span>
+              <span className="text-gray-600 dark:text-gray-400">{tr.fin_earned[lang]} ({fmt(tr.trips_all[lang], { count: managed.length })})</span>
+              <span className="font-bold text-purple-900 dark:text-purple-400">{mzn(earnedMzn)}</span>
             </div>
             <div className="flex justify-between items-center py-1 border-b">
-              <span className="text-gray-600">{tr.fin_paid[lang]}</span>
-              <span className="font-bold text-blue-900">{mzn(paidMzn)}</span>
+              <span className="text-gray-600 dark:text-gray-400">{tr.fin_paid[lang]}</span>
+              <span className="font-bold text-blue-900 dark:text-blue-400">{mzn(paidMzn)}</span>
             </div>
             <div className={`flex justify-between items-center p-3 rounded border font-bold ${balanceColor}`}>
               <span>{balanceLabel}</span>
               <span className="text-lg">{mzn(Math.abs(balance))}</span>
             </div>
-            <p className="text-xs text-gray-400 pt-1">{tr.fin_explain[lang]}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 pt-1">{tr.fin_explain[lang]}</p>
           </div>
         </div>
 
         {/* Per-driver summary */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-3 border-b bg-gray-50">
-            <h2 className="text-sm font-bold text-gray-700">{tr.mgr_by_driver[lang]}</h2>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <div className="px-5 py-3 border-b bg-gray-50 dark:bg-gray-800">
+            <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.mgr_by_driver[lang]}</h2>
           </div>
           {perDriver.length === 0 ? (
-            <p className="text-sm text-gray-400 italic py-4 text-center">{tr.no_trips[lang]}</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">{tr.no_trips[lang]}</p>
           ) : (
             <table className="w-full text-sm">
               <tbody>
                 {perDriver.map(r => (
                   <tr key={r.id} className="border-b last:border-0">
-                    <td className="px-5 py-2 text-gray-800 font-medium">🚗 {r.name}</td>
-                    <td className="px-5 py-2 text-gray-500 text-right">{fmt(tr.trips_all[lang], { count: r.count })}</td>
-                    <td className="px-5 py-2 text-right font-semibold text-purple-800">{mzn(r.commission)}</td>
+                    <td className="px-5 py-2 text-gray-800 dark:text-gray-200 font-medium">🚗 {r.name}</td>
+                    <td className="px-5 py-2 text-gray-500 dark:text-gray-400 text-right">{fmt(tr.trips_all[lang], { count: r.count })}</td>
+                    <td className="px-5 py-2 text-right font-semibold text-purple-800 dark:text-purple-400">{mzn(r.commission)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -218,32 +218,32 @@ export default function TaxiManagerSharePage() {
         </div>
 
         {/* Upcoming trips */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-3 border-b bg-blue-50">
-            <h2 className="text-sm font-bold text-blue-800">{tr.upcoming_trips[lang]} ({upcoming.length})</h2>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <div className="px-5 py-3 border-b bg-blue-50 dark:bg-blue-950/40">
+            <h2 className="text-sm font-bold text-blue-800 dark:text-blue-400">{tr.upcoming_trips[lang]} ({upcoming.length})</h2>
           </div>
           <TripList trips={upcoming} driverName={driverName} lang={lang} dateMode={dateMode} view={view} />
         </div>
 
         {/* Completed trips */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-3 border-b bg-gray-50">
-            <h2 className="text-sm font-bold text-gray-700">{tr.completed_trips[lang]} ({past.length})</h2>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <div className="px-5 py-3 border-b bg-gray-50 dark:bg-gray-800">
+            <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.completed_trips[lang]} ({past.length})</h2>
           </div>
           <TripList trips={past} driverName={driverName} lang={lang} dateMode={dateMode} view={view} />
         </div>
 
         {/* Payment history */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-3 border-b bg-gray-50">
-            <h2 className="text-sm font-bold text-gray-700">{tr.history_title[lang]}</h2>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <div className="px-5 py-3 border-b bg-gray-50 dark:bg-gray-800">
+            <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.history_title[lang]}</h2>
           </div>
           {payments.length === 0 ? (
-            <p className="text-sm text-gray-400 italic py-4 text-center">{tr.no_payments[lang]}</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">{tr.no_payments[lang]}</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b text-gray-500 text-xs text-left">
+                <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-xs text-left">
                   <th className="px-4 py-2 font-medium">{tr.col_date[lang]}</th>
                   <th className="px-4 py-2 font-medium">{tr.col_reason[lang]}</th>
                   <th className="px-4 py-2 font-medium text-right">{tr.col_amount[lang]}</th>
@@ -251,10 +251,10 @@ export default function TaxiManagerSharePage() {
               </thead>
               <tbody>
                 {payments.map(p => (
-                  <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="px-4 py-2 text-gray-700 whitespace-nowrap font-medium">{formatTripDate(p.date, lang, dateMode)}</td>
-                    <td className="px-4 py-2 text-gray-500">{p.notes ?? ''}</td>
-                    <td className="px-4 py-2 text-right font-semibold text-blue-900 whitespace-nowrap">{mzn(p.amount_mzn)}</td>
+                  <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{formatTripDate(p.date, lang, dateMode)}</td>
+                    <td className="px-4 py-2 text-gray-500 dark:text-gray-400">{p.notes ?? ''}</td>
+                    <td className="px-4 py-2 text-right font-semibold text-blue-900 dark:text-blue-400 whitespace-nowrap">{mzn(p.amount_mzn)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -262,7 +262,7 @@ export default function TaxiManagerSharePage() {
           )}
         </div>
 
-        <p className="text-center text-xs text-gray-300">
+        <p className="text-center text-xs text-gray-300 dark:text-gray-600">
           Bilene Kite Center · {tr.footer_updated[lang]} {new Date().toLocaleDateString(lang === 'pt' ? 'pt-PT' : 'en-GB')}
         </p>
 

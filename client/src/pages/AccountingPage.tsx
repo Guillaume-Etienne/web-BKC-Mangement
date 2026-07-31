@@ -251,17 +251,17 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-7xl mx-auto px-4 py-8">
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800">Accounting</h1>
-          <p className="text-gray-500 mt-1">Financial overview of the kite center</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200">Accounting</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Financial overview of the kite center</p>
         </div>
 
         {/* Tab bar */}
-        <div className="flex gap-1 bg-white rounded-xl shadow-sm border border-gray-200 p-1 mb-8 overflow-x-auto">
+        <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-1 mb-8 overflow-x-auto">
           {TABS.map(t => {
             const unverifiedCount = t.id === 'unverified' ? payments.filter(p => !p.is_verified).length : 0
             return (
@@ -271,13 +271,13 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm whitespace-nowrap transition-colors flex-1 justify-center ${
                   tab === t.id
                     ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-100'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
               >
                 <span>{t.icon}</span>
                 {t.label}
                 {unverifiedCount > 0 && (
-                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${tab === t.id ? 'bg-white text-blue-600' : 'bg-orange-100 text-orange-700'}`}>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${tab === t.id ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'}`}>
                     {unverifiedCount}
                   </span>
                 )}

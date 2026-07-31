@@ -162,15 +162,15 @@ export default function TaxiPage() {
   const error   = tripsError ?? driversError
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-full mx-auto px-4 py-8">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800">🚕 Taxi Management</h1>
-          <p className="text-gray-600 mt-2">Plan trips and manage drivers</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200">🚕 Taxi Management</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">Plan trips and manage drivers</p>
         </div>
 
         {error && (
-          <div className="mt-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+          <div className="mt-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 rounded-lg px-4 py-3 text-sm">
             Loading error: {error}
           </div>
         )}
@@ -179,7 +179,7 @@ export default function TaxiPage() {
         <div className="flex gap-4 mt-8 mb-8 border-b">
           {(['planning', 'finance', 'drivers'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2 font-medium transition-colors ${tab === t ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}>
+              className={`px-4 py-2 font-medium transition-colors ${tab === t ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
               {t === 'planning' ? '📅 Trip Planning' : t === 'finance' ? '💰 Finance' : '👤 Drivers'}
             </button>
           ))}
@@ -189,11 +189,11 @@ export default function TaxiPage() {
         {tab === 'planning' && (
           <>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-800">Taxi Trips</h2>
-              <div className="flex gap-2 bg-gray-200 rounded-lg p-1">
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Taxi Trips</h2>
+              <div className="flex gap-2 bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
                 {(['list', 'kanban'] as const).map(v => (
                   <button key={v} onClick={() => setPlanningView(v)}
-                    className={`px-4 py-2 rounded font-medium text-sm transition-colors ${planningView === v ? 'bg-white text-blue-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}>
+                    className={`px-4 py-2 rounded font-medium text-sm transition-colors ${planningView === v ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
                     {v === 'list' ? '📋 Liste' : '🗂️ Kanban'}
                   </button>
                 ))}
@@ -201,7 +201,7 @@ export default function TaxiPage() {
             </div>
 
             {loading && trips.length === 0 ? (
-              <div className="text-center py-16 text-gray-400">Loading…</div>
+              <div className="text-center py-16 text-gray-400 dark:text-gray-500">Loading…</div>
             ) : planningView === 'list' ? (
               <TaxiListView
                 trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings} bookingParticipants={bookingParticipants}
@@ -235,7 +235,7 @@ export default function TaxiPage() {
         {tab === 'drivers' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-800">Drivers</h2>
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Drivers</h2>
               <button onClick={() => openDriverForm()}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors">
                 + New driver
@@ -243,7 +243,7 @@ export default function TaxiPage() {
             </div>
 
             {driversLoading ? (
-              <div className="text-center py-16 text-gray-400">Loading…</div>
+              <div className="text-center py-16 text-gray-400 dark:text-gray-500">Loading…</div>
             ) : (
               <>
                 {/* Driver selector cards */}
@@ -258,18 +258,18 @@ export default function TaxiPage() {
                         onClick={() => setViewingDriverId(isViewing ? null : driver.id)}
                         className={`text-left rounded-xl border p-4 transition-all ${
                           isViewing
-                            ? 'bg-blue-600 border-blue-600 text-white shadow-md'
-                            : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm'
+                            ? 'bg-blue-600 border-blue-600 dark:border-blue-500 text-white shadow-md'
+                            : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-800 hover:shadow-sm'
                         }`}
                       >
-                        <p className={`font-bold text-base ${isViewing ? 'text-white' : 'text-gray-800'}`}>{driver.name}</p>
-                        <p className={`text-xs mt-0.5 truncate ${isViewing ? 'text-blue-200' : 'text-gray-400'}`}>{driver.vehicle ?? 'No vehicle'}</p>
+                        <p className={`font-bold text-base ${isViewing ? 'text-white' : 'text-gray-800 dark:text-gray-200'}`}>{driver.name}</p>
+                        <p className={`text-xs mt-0.5 truncate ${isViewing ? 'text-blue-200 dark:text-blue-300' : 'text-gray-400 dark:text-gray-500'}`}>{driver.vehicle ?? 'No vehicle'}</p>
                         <div className="mt-2 flex items-center gap-2">
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${isViewing ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${isViewing ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
                             {driverTrips.length} trip{driverTrips.length !== 1 ? 's' : ''}
                           </span>
                           {hasLink && (
-                            <span className={`text-xs ${isViewing ? 'text-blue-200' : 'text-green-500'}`}>🔗</span>
+                            <span className={`text-xs ${isViewing ? 'text-blue-200 dark:text-blue-300' : 'text-green-500 dark:text-green-400'}`}>🔗</span>
                           )}
                         </div>
                       </button>
@@ -303,83 +303,83 @@ export default function TaxiPage() {
       {/* Driver Form Modal */}
       {showDriverForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-md w-full">
             <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-800">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">
                 {selectedDriver ? 'Edit driver' : 'New driver'}
               </h2>
-              <button onClick={closeDriverForm} className="text-2xl text-gray-500 hover:text-gray-800">✕</button>
+              <button onClick={closeDriverForm} className="text-2xl text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">✕</button>
             </div>
             <form onSubmit={submitDriver} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
                 <input type="text" value={driverFormData.name || ''} required
                   onChange={e => setDriverFormData(d => ({ ...d, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
                 <input type="tel" value={driverFormData.phone || ''}
                   onChange={e => setDriverFormData(d => ({ ...d, phone: e.target.value || null }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
                 <input type="email" value={driverFormData.email || ''}
                   onChange={e => setDriverFormData(d => ({ ...d, email: e.target.value || null }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vehicle</label>
                 <input type="text" placeholder="e.g. White Toyota Corolla" value={driverFormData.vehicle || ''}
                   onChange={e => setDriverFormData(d => ({ ...d, vehicle: e.target.value || null }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Seats (vehicle capacity)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Seats (vehicle capacity)</label>
                 <input type="number" min="1" value={driverFormData.seats ?? 3}
                   onChange={e => setDriverFormData(d => ({ ...d, seats: parseInt(e.target.value) || 1 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Margin (%)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Margin (%)</label>
                 <input type="number" min="0" max="100" value={driverFormData.margin_percent ?? 30}
                   onChange={e => setDriverFormData(d => ({ ...d, margin_percent: parseFloat(e.target.value) || 30 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div className="border-t pt-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Default rates (applied when pre-assigned to a trip)</p>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Default rates (applied when pre-assigned to a trip)</p>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-blue-700 mb-1">Client (EUR)</label>
+                    <label className="block text-xs font-medium text-blue-700 dark:text-blue-400 mb-1">Client (EUR)</label>
                     <input type="number" min="0" step="1" value={driverFormData.default_price_eur ?? 120}
                       onChange={e => setDriverFormData(d => ({ ...d, default_price_eur: parseFloat(e.target.value) || 0 }))}
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-amber-700 mb-1">Driver (MZN)</label>
+                    <label className="block text-xs font-medium text-amber-700 dark:text-amber-400 mb-1">Driver (MZN)</label>
                     <input type="number" min="0" value={driverFormData.default_driver_mzn ?? 6000}
                       onChange={e => setDriverFormData(d => ({ ...d, default_driver_mzn: parseInt(e.target.value) || 0 }))}
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-purple-700 mb-1">Manager (MZN)</label>
+                    <label className="block text-xs font-medium text-purple-700 dark:text-purple-400 mb-1">Manager (MZN)</label>
                     <input type="number" min="0" value={driverFormData.default_manager_mzn ?? 1000}
                       onChange={e => setDriverFormData(d => ({ ...d, default_manager_mzn: parseInt(e.target.value) || 0 }))}
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
                 <textarea value={driverFormData.notes || ''} rows={2}
                   onChange={e => setDriverFormData(d => ({ ...d, notes: e.target.value || null }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div className="flex gap-3 pt-4 border-t">
                 <button type="button" onClick={closeDriverForm}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium">Cancel</button>
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium">Cancel</button>
                 <button type="submit" disabled={saving}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-60">
                   {saving ? 'Saving…' : 'Save'}

@@ -37,37 +37,37 @@ function AddExpenseForm({ categories, onAdd, onCancel }: AddFormProps) {
   }
 
   return (
-    <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-4">
-      <p className="font-semibold text-blue-800">New expense</p>
+    <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-xl p-5 space-y-4">
+      <p className="font-semibold text-blue-800 dark:text-blue-400">New expense</p>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Date</label>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Date</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Category</label>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Category</label>
           <select value={category} onChange={e => setCategory(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Amount (€)</label>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Amount (€)</label>
           <input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
             placeholder="0.00"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
       </div>
       <div>
-        <label className="block text-xs text-gray-500 mb-1">Description</label>
+        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Description</label>
         <input type="text" value={description} onChange={e => setDescription(e.target.value)}
           placeholder="What was this expense for?"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
       </div>
       <div className="flex gap-2 justify-end">
         <button onClick={onCancel}
-          className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+          className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
           Cancel
         </button>
         <button onClick={submit}
@@ -87,12 +87,12 @@ function AddCategoryForm({ onAdd, onCancel }: AddCatProps) {
     <div className="flex items-center gap-2">
       <input type="text" value={name} onChange={e => setName(e.target.value)}
         placeholder="Category name…"
-        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-44" />
+        className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-44" />
       <button onClick={() => { if (name.trim()) { onAdd(name.trim()); } }}
         className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
         Add
       </button>
-      <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+      <button onClick={onCancel} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 text-lg leading-none">×</button>
     </div>
   )
 }
@@ -197,11 +197,11 @@ export default function ExpensesTab({ data, handlers }: Props) {
 
       {/* View toggle */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex gap-1 bg-white rounded-lg border border-gray-200 p-1">
+        <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
           {(['list', 'summary'] as View[]).map(v => (
             <button key={v} onClick={() => setView(v)}
               className={`px-4 py-1.5 rounded text-sm font-medium transition-colors capitalize ${
-                view === v ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                view === v ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}>
               {v === 'list' ? '📋 List' : '📊 Summary'}
             </button>
@@ -225,7 +225,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
           {showAddCat
             ? <AddCategoryForm onAdd={addCategory} onCancel={() => setShowAddCat(false)} />
             : <button onClick={() => setShowAddCat(true)}
-                className="text-xs px-2 py-1 border border-dashed border-gray-300 rounded-full text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors">
+                className="text-xs px-2 py-1 border border-dashed border-gray-300 dark:border-gray-700 rounded-full text-gray-400 dark:text-gray-500 hover:border-blue-400 dark:hover:border-blue-700 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
                 + category
               </button>
           }
@@ -236,8 +236,8 @@ export default function ExpensesTab({ data, handlers }: Props) {
       {view === 'list' && (<>
 
         {/* Category breakdown bar */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
-          <p className="text-sm font-semibold text-gray-600">All-time breakdown</p>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
+          <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">All-time breakdown</p>
           {Object.entries(allByCat).sort((a, b) => b[1] - a[1]).map(([cat, val]) => (
             <div key={cat} className="flex items-center gap-3">
               <button onClick={() => setFilterCat(filterCat === cat ? 'all' : cat)}
@@ -248,10 +248,10 @@ export default function ExpensesTab({ data, handlers }: Props) {
                          ...(filterCat === cat ? { ringColor: colorOf(cat) } : {}) }}>
                 {cat}
               </button>
-              <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+              <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-3 overflow-hidden">
                 <div className="h-full rounded-full" style={{ width: `${(val / allTotal) * 100}%`, backgroundColor: colorOf(cat) }} />
               </div>
-              <p className="w-24 text-right text-sm font-semibold text-gray-700">{fmtEur(val)}</p>
+              <p className="w-24 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">{fmtEur(val)}</p>
             </div>
           ))}
         </div>
@@ -260,17 +260,17 @@ export default function ExpensesTab({ data, handlers }: Props) {
         <div className="flex flex-wrap gap-3 items-center">
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search…"
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-48" />
+            className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-48" />
           <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
           <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+            className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
             <option value="all">All categories</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           {(filterCat !== 'all' || filterMonth || search) && (
             <button onClick={() => { setFilterCat('all'); setFilterMonth(''); setSearch('') }}
-              className="text-xs text-blue-600 hover:underline">Clear</button>
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Clear</button>
           )}
           <div className="ml-auto">
             <button onClick={() => setShowAddForm(v => !v)}
@@ -283,44 +283,44 @@ export default function ExpensesTab({ data, handlers }: Props) {
         {showAddForm && <AddExpenseForm categories={categories} onAdd={e => { handlers.addExpense(e); setShowAddForm(false) }} onCancel={() => setShowAddForm(false)} />}
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
           <table className="w-full text-sm min-w-[540px]">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-gray-50 dark:bg-gray-800 border-b">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Date</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Category</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Description</th>
-                <th className="px-4 py-3 text-right font-semibold text-red-500">Amount</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Date</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Category</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Description</th>
+                <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Amount</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">No expenses match the current filters.</td></tr>
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500 text-sm">No expenses match the current filters.</td></tr>
               )}
               {filtered.map(e => (
-                <tr key={e.id} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{e.date}</td>
+                <tr key={e.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{e.date}</td>
                   <td className="px-4 py-3">
                     <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
                       style={{ backgroundColor: colorOf(e.category) + '33', color: colorOf(e.category) }}>
                       {e.category}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-800">{e.description}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-red-600">− {fmtEur(e.amount)}</td>
+                  <td className="px-4 py-3 text-gray-800 dark:text-gray-200">{e.description}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-400">− {fmtEur(e.amount)}</td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => handlers.deleteExpense(e.id)}
-                      className="text-gray-300 hover:text-red-500 transition-colors text-lg leading-none">×</button>
+                      className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors text-lg leading-none">×</button>
                   </td>
                 </tr>
               ))}
             </tbody>
             {filtered.length > 0 && (
-              <tfoot className="bg-gray-50 border-t font-semibold">
+              <tfoot className="bg-gray-50 dark:bg-gray-800 border-t font-semibold">
                 <tr>
-                  <td colSpan={3} className="px-4 py-3 text-gray-600">{filtered.length} expense{filtered.length !== 1 ? 's' : ''}</td>
-                  <td className="px-4 py-3 text-right text-red-600">− {fmtEur(listTotal)}</td>
+                  <td colSpan={3} className="px-4 py-3 text-gray-600 dark:text-gray-400">{filtered.length} expense{filtered.length !== 1 ? 's' : ''}</td>
+                  <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">− {fmtEur(listTotal)}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -334,7 +334,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
 
         {/* Period selector */}
         <div className="flex flex-wrap gap-2 items-center">
-          <div className="flex gap-1 bg-white rounded-lg border border-gray-200 p-1">
+          <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
             {([
               { id: 'all',    label: 'All time' },
               { id: 'season', label: `Season ${currentSeason?.label ?? ''}` },
@@ -342,7 +342,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
             ] as { id: SummaryPeriod; label: string }[]).map(opt => (
               <button key={opt.id} onClick={() => setSumPeriod(opt.id)}
                 className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-                  sumPeriod === opt.id ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                  sumPeriod === opt.id ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}>
                 {opt.label}
               </button>
@@ -351,10 +351,10 @@ export default function ExpensesTab({ data, handlers }: Props) {
           {sumPeriod === 'custom' && (
             <div className="flex items-center gap-2 text-sm">
               <input type="month" value={sumFrom} onChange={e => setSumFrom(e.target.value)}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
-              <span className="text-gray-400">→</span>
+                className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <span className="text-gray-400 dark:text-gray-500">→</span>
               <input type="month" value={sumTo} onChange={e => setSumTo(e.target.value)}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
           )}
         </div>
@@ -365,59 +365,59 @@ export default function ExpensesTab({ data, handlers }: Props) {
             <div key={cat} className="rounded-xl border p-4"
               style={{ borderColor: colorOf(cat) + '66', backgroundColor: colorOf(cat) + '11' }}>
               <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: colorOf(cat) }}>{cat}</p>
-              <p className="text-xl font-bold text-gray-800">− {fmtEur(summaryMatrix.catTotals[cat] ?? 0)}</p>
+              <p className="text-xl font-bold text-gray-800 dark:text-gray-200">− {fmtEur(summaryMatrix.catTotals[cat] ?? 0)}</p>
             </div>
           ))}
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Total</p>
-            <p className="text-xl font-bold text-red-700">− {fmtEur(summaryMatrix.grandTotal)}</p>
+          <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Total</p>
+            <p className="text-xl font-bold text-red-700 dark:text-red-400">− {fmtEur(summaryMatrix.grandTotal)}</p>
           </div>
         </div>
 
         {/* Month × Category table */}
         {summaryMatrix.months.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-gray-50 dark:bg-gray-800 border-b">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">Month</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap">Month</th>
                   {summaryMatrix.cats.map(cat => (
                     <th key={cat} className="px-4 py-3 text-right font-semibold whitespace-nowrap"
                       style={{ color: colorOf(cat) }}>
                       {cat}
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-right font-semibold text-gray-600">Total</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {[...summaryMatrix.months].reverse().map((m, mi) => {
                   const monthTotal = summaryMatrix.monthTotals[summaryMatrix.months.length - 1 - mi]
                   return (
-                    <tr key={m} className="border-b hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">{fmtMonth(m)}</td>
+                    <tr key={m} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtMonth(m)}</td>
                       {summaryMatrix.cats.map(cat => {
                         const val = summaryMatrix.totals[m]?.[cat] ?? 0
                         return (
-                          <td key={cat} className="px-4 py-3 text-right text-gray-500">
+                          <td key={cat} className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">
                             {val ? `− ${fmtEur(val)}` : '–'}
                           </td>
                         )
                       })}
-                      <td className="px-4 py-3 text-right font-semibold text-red-600">− {fmtEur(monthTotal)}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-400">− {fmtEur(monthTotal)}</td>
                     </tr>
                   )
                 })}
               </tbody>
-              <tfoot className="bg-gray-50 border-t font-semibold">
+              <tfoot className="bg-gray-50 dark:bg-gray-800 border-t font-semibold">
                 <tr>
-                  <td className="px-4 py-3 text-gray-600">Total</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">Total</td>
                   {summaryMatrix.cats.map(cat => (
                     <td key={cat} className="px-4 py-3 text-right" style={{ color: colorOf(cat) }}>
                       − {fmtEur(summaryMatrix.catTotals[cat] ?? 0)}
                     </td>
                   ))}
-                  <td className="px-4 py-3 text-right text-red-700">− {fmtEur(summaryMatrix.grandTotal)}</td>
+                  <td className="px-4 py-3 text-right text-red-700 dark:text-red-400">− {fmtEur(summaryMatrix.grandTotal)}</td>
                 </tr>
               </tfoot>
             </table>

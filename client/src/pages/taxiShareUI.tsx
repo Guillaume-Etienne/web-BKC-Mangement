@@ -18,7 +18,7 @@ export function Segmented<T extends string>({ value, options, onChange }: {
       {options.map(o => (
         <button key={o.v} onClick={() => onChange(o.v)}
           className={`px-2.5 py-1 font-medium transition-colors ${
-            value === o.v ? 'bg-white text-blue-700' : 'text-white/80 hover:bg-white/10'
+            value === o.v ? 'bg-white dark:bg-gray-900 text-blue-700 dark:text-blue-400' : 'text-white/80 hover:bg-white dark:hover:bg-gray-900/10'
           }`}>
           {o.label}
         </button>

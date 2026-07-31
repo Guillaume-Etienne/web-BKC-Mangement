@@ -27,27 +27,27 @@ function RentForm({ existing, onSave, onCancel }: { existing?: PalmeirasRent; on
     onSave({ id: existing?.id ?? `pr_${Date.now()}`, month, amount: parsed, notes: notes || null })
   }
   return (
-    <form onSubmit={submit} className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
-      <p className="text-sm font-semibold text-red-800">{existing ? 'Edit rent' : 'Add rent payment'}</p>
+    <form onSubmit={submit} className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-4 space-y-3">
+      <p className="text-sm font-semibold text-red-800 dark:text-red-400">{existing ? 'Edit rent' : 'Add rent payment'}</p>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-gray-500 mb-1 block">Month</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Month</label>
           <input type="month" value={month} onChange={e => setMonth(e.target.value)}
-            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
+            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
         </div>
         <div>
-          <label className="text-xs text-gray-500 mb-1 block">Amount (€)</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Amount (€)</label>
           <input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
-            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
+            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
         </div>
       </div>
       <div>
-        <label className="text-xs text-gray-500 mb-1 block">Notes</label>
+        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Notes</label>
         <input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
-          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
+          className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
       </div>
       <div className="flex gap-2">
-        <button type="button" onClick={onCancel} className="flex-1 px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+        <button type="button" onClick={onCancel} className="flex-1 px-3 py-1.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">Cancel</button>
         <button type="submit" className="flex-1 px-3 py-1.5 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700">Save</button>
       </div>
     </form>
@@ -68,39 +68,39 @@ function ReversalForm({ existing, onSave, onCancel }: { existing?: PalmeirasReve
     onSave({ id: existing?.id ?? `prev_${Date.now()}`, month, gross_amount: grossNum, percent: pctNum, net_amount: netAmount, notes: notes || null })
   }
   return (
-    <form onSubmit={submit} className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 space-y-3">
-      <p className="text-sm font-semibold text-emerald-800">{existing ? 'Edit reversal' : 'Add reversal'}</p>
+    <form onSubmit={submit} className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-lg p-4 space-y-3">
+      <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-400">{existing ? 'Edit reversal' : 'Add reversal'}</p>
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="text-xs text-gray-500 mb-1 block">Month</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Month</label>
           <input type="month" value={month} onChange={e => setMonth(e.target.value)}
-            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
         </div>
         <div>
-          <label className="text-xs text-gray-500 mb-1 block">Palmeiras gross (€)</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Palmeiras gross (€)</label>
           <input type="number" min="0" step="0.01" value={gross} onChange={e => setGross(e.target.value)} placeholder="Total they collected"
-            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
         </div>
         <div>
-          <label className="text-xs text-gray-500 mb-1 block">% owed to us</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">% owed to us</label>
           <input type="number" min="0" max="100" step="0.1" value={percent} onChange={e => setPercent(e.target.value)}
-            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
         </div>
       </div>
       {grossNum > 0 && (
-        <div className="bg-white rounded-lg px-4 py-2 flex justify-between items-center border border-emerald-200">
-          <span className="text-sm text-gray-600">We receive</span>
-          <span className="text-lg font-bold text-emerald-700">{fmtEur(netAmount)}</span>
-          <span className="text-xs text-gray-400">({pctNum}% of {fmtEur(grossNum)})</span>
+        <div className="bg-white dark:bg-gray-900 rounded-lg px-4 py-2 flex justify-between items-center border border-emerald-200 dark:border-emerald-900">
+          <span className="text-sm text-gray-600 dark:text-gray-400">We receive</span>
+          <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{fmtEur(netAmount)}</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">({pctNum}% of {fmtEur(grossNum)})</span>
         </div>
       )}
       <div>
-        <label className="text-xs text-gray-500 mb-1 block">Notes</label>
+        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Notes</label>
         <input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
-          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+          className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
       </div>
       <div className="flex gap-2">
-        <button type="button" onClick={onCancel} className="flex-1 px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+        <button type="button" onClick={onCancel} className="flex-1 px-3 py-1.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">Cancel</button>
         <button type="submit" className="flex-1 px-3 py-1.5 bg-emerald-600 text-white rounded text-sm font-semibold hover:bg-emerald-700">Save</button>
       </div>
     </form>
@@ -128,11 +128,11 @@ function EntryForm({ month, type, onSave, onCancel }: {
       <div className="flex gap-2">
         <input type="text" value={description} onChange={e => setDescription(e.target.value)}
           placeholder="Description…" autoFocus
-          className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         <input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
-          placeholder="€" className="w-28 px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          placeholder="€" className="w-28 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         <button type="submit" className={`px-3 py-1.5 bg-${color}-600 text-white rounded text-sm font-semibold hover:bg-${color}-700`}>Add</button>
-        <button type="button" onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-xl leading-none px-1">×</button>
+        <button type="button" onClick={onCancel} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 text-xl leading-none px-1">×</button>
       </div>
     </form>
   )
@@ -301,7 +301,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
 
       {/* Period selector */}
       <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex gap-1 bg-white rounded-lg border border-gray-200 p-1">
+        <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
           {([
             { id: 'all',    label: 'All time' },
             { id: 'season', label: `Season ${currentSeason?.label ?? ''}` },
@@ -310,7 +310,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
           ] as { id: PeriodMode; label: string }[]).map(opt => (
             <button key={opt.id} onClick={() => setPeriod(opt.id)}
               className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-                period === opt.id ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                period === opt.id ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}>
               {opt.label}
             </button>
@@ -319,57 +319,57 @@ export default function PalmeirasTab({ data, handlers }: Props) {
         {period === 'custom' && (
           <div className="flex items-center gap-2 text-sm">
             <input type="month" value={customFrom} onChange={e => setFrom(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
-            <span className="text-gray-400">→</span>
+              className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            <span className="text-gray-400 dark:text-gray-500">→</span>
             <input type="month" value={customTo} onChange={e => setTo(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
         )}
         {period === 'single' && (
           <div className="flex items-center gap-1">
             <button onClick={() => setSingle(m => shiftMonth(m, -1))}
-              className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-gray-100 text-gray-600 text-lg">‹</button>
-            <span className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 min-w-[120px] text-center">
+              className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 text-lg">‹</button>
+            <span className="px-4 py-1.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-300 min-w-[120px] text-center">
               {fmtMonth(singleMonth)}
             </span>
             <button onClick={() => setSingle(m => shiftMonth(m, +1))}
-              className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-gray-100 text-gray-600 text-lg">›</button>
+              className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 text-lg">›</button>
           </div>
         )}
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-400 mb-1">Rent</p>
-          <p className="text-lg font-bold text-red-700">− {fmtEur(totalRent)}</p>
+        <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-400 dark:text-red-300 mb-1">Rent</p>
+          <p className="text-lg font-bold text-red-700 dark:text-red-400">− {fmtEur(totalRent)}</p>
         </div>
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400 mb-1">Reversals</p>
-          <p className="text-lg font-bold text-emerald-700">+ {fmtEur(totalReversals)}</p>
+        <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400 dark:text-emerald-300 mb-1">Reversals</p>
+          <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">+ {fmtEur(totalReversals)}</p>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-400 mb-1">Bungalows</p>
-          <p className="text-lg font-bold text-blue-700">+ {fmtEur(totalBungMargin)}</p>
-          <p className="text-xs text-blue-500 mt-0.5">{filteredBungalows.length} booking(s)</p>
+        <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-400 dark:text-blue-300 mb-1">Bungalows</p>
+          <p className="text-lg font-bold text-blue-700 dark:text-blue-400">+ {fmtEur(totalBungMargin)}</p>
+          <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">{filteredBungalows.length} booking(s)</p>
         </div>
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400 mb-1">Free income</p>
-          <p className="text-lg font-bold text-emerald-700">+ {fmtEur(totalFreeInc)}</p>
+        <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400 dark:text-emerald-300 mb-1">Free income</p>
+          <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">+ {fmtEur(totalFreeInc)}</p>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-400 mb-1">Free expenses</p>
-          <p className="text-lg font-bold text-red-700">− {fmtEur(totalFreeExp)}</p>
+        <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-400 dark:text-red-300 mb-1">Free expenses</p>
+          <p className="text-lg font-bold text-red-700 dark:text-red-400">− {fmtEur(totalFreeExp)}</p>
         </div>
-        <div className={`border rounded-xl p-4 ${net >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-          <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${net >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>Net</p>
-          <p className={`text-lg font-bold ${net >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{net >= 0 ? '+' : ''}{fmtEur(net)}</p>
+        <div className={`border rounded-xl p-4 ${net >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900' : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900'}`}>
+          <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${net >= 0 ? 'text-emerald-400 dark:text-emerald-300' : 'text-red-400 dark:text-red-300'}`}>Net</p>
+          <p className={`text-lg font-bold ${net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>{net >= 0 ? '+' : ''}{fmtEur(net)}</p>
         </div>
       </div>
 
       {/* Why this Net is not the dashboard's Palmeiras figure */}
-      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-600 leading-relaxed">
-        <span className="font-semibold text-gray-700">Reading this Net.</span>{' '}
+      <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+        <span className="font-semibold text-gray-700 dark:text-gray-300">Reading this Net.</span>{' '}
         It answers <em>what does the Palmeiras partnership bring in?</em> — reversals
         + bungalow margin + free income, minus rent and free expenses.
         It is <span className="font-semibold">not</span> the smaller “Palmeiras” figure on the
@@ -379,25 +379,25 @@ export default function PalmeirasTab({ data, handlers }: Props) {
       </div>
 
       {/* Monthly table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
         <div className="flex flex-wrap justify-between items-center px-5 py-4 border-b gap-2">
-          <h2 className="font-semibold text-gray-800">Monthly breakdown</h2>
+          <h2 className="font-semibold text-gray-800 dark:text-gray-200">Monthly breakdown</h2>
           <div className="flex gap-2 flex-wrap">
             <button onClick={() => { closeAll(); setShowAddRent(true) }}
-              className="text-xs px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium">+ Rent</button>
+              className="text-xs px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-800 font-medium">+ Rent</button>
             <button onClick={() => { closeAll(); setShowAddReversal(true) }}
-              className="text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 font-medium">+ Reversal</button>
+              className="text-xs px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 font-medium">+ Reversal</button>
             <button onClick={() => { closeAll(); setAddingEntry('income') }}
-              className="text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 font-medium">+ Income</button>
+              className="text-xs px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 font-medium">+ Income</button>
             <button onClick={() => { closeAll(); setAddingEntry('expense') }}
-              className="text-xs px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 font-medium">+ Expense</button>
+              className="text-xs px-3 py-1.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-800 font-medium">+ Expense</button>
             <button onClick={handlePrint}
-              className="text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 font-medium">🖨 Export</button>
+              className="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 font-medium">🖨 Export</button>
           </div>
         </div>
 
         {(anyForm || addingEntry) && (
-          <div className="px-5 py-4 border-b bg-gray-50 space-y-3">
+          <div className="px-5 py-4 border-b bg-gray-50 dark:bg-gray-800 space-y-3">
             {showAddRent      && <RentForm     onSave={r => { handlers.addPalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
             {showAddReversal  && <ReversalForm onSave={r => { handlers.addPalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
             {editingRent      && <RentForm     existing={editingRent}     onSave={r => { handlers.updatePalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
@@ -414,23 +414,23 @@ export default function PalmeirasTab({ data, handlers }: Props) {
         )}
 
         <table className="w-full text-sm min-w-[700px]">
-          <thead className="bg-gray-50 border-b">
+          <thead className="bg-gray-50 dark:bg-gray-800 border-b">
             <tr>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600">Month</th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500">Rent</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-500">Gross (Palm.)</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-400">%</th>
-              <th className="px-4 py-3 text-right font-semibold text-emerald-600">Reversal</th>
-              <th className="px-4 py-3 text-right font-semibold text-blue-600">Bungalows</th>
-              <th className="px-4 py-3 text-right font-semibold text-emerald-500">+ Free</th>
-              <th className="px-4 py-3 text-right font-semibold text-orange-500">− Free</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-600">Net</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Month</th>
+              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Rent</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-500 dark:text-gray-400">Gross (Palm.)</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-400 dark:text-gray-500">%</th>
+              <th className="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">Reversal</th>
+              <th className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400">Bungalows</th>
+              <th className="px-4 py-3 text-right font-semibold text-emerald-500 dark:text-emerald-400">+ Free</th>
+              <th className="px-4 py-3 text-right font-semibold text-orange-500 dark:text-orange-400">− Free</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Net</th>
               <th className="px-4 py-3 w-16" />
             </tr>
           </thead>
           <tbody>
             {allMonths.length === 0 && (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400 text-sm">No data for this period.</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500 text-sm">No data for this period.</td></tr>
             )}
             {allMonths.map(month => {
               const rent      = filteredRents.find(r => r.month === month)
@@ -442,49 +442,49 @@ export default function PalmeirasTab({ data, handlers }: Props) {
               const mExp      = mEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
               const monthNet  = (reversal?.net_amount ?? 0) + bungMargin + mInc - (rent?.amount ?? 0) - mExp
               return (
-                <tr key={month} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-800">{fmtMonth(month)}</td>
+                <tr key={month} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{fmtMonth(month)}</td>
                   <td className="px-4 py-3 text-right">
-                    {rent ? <span className="text-red-600 font-medium">− {fmtEur(rent.amount)}</span> : <span className="text-gray-300">–</span>}
+                    {rent ? <span className="text-red-600 dark:text-red-400 font-medium">− {fmtEur(rent.amount)}</span> : <span className="text-gray-300 dark:text-gray-600">–</span>}
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-500">{reversal ? fmtEur(reversal.gross_amount) : <span className="text-gray-300">–</span>}</td>
-                  <td className="px-4 py-3 text-right text-gray-400">{reversal ? `${reversal.percent}%` : ''}</td>
+                  <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{reversal ? fmtEur(reversal.gross_amount) : <span className="text-gray-300 dark:text-gray-600">–</span>}</td>
+                  <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500">{reversal ? `${reversal.percent}%` : ''}</td>
                   <td className="px-4 py-3 text-right">
-                    {reversal ? <span className="text-emerald-700 font-medium">+ {fmtEur(reversal.net_amount)}</span> : <span className="text-gray-300">–</span>}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {bungMargin > 0 ? <span className="text-blue-700 font-medium">+ {fmtEur(bungMargin)}</span> : <span className="text-gray-300">–</span>}
+                    {reversal ? <span className="text-emerald-700 dark:text-emerald-400 font-medium">+ {fmtEur(reversal.net_amount)}</span> : <span className="text-gray-300 dark:text-gray-600">–</span>}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {mInc > 0 ? <span className="text-emerald-600 font-medium">+ {fmtEur(mInc)}</span> : <span className="text-gray-300">–</span>}
+                    {bungMargin > 0 ? <span className="text-blue-700 dark:text-blue-400 font-medium">+ {fmtEur(bungMargin)}</span> : <span className="text-gray-300 dark:text-gray-600">–</span>}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {mExp > 0 ? <span className="text-orange-600 font-medium">− {fmtEur(mExp)}</span> : <span className="text-gray-300">–</span>}
+                    {mInc > 0 ? <span className="text-emerald-600 dark:text-emerald-400 font-medium">+ {fmtEur(mInc)}</span> : <span className="text-gray-300 dark:text-gray-600">–</span>}
                   </td>
-                  <td className={`px-4 py-3 text-right font-bold ${monthNet > 0 ? 'text-emerald-700' : monthNet < 0 ? 'text-red-700' : 'text-gray-400'}`}>
+                  <td className="px-4 py-3 text-right">
+                    {mExp > 0 ? <span className="text-orange-600 dark:text-orange-400 font-medium">− {fmtEur(mExp)}</span> : <span className="text-gray-300 dark:text-gray-600">–</span>}
+                  </td>
+                  <td className={`px-4 py-3 text-right font-bold ${monthNet > 0 ? 'text-emerald-700 dark:text-emerald-400' : monthNet < 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'}`}>
                     {(rent || reversal || bungMargin || mInc || mExp) ? `${monthNet >= 0 ? '+' : ''}${fmtEur(monthNet)}` : '–'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">
-                      {rent     && <button onClick={() => { closeAll(); setEditingRent(rent) }}     title="Edit rent"     className="text-gray-300 hover:text-red-500 transition-colors text-sm px-1">✏</button>}
-                      {reversal && <button onClick={() => { closeAll(); setEditingReversal(reversal) }} title="Edit reversal" className="text-gray-300 hover:text-emerald-600 transition-colors text-sm px-1">✏</button>}
+                      {rent     && <button onClick={() => { closeAll(); setEditingRent(rent) }}     title="Edit rent"     className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors text-sm px-1">✏</button>}
+                      {reversal && <button onClick={() => { closeAll(); setEditingReversal(reversal) }} title="Edit reversal" className="text-gray-300 dark:text-gray-600 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors text-sm px-1">✏</button>}
                     </div>
                   </td>
                 </tr>
               )
             })}
           </tbody>
-          <tfoot className="bg-gray-50 border-t">
+          <tfoot className="bg-gray-50 dark:bg-gray-800 border-t">
             <tr>
-              <td className="px-4 py-3 font-semibold text-gray-700">Total</td>
-              <td className="px-4 py-3 text-right font-semibold text-red-700">− {fmtEur(totalRent)}</td>
-              <td className="px-4 py-3 text-right font-semibold text-gray-600">{fmtEur(filteredReversals.reduce((s, r) => s + r.gross_amount, 0))}</td>
+              <td className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Total</td>
+              <td className="px-4 py-3 text-right font-semibold text-red-700 dark:text-red-400">− {fmtEur(totalRent)}</td>
+              <td className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{fmtEur(filteredReversals.reduce((s, r) => s + r.gross_amount, 0))}</td>
               <td />
-              <td className="px-4 py-3 text-right font-semibold text-emerald-700">+ {fmtEur(totalReversals)}</td>
-              <td className="px-4 py-3 text-right font-semibold text-blue-700">+ {fmtEur(totalBungMargin)}</td>
-              <td className="px-4 py-3 text-right font-semibold text-emerald-600">+ {fmtEur(totalFreeInc)}</td>
-              <td className="px-4 py-3 text-right font-semibold text-orange-600">− {fmtEur(totalFreeExp)}</td>
-              <td className={`px-4 py-3 text-right font-bold ${net >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{net >= 0 ? '+' : ''}{fmtEur(net)}</td>
+              <td className="px-4 py-3 text-right font-semibold text-emerald-700 dark:text-emerald-400">+ {fmtEur(totalReversals)}</td>
+              <td className="px-4 py-3 text-right font-semibold text-blue-700 dark:text-blue-400">+ {fmtEur(totalBungMargin)}</td>
+              <td className="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">+ {fmtEur(totalFreeInc)}</td>
+              <td className="px-4 py-3 text-right font-semibold text-orange-600 dark:text-orange-400">− {fmtEur(totalFreeExp)}</td>
+              <td className={`px-4 py-3 text-right font-bold ${net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>{net >= 0 ? '+' : ''}{fmtEur(net)}</td>
               <td />
             </tr>
           </tfoot>
@@ -493,35 +493,35 @@ export default function PalmeirasTab({ data, handlers }: Props) {
 
       {/* Bungalow bookings detail (auto-computed) */}
       {filteredBungalows.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
           <div className="px-5 py-4 border-b">
-            <h2 className="font-semibold text-gray-800">Bungalow bookings detail</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Auto-calculated from bookings assigned to bungalow accommodations</p>
+            <h2 className="font-semibold text-gray-800 dark:text-gray-200">Bungalow bookings detail</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Auto-calculated from bookings assigned to bungalow accommodations</p>
           </div>
           <table className="w-full text-sm min-w-[700px]">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-gray-50 dark:bg-gray-800 border-b">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Bungalow</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Period</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-400">Nights</th>
-                <th className="px-4 py-3 text-right font-semibold text-red-500">Cost/n</th>
-                <th className="px-4 py-3 text-right font-semibold text-emerald-600">Sell/n</th>
-                <th className="px-4 py-3 text-right font-semibold text-blue-600">Margin</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-400">Client</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Bungalow</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Period</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-400 dark:text-gray-500">Nights</th>
+                <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Cost/n</th>
+                <th className="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">Sell/n</th>
+                <th className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400">Margin</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-400 dark:text-gray-500">Client</th>
               </tr>
             </thead>
             <tbody>
               {[...filteredBungalows].sort((a, b) => b.checkIn.localeCompare(a.checkIn)).map((b, i) => (
-                <tr key={i} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-800">{b.bungalow}</td>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{b.checkIn} → {b.checkOut}</td>
-                  <td className="px-4 py-3 text-right text-gray-500">{b.nights}</td>
-                  <td className="px-4 py-3 text-right text-red-500">{fmtEur(b.costRate)}</td>
-                  <td className="px-4 py-3 text-right text-emerald-600">{fmtEur(b.sellRate)}</td>
-                  <td className={`px-4 py-3 text-right font-semibold ${b.margin >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                <tr key={i} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{b.bungalow}</td>
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{b.checkIn} → {b.checkOut}</td>
+                  <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{b.nights}</td>
+                  <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">{fmtEur(b.costRate)}</td>
+                  <td className="px-4 py-3 text-right text-emerald-600 dark:text-emerald-400">{fmtEur(b.sellRate)}</td>
+                  <td className={`px-4 py-3 text-right font-semibold ${b.margin >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'}`}>
                     {b.margin >= 0 ? '+' : ''}{fmtEur(b.margin)}
                   </td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{b.bookingRef}</td>
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{b.bookingRef}</td>
                 </tr>
               ))}
             </tbody>
@@ -531,36 +531,36 @@ export default function PalmeirasTab({ data, handlers }: Props) {
 
       {/* Free entries detail */}
       {filteredEntries.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
           <div className="px-5 py-4 border-b">
-            <h2 className="font-semibold text-gray-800">Free entries detail</h2>
+            <h2 className="font-semibold text-gray-800 dark:text-gray-200">Free entries detail</h2>
           </div>
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-gray-50 dark:bg-gray-800 border-b">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Month</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Type</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Description</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-600">Amount</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Month</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Type</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Description</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Amount</th>
                 <th className="px-4 py-3 w-10" />
               </tr>
             </thead>
             <tbody>
               {[...filteredEntries].sort((a, b) => b.month.localeCompare(a.month)).map(e => (
-                <tr key={e.id} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{fmtMonth(e.month)}</td>
+                <tr key={e.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtMonth(e.month)}</td>
                   <td className="px-4 py-3">
                     {e.type === 'income'
-                      ? <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">+ Income</span>
-                      : <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">− Expense</span>}
+                      ? <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">+ Income</span>
+                      : <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">− Expense</span>}
                   </td>
-                  <td className="px-4 py-3 text-gray-800">{e.description}</td>
-                  <td className={`px-4 py-3 text-right font-semibold ${e.type === 'income' ? 'text-emerald-700' : 'text-orange-700'}`}>
+                  <td className="px-4 py-3 text-gray-800 dark:text-gray-200">{e.description}</td>
+                  <td className={`px-4 py-3 text-right font-semibold ${e.type === 'income' ? 'text-emerald-700 dark:text-emerald-400' : 'text-orange-700 dark:text-orange-400'}`}>
                     {e.type === 'income' ? '+ ' : '− '}{fmtEur(e.amount)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => handlers.deletePalmeirasEntry(e.id)}
-                      className="text-gray-300 hover:text-red-500 transition-colors text-lg leading-none">×</button>
+                      className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors text-lg leading-none">×</button>
                   </td>
                 </tr>
               ))}
@@ -569,7 +569,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
         </div>
       )}
 
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm text-amber-800 space-y-1">
+      <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl p-5 text-sm text-amber-800 dark:text-amber-400 space-y-1">
         <p className="font-semibold">About Palmeiras accounting</p>
         <p>All figures reflect the selected period and are included in the global dashboard totals.</p>
         <p><strong>Reversal</strong> = % of Palmeiras' own bookings they owe us · <strong>Rent</strong> = monthly lease · <strong>Bungalow margin</strong> = sell − cost, auto-calculated from bookings assigned to bungalow accommodations · <strong>Free entries</strong> = any misc income or expense.</p>

@@ -70,11 +70,11 @@ function filterByClientName(bookings: Booking[], search: string): Booking[] {
 // ── Email history display ──────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<EmailLog['status'], { bg: string; text: string; label: string }> = {
-  pending:   { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
-  sent:      { bg: 'bg-blue-100',   text: 'text-blue-800',   label: 'Sent' },
-  delivered: { bg: 'bg-green-100',  text: 'text-green-800',  label: 'Delivered ✓' },
-  opened:    { bg: 'bg-green-200',  text: 'text-green-900',  label: 'Opened ✓✓' },
-  failed:    { bg: 'bg-red-100',    text: 'text-red-800',    label: 'Failed ✗' },
+  pending:   { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-800 dark:text-yellow-400', label: 'Pending' },
+  sent:      { bg: 'bg-blue-100 dark:bg-blue-900/30',   text: 'text-blue-800 dark:text-blue-400',   label: 'Sent' },
+  delivered: { bg: 'bg-green-100 dark:bg-green-900/30',  text: 'text-green-800 dark:text-green-400',  label: 'Delivered ✓' },
+  opened:    { bg: 'bg-green-200 dark:bg-green-800',  text: 'text-green-900 dark:text-green-400',  label: 'Opened ✓✓' },
+  failed:    { bg: 'bg-red-100 dark:bg-red-900/30',    text: 'text-red-800 dark:text-red-400',    label: 'Failed ✗' },
 }
 
 function EmailHistory({ logs }: { logs: EmailLog[] }) {
@@ -89,8 +89,8 @@ function EmailHistory({ logs }: { logs: EmailLog[] }) {
         return (
           <div key={log.id} className="flex items-center gap-2 text-xs">
             <span className={`px-2 py-0.5 rounded-full font-medium ${bg} ${text}`}>{label}</span>
-            <span className="text-gray-400 truncate">{log.recipient_email}</span>
-            {date && <span className="text-gray-300 shrink-0">{date}</span>}
+            <span className="text-gray-400 dark:text-gray-500 truncate">{log.recipient_email}</span>
+            {date && <span className="text-gray-300 dark:text-gray-600 shrink-0">{date}</span>}
           </div>
         )
       })}
@@ -117,11 +117,11 @@ function TemplatesEditor({
     <div className="space-y-3">
       {/* Global language switcher */}
       <div className="flex items-center gap-3">
-        <span className="text-xs font-medium text-gray-500 shrink-0">Editing language:</span>
+        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">Editing language:</span>
         <div className="flex gap-1">
           {(['fr', 'en', 'es'] as Lang[]).map(l => (
             <button key={l} onClick={() => setEditLang(l)}
-              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${editLang === l ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${editLang === l ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
               {l === 'fr' ? '🇫🇷 FR' : l === 'en' ? '🇬🇧 EN' : '🇪🇸 ES'}
             </button>
           ))}
@@ -129,20 +129,20 @@ function TemplatesEditor({
       </div>
 
       {sections.map(sec => (
-        <div key={sec.id} className="border border-gray-200 rounded-lg overflow-hidden">
+        <div key={sec.id} className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
           {/* Section header */}
           <button
             onClick={() => setOpenId(openId === sec.id ? null : sec.id)}
-            className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+            className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
           >
-            <span className="font-medium text-sm text-gray-800">{sec.title.en}</span>
-            <span className="text-gray-400 text-xs">{openId === sec.id ? '▲' : '▼'}</span>
+            <span className="font-medium text-sm text-gray-800 dark:text-gray-200">{sec.title.en}</span>
+            <span className="text-gray-400 dark:text-gray-500 text-xs">{openId === sec.id ? '▲' : '▼'}</span>
           </button>
 
           {openId === sec.id && (
-            <div className="p-4 border-t border-gray-200 bg-white space-y-3">
+            <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Title</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Title</label>
                 <input
                   type="text"
                   value={sec.title[editLang]}
@@ -151,7 +151,7 @@ function TemplatesEditor({
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Content</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Content</label>
                 <textarea
                   value={sec.content[editLang]}
                   rows={5}
@@ -188,41 +188,41 @@ function TravelGuideEditor({
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-gray-500 italic">
+      <p className="text-sm text-gray-500 dark:text-gray-400 italic">
         Toggle sections on/off and edit per language. Don't forget to Save below.
       </p>
       {sections.map(sec => (
-        <div key={sec.id} className={`border rounded-lg overflow-hidden ${sec.is_active ? 'border-teal-300' : 'border-gray-200'}`}>
-          <div className={`flex items-center gap-3 px-4 py-3 ${sec.is_active ? 'bg-teal-50' : 'bg-gray-50'}`}>
+        <div key={sec.id} className={`border rounded-lg overflow-hidden ${sec.is_active ? 'border-teal-300 dark:border-teal-800' : 'border-gray-200 dark:border-gray-800'}`}>
+          <div className={`flex items-center gap-3 px-4 py-3 ${sec.is_active ? 'bg-teal-50 dark:bg-teal-950/40' : 'bg-gray-50 dark:bg-gray-800'}`}>
             <button onClick={() => toggle(sec.id)}
-              className={`relative shrink-0 w-10 h-5 rounded-full transition-colors ${sec.is_active ? 'bg-teal-500' : 'bg-gray-300'}`}>
-              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${sec.is_active ? 'translate-x-5' : 'translate-x-0'}`} />
+              className={`relative shrink-0 w-10 h-5 rounded-full transition-colors ${sec.is_active ? 'bg-teal-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white dark:bg-gray-900 shadow transition-transform ${sec.is_active ? 'translate-x-5' : 'translate-x-0'}`} />
             </button>
-            <span className="font-medium text-sm text-gray-800 flex-1">{sec.title.en}</span>
+            <span className="font-medium text-sm text-gray-800 dark:text-gray-200 flex-1">{sec.title.en}</span>
             <button onClick={() => setEditingId(editingId === sec.id ? null : sec.id)}
-              className="text-xs px-2 py-1 rounded bg-white border border-gray-300 hover:bg-gray-100 text-gray-600">
+              className="text-xs px-2 py-1 rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
               {editingId === sec.id ? 'Close' : '✏️ Edit'}
             </button>
           </div>
 
           {editingId === sec.id && (
-            <div className="p-4 border-t border-gray-200 bg-white space-y-3">
+            <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 space-y-3">
               <div className="flex gap-1">
                 {(['fr', 'en', 'es'] as Lang[]).map(l => (
                   <button key={l} onClick={() => setEditLang(l)}
-                    className={`px-3 py-1 rounded text-xs font-medium ${editLang === l ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    className={`px-3 py-1 rounded text-xs font-medium ${editLang === l ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
                     {l === 'fr' ? '🇫🇷 FR' : l === 'en' ? '🇬🇧 EN' : '🇪🇸 ES'}
                   </button>
                 ))}
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Title</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Title</label>
                 <input type="text" value={sec.title[editLang]}
                   onChange={e => updateField(sec.id, 'title', editLang, e.target.value)}
                   className="w-full text-sm border rounded px-2 py-1.5" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Content</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Content</label>
                 <textarea value={sec.content[editLang]} rows={4}
                   onChange={e => updateField(sec.id, 'content', editLang, e.target.value)}
                   className="w-full text-sm border rounded px-2 py-1.5 resize-y" />
@@ -247,21 +247,21 @@ function SaveBar({
   onCancel: () => void
 }) {
   return (
-    <div className="flex items-center gap-3 flex-wrap pt-3 mt-3 border-t border-gray-100">
+    <div className="flex items-center gap-3 flex-wrap pt-3 mt-3 border-t border-gray-100 dark:border-gray-800">
       {neverSaved ? (
-        <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+        <span className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded px-2 py-1">
           ⚠️ Not stored in the database yet — click Save to publish these templates.
         </span>
       ) : dirty ? (
-        <span className="text-xs font-medium text-amber-600">● Unsaved changes</span>
+        <span className="text-xs font-medium text-amber-600 dark:text-amber-400">● Unsaved changes</span>
       ) : (
-        <span className="text-xs text-gray-400">✓ All changes saved</span>
+        <span className="text-xs text-gray-400 dark:text-gray-500">✓ All changes saved</span>
       )}
       <div className="flex gap-2 ml-auto">
         <button
           onClick={onCancel}
           disabled={!dirty || saving}
-          className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 transition-colors">
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-40 transition-colors">
           Cancel
         </button>
         <button
@@ -288,15 +288,15 @@ function SendEmailRow({
   logs: EmailLog[]
 }) {
   return (
-    <div className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50">
-      <span className="text-sm font-medium text-gray-700">✉️ {label}</span>
+    <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 space-y-3 bg-gray-50 dark:bg-gray-800">
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">✉️ {label}</span>
       <div className="flex gap-2">
         <input
           type="email"
           value={emailValue}
           onChange={e => onEmailChange(e.target.value)}
           placeholder="client@email.com"
-          className="flex-1 text-sm border rounded-lg px-3 py-2 bg-white"
+          className="flex-1 text-sm border rounded-lg px-3 py-2 bg-white dark:bg-gray-900"
         />
         <button
           onClick={onSend}
@@ -329,10 +329,10 @@ function BookingPicker({
         value={search}
         onChange={e => onSearchChange(e.target.value)}
         placeholder="🔍 Search by client name…"
-        className="w-full border rounded-lg px-3 py-2 text-sm bg-white"
+        className="w-full border rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900"
       />
       <select value={value} onChange={e => onChange(e.target.value)}
-        className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+        className="w-full border rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900">
         {bookings.length === 0 ? (
           <option value="" disabled>No booking matches "{search}"</option>
         ) : (
@@ -522,24 +522,24 @@ export default function DocumentsPage() {
   if (loading || !guideSections || !welcomeSections) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">📄 Documents</h1>
-        <p className="text-gray-500">Loading bookings…</p>
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-6">📄 Documents</h1>
+        <p className="text-gray-500 dark:text-gray-400">Loading bookings…</p>
       </div>
     )
   }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800">📄 Documents</h1>
+      <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">📄 Documents</h1>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-gray-200">
+      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-800">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${
               tab === t.id
-                ? 'bg-white border border-b-white border-gray-200 text-blue-700 -mb-px'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                ? 'bg-white dark:bg-gray-900 border border-b-white border-gray-200 dark:border-gray-800 text-blue-700 dark:text-blue-400 -mb-px'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
             }`}>
             {t.label}
           </button>
@@ -549,16 +549,16 @@ export default function DocumentsPage() {
       {/* ── Visa Letter ────────────────────────────────────────────── */}
       {tab === 'visa' && (
         <div className="space-y-5">
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+          <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-4 text-sm text-amber-800 dark:text-amber-400">
             Official invitation letter in <strong>Portuguese</strong> for Mozambique visa purposes.
             Date is set to <strong>today</strong> automatically.
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
-            <h2 className="font-semibold text-gray-700">Select booking</h2>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-5 space-y-4">
+            <h2 className="font-semibold text-gray-700 dark:text-gray-300">Select booking</h2>
 
             {activeBookings.length === 0 ? (
-              <p className="text-sm text-gray-400 italic">No active bookings found.</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 italic">No active bookings found.</p>
             ) : (
               <BookingPicker bookings={visaSearchBookings} search={visaSearch} onSearchChange={setVisaSearch}
                 value={effectiveVisaId} onChange={setVisaBookingId} />
@@ -566,25 +566,25 @@ export default function DocumentsPage() {
 
             {visaBooking && (
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="bg-gray-50 rounded p-3">
-                  <div className="text-xs text-gray-500 mb-1">Visa entry date</div>
-                  <div className={`font-semibold ${!visaBooking.visa_entry_date ? 'text-red-500' : ''}`}>
+                <div className="bg-gray-50 dark:bg-gray-800 rounded p-3">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Visa entry date</div>
+                  <div className={`font-semibold ${!visaBooking.visa_entry_date ? 'text-red-500 dark:text-red-400' : ''}`}>
                     {visaBooking.visa_entry_date ?? '⚠ Not set'}
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded p-3">
-                  <div className="text-xs text-gray-500 mb-1">Visa exit date</div>
-                  <div className={`font-semibold ${!visaBooking.visa_exit_date ? 'text-red-500' : ''}`}>
+                <div className="bg-gray-50 dark:bg-gray-800 rounded p-3">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Visa exit date</div>
+                  <div className={`font-semibold ${!visaBooking.visa_exit_date ? 'text-red-500 dark:text-red-400' : ''}`}>
                     {visaBooking.visa_exit_date ?? '⚠ Not set'}
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded p-3 col-span-2">
+                <div className="bg-gray-50 dark:bg-gray-800 rounded p-3 col-span-2">
                   {(() => {
                     const parts = bookingParticipants.filter(p => p.booking_id === visaBooking.id)
                     return (
                       <>
-                        <div className="text-xs text-gray-500 mb-1">Guests ({parts.length})</div>
-                        <div className={`font-semibold text-sm ${parts.length === 0 ? 'text-red-500' : ''}`}>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Guests ({parts.length})</div>
+                        <div className={`font-semibold text-sm ${parts.length === 0 ? 'text-red-500 dark:text-red-400' : ''}`}>
                           {parts.length === 0
                             ? '⚠ No guests listed — add them in the booking wizard (step 3)'
                             : parts.map(p => `${p.first_name}${p.last_name ? ` ${p.last_name}` : ''}${p.passport_number ? ` (${p.passport_number})` : ''}`).join(', ')}
@@ -604,7 +604,7 @@ export default function DocumentsPage() {
                 🖨️ Generate PDF
               </button>
             </div>
-            <p className="text-xs text-gray-400">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
 
             {visaBooking && (
               <SendEmailRow
@@ -626,15 +626,15 @@ export default function DocumentsPage() {
       {/* ── Booking Summary ────────────────────────────────────────── */}
       {tab === 'summary' && (
         <div className="space-y-5">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+          <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg p-4 text-sm text-blue-800 dark:text-blue-400">
             Client-facing confirmation with stay details, transport info and travel tips.
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-5 space-y-4">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Booking</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Booking</label>
               {activeBookings.length === 0 ? (
-                <p className="text-sm text-gray-400 italic">No active bookings found.</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 italic">No active bookings found.</p>
               ) : (
                 <BookingPicker bookings={summarySearchBookings} search={summarySearch} onSearchChange={setSummarySearch}
                   value={effectiveSummaryId} onChange={setSummaryBookingId} />
@@ -642,12 +642,12 @@ export default function DocumentsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Language</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Language</label>
               <div className="flex gap-2">
                 {(['fr', 'en', 'es'] as Lang[]).map(l => (
                   <button key={l} onClick={() => setLang(l)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                      lang === l ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      lang === l ? 'bg-blue-600 text-white border-blue-600 dark:border-blue-500' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                     }`}>
                     {l === 'fr' ? '🇫🇷 Français' : l === 'en' ? '🇬🇧 English' : '🇪🇸 Español'}
                   </button>
@@ -656,11 +656,11 @@ export default function DocumentsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                 Estimated total — auto-computed, edit if needed
               </label>
               <div className="flex items-center gap-2 max-w-xs">
-                <span className="text-gray-400">€</span>
+                <span className="text-gray-400 dark:text-gray-500">€</span>
                 <input type="number" value={totalAmountStr} onChange={e => setTotalAmountStr(e.target.value)}
                   placeholder="Computing…" min={0}
                   className="flex-1 border rounded-lg px-3 py-2 text-sm" />
@@ -668,13 +668,13 @@ export default function DocumentsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                 Travel guide sections included ({activeSections.length} active)
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {guideSections.map(sec => (
                   <span key={sec.id} className={`text-xs px-2 py-1 rounded-full ${
-                    sec.is_active ? 'bg-teal-100 text-teal-800' : 'bg-gray-100 text-gray-400 line-through'
+                    sec.is_active ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 line-through'
                   }`}>
                     {sec.title.en}
                   </span>
@@ -690,7 +690,7 @@ export default function DocumentsPage() {
                 🖨️ Generate PDF
               </button>
             </div>
-            <p className="text-xs text-gray-400">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
 
             {summaryBooking && (
               <SendEmailRow
@@ -712,31 +712,31 @@ export default function DocumentsPage() {
       {/* ── Travel Guide Editor ────────────────────────────────────── */}
       {tab === 'guide' && (
         <div className="space-y-5">
-          <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 text-sm text-teal-800">
+          <div className="bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-900 rounded-lg p-4 text-sm text-teal-800 dark:text-teal-400">
             Configure the travel tips included in every Booking Summary.
             Changes are stored in the database once saved — shared across browsers and devices.
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-5">
             <TravelGuideEditor sections={guideSections} onChange={setGuideSections} />
             <SaveBar dirty={guideDirty} saving={guideDb.saving} neverSaved={guideDb.saved === null}
               onSave={saveGuide} onCancel={cancelGuide} />
           </div>
 
           {activeBookings.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
-              <h2 className="font-semibold text-gray-700">Send standalone travel guide</h2>
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-5 space-y-4">
+              <h2 className="font-semibold text-gray-700 dark:text-gray-300">Send standalone travel guide</h2>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Booking</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Booking</label>
                 <BookingPicker bookings={summarySearchBookings} search={summarySearch} onSearchChange={setSummarySearch}
                   value={effectiveSummaryId} onChange={setSummaryBookingId} />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Language</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Language</label>
                 <div className="flex gap-2">
                   {(['fr', 'en', 'es'] as Lang[]).map(l => (
                     <button key={l} onClick={() => setLang(l)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                        lang === l ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        lang === l ? 'bg-blue-600 text-white border-blue-600 dark:border-blue-500' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                       }`}>
                       {l === 'fr' ? '🇫🇷 Français' : l === 'en' ? '🇬🇧 English' : '🇪🇸 Español'}
                     </button>
@@ -751,7 +751,7 @@ export default function DocumentsPage() {
                   🖨️ Generate PDF
                 </button>
               </div>
-              <p className="text-xs text-gray-400">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
 
               {summaryBooking && (
                 <SendEmailRow
@@ -774,31 +774,31 @@ export default function DocumentsPage() {
       {/* ── Welcome Guide ──────────────────────────────────────────── */}
       {tab === 'welcome' && (
         <div className="space-y-5">
-          <div className="bg-sky-50 border border-sky-200 rounded-lg p-4 text-sm text-sky-800">
+          <div className="bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 rounded-lg p-4 text-sm text-sky-800 dark:text-sky-400">
             On-site info for arriving clients — wifi, meals, drinking water, schedules…
             Everything guests always ask, handed over on arrival or emailed a few days before.
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-5">
             <TravelGuideEditor sections={welcomeSections} onChange={setWelcomeSections} />
             <SaveBar dirty={welcomeDirty} saving={welcomeDb.saving} neverSaved={welcomeDb.saved === null}
               onSave={saveWelcome} onCancel={cancelWelcome} />
           </div>
 
           {activeBookings.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
-              <h2 className="font-semibold text-gray-700">Send welcome guide</h2>
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-5 space-y-4">
+              <h2 className="font-semibold text-gray-700 dark:text-gray-300">Send welcome guide</h2>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Booking</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Booking</label>
                 <BookingPicker bookings={summarySearchBookings} search={summarySearch} onSearchChange={setSummarySearch}
                   value={effectiveSummaryId} onChange={setSummaryBookingId} />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Language</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Language</label>
                 <div className="flex gap-2">
                   {(['fr', 'en', 'es'] as Lang[]).map(l => (
                     <button key={l} onClick={() => setLang(l)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                        lang === l ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        lang === l ? 'bg-blue-600 text-white border-blue-600 dark:border-blue-500' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                       }`}>
                       {l === 'fr' ? '🇫🇷 Français' : l === 'en' ? '🇬🇧 English' : '🇪🇸 Español'}
                     </button>
@@ -813,7 +813,7 @@ export default function DocumentsPage() {
                   🖨️ Generate PDF
                 </button>
               </div>
-              <p className="text-xs text-gray-400">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
 
               {summaryBooking && (
                 <SendEmailRow
@@ -836,11 +836,11 @@ export default function DocumentsPage() {
       {/* ── Templates ──────────────────────────────────────────────── */}
       {tab === 'templates' && (
         <div className="space-y-5">
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
+          <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg p-4 text-sm text-gray-600 dark:text-gray-400">
             Edit the base content of guide sections in all languages.
             Toggle sections on/off per-send in the{' '}
-            <button onClick={() => setTab('guide')} className="underline hover:text-gray-800">Travel Guide</button> and{' '}
-            <button onClick={() => setTab('welcome')} className="underline hover:text-gray-800">Welcome Guide</button> tabs.
+            <button onClick={() => setTab('guide')} className="underline hover:text-gray-800 dark:hover:text-gray-200">Travel Guide</button> and{' '}
+            <button onClick={() => setTab('welcome')} className="underline hover:text-gray-800 dark:hover:text-gray-200">Welcome Guide</button> tabs.
           </div>
 
           {/* Document switcher */}
@@ -848,14 +848,14 @@ export default function DocumentsPage() {
             {([['travel', '🌍 Travel Guide'], ['welcome', '🏝️ Welcome Guide']] as const).map(([doc, label]) => (
               <button key={doc} onClick={() => setTemplatesDoc(doc)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  templatesDoc === doc ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  templatesDoc === doc ? 'bg-blue-600 text-white border-blue-600 dark:border-blue-500' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                 }`}>
                 {label}
               </button>
             ))}
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-5">
             {templatesDoc === 'travel' ? (
               <>
                 <TemplatesEditor sections={guideSections} onChange={setGuideSections} />
@@ -882,7 +882,7 @@ export default function DocumentsPage() {
               </button>
             ))}
           </div>
-          <p className="text-xs text-gray-400">Previews all sections (including inactive ones) in the selected language.</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">Previews all sections (including inactive ones) in the selected language.</p>
         </div>
       )}
     </div>

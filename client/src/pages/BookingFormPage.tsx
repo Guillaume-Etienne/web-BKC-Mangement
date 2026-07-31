@@ -70,16 +70,16 @@ const KITE_LEVELS: { value: KiteLevel; labelKey: FormI18nKey }[] = [
 ]
 
 // ─── Reusable controls (module scope = focus-safe) ────────────────────────────
-const inputCls = 'w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition'
+const inputCls = 'w-full px-3 py-2.5 border border-gray-300 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:border-sky-600 transition'
 
 function Field({ label, children, hint, required }: { label: string; children: React.ReactNode; hint?: string; required?: boolean }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-        {label}{required && <span className="text-rose-500"> *</span>}
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+        {label}{required && <span className="text-rose-500 dark:text-rose-400"> *</span>}
       </label>
       {children}
-      {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{hint}</p>}
     </div>
   )
 }
@@ -88,10 +88,10 @@ function Counter({ value, onChange, min = 0 }: { value: number; onChange: (v: nu
   return (
     <div className="flex items-center gap-3">
       <button type="button" onClick={() => onChange(Math.max(min, value - 1))}
-        className="w-9 h-9 rounded-full bg-sky-100 text-sky-700 hover:bg-sky-200 font-bold text-xl leading-none flex items-center justify-center transition">−</button>
-      <span className="w-10 text-center text-lg font-semibold text-gray-800">{value}</span>
+        className="w-9 h-9 rounded-full bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 hover:bg-sky-200 dark:hover:bg-sky-800 font-bold text-xl leading-none flex items-center justify-center transition">−</button>
+      <span className="w-10 text-center text-lg font-semibold text-gray-800 dark:text-gray-200">{value}</span>
       <button type="button" onClick={() => onChange(value + 1)}
-        className="w-9 h-9 rounded-full bg-sky-100 text-sky-700 hover:bg-sky-200 font-bold text-xl leading-none flex items-center justify-center transition">+</button>
+        className="w-9 h-9 rounded-full bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 hover:bg-sky-200 dark:hover:bg-sky-800 font-bold text-xl leading-none flex items-center justify-center transition">+</button>
     </div>
   )
 }
@@ -101,11 +101,11 @@ function YesNo({ value, onChange, lang }: { value: boolean; onChange: (v: boolea
   return (
     <div className="flex gap-2">
       <button type="button" onClick={() => onChange(true)}
-        className={`${base} ${value ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-gray-600 border-gray-200 hover:border-sky-300'}`}>
+        className={`${base} ${value ? 'bg-sky-600 text-white border-sky-600 dark:border-sky-500' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-sky-300 dark:hover:border-sky-800'}`}>
         {tr.yes[lang]}
       </button>
       <button type="button" onClick={() => onChange(false)}
-        className={`${base} ${!value ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-gray-600 border-gray-200 hover:border-sky-300'}`}>
+        className={`${base} ${!value ? 'bg-sky-600 text-white border-sky-600 dark:border-sky-500' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-sky-300 dark:hover:border-sky-800'}`}>
         {tr.no[lang]}
       </button>
     </div>
@@ -122,11 +122,11 @@ interface TravelerCardProps {
 }
 function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: TravelerCardProps) {
   return (
-    <div className="border border-gray-200 rounded-2xl p-4 space-y-3 bg-white/70">
+    <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-4 space-y-3 bg-white dark:bg-gray-900/70">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-sky-700">🏄 {tr.traveler[lang]} {index + 1}</span>
+        <span className="text-sm font-semibold text-sky-700 dark:text-sky-400">🏄 {tr.traveler[lang]} {index + 1}</span>
         {canRemove && (
-          <button type="button" onClick={onRemove} className="text-xs text-gray-400 hover:text-rose-600 transition">
+          <button type="button" onClick={onRemove} className="text-xs text-gray-400 dark:text-gray-500 hover:text-rose-600 dark:hover:text-rose-400 transition">
             {tr.remove[lang]}
           </button>
         )}
@@ -144,8 +144,8 @@ function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: Travele
       </Field>
 
       {/* Kite activity */}
-      <div className="border-t border-gray-100 pt-3 space-y-3">
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">{tr.kite_section[lang]}</p>
+      <div className="border-t border-gray-100 dark:border-gray-800 pt-3 space-y-3">
+        <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{tr.kite_section[lang]}</p>
         <Field label={tr.kite_does_kite[lang]}>
           <YesNo value={t.does_kite ?? false} onChange={v => onChange({ does_kite: v })} lang={lang} />
         </Field>
@@ -158,8 +158,8 @@ function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: Travele
                     onClick={() => onChange({ kite_level: lv.value })}
                     className={`px-3 py-2 rounded-lg text-sm text-left border-2 transition
                       ${t.kite_level === lv.value
-                        ? 'bg-sky-600 text-white border-sky-600'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-sky-300'}`}>
+                        ? 'bg-sky-600 text-white border-sky-600 dark:border-sky-500'
+                        : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-sky-300 dark:hover:border-sky-800'}`}>
                     {tr[lv.labelKey][lang]}
                   </button>
                 ))}
@@ -174,25 +174,25 @@ function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: Travele
               </Field>
             )}
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">{tr.kite_interests[lang]}</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{tr.kite_interests[lang]}</p>
               <div className="space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={t.wants_kite_lessons ?? false}
                     onChange={e => onChange({ wants_kite_lessons: e.target.checked })}
                     className="w-4 h-4 accent-sky-600" />
-                  <span className="text-sm text-gray-700">{tr.kite_lessons[lang]}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{tr.kite_lessons[lang]}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={t.wants_kite_rental ?? false}
                     onChange={e => onChange({ wants_kite_rental: e.target.checked })}
                     className="w-4 h-4 accent-sky-600" />
-                  <span className="text-sm text-gray-700">{tr.kite_rental[lang]}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{tr.kite_rental[lang]}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={t.wants_wing_lessons ?? false}
                     onChange={e => onChange({ wants_wing_lessons: e.target.checked })}
                     className="w-4 h-4 accent-sky-600" />
-                  <span className="text-sm text-gray-700">{tr.wing_lessons[lang]}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{tr.wing_lessons[lang]}</span>
                 </label>
               </div>
             </div>
@@ -345,30 +345,30 @@ export default function BookingFormPage() {
   // ── Success screen ──
   if (done) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-sky-400 via-sky-200 to-amber-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-xl max-w-md w-full p-8 text-center space-y-4">
+      <div className="min-h-screen bg-gradient-to-b from-sky-400 via-sky-200 dark:via-sky-800 to-amber-100 dark:to-amber-900/30 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-xl max-w-md w-full p-8 text-center space-y-4">
           <div className="text-6xl">🎉</div>
-          <h1 className="text-2xl font-bold text-gray-800">{tr.success_title[lang]}</h1>
-          <p className="text-gray-600">{tr.success_msg[lang]}</p>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">{tr.success_title[lang]}</h1>
+          <p className="text-gray-600 dark:text-gray-400">{tr.success_msg[lang]}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-400 via-sky-200 to-amber-100 py-6 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-sky-400 via-sky-200 dark:via-sky-800 to-amber-100 dark:to-amber-900/30 py-6 px-4">
       <style>{`@keyframes bkcfade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
       <div className="max-w-xl mx-auto">
         {/* Header + language picker */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-sky-800/70">{tr.brand[lang]}</p>
-            <h1 className="text-xl font-bold text-gray-800">{tr.header_title[lang]}</h1>
+            <p className="text-xs font-bold uppercase tracking-wider text-sky-800 dark:text-sky-400/70">{tr.brand[lang]}</p>
+            <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200">{tr.header_title[lang]}</h1>
           </div>
           <div className="flex gap-1">
             {LANGS.map(l => (
               <button key={l.code} type="button" onClick={() => setLang(l.code)} title={l.label}
-                className={`px-2 py-1 rounded-lg text-sm transition ${lang === l.code ? 'bg-white shadow' : 'opacity-60 hover:opacity-100'}`}>
+                className={`px-2 py-1 rounded-lg text-sm transition ${lang === l.code ? 'bg-white dark:bg-gray-900 shadow' : 'opacity-60 hover:opacity-100'}`}>
                 {l.flag}
               </button>
             ))}
@@ -390,7 +390,7 @@ export default function BookingFormPage() {
 
         {/* Progress bar with advancing kite */}
         <div className="relative h-7 mb-5">
-          <div className="absolute top-3 left-0 right-0 h-1.5 bg-white/50 rounded-full" />
+          <div className="absolute top-3 left-0 right-0 h-1.5 bg-white dark:bg-gray-900/50 rounded-full" />
           <div className="absolute top-3 left-0 h-1.5 bg-sky-600 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
           <div className="absolute top-0 transition-all duration-500" style={{ left: `calc(${pct}% - 12px)` }}>
             <span className="text-xl">🪁</span>
@@ -398,7 +398,7 @@ export default function BookingFormPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-xl overflow-hidden">
           {/* Step tabs */}
           <div className="flex items-center justify-between px-5 pt-4 pb-2 gap-1">
             {STEPS.map((s, i) => {
@@ -408,7 +408,7 @@ export default function BookingFormPage() {
               return (
                 <button key={n} type="button" onClick={() => reachable && goTo(n)}
                   className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[11px] font-medium transition
-                    ${active ? 'text-sky-700' : reachable ? 'text-gray-500 hover:text-sky-600' : 'text-gray-300 cursor-default'}`}>
+                    ${active ? 'text-sky-700 dark:text-sky-400' : reachable ? 'text-gray-500 dark:text-gray-400 hover:text-sky-600 dark:hover:text-sky-400' : 'text-gray-300 dark:text-gray-600 cursor-default'}`}>
                   <span className="text-lg">{n < step ? '✅' : s.icon}</span>
                   <span className="hidden sm:block">{tr[s.labelKey][lang]}</span>
                 </button>
@@ -421,8 +421,8 @@ export default function BookingFormPage() {
             {step === 1 && (
               <>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-800">{tr.s1_title[lang]}</h2>
-                  <p className="text-sm text-gray-500 mt-1">{tr.s1_intro[lang]}</p>
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">{tr.s1_title[lang]}</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{tr.s1_intro[lang]}</p>
                 </div>
                 <Field label={tr.f_reference_name[lang]} required>
                   <input className={inputCls} placeholder={tr.ph_reference_name[lang]} value={d.reference_name} onChange={e => update({ reference_name: e.target.value })} />
@@ -443,8 +443,8 @@ export default function BookingFormPage() {
             {step === 2 && (
               <>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-800">{tr.s2_title[lang]}</h2>
-                  <p className="text-sm text-gray-500 mt-1">{tr.s2_intro[lang]}</p>
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">{tr.s2_title[lang]}</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{tr.s2_intro[lang]}</p>
                 </div>
 
                 <Field label={tr.f_nights[lang]} required>
@@ -452,8 +452,8 @@ export default function BookingFormPage() {
                 </Field>
 
                 {/* Arrival block */}
-                <div className="border border-gray-200 rounded-2xl p-4 space-y-3 bg-white/70">
-                  <h3 className="text-sm font-bold text-sky-700">✈️ {tr.arrival_heading[lang]}</h3>
+                <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-4 space-y-3 bg-white dark:bg-gray-900/70">
+                  <h3 className="text-sm font-bold text-sky-700 dark:text-sky-400">✈️ {tr.arrival_heading[lang]}</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field label={tr.f_country_entry[lang]} required>
                       <input type="date" className={inputCls} value={d.country_entry_date} onChange={e => update({ country_entry_date: e.target.value })} />
@@ -466,7 +466,7 @@ export default function BookingFormPage() {
                     <YesNo value={d.taxi_arrival} onChange={toggleArrivalTransfer} lang={lang} />
                   </Field>
                   {d.taxi_arrival && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-3 border-l-2 border-sky-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-3 border-l-2 border-sky-200 dark:border-sky-900">
                       <Field label={tr.f_transfer_pickup_date[lang]} hint={tr.transfer_hint[lang]}>
                         <input type="date" className={inputCls} value={d.transfer_to_bilene_date} onChange={e => update({ transfer_to_bilene_date: e.target.value })} />
                       </Field>
@@ -478,8 +478,8 @@ export default function BookingFormPage() {
                 </div>
 
                 {/* Departure block */}
-                <div className="border border-gray-200 rounded-2xl p-4 space-y-3 bg-white/70">
-                  <h3 className="text-sm font-bold text-sky-700">🛬 {tr.departure_heading[lang]}</h3>
+                <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-4 space-y-3 bg-white dark:bg-gray-900/70">
+                  <h3 className="text-sm font-bold text-sky-700 dark:text-sky-400">🛬 {tr.departure_heading[lang]}</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field label={tr.f_country_exit[lang]} required>
                       <input type="date" className={inputCls} value={d.country_exit_date} onChange={e => update({ country_exit_date: e.target.value })} />
@@ -492,7 +492,7 @@ export default function BookingFormPage() {
                     <YesNo value={d.taxi_departure} onChange={toggleDepartureTransfer} lang={lang} />
                   </Field>
                   {d.taxi_departure && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-3 border-l-2 border-sky-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-3 border-l-2 border-sky-200 dark:border-sky-900">
                       <Field label={tr.f_transfer_drop_date[lang]} hint={tr.transfer_hint[lang]}>
                         <input type="date" className={inputCls} value={d.transfer_to_airport_date} onChange={e => update({ transfer_to_airport_date: e.target.value })} />
                       </Field>
@@ -509,25 +509,25 @@ export default function BookingFormPage() {
             {step === 3 && (
               <>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-800">{tr.s3_title[lang]}</h2>
-                  <p className="text-sm text-gray-500 mt-1">{tr.s3_intro[lang]}</p>
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">{tr.s3_title[lang]}</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{tr.s3_intro[lang]}</p>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">{tr.f_luggage[lang]}</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{tr.f_luggage[lang]}</span>
                   <Counter value={d.luggage_count} onChange={v => update({ luggage_count: v })} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">{tr.f_boardbags[lang]}</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{tr.f_boardbags[lang]}</span>
                   <Counter value={d.boardbag_count} onChange={v => update({ boardbag_count: v })} />
                 </div>
-                <div className="border-t border-gray-100 pt-4">
-                  <p className="text-xs text-gray-400 mb-3">{tr.beds_hint[lang]}</p>
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">{tr.beds_hint[lang]}</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">{tr.f_double_beds[lang]}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{tr.f_double_beds[lang]}</span>
                     <Counter value={d.double_beds} onChange={v => update({ double_beds: v })} />
                   </div>
                   <div className="flex items-center justify-between mt-3">
-                    <span className="text-sm font-medium text-gray-700">{tr.f_single_beds[lang]}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{tr.f_single_beds[lang]}</span>
                     <Counter value={d.single_beds} onChange={v => update({ single_beds: v })} />
                   </div>
                 </div>
@@ -541,10 +541,10 @@ export default function BookingFormPage() {
             {step === 4 && (
               <>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-800">{tr.s4_title[lang]}</h2>
-                  <p className="text-sm text-gray-500 mt-1">{tr.s4_intro[lang]}</p>
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">{tr.s4_title[lang]}</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{tr.s4_intro[lang]}</p>
                 </div>
-                <div className="rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                <div className="rounded-xl border-2 border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-sm font-semibold text-red-700 dark:text-red-400">
                   {tr.s4_passport_warning[lang]}
                 </div>
                 {travelers.map((t, i) => (
@@ -552,7 +552,7 @@ export default function BookingFormPage() {
                     onChange={patch => updateTraveler(i, patch)} onRemove={() => removeTraveler(i)} />
                 ))}
                 <button type="button" onClick={addTraveler}
-                  className="w-full py-2.5 rounded-xl border-2 border-dashed border-sky-300 text-sky-600 text-sm font-semibold hover:bg-sky-50 transition">
+                  className="w-full py-2.5 rounded-xl border-2 border-dashed border-sky-300 dark:border-sky-800 text-sky-600 dark:text-sky-400 text-sm font-semibold hover:bg-sky-50 dark:hover:bg-sky-950/40 transition">
                   {tr.add_traveler[lang]}
                 </button>
               </>
@@ -562,12 +562,12 @@ export default function BookingFormPage() {
             {step === 5 && (
               <>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-800">{tr.s5_title[lang]}</h2>
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">{tr.s5_title[lang]}</h2>
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-sm font-bold text-gray-700">{tr.emergency_heading[lang]}</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">{tr.emergency_intro[lang]}</p>
+                    <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.emergency_heading[lang]}</h3>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{tr.emergency_intro[lang]}</p>
                   </div>
                   <Field label={tr.f_ec_name[lang]} required>
                     <input className={inputCls} value={d.emergency_contact_name} onChange={e => update({ emergency_contact_name: e.target.value })} />
@@ -586,15 +586,15 @@ export default function BookingFormPage() {
                 </div>
 
                 {/* Waiver */}
-                <div className="border border-gray-200 rounded-2xl p-4 bg-gray-50/60 space-y-3">
+                <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-4 bg-gray-50 dark:bg-gray-800/60 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-gray-700">{tr.waiver_heading[lang]}</h3>
-                    <button type="button" onClick={() => setShowWaiver(s => !s)} className="text-xs font-medium text-sky-600 hover:underline">
+                    <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.waiver_heading[lang]}</h3>
+                    <button type="button" onClick={() => setShowWaiver(s => !s)} className="text-xs font-medium text-sky-600 dark:text-sky-400 hover:underline">
                       {showWaiver ? tr.waiver_hide[lang] : tr.waiver_show[lang]}
                     </button>
                   </div>
                   {showWaiver && (
-                    <div className="max-h-56 overflow-y-auto text-[11px] leading-relaxed text-gray-600 space-y-2 pr-1">
+                    <div className="max-h-56 overflow-y-auto text-[11px] leading-relaxed text-gray-600 dark:text-gray-400 space-y-2 pr-1">
                       <p className="font-semibold">{waiverText[lang].title}</p>
                       {waiverText[lang].paragraphs.map((p, i) => <p key={i}>{p}</p>)}
                     </div>
@@ -602,33 +602,33 @@ export default function BookingFormPage() {
                   <label className="flex items-start gap-2 cursor-pointer">
                     <input type="checkbox" checked={d.waiver_accepted} onChange={e => update({ waiver_accepted: e.target.checked })}
                       className="mt-0.5 w-4 h-4 accent-sky-600 shrink-0" />
-                    <span className="text-xs text-gray-700">{tr.waiver_checkbox[lang]}</span>
+                    <span className="text-xs text-gray-700 dark:text-gray-300">{tr.waiver_checkbox[lang]}</span>
                   </label>
                 </div>
 
-                {error && <p className="text-sm text-rose-600">{tr.error_msg[lang]}</p>}
+                {error && <p className="text-sm text-rose-600 dark:text-rose-400">{tr.error_msg[lang]}</p>}
               </>
             )}
 
             {!canProceed[step] && step !== 4 && (
-              <p className="text-xs text-amber-600">{tr.required_hint[lang]}</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">{tr.required_hint[lang]}</p>
             )}
           </div>
 
           {/* Footer nav */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
             <button type="button" onClick={back} disabled={step === 1}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition ${step === 1 ? 'text-gray-300 cursor-default' : 'text-gray-600 hover:bg-gray-200'}`}>
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition ${step === 1 ? 'text-gray-300 dark:text-gray-600 cursor-default' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
               ← {tr.back[lang]}
             </button>
             {step < TOTAL ? (
               <button type="button" onClick={next} disabled={!canProceed[step]}
-                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${canProceed[step] ? 'bg-sky-600 text-white hover:bg-sky-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
+                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${canProceed[step] ? 'bg-sky-600 text-white hover:bg-sky-700' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'}`}>
                 {tr.next[lang]} →
               </button>
             ) : (
               <button type="button" onClick={submit} disabled={!canProceed[5] || submitting}
-                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${canProceed[5] && !submitting ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
+                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${canProceed[5] && !submitting ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'}`}>
                 {submitting ? tr.submitting[lang] : tr.submit[lang]}
               </button>
             )}

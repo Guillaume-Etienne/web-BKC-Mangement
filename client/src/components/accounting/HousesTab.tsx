@@ -103,14 +103,14 @@ export default function HousesTab({ data }: Props) {
     <div className="space-y-6">
 
       {/* Period selector */}
-      <div className="flex gap-1 bg-white rounded-lg border border-gray-200 p-1 w-fit">
+      <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1 w-fit">
         {([
           { id: 'season', label: `Season ${currentSeason?.label ?? ''}` },
           { id: 'all',    label: 'All time' },
         ] as { id: 'all' | 'season'; label: string }[]).map(opt => (
           <button key={opt.id} onClick={() => setPeriod(opt.id)}
             className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-              period === opt.id ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+              period === opt.id ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
             }`}>
             {opt.label}
           </button>
@@ -119,19 +119,19 @@ export default function HousesTab({ data }: Props) {
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-400 mb-1">Total costs</p>
-          <p className="text-xl font-bold text-red-700">− {fmtEur(grandCost)}</p>
-          <p className="text-xs text-red-400 mt-0.5">Houses: {fmtEur(grandHouseRent)} · Bungalows: {fmtEur(grandBungCost)}</p>
+        <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-400 dark:text-red-300 mb-1">Total costs</p>
+          <p className="text-xl font-bold text-red-700 dark:text-red-400">− {fmtEur(grandCost)}</p>
+          <p className="text-xs text-red-400 dark:text-red-300 mt-0.5">Houses: {fmtEur(grandHouseRent)} · Bungalows: {fmtEur(grandBungCost)}</p>
         </div>
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400 mb-1">Booking revenue</p>
-          <p className="text-xl font-bold text-emerald-700">+ {fmtEur(grandRevenue)}</p>
-          <p className="text-xs text-emerald-400 mt-0.5">Houses: {fmtEur(grandHouseRevenue)} · Bungalows: {fmtEur(grandBungRevenue)}</p>
+        <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400 dark:text-emerald-300 mb-1">Booking revenue</p>
+          <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">+ {fmtEur(grandRevenue)}</p>
+          <p className="text-xs text-emerald-400 dark:text-emerald-300 mt-0.5">Houses: {fmtEur(grandHouseRevenue)} · Bungalows: {fmtEur(grandBungRevenue)}</p>
         </div>
-        <div className={`border rounded-xl p-4 ${grandBalance >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-          <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${grandBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>Balance</p>
-          <p className={`text-xl font-bold ${grandBalance >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+        <div className={`border rounded-xl p-4 ${grandBalance >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900' : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900'}`}>
+          <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${grandBalance >= 0 ? 'text-emerald-400 dark:text-emerald-300' : 'text-red-400 dark:text-red-300'}`}>Balance</p>
+          <p className={`text-xl font-bold ${grandBalance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
             {grandBalance >= 0 ? '+' : ''}{fmtEur(grandBalance)}
           </p>
         </div>
@@ -140,48 +140,48 @@ export default function HousesTab({ data }: Props) {
       {/* ── Houses section ─────────────────────────────────────────────────── */}
       {houses.length > 0 && (
         <div>
-          <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">🏠 Houses</h2>
+          <h2 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">🏠 Houses</h2>
           <div className="space-y-4">
             {houseStats.map(({ house, rentals, totalRentalCost, bookingLines, totalRevenue, balance }) => (
-              <div key={house.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-5 py-4 border-b bg-gray-50 flex items-center justify-between">
+              <div key={house.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                <div className="px-5 py-4 border-b bg-gray-50 dark:bg-gray-800 flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold text-gray-800">{house.name}</h3>
-                    {!house.is_active && <span className="text-xs text-gray-400 ml-2">inactive</span>}
+                    <h3 className="font-semibold text-gray-800 dark:text-gray-200">{house.name}</h3>
+                    {!house.is_active && <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">inactive</span>}
                   </div>
                   <div className="flex gap-6 text-sm">
-                    <span className="text-red-600 font-medium">Rent: − {fmtEur(totalRentalCost)}</span>
-                    <span className="text-emerald-700 font-medium">Revenue: + {fmtEur(totalRevenue)}</span>
-                    <span className={`font-bold ${balance >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                    <span className="text-red-600 dark:text-red-400 font-medium">Rent: − {fmtEur(totalRentalCost)}</span>
+                    <span className="text-emerald-700 dark:text-emerald-400 font-medium">Revenue: + {fmtEur(totalRevenue)}</span>
+                    <span className={`font-bold ${balance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
                       {balance >= 0 ? '+' : ''}{fmtEur(balance)}
                     </span>
                   </div>
                 </div>
-                <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+                <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100 dark:divide-gray-800">
                   {/* Rental periods */}
                   <div>
                     <div className="px-4 py-3 border-b">
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Rental periods</h4>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Rental periods</h4>
                     </div>
                     {rentals.length === 0 ? (
-                      <p className="px-4 py-6 text-gray-400 text-sm text-center">No rental periods{period === 'season' ? ' this season' : ''}.</p>
+                      <p className="px-4 py-6 text-gray-400 dark:text-gray-500 text-sm text-center">No rental periods{period === 'season' ? ' this season' : ''}.</p>
                     ) : (
                       <table className="w-full text-sm">
-                        <thead className="bg-gray-50 border-b">
+                        <thead className="bg-gray-50 dark:bg-gray-800 border-b">
                           <tr>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500">From</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500">To</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold text-red-400">Cost (€)</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-400">Notes</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">From</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">To</th>
+                            <th className="px-4 py-2 text-right text-xs font-semibold text-red-400 dark:text-red-300">Cost (€)</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-400 dark:text-gray-500">Notes</th>
                           </tr>
                         </thead>
                         <tbody>
                           {[...rentals].sort((a, b) => b.start_date.localeCompare(a.start_date)).map(r => (
-                            <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
-                              <td className="px-4 py-2 text-gray-700 whitespace-nowrap">{r.start_date}</td>
-                              <td className="px-4 py-2 text-gray-700 whitespace-nowrap">{r.end_date}</td>
-                              <td className="px-4 py-2 text-right text-red-600 font-medium">− {fmtEur(r.total_cost)}</td>
-                              <td className="px-4 py-2 text-gray-400 text-xs truncate max-w-[120px]">{r.notes ?? ''}</td>
+                            <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800">
+                              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{r.start_date}</td>
+                              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{r.end_date}</td>
+                              <td className="px-4 py-2 text-right text-red-600 dark:text-red-400 font-medium">− {fmtEur(r.total_cost)}</td>
+                              <td className="px-4 py-2 text-gray-400 dark:text-gray-500 text-xs truncate max-w-[120px]">{r.notes ?? ''}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -191,29 +191,29 @@ export default function HousesTab({ data }: Props) {
                   {/* Booking revenue */}
                   <div>
                     <div className="px-4 py-3 border-b">
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Booking revenue</h4>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Booking revenue</h4>
                     </div>
                     {bookingLines.length === 0 ? (
-                      <p className="px-4 py-6 text-gray-400 text-sm text-center">No bookings{period === 'season' ? ' this season' : ''}.</p>
+                      <p className="px-4 py-6 text-gray-400 dark:text-gray-500 text-sm text-center">No bookings{period === 'season' ? ' this season' : ''}.</p>
                     ) : (
                       <table className="w-full text-sm">
-                        <thead className="bg-gray-50 border-b">
+                        <thead className="bg-gray-50 dark:bg-gray-800 border-b">
                           <tr>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500">Room</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500">Period</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400">Nights</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400">Rate</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold text-emerald-500">Revenue</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Room</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Period</th>
+                            <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-500">Nights</th>
+                            <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-500">Rate</th>
+                            <th className="px-4 py-2 text-right text-xs font-semibold text-emerald-500 dark:text-emerald-400">Revenue</th>
                           </tr>
                         </thead>
                         <tbody>
                           {bookingLines.map((line, i) => (
-                            <tr key={`${line.bookingId}-${line.roomId}-${i}`} className="border-b last:border-0 hover:bg-gray-50">
-                              <td className="px-4 py-2 font-medium text-gray-700">{line.roomName}</td>
-                              <td className="px-4 py-2 text-gray-500 text-xs whitespace-nowrap">{line.checkIn} → {line.checkOut}</td>
-                              <td className="px-4 py-2 text-right text-gray-500">{line.nights}</td>
-                              <td className="px-4 py-2 text-right text-gray-400 text-xs">{fmtEur(line.rate)}/n</td>
-                              <td className="px-4 py-2 text-right text-emerald-700 font-medium">+ {fmtEur(line.revenue)}</td>
+                            <tr key={`${line.bookingId}-${line.roomId}-${i}`} className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800">
+                              <td className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">{line.roomName}</td>
+                              <td className="px-4 py-2 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{line.checkIn} → {line.checkOut}</td>
+                              <td className="px-4 py-2 text-right text-gray-500 dark:text-gray-400">{line.nights}</td>
+                              <td className="px-4 py-2 text-right text-gray-400 dark:text-gray-500 text-xs">{fmtEur(line.rate)}/n</td>
+                              <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400 font-medium">+ {fmtEur(line.revenue)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -230,47 +230,47 @@ export default function HousesTab({ data }: Props) {
       {/* ── Bungalows section ──────────────────────────────────────────────── */}
       {bungalows.length > 0 && (
         <div>
-          <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">🏡 Bungalows</h2>
+          <h2 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">🏡 Bungalows</h2>
           <div className="space-y-4">
             {bungStats.map(({ bung, costRate, bookingLines, totalRevenue, totalCost, totalMargin }) => (
-              <div key={bung.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-5 py-4 border-b bg-gray-50 flex items-center justify-between">
+              <div key={bung.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                <div className="px-5 py-4 border-b bg-gray-50 dark:bg-gray-800 flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold text-gray-800">{bung.name}</h3>
-                    <span className="text-xs text-gray-400">Cost: {fmtEur(costRate)}/night</span>
-                    {!bung.is_active && <span className="text-xs text-gray-400 ml-2">inactive</span>}
+                    <h3 className="font-semibold text-gray-800 dark:text-gray-200">{bung.name}</h3>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">Cost: {fmtEur(costRate)}/night</span>
+                    {!bung.is_active && <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">inactive</span>}
                   </div>
                   <div className="flex gap-6 text-sm">
-                    <span className="text-red-600 font-medium">Cost: − {fmtEur(totalCost)}</span>
-                    <span className="text-emerald-700 font-medium">Revenue: + {fmtEur(totalRevenue)}</span>
-                    <span className={`font-bold ${totalMargin >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                    <span className="text-red-600 dark:text-red-400 font-medium">Cost: − {fmtEur(totalCost)}</span>
+                    <span className="text-emerald-700 dark:text-emerald-400 font-medium">Revenue: + {fmtEur(totalRevenue)}</span>
+                    <span className={`font-bold ${totalMargin >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
                       Margin: {totalMargin >= 0 ? '+' : ''}{fmtEur(totalMargin)}
                     </span>
                   </div>
                 </div>
                 {bookingLines.length === 0 ? (
-                  <p className="px-4 py-6 text-gray-400 text-sm text-center">No bookings{period === 'season' ? ' this season' : ''}.</p>
+                  <p className="px-4 py-6 text-gray-400 dark:text-gray-500 text-sm text-center">No bookings{period === 'season' ? ' this season' : ''}.</p>
                 ) : (
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b">
+                    <thead className="bg-gray-50 dark:bg-gray-800 border-b">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500">Client</th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500">Period</th>
-                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400">Nights</th>
-                        <th className="px-4 py-2 text-right text-xs font-semibold text-red-400">Cost/n</th>
-                        <th className="px-4 py-2 text-right text-xs font-semibold text-emerald-500">Sell/n</th>
-                        <th className="px-4 py-2 text-right text-xs font-semibold text-blue-500">Margin</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Client</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Period</th>
+                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-500">Nights</th>
+                        <th className="px-4 py-2 text-right text-xs font-semibold text-red-400 dark:text-red-300">Cost/n</th>
+                        <th className="px-4 py-2 text-right text-xs font-semibold text-emerald-500 dark:text-emerald-400">Sell/n</th>
+                        <th className="px-4 py-2 text-right text-xs font-semibold text-blue-500 dark:text-blue-400">Margin</th>
                       </tr>
                     </thead>
                     <tbody>
                       {bookingLines.map((line, i) => (
-                        <tr key={`${line.bookingId}-${i}`} className="border-b last:border-0 hover:bg-gray-50">
-                          <td className="px-4 py-2 font-medium text-gray-700">{line.clientName}</td>
-                          <td className="px-4 py-2 text-gray-500 text-xs whitespace-nowrap">{line.checkIn} → {line.checkOut}</td>
-                          <td className="px-4 py-2 text-right text-gray-500">{line.nights}</td>
-                          <td className="px-4 py-2 text-right text-red-500">{fmtEur(costRate)}</td>
-                          <td className="px-4 py-2 text-right text-emerald-600">{fmtEur(line.sellRate)}</td>
-                          <td className={`px-4 py-2 text-right font-semibold ${line.margin >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                        <tr key={`${line.bookingId}-${i}`} className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800">
+                          <td className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">{line.clientName}</td>
+                          <td className="px-4 py-2 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{line.checkIn} → {line.checkOut}</td>
+                          <td className="px-4 py-2 text-right text-gray-500 dark:text-gray-400">{line.nights}</td>
+                          <td className="px-4 py-2 text-right text-red-500 dark:text-red-400">{fmtEur(costRate)}</td>
+                          <td className="px-4 py-2 text-right text-emerald-600 dark:text-emerald-400">{fmtEur(line.sellRate)}</td>
+                          <td className={`px-4 py-2 text-right font-semibold ${line.margin >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'}`}>
                             {line.margin >= 0 ? '+' : ''}{fmtEur(line.margin)}
                           </td>
                         </tr>
@@ -285,7 +285,7 @@ export default function HousesTab({ data }: Props) {
       )}
 
       {houses.length === 0 && bungalows.length === 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400 text-sm">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-8 text-center text-gray-400 dark:text-gray-500 text-sm">
           No accommodations configured. Add them in Management → Accommodations.
         </div>
       )}

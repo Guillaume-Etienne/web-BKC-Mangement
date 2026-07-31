@@ -14,7 +14,7 @@ interface Props { data: SharedAccountingData; onOpenBooking?: (id: string) => vo
 function Bar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0
   return (
-    <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+    <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-3 overflow-hidden">
       <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
     </div>
   )
@@ -78,80 +78,80 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
 
       {/* ── Row 1: main KPIs ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600 mb-1">Total revenue</p>
-          <p className="text-3xl font-bold text-emerald-800">{fmt(totalRevenue)}</p>
-          <p className="text-xs text-emerald-600 mt-1">{activeBookings.length} active booking{activeBookings.length !== 1 ? 's' : ''}</p>
+        <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xl p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400 mb-1">Total revenue</p>
+          <p className="text-3xl font-bold text-emerald-800 dark:text-emerald-400">{fmt(totalRevenue)}</p>
+          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">{activeBookings.length} active booking{activeBookings.length !== 1 ? 's' : ''}</p>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 mb-1">Collected</p>
-          <p className="text-3xl font-bold text-blue-800">{fmt(totalPaid)}</p>
-          <div className="mt-2 bg-blue-100 rounded-full h-2 overflow-hidden">
+        <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-xl p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400 mb-1">Collected</p>
+          <p className="text-3xl font-bold text-blue-800 dark:text-blue-400">{fmt(totalPaid)}</p>
+          <div className="mt-2 bg-blue-100 dark:bg-blue-900/30 rounded-full h-2 overflow-hidden">
             <div className="h-full bg-blue-500 rounded-full" style={{ width: `${billedNet > 0 ? Math.min(100, (totalPaid / billedNet) * 100) : 0}%` }} />
           </div>
-          <p className="text-xs text-blue-500 mt-1">{billedNet > 0 ? Math.round((totalPaid / billedNet) * 100) : 0}% of {fmt(billedNet)} billed</p>
+          <p className="text-xs text-blue-500 dark:text-blue-400 mt-1">{billedNet > 0 ? Math.round((totalPaid / billedNet) * 100) : 0}% of {fmt(billedNet)} billed</p>
           {unverifiedPaid > 0 && (
-            <p className="text-xs text-amber-600 mt-1">⚠ {fmt(unverifiedPaid)} still to verify</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">⚠ {fmt(unverifiedPaid)} still to verify</p>
           )}
         </div>
-        <div className={`border rounded-xl p-5 ${totalDue > 0 ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
-          <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${totalDue > 0 ? 'text-amber-600' : 'text-gray-500'}`}>Outstanding</p>
-          <p className={`text-3xl font-bold ${totalDue > 0 ? 'text-amber-800' : 'text-gray-500'}`}>{fmt(totalDue)}</p>
-          <p className={`text-xs mt-1 ${totalDue > 0 ? 'text-amber-600' : 'text-gray-400'}`}>{unpaidBookings.length} booking{unpaidBookings.length !== 1 ? 's' : ''} with balance due</p>
+        <div className={`border rounded-xl p-5 ${totalDue > 0 ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-800'}`}>
+          <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${totalDue > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}`}>Outstanding</p>
+          <p className={`text-3xl font-bold ${totalDue > 0 ? 'text-amber-800 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}`}>{fmt(totalDue)}</p>
+          <p className={`text-xs mt-1 ${totalDue > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500'}`}>{unpaidBookings.length} booking{unpaidBookings.length !== 1 ? 's' : ''} with balance due</p>
         </div>
       </div>
 
       {/* ── Row 2: cost / margin KPIs ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-500 mb-1">Instructor costs</p>
-          <p className="text-2xl font-bold text-red-800">−{fmt(instructorCosts)}</p>
+        <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400 mb-1">Instructor costs</p>
+          <p className="text-2xl font-bold text-red-800 dark:text-red-400">−{fmt(instructorCosts)}</p>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-500 mb-1">House rentals</p>
-          <p className="text-2xl font-bold text-red-800">−{fmt(houseRentalCosts)}</p>
+        <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400 mb-1">House rentals</p>
+          <p className="text-2xl font-bold text-red-800 dark:text-red-400">−{fmt(houseRentalCosts)}</p>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-500 mb-1">Bungalow owners</p>
-          <p className="text-2xl font-bold text-red-800">−{fmt(bungalowCosts)}</p>
+        <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400 mb-1">Bungalow owners</p>
+          <p className="text-2xl font-bold text-red-800 dark:text-red-400">−{fmt(bungalowCosts)}</p>
         </div>
         {/* gui (2026-07-04): the number that matters on the general dashboard is the MARGIN
             (what's left after paying drivers + manager); costs stay as the subtitle detail */}
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-purple-500 mb-1">Taxi margin</p>
-          <p className="text-2xl font-bold text-purple-800">{sign(taxiMargin)}</p>
-          <p className="text-xs text-purple-500 mt-1">{fmt(taxiRevGross)} billed − {fmt(taxiCosts)} costs (MZN→€)</p>
+        <div className="bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-purple-500 dark:text-purple-400 mb-1">Taxi margin</p>
+          <p className="text-2xl font-bold text-purple-800 dark:text-purple-400">{sign(taxiMargin)}</p>
+          <p className="text-xs text-purple-500 dark:text-purple-400 mt-1">{fmt(taxiRevGross)} billed − {fmt(taxiCosts)} costs (MZN→€)</p>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-500 mb-1">Activity providers</p>
-          <p className="text-2xl font-bold text-red-800">−{fmt(activityCosts)}</p>
+        <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400 mb-1">Activity providers</p>
+          <p className="text-2xl font-bold text-red-800 dark:text-red-400">−{fmt(activityCosts)}</p>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-500 mb-1">Expenses</p>
-          <p className="text-2xl font-bold text-red-800">−{fmt(totalExpenses)}</p>
+        <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400 mb-1">Expenses</p>
+          <p className="text-2xl font-bold text-red-800 dark:text-red-400">−{fmt(totalExpenses)}</p>
         </div>
-        <div className={`border rounded-xl p-4 ${palmeirasNet >= 0 ? 'bg-teal-50 border-teal-200' : 'bg-red-50 border-red-200'}`}>
-          <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${palmeirasNet >= 0 ? 'text-teal-600' : 'text-red-500'}`}>Palmeiras net</p>
-          <p className={`text-2xl font-bold ${palmeirasNet >= 0 ? 'text-teal-800' : 'text-red-800'}`}>{sign(palmeirasNet)}</p>
-          <p className={`text-xs mt-1 ${palmeirasNet >= 0 ? 'text-teal-600' : 'text-red-400'}`}>reversals + entries − rent</p>
+        <div className={`border rounded-xl p-4 ${palmeirasNet >= 0 ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-900' : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900'}`}>
+          <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${palmeirasNet >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-red-500 dark:text-red-400'}`}>Palmeiras net</p>
+          <p className={`text-2xl font-bold ${palmeirasNet >= 0 ? 'text-teal-800 dark:text-teal-400' : 'text-red-800 dark:text-red-400'}`}>{sign(palmeirasNet)}</p>
+          <p className={`text-xs mt-1 ${palmeirasNet >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-red-400 dark:text-red-300'}`}>reversals + entries − rent</p>
         </div>
       </div>
 
       {/* ── Net result banner ── */}
-      <div className={`rounded-xl border-2 p-5 flex items-center justify-between ${netResult >= 0 ? 'bg-emerald-50 border-emerald-400' : 'bg-red-50 border-red-400'}`}>
+      <div className={`rounded-xl border-2 p-5 flex items-center justify-between ${netResult >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-700' : 'bg-red-50 dark:bg-red-950/40 border-red-400 dark:border-red-700'}`}>
         <div>
-          <p className={`text-sm font-semibold uppercase tracking-wide ${netResult >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>Net result (season)</p>
-          <p className="text-xs text-gray-500 mt-0.5">Revenue (taxis net of driver + manager) + palmeiras − instructors − houses − bungalows − activity providers − expenses</p>
+          <p className={`text-sm font-semibold uppercase tracking-wide ${netResult >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>Net result (season)</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Revenue (taxis net of driver + manager) + palmeiras − instructors − houses − bungalows − activity providers − expenses</p>
         </div>
-        <p className={`text-4xl font-bold ${netResult >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{sign(netResult)}</p>
+        <p className={`text-4xl font-bold ${netResult >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>{sign(netResult)}</p>
       </div>
 
       {/* ── Two columns ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Revenue breakdown */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-base font-bold text-gray-800 mb-4">Revenue breakdown</h2>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+          <h2 className="text-base font-bold text-gray-800 dark:text-gray-200 mb-4">Revenue breakdown</h2>
           <div className="space-y-3">
             {[
               { label: 'Accommodation', value: accomRev,      color: 'bg-blue-500' },
@@ -164,16 +164,16 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
             ].map(c => (
               <div key={c.label} className="flex items-center gap-3">
                 <div className="w-28 shrink-0">
-                  <p className="text-sm text-gray-600">{c.label}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{c.label}</p>
                   {c.label === 'Taxi margin' && standaloneTrips.length > 0 && (
-                    <p className="text-xs text-amber-500">incl. {standaloneTrips.length} unlinked</p>
+                    <p className="text-xs text-amber-500 dark:text-amber-400">incl. {standaloneTrips.length} unlinked</p>
                   )}
                 </div>
                 <Bar value={c.value} max={totalRevenue} color={c.color} />
-                <p className="w-24 text-right text-sm font-semibold text-gray-700">{fmt(c.value)}</p>
+                <p className="w-24 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">{fmt(c.value)}</p>
               </div>
             ))}
-            <div className="pt-2 border-t flex justify-between text-sm font-bold text-gray-800">
+            <div className="pt-2 border-t flex justify-between text-sm font-bold text-gray-800 dark:text-gray-200">
               <span>Total</span>
               <span>{fmt(totalRevenue)}</span>
             </div>
@@ -181,18 +181,18 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
         </div>
 
         {/* Bookings status */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-base font-bold text-gray-800 mb-4">Bookings</h2>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+          <h2 className="text-base font-bold text-gray-800 dark:text-gray-200 mb-4">Bookings</h2>
           <div className="grid grid-cols-3 gap-3 text-center mb-6">
-            <div className="bg-emerald-100 text-emerald-800 rounded-lg py-3">
+            <div className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400 rounded-lg py-3">
               <p className="text-2xl font-bold">{confirmed}</p>
               <p className="text-xs font-medium mt-0.5">Confirmed</p>
             </div>
-            <div className="bg-amber-100 text-amber-800 rounded-lg py-3">
+            <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 rounded-lg py-3">
               <p className="text-2xl font-bold">{provisional}</p>
               <p className="text-xs font-medium mt-0.5">Provisional</p>
             </div>
-            <div className="bg-gray-100 text-gray-500 rounded-lg py-3">
+            <div className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-lg py-3">
               <p className="text-2xl font-bold">{cancelled}</p>
               <p className="text-xs font-medium mt-0.5">Cancelled</p>
             </div>
@@ -200,14 +200,14 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
 
           {/* Collection progress — click → who owes what (CollectionsModal) */}
           <button onClick={() => setShowCollections(true)} className="w-full space-y-2 text-left group">
-            <div className="flex justify-between text-xs text-gray-500">
+            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
               <span>
                 Collection progress
-                <span className="ml-2 text-blue-500 group-hover:underline">who owes? →</span>
+                <span className="ml-2 text-blue-500 dark:text-blue-400 group-hover:underline">who owes? →</span>
               </span>
               <span>{fmt(totalPaid)} / {fmt(billedNet)} billed</span>
             </div>
-            <div className="bg-gray-100 rounded-full h-4 overflow-hidden group-hover:ring-2 group-hover:ring-blue-200">
+            <div className="bg-gray-100 dark:bg-gray-800 rounded-full h-4 overflow-hidden group-hover:ring-2 group-hover:ring-blue-200">
               <div
                 className="h-full bg-blue-500 rounded-full transition-all"
                 style={{ width: `${billedNet > 0 ? Math.min(100, (totalPaid / billedNet) * 100) : 0}%` }}
@@ -219,21 +219,21 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
 
       {/* ── Instructor balances ── */}
       {instrBalances.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-base font-bold text-gray-800 mb-1">Instructor balances</h2>
-          <p className="text-xs text-gray-400 mb-4">Earned − debts − already paid</p>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+          <h2 className="text-base font-bold text-gray-800 dark:text-gray-200 mb-1">Instructor balances</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">Earned − debts − already paid</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {instrBalances.map(i => (
               <div key={i.id} className={`rounded-lg border px-4 py-3 flex items-center justify-between ${
-                i.balance > 0 ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-200'
+                i.balance > 0 ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-900' : 'bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-900'
               }`}>
                 <div>
-                  <p className="font-semibold text-sm text-gray-800">{i.first_name} {i.last_name}</p>
-                  <p className={`text-xs mt-0.5 ${i.balance > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                  <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">{i.first_name} {i.last_name}</p>
+                  <p className={`text-xs mt-0.5 ${i.balance > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400'}`}>
                     {i.balance > 0 ? 'To pay' : 'Credit'}
                   </p>
                 </div>
-                <p className={`text-lg font-bold ${i.balance > 0 ? 'text-orange-700' : 'text-green-700'}`}>
+                <p className={`text-lg font-bold ${i.balance > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-green-700 dark:text-green-400'}`}>
                   {fmt(Math.abs(i.balance))}
                 </p>
               </div>
@@ -253,13 +253,13 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
 
       {/* ── Unpaid bookings ── */}
       {topUnpaid.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-base font-bold text-gray-800 mb-1">Outstanding payments</h2>
-          <p className="text-xs text-gray-400 mb-4">Top {topUnpaid.length} of {unpaidBookings.length} booking{unpaidBookings.length !== 1 ? 's' : ''} with balance due</p>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+          <h2 className="text-base font-bold text-gray-800 dark:text-gray-200 mb-1">Outstanding payments</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">Top {topUnpaid.length} of {unpaidBookings.length} booking{unpaidBookings.length !== 1 ? 's' : ''} with balance due</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-xs text-gray-500">
+                <tr className="border-b text-left text-xs text-gray-500 dark:text-gray-400">
                   <th className="pb-2 font-medium">Guest</th>
                   <th className="pb-2 font-medium">Check-in</th>
                   <th className="pb-2 font-medium">Status</th>
@@ -272,29 +272,29 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
                 {topUnpaid.map(b => {
                   const client = b.client
                   const statusColors = {
-                    confirmed:   'bg-emerald-100 text-emerald-700',
-                    provisional: 'bg-amber-100 text-amber-700',
-                    cancelled:   'bg-gray-100 text-gray-500',
+                    confirmed:   'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
+                    provisional: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+                    cancelled:   'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400',
                   }
                   return (
                     <tr
                       key={b.id}
                       onClick={onOpenBooking ? () => onOpenBooking(b.id) : undefined}
-                      className={`border-b last:border-0 hover:bg-gray-50 ${onOpenBooking ? 'cursor-pointer' : ''}`}
+                      className={`border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800 ${onOpenBooking ? 'cursor-pointer' : ''}`}
                     >
-                      <td className="py-2 font-medium text-gray-800">
-                        {onOpenBooking && <span className="text-gray-300 mr-1">↗</span>}
+                      <td className="py-2 font-medium text-gray-800 dark:text-gray-200">
+                        {onOpenBooking && <span className="text-gray-300 dark:text-gray-600 mr-1">↗</span>}
                         {client ? `${client.first_name} ${client.last_name}` : b.id}
                       </td>
-                      <td className="py-2 text-gray-500">{b.check_in}</td>
+                      <td className="py-2 text-gray-500 dark:text-gray-400">{b.check_in}</td>
                       <td className="py-2">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[b.status]}`}>
                           {b.status}
                         </span>
                       </td>
-                      <td className="py-2 text-right text-gray-700">{fmt(b.total)}</td>
-                      <td className="py-2 text-right text-blue-700">{fmt(b.paid)}</td>
-                      <td className="py-2 text-right font-bold text-amber-700">{fmt(b.due)}</td>
+                      <td className="py-2 text-right text-gray-700 dark:text-gray-300">{fmt(b.total)}</td>
+                      <td className="py-2 text-right text-blue-700 dark:text-blue-400">{fmt(b.paid)}</td>
+                      <td className="py-2 text-right font-bold text-amber-700 dark:text-amber-400">{fmt(b.due)}</td>
                     </tr>
                   )
                 })}

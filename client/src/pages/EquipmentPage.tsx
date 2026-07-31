@@ -430,7 +430,7 @@ export default function EquipmentPage() {
                 <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 text-white px-4 py-4">
                   <h3 className="font-bold text-lg">{selectedEquipment.name}</h3>
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-sm text-blue-100">{getCategoryLabel(selectedEquipment.category)}</span>
+                    <span className="text-sm text-blue-100 dark:text-blue-300">{getCategoryLabel(selectedEquipment.category)}</span>
                     <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getConditionColor(selectedEquipment.condition)}`}>
                       {getConditionLabel(selectedEquipment.condition)}
                     </span>

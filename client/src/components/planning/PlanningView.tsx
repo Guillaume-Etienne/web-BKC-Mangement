@@ -18,7 +18,7 @@ import { supabase } from '../../lib/supabase'
 // ── Booking quick view modal ───────────────────────────────────────────────────
 
 const STATUS_LABEL: Record<string, string> = { confirmed: 'Confirmed', provisional: 'Provisional', cancelled: 'Cancelled' }
-const STATUS_COLOR: Record<string, string> = { confirmed: 'bg-emerald-100 text-emerald-800', provisional: 'bg-amber-100 text-amber-800', cancelled: 'bg-gray-100 text-gray-500' }
+const STATUS_COLOR: Record<string, string> = { confirmed: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400', provisional: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400', cancelled: 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400' }
 
 interface BookingQuickViewProps {
   booking: Booking
@@ -55,23 +55,23 @@ function BookingQuickView({ booking, rooms, accommodations, bookingRooms, partic
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-gray-800">
+            <span className="font-bold text-gray-800 dark:text-gray-200">
               #{String(booking.booking_number).padStart(3, '0')} — {clientName}
             </span>
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[booking.status]}`}>
               {STATUS_LABEL[booking.status]}
             </span>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+          <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl leading-none">✕</button>
         </div>
         <div className="px-4 py-3 space-y-1.5">
           {rows.map(([label, value]) => (
             <div key={label} className="flex gap-2 text-sm">
-              <span className="text-gray-400 w-20 shrink-0">{label}</span>
-              <span className="text-gray-800 font-medium">{value}</span>
+              <span className="text-gray-400 dark:text-gray-500 w-20 shrink-0">{label}</span>
+              <span className="text-gray-800 dark:text-gray-200 font-medium">{value}</span>
             </div>
           ))}
         </div>
@@ -136,29 +136,29 @@ function ValidateModal({ draftMoves, bookings, rooms, accommodations, onConfirm,
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-xl max-h-[80vh] flex flex-col">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-xl max-h-[80vh] flex flex-col">
         <div className="flex justify-between items-center p-4 border-b">
-          <h3 className="font-bold text-gray-800">Confirm {draftMoves.size} pending move{draftMoves.size > 1 ? 's' : ''}</h3>
-          <button onClick={onCancel} className="text-gray-500 hover:text-gray-800 text-xl font-bold">✕</button>
+          <h3 className="font-bold text-gray-800 dark:text-gray-200">Confirm {draftMoves.size} pending move{draftMoves.size > 1 ? 's' : ''}</h3>
+          <button onClick={onCancel} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-xl font-bold">✕</button>
         </div>
         <div className="overflow-y-auto flex-1 p-4 space-y-3">
           {entries.map(({ bookingId, bookingNum, clientName, draft, datesChanged }) => (
-            <div key={bookingId} className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm space-y-1">
-              <p className="font-semibold text-gray-800">{bookingNum} — {clientName}</p>
+            <div key={bookingId} className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg p-3 text-sm space-y-1">
+              <p className="font-semibold text-gray-800 dark:text-gray-200">{bookingNum} — {clientName}</p>
               {datesChanged && (
-                <p className="text-gray-600">
-                  📅 <span className="line-through text-gray-400">{draft.originalCheckIn} → {draft.originalCheckOut}</span>
-                  {' '}→ <span className="font-medium text-blue-700">{draft.checkIn} → {draft.checkOut}</span>
+                <p className="text-gray-600 dark:text-gray-400">
+                  📅 <span className="line-through text-gray-400 dark:text-gray-500">{draft.originalCheckIn} → {draft.originalCheckOut}</span>
+                  {' '}→ <span className="font-medium text-blue-700 dark:text-blue-400">{draft.checkIn} → {draft.checkOut}</span>
                 </p>
               )}
               {draft.roomSwaps.map((s, i) => (
-                <p key={i} className="text-gray-600">
-                  🏠 <span className="line-through text-gray-400">{roomLabel(s.from)}</span>
-                  {' '}→ <span className="font-medium text-blue-700">{roomLabel(s.to)}</span>
+                <p key={i} className="text-gray-600 dark:text-gray-400">
+                  🏠 <span className="line-through text-gray-400 dark:text-gray-500">{roomLabel(s.from)}</span>
+                  {' '}→ <span className="font-medium text-blue-700 dark:text-blue-400">{roomLabel(s.to)}</span>
                 </p>
               ))}
               {draft.roomRemovals.map((rid, i) => (
-                <p key={`rm-${i}`} className="text-red-600">
+                <p key={`rm-${i}`} className="text-red-600 dark:text-red-400">
                   ✕ <span className="line-through">{roomLabel(rid)}</span> <span className="text-xs">(freed)</span>
                 </p>
               ))}
@@ -167,7 +167,7 @@ function ValidateModal({ draftMoves, bookings, rooms, accommodations, onConfirm,
         </div>
         <div className="flex gap-3 p-4 border-t">
           <button onClick={onCancel}
-            className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium text-sm">
+            className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm">
             Cancel
           </button>
           <button onClick={handleConfirm} disabled={saving}
@@ -663,12 +663,12 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   })
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-full mx-auto px-4 py-3 md:py-8">
 
         {/* Page header */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 md:gap-4 mb-3 md:mb-8">
-          <h1 className="text-lg md:text-3xl font-bold text-gray-800">
+          <h1 className="text-lg md:text-3xl font-bold text-gray-800 dark:text-gray-200">
             {planningTab === 'accommodations' ? 'Accommodation Planning'
               : planningTab === 'lessons' ? 'Daily Planning'
               : planningTab === 'forecast' ? 'Forecast'
@@ -678,22 +678,22 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
           {planningTab === 'accommodations' && (
             <div className="flex items-center flex-wrap justify-center gap-1.5 md:gap-2 w-full md:w-auto">
               {/* Season selector */}
-              <div className="flex items-center gap-0.5 bg-blue-50 border border-blue-200 rounded-lg px-1 py-0.5 md:py-1">
-                <button onClick={() => changeSeason(-1)} className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 text-xs md:text-sm text-blue-700">←</button>
-                <span className="text-xs md:text-sm font-bold text-blue-800 min-w-[46px] md:min-w-[90px] text-center">
+              <div className="flex items-center gap-0.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg px-1 py-0.5 md:py-1">
+                <button onClick={() => changeSeason(-1)} className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-xs md:text-sm text-blue-700 dark:text-blue-400">←</button>
+                <span className="text-xs md:text-sm font-bold text-blue-800 dark:text-blue-400 min-w-[46px] md:min-w-[90px] text-center">
                   <span className="md:hidden">{String(seasonYear).slice(2)}/{String(seasonYear + 1).slice(2)}</span>
                   <span className="hidden md:inline">{seasonYear}/{String(seasonYear + 1).slice(2)}</span>
                 </span>
-                <button onClick={() => changeSeason(+1)} className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 text-xs md:text-sm text-blue-700">→</button>
+                <button onClick={() => changeSeason(+1)} className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-xs md:text-sm text-blue-700 dark:text-blue-400">→</button>
               </div>
               {/* Month nav */}
               <div className="flex items-center gap-0.5">
-                <button onClick={prevMonth} disabled={navMonthIdx === 0} className="px-2 py-1 md:px-3 md:py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 text-xs md:text-sm">←</button>
-                <span className="text-xs md:text-sm font-semibold min-w-[32px] md:min-w-[130px] text-center text-gray-700">
+                <button onClick={prevMonth} disabled={navMonthIdx === 0} className="px-2 py-1 md:px-3 md:py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 text-xs md:text-sm">←</button>
+                <span className="text-xs md:text-sm font-semibold min-w-[32px] md:min-w-[130px] text-center text-gray-700 dark:text-gray-300">
                   <span className="md:hidden">{monthGroups[navMonthIdx]?.shortLabel ?? ''}</span>
                   <span className="hidden md:inline">{monthGroups[navMonthIdx]?.label ?? ''}</span>
                 </span>
-                <button onClick={nextMonth} disabled={navMonthIdx === monthGroups.length - 1} className="px-2 py-1 md:px-3 md:py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 text-xs md:text-sm">→</button>
+                <button onClick={nextMonth} disabled={navMonthIdx === monthGroups.length - 1} className="px-2 py-1 md:px-3 md:py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 text-xs md:text-sm">→</button>
               </div>
               <button onClick={goToNow} className="px-2 py-1 md:px-3 md:py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm font-medium">Now</button>
             </div>
@@ -704,25 +704,25 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
         <div className="flex gap-1 md:gap-2 mb-3 md:mb-6 border-b overflow-x-auto">
           <button
             onClick={() => handleTabChange('accommodations')}
-            className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'accommodations' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+            className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'accommodations' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
             🏠 Accommodations
           </button>
           <button
             onClick={() => handleTabChange('lessons')}
-            className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'lessons' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+            className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'lessons' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
             🗓️ Daily
           </button>
           <button
             onClick={() => handleTabChange('now')}
-            className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'now' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+            className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'now' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
             🍽️ Now
           </button>
           <button
             onClick={() => handleTabChange('forecast')}
-            className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'forecast' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+            className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'forecast' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
             📋 Forecast
           </button>
@@ -733,8 +733,8 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
           <>
             {/* Draft banner */}
             {draftMoves.size > 0 && (
-              <div className="sticky top-0 z-30 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 mb-4 flex items-center justify-between shadow-sm">
-                <span className="text-amber-800 font-medium text-sm">
+              <div className="sticky top-0 z-30 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-lg px-4 py-3 mb-4 flex items-center justify-between shadow-sm">
+                <span className="text-amber-800 dark:text-amber-400 font-medium text-sm">
                   ⚠️ {draftMoves.size} pending move{draftMoves.size > 1 ? 's' : ''} — not saved yet
                 </span>
                 <div className="flex gap-2">
@@ -743,7 +743,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                     ✓ Validate changes
                   </button>
                   <button onClick={() => setDraftMoves(new Map())}
-                    className="px-4 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 font-medium text-sm">
+                    className="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm">
                     ↺ Reset to saved
                   </button>
                 </div>
@@ -754,24 +754,24 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             <div className="flex flex-wrap gap-3 md:gap-4 mb-3 md:mb-4 text-xs md:text-sm">
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> Confirmed</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-400 inline-block" /> Provisional</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-300 inline-block" /> Cancelled</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-200 border border-gray-300 inline-block" /> Not rented</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-300 dark:bg-gray-600 inline-block" /> Cancelled</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 inline-block" /> Not rented</span>
             </div>
 
             {/* Grid */}
             <div
               ref={scrollRef}
-              className="border border-gray-200 rounded-lg overflow-x-auto select-none bg-white"
+              className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-x-auto select-none bg-white dark:bg-gray-900"
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
             >
               {/* Header row 1: month names */}
-              <div className="flex min-w-max border-b border-gray-300 bg-gray-200">
-                <div className="sticky left-0 z-20 shrink-0 w-20 bg-gray-200 border-r border-gray-300" />
+              <div className="flex min-w-max border-b border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-700">
+                <div className="sticky left-0 z-20 shrink-0 w-20 bg-gray-200 dark:bg-gray-700 border-r border-gray-300 dark:border-gray-700" />
                 {monthGroups.map((mg) => (
                   <div
                     key={mg.colStart}
-                    className="shrink-0 text-center text-xs font-bold py-1 border-r border-gray-300 text-gray-700"
+                    className="shrink-0 text-center text-xs font-bold py-1 border-r border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300"
                     style={{ width: mg.days * CELL_W }}
                   >
                     {mg.label}
@@ -780,8 +780,8 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
               </div>
 
               {/* Header row 2: day numbers */}
-              <div className="flex min-w-max border-b border-gray-300 bg-gray-100">
-                <div className="sticky left-0 z-20 shrink-0 w-20 px-2 py-1 text-xs font-semibold border-r border-gray-200 bg-gray-100">
+              <div className="flex min-w-max border-b border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
+                <div className="sticky left-0 z-20 shrink-0 w-20 px-2 py-1 text-xs font-semibold border-r border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800">
                   Where
                 </div>
                 <div className="flex">
@@ -794,10 +794,10 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                         key={i}
                         className={`shrink-0 text-center text-xs py-1 border-r ${
                           dow === 0 ? 'border-r-gray-300' : 'border-r-gray-100'
-                        } ${isWeekend ? 'bg-blue-50 font-semibold' : ''}`}
+                        } ${isWeekend ? 'bg-blue-50 dark:bg-blue-950/40 font-semibold' : ''}`}
                         style={{ width: CELL_W }}
                       >
-                        <div className="text-gray-400 hidden md:block leading-none">{DAY_NAMES[dow]}</div>
+                        <div className="text-gray-400 dark:text-gray-500 hidden md:block leading-none">{DAY_NAMES[dow]}</div>
                         <div>{d.getDate()}</div>
                       </div>
                     )
@@ -814,11 +814,11 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                   return (
                     <div key={type}>
                       {/* Type separator */}
-                      <div className="flex min-w-max border-b border-gray-300">
-                        <div className="sticky left-0 z-20 shrink-0 w-20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 bg-gray-100 border-r border-gray-200">
+                      <div className="flex min-w-max border-b border-gray-300 dark:border-gray-700">
+                        <div className="sticky left-0 z-20 shrink-0 w-20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-800">
                           {typeLabel}
                         </div>
-                        <div className="flex-1 bg-gray-100" style={{ minWidth: totalDays * CELL_W }} />
+                        <div className="flex-1 bg-gray-100 dark:bg-gray-800" style={{ minWidth: totalDays * CELL_W }} />
                       </div>
                       {/* Accommodation rows */}
                       {typeAccs.map((acc) => {
@@ -881,23 +881,23 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
               {dayCount === 7 ? (
                 <div className="flex items-center gap-2">
-                  <button onClick={prevWeek} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">←</button>
+                  <button onClick={prevWeek} className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">←</button>
                   <span className="text-base font-semibold min-w-[220px] text-center">
                     Week of {weekLabel}
                   </span>
-                  <button onClick={nextWeek} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">→</button>
-                  <button onClick={goToToday} className="px-3 py-1.5 rounded bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200">
+                  <button onClick={nextWeek} className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">→</button>
+                  <button onClick={goToToday} className="px-3 py-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-800">
                     Today
                   </button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <button onClick={prevDay} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">←</button>
+                  <button onClick={prevDay} className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">←</button>
                   <span className="text-base font-semibold min-w-[130px] text-center">
                     {focusedDayLabel}
                   </span>
-                  <button onClick={nextDay} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">→</button>
-                  <button onClick={goToTodayDay} className="px-3 py-1.5 rounded bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200">
+                  <button onClick={nextDay} className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">→</button>
+                  <button onClick={goToTodayDay} className="px-3 py-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-800">
                     Today
                   </button>
                 </div>
@@ -907,7 +907,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                   <button
                     key={n}
                     onClick={() => setDayCount(n)}
-                    className={`px-3 py-1.5 rounded font-medium text-sm transition-colors ${dayCount === n ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                    className={`px-3 py-1.5 rounded font-medium text-sm transition-colors ${dayCount === n ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
                   >
                     {label}
                   </button>

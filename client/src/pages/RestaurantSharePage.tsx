@@ -99,7 +99,7 @@ export default function RestaurantSharePage() {
   const todayDay = today.slice(0, 7) === month ? parseInt(today.slice(8)) : null
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
         <div className="max-w-5xl mx-auto px-4 py-5 flex items-start justify-between gap-4">
@@ -107,7 +107,7 @@ export default function RestaurantSharePage() {
             <span className="text-3xl">🍽️</span>
             <div>
               <h1 className="text-2xl font-bold">{L.title[lang]}</h1>
-              <p className="text-sm text-blue-200">{L.subtitle[lang]}</p>
+              <p className="text-sm text-blue-200 dark:text-blue-300">{L.subtitle[lang]}</p>
             </div>
           </div>
           <Segmented value={lang} onChange={setLang}
@@ -117,18 +117,18 @@ export default function RestaurantSharePage() {
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {/* Upcoming departures */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <h2 className="font-semibold text-gray-800 mb-2">🧳 {L.departures[lang]}</h2>
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4">
+          <h2 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">🧳 {L.departures[lang]}</h2>
           {departuresSoon.length === 0 ? (
-            <p className="text-sm text-gray-400">{L.no_departures[lang]}</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500">{L.no_departures[lang]}</p>
           ) : (
             <div className="space-y-1">
               {Object.entries(departuresByDate).map(([date, list]) => (
                 <div key={date} className="flex flex-wrap items-baseline gap-2 text-sm">
-                  <span className={`font-semibold ${date === today ? 'text-red-600' : 'text-gray-700'}`}>
+                  <span className={`font-semibold ${date === today ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300'}`}>
                     {dateLabel(date)}:
                   </span>
-                  <span className="text-gray-600">{list.map(guestName).join(', ')}</span>
+                  <span className="text-gray-600 dark:text-gray-400">{list.map(guestName).join(', ')}</span>
                 </div>
               ))}
             </div>
@@ -139,39 +139,39 @@ export default function RestaurantSharePage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button onClick={() => shiftMonth(-1)}
-              className="px-3 py-1.5 bg-white border rounded-lg shadow-sm text-sm hover:bg-gray-50">‹</button>
-            <span className="font-semibold text-gray-800 capitalize min-w-40 text-center">{monthLabel}</span>
+              className="px-3 py-1.5 bg-white dark:bg-gray-900 border rounded-lg shadow-sm text-sm hover:bg-gray-50 dark:hover:bg-gray-800">‹</button>
+            <span className="font-semibold text-gray-800 dark:text-gray-200 capitalize min-w-40 text-center">{monthLabel}</span>
             <button onClick={() => shiftMonth(1)}
-              className="px-3 py-1.5 bg-white border rounded-lg shadow-sm text-sm hover:bg-gray-50">›</button>
+              className="px-3 py-1.5 bg-white dark:bg-gray-900 border rounded-lg shadow-sm text-sm hover:bg-gray-50 dark:hover:bg-gray-800">›</button>
           </div>
           <button onClick={() => setMonth(today.slice(0, 7))}
-            className="px-3 py-1.5 bg-white border rounded-lg shadow-sm text-sm hover:bg-gray-50">
+            className="px-3 py-1.5 bg-white dark:bg-gray-900 border rounded-lg shadow-sm text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
             {L.today[lang]}
           </button>
         </div>
 
         {/* Timeline */}
         {loading ? (
-          <div className="text-center py-16 text-gray-400">{L.loading[lang]}</div>
+          <div className="text-center py-16 text-gray-400 dark:text-gray-500">{L.loading[lang]}</div>
         ) : rows.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
+          <div className="text-center py-16 text-gray-400 dark:text-gray-500">
             <p className="text-4xl mb-3">🛏️</p>
             <p className="text-lg font-medium">{L.no_bookings[lang]}</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-x-auto">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-x-auto">
             <div style={{ width: 176 + daysInMonth * CELL_W }}>
               {/* Day header */}
-              <div className="flex border-b border-gray-200">
-                <div className="w-44 shrink-0 sticky left-0 bg-white z-10 border-r border-gray-200" />
+              <div className="flex border-b border-gray-200 dark:border-gray-800">
+                <div className="w-44 shrink-0 sticky left-0 bg-white dark:bg-gray-900 z-10 border-r border-gray-200 dark:border-gray-800" />
                 {days.map(d => (
                   <div key={d}
-                    className={`w-8 shrink-0 text-center py-1 border-r border-gray-100 ${
-                      d === todayDay ? 'bg-blue-100' : isWeekend(d) ? 'bg-gray-50' : ''}`}>
-                    <div className="text-[10px] text-gray-400 leading-none">
+                    className={`w-8 shrink-0 text-center py-1 border-r border-gray-100 dark:border-gray-800 ${
+                      d === todayDay ? 'bg-blue-100 dark:bg-blue-900/30' : isWeekend(d) ? 'bg-gray-50 dark:bg-gray-800' : ''}`}>
+                    <div className="text-[10px] text-gray-400 dark:text-gray-500 leading-none">
                       {new Date(year, mon - 1, d).toLocaleDateString(LOCALE[lang], { weekday: 'narrow' })}
                     </div>
-                    <div className={`text-xs font-medium ${d === todayDay ? 'text-blue-700' : 'text-gray-600'}`}>{d}</div>
+                    <div className={`text-xs font-medium ${d === todayDay ? 'text-blue-700 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'}`}>{d}</div>
                   </div>
                 ))}
               </div>
@@ -185,10 +185,10 @@ export default function RestaurantSharePage() {
                 const color = BAR_COLOR[b.status as Exclude<BookingStatus, 'cancelled'>]
                 const tooltip = `${guestName(b)} — ${L.arrival[lang]} ${fmtDay(b.check_in, lang)} · ${L.departure[lang]} ${fmtDay(b.check_out, lang)} (${b.status === 'confirmed' ? L.confirmed[lang] : L.provisional[lang]})`
                 return (
-                  <div key={b.id} className="flex border-b border-gray-100 last:border-b-0">
-                    <div className="w-44 shrink-0 sticky left-0 bg-white z-10 border-r border-gray-200 px-3 py-1.5">
-                      <div className="text-sm font-medium text-gray-800 truncate" title={tooltip}>{guestName(b)}</div>
-                      <div className="text-[11px] text-gray-400">
+                  <div key={b.id} className="flex border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+                    <div className="w-44 shrink-0 sticky left-0 bg-white dark:bg-gray-900 z-10 border-r border-gray-200 dark:border-gray-800 px-3 py-1.5">
+                      <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate" title={tooltip}>{guestName(b)}</div>
+                      <div className="text-[11px] text-gray-400 dark:text-gray-500">
                         {fmtDay(b.check_in, lang)} → {fmtDay(b.check_out, lang)}
                       </div>
                     </div>
@@ -196,8 +196,8 @@ export default function RestaurantSharePage() {
                       {/* day grid background */}
                       <div className="absolute inset-0 flex">
                         {days.map(d => (
-                          <div key={d} className={`w-8 shrink-0 border-r border-gray-100 ${
-                            d === todayDay ? 'bg-blue-50' : isWeekend(d) ? 'bg-gray-50' : ''}`} />
+                          <div key={d} className={`w-8 shrink-0 border-r border-gray-100 dark:border-gray-800 ${
+                            d === todayDay ? 'bg-blue-50 dark:bg-blue-950/40' : isWeekend(d) ? 'bg-gray-50 dark:bg-gray-800' : ''}`} />
                         ))}
                       </div>
                       {/* stay bar */}
@@ -224,7 +224,7 @@ export default function RestaurantSharePage() {
         )}
 
         {/* Legend */}
-        <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+        <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
           <span className="flex items-center gap-1.5">
             <span className="w-4 h-3 rounded bg-emerald-500 inline-block" /> {L.confirmed[lang]}
           </span>

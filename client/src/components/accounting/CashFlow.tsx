@@ -43,7 +43,7 @@ export default function CashFlow({ data }: Props) {
 
       {/* Period selector */}
       <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex gap-1 bg-white rounded-lg border border-gray-200 p-1">
+        <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
           {([
             { id: 'month',  label: 'All time' },
             { id: 'season', label: `Season ${currentSeason?.label ?? ''}` },
@@ -51,7 +51,7 @@ export default function CashFlow({ data }: Props) {
           ] as { id: PeriodMode; label: string }[]).map(opt => (
             <button key={opt.id} onClick={() => setMode(opt.id)}
               className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-                mode === opt.id ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                mode === opt.id ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}>
               {opt.label}
             </button>
@@ -61,10 +61,10 @@ export default function CashFlow({ data }: Props) {
         {mode === 'custom' && (
           <div className="flex items-center gap-2 text-sm">
             <input type="month" value={customFrom} onChange={e => setFrom(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
-            <span className="text-gray-400">→</span>
+              className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            <span className="text-gray-400 dark:text-gray-500">→</span>
             <input type="month" value={customTo} onChange={e => setTo(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
         )}
       </div>
@@ -72,27 +72,27 @@ export default function CashFlow({ data }: Props) {
       {/* KPI bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Billed',      value: totals.billed,    color: 'text-gray-700',    note: 'Revenue generated' },
-          { label: 'Collected',   value: totals.collected, color: 'text-emerald-700', note: 'Cash received',
+          { label: 'Billed',      value: totals.billed,    color: 'text-gray-700 dark:text-gray-300',    note: 'Revenue generated' },
+          { label: 'Collected',   value: totals.collected, color: 'text-emerald-700 dark:text-emerald-400', note: 'Cash received',
             warn: totals.unverified > 0 ? `⚠ ${fmtEur(totals.unverified)} still to verify` : null },
-          { label: 'Total out',   value: -(totals.expenses + totals.rent + totals.instrPaid + totals.taxiOut), color: 'text-red-700', note: 'Expenses + rent + instructors + taxi' },
-          { label: 'Net cash',    value: totals.net,       color: totals.net >= 0 ? 'text-emerald-700' : 'text-red-700', note: 'Collected − all outflows' },
+          { label: 'Total out',   value: -(totals.expenses + totals.rent + totals.instrPaid + totals.taxiOut), color: 'text-red-700 dark:text-red-400', note: 'Expenses + rent + instructors + taxi' },
+          { label: 'Net cash',    value: totals.net,       color: totals.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400', note: 'Collected − all outflows' },
         ].map(k => (
-          <div key={k.label} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
-            <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{k.label}</p>
+          <div key={k.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 py-4">
+            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">{k.label}</p>
             <p className={`text-xl font-bold ${k.color}`}>{fmtEur(k.value)}</p>
-            <p className="text-xs text-gray-400 mt-1">{k.note}</p>
-            {'warn' in k && k.warn && <p className="text-xs text-amber-600 mt-1">{k.warn}</p>}
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{k.note}</p>
+            {'warn' in k && k.warn && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{k.warn}</p>}
           </div>
         ))}
       </div>
 
       {/* Chart */}
       {filtered.length > 1 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-semibold text-gray-600">Monthly net cash</p>
-            <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+            <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">Monthly net cash</p>
+            <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
               {([
                 { id: 'bars',      label: '▮▮▮' },
                 { id: 'diverging', label: '±' },
@@ -100,7 +100,7 @@ export default function CashFlow({ data }: Props) {
               ] as { id: ChartType; label: string }[]).map(o => (
                 <button key={o.id} onClick={() => setChart(o.id)}
                   className={`px-3 py-1 text-xs rounded font-mono font-bold transition-colors ${
-                    chartType === o.id ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                    chartType === o.id ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400'
                   }`}>
                   {o.label}
                 </button>
@@ -215,68 +215,68 @@ export default function CashFlow({ data }: Props) {
       )}
 
       {/* Detailed table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
         <table className="w-full text-sm min-w-[800px]">
-          <thead className="bg-gray-50 border-b">
+          <thead className="bg-gray-50 dark:bg-gray-800 border-b">
             <tr>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600">Month</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-500">Billed</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-600">Collected</th>
-              <th className="px-4 py-3 text-right font-semibold text-blue-600">Palmeiras in</th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500">Expenses</th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500">Rent</th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500">Instructors</th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500">Taxi out</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-600">Net cash</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-400">Running</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Month</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-500 dark:text-gray-400">Billed</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Collected</th>
+              <th className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400">Palmeiras in</th>
+              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Expenses</th>
+              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Rent</th>
+              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Instructors</th>
+              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Taxi out</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Net cash</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-400 dark:text-gray-500">Running</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map(r => {
               const running = runningBalance[r.month]
               return (
-                <tr key={r.month} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-800">{fmtMonth(r.month)}</td>
-                  <td className="px-4 py-3 text-right text-gray-400">{r.billed ? fmtEur(r.billed) : '–'}</td>
-                  <td className="px-4 py-3 text-right text-emerald-700 font-medium">
+                <tr key={r.month} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{fmtMonth(r.month)}</td>
+                  <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500">{r.billed ? fmtEur(r.billed) : '–'}</td>
+                  <td className="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400 font-medium">
                     {r.collected ? `+ ${fmtEur(r.collected)}` : '–'}
                   </td>
-                  <td className="px-4 py-3 text-right text-blue-600">
+                  <td className="px-4 py-3 text-right text-blue-600 dark:text-blue-400">
                     {r.palmIn ? `+ ${fmtEur(r.palmIn)}` : '–'}
                   </td>
-                  <td className="px-4 py-3 text-right text-red-500">
+                  <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">
                     {r.expenses ? `− ${fmtEur(r.expenses)}` : '–'}
                   </td>
-                  <td className="px-4 py-3 text-right text-red-500">
+                  <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">
                     {r.rent ? `− ${fmtEur(r.rent)}` : '–'}
                   </td>
-                  <td className="px-4 py-3 text-right text-red-500">
+                  <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">
                     {r.instrPaid ? `− ${fmtEur(r.instrPaid)}` : '–'}
                   </td>
-                  <td className="px-4 py-3 text-right text-red-500">
+                  <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">
                     {r.taxiOut ? `− ${fmtEur(r.taxiOut)}` : '–'}
                   </td>
-                  <td className={`px-4 py-3 text-right font-bold ${r.net >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                  <td className={`px-4 py-3 text-right font-bold ${r.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
                     {r.net >= 0 ? '+' : ''}{fmtEur(r.net)}
                   </td>
-                  <td className={`px-4 py-3 text-right text-xs ${running >= 0 ? 'text-gray-500' : 'text-red-400'}`}>
+                  <td className={`px-4 py-3 text-right text-xs ${running >= 0 ? 'text-gray-500 dark:text-gray-400' : 'text-red-400 dark:text-red-300'}`}>
                     {running >= 0 ? '+' : ''}{fmtEur(running)}
                   </td>
                 </tr>
               )
             })}
           </tbody>
-          <tfoot className="bg-gray-50 border-t">
+          <tfoot className="bg-gray-50 dark:bg-gray-800 border-t">
             <tr className="font-semibold">
-              <td className="px-4 py-3 text-gray-700">Total</td>
-              <td className="px-4 py-3 text-right text-gray-400">{fmtEur(totals.billed)}</td>
-              <td className="px-4 py-3 text-right text-emerald-700">+ {fmtEur(totals.collected)}</td>
-              <td className="px-4 py-3 text-right text-blue-600">+ {fmtEur(totals.palmIn)}</td>
-              <td className="px-4 py-3 text-right text-red-500">− {fmtEur(totals.expenses)}</td>
-              <td className="px-4 py-3 text-right text-red-500">− {fmtEur(totals.rent)}</td>
-              <td className="px-4 py-3 text-right text-red-500">− {fmtEur(totals.instrPaid)}</td>
-              <td className="px-4 py-3 text-right text-red-500">− {fmtEur(totals.taxiOut)}</td>
-              <td className={`px-4 py-3 text-right ${totals.net >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+              <td className="px-4 py-3 text-gray-700 dark:text-gray-300">Total</td>
+              <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500">{fmtEur(totals.billed)}</td>
+              <td className="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">+ {fmtEur(totals.collected)}</td>
+              <td className="px-4 py-3 text-right text-blue-600 dark:text-blue-400">+ {fmtEur(totals.palmIn)}</td>
+              <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.expenses)}</td>
+              <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.rent)}</td>
+              <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.instrPaid)}</td>
+              <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.taxiOut)}</td>
+              <td className={`px-4 py-3 text-right ${totals.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
                 {totals.net >= 0 ? '+' : ''}{fmtEur(totals.net)}
               </td>
               <td />
@@ -286,7 +286,7 @@ export default function CashFlow({ data }: Props) {
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 text-xs text-gray-400">
+      <div className="flex flex-wrap gap-4 text-xs text-gray-400 dark:text-gray-500">
         <span><strong>Billed</strong> = computed total of active bookings (by check-in month)</span>
         <span><strong>Collected</strong> = actual payments received (by payment date)</span>
         <span><strong>Taxi out</strong> = drivers (paid per done trip) + manager payments, MZN→€ at global rate</span>
