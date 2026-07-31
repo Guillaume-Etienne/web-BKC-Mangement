@@ -152,24 +152,30 @@ function RatesForm({ house, rooms, rates, onSaved }: RatesFormProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rates, rooms])
 
-  async function upsertRate(roomId: string, price: number) {
+  /** @returns the error message if the rate did not save, null if it did. */
+  async function upsertRate(roomId: string, price: number): Promise<string | null> {
     const existing = rates.find(r => r.room_id === roomId)
-    if (existing) {
-      await supabase.from('room_rates').update({ price_per_night: price }).eq('id', existing.id)
-    } else {
-      await supabase.from('room_rates').insert([{ room_id: roomId, price_per_night: price, notes: null }])
-    }
+    const { error } = existing
+      ? await supabase.from('room_rates').update({ price_per_night: price }).eq('id', existing.id)
+      : await supabase.from('room_rates').insert([{ room_id: roomId, price_per_night: price, notes: null }])
+    return error ? error.message : null
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const ops: Promise<unknown>[] = []
+    const ops: Promise<string | null>[] = []
     if (roomF && priceF !== '') ops.push(upsertRate(roomF.id, parseFloat(priceF)))
     if (roomB && priceB !== '') ops.push(upsertRate(roomB.id, parseFloat(priceB)))
     if (priceFull !== '')       ops.push(upsertRate(`full_${house.id}`, parseFloat(priceFull)))
-    await Promise.all(ops)
+    const failures = (await Promise.all(ops)).filter((e): e is string => e !== null)
     setSaving(false)
+    if (failures.length > 0) {
+      // A rate that looks saved but isn't is worse than one that was never set:
+      // the booking wizard finds nothing and quietly starts the stay at 0 €.
+      alert(`The rates were NOT saved.\n\n${failures.join('\n')}\n\nStays booked here would be priced at 0 € — please try again.`)
+      return
+    }
     onSaved()
   }
 

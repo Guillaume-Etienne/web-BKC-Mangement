@@ -438,7 +438,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       }
     }
 
-    await Promise.all([
+    const results = await Promise.all([
       ...bookingUpdates.map(u =>
         supabase.from('bookings').update({ check_in: u.check_in, check_out: u.check_out }).eq('id', u.id)
       ),
@@ -457,6 +457,22 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
         supabase.from('booking_rooms').delete().eq('booking_id', d.booking_id).eq('room_id', d.room_id)
       ),
     ])
+
+    // None of these used to be read. A refused move then looked exactly like a
+    // successful one — the grid showed the booking in its new room, the pending
+    // moves were cleared so there was nothing left to retry, and the database
+    // still held the old placement until the next reload put it back.
+    const failed = results.filter(r => r.error)
+    if (failed.length > 0) {
+      console.error('Validate moves failed:', failed.map(r => r.error?.message))
+      alert(
+        `${failed.length} of these ${results.length} changes did not save:\n\n` +
+        `${[...new Set(failed.map(r => r.error?.message))].join('\n')}\n\n` +
+        `Your pending moves have been kept — check the planning and validate again.`
+      )
+      setShowValidateModal(false)
+      return   // drafts survive, so the work is not lost
+    }
 
     // Apply changes to local state so display stays consistent
     setBookings(prev => prev.map(b => {

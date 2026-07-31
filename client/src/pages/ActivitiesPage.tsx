@@ -619,53 +619,69 @@ export default function ActivitiesPage() {
   const [editingProvider,  setEditingProvider]  = useState<ActivityProvider | null>(null)
   const [filterProvider,   setFilterProvider]   = useState<string>('all')
 
+  // Each write below is followed by a refresh, so the screen always ends up
+  // showing what the database really holds — but a refused write used to look
+  // exactly like a successful one (form closes, row simply never appears).
+  // `report` makes the failure audible; the refresh still runs either way.
+  function report(action: string, error: { message: string } | null): boolean {
+    if (!error) return true
+    console.error(`${action} failed:`, error.message)
+    alert(`Could not ${action}.\n\n${error.message}`)
+    return false
+  }
+
   // ── Provider CRUD ────────────────────────────────────────────────────────────
 
   async function saveProvider(data: Omit<ActivityProvider, 'id' | 'created_at'>) {
-    if (editingProvider) {
-      await supabase.from('activity_providers').update(data).eq('id', editingProvider.id)
-    } else {
-      await supabase.from('activity_providers').insert([data])
-    }
+    const { error } = editingProvider
+      ? await supabase.from('activity_providers').update(data).eq('id', editingProvider.id)
+      : await supabase.from('activity_providers').insert([data])
+    if (!report('save the provider', error)) return   // keep the form open to retry
     refreshProviders()
     setShowProviderForm(false); setEditingProvider(null)
   }
 
   async function deleteProvider(id: string) {
     if (!confirm('Delete this provider? All their bookings will also be deleted.')) return
-    await supabase.from('activity_providers').delete().eq('id', id)
+    const { error } = await supabase.from('activity_providers').delete().eq('id', id)
+    if (!report('delete the provider', error)) return
     refreshProviders(); setViewingId(null)
   }
 
   // ── Booking CRUD ─────────────────────────────────────────────────────────────
 
   async function addBooking(b: Omit<ActivityBooking, 'id' | 'created_at'>) {
-    await supabase.from('activity_bookings').insert([b])
+    const { error } = await supabase.from('activity_bookings').insert([b])
+    report('add the booking', error)
     refreshBookings()
   }
 
   async function editBooking(b: ActivityBooking) {
     const { id, created_at, ...fields } = b
-    await supabase.from('activity_bookings').update(fields).eq('id', id)
+    const { error } = await supabase.from('activity_bookings').update(fields).eq('id', id)
+    report('save the booking', error)
     refreshBookings()
   }
 
   async function deleteBooking(id: string) {
     if (!confirm('Delete this booking?')) return
-    await supabase.from('activity_bookings').delete().eq('id', id)
+    const { error } = await supabase.from('activity_bookings').delete().eq('id', id)
+    report('delete the booking', error)
     refreshBookings()
   }
 
   // ── Payment CRUD ─────────────────────────────────────────────────────────────
 
   async function addPayment(p: Omit<ActivityPayment, 'id' | 'created_at'>) {
-    await supabase.from('activity_payments').insert([p])
+    const { error } = await supabase.from('activity_payments').insert([p])
+    report('record the payment', error)
     refreshPayments()
   }
 
   async function deletePayment(id: string) {
     if (!confirm('Delete this payment?')) return
-    await supabase.from('activity_payments').delete().eq('id', id)
+    const { error } = await supabase.from('activity_payments').delete().eq('id', id)
+    report('delete the payment', error)
     refreshPayments()
   }
 
