@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import type { Lesson, DayActivity, DaySlot, LessonType, RentalType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem } from '../../types/database'
 import { lessonBillable, rentalBillable } from '../../types/database'
 import { currentInstructorRate } from '../accounting/utils'
@@ -42,7 +42,15 @@ const RENTAL_TYPES: { key: RentalKind; label: string; icon: string; sub?: string
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function dateToISO(d: Date): string { return d.toISOString().slice(0, 10) }
+// Local calendar day, NOT `.toISOString()` — that converts to UTC first, which
+// silently shifts the date back a day for any timezone ahead of UTC (e.g.
+// Mozambique, UTC+2) whenever the Date sits at local midnight.
+function dateToISO(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
 function getSlotForTime(time: string): Slot {
   if (time < '12:00') return 'morning'
@@ -160,14 +168,6 @@ export default function LessonWeekView({
   const [moveDate, setMoveDate] = useState('')
   const [moveLessonSlot, setMoveLessonSlot] = useState<Slot>('morning')
   const [moveRentalSlot, setMoveRentalSlot] = useState<'morning' | 'afternoon' | 'full_day'>('morning')
-
-  // ── Mobile 3-day carousel: keep the focused (middle) day centered ─────────
-  const dayCardRefs = useRef<Record<string, HTMLDivElement | null>>({})
-  useEffect(() => {
-    if (days.length !== 3) return
-    const focusedIso = dateToISO(days[1])
-    dayCardRefs.current[focusedIso]?.scrollIntoView({ inline: 'center', block: 'nearest' })
-  }, [days])
 
   // ── Pricing lookup ────────────────────────────────────────────────────────
   /** Rate from Options → Pricing, keyed by what it bills (never by name).
@@ -402,21 +402,23 @@ export default function LessonWeekView({
         </div>
       )}
 
-      {/* Day cards: layout depends on how many days are shown (1 / 3 / Week button) */}
-      <div className={`flex gap-3 overflow-x-auto pb-3 ${days.length === 3 ? 'snap-x snap-mandatory' : ''}`}>
+      {/* Day cards: layout depends on how many days are shown (1 / 3 / Week button).
+          "3" fits all three columns on screen at once on mobile (equal thirds,
+          shrinking as needed) instead of a swipe-to-peek carousel; desktop gets
+          a comfortable fixed width since there's room to spare. */}
+      <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-3">
         {days.map((day) => {
           const iso = dateToISO(day)
           const isToday = iso === today
           const isWeekend = day.getDay() === 0 || day.getDay() === 6
           const cardWidthClass =
             days.length === 1 ? 'w-full' :
-            days.length === 3 ? 'w-[85vw] sm:w-80 shrink-0 snap-center' :
+            days.length === 3 ? 'flex-1 min-w-0 md:flex-none md:w-80' :
             'min-w-[200px] flex-1'
 
           return (
             <div
               key={iso}
-              ref={el => { dayCardRefs.current[iso] = el }}
               className={`${cardWidthClass} rounded-lg shadow-sm border flex flex-col ${
                 isToday ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200'
               } bg-white`}

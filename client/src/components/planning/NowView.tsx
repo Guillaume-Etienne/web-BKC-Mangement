@@ -201,7 +201,11 @@ interface NowViewProps {
 type View = 'table' | 'cards'
 
 export default function NowView({ bookings, bookingParticipants, bookingRooms, rooms, accommodations, instructors }: NowViewProps) {
-  const today = new Date().toISOString().slice(0, 10)
+  // Local calendar day, NOT `.toISOString()` — that converts to UTC first, which
+  // silently shifts the date back a day for any timezone ahead of UTC (e.g.
+  // Mozambique, UTC+2).
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
   // ── Dining events from Supabase ───────────────────────────────────
   const { data: diningEventsData } = useTable<DiningEvent>('dining_events', { order: 'date', ascending: false })

@@ -25,7 +25,15 @@ const RENTAL_TYPE_LABELS: Record<string, { icon: string; label: string }> = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function dateToISO(d: Date) { return d.toISOString().slice(0, 10) }
+// Local calendar day, NOT `.toISOString()` — that converts to UTC first, which
+// silently shifts the date back a day for any timezone ahead of UTC (e.g.
+// Mozambique, UTC+2).
+function dateToISO(d: Date) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDate() + n); return r }
 
 function timeToSlot(time: string, startHour: number): number {

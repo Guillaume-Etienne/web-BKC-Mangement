@@ -37,11 +37,16 @@ const BAR_COLOR: Record<Exclude<BookingStatus, 'cancelled'>, { bar: string; cap:
   provisional: { bar: 'bg-amber-400',   cap: 'bg-amber-600' },
 }
 
-const isoToday = () => new Date().toISOString().slice(0, 10)
+// Local calendar day, NOT `.toISOString()` — that converts to UTC first, which
+// silently shifts the date back a day for any timezone ahead of UTC (e.g.
+// Mozambique, UTC+2).
+const toLocalISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const isoToday = () => toLocalISO(new Date())
 const addDays = (iso: string, n: number) => {
   const d = new Date(iso + 'T00:00:00')
   d.setDate(d.getDate() + n)
-  return d.toISOString().slice(0, 10)
+  return toLocalISO(d)
 }
 const fmtDay = (iso: string, lang: TaxiLang) =>
   new Date(iso + 'T00:00:00').toLocaleDateString(LOCALE[lang], { weekday: 'short', day: 'numeric', month: 'short' })
