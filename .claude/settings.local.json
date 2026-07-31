@@ -65,7 +65,8 @@
       "Bash(python -c ' *)",
       "Bash(perl -0pi.bak -e \"s/, price_per_hour: null \\\\}/, price_per_hour: null, instructor_rate: null }/g\" client/src/data/mock.ts)",
       "Bash(taskkill //PID 34796 //F)",
-      "Bash(git mv *)"
+      "Bash(git mv *)",
+      "Bash(git fetch *)"
     ]
   }
 }

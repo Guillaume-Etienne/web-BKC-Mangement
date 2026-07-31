@@ -163,6 +163,9 @@ export default function LessonWeekView({
   }}
 
   const [addForm, setAddForm] = useState<AddForm | null>(null)
+  // Off by default: only guests checked in that day. Escape hatch for edge
+  // cases (early arrivals, data not quite in sync) — reset on each new form.
+  const [showAllGuests, setShowAllGuests] = useState(false)
 
   // ── Edit modal ─────────────────────────────────────────────────────────────
   const [editLesson, setEditLesson] = useState<Lesson | null>(null)
@@ -220,8 +223,10 @@ export default function LessonWeekView({
     const activeIds = new Set(
       bookings.filter(b => b.status !== 'cancelled' && b.check_in <= date && b.check_out >= date).map(b => b.id)
     )
-    const active = bookingParticipants.filter(p => activeIds.has(p.booking_id))
-    return active.length > 0 ? active : bookingParticipants
+    // No silent fallback to "everyone" here — an empty result genuinely means
+    // no one is checked in that day. Callers that want to override this (the
+    // "Show all guests" checkbox) pass `bookingParticipants` directly instead.
+    return bookingParticipants.filter(p => activeIds.has(p.booking_id))
   }
 
   // ── Fallback name lookup (from booking's client when no participant) ─────────
@@ -242,6 +247,13 @@ export default function LessonWeekView({
     onToggle: (id: string) => void
   }) {
     const { candidates, selectedIds, onToggle } = opts
+    if (candidates.length === 0) {
+      return (
+        <p className="text-xs text-gray-400 dark:text-gray-500 italic px-0.5">
+          No guests checked in that day.
+        </p>
+      )
+    }
     const byBooking = new Map<string, BookingParticipant[]>()
     for (const p of candidates) {
       const arr = byBooking.get(p.booking_id) ?? []
@@ -345,6 +357,7 @@ export default function LessonWeekView({
   // ── Add handlers ──────────────────────────────────────────────────────────
   function openAdd(date: string, slot: Slot, kind: 'lesson' | 'activity' | 'rental') {
     setAddForm(emptyForm(date, slot, kind))
+    setShowAllGuests(false)
   }
 
   function submitAdd() {
@@ -666,10 +679,14 @@ export default function LessonWeekView({
                             <>
                               {/* Rental form */}
                               {renderParticipantChips({
-                                candidates: activeParticipantsForDate(addForm?.date ?? ''),
+                                candidates: showAllGuests ? bookingParticipants : activeParticipantsForDate(addForm?.date ?? ''),
                                 selectedIds: addForm?.rental_participant_id ? [addForm.rental_participant_id] : [],
                                 onToggle: id => setAddForm(f => f && { ...f, rental_participant_id: f.rental_participant_id === id ? '' : id }),
                               })}
+                              <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 px-0.5">
+                                <input type="checkbox" checked={showAllGuests} onChange={e => setShowAllGuests(e.target.checked)} />
+                                Show all guests
+                              </label>
                               {/* Type buttons */}
                               <div className="grid grid-cols-3 gap-1">
                                 {RENTAL_TYPES.map(rt => (
@@ -777,7 +794,7 @@ export default function LessonWeekView({
                               </div>
                               {/* Participant(s) — single for private/supervision, multi-toggle for group */}
                               {renderParticipantChips({
-                                candidates: activeParticipantsForDate(addForm?.date ?? ''),
+                                candidates: showAllGuests ? bookingParticipants : activeParticipantsForDate(addForm?.date ?? ''),
                                 selectedIds: addForm?.participant_ids ?? [],
                                 onToggle: id => setAddForm(f => {
                                   if (!f) return f
@@ -790,6 +807,10 @@ export default function LessonWeekView({
                                   return { ...f, participant_ids: [...f.participant_ids, id] }
                                 }),
                               })}
+                              <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 px-0.5">
+                                <input type="checkbox" checked={showAllGuests} onChange={e => setShowAllGuests(e.target.checked)} />
+                                Show all guests
+                              </label>
                               <select
                                 value={addForm?.instructor_id}
                                 onChange={e => setAddForm(f => f && { ...f, instructor_id: e.target.value })}
@@ -877,7 +898,11 @@ export default function LessonWeekView({
                             >Cancel</button>
                             <button
                               onClick={submitAdd}
-                              disabled={addForm?.kind === 'activity' && !addForm?.name}
+                              disabled={
+                                (addForm?.kind === 'activity' && !addForm?.name) ||
+                                (addForm?.kind === 'lesson' && !addForm?.participant_ids[0]) ||
+                                (addForm?.kind === 'rental' && !addForm?.rental_participant_id)
+                              }
                               className="flex-1 text-sm md:text-xs py-2 md:py-1 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium disabled:opacity-40"
                             >Add</button>
                           </div>
