@@ -583,9 +583,10 @@ export default function LessonWeekView({
                                 <span className={`px-1 rounded text-xs font-medium ${tc.badge}`}>{tc.label}</span>
                               </div>
                             </div>
-                            <div className="font-semibold truncate">
-                              {firstClient?.first_name} {firstClient?.last_name}
-                              {lessonClients.length > 1 && <span className="ml-1 text-[10px] font-normal opacity-70">+{lessonClients.length - 1}</span>}
+                            <div className="font-semibold truncate flex items-center gap-1">
+                              {firstClient && <Avatar id={firstClient.id} first_name={firstClient.first_name} last_name={firstClient.last_name} />}
+                              <span className="truncate">{firstClient?.first_name} {firstClient?.last_name}</span>
+                              {lessonClients.length > 1 && <span className="ml-1 text-[10px] font-normal opacity-70 shrink-0">+{lessonClients.length - 1}</span>}
                             </div>
                             <div className="opacity-60 truncate">↳ {instructor?.first_name} {instructor?.last_name}</div>
                           </div>
@@ -650,7 +651,10 @@ export default function LessonWeekView({
                               <span className="text-amber-700 dark:text-amber-400 font-semibold">€{r.price}</span>
                             </div>
                             {equip && <div className="text-[11px] opacity-60 truncate">{equip.name}</div>}
-                            <div className="opacity-70 truncate">{client?.first_name} {client?.last_name}</div>
+                            <div className="opacity-70 truncate flex items-center gap-1">
+                              {client && <Avatar id={client.id} first_name={client.first_name} last_name={client.last_name} />}
+                              <span className="truncate">{client?.first_name} {client?.last_name}</span>
+                            </div>
                           </div>
                         )
                       })}
@@ -664,7 +668,7 @@ export default function LessonWeekView({
                               {renderParticipantChips({
                                 candidates: activeParticipantsForDate(addForm?.date ?? ''),
                                 selectedIds: addForm?.rental_participant_id ? [addForm.rental_participant_id] : [],
-                                onToggle: id => setAddForm(f => f && { ...f, rental_participant_id: id }),
+                                onToggle: id => setAddForm(f => f && { ...f, rental_participant_id: f.rental_participant_id === id ? '' : id }),
                               })}
                               {/* Type buttons */}
                               <div className="grid grid-cols-3 gap-1">
@@ -1067,7 +1071,7 @@ export default function LessonWeekView({
                 >
                   <option value="">None</option>
                   {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
-                    <option key={e.id} value={e.id}>{e.name}</option>
+                    <option key={e.id} value={e.id}>🪁 {e.name}</option>
                   ))}
                 </select>
               </div>
@@ -1080,7 +1084,7 @@ export default function LessonWeekView({
                 >
                   <option value="">None</option>
                   {equipment.filter(e => e.category !== 'kite' && e.is_active).map(e => (
-                    <option key={e.id} value={e.id}>{e.name}</option>
+                    <option key={e.id} value={e.id}>🏄 {e.name}</option>
                   ))}
                 </select>
               </div>
@@ -1122,17 +1126,12 @@ export default function LessonWeekView({
             <form onSubmit={submitEditRental} className="p-4 space-y-3">
               {/* Participant */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Guest</label>
-                <select
-                  value={editRentalParticipantId}
-                  onChange={e => setEditRentalParticipantId(e.target.value)}
-                  className="w-full text-sm border rounded px-2 py-1.5"
-                >
-                  <option value="">— None —</option>
-                  {bookingParticipants.map(p => (
-                    <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>
-                  ))}
-                </select>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Guest (tap again to clear)</label>
+                {renderParticipantChips({
+                  candidates: bookingParticipants,
+                  selectedIds: editRentalParticipantId ? [editRentalParticipantId] : [],
+                  onToggle: id => setEditRentalParticipantId(prev => prev === id ? '' : id),
+                })}
               </div>
               {/* Type */}
               <div>
@@ -1154,7 +1153,7 @@ export default function LessonWeekView({
                   className="w-full text-sm border rounded px-2 py-1.5">
                   <option value="">🪁 Kite — not specified</option>
                   {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
-                    <option key={e.id} value={e.id}>{e.name}</option>
+                    <option key={e.id} value={e.id}>🪁 {e.name}</option>
                   ))}
                 </select>
               )}
@@ -1163,7 +1162,7 @@ export default function LessonWeekView({
                   className="w-full text-sm border rounded px-2 py-1.5">
                   <option value="">🏄 Board — not specified</option>
                   {equipment.filter(e => e.category === 'board' && e.is_active).map(e => (
-                    <option key={e.id} value={e.id}>{e.name}</option>
+                    <option key={e.id} value={e.id}>🏄 {e.name}</option>
                   ))}
                 </select>
               )}
