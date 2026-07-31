@@ -268,7 +268,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                 <tbody>
                   {filteredClients.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No clients found</td>
+                      <td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-400">No clients found</td>
                     </tr>
                   ) : filteredClients.map((client) => {
                     const bookingCount = getClientBookings(client.id).length
@@ -325,7 +325,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
             {mobileView === 'list' && (
               <div className="md:hidden bg-white dark:bg-gray-900 rounded-lg shadow divide-y divide-gray-100 dark:divide-gray-800">
                 {filteredClients.length === 0 && (
-                  <p className="text-center text-gray-400 dark:text-gray-500 py-8">No clients found</p>
+                  <p className="text-center text-gray-400 dark:text-gray-400 py-8">No clients found</p>
                 )}
                 {filteredClients.map((client) => {
                   const bookingCount = getClientBookings(client.id).length
@@ -337,7 +337,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                     >
                       <p className="flex-1 min-w-0 truncate text-sm">
                         <span className="font-medium text-gray-800 dark:text-gray-200">{client.first_name} {client.last_name}</span>
-                        {client.nationality && <span className="text-gray-400 dark:text-gray-500"> · {client.nationality}</span>}
+                        {client.nationality && <span className="text-gray-400 dark:text-gray-400"> · {client.nationality}</span>}
                       </p>
                       {client.kite_level && (
                         <span className={`flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold ${kiteLevelColors[client.kite_level]}`}>
@@ -345,7 +345,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                         </span>
                       )}
                       <span className="flex-shrink-0 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">📋 {bookingCount}</span>
-                      <span className="flex-shrink-0 text-gray-300 dark:text-gray-600">›</span>
+                      <span className="flex-shrink-0 text-gray-300 dark:text-gray-500">›</span>
                     </button>
                   )
                 })}
@@ -356,7 +356,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
             {mobileView === 'cards' && (
               <div className="md:hidden space-y-4">
                 {filteredClients.length === 0 && (
-                  <p className="text-center text-gray-400 dark:text-gray-500 py-8">No clients found</p>
+                  <p className="text-center text-gray-400 dark:text-gray-400 py-8">No clients found</p>
                 )}
                 {filteredClients.map((client) => {
                   const bookingCount = getClientBookings(client.id).length
@@ -477,7 +477,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                 {detailTab === 'bookings' && (
                   <div className="p-6 space-y-4 overflow-y-auto flex-1">
                     {getClientBookings(selectedClient.id).length === 0 ? (
-                      <p className="text-gray-400 dark:text-gray-500 text-sm">No bookings yet</p>
+                      <p className="text-gray-400 dark:text-gray-400 text-sm">No bookings yet</p>
                     ) : (
                       <>
                         <div className="space-y-3">

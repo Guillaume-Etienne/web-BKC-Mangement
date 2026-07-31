@@ -243,7 +243,7 @@ export default function LessonWeekView({
     const { candidates, selectedIds, onToggle } = opts
     if (candidates.length === 0) {
       return (
-        <p className="text-xs text-gray-400 dark:text-gray-500 italic px-0.5">
+        <p className="text-xs text-gray-400 dark:text-gray-400 italic px-0.5">
           No guests checked in that day.
         </p>
       )
@@ -260,7 +260,7 @@ export default function LessonWeekView({
           const primary = bookingClient(bookingId)
           return (
             <div key={bookingId} className="border border-gray-100 dark:border-gray-800 rounded-lg p-1.5 bg-gray-50/50 dark:bg-gray-800/30">
-              <div className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1 px-0.5">
+              <div className="text-[10px] font-semibold text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1 px-0.5">
                 {primary ? `${primary.first_name} ${primary.last_name ?? ''}` : 'Booking'}
               </div>
               <div className="flex flex-wrap gap-1">
@@ -609,7 +609,7 @@ export default function LessonWeekView({
                           <div className="absolute top-1 right-1 flex md:hidden md:group-hover/act:flex">
                             <button
                               onClick={() => deleteActivity(act.id)}
-                              className="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 text-sm md:text-xs p-1.5 md:px-1 md:py-0"
+                              className="text-gray-400 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 text-sm md:text-xs p-1.5 md:px-1 md:py-0"
                               title="Delete"
                             >✕</button>
                           </div>
@@ -639,17 +639,17 @@ export default function LessonWeekView({
                             <div className="absolute top-1 right-1 hidden md:group-hover/rental:flex gap-0.5 bg-white dark:bg-gray-900/90 rounded px-0.5 shadow-sm">
                               <button
                                 onClick={() => openMoveRental(r)}
-                                className="text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 text-xs px-1"
+                                className="text-gray-400 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 text-xs px-1"
                                 title="Move"
                               >↔</button>
                               <button
                                 onClick={() => openEditRental(r)}
-                                className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 text-xs px-1"
+                                className="text-gray-400 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 text-xs px-1"
                                 title="Edit"
                               >✏️</button>
                               <button
                                 onClick={() => deleteRental(r.id)}
-                                className="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 text-xs px-1"
+                                className="text-gray-400 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 text-xs px-1"
                                 title="Delete"
                               >✕</button>
                             </div>
@@ -906,15 +906,15 @@ export default function LessonWeekView({
                         <div className="flex flex-wrap gap-1 mt-1">
                           <button
                             onClick={() => openAdd(iso, slot, 'lesson')}
-                            className="text-sm md:text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-800 transition-colors"
+                            className="text-sm md:text-xs text-gray-400 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-800 transition-colors"
                           >+ Lesson</button>
                           <button
                             onClick={() => openAdd(iso, slot, 'activity')}
-                            className="text-sm md:text-xs text-gray-400 dark:text-gray-500 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-700 hover:border-orange-300 dark:hover:border-orange-800 transition-colors"
+                            className="text-sm md:text-xs text-gray-400 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-700 hover:border-orange-300 dark:hover:border-orange-800 transition-colors"
                           >+ Activity</button>
                           <button
                             onClick={() => openAdd(iso, slot, 'rental')}
-                            className="text-sm md:text-xs text-gray-400 dark:text-gray-500 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-700 hover:border-amber-400 dark:hover:border-amber-700 transition-colors"
+                            className="text-sm md:text-xs text-gray-400 dark:text-gray-400 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-700 hover:border-amber-400 dark:hover:border-amber-700 transition-colors"
                           >+ Rental</button>
                           {clipboard && (
                             <button
@@ -945,11 +945,11 @@ export default function LessonWeekView({
                 if (total === 0 && dayLessons.length === 0) return null
                 return (
                   <div className="border-t px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-b-lg flex items-center justify-between">
-                    <div className="flex gap-2 text-xs text-gray-400 dark:text-gray-500">
+                    <div className="flex gap-2 text-xs text-gray-400 dark:text-gray-400">
                       {dayLessons.length > 0 && <span>{dayLessons.length} lesson{dayLessons.length > 1 ? 's' : ''}</span>}
                       {dayRentals.length > 0 && <span>{dayRentals.length} rental{dayRentals.length > 1 ? 's' : ''}</span>}
                     </div>
-                    <span className={`text-sm font-bold ${total > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                    <span className={`text-sm font-bold ${total > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-400'}`}>
                       €{total}
                     </span>
                   </div>
@@ -974,7 +974,7 @@ export default function LessonWeekView({
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" /> Rental
         </span>
-        <span className="text-gray-400 dark:text-gray-500 ml-2">· ↔ to move · ⎘ to copy</span>
+        <span className="text-gray-400 dark:text-gray-400 ml-2">· ↔ to move · ⎘ to copy</span>
       </div>
 
       {/* Edit modal */}
@@ -1140,7 +1140,7 @@ export default function LessonWeekView({
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <h3 className="font-bold text-gray-800 dark:text-gray-200">Edit rental</h3>
-              <button onClick={() => setEditRental(null)} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">✕</button>
+              <button onClick={() => setEditRental(null)} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">✕</button>
             </div>
             <form onSubmit={submitEditRental} className="p-4 space-y-3">
               {/* Participant */}
@@ -1273,7 +1273,7 @@ export default function LessonWeekView({
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <h3 className="font-bold text-gray-800 dark:text-gray-200">Move {moveItem.kind}</h3>
-              <button onClick={() => setMoveItem(null)} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">✕</button>
+              <button onClick={() => setMoveItem(null)} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">✕</button>
             </div>
             <div className="p-4 space-y-3">
               <div>

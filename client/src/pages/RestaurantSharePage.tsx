@@ -112,7 +112,7 @@ export default function RestaurantSharePage() {
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4">
           <h2 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">🧳 {L.departures[lang]}</h2>
           {departuresSoon.length === 0 ? (
-            <p className="text-sm text-gray-400 dark:text-gray-500">{L.no_departures[lang]}</p>
+            <p className="text-sm text-gray-400 dark:text-gray-400">{L.no_departures[lang]}</p>
           ) : (
             <div className="space-y-1">
               {Object.entries(departuresByDate).map(([date, list]) => (
@@ -144,9 +144,9 @@ export default function RestaurantSharePage() {
 
         {/* Timeline */}
         {loading ? (
-          <div className="text-center py-16 text-gray-400 dark:text-gray-500">{L.loading[lang]}</div>
+          <div className="text-center py-16 text-gray-400 dark:text-gray-400">{L.loading[lang]}</div>
         ) : rows.length === 0 ? (
-          <div className="text-center py-16 text-gray-400 dark:text-gray-500">
+          <div className="text-center py-16 text-gray-400 dark:text-gray-400">
             <p className="text-4xl mb-3">🛏️</p>
             <p className="text-lg font-medium">{L.no_bookings[lang]}</p>
           </div>
@@ -160,7 +160,7 @@ export default function RestaurantSharePage() {
                   <div key={d}
                     className={`w-8 shrink-0 text-center py-1 border-r border-gray-100 dark:border-gray-800 ${
                       d === todayDay ? 'bg-blue-100 dark:bg-blue-900/30' : isWeekend(d) ? 'bg-gray-50 dark:bg-gray-800' : ''}`}>
-                    <div className="text-[10px] text-gray-400 dark:text-gray-500 leading-none">
+                    <div className="text-[10px] text-gray-400 dark:text-gray-400 leading-none">
                       {new Date(year, mon - 1, d).toLocaleDateString(LOCALE[lang], { weekday: 'narrow' })}
                     </div>
                     <div className={`text-xs font-medium ${d === todayDay ? 'text-blue-700 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'}`}>{d}</div>
@@ -180,7 +180,7 @@ export default function RestaurantSharePage() {
                   <div key={b.id} className="flex border-b border-gray-100 dark:border-gray-800 last:border-b-0">
                     <div className="w-44 shrink-0 sticky left-0 bg-white dark:bg-gray-900 z-10 border-r border-gray-200 dark:border-gray-800 px-3 py-1.5">
                       <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate" title={tooltip}>{guestName(b)}</div>
-                      <div className="text-[11px] text-gray-400 dark:text-gray-500">
+                      <div className="text-[11px] text-gray-400 dark:text-gray-400">
                         {fmtDay(b.check_in, lang)} → {fmtDay(b.check_out, lang)}
                       </div>
                     </div>

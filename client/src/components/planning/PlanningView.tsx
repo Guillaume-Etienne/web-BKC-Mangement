@@ -65,12 +65,12 @@ function BookingQuickView({ booking, rooms, accommodations, bookingRooms, partic
               {STATUS_LABEL[booking.status]}
             </span>
           </div>
-          <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl leading-none">✕</button>
+          <button onClick={onClose} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 text-xl leading-none">✕</button>
         </div>
         <div className="px-4 py-3 space-y-1.5">
           {rows.map(([label, value]) => (
             <div key={label} className="flex gap-2 text-sm">
-              <span className="text-gray-400 dark:text-gray-500 w-20 shrink-0">{label}</span>
+              <span className="text-gray-400 dark:text-gray-400 w-20 shrink-0">{label}</span>
               <span className="text-gray-800 dark:text-gray-200 font-medium">{value}</span>
             </div>
           ))}
@@ -147,13 +147,13 @@ function ValidateModal({ draftMoves, bookings, rooms, accommodations, onConfirm,
               <p className="font-semibold text-gray-800 dark:text-gray-200">{bookingNum} — {clientName}</p>
               {datesChanged && (
                 <p className="text-gray-600 dark:text-gray-400">
-                  📅 <span className="line-through text-gray-400 dark:text-gray-500">{draft.originalCheckIn} → {draft.originalCheckOut}</span>
+                  📅 <span className="line-through text-gray-400 dark:text-gray-400">{draft.originalCheckIn} → {draft.originalCheckOut}</span>
                   {' '}→ <span className="font-medium text-blue-700 dark:text-blue-400">{draft.checkIn} → {draft.checkOut}</span>
                 </p>
               )}
               {draft.roomSwaps.map((s, i) => (
                 <p key={i} className="text-gray-600 dark:text-gray-400">
-                  🏠 <span className="line-through text-gray-400 dark:text-gray-500">{roomLabel(s.from)}</span>
+                  🏠 <span className="line-through text-gray-400 dark:text-gray-400">{roomLabel(s.from)}</span>
                   {' '}→ <span className="font-medium text-blue-700 dark:text-blue-400">{roomLabel(s.to)}</span>
                 </p>
               ))}
@@ -813,7 +813,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                         } ${isWeekend ? 'bg-blue-50 dark:bg-blue-950/40 font-semibold' : ''}`}
                         style={{ width: CELL_W }}
                       >
-                        <div className="text-gray-400 dark:text-gray-500 hidden md:block leading-none">{DAY_NAMES[dow]}</div>
+                        <div className="text-gray-400 dark:text-gray-400 hidden md:block leading-none">{DAY_NAMES[dow]}</div>
                         <div>{d.getDate()}</div>
                       </div>
                     )
@@ -831,7 +831,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                     <div key={type}>
                       {/* Type separator */}
                       <div className="flex min-w-max border-b border-gray-300 dark:border-gray-700">
-                        <div className="sticky left-0 z-20 shrink-0 w-20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-800">
+                        <div className="sticky left-0 z-20 shrink-0 w-20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-800">
                           {typeLabel}
                         </div>
                         <div className="flex-1 bg-gray-100 dark:bg-gray-800" style={{ minWidth: totalDays * CELL_W }} />

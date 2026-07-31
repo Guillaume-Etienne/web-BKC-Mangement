@@ -214,7 +214,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
           { label: 'To pay',          value: balance,  color: balance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400', bg: balance >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'bg-red-50 dark:bg-red-950/40' },
         ].map(kpi => (
           <div key={kpi.label} className={`${kpi.bg} rounded-lg p-3 text-center`}>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{kpi.label}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-400 mb-1">{kpi.label}</p>
             <p className={`text-lg font-bold ${kpi.color}`}>
               {kpi.value >= 0 ? '+' : ''}{fmtEur(kpi.value)}
             </p>
@@ -226,7 +226,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
       <div>
         <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Lessons</p>
         {lessons.length === 0 ? (
-          <p className="text-sm text-gray-400 dark:text-gray-500 italic">No lessons recorded.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-400 italic">No lessons recorded.</p>
         ) : (
           <div className="space-y-1">
             {lessons.map(l => {
@@ -246,7 +246,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
                 <div key={l.id} className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800">
                     <div className="flex items-center gap-3 text-sm flex-wrap">
-                      <span className="text-gray-400 dark:text-gray-500 text-xs w-24 flex-shrink-0">{l.date}</span>
+                      <span className="text-gray-400 dark:text-gray-400 text-xs w-24 flex-shrink-0">{l.date}</span>
                       <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
                         l.type === 'private'    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
                         l.type === 'group'      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' :
@@ -258,11 +258,11 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
                       )}
                       {override ? (
                         <span className="text-amber-600 dark:text-amber-400 text-xs">
-                          {fmtEur(effectiveRate)}/h <span className="line-through text-gray-400 dark:text-gray-500">{fmtEur(baseRate)}</span>
-                          <span className="ml-1 italic text-gray-400 dark:text-gray-500">({override.note})</span>
+                          {fmtEur(effectiveRate)}/h <span className="line-through text-gray-400 dark:text-gray-400">{fmtEur(baseRate)}</span>
+                          <span className="ml-1 italic text-gray-400 dark:text-gray-400">({override.note})</span>
                         </span>
                       ) : (
-                        <span className="text-gray-400 dark:text-gray-500 text-xs">{fmtEur(effectiveRate)}/h</span>
+                        <span className="text-gray-400 dark:text-gray-400 text-xs">{fmtEur(effectiveRate)}/h</span>
                       )}
                     </div>
                     <div className="flex items-center gap-3">
@@ -272,7 +272,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
                         className={`text-xs px-2 py-0.5 rounded border transition-colors ${
                           override
                             ? 'border-amber-300 dark:border-amber-800 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
-                            : 'border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500 hover:border-amber-300 dark:hover:border-amber-800 hover:text-amber-600 dark:hover:text-amber-400'
+                            : 'border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-400 hover:border-amber-300 dark:hover:border-amber-800 hover:text-amber-600 dark:hover:text-amber-400'
                         }`}
                       >
                         {override ? '✏️ override' : '± rate'}
@@ -321,19 +321,19 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
           />
         )}
         {iDebts.length === 0 && !showAddDebt ? (
-          <p className="text-sm text-gray-400 dark:text-gray-500 italic">No debts recorded.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-400 italic">No debts recorded.</p>
         ) : (
           <div className="space-y-1 mt-2">
             {iDebts.map(d => (
               <div key={d.id} className="flex items-center justify-between bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2 text-sm">
                 <div className="flex items-center gap-3">
-                  <span className="text-gray-400 dark:text-gray-500 text-xs">{d.date}</span>
+                  <span className="text-gray-400 dark:text-gray-400 text-xs">{d.date}</span>
                   <span className="text-gray-700 dark:text-gray-300">{d.description}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-red-700 dark:text-red-400">− {fmtEur(d.amount)}</span>
                   <button onClick={() => handlers.deleteInstructorDebt(d.id)}
-                    className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 text-xs">✕</button>
+                    className="text-gray-300 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 text-xs">✕</button>
                 </div>
               </div>
             ))}
@@ -361,7 +361,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
               return (
                 <div key={ev.id} className="flex items-center justify-between bg-rose-50 dark:bg-rose-950/40 rounded-lg px-4 py-2 text-sm">
                   <div className="flex items-center gap-3">
-                    <span className="text-gray-400 dark:text-gray-500 text-xs">{ev.date}</span>
+                    <span className="text-gray-400 dark:text-gray-400 text-xs">{ev.date}</span>
                     <span className="text-gray-700 dark:text-gray-300">{ev.name || '(unnamed)'}</span>
                   </div>
                   <span className="font-semibold text-rose-700 dark:text-rose-400">− {fmtEur(evCharge)}</span>
@@ -402,22 +402,22 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
           />
         )}
         {iPayments.length === 0 && !showAddPayment ? (
-          <p className="text-sm text-gray-400 dark:text-gray-500 italic">No payments made yet.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-400 italic">No payments made yet.</p>
         ) : (
           <div className="space-y-1 mt-2">
             {iPayments.map(p => (
               <div key={p.id} className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 rounded-lg px-4 py-2 text-sm">
                 <div className="flex items-center gap-3">
-                  <span className="text-gray-400 dark:text-gray-500 text-xs">{p.date}</span>
+                  <span className="text-gray-400 dark:text-gray-400 text-xs">{p.date}</span>
                   <span className="px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
                     {METHOD_LABELS[p.method]}
                   </span>
-                  {p.notes && <span className="text-gray-400 dark:text-gray-500 text-xs italic">{p.notes}</span>}
+                  {p.notes && <span className="text-gray-400 dark:text-gray-400 text-xs italic">{p.notes}</span>}
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-emerald-700 dark:text-emerald-400">− {fmtEur(p.amount)}</span>
                   <button onClick={() => handlers.deleteInstructorPayment(p.id)}
-                    className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 text-xs">✕</button>
+                    className="text-gray-300 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 text-xs">✕</button>
                 </div>
               </div>
             ))}
@@ -458,7 +458,7 @@ export default function InstructorPayroll({ data, handlers }: Props) {
   const activeRow = rows.find(r => r.instructor.id === activeId)
 
   if (instructors.length === 0) {
-    return <p className="text-sm text-gray-400 dark:text-gray-500 italic p-4">No instructors found.</p>
+    return <p className="text-sm text-gray-400 dark:text-gray-400 italic p-4">No instructors found.</p>
   }
 
   return (
@@ -466,11 +466,11 @@ export default function InstructorPayroll({ data, handlers }: Props) {
       {/* Summary KPIs */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 py-4">
-          <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Total lessons</p>
+          <p className="text-xs text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1">Total lessons</p>
           <p className="text-xl font-bold text-gray-800 dark:text-gray-200">{fmtEur(rows.reduce((s, r) => s + r.earned, 0))}</p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 py-4">
-          <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Already paid</p>
+          <p className="text-xs text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1">Already paid</p>
           <p className="text-xl font-bold text-gray-800 dark:text-gray-200">{fmtEur(rows.reduce((s, r) => s + r.paid, 0))}</p>
         </div>
         <div className="bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900 px-5 py-4">

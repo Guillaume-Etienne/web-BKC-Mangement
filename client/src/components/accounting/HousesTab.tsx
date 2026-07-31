@@ -147,7 +147,7 @@ export default function HousesTab({ data }: Props) {
                 <div className="px-5 py-4 border-b bg-gray-50 dark:bg-gray-800 flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold text-gray-800 dark:text-gray-200">{house.name}</h3>
-                    {!house.is_active && <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">inactive</span>}
+                    {!house.is_active && <span className="text-xs text-gray-400 dark:text-gray-400 ml-2">inactive</span>}
                   </div>
                   <div className="flex gap-6 text-sm">
                     <span className="text-red-600 dark:text-red-400 font-medium">Rent: − {fmtEur(totalRentalCost)}</span>
@@ -164,7 +164,7 @@ export default function HousesTab({ data }: Props) {
                       <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Rental periods</h4>
                     </div>
                     {rentals.length === 0 ? (
-                      <p className="px-4 py-6 text-gray-400 dark:text-gray-500 text-sm text-center">No rental periods{period === 'season' ? ' this season' : ''}.</p>
+                      <p className="px-4 py-6 text-gray-400 dark:text-gray-400 text-sm text-center">No rental periods{period === 'season' ? ' this season' : ''}.</p>
                     ) : (
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50 dark:bg-gray-800 border-b">
@@ -172,7 +172,7 @@ export default function HousesTab({ data }: Props) {
                             <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">From</th>
                             <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">To</th>
                             <th className="px-4 py-2 text-right text-xs font-semibold text-red-400 dark:text-red-300">Cost (€)</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-400 dark:text-gray-500">Notes</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-400 dark:text-gray-400">Notes</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -181,7 +181,7 @@ export default function HousesTab({ data }: Props) {
                               <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{r.start_date}</td>
                               <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{r.end_date}</td>
                               <td className="px-4 py-2 text-right text-red-600 dark:text-red-400 font-medium">− {fmtEur(r.total_cost)}</td>
-                              <td className="px-4 py-2 text-gray-400 dark:text-gray-500 text-xs truncate max-w-[120px]">{r.notes ?? ''}</td>
+                              <td className="px-4 py-2 text-gray-400 dark:text-gray-400 text-xs truncate max-w-[120px]">{r.notes ?? ''}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -194,15 +194,15 @@ export default function HousesTab({ data }: Props) {
                       <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Booking revenue</h4>
                     </div>
                     {bookingLines.length === 0 ? (
-                      <p className="px-4 py-6 text-gray-400 dark:text-gray-500 text-sm text-center">No bookings{period === 'season' ? ' this season' : ''}.</p>
+                      <p className="px-4 py-6 text-gray-400 dark:text-gray-400 text-sm text-center">No bookings{period === 'season' ? ' this season' : ''}.</p>
                     ) : (
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50 dark:bg-gray-800 border-b">
                           <tr>
                             <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Room</th>
                             <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Period</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-500">Nights</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-500">Rate</th>
+                            <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-400">Nights</th>
+                            <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-400">Rate</th>
                             <th className="px-4 py-2 text-right text-xs font-semibold text-emerald-500 dark:text-emerald-400">Revenue</th>
                           </tr>
                         </thead>
@@ -212,7 +212,7 @@ export default function HousesTab({ data }: Props) {
                               <td className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">{line.roomName}</td>
                               <td className="px-4 py-2 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{line.checkIn} → {line.checkOut}</td>
                               <td className="px-4 py-2 text-right text-gray-500 dark:text-gray-400">{line.nights}</td>
-                              <td className="px-4 py-2 text-right text-gray-400 dark:text-gray-500 text-xs">{fmtEur(line.rate)}/n</td>
+                              <td className="px-4 py-2 text-right text-gray-400 dark:text-gray-400 text-xs">{fmtEur(line.rate)}/n</td>
                               <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400 font-medium">+ {fmtEur(line.revenue)}</td>
                             </tr>
                           ))}
@@ -237,8 +237,8 @@ export default function HousesTab({ data }: Props) {
                 <div className="px-5 py-4 border-b bg-gray-50 dark:bg-gray-800 flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold text-gray-800 dark:text-gray-200">{bung.name}</h3>
-                    <span className="text-xs text-gray-400 dark:text-gray-500">Cost: {fmtEur(costRate)}/night</span>
-                    {!bung.is_active && <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">inactive</span>}
+                    <span className="text-xs text-gray-400 dark:text-gray-400">Cost: {fmtEur(costRate)}/night</span>
+                    {!bung.is_active && <span className="text-xs text-gray-400 dark:text-gray-400 ml-2">inactive</span>}
                   </div>
                   <div className="flex gap-6 text-sm">
                     <span className="text-red-600 dark:text-red-400 font-medium">Cost: − {fmtEur(totalCost)}</span>
@@ -249,14 +249,14 @@ export default function HousesTab({ data }: Props) {
                   </div>
                 </div>
                 {bookingLines.length === 0 ? (
-                  <p className="px-4 py-6 text-gray-400 dark:text-gray-500 text-sm text-center">No bookings{period === 'season' ? ' this season' : ''}.</p>
+                  <p className="px-4 py-6 text-gray-400 dark:text-gray-400 text-sm text-center">No bookings{period === 'season' ? ' this season' : ''}.</p>
                 ) : (
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 dark:bg-gray-800 border-b">
                       <tr>
                         <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Client</th>
                         <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Period</th>
-                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-500">Nights</th>
+                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-400">Nights</th>
                         <th className="px-4 py-2 text-right text-xs font-semibold text-red-400 dark:text-red-300">Cost/n</th>
                         <th className="px-4 py-2 text-right text-xs font-semibold text-emerald-500 dark:text-emerald-400">Sell/n</th>
                         <th className="px-4 py-2 text-right text-xs font-semibold text-blue-500 dark:text-blue-400">Margin</th>
@@ -285,7 +285,7 @@ export default function HousesTab({ data }: Props) {
       )}
 
       {houses.length === 0 && bungalows.length === 0 && (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-8 text-center text-gray-400 dark:text-gray-500 text-sm">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-8 text-center text-gray-400 dark:text-gray-400 text-sm">
           No accommodations configured. Add them in Management → Accommodations.
         </div>
       )}

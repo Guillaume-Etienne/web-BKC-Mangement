@@ -93,7 +93,7 @@ function AddCategoryForm({ onAdd, onCancel }: AddCatProps) {
         className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
         Add
       </button>
-      <button onClick={onCancel} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 text-lg leading-none">×</button>
+      <button onClick={onCancel} className="text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400 text-lg leading-none">×</button>
     </div>
   )
 }
@@ -226,7 +226,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
           {showAddCat
             ? <AddCategoryForm onAdd={addCategory} onCancel={() => setShowAddCat(false)} />
             : <button onClick={() => setShowAddCat(true)}
-                className="text-xs px-2 py-1 border border-dashed border-gray-300 dark:border-gray-700 rounded-full text-gray-400 dark:text-gray-500 hover:border-blue-400 dark:hover:border-blue-700 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                className="text-xs px-2 py-1 border border-dashed border-gray-300 dark:border-gray-700 rounded-full text-gray-400 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-700 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
                 + category
               </button>
           }
@@ -297,7 +297,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500 text-sm">No expenses match the current filters.</td></tr>
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-gray-400 text-sm">No expenses match the current filters.</td></tr>
               )}
               {filtered.map(e => (
                 <tr key={e.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -312,7 +312,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
                   <td className="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-400">− {fmtEur(e.amount)}</td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => handlers.deleteExpense(e.id)}
-                      className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors text-lg leading-none">×</button>
+                      className="text-gray-300 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors text-lg leading-none">×</button>
                   </td>
                 </tr>
               ))}
@@ -353,7 +353,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
             <div className="flex items-center gap-2 text-sm">
               <input type="month" value={sumFrom} onChange={e => setSumFrom(e.target.value)}
                 className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
-              <span className="text-gray-400 dark:text-gray-500">→</span>
+              <span className="text-gray-400 dark:text-gray-400">→</span>
               <input type="month" value={sumTo} onChange={e => setSumTo(e.target.value)}
                 className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>

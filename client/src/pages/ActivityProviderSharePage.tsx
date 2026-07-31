@@ -50,7 +50,7 @@ function PlanningTab({
       </div>
 
       {filtered.length === 0 && (
-        <p className="text-sm text-gray-400 dark:text-gray-500 italic text-center py-8">No bookings for this period.</p>
+        <p className="text-sm text-gray-400 dark:text-gray-400 italic text-center py-8">No bookings for this period.</p>
       )}
 
       {/* Upcoming */}
@@ -100,7 +100,7 @@ function BookingTable({ bookings, showPrices }: { bookings: ActivityBooking[]; s
                   {b.price_provider > 0 ? `${b.price_provider.toFixed(2)} €` : '–'}
                 </td>
               )}
-              <td className="px-4 py-2 text-gray-400 dark:text-gray-500 italic text-xs">{b.notes ?? ''}</td>
+              <td className="px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{b.notes ?? ''}</td>
             </tr>
           ))}
         </tbody>
@@ -161,7 +161,7 @@ function AccountingTab({
             <p className={`text-3xl font-bold mt-1 ${weOwe > 0 ? 'text-orange-800 dark:text-orange-400' : 'text-green-700 dark:text-green-400'}`}>
               {weOwe > 0 ? `${weOwe.toFixed(2)} €` : '✓ Settled'}
             </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+            <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">
               {wePayBookings.reduce((s, b) => s + b.price_provider, 0).toFixed(2)} € billed
               &nbsp;−&nbsp;{wePaid.toFixed(2)} € paid
             </p>
@@ -173,7 +173,7 @@ function AccountingTab({
             <p className={`text-3xl font-bold mt-1 ${theyOwe > 0 ? 'text-blue-800 dark:text-blue-400' : 'text-green-700 dark:text-green-400'}`}>
               {theyOwe > 0 ? `${theyOwe.toFixed(2)} €` : '✓ Settled'}
             </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+            <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">
               {theyPayBookings.reduce((s, b) => s + b.price_provider, 0).toFixed(2)} € owed
               &nbsp;−&nbsp;{theyPaid.toFixed(2)} € received
             </p>
@@ -217,7 +217,7 @@ function AccountingTab({
                     <td className="px-4 py-2 text-right font-semibold text-gray-800 dark:text-gray-200">
                       {b.price_provider > 0 ? `${b.price_provider.toFixed(2)} €` : '–'}
                     </td>
-                    <td className="px-4 py-2 text-gray-400 dark:text-gray-500 italic text-xs">{b.notes ?? ''}</td>
+                    <td className="px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{b.notes ?? ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -232,7 +232,7 @@ function AccountingTab({
           <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">Payment history ({sortedPayments.length})</h3>
         </div>
         {sortedPayments.length === 0 ? (
-          <p className="text-sm text-gray-400 dark:text-gray-500 italic py-6 text-center">No payments recorded yet.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-400 italic py-6 text-center">No payments recorded yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -260,7 +260,7 @@ function AccountingTab({
                     <td className="px-4 py-2 text-right font-semibold text-gray-800 dark:text-gray-200">
                       {p.amount.toFixed(2)} €
                     </td>
-                    <td className="px-4 py-2 text-gray-400 dark:text-gray-500 italic text-xs">{p.notes ?? ''}</td>
+                    <td className="px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{p.notes ?? ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -322,7 +322,7 @@ export default function ActivityProviderSharePage({ providerId }: Props) {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <p className="text-gray-400 dark:text-gray-500">Loading…</p>
+        <p className="text-gray-400 dark:text-gray-400">Loading…</p>
       </div>
     )
   }
@@ -360,11 +360,11 @@ export default function ActivityProviderSharePage({ providerId }: Props) {
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-4 text-center">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Total bookings</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-400">Total bookings</p>
             <p className="text-3xl font-bold text-gray-800 dark:text-gray-200 mt-1">{bookings.length}</p>
           </div>
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-4 text-center">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Total participants</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-400">Total participants</p>
             <p className="text-3xl font-bold text-gray-800 dark:text-gray-200 mt-1">
               {bookings.reduce((s, b) => s + b.nb_persons, 0)}
             </p>
@@ -395,7 +395,7 @@ export default function ActivityProviderSharePage({ providerId }: Props) {
           <AccountingTab bookings={bookings} payments={payments} />
         )}
 
-        <p className="text-center text-xs text-gray-300 dark:text-gray-600">
+        <p className="text-center text-xs text-gray-300 dark:text-gray-500">
           Kitesurf Center Management · Updated {new Date().toLocaleDateString('en-GB')}
         </p>
 

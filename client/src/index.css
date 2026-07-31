@@ -5,4 +5,24 @@
 body {
   margin: 0;
   min-height: 100vh;
+  /* A theme-aware default colour, so an element that forgets its own text-*
+     class inherits something readable instead of the browser's hard black.
+     Without this, "no colour class" meant invisible-on-dark: that is what put
+     black-on-black text in the planning legend and in the date navigators, and
+     it is precisely why the automated dark-mode sweep could not catch them —
+     there was no colour token sitting there to pair a dark: variant with. */
+  color: var(--color-gray-900);
+}
+
+.dark body {
+  color: var(--color-gray-100);
+}
+
+/* Let native widgets follow the theme too. Date and time pickers, select
+   dropdowns, scrollbars and autofilled fields are drawn by the browser, not by
+   Tailwind — without this they stay glaringly light inside the dark UI. The
+   planning and the booking wizard are full of <input type="date">, so this is
+   most of what makes dark mode feel finished on a phone. */
+.dark {
+  color-scheme: dark;
 }

@@ -89,8 +89,8 @@ function EmailHistory({ logs }: { logs: EmailLog[] }) {
         return (
           <div key={log.id} className="flex items-center gap-2 text-xs">
             <span className={`px-2 py-0.5 rounded-full font-medium ${bg} ${text}`}>{label}</span>
-            <span className="text-gray-400 dark:text-gray-500 truncate">{log.recipient_email}</span>
-            {date && <span className="text-gray-300 dark:text-gray-600 shrink-0">{date}</span>}
+            <span className="text-gray-400 dark:text-gray-400 truncate">{log.recipient_email}</span>
+            {date && <span className="text-gray-300 dark:text-gray-500 shrink-0">{date}</span>}
           </div>
         )
       })}
@@ -136,7 +136,7 @@ function TemplatesEditor({
             className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
           >
             <span className="font-medium text-sm text-gray-800 dark:text-gray-200">{sec.title.en}</span>
-            <span className="text-gray-400 dark:text-gray-500 text-xs">{openId === sec.id ? '▲' : '▼'}</span>
+            <span className="text-gray-400 dark:text-gray-400 text-xs">{openId === sec.id ? '▲' : '▼'}</span>
           </button>
 
           {openId === sec.id && (
@@ -255,7 +255,7 @@ function SaveBar({
       ) : dirty ? (
         <span className="text-xs font-medium text-amber-600 dark:text-amber-400">● Unsaved changes</span>
       ) : (
-        <span className="text-xs text-gray-400 dark:text-gray-500">✓ All changes saved</span>
+        <span className="text-xs text-gray-400 dark:text-gray-400">✓ All changes saved</span>
       )}
       <div className="flex gap-2 ml-auto">
         <button
@@ -558,7 +558,7 @@ export default function DocumentsPage() {
             <h2 className="font-semibold text-gray-700 dark:text-gray-300">Select booking</h2>
 
             {activeBookings.length === 0 ? (
-              <p className="text-sm text-gray-400 dark:text-gray-500 italic">No active bookings found.</p>
+              <p className="text-sm text-gray-400 dark:text-gray-400 italic">No active bookings found.</p>
             ) : (
               <BookingPicker bookings={visaSearchBookings} search={visaSearch} onSearchChange={setVisaSearch}
                 value={effectiveVisaId} onChange={setVisaBookingId} />
@@ -604,7 +604,7 @@ export default function DocumentsPage() {
                 🖨️ Generate PDF
               </button>
             </div>
-            <p className="text-xs text-gray-400 dark:text-gray-500">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
+            <p className="text-xs text-gray-400 dark:text-gray-400">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
 
             {visaBooking && (
               <SendEmailRow
@@ -634,7 +634,7 @@ export default function DocumentsPage() {
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Booking</label>
               {activeBookings.length === 0 ? (
-                <p className="text-sm text-gray-400 dark:text-gray-500 italic">No active bookings found.</p>
+                <p className="text-sm text-gray-400 dark:text-gray-400 italic">No active bookings found.</p>
               ) : (
                 <BookingPicker bookings={summarySearchBookings} search={summarySearch} onSearchChange={setSummarySearch}
                   value={effectiveSummaryId} onChange={setSummaryBookingId} />
@@ -660,7 +660,7 @@ export default function DocumentsPage() {
                 Estimated total — auto-computed, edit if needed
               </label>
               <div className="flex items-center gap-2 max-w-xs">
-                <span className="text-gray-400 dark:text-gray-500">€</span>
+                <span className="text-gray-400 dark:text-gray-400">€</span>
                 <input type="number" value={totalAmountStr} onChange={e => setTotalAmountStr(e.target.value)}
                   placeholder="Computing…" min={0}
                   className="flex-1 border rounded-lg px-3 py-2 text-sm" />
@@ -674,7 +674,7 @@ export default function DocumentsPage() {
               <div className="flex flex-wrap gap-1.5">
                 {guideSections.map(sec => (
                   <span key={sec.id} className={`text-xs px-2 py-1 rounded-full ${
-                    sec.is_active ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 line-through'
+                    sec.is_active ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-400 line-through'
                   }`}>
                     {sec.title.en}
                   </span>
@@ -690,7 +690,7 @@ export default function DocumentsPage() {
                 🖨️ Generate PDF
               </button>
             </div>
-            <p className="text-xs text-gray-400 dark:text-gray-500">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
+            <p className="text-xs text-gray-400 dark:text-gray-400">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
 
             {summaryBooking && (
               <SendEmailRow
@@ -751,7 +751,7 @@ export default function DocumentsPage() {
                   🖨️ Generate PDF
                 </button>
               </div>
-              <p className="text-xs text-gray-400 dark:text-gray-500">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
+              <p className="text-xs text-gray-400 dark:text-gray-400">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
 
               {summaryBooking && (
                 <SendEmailRow
@@ -813,7 +813,7 @@ export default function DocumentsPage() {
                   🖨️ Generate PDF
                 </button>
               </div>
-              <p className="text-xs text-gray-400 dark:text-gray-500">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
+              <p className="text-xs text-gray-400 dark:text-gray-400">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
 
               {summaryBooking && (
                 <SendEmailRow
@@ -882,7 +882,7 @@ export default function DocumentsPage() {
               </button>
             ))}
           </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500">Previews all sections (including inactive ones) in the selected language.</p>
+          <p className="text-xs text-gray-400 dark:text-gray-400">Previews all sections (including inactive ones) in the selected language.</p>
         </div>
       )}
     </div>

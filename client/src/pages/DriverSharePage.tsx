@@ -25,7 +25,7 @@ function TripList({ trips, lang, dateMode, view }: {
   trips: TripWithClient[]; lang: TaxiLang; dateMode: DateMode; view: ViewMode
 }) {
   if (trips.length === 0) {
-    return <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">{tr.no_trips[lang]}</p>
+    return <p className="text-sm text-gray-400 dark:text-gray-400 italic py-4 text-center">{tr.no_trips[lang]}</p>
   }
   const total = trips.reduce((s, t) => s + t.price_driver_mzn, 0)
 
@@ -43,7 +43,7 @@ function TripList({ trips, lang, dateMode, view }: {
             <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               {t.nb_persons} {tr.unit_pax[lang]} · {t.nb_luggage} {tr.unit_bags[lang]} · {t.nb_boardbags} {tr.unit_boards[lang]}
             </div>
-            {t.notes && <div className="mt-1 text-xs text-gray-400 dark:text-gray-500 italic">💬 {t.notes}</div>}
+            {t.notes && <div className="mt-1 text-xs text-gray-400 dark:text-gray-400 italic">💬 {t.notes}</div>}
             <div className="mt-1.5 text-right font-bold text-amber-800 dark:text-amber-400">{mzn(t.price_driver_mzn)}</div>
           </div>
         ))}
@@ -81,7 +81,7 @@ function TripList({ trips, lang, dateMode, view }: {
               <td className="px-4 py-2 text-center text-gray-600 dark:text-gray-400">{t.nb_persons}</td>
               <td className="px-4 py-2 text-center text-gray-500 dark:text-gray-400">{t.nb_luggage}</td>
               <td className="px-4 py-2 text-center text-gray-500 dark:text-gray-400">{t.nb_boardbags}</td>
-              <td className="px-4 py-2 text-gray-400 dark:text-gray-500 italic text-xs">{t.notes ?? ''}</td>
+              <td className="px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{t.notes ?? ''}</td>
               <td className="px-4 py-2 text-right font-semibold text-amber-800 dark:text-amber-400 whitespace-nowrap">{mzn(t.price_driver_mzn)}</td>
             </tr>
           ))}
@@ -127,7 +127,7 @@ export default function DriverSharePage({ driverId }: Props) {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <p className="text-gray-400 dark:text-gray-500">{tr.loading[lang]}</p>
+        <p className="text-gray-400 dark:text-gray-400">{tr.loading[lang]}</p>
       </div>
     )
   }
@@ -202,7 +202,7 @@ export default function DriverSharePage({ driverId }: Props) {
           <TripList trips={past} lang={lang} dateMode={dateMode} view={view} />
         </div>
 
-        <p className="text-center text-xs text-gray-300 dark:text-gray-600">
+        <p className="text-center text-xs text-gray-300 dark:text-gray-500">
           Bilene Kite Center · {tr.footer_updated[lang]} {new Date().toLocaleDateString(lang === 'pt' ? 'pt-PT' : 'en-GB')}
         </p>
 

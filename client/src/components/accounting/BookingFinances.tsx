@@ -58,7 +58,7 @@ function EditRoomPriceForm({ bookingId, roomId, currentPrice, currentNote, onSav
       <input type="number" min="0" step="0.5" value={price} onChange={e => setPrice(e.target.value)}
         autoFocus
         className="w-20 px-2 py-0.5 border border-blue-300 dark:border-blue-800 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-400" />
-      <span className="text-xs text-gray-400 dark:text-gray-500">€/n</span>
+      <span className="text-xs text-gray-400 dark:text-gray-400">€/n</span>
       <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="Note"
         className="w-28 px-2 py-0.5 border border-gray-300 dark:border-gray-700 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
       <button type="submit" className="px-2 py-0.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">✓</button>
@@ -89,7 +89,7 @@ function EditRentalForm({ rental, onSave, onCancel }: EditRentalFormProps) {
       <input type="number" min="0" step="0.5" value={price} onChange={e => setPrice(e.target.value)}
         autoFocus
         className="w-24 px-2 py-0.5 border border-blue-300 dark:border-blue-800 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-400" />
-      <span className="text-xs text-gray-400 dark:text-gray-500">€</span>
+      <span className="text-xs text-gray-400 dark:text-gray-400">€</span>
       <button type="submit" className="px-2 py-0.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">✓</button>
       <button type="button" onClick={onCancel} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-700">✕</button>
     </form>
@@ -126,7 +126,7 @@ function LessonPriceForm({ currentRate, isCustom, listRate, onSave, onReset, onC
           <input type="number" min="0" step="0.5" value={rate} onChange={e => setRate(e.target.value)} autoFocus
             className="w-24 px-2 py-0.5 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
         </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 pb-1">Price list: {fmtEur(listRate)}/h</p>
+        <p className="text-xs text-gray-400 dark:text-gray-400 pb-1">Price list: {fmtEur(listRate)}/h</p>
       </div>
       <div className="flex gap-1">
         <button type="button" onClick={onCancel}
@@ -366,9 +366,9 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
       {/* Header totals */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
-          <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Total</p>
+          <p className="text-xs text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1">Total</p>
           <p className="text-xl font-bold text-gray-800 dark:text-gray-200">{fmtEur(total)}</p>
-          {nights > 0 && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{nights} nights</p>}
+          {nights > 0 && <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">{nights} nights</p>}
         </div>
         <div className="bg-emerald-50 dark:bg-emerald-950/40 rounded-lg p-4 text-center">
           <p className="text-xs text-emerald-500 dark:text-emerald-400 uppercase tracking-wide mb-1">Paid</p>
@@ -419,7 +419,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                         <div className="flex items-center gap-2">
                           <span>{fmtEur(rate * nights)}</span>
                           <button onClick={() => setEditingRoomPriceId(isEditing ? null : br.room_id)}
-                            className={`transition-colors ${hasNoPrice ? 'text-red-400 dark:text-red-300 hover:text-red-600 dark:hover:text-red-400' : 'text-gray-300 dark:text-gray-600 hover:text-blue-500 dark:hover:text-blue-400'}`}>✏️</button>
+                            className={`transition-colors ${hasNoPrice ? 'text-red-400 dark:text-red-300 hover:text-red-600 dark:hover:text-red-400' : 'text-gray-300 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400'}`}>✏️</button>
                         </div>
                       </div>
                       {isEditing && (
@@ -448,7 +448,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                       </div>
                       {cost > 0 && (
                         <>
-                          <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500 pl-4">
+                          <div className="flex justify-between text-xs text-gray-400 dark:text-gray-400 pl-4">
                             <span>Cost @ {fmtEur(e.cost_per_night)}/N</span>
                             <span className="text-red-400 dark:text-red-300">−{fmtEur(cost)}</span>
                           </div>
@@ -497,7 +497,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                         <div className="flex items-center gap-2">
                           <span>{fmtEur(rate * l.duration_hours * heads)}</span>
                           <button onClick={() => setEditingLessonPriceId(isEditing ? null : l.id)}
-                            className={`transition-colors ${isCustom ? 'text-amber-400 dark:text-amber-300 hover:text-amber-600 dark:hover:text-amber-400' : 'text-gray-300 dark:text-gray-600 hover:text-amber-500 dark:hover:text-amber-400'}`}>✏️</button>
+                            className={`transition-colors ${isCustom ? 'text-amber-400 dark:text-amber-300 hover:text-amber-600 dark:hover:text-amber-400' : 'text-gray-300 dark:text-gray-500 hover:text-amber-500 dark:hover:text-amber-400'}`}>✏️</button>
                         </div>
                       </div>
                       {isEditing && (
@@ -541,7 +541,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                         <div className="flex items-center gap-2">
                           <span>{fmtEur(r.price)}</span>
                           <button onClick={() => setEditingRentalId(isEditing ? null : r.id)}
-                            className="text-gray-300 dark:text-gray-600 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">✏️</button>
+                            className="text-gray-300 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">✏️</button>
                         </div>
                       </div>
                       {isEditing && (
@@ -782,7 +782,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
         )}
 
         {bkPayments.length === 0 && !showAddPayment ? (
-          <p className="text-sm text-gray-400 dark:text-gray-500 italic">No payments recorded yet.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-400 italic">No payments recorded yet.</p>
         ) : (
           <div className="space-y-2 mt-2">
             {bkPayments.map(p => (
@@ -806,7 +806,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                 ) : (
                   <div className={`flex items-center justify-between text-sm rounded-lg px-4 py-2 ${p.is_discount ? 'bg-purple-50 dark:bg-purple-950/40' : 'bg-gray-50 dark:bg-gray-800'}`}>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-gray-400 dark:text-gray-500 text-xs">{p.date}</span>
+                      <span className="text-gray-400 dark:text-gray-400 text-xs">{p.date}</span>
                       {p.is_discount ? (
                         <span className="px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">Discount</span>
                       ) : (
@@ -822,16 +822,16 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                           ? <span className="px-2 py-0.5 rounded text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">✓ Verified</span>
                           : <span className="px-2 py-0.5 rounded text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">⚠ To verify</span>
                       )}
-                      {p.notes && <span className="text-gray-400 dark:text-gray-500 text-xs italic">{p.notes}</span>}
+                      {p.notes && <span className="text-gray-400 dark:text-gray-400 text-xs italic">{p.notes}</span>}
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`font-semibold ${p.is_discount ? 'text-purple-700 dark:text-purple-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
                         {p.is_discount ? '-' : ''}{fmtEur(p.amount)}
                       </span>
                       <button onClick={() => setEditingPaymentId(p.id)}
-                        className="text-gray-300 dark:text-gray-600 hover:text-amber-500 dark:hover:text-amber-400 transition-colors text-xs">✏️</button>
+                        className="text-gray-300 dark:text-gray-500 hover:text-amber-500 dark:hover:text-amber-400 transition-colors text-xs">✏️</button>
                       <button onClick={() => handlers.deletePayment(p.id)}
-                        className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors text-xs">✕</button>
+                        className="text-gray-300 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors text-xs">✕</button>
                     </div>
                   </div>
                 )}
@@ -882,7 +882,7 @@ export default function BookingFinances({ data, handlers }: Props) {
           { label: 'Total outstanding', value: activeRows.reduce((s, r) => s + r.due, 0), color: 'text-amber-700 dark:text-amber-400' },
         ].map(kpi => (
           <div key={kpi.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 py-4">
-            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">{kpi.label}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1">{kpi.label}</p>
             <p className={`text-xl font-bold ${kpi.color}`}>{fmtEur(kpi.value)}</p>
           </div>
         ))}
@@ -914,7 +914,7 @@ export default function BookingFinances({ data, handlers }: Props) {
                       isExpanded ? 'bg-blue-50 dark:bg-blue-950/40' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                     } ${b.status === 'cancelled' ? 'opacity-50' : ''}`}
                   >
-                    <td className="px-4 py-3 text-gray-400 dark:text-gray-500">#{String(b.booking_number).padStart(3, '0')}</td>
+                    <td className="px-4 py-3 text-gray-400 dark:text-gray-400">#{String(b.booking_number).padStart(3, '0')}</td>
                     <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">
                       {client ? `${client.first_name} ${client.last_name}` : '–'}
                     </td>
@@ -924,7 +924,7 @@ export default function BookingFinances({ data, handlers }: Props) {
                     <td className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(total)}</td>
                     <td className="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">{fmtEur(paid)}</td>
                     <td className={`px-4 py-3 text-right font-bold ${
-                      b.status === 'cancelled' ? 'text-gray-400 dark:text-gray-500' :
+                      b.status === 'cancelled' ? 'text-gray-400 dark:text-gray-400' :
                       due <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
                     }`}>
                       {due <= 0 ? '✓' : fmtEur(due)}
@@ -933,7 +933,7 @@ export default function BookingFinances({ data, handlers }: Props) {
                       <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
                         b.status === 'confirmed'   ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400' :
                         b.status === 'provisional' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400' :
-                        'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
+                        'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-400'
                       }`}>{b.status}</span>
                     </td>
                   </tr>
@@ -955,7 +955,7 @@ export default function BookingFinances({ data, handlers }: Props) {
       <div className="flex justify-end">
         <button
           onClick={() => setShowCancelled(s => !s)}
-          className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
+          className="text-xs text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400"
         >
           {showCancelled ? 'Hide cancelled bookings' : `Show cancelled bookings`}
         </button>
@@ -987,7 +987,7 @@ export default function BookingFinances({ data, handlers }: Props) {
                   <td className="px-4 py-2 text-gray-600 dark:text-gray-400">{t.date}</td>
                   <td className="px-4 py-2 text-gray-600 dark:text-gray-400">{t.type}</td>
                   <td className="px-4 py-2 text-gray-500 dark:text-gray-400">{t.nb_persons}p</td>
-                  <td className="px-4 py-2 text-gray-400 dark:text-gray-500 italic text-xs">{t.notes ?? '–'}</td>
+                  <td className="px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{t.notes ?? '–'}</td>
                   <td className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">{fmtEur(t.price_eur)}</td>
                 </tr>
               ))}

@@ -79,7 +79,7 @@ function Field({ label, children, hint, required }: { label: string; children: R
         {label}{required && <span className="text-rose-500 dark:text-rose-400"> *</span>}
       </label>
       {children}
-      {hint && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">{hint}</p>}
     </div>
   )
 }
@@ -126,7 +126,7 @@ function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: Travele
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-sky-700 dark:text-sky-400">🏄 {tr.traveler[lang]} {index + 1}</span>
         {canRemove && (
-          <button type="button" onClick={onRemove} className="text-xs text-gray-400 dark:text-gray-500 hover:text-rose-600 dark:hover:text-rose-400 transition">
+          <button type="button" onClick={onRemove} className="text-xs text-gray-400 dark:text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 transition">
             {tr.remove[lang]}
           </button>
         )}
@@ -145,7 +145,7 @@ function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: Travele
 
       {/* Kite activity */}
       <div className="border-t border-gray-100 dark:border-gray-800 pt-3 space-y-3">
-        <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{tr.kite_section[lang]}</p>
+        <p className="text-xs font-bold text-gray-400 dark:text-gray-400 uppercase tracking-wide">{tr.kite_section[lang]}</p>
         <Field label={tr.kite_does_kite[lang]}>
           <YesNo value={t.does_kite ?? false} onChange={v => onChange({ does_kite: v })} lang={lang} />
         </Field>
@@ -408,7 +408,7 @@ export default function BookingFormPage() {
               return (
                 <button key={n} type="button" onClick={() => reachable && goTo(n)}
                   className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[11px] font-medium transition
-                    ${active ? 'text-sky-700 dark:text-sky-400' : reachable ? 'text-gray-500 dark:text-gray-400 hover:text-sky-600 dark:hover:text-sky-400' : 'text-gray-300 dark:text-gray-600 cursor-default'}`}>
+                    ${active ? 'text-sky-700 dark:text-sky-400' : reachable ? 'text-gray-500 dark:text-gray-400 hover:text-sky-600 dark:hover:text-sky-400' : 'text-gray-300 dark:text-gray-500 cursor-default'}`}>
                   <span className="text-lg">{n < step ? '✅' : s.icon}</span>
                   <span className="hidden sm:block">{tr[s.labelKey][lang]}</span>
                 </button>
@@ -521,7 +521,7 @@ export default function BookingFormPage() {
                   <Counter value={d.boardbag_count} onChange={v => update({ boardbag_count: v })} />
                 </div>
                 <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">{tr.beds_hint[lang]}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-400 mb-3">{tr.beds_hint[lang]}</p>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{tr.f_double_beds[lang]}</span>
                     <Counter value={d.double_beds} onChange={v => update({ double_beds: v })} />
@@ -567,7 +567,7 @@ export default function BookingFormPage() {
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.emergency_heading[lang]}</h3>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{tr.emergency_intro[lang]}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">{tr.emergency_intro[lang]}</p>
                   </div>
                   <Field label={tr.f_ec_name[lang]} required>
                     <input className={inputCls} value={d.emergency_contact_name} onChange={e => update({ emergency_contact_name: e.target.value })} />
@@ -618,17 +618,17 @@ export default function BookingFormPage() {
           {/* Footer nav */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
             <button type="button" onClick={back} disabled={step === 1}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition ${step === 1 ? 'text-gray-300 dark:text-gray-600 cursor-default' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition ${step === 1 ? 'text-gray-300 dark:text-gray-500 cursor-default' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
               ← {tr.back[lang]}
             </button>
             {step < TOTAL ? (
               <button type="button" onClick={next} disabled={!canProceed[step]}
-                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${canProceed[step] ? 'bg-sky-600 text-white hover:bg-sky-700' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'}`}>
+                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${canProceed[step] ? 'bg-sky-600 text-white hover:bg-sky-700' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-400 cursor-not-allowed'}`}>
                 {tr.next[lang]} →
               </button>
             ) : (
               <button type="button" onClick={submit} disabled={!canProceed[5] || submitting}
-                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${canProceed[5] && !submitting ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'}`}>
+                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${canProceed[5] && !submitting ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-400 cursor-not-allowed'}`}>
                 {submitting ? tr.submitting[lang] : tr.submit[lang]}
               </button>
             )}

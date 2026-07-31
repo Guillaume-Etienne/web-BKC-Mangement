@@ -24,7 +24,7 @@ function TripList({ trips, driverName, lang, dateMode, view }: {
   lang: TaxiLang; dateMode: DateMode; view: ViewMode
 }) {
   if (trips.length === 0) {
-    return <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">{tr.no_trips[lang]}</p>
+    return <p className="text-sm text-gray-400 dark:text-gray-400 italic py-4 text-center">{tr.no_trips[lang]}</p>
   }
   const total = trips.reduce((s, t) => s + t.margin_manager_mzn, 0)
 
@@ -39,7 +39,7 @@ function TripList({ trips, driverName, lang, dateMode, view }: {
             </div>
             <div className="mt-0.5 text-sm font-medium text-gray-800 dark:text-gray-200">{tripTypeLabel(t.type, lang)}</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">🚗 {driverName(t.taxi_driver_id)} · {clientName(t)}</div>
-            {t.notes && <div className="mt-1 text-xs text-gray-400 dark:text-gray-500 italic">💬 {t.notes}</div>}
+            {t.notes && <div className="mt-1 text-xs text-gray-400 dark:text-gray-400 italic">💬 {t.notes}</div>}
             <div className="mt-1.5 text-right font-bold text-purple-800 dark:text-purple-400">{mzn(t.margin_manager_mzn)}</div>
           </div>
         ))}
@@ -73,7 +73,7 @@ function TripList({ trips, driverName, lang, dateMode, view }: {
               <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{driverName(t.taxi_driver_id)}</td>
               <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{tripTypeLabel(t.type, lang)}</td>
               <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{clientName(t)}</td>
-              <td className="px-4 py-2 text-gray-400 dark:text-gray-500 italic text-xs">{t.notes ?? ''}</td>
+              <td className="px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{t.notes ?? ''}</td>
               <td className="px-4 py-2 text-right font-semibold text-purple-800 dark:text-purple-400 whitespace-nowrap">{mzn(t.margin_manager_mzn)}</td>
             </tr>
           ))}
@@ -123,7 +123,7 @@ export default function TaxiManagerSharePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <p className="text-gray-400 dark:text-gray-500">{tr.loading[lang]}</p>
+        <p className="text-gray-400 dark:text-gray-400">{tr.loading[lang]}</p>
       </div>
     )
   }
@@ -192,7 +192,7 @@ export default function TaxiManagerSharePage() {
               <span>{balanceLabel}</span>
               <span className="text-lg">{mzn(Math.abs(balance))}</span>
             </div>
-            <p className="text-xs text-gray-400 dark:text-gray-500 pt-1">{tr.fin_explain[lang]}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-400 pt-1">{tr.fin_explain[lang]}</p>
           </div>
         </div>
 
@@ -202,7 +202,7 @@ export default function TaxiManagerSharePage() {
             <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.mgr_by_driver[lang]}</h2>
           </div>
           {perDriver.length === 0 ? (
-            <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">{tr.no_trips[lang]}</p>
+            <p className="text-sm text-gray-400 dark:text-gray-400 italic py-4 text-center">{tr.no_trips[lang]}</p>
           ) : (
             <table className="w-full text-sm">
               <tbody>
@@ -240,7 +240,7 @@ export default function TaxiManagerSharePage() {
             <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.history_title[lang]}</h2>
           </div>
           {payments.length === 0 ? (
-            <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">{tr.no_payments[lang]}</p>
+            <p className="text-sm text-gray-400 dark:text-gray-400 italic py-4 text-center">{tr.no_payments[lang]}</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
@@ -263,7 +263,7 @@ export default function TaxiManagerSharePage() {
           )}
         </div>
 
-        <p className="text-center text-xs text-gray-300 dark:text-gray-600">
+        <p className="text-center text-xs text-gray-300 dark:text-gray-500">
           Bilene Kite Center · {tr.footer_updated[lang]} {new Date().toLocaleDateString(lang === 'pt' ? 'pt-PT' : 'en-GB')}
         </p>
 

@@ -469,7 +469,7 @@ export default function ManagementPage() {
                       <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Phone</p><p className="text-gray-800 dark:text-gray-200">{selectedInstructor.phone || '-'}</p></div>
                       <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Specialties</p><p className="text-gray-800 dark:text-gray-200">{selectedInstructor.specialties.length > 0 ? selectedInstructor.specialties.join(', ') : '-'}</p></div>
                       <div className="border-t pt-4">
-                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pay rates <span className="font-normal text-gray-400 dark:text-gray-500">— what the centre pays, not what the client is billed</span></p>
+                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pay rates <span className="font-normal text-gray-400 dark:text-gray-400">— what the centre pays, not what the client is billed</span></p>
                         <div className="text-sm text-gray-800 dark:text-gray-200 space-y-1 mt-2">
                           <p>Private: {selectedInstructor.rate_private}€/h</p>
                           <p>Group: {selectedInstructor.rate_group}€/h</p>
@@ -606,7 +606,7 @@ export default function ManagementPage() {
                                 ✏️ Edit
                               </button>
                               {bills ? (
-                                <span className="flex-1 px-3 py-2 text-center rounded font-medium text-sm text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                                <span className="flex-1 px-3 py-2 text-center rounded font-medium text-sm text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
                                   title="Cannot be deleted: the app bills with it. Set its price to 0 if you stop charging for it.">
                                   🗑️ Delete
                                 </span>
@@ -644,7 +644,7 @@ export default function ManagementPage() {
               </div>
               <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
                 {taxiDefaultsLoading ? (
-                  <p className="text-sm text-gray-400 dark:text-gray-500">Loading…</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-400">Loading…</p>
                 ) : !taxiPricingDefaults ? (
                   <div className="text-center py-4 space-y-3">
                     <p className="text-sm text-gray-500 dark:text-gray-400">No taxi pricing defaults found.</p>
@@ -805,7 +805,7 @@ export default function ManagementPage() {
                   <option value="provisional">Provisional</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
-                <span className="text-sm text-gray-400 dark:text-gray-500 ml-auto">{filtered.length} booking{filtered.length !== 1 ? 's' : ''}</span>
+                <span className="text-sm text-gray-400 dark:text-gray-400 ml-auto">{filtered.length} booking{filtered.length !== 1 ? 's' : ''}</span>
               </div>
 
               {/* List */}
@@ -826,7 +826,7 @@ export default function ManagementPage() {
                           <span className="font-medium text-gray-800 dark:text-gray-200">{b.client?.first_name} {b.client?.last_name}</span>
                           <span className="text-sm text-gray-500 dark:text-gray-400">{b.check_in} → {b.check_out}</span>
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[b.status]}`}>{b.status}</span>
-                          <span className="text-sm text-gray-400 dark:text-gray-500 ml-auto flex items-center gap-1">
+                          <span className="text-sm text-gray-400 dark:text-gray-400 ml-auto flex items-center gap-1">
                             {guests.length} guest{guests.length !== 1 ? 's' : ''}
                             <span className="text-xs">{isOpen ? '▲' : '▼'}</span>
                           </span>
@@ -834,7 +834,7 @@ export default function ManagementPage() {
                         {isOpen && (
                           <div className="border-t px-4 py-3 bg-gray-50 dark:bg-gray-800">
                             {guests.length === 0 ? (
-                              <p className="text-sm text-gray-400 dark:text-gray-500">No guests listed.</p>
+                              <p className="text-sm text-gray-400 dark:text-gray-400">No guests listed.</p>
                             ) : (
                               <div className="space-y-1.5">
                                 {guests.map(p => (
@@ -845,8 +845,8 @@ export default function ManagementPage() {
                                         {KITE_LEVEL_LABELS[p.kite_level]}
                                       </span>
                                     )}
-                                    {p.passport_number && <span className="text-xs text-gray-400 dark:text-gray-500">{p.passport_number}</span>}
-                                    {p.notes && <span className="text-xs text-gray-400 dark:text-gray-500 italic">{p.notes}</span>}
+                                    {p.passport_number && <span className="text-xs text-gray-400 dark:text-gray-400">{p.passport_number}</span>}
+                                    {p.notes && <span className="text-xs text-gray-400 dark:text-gray-400 italic">{p.notes}</span>}
                                   </div>
                                 ))}
                               </div>
@@ -980,9 +980,9 @@ export default function ManagementPage() {
                           <span className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                             <span className="text-base">{info.icon}</span>
                             {info.label}
-                            <span className="text-xs font-normal text-gray-400 dark:text-gray-500">({links.length})</span>
+                            <span className="text-xs font-normal text-gray-400 dark:text-gray-400">({links.length})</span>
                           </span>
-                          <span className="text-gray-400 dark:text-gray-500 text-xs">{isOpen ? '▲' : '▼'}</span>
+                          <span className="text-gray-400 dark:text-gray-400 text-xs">{isOpen ? '▲' : '▼'}</span>
                         </button>
                         {isOpen && (
                           <div className="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
@@ -1001,8 +1001,8 @@ export default function ManagementPage() {
                                         {link.is_active ? 'Active' : 'Inactive'}
                                       </span>
                                     </div>
-                                    <div className="text-xs text-gray-400 dark:text-gray-500 truncate font-mono">{url}</div>
-                                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                                    <div className="text-xs text-gray-400 dark:text-gray-400 truncate font-mono">{url}</div>
+                                    <div className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">
                                       Created {link.created_at}
                                       {link.expires_at && ` · Expires ${link.expires_at}`}
                                     </div>
@@ -1163,7 +1163,7 @@ export default function ManagementPage() {
                       billedBy(priceFormData as PriceItem) ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed' : ''
                     }`} />
                   {billedBy(priceFormData as PriceItem) && (
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">
                       🔒 Locked: this rate bills {billedBy(priceFormData as PriceItem)}. The name is a label only —
                       what it applies to is set below and cannot change. Edit the price freely.
                     </p>
@@ -1202,7 +1202,7 @@ export default function ManagementPage() {
                         <option key={t} value={t}>{BILLABLE_LABELS[t]}</option>
                       ))}
                     </select>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">
                       {priceFormData.billable_type
                         ? '🔒 Locked once set — moving a rate to another post would reprice past work silently.'
                         : 'Links this rate to what it bills. Without it, that post is billed 0. One rate per post.'}

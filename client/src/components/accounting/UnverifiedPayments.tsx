@@ -59,7 +59,7 @@ export default function UnverifiedPayments({ data, handlers }: Props) {
                     <td className="px-4 py-3">
                       {booking
                         ? <span className="font-mono font-bold text-blue-600 dark:text-blue-400">#{String(booking.booking_number).padStart(3, '0')}</span>
-                        : <span className="text-gray-400 dark:text-gray-500">—</span>}
+                        : <span className="text-gray-400 dark:text-gray-400">—</span>}
                     </td>
                     <td className="px-4 py-3 text-gray-800 dark:text-gray-200">
                       {client ? `${client.first_name} ${client.last_name}` : '—'}

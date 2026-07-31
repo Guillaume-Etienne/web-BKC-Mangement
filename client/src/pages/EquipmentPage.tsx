@@ -407,7 +407,7 @@ export default function EquipmentPage() {
                       <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">{getUseCount(eq, rentals, lessons)}</td>
                       <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">{getUseHours(eq, rentals, lessons)}h</td>
                       <td className="px-4 py-3 text-center">
-                        {eq.is_active ? <span className="text-green-600 dark:text-green-400 font-semibold">✓</span> : <span className="text-gray-400 dark:text-gray-600">—</span>}
+                        {eq.is_active ? <span className="text-green-600 dark:text-green-400 font-semibold">✓</span> : <span className="text-gray-400 dark:text-gray-500">—</span>}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
@@ -439,7 +439,7 @@ export default function EquipmentPage() {
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                     {getCategoryLabel(eq.category)}{eq.size ? ` · ${eq.size}` : ''}
-                    {!eq.is_active && <span className="text-gray-400 dark:text-gray-600"> · inactif</span>}
+                    {!eq.is_active && <span className="text-gray-400 dark:text-gray-500"> · inactif</span>}
                   </p>
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -486,25 +486,25 @@ export default function EquipmentPage() {
                   <div className="space-y-2 text-sm">
                     {selectedEquipment.brand && (
                       <div>
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-500">Marque</p>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Marque</p>
                         <p className="text-gray-900 dark:text-gray-100">{selectedEquipment.brand}</p>
                       </div>
                     )}
                     {selectedEquipment.size && (
                       <div>
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-500">Taille</p>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Taille</p>
                         <p className="text-gray-900 dark:text-gray-100">{selectedEquipment.size}</p>
                       </div>
                     )}
                     {selectedEquipment.year && (
                       <div>
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-500">Année</p>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Année</p>
                         <p className="text-gray-900 dark:text-gray-100">{selectedEquipment.year}</p>
                       </div>
                     )}
                     {selectedEquipment.notes && (
                       <div>
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-500">Notes</p>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Notes</p>
                         <p className="text-gray-900 dark:text-gray-100">{selectedEquipment.notes}</p>
                       </div>
                     )}
@@ -512,14 +512,14 @@ export default function EquipmentPage() {
 
                   {getRecentUsage(selectedEquipment, rentals, lessons).length > 0 && (
                     <div>
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-500 mb-2">5 dernières sorties</p>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">5 dernières sorties</p>
                       <div className="space-y-1.5">
                         {getRecentUsage(selectedEquipment, rentals, lessons).map((usage, idx) => (
                           <div key={idx} className="flex items-center justify-between text-xs bg-gray-50 dark:bg-gray-800/60 px-2 py-1.5 rounded">
                             <span className="text-gray-600 dark:text-gray-400">
                               {usage.type === 'rental' ? '📦' : '🏄'} {formatDate(usage.date)}
                             </span>
-                            <span className="text-gray-500 dark:text-gray-500">{usage.type === 'rental' ? 'Location' : 'Cours'} · ≈{usage.hours}h</span>
+                            <span className="text-gray-500 dark:text-gray-400">{usage.type === 'rental' ? 'Location' : 'Cours'} · ≈{usage.hours}h</span>
                           </div>
                         ))}
                       </div>
@@ -750,7 +750,7 @@ export default function EquipmentPage() {
               {pricingDirty ? (
                 <span className="text-xs font-medium text-amber-600 dark:text-amber-400">● Modifications non enregistrées</span>
               ) : (
-                <span className="text-xs text-gray-400 dark:text-gray-500">✓ Tout est enregistré</span>
+                <span className="text-xs text-gray-400 dark:text-gray-400">✓ Tout est enregistré</span>
               )}
               <div className="flex gap-2 ml-auto">
                 <button
@@ -772,7 +772,7 @@ export default function EquipmentPage() {
           </div>
 
           {revenueRows.length === 0 ? (
-            <p className="text-sm text-gray-400 dark:text-gray-500 italic">Aucun équipement actif.</p>
+            <p className="text-sm text-gray-400 dark:text-gray-400 italic">Aucun équipement actif.</p>
           ) : (
             <>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -808,7 +808,7 @@ export default function EquipmentPage() {
                       <div key={r.eq.id} className="grid grid-cols-[1fr_2fr_auto] sm:grid-cols-[160px_1fr_90px] items-center gap-3">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                           {r.eq.name}
-                          <span className="block text-xs font-normal text-gray-400 dark:text-gray-500">{getCategoryLabel(r.eq.category)}</span>
+                          <span className="block text-xs font-normal text-gray-400 dark:text-gray-400">{getCategoryLabel(r.eq.category)}</span>
                         </div>
                         <div
                           className="relative h-5 bg-gray-100 dark:bg-gray-800 rounded overflow-hidden"
@@ -829,9 +829,9 @@ export default function EquipmentPage() {
                   <div key={c.cat} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
                     <div className="text-lg">{{ kite: '🪁', board: '🏄', surfboard: '🌊', foilboard: '🦈' }[c.cat]}</div>
                     <div className="font-bold text-sm text-gray-900 dark:text-gray-100 mt-1">{getCategoryLabel(c.cat)}</div>
-                    <div className="text-xs text-gray-400 dark:text-gray-500 mb-2">{c.count} pièce{c.count > 1 ? 's' : ''} active{c.count > 1 ? 's' : ''} · {c.sorties} sorties</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-400 mb-2">{c.count} pièce{c.count > 1 ? 's' : ''} active{c.count > 1 ? 's' : ''} · {c.sorties} sorties</div>
                     <div className="text-xl font-extrabold text-gray-900 dark:text-gray-100">{Math.round(c.real + c.est)}€</div>
-                    <div className="text-xs text-gray-400 dark:text-gray-500 mb-2">CA total estimé</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-400 mb-2">CA total estimé</div>
                     <div className="flex h-2 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 mb-2">
                       <span className="bg-blue-600 dark:bg-blue-500" style={{ flexBasis: `${c.real + c.est > 0 ? c.real / (c.real + c.est) * 100 : 50}%`, flexGrow: 0 }} />
                       <span className="bg-orange-500" style={{ flexBasis: `${c.real + c.est > 0 ? c.est / (c.real + c.est) * 100 : 50}%`, flexGrow: 0 }} />

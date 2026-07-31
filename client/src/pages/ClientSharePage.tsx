@@ -170,7 +170,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   if (loading || booking === undefined) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <div className="text-gray-400 dark:text-gray-500 text-lg">Loading…</div>
+        <div className="text-gray-400 dark:text-gray-400 text-lg">Loading…</div>
       </div>
     )
   }
@@ -179,8 +179,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-2xl text-gray-400 dark:text-gray-500 mb-2">Booking not found</p>
-          <p className="text-sm text-gray-400 dark:text-gray-500">This link may be invalid or expired.</p>
+          <p className="text-2xl text-gray-400 dark:text-gray-400 mb-2">Booking not found</p>
+          <p className="text-sm text-gray-400 dark:text-gray-400">This link may be invalid or expired.</p>
         </div>
       </div>
     )
@@ -337,7 +337,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                   <tr key={i} className="border-b border-gray-50 dark:border-gray-800">
                     <td className="px-5 py-3 font-medium text-gray-800 dark:text-gray-200">
                       {row.label}
-                      {row.note && <span className="ml-2 text-xs text-gray-400 dark:text-gray-500 italic">{row.note}</span>}
+                      {row.note && <span className="ml-2 text-xs text-gray-400 dark:text-gray-400 italic">{row.note}</span>}
                     </td>
                     <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">{row.nights}</td>
                     <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">{fmtEur(row.pricePerNight)}</td>
@@ -632,7 +632,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             <h2 className="font-semibold text-gray-800 dark:text-gray-200">💳 Payments</h2>
           </div>
           {payments.length === 0 ? (
-            <p className="px-5 py-4 text-sm text-gray-400 dark:text-gray-500 italic">No payments recorded yet.</p>
+            <p className="px-5 py-4 text-sm text-gray-400 dark:text-gray-400 italic">No payments recorded yet.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -658,7 +658,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                           </>
                         )}
                       </td>
-                      <td className="px-5 py-3 text-gray-400 dark:text-gray-500 text-xs italic">{p.notes ?? ''}</td>
+                      <td className="px-5 py-3 text-gray-400 dark:text-gray-400 text-xs italic">{p.notes ?? ''}</td>
                       <td className={`px-5 py-3 text-right font-semibold ${p.is_discount ? 'text-purple-700 dark:text-purple-400' : 'text-green-700 dark:text-green-400'}`}>
                         {p.is_discount ? '-' : ''}{fmtEur(p.amount)}
                       </td>
@@ -717,7 +717,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
           </div>
         </section>
 
-        <p className="text-center text-xs text-gray-300 dark:text-gray-600 pb-4">Read-only view · Kitesurf Center Management</p>
+        <p className="text-center text-xs text-gray-300 dark:text-gray-500 pb-4">Read-only view · Kitesurf Center Management</p>
       </div>
     </div>
   )

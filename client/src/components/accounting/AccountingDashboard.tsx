@@ -97,7 +97,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
         <div className={`border rounded-xl p-5 ${totalDue > 0 ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-800'}`}>
           <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${totalDue > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}`}>Outstanding</p>
           <p className={`text-3xl font-bold ${totalDue > 0 ? 'text-amber-800 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}`}>{fmt(totalDue)}</p>
-          <p className={`text-xs mt-1 ${totalDue > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500'}`}>{unpaidBookings.length} booking{unpaidBookings.length !== 1 ? 's' : ''} with balance due</p>
+          <p className={`text-xs mt-1 ${totalDue > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-400'}`}>{unpaidBookings.length} booking{unpaidBookings.length !== 1 ? 's' : ''} with balance due</p>
         </div>
       </div>
 
@@ -140,7 +140,13 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
       {/* ── Net result banner ── */}
       <div className={`rounded-xl border-2 p-5 flex items-center justify-between ${netResult >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-700' : 'bg-red-50 dark:bg-red-950/40 border-red-400 dark:border-red-700'}`}>
         <div>
-          <p className={`text-sm font-semibold uppercase tracking-wide ${netResult >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>Net result (season)</p>
+          {/* Said "(season)", but nothing here filters by season — computeSeasonTotals
+              reads every booking, expense and lesson ever recorded. Harmless while
+              there is only one season on the books, quietly wrong from the second
+              one on. Labelled for what it actually is until a season filter is
+              designed (which season is "current", and does it cut on the booking
+              date or the payment date, are gui's calls to make). */}
+          <p className={`text-sm font-semibold uppercase tracking-wide ${netResult >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>Net result (all time)</p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Revenue (taxis net of driver + manager) + palmeiras − instructors − houses − bungalows − activity providers − expenses</p>
         </div>
         <p className={`text-4xl font-bold ${netResult >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>{sign(netResult)}</p>
@@ -221,7 +227,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
       {instrBalances.length > 0 && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
           <h2 className="text-base font-bold text-gray-800 dark:text-gray-200 mb-1">Instructor balances</h2>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">Earned − debts − already paid</p>
+          <p className="text-xs text-gray-400 dark:text-gray-400 mb-4">Earned − debts − already paid</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {instrBalances.map(i => (
               <div key={i.id} className={`rounded-lg border px-4 py-3 flex items-center justify-between ${
@@ -255,7 +261,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
       {topUnpaid.length > 0 && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
           <h2 className="text-base font-bold text-gray-800 dark:text-gray-200 mb-1">Outstanding payments</h2>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">Top {topUnpaid.length} of {unpaidBookings.length} booking{unpaidBookings.length !== 1 ? 's' : ''} with balance due</p>
+          <p className="text-xs text-gray-400 dark:text-gray-400 mb-4">Top {topUnpaid.length} of {unpaidBookings.length} booking{unpaidBookings.length !== 1 ? 's' : ''} with balance due</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -283,7 +289,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
                       className={`border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800 ${onOpenBooking ? 'cursor-pointer' : ''}`}
                     >
                       <td className="py-2 font-medium text-gray-800 dark:text-gray-200">
-                        {onOpenBooking && <span className="text-gray-300 dark:text-gray-600 mr-1">↗</span>}
+                        {onOpenBooking && <span className="text-gray-300 dark:text-gray-500 mr-1">↗</span>}
                         {client ? `${client.first_name} ${client.last_name}` : b.id}
                       </td>
                       <td className="py-2 text-gray-500 dark:text-gray-400">{b.check_in}</td>

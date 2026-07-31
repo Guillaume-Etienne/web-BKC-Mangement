@@ -162,7 +162,7 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
     <div className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800 px-5 py-4 space-y-5">
       {/* Trip */}
       <div>
-        <h4 className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">Trip</h4>
+        <h4 className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-400 mb-2">Trip</h4>
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Country entry (visa)</span><span className="font-medium">{fmtDate(p.country_entry_date)} {p.arrival_time && `· ${p.arrival_time}`}</span></div>
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Country exit (visa)</span><span className="font-medium">{fmtDate(p.country_exit_date)} {p.departure_time && `· ${p.departure_time}`}</span></div>
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Nights in Bilene</span><span className="font-medium">{p.nights_bilene}</span></div>
@@ -178,7 +178,7 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
 
       {/* Logistics */}
       <div>
-        <h4 className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">Logistics</h4>
+        <h4 className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-400 mb-2">Logistics</h4>
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Bags / Kite bags</span><span className="font-medium">{p.luggage_count} / {p.boardbag_count}</span></div>
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Double beds / Single beds</span><span className="font-medium">{p.double_beds} / {p.single_beds}</span></div>
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Travel insurance</span><span className="font-medium">{p.has_travel_insurance ? 'Yes' : 'No'}</span></div>
@@ -186,7 +186,7 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
 
       {/* Crew */}
       <div>
-        <h4 className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">Crew ({p.travelers?.length ?? 0})</h4>
+        <h4 className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-400 mb-2">Crew ({p.travelers?.length ?? 0})</h4>
         <div className="space-y-1">
           {(p.travelers ?? []).map((t, i) => {
             const kiteFlags = t.does_kite ? [
@@ -204,7 +204,7 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
                 </div>
                 {t.does_kite
                   ? <p className="text-xs text-sky-600 dark:text-sky-400">🪁 {kiteFlags || 'kiter'}</p>
-                  : <p className="text-xs text-gray-400 dark:text-gray-500">— no kite</p>
+                  : <p className="text-xs text-gray-400 dark:text-gray-400">— no kite</p>
                 }
               </div>
             )
@@ -214,7 +214,7 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
 
       {/* Emergency + waiver */}
       <div>
-        <h4 className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">Emergency contact</h4>
+        <h4 className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-400 mb-2">Emergency contact</h4>
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Name</span><span className="font-medium">{p.emergency_contact_name || '—'}</span></div>
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Phone / Email</span><span className="font-medium">{p.emergency_contact_phone || '—'} · {p.emergency_contact_email || '—'}</span></div>
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Relationship</span><span className="font-medium">{p.emergency_contact_relation || '—'}</span></div>
@@ -254,7 +254,7 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
           ) : (
             <div className="flex gap-2 pt-1">
               <button type="button" onClick={createBooking} disabled={!datesValid || busy || alreadyCreated}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition ${datesValid && !busy && !alreadyCreated ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'}`}>
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition ${datesValid && !busy && !alreadyCreated ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-400 cursor-not-allowed'}`}>
                 {busy ? 'Working…' : alreadyCreated ? 'Already created' : 'Create booking'}
               </button>
               <button type="button" onClick={() => setConfirmAction('reject')} disabled={busy}
@@ -342,9 +342,9 @@ export default function SubmissionsPage() {
       </div>
 
       {loading ? (
-        <p className="text-gray-400 dark:text-gray-500 text-center py-12">Loading…</p>
+        <p className="text-gray-400 dark:text-gray-400 text-center py-12">Loading…</p>
       ) : filtered.length === 0 ? (
-        <p className="text-gray-400 dark:text-gray-500 text-center py-12">No {tab} submissions.</p>
+        <p className="text-gray-400 dark:text-gray-400 text-center py-12">No {tab} submissions.</p>
       ) : (
         <div className="space-y-2">
           {filtered.map(s => {
@@ -357,14 +357,14 @@ export default function SubmissionsPage() {
                     <span className="text-lg shrink-0">{LANG_FLAG[s.language]}</span>
                     <div className="min-w-0">
                       <p className="font-semibold text-gray-800 dark:text-gray-200 truncate">{s.reference_name || '—'}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                      <p className="text-xs text-gray-400 dark:text-gray-400">
                         {s.num_travelers ?? '?'} traveler(s) · arrival {fmtDate(s.arrival_date)} · {s.submitted_at.slice(0, 10)}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[s.status]}`}>{s.status}</span>
-                    <span className="text-gray-300 dark:text-gray-600 text-sm">{open ? '▲' : '▼'}</span>
+                    <span className="text-gray-300 dark:text-gray-500 text-sm">{open ? '▲' : '▼'}</span>
                   </div>
                 </button>
                 {open && <SubmissionDetail s={s} onDone={() => { setOpenId(null); refresh() }} />}

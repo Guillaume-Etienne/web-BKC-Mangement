@@ -61,7 +61,7 @@ export default function DatabaseTab() {
             {currentEnv === 'prod' && <div className="text-xs font-normal mt-1 text-green-600 dark:text-green-400">Currently active</div>}
           </button>
 
-          <div className="text-gray-400 dark:text-gray-500 font-bold text-xl">⇄</div>
+          <div className="text-gray-400 dark:text-gray-400 font-bold text-xl">⇄</div>
 
           <button
             onClick={() => {
@@ -76,7 +76,7 @@ export default function DatabaseTab() {
                 ? 'border-amber-500 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400'
                 : testConfigured
                   ? 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 cursor-pointer'
-                  : 'border-dashed border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  : 'border-dashed border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-400 cursor-not-allowed'
             }`}
           >
             <div className="text-2xl mb-1">🧪</div>
@@ -84,7 +84,7 @@ export default function DatabaseTab() {
             {currentEnv === 'test'
               ? <div className="text-xs font-normal mt-1 text-amber-600 dark:text-amber-400">Currently active</div>
               : !testConfigured
-                ? <div className="text-xs font-normal mt-1 text-gray-400 dark:text-gray-500">Not configured</div>
+                ? <div className="text-xs font-normal mt-1 text-gray-400 dark:text-gray-400">Not configured</div>
                 : null
             }
           </button>

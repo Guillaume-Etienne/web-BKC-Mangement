@@ -52,7 +52,7 @@ export default function TotalsRow({ label, totalDays, seasonStart, bookings, boo
                 className={`shrink-0 text-center py-1 border-r flex items-center justify-center ${
                   dow === 0 ? 'border-r-gray-300' : 'border-r-gray-100'
                 } ${dow === 0 || dow === 6 ? 'bg-blue-50 dark:bg-blue-950/40' : ''} ${
-                  total > 0 ? 'text-emerald-700 dark:text-emerald-400 font-semibold' : 'text-gray-300 dark:text-gray-600'
+                  total > 0 ? 'text-emerald-700 dark:text-emerald-400 font-semibold' : 'text-gray-300 dark:text-gray-500'
                 }`}
                 style={{ width: CELL_W }}
               >

@@ -397,7 +397,7 @@ function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: Re
                       <div className="text-amber-600 dark:text-amber-400 font-medium">€{r.price}</div>
                     </div>
                     <button onClick={() => onDelete(r.id)}
-                      className="opacity-0 group-hover/r:opacity-100 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 ml-1 mt-0.5">✕</button>
+                      className="opacity-0 group-hover/r:opacity-100 text-gray-400 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 ml-1 mt-0.5">✕</button>
                   </div>
                 )
               })}
@@ -407,7 +407,7 @@ function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: Re
       })}
 
       {rentals.length === 0 && !showForm && (
-        <p className="text-xs text-gray-400 dark:text-gray-500 italic">No rentals planned</p>
+        <p className="text-xs text-gray-400 dark:text-gray-400 italic">No rentals planned</p>
       )}
     </div>
   )
@@ -560,7 +560,7 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
               <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
             ))}
           </select>
-          <span className="text-xs text-gray-400 dark:text-gray-500">→ 19:00</span>
+          <span className="text-xs text-gray-400 dark:text-gray-400">→ 19:00</span>
         </div>
 
         {/* Copy / paste */}
@@ -636,7 +636,7 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
                       className={`absolute w-full border-t flex items-start justify-end pr-1.5 ${isHour ? 'border-gray-300 dark:border-gray-700' : 'border-gray-100 dark:border-gray-800'}`}
                       style={{ top: i * SLOT_H, height: SLOT_H }}
                     >
-                      {isHour && <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium -mt-1.5">{slotToTime(i, startHour)}</span>}
+                      {isHour && <span className="text-[10px] text-gray-400 dark:text-gray-400 font-medium -mt-1.5">{slotToTime(i, startHour)}</span>}
                     </div>
                   )
                 })}

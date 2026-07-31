@@ -31,7 +31,7 @@ interface Props {
 
 function TripTable({ trips, showStatus }: { trips: TaxiTrip[]; showStatus?: boolean }) {
   if (trips.length === 0) {
-    return <p className="text-sm text-gray-400 dark:text-gray-500 italic py-2">No trips.</p>
+    return <p className="text-sm text-gray-400 dark:text-gray-400 italic py-2">No trips.</p>
   }
   const total = trips.reduce((s, t) => s + t.price_driver_mzn, 0)
   return (
@@ -117,7 +117,7 @@ function ShareLinkSection({ driverLink, onGenerateLink }: {
   if (!shareUrl) {
     return (
       <div className="flex items-center gap-3">
-        <p className="text-sm text-gray-400 dark:text-gray-500 italic flex-1">No shareable link yet</p>
+        <p className="text-sm text-gray-400 dark:text-gray-400 italic flex-1">No shareable link yet</p>
         <button
           onClick={handleGenerate}
           disabled={generating}
@@ -215,7 +215,7 @@ export default function DriverStatementPanel({ driver, trips, driverLink, onGene
           <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Total</p>
             <p className="text-2xl font-bold text-gray-800 dark:text-gray-200 mt-1">{totalMzn.toLocaleString()}</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{trips.length} trip{trips.length !== 1 ? 's' : ''} · MZN</p>
+            <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">{trips.length} trip{trips.length !== 1 ? 's' : ''} · MZN</p>
           </div>
         </div>
 

@@ -10,7 +10,7 @@ function MznWithEur({ mzn, rate, className }: { mzn: number; rate: number; class
   return (
     <span className={className}>
       {fmtMzn(mzn)}
-      <span className="block text-[10px] font-normal text-gray-400 dark:text-gray-500">≈ {mznToEur(mzn, rate)}€</span>
+      <span className="block text-[10px] font-normal text-gray-400 dark:text-gray-400">≈ {mznToEur(mzn, rate)}€</span>
     </span>
   )
 }
@@ -76,7 +76,7 @@ function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
           </tr>
         </tfoot>
       </table>
-      <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500 border-t border-gray-100 dark:border-gray-800">
+      <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800">
         Centre margin = Client € − (Driver + Manager MZN → € at global rate {rate})
       </p>
     </div>
@@ -192,7 +192,7 @@ export default function TaxiFinanceTab({ trips, payments, eurMznRate, onAddPayme
               </span>
             </div>
           </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500">
+          <p className="text-xs text-gray-400 dark:text-gray-400">
             Balance = total earned − total advances paid
           </p>
         </div>
@@ -217,13 +217,13 @@ export default function TaxiFinanceTab({ trips, payments, eurMznRate, onAddPayme
             <tbody>
               {payments.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500 italic">No payments recorded</td>
+                  <td colSpan={4} className="px-4 py-8 text-center text-gray-400 dark:text-gray-400 italic">No payments recorded</td>
                 </tr>
               ) : payments.map(p => (
                 <tr key={p.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                   <td className="px-3 py-2 whitespace-nowrap text-gray-800 dark:text-gray-200">{p.date}</td>
                   <td className="px-3 py-2 text-right font-semibold text-blue-900 dark:text-blue-400">{p.amount_mzn.toLocaleString()}</td>
-                  <td className="px-3 py-2 text-gray-500 dark:text-gray-400 text-xs">{p.notes ?? <span className="italic text-gray-300 dark:text-gray-600">—</span>}</td>
+                  <td className="px-3 py-2 text-gray-500 dark:text-gray-400 text-xs">{p.notes ?? <span className="italic text-gray-300 dark:text-gray-500">—</span>}</td>
                   <td className="px-3 py-2 text-center">
                     <button onClick={() => handleDelete(p.id)}
                       className="text-red-400 dark:text-red-300 hover:text-red-600 dark:hover:text-red-400 text-sm px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-950/40">

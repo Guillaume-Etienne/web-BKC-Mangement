@@ -63,10 +63,10 @@ function AttendeeTableRow({ a, isMenu, eventPrice, onUpdate, onRemove }: Attende
     <tr className={`border-b transition-opacity ${a.is_attending ? '' : 'opacity-40'}`}>
       <td className="px-3 py-2 text-xs whitespace-nowrap">
         <div className="flex items-center gap-1">
-          <button onClick={() => onRemove(a.id)} className="text-gray-300 dark:text-gray-600 hover:text-red-400 dark:hover:text-red-300 text-xs mr-1">✕</button>
+          <button onClick={() => onRemove(a.id)} className="text-gray-300 dark:text-gray-500 hover:text-red-400 dark:hover:text-red-300 text-xs mr-1">✕</button>
           <span>{personIcon(a.person_type)}</span>
           <span className="font-medium text-gray-800 dark:text-gray-200">{a.person_name}</span>
-          {a.room_label && <span className="text-gray-400 dark:text-gray-500 ml-1">({a.room_label})</span>}
+          {a.room_label && <span className="text-gray-400 dark:text-gray-400 ml-1">({a.room_label})</span>}
         </div>
       </td>
       <td className="px-3 py-2 text-center">
@@ -118,10 +118,10 @@ function AttendeeCard({ a, isMenu, eventPrice, onUpdate, onRemove }: AttendeePro
     <div className={`bg-white dark:bg-gray-900 border rounded-lg p-3 transition-opacity ${a.is_attending ? '' : 'opacity-40'}`}>
       <div className="flex items-center justify-between mb-2 gap-2">
         <div className="flex items-center gap-1 min-w-0">
-          <button onClick={() => onRemove(a.id)} className="text-gray-300 dark:text-gray-600 hover:text-red-400 dark:hover:text-red-300 text-xs shrink-0">✕</button>
+          <button onClick={() => onRemove(a.id)} className="text-gray-300 dark:text-gray-500 hover:text-red-400 dark:hover:text-red-300 text-xs shrink-0">✕</button>
           <span className="shrink-0">{personIcon(a.person_type)}</span>
           <span className="font-medium text-sm text-gray-800 dark:text-gray-200 truncate">{a.person_name}</span>
-          {a.room_label && <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">({a.room_label})</span>}
+          {a.room_label && <span className="text-xs text-gray-400 dark:text-gray-400 shrink-0">({a.room_label})</span>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {owesForMeal(a, eventPrice) && <PaidToggle a={a} onUpdate={onUpdate} />}
@@ -147,7 +147,7 @@ function AttendeeCard({ a, isMenu, eventPrice, onUpdate, onRemove }: AttendeePro
         <div className="grid grid-cols-2 gap-1 mt-2">
           {MENU_FIELDS.map(f => (
             <div key={f.key}>
-              <label className="text-xs text-gray-400 dark:text-gray-500">{f.label}</label>
+              <label className="text-xs text-gray-400 dark:text-gray-400">{f.label}</label>
               <input
                 type="text" value={a[f.key]} placeholder="—"
                 disabled={!a.is_attending}
@@ -161,7 +161,7 @@ function AttendeeCard({ a, isMenu, eventPrice, onUpdate, onRemove }: AttendeePro
       {eventPrice > 0 && a.is_attending && (
         <div className="text-xs text-right text-gray-500 dark:text-gray-400 mt-1.5 font-medium">
           {a.price_override !== undefined
-            ? <span className="text-amber-600 dark:text-amber-400">€{effectivePrice} <span className="text-gray-400 dark:text-gray-500 font-normal">(custom)</span></span>
+            ? <span className="text-amber-600 dark:text-amber-400">€{effectivePrice} <span className="text-gray-400 dark:text-gray-400 font-normal">(custom)</span></span>
             : `€${effectivePrice}`
           }
         </div>
@@ -182,7 +182,7 @@ function getRoomLabel(bookingId: string, bookingRooms: BookingRoom[], rooms: Roo
 
 function SectionLabel({ label, count }: { label: string; count: number }) {
   return (
-    <div className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide px-1 mt-4 mb-1">
+    <div className="text-xs font-semibold text-gray-400 dark:text-gray-400 uppercase tracking-wide px-1 mt-4 mb-1">
       {label} <span className="font-normal">({count})</span>
     </div>
   )
@@ -396,7 +396,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
             className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
               presence[i.id]
                 ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
-                : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500'
+                : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-400'
             }`}
           >
             {presence[i.id] ? '✓' : '○'} {i.first_name}
@@ -407,7 +407,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
       {/* ── Empty state ── */}
       {!activeEvent ? (
         <div className="bg-white dark:bg-gray-900 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-800 p-12 text-center">
-          <p className="text-gray-400 dark:text-gray-500 mb-4">No event selected</p>
+          <p className="text-gray-400 dark:text-gray-400 mb-4">No event selected</p>
           <button onClick={createEvent} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
             + New Event
           </button>
@@ -456,13 +456,13 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
                 ))}
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-gray-400 dark:text-gray-500 text-xs">default €</span>
+                <span className="text-gray-400 dark:text-gray-400 text-xs">default €</span>
                 <input type="number" min="0" value={activeEvent.price_per_person}
                   onChange={e => updateEvent({ price_per_person: parseFloat(e.target.value) || 0 })}
                   className="w-20 border border-gray-200 dark:border-gray-800 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                   placeholder="0"
                 />
-                <span className="text-gray-400 dark:text-gray-500 text-xs">/pers.</span>
+                <span className="text-gray-400 dark:text-gray-400 text-xs">/pers.</span>
               </div>
               <input type="text" value={activeEvent.notes} placeholder="Notes…"
                 onChange={e => updateEvent({ notes: e.target.value })}
@@ -479,14 +479,14 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
                 <span className="text-sm text-gray-500 dark:text-gray-400">
                   {attending === 1 ? 'person' : 'people'} attending
                   {activeEvent.attendees.length > attending && (
-                    <span className="ml-1 text-gray-400 dark:text-gray-500">/ {activeEvent.attendees.length} total</span>
+                    <span className="ml-1 text-gray-400 dark:text-gray-400">/ {activeEvent.attendees.length} total</span>
                   )}
                 </span>
               </div>
               {eventPrice > 0 && (
                 <div className="flex items-center gap-1 border-l pl-4">
                   <span className="text-xl font-bold text-blue-600 dark:text-blue-400">€{total.toFixed(0)}</span>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">total</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-400">total</span>
                 </div>
               )}
               {unpaid.count > 0 && (
@@ -526,7 +526,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
                   <tbody>
                     {instrAttendees.length > 0 && (
                       <tr><td colSpan={99} className="pt-2 pb-1 px-3">
-                        <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Instructors</span>
+                        <span className="text-xs font-semibold text-gray-400 dark:text-gray-400 uppercase tracking-wide">Instructors</span>
                       </td></tr>
                     )}
                     {instrAttendees.map(a => (
@@ -534,7 +534,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
                     ))}
                     {guests.length > 0 && (
                       <tr><td colSpan={99} className="pt-3 pb-1 px-3">
-                        <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Guests</span>
+                        <span className="text-xs font-semibold text-gray-400 dark:text-gray-400 uppercase tracking-wide">Guests</span>
                       </td></tr>
                     )}
                     {guests.map(a => (
@@ -582,7 +582,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
 
       {/* New event button (when one is already open) */}
       {activeEvent && (
-        <button onClick={createEvent} className="w-full py-2 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg text-gray-400 dark:text-gray-500 hover:border-blue-300 dark:hover:border-blue-800 hover:text-blue-500 dark:hover:text-blue-400 text-sm transition-colors">
+        <button onClick={createEvent} className="w-full py-2 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg text-gray-400 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-800 hover:text-blue-500 dark:hover:text-blue-400 text-sm transition-colors">
           + New Event
         </button>
       )}
@@ -610,7 +610,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
                 >
                   <span>{ev.type === 'menu' ? '🍽️' : '🍖'}</span>
                   <span className="font-medium text-gray-800 dark:text-gray-200 flex-1 truncate">{ev.name || '(unnamed)'}</span>
-                  <span className="text-gray-400 dark:text-gray-500 shrink-0">{ev.date} · {ev.time}</span>
+                  <span className="text-gray-400 dark:text-gray-400 shrink-0">{ev.date} · {ev.time}</span>
                   <span className="text-emerald-600 dark:text-emerald-400 font-semibold shrink-0">{evAttending} pers.</span>
                   {ev.price_per_person > 0 && <span className="text-blue-600 dark:text-blue-400 font-semibold shrink-0">€{evTotal}</span>}
                   {evUnpaid.count > 0 && (
@@ -618,8 +618,8 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
                       €{evUnpaid.amount} to collect
                     </span>
                   )}
-                  <button onClick={e => { e.stopPropagation(); duplicateEvent(ev) }} className="text-gray-300 dark:text-gray-600 hover:text-blue-500 dark:hover:text-blue-400 shrink-0">⧉</button>
-                  <button onClick={e => { e.stopPropagation(); deleteEvent(ev.id) }} className="text-gray-300 dark:text-gray-600 hover:text-red-400 dark:hover:text-red-300 shrink-0">🗑</button>
+                  <button onClick={e => { e.stopPropagation(); duplicateEvent(ev) }} className="text-gray-300 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 shrink-0">⧉</button>
+                  <button onClick={e => { e.stopPropagation(); deleteEvent(ev.id) }} className="text-gray-300 dark:text-gray-500 hover:text-red-400 dark:hover:text-red-300 shrink-0">🗑</button>
                 </div>
               )
             })}

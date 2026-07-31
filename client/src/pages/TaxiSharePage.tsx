@@ -92,16 +92,16 @@ export default function TaxiSharePage() {
             {tr.show_past[lang]}
           </label>
 
-          <span className="text-sm text-gray-400 dark:text-gray-500 ml-auto">
+          <span className="text-sm text-gray-400 dark:text-gray-400 ml-auto">
             {fmt(tr.trips_all[lang], { count: filtered.length })}
           </span>
         </div>
 
         {/* Trip list by date */}
         {tripsLoading ? (
-          <div className="text-center py-16 text-gray-400 dark:text-gray-500">{tr.loading[lang]}</div>
+          <div className="text-center py-16 text-gray-400 dark:text-gray-400">{tr.loading[lang]}</div>
         ) : Object.keys(byDate).length === 0 ? (
-          <div className="text-center py-16 text-gray-400 dark:text-gray-500">
+          <div className="text-center py-16 text-gray-400 dark:text-gray-400">
             <p className="text-4xl mb-3">🚕</p>
             <p className="text-lg font-medium">{tr.no_upcoming[lang]}</p>
             {!showPast && (
@@ -127,7 +127,7 @@ export default function TaxiSharePage() {
                   {date === today ? `📍 ${tr.today[lang]}` : formatTripDate(date, lang, dateMode)}
                 </div>
                 <div className="flex-1 border-t border-gray-200 dark:border-gray-800" />
-                <span className="text-xs text-gray-400 dark:text-gray-500">{fmt(tr.trips_all[lang], { count: trips.length })}</span>
+                <span className="text-xs text-gray-400 dark:text-gray-400">{fmt(tr.trips_all[lang], { count: trips.length })}</span>
               </div>
 
               {/* Trip cards */}

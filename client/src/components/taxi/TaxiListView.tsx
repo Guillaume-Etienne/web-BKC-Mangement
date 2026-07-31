@@ -251,11 +251,11 @@ function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaul
               <span className="text-gray-500 dark:text-gray-400">
                 Global rate: <strong>1€ = {pricingDefaults.eur_mzn_rate} MZN</strong>
               </span>
-              <span className="text-gray-400 dark:text-gray-500">|</span>
+              <span className="text-gray-400 dark:text-gray-400">|</span>
               <span className="text-gray-500 dark:text-gray-400">
                 MZN cost: <strong>{(trip.price_driver_mzn + trip.margin_manager_mzn).toLocaleString()}</strong>
               </span>
-              <span className="text-gray-400 dark:text-gray-500">|</span>
+              <span className="text-gray-400 dark:text-gray-400">|</span>
               <span className="font-semibold text-emerald-700 dark:text-emerald-400">
                 Centre margin: {computeTaxiMarginEur(trip, pricingDefaults.eur_mzn_rate)}€
               </span>
@@ -443,7 +443,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                         <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-white" title="No manager commission — private taxi">🔒 Private</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 max-w-[140px] truncate">{trip.notes ?? <span className="italic text-gray-300 dark:text-gray-600">—</span>}</td>
+                    <td className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 max-w-[140px] truncate">{trip.notes ?? <span className="italic text-gray-300 dark:text-gray-500">—</span>}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-700 dark:text-gray-300">{driver?.name ?? <span className="text-red-400 dark:text-red-300 italic">Unassigned</span>}</td>
                     <td className="px-3 py-2 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap">{guestName(trip.booking_id, bookings)}</td>
                     <td className="px-3 py-2 text-center text-gray-800 dark:text-gray-200">{trip.nb_persons}</td>

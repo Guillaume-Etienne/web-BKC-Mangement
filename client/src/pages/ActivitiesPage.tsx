@@ -336,7 +336,7 @@ function ShareLinkSection({ providerLink, onGenerate }: {
 
   if (!shareUrl) return (
     <div className="flex items-center gap-3">
-      <p className="text-sm text-gray-400 dark:text-gray-500 italic flex-1">No share link yet</p>
+      <p className="text-sm text-gray-400 dark:text-gray-400 italic flex-1">No share link yet</p>
       <button onClick={handleGenerate} disabled={generating}
         className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
         {generating ? 'Generating…' : 'Generate link'}
@@ -442,7 +442,7 @@ function ProviderPanel({
               <p className={`text-2xl font-bold mt-1 ${weOwe > 0 ? 'text-orange-800 dark:text-orange-400' : 'text-green-700 dark:text-green-400'}`}>
                 {weOwe > 0 ? weOwe.toFixed(2) : '✓ Settled'} {weOwe > 0 ? '€' : ''}
               </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{wePayBookings.length} booking{wePayBookings.length !== 1 ? 's' : ''}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">{wePayBookings.length} booking{wePayBookings.length !== 1 ? 's' : ''}</p>
             </div>
           )}
           {theyPayBookings.length > 0 && (
@@ -451,7 +451,7 @@ function ProviderPanel({
               <p className={`text-2xl font-bold mt-1 ${theyOwe > 0 ? 'text-blue-800 dark:text-blue-400' : 'text-green-700 dark:text-green-400'}`}>
                 {theyOwe > 0 ? theyOwe.toFixed(2) : '✓ Settled'} {theyOwe > 0 ? '€' : ''}
               </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{theyPayBookings.length} booking{theyPayBookings.length !== 1 ? 's' : ''}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">{theyPayBookings.length} booking{theyPayBookings.length !== 1 ? 's' : ''}</p>
             </div>
           )}
         </div>
@@ -487,7 +487,7 @@ function ProviderPanel({
           )}
 
           {bookings.length === 0 ? (
-            <p className="text-sm text-gray-400 dark:text-gray-500 italic">No bookings yet.</p>
+            <p className="text-sm text-gray-400 dark:text-gray-400 italic">No bookings yet.</p>
           ) : (
             <div className="rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
               <table className="w-full text-xs">
@@ -522,9 +522,9 @@ function ProviderPanel({
                       <td className="px-3 py-2 text-center">
                         <div className="flex gap-1 justify-center">
                           <button onClick={() => setEditingBooking(b)}
-                            className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 px-1">✏️</button>
+                            className="text-gray-400 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 px-1">✏️</button>
                           <button onClick={() => onDeleteBooking(b.id)}
-                            className="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 px-1">✕</button>
+                            className="text-gray-400 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-1">✕</button>
                         </div>
                       </td>
                     </tr>
@@ -575,10 +575,10 @@ function ProviderPanel({
                         }`}>{p.direction === 'to_provider' ? 'We paid them' : 'They paid us'}</span>
                       </td>
                       <td className="px-3 py-2 text-right font-semibold text-gray-800 dark:text-gray-200">{p.amount}€</td>
-                      <td className="px-3 py-2 text-gray-400 dark:text-gray-500 italic">{p.notes ?? ''}</td>
+                      <td className="px-3 py-2 text-gray-400 dark:text-gray-400 italic">{p.notes ?? ''}</td>
                       <td className="px-3 py-2 text-right">
                         <button onClick={() => onDeletePayment(p.id)}
-                          className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400">✕</button>
+                          className="text-gray-300 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400">✕</button>
                       </td>
                     </tr>
                   ))}
@@ -770,7 +770,7 @@ export default function ActivitiesPage() {
                         : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-800 hover:shadow-sm'
                     }`}>
                     <p className={`font-bold text-base ${isViewing ? 'text-white' : 'text-gray-800 dark:text-gray-200'}`}>{p.name}</p>
-                    <p className={`text-xs mt-0.5 ${isViewing ? 'text-emerald-200 dark:text-emerald-300' : 'text-gray-400 dark:text-gray-500'}`}>
+                    <p className={`text-xs mt-0.5 ${isViewing ? 'text-emerald-200 dark:text-emerald-300' : 'text-gray-400 dark:text-gray-400'}`}>
                       {TYPE_LABELS[p.type]}{!p.is_active ? ' · Inactive' : ''}
                     </p>
                     <div className="mt-2 flex items-center gap-2">
@@ -823,7 +823,7 @@ export default function ActivitiesPage() {
             </div>
 
             {filteredBookings.length === 0 ? (
-              <p className="text-sm text-gray-400 dark:text-gray-500 italic py-8 text-center">No bookings found.</p>
+              <p className="text-sm text-gray-400 dark:text-gray-400 italic py-8 text-center">No bookings found.</p>
             ) : (
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                 <table className="w-full text-sm">
@@ -857,7 +857,7 @@ export default function ActivitiesPage() {
                         </td>
                         <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{b.price_client > 0 ? `${b.price_client}€` : '–'}</td>
                         <td className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{b.price_provider > 0 ? `${b.price_provider}€` : '–'}</td>
-                        <td className="px-4 py-3 text-gray-400 dark:text-gray-500 italic text-xs">{b.notes ?? ''}</td>
+                        <td className="px-4 py-3 text-gray-400 dark:text-gray-400 italic text-xs">{b.notes ?? ''}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -233,7 +233,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                 onDrop={(e) => handleDrop(e, isUnassigned ? null : colId)}
               >
                 {columnTrips.length === 0 ? (
-                  <p className="text-gray-400 dark:text-gray-500 text-sm text-center py-4 italic">No trips</p>
+                  <p className="text-gray-400 dark:text-gray-400 text-sm text-center py-4 italic">No trips</p>
                 ) : (
                   columnTrips.map(trip => {
                     const isDragging = draggedTrip?.id === trip.id
@@ -470,11 +470,11 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                   <span className="text-gray-500 dark:text-gray-400">
                     Global rate: <strong>1€ = {pricingDefaults.eur_mzn_rate} MZN</strong>
                   </span>
-                  <span className="text-gray-400 dark:text-gray-500">|</span>
+                  <span className="text-gray-400 dark:text-gray-400">|</span>
                   <span className="text-gray-500 dark:text-gray-400">
                     MZN cost: <strong>{(editTrip.price_driver_mzn + editTrip.margin_manager_mzn).toLocaleString()}</strong>
                   </span>
-                  <span className="text-gray-400 dark:text-gray-500">|</span>
+                  <span className="text-gray-400 dark:text-gray-400">|</span>
                   <span className="font-semibold text-emerald-700 dark:text-emerald-400">
                     Centre margin: {computeTaxiMarginEur(editTrip, pricingDefaults.eur_mzn_rate)}€
                   </span>

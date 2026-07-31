@@ -88,7 +88,7 @@ function App() {
   if (sharedLink === undefined) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <div className="text-gray-400 dark:text-gray-500 text-lg">Loading…</div>
+        <div className="text-gray-400 dark:text-gray-400 text-lg">Loading…</div>
       </div>
     )
   }
@@ -109,7 +109,7 @@ function App() {
   if (session === undefined) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <div className="text-gray-400 dark:text-gray-500 text-lg">Loading…</div>
+        <div className="text-gray-400 dark:text-gray-400 text-lg">Loading…</div>
       </div>
     )
   }

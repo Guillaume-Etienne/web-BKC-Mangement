@@ -153,7 +153,7 @@ export default function ForecastSharePage() {
                         className={`absolute w-full border-t flex items-start justify-end pr-1.5 ${isHour ? 'border-gray-300 dark:border-gray-700' : 'border-gray-100 dark:border-gray-800'}`}
                         style={{ top: i * SLOT_H, height: SLOT_H }}
                       >
-                        {isHour && <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium -mt-1.5">{slotToTime(i, startHour)}</span>}
+                        {isHour && <span className="text-[10px] text-gray-400 dark:text-gray-400 font-medium -mt-1.5">{slotToTime(i, startHour)}</span>}
                       </div>
                     )
                   })}
@@ -249,7 +249,7 @@ export default function ForecastSharePage() {
                 </div>
               )
             })}
-            {dayRentals.length === 0 && <p className="text-xs text-gray-400 dark:text-gray-500 italic">No rentals planned</p>}
+            {dayRentals.length === 0 && <p className="text-xs text-gray-400 dark:text-gray-400 italic">No rentals planned</p>}
           </div>
         </div>
       </div>

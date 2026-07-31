@@ -83,17 +83,17 @@ export default function CollectionsModal({ rows, clients, onClose, onOpenBooking
                   onClick={() => toggle(g.key)}
                   className="w-full flex items-center gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 text-left"
                 >
-                  <span className="text-gray-400 dark:text-gray-500 text-xs w-3">{open[g.key] ? '▾' : '▸'}</span>
+                  <span className="text-gray-400 dark:text-gray-400 text-xs w-3">{open[g.key] ? '▾' : '▸'}</span>
                   <span className={`w-2 h-2 rounded-full ${g.dot}`} />
                   <span className="font-semibold text-sm text-gray-800 dark:text-gray-200">{g.label}</span>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">— {g.hint}</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-400">— {g.hint}</span>
                   <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">{list.length} booking{list.length !== 1 ? 's' : ''}</span>
                   <span className="font-bold text-sm text-amber-700 dark:text-amber-400 w-20 text-right">{fmtEur(subtotal)}</span>
                 </button>
 
                 {open[g.key] && (
                   list.length === 0 ? (
-                    <p className="px-4 py-3 text-sm text-gray-400 dark:text-gray-500">Nothing to collect here 🎉</p>
+                    <p className="px-4 py-3 text-sm text-gray-400 dark:text-gray-400">Nothing to collect here 🎉</p>
                   ) : (
                     <ul className="divide-y divide-gray-100 dark:divide-gray-800">
                       {list.map(r => {
@@ -106,7 +106,7 @@ export default function CollectionsModal({ rows, clients, onClose, onOpenBooking
                             >
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                                  {onOpenBooking && <span className="text-gray-300 dark:text-gray-600 mr-1">↗</span>}
+                                  {onOpenBooking && <span className="text-gray-300 dark:text-gray-500 mr-1">↗</span>}
                                   {r.client ? `${r.client.first_name} ${r.client.last_name}` : '—'}
                                   <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[r.status]}`}>{r.status}</span>
                                 </p>
@@ -118,7 +118,7 @@ export default function CollectionsModal({ rows, clients, onClose, onOpenBooking
                               </div>
                               <div className="text-right shrink-0">
                                 <p className="text-sm font-bold text-amber-700 dark:text-amber-400">{fmtEur(r.due)}</p>
-                                <p className="text-xs text-gray-400 dark:text-gray-500">{fmtEur(r.paid)} / {fmtEur(r.total)} paid</p>
+                                <p className="text-xs text-gray-400 dark:text-gray-400">{fmtEur(r.paid)} / {fmtEur(r.total)} paid</p>
                               </div>
                             </button>
                           </li>

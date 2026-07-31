@@ -327,7 +327,7 @@ export default function HousesTab() {
         </div>
 
         {houses.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 dark:text-gray-500 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
+          <div className="text-center py-12 text-gray-400 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
             <p className="text-4xl mb-2">🏠</p>
             <p className="text-sm">No houses yet</p>
           </div>
@@ -350,7 +350,7 @@ export default function HousesTab() {
                         <span>B: {roomB ? getRate(roomB.id) : '—'}</span>
                         <span>Full: {getRate(`full_${house.id}`)}</span>
                       </div>
-                      <div className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                      <div className="mt-1 text-xs text-gray-400 dark:text-gray-400">
                         {houseRentalPeriods(house.id).length} rental period(s)
                       </div>
                     </div>
@@ -376,7 +376,7 @@ export default function HousesTab() {
       {/* ── Right: detail panel ──────────────────────────────────────────── */}
       <div className="xl:col-span-2">
         {!selected ? (
-          <div className="flex items-center justify-center h-64 text-gray-400 dark:text-gray-500 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
+          <div className="flex items-center justify-center h-64 text-gray-400 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
             <p className="text-sm">Select a house to view details</p>
           </div>
         ) : (
@@ -392,7 +392,7 @@ export default function HousesTab() {
                   )}
                 </p>
               </div>
-              <button onClick={() => setSelectedHouse(null)} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl">✕</button>
+              <button onClick={() => setSelectedHouse(null)} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 text-xl">✕</button>
             </div>
 
             {/* Rates */}
@@ -411,7 +411,7 @@ export default function HousesTab() {
               <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Rental Periods</h4>
 
               {houseRentalPeriods(selected.id).length === 0 ? (
-                <p className="text-sm text-gray-400 dark:text-gray-500 italic mb-3">No rental periods yet — house is unavailable for bookings.</p>
+                <p className="text-sm text-gray-400 dark:text-gray-400 italic mb-3">No rental periods yet — house is unavailable for bookings.</p>
               ) : (
                 <div className="space-y-2 mb-4">
                   {houseRentalPeriods(selected.id).map(rp => (

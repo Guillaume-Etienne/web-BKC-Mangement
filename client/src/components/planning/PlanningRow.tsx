@@ -2,10 +2,16 @@ import type { Booking, BookingParticipant } from '../../types/database'
 import type { DragState, DragMode } from '../../hooks/useBookingDrag'
 import { CELL_W } from '../../hooks/useBookingDrag'
 
+// Bar fill + the text that sits on it. The guest name used to be white on every
+// bar, which is the least readable choice these fills allow: 2.5:1 on emerald,
+// 1.7:1 on amber — unreadable on a phone in the sun, which is where this screen
+// is actually used. Dark text on the same fills reads at 7:1 and 10:1, so the
+// colour language (emerald = confirmed, amber = provisional) is untouched.
 const statusColors: Record<string, string> = {
-  confirmed: 'bg-emerald-500',
-  provisional: 'bg-amber-400',
-  cancelled: 'bg-gray-300 dark:bg-gray-600',
+  confirmed:   'bg-emerald-500 text-gray-900',
+  provisional: 'bg-amber-400 text-gray-900',
+  // The cancelled bar is the one that flips with the theme, so its text does too.
+  cancelled:   'bg-gray-300 text-gray-900 dark:bg-gray-600 dark:text-gray-100',
 }
 
 interface PlanningRowProps {
@@ -100,7 +106,7 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
           return (
             <div
               key={seg.booking.id}
-              className={`absolute top-0.5 h-6 rounded ${statusColors[seg.booking.status]} text-white text-xs flex items-center overflow-hidden whitespace-nowrap ${
+              className={`absolute top-0.5 h-6 rounded ${statusColors[seg.booking.status]} text-xs flex items-center overflow-hidden whitespace-nowrap ${
                 isDragging ? 'opacity-70 shadow-lg z-10' : ''
               }`}
               style={{ left: `${leftPx}px`, width: `${widthPx}px`, cursor: isDragging ? 'grabbing' : 'grab' }}

@@ -91,7 +91,7 @@ function StepBar({ current, onGoto, maxReached }: StepBarProps) {
               type="button"
               onClick={() => reachable && onGoto(s.n)}
               className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors
-                ${active ? 'bg-blue-600 text-white' : done ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800' : reachable ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700' : 'bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-default'}`}
+                ${active ? 'bg-blue-600 text-white' : done ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800' : reachable ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700' : 'bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-500 cursor-default'}`}
             >
               <span>{done ? '✓' : s.icon}</span>
               <span className="hidden sm:block">{s.label}</span>
@@ -112,7 +112,7 @@ function Field({ label, children, hint }: { label: string; children: React.React
     <div>
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
       {children}
-      {hint && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{hint}</p>}
+      {hint && <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">{hint}</p>}
     </div>
   )
 }
@@ -200,7 +200,7 @@ function ParticipantRow({ p, clients, onChange, onRemove }: ParticipantRowProps)
               🔗 {linkedClient.first_name} {linkedClient.last_name}
             </span>
             <button type="button" onClick={unlink}
-              className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 shrink-0">Unlink</button>
+              className="text-xs text-gray-400 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 shrink-0">Unlink</button>
           </div>
         ) : (
           <div className="relative">
@@ -220,7 +220,7 @@ function ParticipantRow({ p, clients, onChange, onRemove }: ParticipantRowProps)
                     onMouseDown={() => linkClient(c)}
                     className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-950/40 flex items-center justify-between gap-2">
                     <span className="font-medium">{c.first_name} {c.last_name}</span>
-                    {c.kite_level && <span className="text-gray-400 dark:text-gray-500 capitalize">{c.kite_level}</span>}
+                    {c.kite_level && <span className="text-gray-400 dark:text-gray-400 capitalize">{c.kite_level}</span>}
                   </button>
                 ))}
               </div>
@@ -244,7 +244,7 @@ function ParticipantRow({ p, clients, onChange, onRemove }: ParticipantRowProps)
 
       {/* Kite level + remove */}
       <div className="flex flex-wrap items-center gap-1 gap-y-1">
-        <span className="text-xs text-gray-400 dark:text-gray-500 mr-0.5">Kite:</span>
+        <span className="text-xs text-gray-400 dark:text-gray-400 mr-0.5">Kite:</span>
         {(['beg-total', 'beg-bodydrag', 'beg-waterstart', 'intermediate', 'advanced'] as const).map(lvl => (
           <button key={lvl} type="button"
             onClick={() => onChange({ kite_level: p.kite_level === lvl ? '' : lvl })}
@@ -413,7 +413,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
             <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">
               {isEditing ? 'Edit booking' : 'New booking'}
             </h2>
-            <button onClick={onCancel} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-bold text-xl w-8 h-8 flex items-center justify-center">✕</button>
+            <button onClick={onCancel} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-bold text-xl w-8 h-8 flex items-center justify-center">✕</button>
           </div>
           <StepBar current={step} onGoto={goTo} maxReached={maxReached} />
         </div>
@@ -434,9 +434,9 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                   </Field>
                   <div className="space-y-1.5 max-h-52 overflow-y-auto">
                     {clientsLoading ? (
-                      <p className="text-sm text-gray-400 dark:text-gray-500 italic px-1 py-2">Loading clients…</p>
+                      <p className="text-sm text-gray-400 dark:text-gray-400 italic px-1 py-2">Loading clients…</p>
                     ) : filteredClients.length === 0 ? (
-                      <p className="text-sm text-gray-400 dark:text-gray-500 italic px-1">No client found.</p>
+                      <p className="text-sm text-gray-400 dark:text-gray-400 italic px-1">No client found.</p>
                     ) : filteredClients.map(c => (
                       <button key={c.id} type="button"
                         onClick={() => update({ client_id: c.id })}
@@ -444,7 +444,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                           ${d.client_id === c.id ? 'border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-400' : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200'}`}
                       >
                         <div className="font-medium">{c.first_name} {c.last_name}</div>
-                        <div className="text-xs text-gray-400 dark:text-gray-500">{c.email ?? c.phone ?? c.nationality ?? '—'}</div>
+                        <div className="text-xs text-gray-400 dark:text-gray-400">{c.email ?? c.phone ?? c.nationality ?? '—'}</div>
                       </button>
                     ))}
                   </div>
@@ -540,7 +540,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
               {/* Visa / Mozambique dates */}
               <div className="border-t pt-4">
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">🛂 Mozambique — visa dates</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">Entry/exit dates in the country, used for the visa invitation letter. Can differ from the center stay.</p>
+                <p className="text-xs text-gray-400 dark:text-gray-400 mb-2">Entry/exit dates in the country, used for the visa invitation letter. Can differ from the center stay.</p>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Entry date">
                     <input type="date" value={d.visa_entry_date}
@@ -556,7 +556,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
               <Field label="Rooms" hint="Optional — can be assigned later in the planning view">
                 <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
                   {d.room_ids.length === 0 && (
-                    <p className="text-xs text-gray-400 dark:text-gray-500 italic px-1">No room selected — click to assign.</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-400 italic px-1">No room selected — click to assign.</p>
                   )}
                   {(['house', 'bungalow', 'other'] as const).map(type => {
                     const typeAccos = roomsByAcco.filter(g => g.acc.type === type)
@@ -564,7 +564,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                     const typeLabel = type === 'house' ? '🏠 Houses' : type === 'bungalow' ? '🏡 Bungalows' : '🏨 Other'
                     return (
                       <div key={type}>
-                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1 mb-1 mt-1">{typeLabel}</p>
+                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-400 uppercase tracking-widest px-1 mb-1 mt-1">{typeLabel}</p>
                         {typeAccos.map(({ acc, rooms: accRooms }) => {
                           const isHouse = acc.type === 'house'
                           const accRoomIds = accRooms.map(r => r.id)
@@ -573,7 +573,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                           return (
                             <div key={acc.id} className="mb-2">
                               <div className="flex items-center gap-2 px-1 mb-1">
-                                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{acc.name}</p>
+                                <p className="text-xs font-semibold text-gray-400 dark:text-gray-400 uppercase tracking-wide">{acc.name}</p>
                                 {isHouse && availability === false && (
                                   <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-1.5 py-0.5 rounded font-medium">Not rented</span>
                                 )}
@@ -600,7 +600,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                                           : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 text-gray-700 dark:text-gray-300'}`}>
                                       <span>
                                         {acc.name} / {r.name}
-                                        <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">capacity {r.capacity}</span>
+                                        <span className="text-xs text-gray-400 dark:text-gray-400 ml-2">capacity {r.capacity}</span>
                                       </span>
                                       {conflicted && !selected && (
                                         <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-1.5 py-0.5 rounded font-medium shrink-0">⚠ Booked</span>
@@ -664,7 +664,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                               }}
                               className="w-20 px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
-                            <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">€/night</span>
+                            <span className="text-xs text-gray-400 dark:text-gray-400 shrink-0">€/night</span>
                             <span className="text-xs text-gray-500 dark:text-gray-400 w-16 text-right shrink-0">= {price * nights} €</span>
                           </div>
                         )
@@ -718,14 +718,14 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
                     Participants
-                    <span className="ml-2 font-normal text-gray-400 dark:text-gray-500">{d.participants.length} person{d.participants.length !== 1 ? 's' : ''}</span>
+                    <span className="ml-2 font-normal text-gray-400 dark:text-gray-400">{d.participants.length} person{d.participants.length !== 1 ? 's' : ''}</span>
                   </h3>
                   <button type="button" onClick={addParticipant}
                     className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-400 font-medium">+ Add</button>
                 </div>
 
                 {d.participants.length === 0 && (
-                  <p className="text-xs text-gray-400 dark:text-gray-500 italic">No participants yet. Add them for visa document generation.</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-400 italic">No participants yet. Add them for visa document generation.</p>
                 )}
 
                 <div className="space-y-2">
@@ -795,7 +795,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
               {!isEditing && (d.taxi_arrival || d.taxi_departure) && (
                 <div className="border-t pt-4">
                   <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2">🚕 Taxi driver</h3>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">Optional — pre-assigns this driver and their default prices to the arrival/departure trips. Editable later in the Taxi page.</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-400 mb-2">Optional — pre-assigns this driver and their default prices to the arrival/departure trips. Editable later in the Taxi page.</p>
                   <select value={d.taxi_driver_id ?? ''}
                     onChange={e => update({ taxi_driver_id: e.target.value || null })}
                     className={inputCls}>
@@ -832,7 +832,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
               </p>
 
               {d.participants.length === 0 && (
-                <p className="text-sm text-gray-400 dark:text-gray-500 italic">No travelers yet — add them in the Guests step first.</p>
+                <p className="text-sm text-gray-400 dark:text-gray-400 italic">No travelers yet — add them in the Guests step first.</p>
               )}
 
               <div className="space-y-3">
@@ -1601,7 +1601,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                   <tr key={b.id}
                     className={`border-b hover:brightness-95 cursor-pointer transition-colors ${rowBg}`}
                     onClick={() => openEdit(b)}>
-                    <td className="px-3 py-2 font-mono text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                    <td className="px-3 py-2 font-mono text-gray-400 dark:text-gray-400 whitespace-nowrap">
                       #{String(b.booking_number).padStart(3, '0')}
                     </td>
                     <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-200 whitespace-nowrap">
@@ -1628,21 +1628,21 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                       )}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => openEdit(b)} className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 mr-2">✏️</button>
-                      <button onClick={() => handleDelete(b.id)} className="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400">🗑️</button>
+                      <button onClick={() => openEdit(b)} className="text-gray-400 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 mr-2">✏️</button>
+                      <button onClick={() => handleDelete(b.id)} className="text-gray-400 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400">🗑️</button>
                     </td>
                   </tr>
                 )
               })}
               {filteredBookings.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500 text-sm">No bookings match this filter.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-400 text-sm">No bookings match this filter.</td></tr>
               )}
             </tbody>
           </table>
         </div>
 
         {/* Legend */}
-        <div className="hidden md:flex items-center gap-4 mt-2 text-xs text-gray-400 dark:text-gray-500">
+        <div className="hidden md:flex items-center gap-4 mt-2 text-xs text-gray-400 dark:text-gray-400">
           <span>Stay codes:</span>
           <span><b className="text-gray-500 dark:text-gray-400">G</b> guests · <b className="text-gray-500 dark:text-gray-400">N</b> nights · <b className="text-gray-500 dark:text-gray-400">LK</b> kite lessons · <b className="text-gray-500 dark:text-gray-400">LW</b> wing lessons · <b className="text-gray-500 dark:text-gray-400">R</b> rentals · <b className="text-gray-500 dark:text-gray-400">C</b> center access</span>
           <span className="ml-4 flex items-center gap-1"><span className="inline-block w-3 h-3 bg-blue-100 dark:bg-blue-900/30 border-l-2 border-blue-400 dark:border-blue-700 rounded-sm" /> Active now</span>
@@ -1656,7 +1656,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <p className="font-bold text-gray-800 dark:text-gray-200">
-                    <span className="font-mono text-gray-400 dark:text-gray-500 text-xs mr-1">#{String(b.booking_number).padStart(3, '0')}</span>
+                    <span className="font-mono text-gray-400 dark:text-gray-400 text-xs mr-1">#{String(b.booking_number).padStart(3, '0')}</span>
                     {getClientName(b.client_id)}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{getRoomLabel(b.id)}</p>

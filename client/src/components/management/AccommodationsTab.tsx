@@ -410,7 +410,7 @@ export default function AccommodationsTab() {
         </div>
 
         {accommodations.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 dark:text-gray-500 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
+          <div className="text-center py-12 text-gray-400 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
             <p className="text-4xl mb-2">🏠</p>
             <p className="text-sm">No accommodations yet</p>
           </div>
@@ -422,7 +422,7 @@ export default function AccommodationsTab() {
                   {TYPE_META[type].icon} {TYPE_META[type].plural} ({items.length})
                 </p>
                 {items.length === 0 ? (
-                  <p className="text-xs text-gray-400 dark:text-gray-500 italic ml-1">None</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-400 italic ml-1">None</p>
                 ) : (
                   <div className="space-y-2">
                     {items.map(acc => {
@@ -452,7 +452,7 @@ export default function AccommodationsTab() {
                                 )}
                               </div>
                               {acc.type === 'house' && (
-                                <div className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                                <div className="mt-0.5 text-xs text-gray-400 dark:text-gray-400">
                                   {accRentals(acc.id).length} rental period(s)
                                 </div>
                               )}
@@ -483,7 +483,7 @@ export default function AccommodationsTab() {
       {/* ── Right: detail panel ──────────────────────────────────────────── */}
       <div className="xl:col-span-2">
         {!selected ? (
-          <div className="flex items-center justify-center h-64 text-gray-400 dark:text-gray-500 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
+          <div className="flex items-center justify-center h-64 text-gray-400 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
             <p className="text-sm">Select an accommodation to view details</p>
           </div>
         ) : (
@@ -499,7 +499,7 @@ export default function AccommodationsTab() {
                   )}
                 </p>
               </div>
-              <button onClick={() => setSelected(null)} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl">✕</button>
+              <button onClick={() => setSelected(null)} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 text-xl">✕</button>
             </div>
 
             {/* Rates */}
@@ -521,7 +521,7 @@ export default function AccommodationsTab() {
                 <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Rental Periods</h4>
 
                 {accRentals(selected.id).length === 0 ? (
-                  <p className="text-sm text-gray-400 dark:text-gray-500 italic mb-3">No rental periods yet — house is unavailable for bookings.</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-400 italic mb-3">No rental periods yet — house is unavailable for bookings.</p>
                 ) : (
                   <div className="space-y-2 mb-4">
                     {accRentals(selected.id).map(rp => (

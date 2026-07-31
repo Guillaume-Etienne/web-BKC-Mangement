@@ -62,7 +62,7 @@ export default function CashFlow({ data }: Props) {
           <div className="flex items-center gap-2 text-sm">
             <input type="month" value={customFrom} onChange={e => setFrom(e.target.value)}
               className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
-            <span className="text-gray-400 dark:text-gray-500">→</span>
+            <span className="text-gray-400 dark:text-gray-400">→</span>
             <input type="month" value={customTo} onChange={e => setTo(e.target.value)}
               className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
@@ -79,9 +79,9 @@ export default function CashFlow({ data }: Props) {
           { label: 'Net cash',    value: totals.net,       color: totals.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400', note: 'Collected − all outflows' },
         ].map(k => (
           <div key={k.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 py-4">
-            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">{k.label}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1">{k.label}</p>
             <p className={`text-xl font-bold ${k.color}`}>{fmtEur(k.value)}</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{k.note}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">{k.note}</p>
             {'warn' in k && k.warn && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{k.warn}</p>}
           </div>
         ))}
@@ -100,7 +100,7 @@ export default function CashFlow({ data }: Props) {
               ] as { id: ChartType; label: string }[]).map(o => (
                 <button key={o.id} onClick={() => setChart(o.id)}
                   className={`px-3 py-1 text-xs rounded font-mono font-bold transition-colors ${
-                    chartType === o.id ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400'
+                    chartType === o.id ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400'
                   }`}>
                   {o.label}
                 </button>
@@ -228,7 +228,7 @@ export default function CashFlow({ data }: Props) {
               <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Instructors</th>
               <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Taxi out</th>
               <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Net cash</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-400 dark:text-gray-500">Running</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-400 dark:text-gray-400">Running</th>
             </tr>
           </thead>
           <tbody>
@@ -237,7 +237,7 @@ export default function CashFlow({ data }: Props) {
               return (
                 <tr key={r.month} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                   <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{fmtMonth(r.month)}</td>
-                  <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500">{r.billed ? fmtEur(r.billed) : '–'}</td>
+                  <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-400">{r.billed ? fmtEur(r.billed) : '–'}</td>
                   <td className="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400 font-medium">
                     {r.collected ? `+ ${fmtEur(r.collected)}` : '–'}
                   </td>
@@ -269,7 +269,7 @@ export default function CashFlow({ data }: Props) {
           <tfoot className="bg-gray-50 dark:bg-gray-800 border-t">
             <tr className="font-semibold">
               <td className="px-4 py-3 text-gray-700 dark:text-gray-300">Total</td>
-              <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500">{fmtEur(totals.billed)}</td>
+              <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-400">{fmtEur(totals.billed)}</td>
               <td className="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">+ {fmtEur(totals.collected)}</td>
               <td className="px-4 py-3 text-right text-blue-600 dark:text-blue-400">+ {fmtEur(totals.palmIn)}</td>
               <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.expenses)}</td>
@@ -286,7 +286,7 @@ export default function CashFlow({ data }: Props) {
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 text-xs text-gray-400 dark:text-gray-500">
+      <div className="flex flex-wrap gap-4 text-xs text-gray-400 dark:text-gray-400">
         <span><strong>Billed</strong> = computed total of active bookings (by check-in month)</span>
         <span><strong>Collected</strong> = actual payments received (by payment date)</span>
         <span><strong>Taxi out</strong> = drivers (paid per done trip) + manager payments, MZN→€ at global rate</span>

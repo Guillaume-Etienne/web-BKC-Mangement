@@ -202,7 +202,7 @@ export default function TaxiPage() {
             </div>
 
             {loading && trips.length === 0 ? (
-              <div className="text-center py-16 text-gray-400 dark:text-gray-500">Loading…</div>
+              <div className="text-center py-16 text-gray-400 dark:text-gray-400">Loading…</div>
             ) : planningView === 'list' ? (
               <TaxiListView
                 trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings} bookingParticipants={bookingParticipants}
@@ -244,7 +244,7 @@ export default function TaxiPage() {
             </div>
 
             {driversLoading ? (
-              <div className="text-center py-16 text-gray-400 dark:text-gray-500">Loading…</div>
+              <div className="text-center py-16 text-gray-400 dark:text-gray-400">Loading…</div>
             ) : (
               <>
                 {/* Driver selector cards */}
@@ -264,7 +264,7 @@ export default function TaxiPage() {
                         }`}
                       >
                         <p className={`font-bold text-base ${isViewing ? 'text-white' : 'text-gray-800 dark:text-gray-200'}`}>{driver.name}</p>
-                        <p className={`text-xs mt-0.5 truncate ${isViewing ? 'text-blue-200 dark:text-blue-300' : 'text-gray-400 dark:text-gray-500'}`}>{driver.vehicle ?? 'No vehicle'}</p>
+                        <p className={`text-xs mt-0.5 truncate ${isViewing ? 'text-blue-200 dark:text-blue-300' : 'text-gray-400 dark:text-gray-400'}`}>{driver.vehicle ?? 'No vehicle'}</p>
                         <div className="mt-2 flex items-center gap-2">
                           <span className={`text-xs px-1.5 py-0.5 rounded ${isViewing ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
                             {driverTrips.length} trip{driverTrips.length !== 1 ? 's' : ''}
