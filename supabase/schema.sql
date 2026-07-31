@@ -287,6 +287,18 @@ CREATE TABLE equipment_rentals (
 CREATE INDEX idx_rentals_date    ON equipment_rentals(date);
 CREATE INDEX idx_rentals_booking ON equipment_rentals(booking_id);
 
+-- A lesson never bills gear separately, so the "value" a kite/board brings to a
+-- lesson is estimated from the lesson's real margin (client price − instructor
+-- pay). These three knobs tune that estimate — see EquipmentPage's revenue tab.
+-- Single row, same pattern as taxi_pricing_defaults.
+CREATE TABLE equipment_pricing_defaults (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  equipment_share   NUMERIC(4,3) NOT NULL DEFAULT 0.35,  -- of the lesson's margin, attributed to gear overall
+  other_gear_share  NUMERIC(4,3) NOT NULL DEFAULT 0.30,  -- of that, reserved for untracked accessories (bar, helmet, harness, vest, radio)
+  kite_board_ratio  NUMERIC(4,2) NOT NULL DEFAULT 2.0,   -- kite weight vs board in what's left
+  updated_at        TIMESTAMPTZ DEFAULT now()
+);
+
 
 -- ── Taxis ─────────────────────────────────────────────────────────────────────
 
@@ -636,7 +648,7 @@ BEGIN
     'instructors', 'lessons',
     'day_activities', 'dining_events',
     'price_items',
-    'equipment', 'equipment_rentals',
+    'equipment', 'equipment_rentals', 'equipment_pricing_defaults',
     'taxi_drivers', 'taxi_trips', 'taxi_pricing_defaults', 'taxi_manager_payments',
     'shared_links', 'form_submissions',
     'activity_providers', 'activity_bookings', 'activity_payments',

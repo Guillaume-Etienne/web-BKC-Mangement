@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useEquipment, useEquipmentRentals } from '../hooks/useEquipment'
 import { useLessons } from '../hooks/useLessons'
@@ -7,7 +7,7 @@ import { useTable } from '../hooks/useSupabase'
 import { getLessonClientRate, getInstructorRate } from '../components/accounting/utils'
 import type {
   Equipment, EquipmentRental, EquipmentCategory, EquipmentCondition, Lesson, RentalSlot,
-  Instructor, PriceItem, LessonRateOverride,
+  Instructor, PriceItem, LessonRateOverride, EquipmentPricingDefaults,
 } from '../types/database'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -17,11 +17,12 @@ const RENTAL_SLOT_HOURS: Record<RentalSlot, number> = { morning: 3, afternoon: 3
 
 // A lesson doesn't bill gear separately, so its "equipment value" is a share of
 // what's left once the instructor is paid — split kite / board / everything else
-// we don't track a fiche for (bar, helmet, harness, vest, radio). Confirmed with
-// gui: kite:board follows the existing rental catalogue ratio (40 € vs 20 €).
-const EQUIPMENT_SHARE   = 0.35  // of the lesson's margin (client price − instructor pay)
-const OTHER_GEAR_SHARE  = 0.30  // of that share, reserved for untracked accessories
-const KITE_BOARD_RATIO  = 2     // kite weighs ~2× a board in the split
+// we don't track a fiche for (bar, helmet, harness, vest, radio). Tunable from
+// the CA tab (equipment_pricing_defaults); these are only the pre-migration /
+// not-yet-saved fallback, matching what gui validated in the mockup.
+const DEFAULT_EQUIPMENT_SHARE  = 0.35  // of the lesson's margin (client price − instructor pay)
+const DEFAULT_OTHER_GEAR_SHARE = 0.30  // of that share, reserved for untracked accessories
+const DEFAULT_KITE_BOARD_RATIO = 2     // kite weighs ~2× a board in the split
 
 function lessonsFor(eq: Equipment, lessons: Lesson[]): Lesson[] {
   const field = eq.category === 'kite' ? 'kite_id' : 'board_id'
@@ -38,30 +39,38 @@ function getUseHours(eq: Equipment, rentals: EquipmentRental[], lessons: Lesson[
   return rentalHours + lessonHours
 }
 
+interface EquipmentPricingModel {
+  equipmentShare: number
+  otherGearShare: number
+  kiteBoardRatio: number
+}
+
 /** €/h attributed to the kite and to the board (or surf/foilboard — same slot as
  *  board in the lesson form) for one lesson, from its real client price and real
  *  instructor pay. */
 function lessonEquipmentRates(
-  lesson: Lesson, instructors: Instructor[], priceItems: PriceItem[], overrides: LessonRateOverride[]
+  lesson: Lesson, instructors: Instructor[], priceItems: PriceItem[], overrides: LessonRateOverride[],
+  model: EquipmentPricingModel
 ): { kite: number; board: number } {
   const instructor = instructors.find(i => i.id === lesson.instructor_id)
   if (!instructor) return { kite: 0, board: 0 }
   const margin = Math.max(0, getLessonClientRate(lesson, priceItems) - getInstructorRate(lesson, instructor, overrides))
-  const kiteBoardPool = margin * EQUIPMENT_SHARE * (1 - OTHER_GEAR_SHARE)
+  const kiteBoardPool = margin * model.equipmentShare * (1 - model.otherGearShare)
   return {
-    kite:  kiteBoardPool * KITE_BOARD_RATIO / (KITE_BOARD_RATIO + 1),
-    board: kiteBoardPool / (KITE_BOARD_RATIO + 1),
+    kite:  kiteBoardPool * model.kiteBoardRatio / (model.kiteBoardRatio + 1),
+    board: kiteBoardPool / (model.kiteBoardRatio + 1),
   }
 }
 
 /** Real rental revenue + estimated lesson-attributed value for one piece of gear. */
 function getEquipmentRevenue(
   eq: Equipment, rentals: EquipmentRental[], lessons: Lesson[],
-  instructors: Instructor[], priceItems: PriceItem[], overrides: LessonRateOverride[]
+  instructors: Instructor[], priceItems: PriceItem[], overrides: LessonRateOverride[],
+  model: EquipmentPricingModel
 ): { real: number; est: number; total: number; hours: number; perHour: number } {
   const real = rentals.filter(r => r.equipment_id === eq.id).reduce((sum, r) => sum + r.price, 0)
   const est = lessonsFor(eq, lessons).reduce((sum, l) => {
-    const rates = lessonEquipmentRates(l, instructors, priceItems, overrides)
+    const rates = lessonEquipmentRates(l, instructors, priceItems, overrides, model)
     return sum + (eq.category === 'kite' ? rates.kite : rates.board) * l.duration_hours
   }, 0)
   const hours = getUseHours(eq, rentals, lessons)
@@ -125,8 +134,62 @@ export default function EquipmentPage() {
   const { data: instructors } = useInstructors()
   const { data: priceItems } = useTable<PriceItem>('price_items')
   const { data: rateOverrides } = useTable<LessonRateOverride>('lesson_rate_overrides')
+  const { data: pricingRows, refresh: refreshPricingDefaults } =
+    useTable<EquipmentPricingDefaults>('equipment_pricing_defaults', { order: 'updated_at', ascending: false })
+  const pricingDefaults = pricingRows[0] ?? null
 
   const [activeTab, setActiveTab]           = useState<'inventory' | 'rentals' | 'revenue'>('inventory')
+
+  // ── Equipment pricing model (CA tab) — percent in the UI, fraction in the model ──
+  const [equipmentSharePct, setEquipmentSharePct] = useState(DEFAULT_EQUIPMENT_SHARE * 100)
+  const [otherGearSharePct, setOtherGearSharePct] = useState(DEFAULT_OTHER_GEAR_SHARE * 100)
+  const [kiteBoardRatio,    setKiteBoardRatio]    = useState(DEFAULT_KITE_BOARD_RATIO)
+  const [pricingDirty,      setPricingDirty]      = useState(false)
+  const [pricingSaving,     setPricingSaving]     = useState(false)
+
+  useEffect(() => {
+    if (pricingDefaults) {
+      setEquipmentSharePct(pricingDefaults.equipment_share * 100)
+      setOtherGearSharePct(pricingDefaults.other_gear_share * 100)
+      setKiteBoardRatio(pricingDefaults.kite_board_ratio)
+      setPricingDirty(false)
+    }
+  }, [pricingDefaults?.id, pricingDefaults?.updated_at])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pricingModel: EquipmentPricingModel = {
+    equipmentShare: equipmentSharePct / 100,
+    otherGearShare: otherGearSharePct / 100,
+    kiteBoardRatio,
+  }
+
+  async function savePricingDefaults() {
+    setPricingSaving(true)
+    const payload = {
+      equipment_share: equipmentSharePct / 100,
+      other_gear_share: otherGearSharePct / 100,
+      kite_board_ratio: kiteBoardRatio,
+      updated_at: new Date().toISOString(),
+    }
+    const { error } = pricingDefaults
+      ? await supabase.from('equipment_pricing_defaults').update(payload).eq('id', pricingDefaults.id)
+      : await supabase.from('equipment_pricing_defaults').insert([payload])
+    setPricingSaving(false)
+    if (error) { alert('Erreur : ' + error.message); return }
+    refreshPricingDefaults()
+  }
+
+  function cancelPricingDefaults() {
+    if (pricingDefaults) {
+      setEquipmentSharePct(pricingDefaults.equipment_share * 100)
+      setOtherGearSharePct(pricingDefaults.other_gear_share * 100)
+      setKiteBoardRatio(pricingDefaults.kite_board_ratio)
+    } else {
+      setEquipmentSharePct(DEFAULT_EQUIPMENT_SHARE * 100)
+      setOtherGearSharePct(DEFAULT_OTHER_GEAR_SHARE * 100)
+      setKiteBoardRatio(DEFAULT_KITE_BOARD_RATIO)
+    }
+    setPricingDirty(false)
+  }
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<EquipmentCategory | 'all'>('all')
   const [editModal, setEditModal]           = useState<EditModalState>({ open: false, equipment: null, formData: {} })
@@ -224,7 +287,7 @@ export default function EquipmentPage() {
 
   const revenueRows = equipment
     .filter(eq => eq.is_active)
-    .map(eq => ({ eq, ...getEquipmentRevenue(eq, rentals, lessons, instructors, priceItems, rateOverrides) }))
+    .map(eq => ({ eq, ...getEquipmentRevenue(eq, rentals, lessons, instructors, priceItems, rateOverrides, pricingModel) }))
     .sort((a, b) => b.total - a.total)
 
   const revenueTotalReal  = revenueRows.reduce((sum, r) => sum + r.real, 0)
@@ -604,6 +667,74 @@ export default function EquipmentPage() {
             paie moniteur) attribuée au kite ou à la planche, le reste allant aux accessoires non
             suivis (barre, casque, harnais, gilet, radio) et au centre. Une estimation, jamais un
             encaissement réel.
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-5">
+            <h2 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Régler le modèle d'estimation</h2>
+            {!pricingDefaults && (
+              <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded px-2 py-1.5 mb-3">
+                ⚠️ Pas encore enregistré en base (migration <code>equipment_pricing_defaults</code> pas
+                encore passée) — valeurs par défaut utilisées, Save créera la ligne.
+              </p>
+            )}
+            <div className="grid sm:grid-cols-3 gap-5">
+              <div>
+                <label className="flex justify-between text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Part de la marge attribuée au matériel
+                  <span className="font-bold text-gray-900 dark:text-gray-100">{Math.round(equipmentSharePct)} %</span>
+                </label>
+                <input
+                  type="range" min={0} max={70} step={1} value={equipmentSharePct}
+                  onChange={e => { setEquipmentSharePct(+e.target.value); setPricingDirty(true) }}
+                  className="w-full accent-blue-600"
+                />
+              </div>
+              <div>
+                <label className="flex justify-between text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Part réservée aux accessoires non suivis
+                  <span className="font-bold text-gray-900 dark:text-gray-100">{Math.round(otherGearSharePct)} %</span>
+                </label>
+                <input
+                  type="range" min={0} max={60} step={5} value={otherGearSharePct}
+                  onChange={e => { setOtherGearSharePct(+e.target.value); setPricingDirty(true) }}
+                  className="w-full accent-blue-600"
+                />
+              </div>
+              <div>
+                <label className="flex justify-between text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Poids kite vs planche
+                  <span className="font-bold text-gray-900 dark:text-gray-100">{kiteBoardRatio.toFixed(1)}×</span>
+                </label>
+                <input
+                  type="range" min={1} max={4} step={0.5} value={kiteBoardRatio}
+                  onChange={e => { setKiteBoardRatio(+e.target.value); setPricingDirty(true) }}
+                  className="w-full accent-blue-600"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-3 mt-4 pt-3 border-t dark:border-gray-800">
+              {pricingDirty ? (
+                <span className="text-xs font-medium text-amber-600 dark:text-amber-400">● Modifications non enregistrées</span>
+              ) : (
+                <span className="text-xs text-gray-400 dark:text-gray-500">✓ Tout est enregistré</span>
+              )}
+              <div className="flex gap-2 ml-auto">
+                <button
+                  onClick={cancelPricingDefaults}
+                  disabled={!pricingDirty || pricingSaving}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-40"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={savePricingDefaults}
+                  disabled={!pricingDirty || pricingSaving}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-40"
+                >
+                  {pricingSaving ? 'Enregistrement…' : '💾 Save'}
+                </button>
+              </div>
+            </div>
           </div>
 
           {revenueRows.length === 0 ? (

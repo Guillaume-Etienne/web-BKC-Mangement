@@ -442,6 +442,16 @@ export interface EquipmentRental {
   notes: string | null
 }
 
+/** Tuning knobs for the Equipment page's "CA" tab — how much of a lesson's
+ *  margin is estimated as the kite/board's contribution. Single row. */
+export interface EquipmentPricingDefaults {
+  id: string
+  equipment_share: number   // of the lesson's margin, attributed to gear overall
+  other_gear_share: number  // of that, reserved for untracked accessories
+  kite_board_ratio: number  // kite weight vs board in what's left
+  updated_at: string
+}
+
 // ─── Accounting ───────────────────────────────────────────────────────────────
 
 // Season (mid-Sept → mid-March, one per year, variable dates)
