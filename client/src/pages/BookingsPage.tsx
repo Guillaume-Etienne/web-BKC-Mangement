@@ -1330,18 +1330,32 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       setBookingParticipants(prev => prev.filter(p => p.booking_id !== bookingId))
     }
 
+    // Steps 4–7 each write a different table, and none of them used to be
+    // checked: a booking could come out of a "successful" save with no rooms,
+    // no frozen prices, or a payment that was never recorded. Failures are
+    // collected and shown together rather than swallowed.
+    const problems: string[] = []
+
     // 4. Booking rooms (delete all + re-insert)
-    await supabase.from('booking_rooms').delete().eq('booking_id', bookingId)
-    if (data.room_ids.length > 0) {
-      await supabase.from('booking_rooms').insert(
+    //    Destructive on purpose: the old set goes before the new one lands, so a
+    //    failed re-insert leaves the booking with NO rooms. That has to be said
+    //    out loud — not discovered weeks later in the planning.
+    const { error: roomsDelErr } = await supabase.from('booking_rooms').delete().eq('booking_id', bookingId)
+    if (roomsDelErr) problems.push(`Rooms were not updated (${roomsDelErr.message}). The previous ones are still in place.`)
+    else if (data.room_ids.length > 0) {
+      const { error: roomsInsErr } = await supabase.from('booking_rooms').insert(
         data.room_ids.map(rid => ({ booking_id: bookingId, room_id: rid }))
       )
+      if (roomsInsErr) problems.push(`⚠️ THIS BOOKING NOW HAS NO ROOMS (${roomsInsErr.message}). Re-open it and set them again.`)
     }
 
     // 5. Booking room prices (delete all + re-insert)
-    await supabase.from('booking_room_prices').delete().eq('booking_id', bookingId)
-    if (data.room_ids.length > 0) {
-      await supabase.from('booking_room_prices').insert(
+    //    Same shape, and these are the frozen prices: losing them makes the
+    //    booking fall back to today's rates instead of the agreed ones.
+    const { error: pricesDelErr } = await supabase.from('booking_room_prices').delete().eq('booking_id', bookingId)
+    if (pricesDelErr) problems.push(`Room prices were not updated (${pricesDelErr.message}). The previous ones are still in place.`)
+    else if (data.room_ids.length > 0) {
+      const { error: pricesInsErr } = await supabase.from('booking_room_prices').insert(
         data.room_ids.map(rid => ({
           booking_id: bookingId,
           room_id: rid,
@@ -1349,6 +1363,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           override_note: null,
         }))
       )
+      if (pricesInsErr) problems.push(`⚠️ THIS BOOKING HAS NO FROZEN PRICES (${pricesInsErr.message}). Re-open it and set them again, or it will be billed at today's rates.`)
     }
 
     // 6. Auto-create an unverified payment for any INCREASE in "amount already paid".
@@ -1358,7 +1373,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     const prevPaid  = isNew ? 0 : (wizard.editing?.amount_paid ?? 0)
     const paidDelta = data.amount_paid - prevPaid
     if (paidDelta > 0) {
-      await supabase.from('payments').insert({
+      const { error: payErr } = await supabase.from('payments').insert({
         booking_id:  bookingId,
         date:        todayISO(),
         amount:      paidDelta,
@@ -1368,6 +1383,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
         is_discount: false,
         notes:       'Auto-created from booking — to verify',
       })
+      if (payErr) problems.push(`⚠️ THE ${paidDelta}€ PAYMENT WAS NOT RECORDED (${payErr.message}). Add it by hand in Accounting → Bookings.`)
     }
 
     // 7. Auto-create taxi trips (new bookings only)
@@ -1387,26 +1403,36 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
         margin_manager_mzn: driver?.default_manager_mzn ?? 0,
       }
       if (data.taxi_arrival) {
-        await supabase.from('taxi_trips').insert({
+        const { error: taxiInErr } = await supabase.from('taxi_trips').insert({
           ...taxiBase,
           date:       data.check_in,
           start_time: data.arrival_time || '00:00',
           type:       'aero-to-center',
         })
+        if (taxiInErr) problems.push(`The arrival transfer was not created (${taxiInErr.message}). Add it in Taxis.`)
       }
       if (data.taxi_departure) {
-        await supabase.from('taxi_trips').insert({
+        const { error: taxiOutErr } = await supabase.from('taxi_trips').insert({
           ...taxiBase,
           date:       data.check_out,
           start_time: data.departure_time || '00:00',
           type:       'center-to-aero',
         })
+        if (taxiOutErr) problems.push(`The departure transfer was not created (${taxiOutErr.message}). Add it in Taxis.`)
       }
     }
 
     refreshBookings()
     refreshBookingRooms()
     setSaving(false)
+
+    if (problems.length > 0) {
+      // The booking row itself saved (steps 1–3 return early on failure); it is
+      // the rows hanging off it that are missing. Keep the wizard open so the
+      // booking is right there to fix.
+      alert(`The booking was saved, but not everything went with it:\n\n${problems.map(p => `• ${p}`).join('\n\n')}`)
+      return
+    }
     closeWizard()
   }
 
