@@ -57,6 +57,16 @@ function clientEmail(b: Booking | undefined): string {
   return b?.client?.email ?? ''
 }
 
+function filterByClientName(bookings: Booking[], search: string): Booking[] {
+  const q = search.trim().toLowerCase()
+  if (!q) return bookings
+  return bookings.filter(b => {
+    const first = b.client?.first_name?.toLowerCase() ?? ''
+    const last  = b.client?.last_name?.toLowerCase() ?? ''
+    return first.includes(q) || last.includes(q) || `${first} ${last}`.includes(q)
+  })
+}
+
 // ── Email history display ──────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<EmailLog['status'], { bg: string; text: string; label: string }> = {
@@ -301,6 +311,38 @@ function SendEmailRow({
   )
 }
 
+// ── Booking picker (search + select) ───────────────────────────────────────────
+
+function BookingPicker({
+  bookings, search, onSearchChange, value, onChange,
+}: {
+  bookings: Booking[]
+  search: string
+  onSearchChange: (v: string) => void
+  value: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <input
+        type="text"
+        value={search}
+        onChange={e => onSearchChange(e.target.value)}
+        placeholder="🔍 Search by client name…"
+        className="w-full border rounded-lg px-3 py-2 text-sm bg-white"
+      />
+      <select value={value} onChange={e => onChange(e.target.value)}
+        className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+        {bookings.length === 0 ? (
+          <option value="" disabled>No booking matches "{search}"</option>
+        ) : (
+          bookings.map(b => <option key={b.id} value={b.id}>{bookingLabel(b)}</option>)
+        )}
+      </select>
+    </div>
+  )
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 type Tab = 'visa' | 'summary' | 'guide' | 'welcome' | 'templates'
@@ -316,6 +358,7 @@ export default function DocumentsPage() {
   const [visaBookingId,    setVisaBookingId]    = useState('')
   const [visaSearch,       setVisaSearch]       = useState('')
   const [summaryBookingId, setSummaryBookingId] = useState('')
+  const [summarySearch,    setSummarySearch]    = useState('')
   const [lang, setLang]                         = useState<Lang>('en')
   const [totalAmountStr,   setTotalAmountStr]   = useState('')
 
@@ -368,15 +411,8 @@ export default function DocumentsPage() {
   const effectiveVisaId    = visaBookingId    || activeBookings[0]?.id || ''
   const effectiveSummaryId = summaryBookingId || activeBookings[0]?.id || ''
 
-  const visaSearchBookings = (() => {
-    const q = visaSearch.trim().toLowerCase()
-    if (!q) return activeBookings
-    return activeBookings.filter(b => {
-      const first = b.client?.first_name?.toLowerCase() ?? ''
-      const last  = b.client?.last_name?.toLowerCase() ?? ''
-      return first.includes(q) || last.includes(q) || `${first} ${last}`.includes(q)
-    })
-  })()
+  const visaSearchBookings    = filterByClientName(activeBookings, visaSearch)
+  const summarySearchBookings = filterByClientName(activeBookings, summarySearch)
 
   const visaBooking    = activeBookings.find(b => b.id === effectiveVisaId)
   const summaryBooking = activeBookings.find(b => b.id === effectiveSummaryId)
@@ -392,6 +428,12 @@ export default function DocumentsPage() {
       setVisaBookingId(visaSearchBookings[0].id)
     }
   }, [visaSearch, visaSearchBookings, effectiveVisaId])
+
+  useEffect(() => {
+    if (summarySearch.trim() && summarySearchBookings.length > 0 && !summarySearchBookings.some(b => b.id === effectiveSummaryId)) {
+      setSummaryBookingId(summarySearchBookings[0].id)
+    }
+  }, [summarySearch, summarySearchBookings, effectiveSummaryId])
 
   // Pre-fill email when booking changes
   useEffect(() => {
@@ -518,23 +560,8 @@ export default function DocumentsPage() {
             {activeBookings.length === 0 ? (
               <p className="text-sm text-gray-400 italic">No active bookings found.</p>
             ) : (
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  value={visaSearch}
-                  onChange={e => setVisaSearch(e.target.value)}
-                  placeholder="🔍 Search by client name…"
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-white"
-                />
-                <select value={effectiveVisaId} onChange={e => setVisaBookingId(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
-                  {visaSearchBookings.length === 0 ? (
-                    <option value="" disabled>No booking matches "{visaSearch}"</option>
-                  ) : (
-                    visaSearchBookings.map(b => <option key={b.id} value={b.id}>{bookingLabel(b)}</option>)
-                  )}
-                </select>
-              </div>
+              <BookingPicker bookings={visaSearchBookings} search={visaSearch} onSearchChange={setVisaSearch}
+                value={effectiveVisaId} onChange={setVisaBookingId} />
             )}
 
             {visaBooking && (
@@ -609,10 +636,8 @@ export default function DocumentsPage() {
               {activeBookings.length === 0 ? (
                 <p className="text-sm text-gray-400 italic">No active bookings found.</p>
               ) : (
-                <select value={effectiveSummaryId} onChange={e => setSummaryBookingId(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
-                  {activeBookings.map(b => <option key={b.id} value={b.id}>{bookingLabel(b)}</option>)}
-                </select>
+                <BookingPicker bookings={summarySearchBookings} search={summarySearch} onSearchChange={setSummarySearch}
+                  value={effectiveSummaryId} onChange={setSummaryBookingId} />
               )}
             </div>
 
@@ -702,10 +727,8 @@ export default function DocumentsPage() {
               <h2 className="font-semibold text-gray-700">Send standalone travel guide</h2>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Booking</label>
-                <select value={effectiveSummaryId} onChange={e => setSummaryBookingId(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
-                  {activeBookings.map(b => <option key={b.id} value={b.id}>{bookingLabel(b)}</option>)}
-                </select>
+                <BookingPicker bookings={summarySearchBookings} search={summarySearch} onSearchChange={setSummarySearch}
+                  value={effectiveSummaryId} onChange={setSummaryBookingId} />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Language</label>
@@ -766,10 +789,8 @@ export default function DocumentsPage() {
               <h2 className="font-semibold text-gray-700">Send welcome guide</h2>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Booking</label>
-                <select value={effectiveSummaryId} onChange={e => setSummaryBookingId(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
-                  {activeBookings.map(b => <option key={b.id} value={b.id}>{bookingLabel(b)}</option>)}
-                </select>
+                <BookingPicker bookings={summarySearchBookings} search={summarySearch} onSearchChange={setSummarySearch}
+                  value={effectiveSummaryId} onChange={setSummaryBookingId} />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Language</label>
