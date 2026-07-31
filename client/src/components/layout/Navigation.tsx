@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { currentEnv } from '../../lib/supabase'
+import { useTheme } from '../../hooks/useTheme'
 
 interface NavigationProps {
   currentPage: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions'
@@ -11,6 +12,7 @@ interface NavigationProps {
 
 export default function Navigation({ currentPage, onNavigate, onLogout, urgentCount = 0, submissionsCount = 0 }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { theme, toggleTheme } = useTheme()
 
   const navItems = [
     { id: 'home',       label: 'Home',       icon: '🏠' },
@@ -41,14 +43,14 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
         />
       )}
 
-      <nav className={`sticky top-0 z-50 border-b ${currentEnv === 'test' ? 'bg-amber-50 border-amber-300' : 'bg-white border-gray-200'}`}>
+      <nav className={`sticky top-0 z-50 border-b ${currentEnv === 'test' ? 'bg-amber-50 dark:bg-amber-950 border-amber-300 dark:border-amber-800' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800'}`}>
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex-shrink-0">
               <button
                 onClick={() => handleNavigate('home')}
-                className={`text-xl font-bold hover:text-blue-700 ${currentEnv === 'test' ? 'text-amber-700' : 'text-blue-600'}`}
+                className={`text-xl font-bold hover:text-blue-700 dark:hover:text-blue-400 ${currentEnv === 'test' ? 'text-amber-700 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}
                 style={{ touchAction: 'manipulation' }}
               >
                 {currentEnv === 'test' && '🏄 '}BKC
@@ -64,8 +66,8 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
                   style={{ touchAction: 'manipulation' }}
                   className={`relative px-4 py-2 rounded-lg font-medium transition-colors ${
                     currentPage === item.id
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
                   <span className="mr-1">{item.icon}</span>
@@ -84,10 +86,19 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
               ))}
             </div>
 
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              className="hidden md:block p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+              title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            >
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+
             {/* Logout */}
             <button
               onClick={onLogout}
-              className="hidden md:block px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+              className="hidden md:block px-3 py-2 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
               title="Sign out"
             >
               ⏻ Sign out
@@ -96,7 +107,7 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(o => !o)}
-              className="md:hidden p-2 rounded-lg text-gray-700 hover:bg-gray-100"
+              className="md:hidden p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
               style={{ touchAction: 'manipulation' }}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,19 +129,26 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
                   style={{ touchAction: 'manipulation' }}
                   className={`w-full text-left px-4 py-2 rounded-lg font-medium transition-colors ${
                     currentPage === item.id
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
                   <span className="mr-2">{item.icon}</span>
                   {item.label}
                 </button>
               ))}
-              <div className="border-t pt-2 mt-2">
+              <div className="border-t dark:border-gray-800 pt-2 mt-2">
+                <button
+                  onClick={toggleTheme}
+                  style={{ touchAction: 'manipulation' }}
+                  className="w-full text-left px-4 py-2 rounded-lg font-medium text-gray-500 dark:text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  {theme === 'dark' ? '☀️ Light theme' : '🌙 Dark theme'}
+                </button>
                 <button
                   onClick={() => { setMobileMenuOpen(false); onLogout() }}
                   style={{ touchAction: 'manipulation' }}
-                  className="w-full text-left px-4 py-2 rounded-lg font-medium text-gray-500 transition-colors hover:bg-gray-100"
+                  className="w-full text-left px-4 py-2 rounded-lg font-medium text-gray-500 dark:text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   ⏻ Sign out
                 </button>
