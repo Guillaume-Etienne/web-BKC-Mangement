@@ -751,7 +751,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             )}
 
             {/* Legend */}
-            <div className="flex flex-wrap gap-3 md:gap-4 mb-3 md:mb-4 text-xs md:text-sm">
+            <div className="flex flex-wrap gap-3 md:gap-4 mb-3 md:mb-4 text-xs md:text-sm text-gray-700 dark:text-gray-300">
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> Confirmed</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-400 inline-block" /> Provisional</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-300 dark:bg-gray-600 inline-block" /> Cancelled</span>
@@ -882,7 +882,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
               {dayCount === 7 ? (
                 <div className="flex items-center gap-2">
                   <button onClick={prevWeek} className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">←</button>
-                  <span className="text-base font-semibold min-w-[220px] text-center">
+                  <span className="text-base font-semibold min-w-[220px] text-center text-gray-800 dark:text-gray-200">
                     Week of {weekLabel}
                   </span>
                   <button onClick={nextWeek} className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">→</button>
@@ -893,7 +893,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
               ) : (
                 <div className="flex items-center gap-2">
                   <button onClick={prevDay} className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">←</button>
-                  <span className="text-base font-semibold min-w-[130px] text-center">
+                  <span className="text-base font-semibold min-w-[130px] text-center text-gray-800 dark:text-gray-200">
                     {focusedDayLabel}
                   </span>
                   <button onClick={nextDay} className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">→</button>

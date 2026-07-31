@@ -374,7 +374,7 @@ export default function EquipmentPage() {
               </button>
             </div>
 
-            <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg">
+            <div className="hidden md:block overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800">
                   <tr>
@@ -420,6 +420,39 @@ export default function EquipmentPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile: cards instead of a cramped wide table */}
+            <div className="md:hidden space-y-3">
+              {inventoryItems.map(eq => (
+                <div
+                  key={eq.id}
+                  onClick={() => setSelectedEquipment(eq)}
+                  className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm p-4 cursor-pointer"
+                >
+                  <div className="flex justify-between items-start gap-2 mb-1">
+                    <p className="font-bold text-gray-900 dark:text-gray-100">{eq.name}</p>
+                    <span className={`shrink-0 inline-block px-2 py-1 rounded text-xs font-medium ${getConditionColor(eq.condition)}`}>
+                      {getConditionLabel(eq.condition)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    {getCategoryLabel(eq.category)}{eq.size ? ` · ${eq.size}` : ''}
+                    {!eq.is_active && <span className="text-gray-400 dark:text-gray-600"> · inactif</span>}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {getUseCount(eq, rentals, lessons)} sorties · ≈{getUseHours(eq, rentals, lessons)}h
+                    </p>
+                    <button
+                      onClick={e => { e.stopPropagation(); openEditModal(eq) }}
+                      className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded font-medium text-sm hover:bg-blue-200 dark:hover:bg-blue-800"
+                    >
+                      Éditer
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

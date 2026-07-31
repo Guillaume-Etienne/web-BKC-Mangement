@@ -546,7 +546,7 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
         <div className="flex items-center gap-2">
           <button onClick={() => setSelectedDate(d => addDays(d, -1))}
             className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold">←</button>
-          <span className="text-base font-semibold min-w-[200px] text-center">{formatDate(selectedDate)}</span>
+          <span className="text-base font-semibold min-w-[200px] text-center text-gray-800 dark:text-gray-200">{formatDate(selectedDate)}</span>
           <button onClick={() => setSelectedDate(d => addDays(d, 1))}
             className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold">→</button>
           <button onClick={() => setSelectedDate(addDays(today, 1))}

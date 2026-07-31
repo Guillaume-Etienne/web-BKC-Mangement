@@ -527,7 +527,8 @@ export default function ManagementPage() {
                   {categoryPrices.length === 0 && missingRates(category).length === 0 ? (
                     <p className="text-gray-600 dark:text-gray-400 text-sm">No price entries</p>
                   ) : (
-                    <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-x-auto">
+                    <>
+                    <div className="hidden md:block bg-white dark:bg-gray-900 rounded-lg shadow overflow-x-auto">
                       <table className="w-full min-w-[500px]">
                         <thead className="bg-gray-100 dark:bg-gray-800 border-b">
                           <tr>
@@ -578,6 +579,52 @@ export default function ManagementPage() {
                         </tbody>
                       </table>
                     </div>
+
+                    {/* Mobile: cards instead of a cramped wide table */}
+                    <div className="md:hidden space-y-3">
+                      {categoryPrices.map((price) => {
+                        const bills = billedBy(price)
+                        return (
+                          <div key={price.id} className="bg-white dark:bg-gray-900 rounded-lg shadow p-4">
+                            <div className="flex justify-between items-start gap-2 mb-1">
+                              <p className="font-bold text-gray-800 dark:text-gray-200">{price.name}</p>
+                              <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">{price.price}€</p>
+                            </div>
+                            {bills && (
+                              <span className="inline-block mb-2 text-xs font-normal text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded px-1.5 py-0.5"
+                                title="This rate is what the app bills. Its name is a label only — you can change the price, not what it applies to.">
+                                🔒 bills {bills}
+                              </span>
+                            )}
+                            <div className="text-sm text-gray-600 dark:text-gray-400 space-y-0.5 mb-3">
+                              {price.description && <p>{price.description}</p>}
+                              {price.unit && <p>Unit: {price.unit}</p>}
+                            </div>
+                            <div className="flex gap-2">
+                              <button onClick={() => openPriceForm(price)} className="flex-1 px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded font-medium text-sm hover:bg-blue-200 dark:hover:bg-blue-800">
+                                ✏️ Edit
+                              </button>
+                              {bills ? (
+                                <span className="flex-1 px-3 py-2 text-center rounded font-medium text-sm text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                                  title="Cannot be deleted: the app bills with it. Set its price to 0 if you stop charging for it.">
+                                  🗑️ Delete
+                                </span>
+                              ) : (
+                                <button onClick={() => handleDeletePrice(price.id)} className="flex-1 px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded font-medium text-sm hover:bg-red-200 dark:hover:bg-red-800">
+                                  🗑️ Delete
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                      {missingRates(category).map(label => (
+                        <div key={label} className="bg-red-50 dark:bg-red-950/40 rounded-lg shadow p-4 text-sm font-medium text-red-700 dark:text-red-400">
+                          ⚠️ {label} — no rate configured, billed 0€
+                        </div>
+                      ))}
+                    </div>
+                    </>
                   )}
                 </div>
               )
