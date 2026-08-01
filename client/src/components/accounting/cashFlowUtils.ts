@@ -17,13 +17,20 @@ export interface MonthRow {
   rent: number       // Palmeiras monthly lease
   instrPaid: number  // payroll actually paid out
   taxiOut: number    // driver + manager cash, MZN→EUR
+  /** Activity providers settled this month: cash paid to them minus cash they
+   *  paid us. Positive is money leaving the till, like taxiOut; it goes negative
+   *  on a `provider_pays_us` provider who owes us more than we owe them.
+   *  This is the *cash*, not the cost — the cost is already netted out of
+   *  `billed`, which is not part of `net`, so there is no double count. */
+  providersOut: number
   net: number        // collected + palmIn − every outflow
 }
 
 export type CashFlowTotals = Omit<MonthRow, 'month'>
 
 const EMPTY = (month: string): MonthRow => ({
-  month, billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, net: 0,
+  month, billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0,
+  instrPaid: 0, taxiOut: 0, providersOut: 0, net: 0,
 })
 
 /** Monthly cash movements, newest month first.
@@ -44,12 +51,14 @@ const EMPTY = (month: string): MonthRow => ({
  *    payments are used instead.
  *  - Every MZN amount is converted at the current global rate, including for past
  *    months (a deliberate decision: one rate, no per-line history).
+ *  - Activity providers are settled irregularly, like the taxi manager, so their
+ *    real dated `activity_payments` are used rather than the booking dates.
  */
 export function buildCashFlowRows(data: SharedAccountingData): MonthRow[] {
   const {
     payments, expenses, palmeirasRents, palmeirasReversals, palmeirasEntries,
     bookings, instructorPayments, taxiTrips, taxiManagerPayments,
-    activityBookings, eurMznRate,
+    activityBookings, activityPayments, eurMznRate,
   } = data
 
   const idx: Record<string, MonthRow> = {}
@@ -102,8 +111,19 @@ export function buildCashFlowRows(data: SharedAccountingData): MonthRow[] {
     ensure(p.date.slice(0, 7)).taxiOut += p.amount_mzn / rate
   }
 
+  // Settling an activity provider moves real cash, and nothing in this table used
+  // to show it: the provider's cost was netted out of `billed` (accrual), but the
+  // day the money actually left the till was invisible. Same treatment as the taxi
+  // manager — their own dated payments, not the booking dates.
+  for (const p of activityPayments) {
+    const row = ensure(p.date.slice(0, 7))
+    if (p.direction === 'to_provider') row.providersOut += p.amount
+    else                               row.providersOut -= p.amount
+  }
+
   for (const row of Object.values(idx)) {
-    row.net = row.collected + row.palmIn - row.expenses - row.rent - row.instrPaid - row.taxiOut
+    row.net = row.collected + row.palmIn
+      - row.expenses - row.rent - row.instrPaid - row.taxiOut - row.providersOut
   }
 
   return Object.values(idx).sort((a, b) => b.month.localeCompare(a.month))
@@ -125,8 +145,10 @@ export function sumCashFlowRows(rows: MonthRow[]): CashFlowTotals {
     rent:      acc.rent      + r.rent,
     instrPaid: acc.instrPaid + r.instrPaid,
     taxiOut:   acc.taxiOut   + r.taxiOut,
+    providersOut: acc.providersOut + r.providersOut,
     net:       acc.net       + r.net,
-  }), { billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, net: 0 })
+  }), { billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0,
+        instrPaid: 0, taxiOut: 0, providersOut: 0, net: 0 })
 }
 
 /** Cumulative net per month, walking oldest → newest. */

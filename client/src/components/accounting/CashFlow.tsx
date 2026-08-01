@@ -75,7 +75,8 @@ export default function CashFlow({ data }: Props) {
           { label: 'Billed',      value: totals.billed,    color: 'text-gray-700 dark:text-gray-300',    note: 'Revenue generated' },
           { label: 'Collected',   value: totals.collected, color: 'text-emerald-700 dark:text-emerald-400', note: 'Cash received',
             warn: totals.unverified > 0 ? `⚠ ${fmtEur(totals.unverified)} still to verify` : null },
-          { label: 'Total out',   value: -(totals.expenses + totals.rent + totals.instrPaid + totals.taxiOut), color: 'text-red-700 dark:text-red-400', note: 'Expenses + rent + instructors + taxi' },
+          // Must list every outflow `net` subtracts, or this card and the table disagree.
+          { label: 'Total out',   value: -(totals.expenses + totals.rent + totals.instrPaid + totals.taxiOut + totals.providersOut), color: 'text-red-700 dark:text-red-400', note: 'Expenses + rent + instructors + taxi + providers' },
           { label: 'Net cash',    value: totals.net,       color: totals.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400', note: 'Collected − all outflows' },
         ].map(k => (
           <div key={k.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 py-4">
@@ -216,7 +217,7 @@ export default function CashFlow({ data }: Props) {
 
       {/* Detailed table */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
-        <table className="w-full text-sm min-w-[800px]">
+        <table className="w-full text-sm min-w-[900px]">
           <thead className="bg-gray-50 dark:bg-gray-800 border-b">
             <tr>
               <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Month</th>
@@ -230,6 +231,10 @@ export default function CashFlow({ data }: Props) {
               <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Rent</th>
               <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Instructors</th>
               <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Taxi out</th>
+              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400"
+                  title="Activity providers settled this month: cash paid to them minus cash they paid us.">
+                Providers
+              </th>
               <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Net cash</th>
               <th className="px-4 py-3 text-right font-semibold text-gray-400 dark:text-gray-400">Running</th>
             </tr>
@@ -261,6 +266,11 @@ export default function CashFlow({ data }: Props) {
                   <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">
                     {r.taxiOut ? `− ${fmtEur(r.taxiOut)}` : '–'}
                   </td>
+                  {/* Net of both directions, so it flips to a "+" on a provider who
+                      pays us more than we pay them. */}
+                  <td className={`px-4 py-3 text-right ${r.providersOut < 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
+                    {r.providersOut ? `${r.providersOut < 0 ? '+' : '−'} ${fmtEur(Math.abs(r.providersOut))}` : '–'}
+                  </td>
                   <td className={`px-4 py-3 text-right font-bold ${r.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
                     {r.net >= 0 ? '+' : ''}{fmtEur(r.net)}
                   </td>
@@ -283,6 +293,9 @@ export default function CashFlow({ data }: Props) {
               <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.rent)}</td>
               <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.instrPaid)}</td>
               <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.taxiOut)}</td>
+              <td className={`px-4 py-3 text-right ${totals.providersOut < 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
+                {totals.providersOut < 0 ? '+' : '−'} {fmtEur(Math.abs(totals.providersOut))}
+              </td>
               <td className={`px-4 py-3 text-right ${totals.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
                 {totals.net >= 0 ? '+' : ''}{fmtEur(totals.net)}
               </td>

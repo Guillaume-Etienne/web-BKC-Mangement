@@ -202,7 +202,7 @@ describe('buildCashFlowRows', () => {
 
 /** A month row carrying only the fields a test cares about. */
 const row = (month: string, net = 0): MonthRow =>
-  ({ month, billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, net })
+  ({ month, billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, providersOut: 0, net })
 
 describe('filterRowsByPeriod', () => {
   const rows = ['2026-12', '2026-11', '2026-10', '2026-09'].map(m => row(m))
@@ -218,11 +218,11 @@ describe('filterRowsByPeriod', () => {
 describe('sumCashFlowRows', () => {
   it('sums every column', () => {
     const rows: MonthRow[] = [
-      { month: '2026-10', billed: 100, collected: 60, unverified: 20, palmIn: 5, expenses: 10, rent: 20, instrPaid: 8, taxiOut: 2, net: 25 },
-      { month: '2026-11', billed: 200, collected: 40, unverified: 0,  palmIn: 5, expenses: 10, rent: 20, instrPaid: 2, taxiOut: 3, net: 10 },
+      { month: '2026-10', billed: 100, collected: 60, unverified: 20, palmIn: 5, expenses: 10, rent: 20, instrPaid: 8, taxiOut: 2, providersOut: 7, net: 25 },
+      { month: '2026-11', billed: 200, collected: 40, unverified: 0,  palmIn: 5, expenses: 10, rent: 20, instrPaid: 2, taxiOut: 3, providersOut: -4, net: 10 },
     ]
     expect(sumCashFlowRows(rows)).toEqual({
-      billed: 300, collected: 100, unverified: 20, palmIn: 10, expenses: 20, rent: 40, instrPaid: 10, taxiOut: 5, net: 35,
+      billed: 300, collected: 100, unverified: 20, palmIn: 10, expenses: 20, rent: 40, instrPaid: 10, taxiOut: 5, providersOut: 3, net: 35,
     })
   })
 
@@ -241,6 +241,64 @@ describe('runningBalances', () => {
     const rows = [row('2026-11', 1), row('2026-09', 1)]
     runningBalances(rows)
     expect(rows.map(r => r.month)).toEqual(['2026-11', '2026-09'])
+  })
+})
+
+describe('activity provider settlements', () => {
+  const pay = (over: Partial<{ id: string; provider_id: string; date: string; amount: number; direction: 'to_provider' | 'from_provider'; notes: string | null; created_at: string }> = {}) => ({
+    id: 'ap1', provider_id: 'prov1', date: '2026-11-10', amount: 70,
+    direction: 'to_provider' as const, notes: null, created_at: '2026-11-10', ...over,
+  })
+
+  it('counts what we paid a provider as cash leaving the till', () => {
+    const rows = buildCashFlowRows(mkData({ activityPayments: [pay({ amount: 70 })] }))
+    expect(month(rows, '2026-11')?.providersOut).toBe(70)
+  })
+
+  it('nets off what a provider paid us', () => {
+    // A `provider_pays_us` provider sends us their cut; same column, other way.
+    const rows = buildCashFlowRows(mkData({
+      activityPayments: [pay({ amount: 70 }), pay({ id: 'ap2', amount: 30, direction: 'from_provider' })],
+    }))
+    expect(month(rows, '2026-11')?.providersOut).toBe(40)
+  })
+
+  it('goes negative when a provider owes us more than we owe them', () => {
+    const rows = buildCashFlowRows(mkData({
+      activityPayments: [pay({ amount: 100, direction: 'from_provider' })],
+    }))
+    expect(month(rows, '2026-11')?.providersOut).toBe(-100)
+  })
+
+  it('lands on the month it was settled, not the month of the activity', () => {
+    // Providers are settled irregularly, like the taxi manager.
+    const rows = buildCashFlowRows(mkData({ activityPayments: [pay({ date: '2027-02-03' })] }))
+    expect(month(rows, '2027-02')?.providersOut).toBe(70)
+    expect(month(rows, '2026-11')).toBeUndefined()
+  })
+
+  it('takes the settlement out of the month net', () => {
+    const rows = buildCashFlowRows(mkData({
+      payments: [mkPayment({ amount: 200, date: '2026-11-05' })],
+      activityPayments: [pay({ amount: 70 })],
+    }))
+    expect(month(rows, '2026-11')?.net).toBe(130)   // 200 collected − 70 paid out
+  })
+
+  it('does not double count the provider cost already netted out of billed', () => {
+    // A standalone activity is billed at its margin (client − provider), so the
+    // cost is in `billed`. `billed` is not part of `net`, so subtracting the real
+    // cash on top is right, not a second hit.
+    const data = mkData({
+      // booking_id: null — only standalone activities reach `billed`; the
+      // booking-linked ones are already inside computeBookingTotal.
+      activityBookings: [mkActivityBooking({ booking_id: null, payment_flow: 'we_pay_provider', price_client: 100, price_provider: 70, date: '2026-11-02' })],
+      activityPayments: [pay({ amount: 70 })],
+    })
+    const row = month(buildCashFlowRows(data), '2026-11')
+    expect(row?.billed).toBe(30)          // the margin
+    expect(row?.providersOut).toBe(70)    // the cash
+    expect(row?.net).toBe(-70)            // nothing collected yet, 70 went out
   })
 })
 
