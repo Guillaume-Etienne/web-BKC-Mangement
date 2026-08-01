@@ -182,8 +182,16 @@ aucun calcul comptable, ni Dashboard ni CashFlow — juste affichés dans Activi
 Question ouverte au passage : devraient-ils compter quelque part ?)*
 </details>
 
-⬜ **Reste de cette entrée** : `activity_payments` n'est lu par aucun calcul comptable —
-à trancher avec gui s'ils doivent compter quelque part.
+✅ **`activity_payments` — CORRIGÉ aussi (2026-08-01, `129faaf`)**. Ils n'étaient lus par
+aucun calcul comptable : chargés dans `sharedData` et jamais consommés. Or régler un
+prestataire sort du cash réel — le **coût** était bien compté (netté dans `billed`, en
+engagement), mais **le jour où l'argent sort de la caisse n'apparaissait nulle part**,
+exactement le trou que `taxiOut` comble déjà pour les chauffeurs.
+**Décision gui : colonne dédiée « Providers »** = payé au prestataire − reçu de lui, datée
+du **règlement** (pas de l'activité), les deux sens nettés, signe suivant la valeur. Pas de
+double comptage : le coût est dans `billed`, qui ne fait pas partie de `net` — verrouillé
+par un test. Le KPI « Total out » a été mis à jour aussi, sinon il contredisait le tableau
+juste en dessous. **191 tests.**
 
 ### 2. 📅 « Net result » n'est pas filtré par saison
 `computeSeasonTotals` lit **toutes** les résas, dépenses et leçons depuis l'origine ; la
