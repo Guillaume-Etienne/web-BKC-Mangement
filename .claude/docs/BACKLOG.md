@@ -157,7 +157,16 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
 > Le reste de l'audit a été corrigé et committé (6 commits `ae096c1`→`5576d38`). Ces trois-là
 > touchent à des **montants affichés** ou à un choix de design : je n'ai rien changé, exprès.
 
-### 1. 💸 CashFlow ignore `palmeiras_entries`, que le Dashboard compte
+### 1. ~~💸 CashFlow ignore `palmeiras_entries`~~ — ✅ CORRIGÉ (2026-08-01, `f346901`)
+**Décision gui** : `palmIn` devient le **net Palmeiras hors loyer** (reversals + free income
+− free expenses), plutôt que d'envoyer les dépenses libres dans la colonne `expenses` — qui
+est la table `expenses` générale et aurait alors voulu dire deux choses. Bénéfice : une
+identité vérifiable **`palmIn − rent === palmeirasNet`**, verrouillée par un test, donc les
+deux écrans ne peuvent plus diverger. Colonne renommée « Palmeiras net » (elle peut être
+négative, le signe suit la valeur). Rien ne change à l'écran tant qu'aucune ligne libre
+n'existe. **185 tests.**
+
+<details><summary>Constat d'origine (gardé pour la leçon)</summary>
 **Vérifié dans le code** : `utils.ts:388-390` fait entrer les `palmeiras_entries`
 (type `income`/`expense`) dans le `palmeirasNet` du **Dashboard**, alors que
 `cashFlowUtils.ts` ne les lit **nulle part** — la colonne `palmIn` n'additionne que les
@@ -171,6 +180,10 @@ figé le comportement actuel. **→ dis-moi la colonne voulue, c'est 10 min.**
 *(L'audit externe accusait aussi `activity_payments` : **c'est faux**, ils ne sont lus par
 aucun calcul comptable, ni Dashboard ni CashFlow — juste affichés dans ActivitiesPage.
 Question ouverte au passage : devraient-ils compter quelque part ?)*
+</details>
+
+⬜ **Reste de cette entrée** : `activity_payments` n'est lu par aucun calcul comptable —
+à trancher avec gui s'ils doivent compter quelque part.
 
 ### 2. 📅 « Net result » n'est pas filtré par saison
 `computeSeasonTotals` lit **toutes** les résas, dépenses et leçons depuis l'origine ; la
