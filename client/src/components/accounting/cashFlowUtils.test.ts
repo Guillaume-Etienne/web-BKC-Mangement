@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildCashFlowRows, filterRowsByPeriod, sumCashFlowRows, runningBalances } from './cashFlowUtils'
+import { computeSeasonTotals } from './utils'
 import type { MonthRow } from './cashFlowUtils'
 import {
   mkData, mkBooking, mkBookingRoom, mkBookingRoomPrice, mkHouseSetup,
@@ -240,5 +241,60 @@ describe('runningBalances', () => {
     const rows = [row('2026-11', 1), row('2026-09', 1)]
     runningBalances(rows)
     expect(rows.map(r => r.month)).toEqual(['2026-11', '2026-09'])
+  })
+})
+
+describe('Palmeiras free entries', () => {
+  /** Reversal + rent + one free line each way, all in the same month. */
+  const withEntries = () => mkData({
+    palmeirasReversals: [{ id: 'pr1', month: '2026-11', gross_amount: 300, percent: 10, net_amount: 30, notes: null }],
+    palmeirasRents:     [{ id: 'prt1', month: '2026-11', amount: 20, notes: null }],
+    palmeirasEntries: [
+      { id: 'pe1', month: '2026-11', type: 'income',  description: 'misc', amount: 10 },
+      { id: 'pe2', month: '2026-11', type: 'expense', description: 'misc', amount: 5 },
+    ],
+  })
+
+  it('counts the free lines in the month they belong to', () => {
+    // 30 reversal + 10 income − 5 expense. They used to be dropped entirely:
+    // the season result showed them, this table did not.
+    const rows = buildCashFlowRows(withEntries())
+    expect(month(rows, '2026-11')?.palmIn).toBe(35)
+  })
+
+  it('keeps the free expenses out of the general expenses column', () => {
+    // That column is the `expenses` table; mixing Palmeiras into it would make
+    // one figure mean two different things.
+    expect(month(buildCashFlowRows(withEntries()), '2026-11')?.expenses).toBe(0)
+  })
+
+  it('goes negative when a month spends more than it takes in', () => {
+    const rows = buildCashFlowRows(mkData({
+      palmeirasEntries: [{ id: 'pe1', month: '2026-11', type: 'expense', description: 'repair', amount: 80 }],
+    }))
+    expect(month(rows, '2026-11')?.palmIn).toBe(-80)
+  })
+
+  it('opens a month that has nothing but a free line', () => {
+    // The month must exist in the table at all — `ensure` is what creates it.
+    const rows = buildCashFlowRows(mkData({
+      palmeirasEntries: [{ id: 'pe1', month: '2026-07', type: 'income', description: 'x', amount: 15 }],
+    }))
+    expect(month(rows, '2026-07')?.palmIn).toBe(15)
+  })
+
+  it('carries the free lines into the running balance', () => {
+    // `net` feeds runningBalances, so a dropped line used to shift the cumulative
+    // balance of every later month, not just its own.
+    const rows = buildCashFlowRows(withEntries())
+    expect(month(rows, '2026-11')?.net).toBe(15)   // 35 palmIn − 20 rent
+  })
+
+  it('agrees with the dashboard: palmIn − rent === palmeirasNet', () => {
+    // The identity that keeps the two screens from drifting apart. If someone
+    // adds a Palmeiras source to one of them and forgets the other, this fails.
+    const data = withEntries()
+    const totals = sumCashFlowRows(buildCashFlowRows(data))
+    expect(totals.palmIn - totals.rent).toBe(computeSeasonTotals(data).palmeirasNet)
   })
 })

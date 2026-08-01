@@ -222,7 +222,10 @@ export default function CashFlow({ data }: Props) {
               <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Month</th>
               <th className="px-4 py-3 text-right font-semibold text-gray-500 dark:text-gray-400">Billed</th>
               <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Collected</th>
-              <th className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400">Palmeiras in</th>
+              <th className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400"
+                  title="Reversals owed to us + free income − free expenses. Rent is the next column.">
+                Palmeiras net
+              </th>
               <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Expenses</th>
               <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Rent</th>
               <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Instructors</th>
@@ -241,8 +244,10 @@ export default function CashFlow({ data }: Props) {
                   <td className="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400 font-medium">
                     {r.collected ? `+ ${fmtEur(r.collected)}` : '–'}
                   </td>
-                  <td className="px-4 py-3 text-right text-blue-600 dark:text-blue-400">
-                    {r.palmIn ? `+ ${fmtEur(r.palmIn)}` : '–'}
+                  {/* Now a net (reversals + free income − free expenses), so it can
+                      be negative — the sign follows the value instead of a hardcoded +. */}
+                  <td className={`px-4 py-3 text-right ${r.palmIn < 0 ? 'text-red-500 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                    {r.palmIn ? `${r.palmIn < 0 ? '−' : '+'} ${fmtEur(Math.abs(r.palmIn))}` : '–'}
                   </td>
                   <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">
                     {r.expenses ? `− ${fmtEur(r.expenses)}` : '–'}
@@ -271,7 +276,9 @@ export default function CashFlow({ data }: Props) {
               <td className="px-4 py-3 text-gray-700 dark:text-gray-300">Total</td>
               <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-400">{fmtEur(totals.billed)}</td>
               <td className="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">+ {fmtEur(totals.collected)}</td>
-              <td className="px-4 py-3 text-right text-blue-600 dark:text-blue-400">+ {fmtEur(totals.palmIn)}</td>
+              <td className={`px-4 py-3 text-right ${totals.palmIn < 0 ? 'text-red-500 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                {totals.palmIn < 0 ? '−' : '+'} {fmtEur(Math.abs(totals.palmIn))}
+              </td>
               <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.expenses)}</td>
               <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.rent)}</td>
               <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.instrPaid)}</td>

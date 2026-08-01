@@ -7,8 +7,13 @@ export interface MonthRow {
   billed: number     // invoiced to clients (accrual, by check-in month)
   collected: number  // cash received (by payment date), verified or not
   unverified: number // share of the above still flagged "to verify"
-  palmIn: number     // Palmeiras reversals owed to us
-  expenses: number
+  /** Palmeiras net for the month, rent excluded: reversals owed to us, plus the
+   *  free income lines, minus the free expense lines. Goes negative when the
+   *  free expenses of a month outweigh what came in.
+   *  Holds the identity `palmIn − rent === palmeirasNet` (the dashboard figure),
+   *  which is what keeps the two screens from drifting apart — locked by a test. */
+  palmIn: number
+  expenses: number   // the general expenses table, NOT the Palmeiras free ones
   rent: number       // Palmeiras monthly lease
   instrPaid: number  // payroll actually paid out
   taxiOut: number    // driver + manager cash, MZN→EUR
@@ -42,7 +47,7 @@ const EMPTY = (month: string): MonthRow => ({
  */
 export function buildCashFlowRows(data: SharedAccountingData): MonthRow[] {
   const {
-    payments, expenses, palmeirasRents, palmeirasReversals,
+    payments, expenses, palmeirasRents, palmeirasReversals, palmeirasEntries,
     bookings, instructorPayments, taxiTrips, taxiManagerPayments,
     activityBookings, eurMznRate,
   } = data
@@ -77,6 +82,15 @@ export function buildCashFlowRows(data: SharedAccountingData): MonthRow[] {
 
   for (const r of palmeirasReversals) ensure(r.month).palmIn += r.net_amount
   for (const r of palmeirasRents)     ensure(r.month).rent   += r.amount
+  // The free entries — the hand-typed Palmeiras lines that fit neither a reversal
+  // nor the rent. The dashboard has always counted them in `palmeirasNet`; this
+  // table did not even read them, so a free line showed up in the season result
+  // and nowhere in the month it belonged to. Worse, `net` feeds runningBalances,
+  // so one missed line shifted the cumulative balance of every later month too.
+  for (const e of palmeirasEntries) {
+    if (e.type === 'income') ensure(e.month).palmIn += e.amount
+    else                     ensure(e.month).palmIn -= e.amount
+  }
   for (const e of expenses)           ensure(e.date.slice(0, 7)).expenses  += e.amount
   for (const p of instructorPayments) ensure(p.date.slice(0, 7)).instrPaid += p.amount
 
