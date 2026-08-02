@@ -219,6 +219,23 @@ describe('filterDataToSeason — end to end through computeSeasonTotals', () => 
       .toEqual(computeSeasonTotals(data))
   })
 
+  it('splits every euro across the seasons without losing or duplicating one', () => {
+    // The invariant the comparison screen rests on: two adjoining seasons that
+    // together cover the whole dataset must add up to the all-time figure. A
+    // booking counted in both, or in neither, breaks this immediately.
+    const data = twoSeasonsOfMoney()
+    const early: DateRange = { start_date: '2000-01-01', end_date: '2026-09-14' }
+    const late:  DateRange = { start_date: '2026-09-15', end_date: '2099-12-31' }
+
+    const all  = computeSeasonTotals(data)
+    const a    = computeSeasonTotals(filterDataToSeason(data, early))
+    const b    = computeSeasonTotals(filterDataToSeason(data, late))
+
+    expect(a.totalRevenue + b.totalRevenue).toBeCloseTo(all.totalRevenue, 6)
+    expect(a.accomRev     + b.accomRev).toBeCloseTo(all.accomRev, 6)
+    expect(a.netResult    + b.netResult).toBeCloseTo(all.netResult, 6)
+  })
+
   it('does not carry a meal from another season into this one', () => {
     const data = twoSeasonsOfMoney()
     expect(computeSeasonTotals(filterDataToSeason(data, SEASON)).eventsRev).toBe(12)

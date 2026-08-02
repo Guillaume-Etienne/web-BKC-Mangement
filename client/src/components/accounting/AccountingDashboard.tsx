@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { SharedAccountingData } from './types'
 import CollectionsModal from './CollectionsModal'
+import SeasonComparison from './SeasonComparison'
+import { filterDataToSeason } from './seasonFilter'
+import { todayISO } from '../../utils/dates'
 import {
   computeSeasonTotals,
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
@@ -8,6 +11,13 @@ import {
 } from './utils'
 
 interface Props { data: SharedAccountingData; onOpenBooking?: (id: string) => void }
+
+/** What the figures below cover. `all` is every row ever recorded — which is
+ *  what this screen always showed, under a heading that said "season". */
+type Scope =
+  | { kind: 'all' }
+  | { kind: 'season'; id: string }
+  | { kind: 'compare' }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -24,7 +34,30 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
 
 export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   const [showCollections, setShowCollections] = useState(false)
-  const { bookings, payments, instructors, taxiTrips } = data
+
+  // Seasons arrive sorted by start_date (see AccountingPage).
+  const seasons = data.seasons
+  const currentSeason = useMemo(() => {
+    const today = todayISO()
+    return seasons.find(s => today >= s.start_date && today <= s.end_date) ?? seasons[seasons.length - 1]
+  }, [seasons])
+
+  // Open on the season we are actually in — that is the number gui wants first.
+  // With no season configured there is nothing to filter by, so: everything.
+  const [scope, setScope] = useState<Scope>(() =>
+    currentSeason ? { kind: 'season', id: currentSeason.id } : { kind: 'all' })
+
+  const activeSeason = scope.kind === 'season' ? seasons.find(s => s.id === scope.id) : undefined
+
+  // The whole screen reads this, not `data`: the headline totals, the "who still
+  // owes us" list and the instructor balances all have to describe the same
+  // period, or the page contradicts itself.
+  const scoped = useMemo(
+    () => (activeSeason ? filterDataToSeason(data, activeSeason) : data),
+    [data, activeSeason],
+  )
+
+  const { bookings, payments, instructors, taxiTrips } = scoped
 
   const activeBookings = bookings.filter(b => b.status !== 'cancelled')
   const activeIds = new Set(activeBookings.map(b => b.id))
@@ -39,14 +72,14 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
     billedNet, totalPaid, unverifiedPaid, totalDue,
     instructorCosts, activityCosts, houseRentalCosts, bungalowCosts, totalExpenses,
     palmeirasNet, netResult,
-  } = computeSeasonTotals(data)
+  } = computeSeasonTotals(scoped)
 
   const activeTrips     = taxiTrips.filter(t => t.booking_id === null || activeIds.has(t.booking_id))
   const standaloneTrips = activeTrips.filter(t => t.booking_id === null)
 
   // Per-booking detail, for the "who still owes us" list below
   const bookingFinances = activeBookings.map(b => {
-    const total     = computeBookingTotal(b, data)
+    const total     = computeBookingTotal(b, scoped)
     const discounts = computeBookingDiscounts(b.id, payments)
     const paid      = computeBookingPaid(b.id, payments)
     return { ...b, total, discounts, paid, due: total - discounts - paid }
@@ -55,7 +88,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   // ── Instructor balances ────────────────────────────────────────────────
   const instrBalances = instructors.map(i => ({
     ...i,
-    balance: computeInstructorBalance(i.id, data),
+    balance: computeInstructorBalance(i.id, scoped),
   })).filter(i => Math.abs(i.balance) > 0.5)
     .sort((a, b) => b.balance - a.balance)
 
@@ -73,8 +106,69 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   const fmt = (n: number) => fmtEur(n)
   const sign = (n: number) => `${n >= 0 ? '+' : ''}${fmt(n)}`
 
+  // The period picker sits above everything and is the only place the scope is
+  // set — every figure on this screen is read through it.
+  const periodBar = (
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
+        <button
+          onClick={() => setScope({ kind: 'all' })}
+          className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+            scope.kind === 'all' ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+        >
+          All time
+        </button>
+        {seasons.map(s => (
+          <button
+            key={s.id}
+            onClick={() => setScope({ kind: 'season', id: s.id })}
+            title={`${s.start_date} → ${s.end_date}`}
+            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+              scope.kind === 'season' && scope.id === s.id
+                ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+        {seasons.length > 1 && (
+          <button
+            onClick={() => setScope({ kind: 'compare' })}
+            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+              scope.kind === 'compare' ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            ⇄ Compare
+          </button>
+        )}
+      </div>
+      {activeSeason && (
+        <span className="text-xs text-gray-500 dark:text-gray-400">
+          {activeSeason.start_date} → {activeSeason.end_date}
+        </span>
+      )}
+      {seasons.length === 0 && (
+        <span className="text-xs text-amber-600 dark:text-amber-400">
+          No season configured — add one in Options → Seasons to break these figures down by period.
+        </span>
+      )}
+    </div>
+  )
+
+  if (scope.kind === 'compare') {
+    return (
+      <div className="space-y-6">
+        {periodBar}
+        <SeasonComparison data={data} seasons={seasons} />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8">
+
+      {periodBar}
 
       {/* ── Row 1: main KPIs ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -140,13 +234,11 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
       {/* ── Net result banner ── */}
       <div className={`rounded-xl border-2 p-5 flex items-center justify-between ${netResult >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-700' : 'bg-red-50 dark:bg-red-950/40 border-red-400 dark:border-red-700'}`}>
         <div>
-          {/* Said "(season)", but nothing here filters by season — computeSeasonTotals
-              reads every booking, expense and lesson ever recorded. Harmless while
-              there is only one season on the books, quietly wrong from the second
-              one on. Labelled for what it actually is until a season filter is
-              designed (which season is "current", and does it cut on the booking
-              date or the payment date, are gui's calls to make). */}
-          <p className={`text-sm font-semibold uppercase tracking-wide ${netResult >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>Net result (all time)</p>
+          {/* Says what it actually covers. It read "(season)" while nothing filtered
+              by season at all — a lifetime total under a seasonal heading. */}
+          <p className={`text-sm font-semibold uppercase tracking-wide ${netResult >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
+            Net result ({activeSeason ? activeSeason.label : 'all time'})
+          </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Revenue (taxis net of driver + manager) + palmeiras − instructors − houses − bungalows − activity providers − expenses</p>
         </div>
         <p className={`text-4xl font-bold ${netResult >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>{sign(netResult)}</p>
@@ -251,7 +343,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
       {showCollections && (
         <CollectionsModal
           rows={unpaidBookings}
-          clients={data.clients}
+          clients={scoped.clients}
           onClose={() => setShowCollections(false)}
           onOpenBooking={onOpenBooking}
         />
