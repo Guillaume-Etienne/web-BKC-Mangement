@@ -209,6 +209,13 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       note: priceRow?.override_note ?? null,
     }
   })
+  // A room that still comes out at 0 after the fallback is not something to show
+  // a client — this link travels (WhatsApp, forwarded mail) and "H1/F · 11 nights
+  // · €0" reads like a mistake or a freebie. It is also the normal shape of a
+  // full house, where the whole price sits on one line and the other rooms are 0.
+  // Dropping it changes no figure: a 0 line adds nothing to the subtotal, and if
+  // every room is 0 the section hides itself.
+  const billedAccomRows = accomRows.filter(row => row.total > 0)
 
   // External accommodation rows
   const extAccomRows = extAccomBkgs.map(e => {
@@ -222,7 +229,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
     }
   })
 
-  const accomTotal = accomRows.reduce((s, r) => s + r.total, 0)
+  const accomTotal = billedAccomRows.reduce((s, r) => s + r.total, 0)
     + extAccomRows.reduce((s, r) => s + r.total, 0)
 
   // Participant name helpers
@@ -321,7 +328,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         </div>
 
         {/* Accommodation */}
-        {(accomRows.length > 0 || extAccomRows.length > 0) && (
+        {(billedAccomRows.length > 0 || extAccomRows.length > 0) && (
           <Section title="Accommodation" icon="🛏️">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
@@ -333,7 +340,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {accomRows.map((row, i) => (
+                {billedAccomRows.map((row, i) => (
                   <tr key={i} className="border-b border-gray-50 dark:border-gray-800">
                     <td className="px-5 py-3 font-medium text-gray-800 dark:text-gray-200">
                       {row.label}
