@@ -6,6 +6,7 @@ import { useTable } from '../hooks/useSupabase'
 import { useBookings, useBookingParticipants } from '../hooks/useBookings'
 import type { Instructor, Lesson, BillableType, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults, TaxiDriver, BookingStatus, KiteLevel } from '../types/database'
 import AccommodationsTab from '../components/management/AccommodationsTab'
+import SeasonsTab from '../components/management/SeasonsTab'
 import DatabaseTab from '../components/management/DatabaseTab'
 import { todayISO } from '../utils/dates'
 
@@ -92,7 +93,7 @@ function getBaseUrl() {
 }
 
 export default function ManagementPage() {
-  const [tab, setTab] = useState<'instructors' | 'houses' | 'pricing' | 'links' | 'bookguest' | 'database'>('instructors')
+  const [tab, setTab] = useState<'instructors' | 'houses' | 'pricing' | 'seasons' | 'links' | 'bookguest' | 'database'>('instructors')
 
   // ── Bookings & Guests tab ─────────────────────────────────────────────────
   const { data: allBookings } = useBookings()
@@ -346,7 +347,7 @@ export default function ManagementPage() {
 
         {/* Tabs */}
         <div className="flex gap-1 md:gap-4 mt-4 md:mt-8 mb-4 md:mb-8 border-b overflow-x-auto">
-          {(['instructors', 'houses', 'pricing', 'links', 'bookguest', 'database'] as const).map(t => (
+          {(['instructors', 'houses', 'pricing', 'seasons', 'links', 'bookguest', 'database'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`shrink-0 whitespace-nowrap px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium capitalize transition-colors ${
                 tab === t ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
@@ -354,6 +355,7 @@ export default function ManagementPage() {
               {t === 'instructors' ? '📚 Instructors'
                 : t === 'houses'   ? '🏠 Accommodations'
                 : t === 'pricing'  ? '💰 Pricing'
+                : t === 'seasons'  ? '📆 Seasons'
                 : t === 'links'    ? <>🔗 <span className="hidden sm:inline">Shared </span>Links</>
                 : t === 'database' ? '🗄️ Database'
                 : <>👥 Bookings<span className="hidden sm:inline"> & Guests</span></>}
@@ -509,6 +511,9 @@ export default function ManagementPage() {
 
         {/* ── Houses Tab ────────────────────────────────────────────────────── */}
         {tab === 'houses' && <AccommodationsTab />}
+
+        {/* ── Seasons Tab ───────────────────────────────────────────────────── */}
+        {tab === 'seasons' && <SeasonsTab />}
 
         {/* ── Pricing Tab ───────────────────────────────────────────────────── */}
         {tab === 'pricing' && (

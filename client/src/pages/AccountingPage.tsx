@@ -68,7 +68,10 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: taxiPricingDefaults }      = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
   const { data: activityBookings }         = useActivityBookings()
   const { data: activityPayments }         = useActivityPayments()
-  const { data: seasons }                  = useTable<Season>('seasons')
+  // Ordered on purpose: four tabs read `seasons[seasons.length - 1]` as "the
+  // current season". Without an ORDER BY, Postgres returns rows in whatever order
+  // it likes, so "the last one" was a coin flip as soon as a second season exists.
+  const { data: seasons }                  = useTable<Season>('seasons', { order: 'start_date' })
   const { data: priceItems }               = useTable<PriceItem>('price_items')
 
   // ── Mutable state (Supabase) ──────────────────────────────────────────────
