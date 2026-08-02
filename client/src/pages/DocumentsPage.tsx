@@ -13,12 +13,6 @@ import { emailVisaLetter, emailBookingConfirmation, emailTravelGuide, emailWelco
 import type { Lang } from '../utils/printBookingSummary'
 import type { Booking } from '../types/database'
 import { supabase } from '../lib/supabase'
-import {
-  computeAccommodationRevenue, computeLessonsRevenue, computeRentalsRevenue,
-  computeTaxiRevenue, computeDiningForBooking, computeActivityRevenueForBooking,
-  emptyAccountingData,
-} from '../components/accounting/utils'
-import type { SharedAccountingData } from '../components/accounting/types'
 import { fmtDate } from '../utils/dates'
 
 // ── Guide sections — legacy localStorage fallback ──────────────────────────────
@@ -361,7 +355,6 @@ export default function DocumentsPage() {
   const [summaryBookingId, setSummaryBookingId] = useState('')
   const [summarySearch,    setSummarySearch]    = useState('')
   const [lang, setLang]                         = useState<Lang>('en')
-  const [totalAmountStr,   setTotalAmountStr]   = useState('')
 
   // Guide sections — DB-backed working copies (null until loaded)
   const guideDb   = useDocumentSections('travel_guide')
@@ -418,7 +411,6 @@ export default function DocumentsPage() {
   const visaBooking    = activeBookings.find(b => b.id === effectiveVisaId)
   const summaryBooking = activeBookings.find(b => b.id === effectiveSummaryId)
   const summaryRooms   = getRoomLabels(effectiveSummaryId, bookingRooms, rooms, accommodations)
-  const totalAmount    = totalAmountStr !== '' ? parseFloat(totalAmountStr) : null
   const activeSections        = (guideSections   ?? []).filter(s => s.is_active)
   const activeWelcomeSections = (welcomeSections ?? []).filter(s => s.is_active)
 
@@ -447,38 +439,6 @@ export default function DocumentsPage() {
       setGuideEmail(clientEmail(summaryBooking))
       setWelcomeEmail(clientEmail(summaryBooking))
     }
-  }, [effectiveSummaryId])
-
-  // Pre-compute booking total for Summary tab
-  useEffect(() => {
-    if (!effectiveSummaryId || !summaryBooking) return
-    const bId = effectiveSummaryId
-    Promise.all([
-      supabase.from('booking_room_prices').select('*').eq('booking_id', bId),
-      supabase.from('lessons').select('*').eq('booking_id', bId),
-      supabase.from('instructors').select('*'),
-      supabase.from('lesson_rate_overrides').select('*'),
-      supabase.from('equipment_rentals').select('*').eq('booking_id', bId),
-      supabase.from('taxi_trips').select('*').eq('booking_id', bId),
-      supabase.from('dining_events').select('*'),
-      supabase.from('activity_bookings').select('*').eq('booking_id', bId),
-      supabase.from('external_accommodation_bookings').select('*').eq('booking_id', bId),
-      supabase.from('room_rates').select('*'),
-      supabase.from('price_items').select('*'),
-    ]).then(([brp, lessons, instrs, lro, rentals, taxis, dining, activities, extAccom, rates, prices]) => {
-      const d = (extra: Partial<SharedAccountingData>): SharedAccountingData =>
-        ({ ...emptyAccountingData(), ...extra })
-      const bkParts = bookingParticipants.filter(p => p.booking_id === bId)
-      const bkRooms = bookingRooms.filter(br => br.booking_id === bId)
-      const total =
-        computeAccommodationRevenue(summaryBooking, d({ bookingRooms: bkRooms, bookingRoomPrices: brp.data ?? [], externalAccommodationBkgs: extAccom.data ?? [], rooms, accommodations, roomRates: rates.data ?? [] })) +
-        computeLessonsRevenue(summaryBooking, d({ lessons: lessons.data ?? [], instructors: instrs.data ?? [], lessonRateOverrides: lro.data ?? [], priceItems: prices.data ?? [] })) +
-        computeRentalsRevenue(summaryBooking, d({ equipmentRentals: rentals.data ?? [] })) +
-        computeTaxiRevenue(summaryBooking, d({ taxiTrips: taxis.data ?? [] })) +
-        computeDiningForBooking(summaryBooking, dining.data ?? [], bkParts) +
-        computeActivityRevenueForBooking(summaryBooking, d({ activityBookings: activities.data ?? [] }))
-      setTotalAmountStr(Math.round(total).toString())
-    })
   }, [effectiveSummaryId])
 
   // Fetch email logs for the active booking — re-fetches after each send via logsRefresh
@@ -658,18 +618,6 @@ export default function DocumentsPage() {
 
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                Estimated total — auto-computed, edit if needed
-              </label>
-              <div className="flex items-center gap-2 max-w-xs">
-                <span className="text-gray-400 dark:text-gray-400">€</span>
-                <input type="number" value={totalAmountStr} onChange={e => setTotalAmountStr(e.target.value)}
-                  placeholder="Computing…" min={0}
-                  className="flex-1 border rounded-lg px-3 py-2 text-sm" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                 Travel guide sections included ({activeSections.length} active)
               </label>
               <div className="flex flex-wrap gap-1.5">
@@ -685,7 +633,7 @@ export default function DocumentsPage() {
 
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => summaryBooking && printBookingSummary(summaryBooking, summaryRooms, lang, totalAmount, activeSections, bookingParticipants)}
+                onClick={() => summaryBooking && printBookingSummary(summaryBooking, summaryRooms, lang, activeSections, bookingParticipants)}
                 disabled={!summaryBooking}
                 className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors">
                 🖨️ Generate PDF
@@ -699,7 +647,7 @@ export default function DocumentsPage() {
                 emailValue={summaryEmail}
                 onEmailChange={setSummaryEmail}
                 onSend={() => {
-                  const html = emailBookingConfirmation(summaryBooking, summaryRooms, lang, totalAmount, activeSections, bookingParticipants)
+                  const html = emailBookingConfirmation(summaryBooking, summaryRooms, lang, activeSections, bookingParticipants)
                   sendEmail('booking_confirmation', summaryEmail, `Booking confirmation #${summaryBooking.booking_number} — ${summaryBooking.client?.first_name ?? ''}`, html)
                 }}
                 sending={sending === 'booking_confirmation'}

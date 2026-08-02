@@ -171,14 +171,14 @@
 - **State :** `tab: 'visa'|'summary'|'guide'|'welcome'|'templates'`, `guideSections`/`welcomeSections` (copies de travail nullables, init depuis DB), `templatesDoc: 'travel'|'welcome'`, `emailLogs`, `logsRefresh`, `sending: EmailLogType|null`
 - **Onglets :**
   - `'visa'` → lettre visa (portugais) : sélecteur booking, aperçu dates/guests, Generate PDF + Send email
-  - `'summary'` → confirmation réservation : booking, langue (FR/EN/ES), total auto-calculé (9 requêtes parallèles + `compute*`), Generate PDF + Send email
+  - `'summary'` → confirmation réservation : booking, langue (FR/EN/ES), Generate PDF + Send email. **Aucun montant estimé** (retiré le 2026-08-02, demande gui) : le document ne mentionne que `amount_paid`, pas de total ni de solde — c'étaient des estimations qui bougeaient encore et qu'un client lit comme un devis. Le retrait a supprimé avec elles l'input « Estimated total » et un `useEffect` de 11 requêtes parallèles.
   - `'guide'` → guide voyage (avant le séjour) : toggles sections + édition, SaveBar, envoi standalone (PDF + email)
   - `'welcome'` → **Welcome Guide** (infos sur place : wifi, repas, eau, élec, programme…) : même structure que `'guide'`, type email `welcome_guide`
   - `'templates'` → éditeur contenu de base (toutes langues) avec **switcher Travel/Welcome**, SaveBar, 3 boutons Preview PDF (FR/EN/ES)
 - **Sauvegarde templates (depuis 2026-07-09) :** DB `document_templates` via `useDocumentSections` — édition en brouillon local, **bouton Save explicite** (SaveBar : dirty par comparaison JSON avec `saved`, Cancel = retour au dernier état sauvé). Si table vide (`saved === null`) : fallback localStorage legacy `bkc_guide_sections` (travel) ou `defaultWelcomeGuideSections` (welcome) + bandeau « Not stored in the database yet » ; le premier Save sème la table.
 - **PDF :**
   - `printVisaLetter(booking, participants)`
-  - `printBookingSummary(booking, rooms, lang, total, sections, participants)`
+  - `printBookingSummary(booking, rooms, lang, sections, participants)`
   - `printTravelGuide` / `printWelcomeGuide` `(booking|null, lang, sections)` — `null` pour preview sans booking
 - **Email system :** via Edge Function `send-email` (proxy Resend)
   - `SendEmailRow` : champ email pré-rempli depuis `client.email` + bouton Send + `EmailHistory` (3 derniers envois)

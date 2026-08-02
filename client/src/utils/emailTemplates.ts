@@ -153,8 +153,8 @@ const T: Record<Lang, Record<string, string>> = {
     guests: 'Voyageurs', name: 'Nom', passport: 'Passeport',
     transport: 'Transport', arrivalTransfer: 'Navette arrivée', departureTransfer: 'Navette départ',
     at: 'à', luggage: 'bagage(s)', boardbag: 'sac(s) de board', noTransport: 'Aucun transfert prévu',
-    payment: 'Paiement', amountPaid: 'Montant réglé', totalAmount: 'Total estimé du séjour',
-    balanceDue: 'Solde restant à régler', travelGuide: 'Guide du voyageur',
+    payment: 'Paiement', amountPaid: 'Montant réglé',
+    travelGuide: 'Guide du voyageur',
     generatedOn: 'Document généré le', contact: 'Contact',
   },
   en: {
@@ -164,8 +164,8 @@ const T: Record<Lang, Record<string, string>> = {
     guests: 'Guests', name: 'Name', passport: 'Passport',
     transport: 'Transport', arrivalTransfer: 'Arrival transfer', departureTransfer: 'Departure transfer',
     at: 'at', luggage: 'luggage', boardbag: 'boardbag(s)', noTransport: 'No transfer planned',
-    payment: 'Payment', amountPaid: 'Amount paid', totalAmount: 'Estimated total',
-    balanceDue: 'Balance due', travelGuide: "Traveller's guide",
+    payment: 'Payment', amountPaid: 'Amount paid',
+    travelGuide: "Traveller's guide",
     generatedOn: 'Generated on', contact: 'Contact',
   },
   es: {
@@ -175,8 +175,8 @@ const T: Record<Lang, Record<string, string>> = {
     guests: 'Viajeros', name: 'Nombre', passport: 'Pasaporte',
     transport: 'Transporte', arrivalTransfer: 'Traslado llegada', departureTransfer: 'Traslado salida',
     at: 'a las', luggage: 'maleta(s)', boardbag: 'funda(s) de tabla', noTransport: 'Sin traslado previsto',
-    payment: 'Pago', amountPaid: 'Importe pagado', totalAmount: 'Total estimado',
-    balanceDue: 'Saldo pendiente', travelGuide: 'Guía del viajero',
+    payment: 'Pago', amountPaid: 'Importe pagado',
+    travelGuide: 'Guía del viajero',
     generatedOn: 'Generado el', contact: 'Contacto',
   },
 }
@@ -201,11 +201,14 @@ function kvRow(key: string, val: string): string {
     </table>`
 }
 
+/** Same document as printBookingSummary, delivered by email — so it states the
+ *  same thing: only what has actually been paid, never an estimated total or a
+ *  balance. The two must agree; a client who gets both should not find two
+ *  different figures. */
 export function emailBookingConfirmation(
   booking: Booking,
   roomLabels: string[],
   lang: Lang,
-  totalAmount: number | null,
   activeSections: TravelGuideSection[],
   participants: BookingParticipant[]
 ): string {
@@ -213,7 +216,6 @@ export function emailBookingConfirmation(
   const client = booking.client
   const clientName = client ? `${client.first_name} ${client.last_name}` : '—'
   const nights  = nightCount(booking.check_in, booking.check_out)
-  const balance = totalAmount != null ? totalAmount - booking.amount_paid : null
 
   const stayContent = [
     kvRow(t.checkIn,  `${fmtDateLang(booking.check_in, lang)}${booking.arrival_time ? ` &nbsp;${t.at} ${booking.arrival_time}` : ''}`),
@@ -263,28 +265,13 @@ export function emailBookingConfirmation(
         booking.taxi_departure ? transferBox(`← ${t.departureTransfer}`, fmtDateLang(booking.check_out, lang), booking.departure_time, 0, 0) : '',
       ].join('')
 
-  const paymentRows = [
-    totalAmount != null ? `
-      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:2px;">
-        <tr>
-          <td style="padding:4px 10px;font-size:12px;color:#6b7280;">${t.totalAmount}</td>
-          <td style="padding:4px 10px;font-size:12px;font-weight:bold;text-align:right;">&euro;${totalAmount.toFixed(2)}</td>
-        </tr>
-      </table>` : '',
-    `<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:2px;">
-       <tr>
-         <td style="padding:4px 10px;font-size:12px;color:#6b7280;">${t.amountPaid}</td>
-         <td style="padding:4px 10px;font-size:12px;font-weight:bold;text-align:right;">&euro;${booking.amount_paid.toFixed(2)}</td>
-       </tr>
-     </table>`,
-    balance != null && balance > 0 ? `
-      <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef3c7;margin-top:4px;border-radius:4px;">
-        <tr>
-          <td style="padding:7px 10px;font-size:13px;font-weight:bold;color:#92400e;">${t.balanceDue}</td>
-          <td style="padding:7px 10px;font-size:13px;font-weight:bold;color:#92400e;text-align:right;">&euro;${balance.toFixed(2)}</td>
-        </tr>
-      </table>` : '',
-  ].join('')
+  const paymentRows = `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:2px;">
+      <tr>
+        <td style="padding:4px 10px;font-size:12px;color:#6b7280;">${t.amountPaid}</td>
+        <td style="padding:4px 10px;font-size:12px;font-weight:bold;text-align:right;">&euro;${booking.amount_paid.toFixed(2)}</td>
+      </tr>
+    </table>`
 
   const guideContent = activeSections.length === 0 ? '' :
     sectionBlock('🌍', t.travelGuide, activeSections.map(sec => `

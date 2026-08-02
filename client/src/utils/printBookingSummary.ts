@@ -15,8 +15,8 @@ const T: Record<Lang, Record<string, string>> = {
     guests: 'Voyageurs', name: 'Nom', passport: 'Passeport',
     transport: 'Transport', arrivalTransfer: 'Navette arrivée', departureTransfer: 'Navette départ',
     at: 'à', luggage: 'bagage(s)', boardbag: 'sac(s) de board', noTransport: 'Aucun transfert prévu',
-    payment: 'Paiement', amountPaid: 'Montant réglé', totalAmount: 'Total estimé du séjour',
-    balanceDue: 'Solde restant à régler', travelGuide: 'Guide du voyageur',
+    payment: 'Paiement', amountPaid: 'Montant réglé',
+    travelGuide: 'Guide du voyageur',
     generatedOn: 'Document généré le', contact: 'Contact',
   },
   en: {
@@ -26,8 +26,8 @@ const T: Record<Lang, Record<string, string>> = {
     guests: 'Guests', name: 'Name', passport: 'Passport',
     transport: 'Transport', arrivalTransfer: 'Arrival transfer', departureTransfer: 'Departure transfer',
     at: 'at', luggage: 'luggage', boardbag: 'boardbag(s)', noTransport: 'No transfer planned',
-    payment: 'Payment', amountPaid: 'Amount paid', totalAmount: 'Estimated total',
-    balanceDue: 'Balance due', travelGuide: "Traveller's guide",
+    payment: 'Payment', amountPaid: 'Amount paid',
+    travelGuide: "Traveller's guide",
     generatedOn: 'Document generated on', contact: 'Contact',
   },
   es: {
@@ -37,8 +37,8 @@ const T: Record<Lang, Record<string, string>> = {
     guests: 'Viajeros', name: 'Nombre', passport: 'Pasaporte',
     transport: 'Transporte', arrivalTransfer: 'Traslado llegada', departureTransfer: 'Traslado salida',
     at: 'a las', luggage: 'maleta(s)', boardbag: 'funda(s) de tabla', noTransport: 'Sin traslado previsto',
-    payment: 'Pago', amountPaid: 'Importe pagado', totalAmount: 'Total estimado',
-    balanceDue: 'Saldo pendiente', travelGuide: 'Guía del viajero',
+    payment: 'Pago', amountPaid: 'Importe pagado',
+    travelGuide: 'Guía del viajero',
     generatedOn: 'Documento generado el', contact: 'Contacto',
   },
 }
@@ -80,11 +80,17 @@ function kvRow(key: string, val: string): string {
     </div>`
 }
 
+/** The client-facing confirmation.
+ *
+ *  It deliberately states **only what has actually been paid** — no estimated
+ *  total, no balance due. Those were guesses built from prices that can still
+ *  move (a lesson added, a taxi cancelled), and a client reading a figure on a
+ *  signed-looking PDF treats it as a quote. What is banked is a fact; the rest
+ *  is settled in person. */
 export function printBookingSummary(
   booking: Booking,
   roomLabels: string[],
   lang: Lang,
-  totalAmount: number | null,
   activeSections: TravelGuideSection[],
   bookingParticipants: BookingParticipant[] = []
 ): void {
@@ -92,7 +98,6 @@ export function printBookingSummary(
   const client = booking.client
   const clientName = client ? `${client.first_name} ${client.last_name}` : '—'
   const nights = nightCount(booking.check_in, booking.check_out)
-  const balance = totalAmount != null ? totalAmount - booking.amount_paid : null
 
   // ── Stay section content ──
   const stayContent = [
@@ -144,23 +149,12 @@ export function printBookingSummary(
         booking.taxi_departure ? transferBox(`← ${t.departureTransfer}`, fmtDate(booking.check_out, lang), booking.departure_time, 0, 0) : '',
       ].join('')
 
-  // ── Payment section ──
-  const paymentRows = [
-    totalAmount != null ? `
-      <div style="display:flex;justify-content:space-between;padding:5px 10px;font-size:10pt;border-bottom:0.5pt solid #e5e7eb;">
-        <span style="color:#6b7280;">${t.totalAmount}</span>
-        <span style="font-weight:bold;">&euro;${totalAmount.toFixed(2)}</span>
-      </div>` : '',
-    `<div style="display:flex;justify-content:space-between;padding:5px 10px;font-size:10pt;border-bottom:0.5pt solid #e5e7eb;">
-        <span style="color:#6b7280;">${t.amountPaid}</span>
-        <span style="font-weight:bold;">&euro;${booking.amount_paid.toFixed(2)}</span>
-     </div>`,
-    balance != null && balance > 0 ? `
-      <div style="display:flex;justify-content:space-between;padding:7px 10px;font-size:10.5pt;background:#fef3c7;margin-top:4px;">
-        <span style="font-weight:bold;color:#92400e;">${t.balanceDue}</span>
-        <span style="font-weight:bold;color:#92400e;">&euro;${balance.toFixed(2)}</span>
-      </div>` : '',
-  ].join('')
+  // ── Payment section — what is banked, and nothing else ──
+  const paymentRows = `
+    <div style="display:flex;justify-content:space-between;padding:5px 10px;font-size:10pt;border-bottom:0.5pt solid #e5e7eb;">
+      <span style="color:#6b7280;">${t.amountPaid}</span>
+      <span style="font-weight:bold;">&euro;${booking.amount_paid.toFixed(2)}</span>
+    </div>`
 
   // ── Travel guide ──
   const guideContent = activeSections.length === 0 ? '' :
