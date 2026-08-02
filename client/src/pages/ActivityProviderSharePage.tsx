@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import type { ActivityProvider, ActivityBooking, ActivityPayment } from '../types/database'
-import { todayISO } from '../utils/dates'
+import { todayISO, fmtDate } from '../utils/dates'
 
 interface Props { providerId: string }
 
@@ -92,7 +92,7 @@ function BookingTable({ bookings, showPrices }: { bookings: ActivityBooking[]; s
         <tbody>
           {bookings.map(b => (
             <tr key={b.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{b.date}</td>
+              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{fmtDate(b.date)}</td>
               <td className="px-4 py-2 text-gray-800 dark:text-gray-200 font-medium">{b.label}</td>
               <td className="px-4 py-2 text-center text-gray-600 dark:text-gray-400">{b.nb_persons}</td>
               {showPrices && (
@@ -202,7 +202,7 @@ function AccountingTab({
               <tbody>
                 {[...filteredBookings].sort((a, b) => b.date.localeCompare(a.date)).map(b => (
                   <tr key={b.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{b.date}</td>
+                    <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(b.date)}</td>
                     <td className="px-4 py-2 text-gray-800 dark:text-gray-200 font-medium">{b.label}</td>
                     <td className="px-4 py-2 text-center text-gray-600 dark:text-gray-400">{b.nb_persons}</td>
                     <td className="px-4 py-2">
@@ -247,7 +247,7 @@ function AccountingTab({
               <tbody>
                 {sortedPayments.map(p => (
                   <tr key={p.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{p.date}</td>
+                    <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{fmtDate(p.date)}</td>
                     <td className="px-4 py-2">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                         p.direction === 'to_provider'

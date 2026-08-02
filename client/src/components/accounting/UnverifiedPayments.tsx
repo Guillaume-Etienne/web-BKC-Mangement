@@ -1,4 +1,5 @@
 import type { SharedAccountingData, AccountingHandlers } from './types'
+import { fmtDate } from '../../utils/dates'
 
 const METHOD_LABELS: Record<string, string> = {
   cash_eur:        'Cash EUR',
@@ -55,7 +56,7 @@ export default function UnverifiedPayments({ data, handlers }: Props) {
                 const client  = booking ? clients.find(c => c.id === booking.client_id) : null
                 return (
                   <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{p.date}</td>
+                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(p.date)}</td>
                     <td className="px-4 py-3">
                       {booking
                         ? <span className="font-mono font-bold text-blue-600 dark:text-blue-400">#{String(booking.booking_number).padStart(3, '0')}</span>

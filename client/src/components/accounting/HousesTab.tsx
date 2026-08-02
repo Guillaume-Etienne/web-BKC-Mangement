@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { SharedAccountingData } from './types'
 import { countNights, getRoomNightlyRate, fmtEur } from './utils'
+import { fmtDate } from '../../utils/dates'
 
 interface Props { data: SharedAccountingData }
 
@@ -178,8 +179,8 @@ export default function HousesTab({ data }: Props) {
                         <tbody>
                           {[...rentals].sort((a, b) => b.start_date.localeCompare(a.start_date)).map(r => (
                             <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800">
-                              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{r.start_date}</td>
-                              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{r.end_date}</td>
+                              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(r.start_date)}</td>
+                              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(r.end_date)}</td>
                               <td className="px-4 py-2 text-right text-red-600 dark:text-red-400 font-medium">− {fmtEur(r.total_cost)}</td>
                               <td className="px-4 py-2 text-gray-400 dark:text-gray-400 text-xs truncate max-w-[120px]">{r.notes ?? ''}</td>
                             </tr>

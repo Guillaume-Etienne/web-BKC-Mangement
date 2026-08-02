@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTable } from '../../hooks/useSupabase'
 import type { Season } from '../../types/database'
-import { daysBetween, todayISO } from '../../utils/dates'
+import { daysBetween, todayISO, fmtDate } from '../../utils/dates'
 
 /** Seasons drive the accounting period filter, and until now nothing could
  *  create one — the table had only ever been seeded by a migration, so the
@@ -62,7 +62,7 @@ function SeasonForm({ initial, existing, onSave, onCancel, saving }: {
       )}
       {!badDates && overlap && (
         <p className="text-xs text-amber-600 dark:text-amber-400">
-          ⚠️ Overlaps “{overlap.label}” ({overlap.start_date} → {overlap.end_date}). A booking can only be
+          ⚠️ Overlaps “{overlap.label}” ({fmtDate(overlap.start_date)} → {fmtDate(overlap.end_date)}). A booking can only be
           counted in one season, so overlapping ranges make the figures ambiguous.
         </p>
       )}
@@ -167,7 +167,7 @@ export default function SeasonsTab() {
                     {current && <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-blue-600 text-white">Current</span>}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {s.start_date} → {s.end_date}
+                    {fmtDate(s.start_date)} → {fmtDate(s.end_date)}
                     <span className="text-gray-400 dark:text-gray-500"> · {daysBetween(s.start_date, s.end_date)} days</span>
                   </p>
                 </div>

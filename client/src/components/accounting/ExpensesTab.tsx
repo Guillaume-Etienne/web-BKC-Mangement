@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { Expense } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
-import { todayISO } from '../../utils/dates'
+import { todayISO, fmtDate } from '../../utils/dates'
 
 const DEFAULT_CATEGORIES: string[] = ['Equipment', 'Maintenance', 'Transport', 'Staff', 'Admin', 'Other']
 
@@ -301,7 +301,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
               )}
               {filtered.map(e => (
                 <tr key={e.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{e.date}</td>
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtDate(e.date)}</td>
                   <td className="px-4 py-3">
                     <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
                       style={{ backgroundColor: colorOf(e.category) + '33', color: colorOf(e.category) }}>

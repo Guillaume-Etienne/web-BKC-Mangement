@@ -13,6 +13,9 @@
 /** A calendar day, `YYYY-MM-DD`. Same shape `<input type="date">` speaks. */
 export type ISODate = string
 
+/** Exactly a stored calendar day, nothing else. */
+const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/
+
 /** The local calendar day of a Date — the day a person looking at that clock
  *  would name, whatever UTC thinks. */
 export function toISODate(d: Date): ISODate {
@@ -58,6 +61,37 @@ export function addDays(d: Date, n: number): Date {
   const out = new Date(d)
   out.setDate(out.getDate() + n)
   return out
+}
+
+/** A calendar day the way the centre reads it: `04/11/2026`.
+ *
+ *  The admin screens used to print the stored `YYYY-MM-DD` straight out, which
+ *  reads as year/month/day and is easy to misparse at a glance — especially
+ *  next to a day/month date somewhere else on the same screen. Storage stays
+ *  ISO (it sorts, and `<input type="date">` requires it); only what a human
+ *  reads changes.
+ *
+ *  Formatted from the string's own parts rather than through a Date, so it
+ *  cannot pick up a timezone shift on the way to the screen.
+ *
+ *  @param iso a `YYYY-MM-DD` day; anything empty gives an em dash.
+ */
+export function fmtDate(iso: ISODate | null | undefined): string {
+  if (!iso) return '—'
+  const parts = ISO_DAY.exec(iso)
+  // Anything that is not a plain YYYY-MM-DD goes through untouched: splitting on
+  // "-" alone would happily turn "not-a-date" into "date/a/not".
+  if (!parts) return iso
+  const [, y, m, d] = parts
+  return `${d}/${m}/${y}`
+}
+
+/** The same, without the year — for dense tables where the year is obvious
+ *  from context: `04/11`. */
+export function fmtDateShort(iso: ISODate | null | undefined): string {
+  if (!iso) return '—'
+  const parts = ISO_DAY.exec(iso)
+  return parts ? `${parts[3]}/${parts[2]}` : iso
 }
 
 /** Whole days from `from` to `to` (negative if `to` is earlier).

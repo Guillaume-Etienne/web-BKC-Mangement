@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useTable } from '../hooks/useSupabase'
 import type { FormSubmission, FormSubmissionStatus, Lang } from '../types/database'
 import { activityCountColumns } from '../utils/bookingActivity'
-import { addDaysISO as addDays } from '../utils/dates'
+import { addDaysISO as addDays, fmtDate } from '../utils/dates'
 
 // Admin review queue for public booking-form submissions.
 // English UI (admin chrome). Approving turns a submission into a real
@@ -24,9 +24,6 @@ function splitName(full: string): { first: string; last: string } {
   return { first: parts[0], last: parts.slice(1).join(' ') }
 }
 
-function fmtDate(iso: string | null): string {
-  return iso ? iso : '—'
-}
 
 // ─── Detail / review panel (module scope = focus-safe inputs) ─────────────────
 interface DetailProps { s: FormSubmission; onDone: () => void }

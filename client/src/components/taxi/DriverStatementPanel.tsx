@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { TaxiDriver, TaxiTrip, SharedLink } from '../../types/database'
-import { todayISO } from '../../utils/dates'
+import { todayISO, fmtDate } from '../../utils/dates'
 
 const TRIP_TYPE_LABELS: Record<string, string> = {
   'aero-to-center':  'Airport → Center',
@@ -52,7 +52,7 @@ function TripTable({ trips, showStatus }: { trips: TaxiTrip[]; showStatus?: bool
         <tbody>
           {trips.map(t => (
             <tr key={t.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{t.date}</td>
+              <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(t.date)}</td>
               <td className="px-3 py-2 text-gray-500 dark:text-gray-400">{t.start_time}</td>
               <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{TRIP_TYPE_LABELS[t.type] ?? t.type}</td>
               <td className="px-3 py-2 text-center text-gray-600 dark:text-gray-400">{t.nb_persons}</td>

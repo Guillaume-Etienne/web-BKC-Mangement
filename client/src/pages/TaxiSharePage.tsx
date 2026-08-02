@@ -6,7 +6,7 @@ import {
   type TaxiLang, type DateMode,
 } from '../data/taxiShareI18n'
 import { usePref, Segmented } from './taxiShareUI'
-import { todayISO } from '../utils/dates'
+import { todayISO, fmtDate } from '../utils/dates'
 
 export default function TaxiSharePage() {
   const today = todayISO()
@@ -38,7 +38,7 @@ export default function TaxiSharePage() {
   const filtered = allTrips
     .filter(t => showPast || t.date >= today)
     .filter(t => filterDriver === 'all' || t.taxi_driver_id === filterDriver)
-    .sort((a, b) => `${a.date}${a.start_time}`.localeCompare(`${b.date}${b.start_time}`))
+    .sort((a, b) => `${fmtDate(a.date)}${a.start_time}`.localeCompare(`${fmtDate(b.date)}${b.start_time}`))
 
   // Group by date
   const byDate: Record<string, typeof filtered> = {}

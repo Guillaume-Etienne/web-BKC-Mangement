@@ -372,7 +372,9 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   const todayMidnight = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
   const [dayCount, setDayCount] = useState<1 | 3 | 7>(() => (typeof window !== 'undefined' && window.innerWidth < 768) ? 1 : 7)
   const [focusedDay, setFocusedDay] = useState<Date>(todayMidnight)
-  const focusedDayLabel = focusedDay.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
+  // en-GB, not en-US: "Fri, 31 Jul" reads day-then-month like every other date
+  // in the app, where en-US would put "Fri, Jul 31".
+  const focusedDayLabel = focusedDay.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
   const prevDay = () => setFocusedDay(d => shiftDate(d, -1))
   const nextDay = () => setFocusedDay(d => shiftDate(d, 1))
   const goToTodayDay = () => setFocusedDay(todayMidnight())

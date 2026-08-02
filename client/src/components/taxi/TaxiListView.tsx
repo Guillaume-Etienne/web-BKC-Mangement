@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef, BookingParticipant } from '../../types/database'
 import { computeTaxiMarginEur } from '../accounting/utils'
-import { todayISO } from '../../utils/dates'
+import { todayISO, fmtDate } from '../../utils/dates'
 
 const STATUS_CONFIG: Record<TaxiTripStatus, { label: string; row: string; badge: string }> = {
   confirmed:    { label: 'Confirmed',     row: '',            badge: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' },
@@ -17,7 +17,7 @@ function guestName(bookingId: string | null, bookings: BookingRef[]): string {
 
 function bookingLabel(b: BookingRef): string {
   const name = b.client ? `${b.client.first_name} ${b.client.last_name}` : 'Unknown'
-  return `#${String(b.booking_number).padStart(3, '0')} — ${name} (${b.check_in} → ${b.check_out})`
+  return `#${String(b.booking_number).padStart(3, '0')} — ${name} (${fmtDate(b.check_in)} → ${fmtDate(b.check_out)})`
 }
 
 const TRIP_TYPE_LABELS: Record<string, string> = {
@@ -304,7 +304,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
   const sortedTrips = [...trips]
     .filter(t => filterDriver === 'all' || t.taxi_driver_id === filterDriver || (filterDriver === 'unassigned' && !t.taxi_driver_id))
     .sort((a, b) => {
-      if (sortBy === 'date')   return `${a.date}${a.start_time}`.localeCompare(`${b.date}${b.start_time}`)
+      if (sortBy === 'date')   return `${fmtDate(a.date)}${a.start_time}`.localeCompare(`${fmtDate(b.date)}${b.start_time}`)
       if (sortBy === 'driver') {
         const dA = a.taxi_driver_id ? drivers.find(d => d.id === a.taxi_driver_id)?.name ?? 'zzz' : 'zzz'
         const dB = b.taxi_driver_id ? drivers.find(d => d.id === b.taxi_driver_id)?.name ?? 'zzz' : 'zzz'
@@ -435,7 +435,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                 const sc = STATUS_CONFIG[trip.status]
                 return (
                   <tr key={trip.id} data-date={trip.date} className={`border-b transition-colors hover:brightness-95 ${sc.row}`}>
-                    <td className="px-3 py-2 whitespace-nowrap text-gray-800 dark:text-gray-200">{trip.date}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-800 dark:text-gray-200">{fmtDate(trip.date)}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-800 dark:text-gray-200">{trip.start_time}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-xs">
                       {TRIP_TYPE_LABELS[trip.type]}

@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
 import { useTable } from '../../hooks/useSupabase'
 import type { Accommodation, Room, RoomRate, HouseRental } from '../../types/database'
-import { todayISO } from '../../utils/dates'
+import { todayISO, fmtDate } from '../../utils/dates'
 
 // ── House form (module scope) ─────────────────────────────────────────────────
 interface HouseFormProps {
@@ -418,7 +418,7 @@ export default function HousesTab() {
                     <div key={rp.id} className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 rounded-lg px-3 py-2 text-sm">
                       <div>
                         <span className="font-semibold text-gray-800 dark:text-gray-200">
-                          {rp.start_date} → {rp.end_date}
+                          {fmtDate(rp.start_date)} → {fmtDate(rp.end_date)}
                         </span>
                         <span className="ml-3 font-bold text-blue-900 dark:text-blue-400">{rp.total_cost.toLocaleString()}€</span>
                         {rp.notes && <span className="ml-2 text-gray-500 dark:text-gray-400 italic">{rp.notes}</span>}

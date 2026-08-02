@@ -1,6 +1,7 @@
 import type { SharedAccountingData } from './types'
 import { computeDiningRevenue, fmtEur } from './utils'
 import type { DiningEvent } from '../../types/database'
+import { fmtDate } from '../../utils/dates'
 
 interface Props { data: SharedAccountingData }
 
@@ -69,7 +70,7 @@ export default function EventsTab({ data }: Props) {
                 const rev = eventRevenue(ev)
                 return (
                   <tr key={ev.id} className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">{ev.date}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">{fmtDate(ev.date)}</td>
                     <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{ev.name || <span className="italic text-gray-400 dark:text-gray-400">(unnamed)</span>}</td>
                     <td className="px-4 py-3 text-center">
                       <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
@@ -110,7 +111,7 @@ export default function EventsTab({ data }: Props) {
             <tbody>
               {freeEvents.map(ev => (
                 <tr key={ev.id} className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800 opacity-60">
-                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">{ev.date}</td>
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">{fmtDate(ev.date)}</td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{ev.name || <span className="italic text-gray-400 dark:text-gray-400">(unnamed)</span>}</td>
                   <td className="px-4 py-3 text-center text-gray-500 dark:text-gray-400">{(ev.attendees ?? []).filter(a => a.is_attending).length}</td>
                 </tr>

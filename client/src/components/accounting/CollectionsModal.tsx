@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { BookingStatus, Client } from '../../types/database'
 import { fmtEur } from './utils'
-import { todayISO } from '../../utils/dates'
+import { todayISO, fmtDate } from '../../utils/dates'
 
 // Row shape produced by AccountingDashboard's bookingFinances (booking + finance fields)
 export interface UnpaidRow {
@@ -111,7 +111,7 @@ export default function CollectionsModal({ rows, clients, onClose, onOpenBooking
                                   <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[r.status]}`}>{r.status}</span>
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                  {r.check_in} → {r.check_out}
+                                  {fmtDate(r.check_in)} → {fmtDate(r.check_out)}
                                   {c?.phone && <span className="ml-2">📞 {c.phone}</span>}
                                   {c?.email && <span className="ml-2">✉️ {c.email}</span>}
                                 </p>

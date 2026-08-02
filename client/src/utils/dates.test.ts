@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   toISODate, todayISO, toISOMonth, fromISODate, addDaysISO, addDays, daysBetween,
+  fmtDate, fmtDateShort,
 } from './dates'
 
 /** These assertions are written to fail under the old
@@ -94,6 +95,45 @@ describe('addDays', () => {
     const original = new Date(2026, 7, 5)
     addDays(original, 10)
     expect(toISODate(original)).toBe('2026-08-05')
+  })
+})
+
+describe('fmtDate', () => {
+  it('reads day/month/year, not the stored year/month/day', () => {
+    expect(fmtDate('2026-11-04')).toBe('04/11/2026')
+  })
+
+  it('keeps the leading zeros so the columns line up', () => {
+    expect(fmtDate('2026-01-05')).toBe('05/01/2026')
+  })
+
+  it('shows an em dash for a missing date instead of "undefined"', () => {
+    expect(fmtDate(null)).toBe('—')
+    expect(fmtDate(undefined)).toBe('—')
+    expect(fmtDate('')).toBe('—')
+  })
+
+  it('passes anything unrecognised straight through rather than mangling it', () => {
+    expect(fmtDate('not-a-date')).toBe('not-a-date')
+  })
+
+  it('cannot drift a day, because it never builds a Date', () => {
+    // The whole family of bugs this module exists for: formatting through
+    // `new Date(iso)` would parse as UTC and could print the day before.
+    for (const iso of ['2026-01-01', '2026-06-15', '2026-12-31', '2028-02-29']) {
+      const [y, m, d] = iso.split('-')
+      expect(fmtDate(iso)).toBe(`${d}/${m}/${y}`)
+    }
+  })
+})
+
+describe('fmtDateShort', () => {
+  it('drops the year for dense tables', () => {
+    expect(fmtDateShort('2026-11-04')).toBe('04/11')
+  })
+
+  it('shows an em dash for a missing date', () => {
+    expect(fmtDateShort(null)).toBe('—')
   })
 })
 

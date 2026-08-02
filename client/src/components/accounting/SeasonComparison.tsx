@@ -4,6 +4,7 @@ import type { Season } from '../../types/database'
 import { filterDataToSeason } from './seasonFilter'
 import { computeSeasonTotals, fmtEur } from './utils'
 import type { SeasonTotals } from './utils'
+import { fmtDate } from '../../utils/dates'
 
 /** Season against season, one column each.
  *
@@ -120,7 +121,7 @@ export default function SeasonComparison({ data, seasons }: Props) {
                 <th key={c.season.id} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
                   {c.season.label}
                   <span className="block text-[11px] font-normal text-gray-400 dark:text-gray-500">
-                    {c.season.start_date} → {c.season.end_date}
+                    {fmtDate(c.season.start_date)} → {fmtDate(c.season.end_date)}
                   </span>
                 </th>
               ))}

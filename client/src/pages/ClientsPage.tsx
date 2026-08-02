@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useClients } from '../hooks/useClients'
 import { useBookings } from '../hooks/useBookings'
 import type { Client, Booking, KiteLevel } from '../types/database'
+import { fmtDate } from '../utils/dates'
 
 interface ClientsPageProps {
   onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients') => void
@@ -485,7 +486,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                             <div key={booking.id} className="border rounded-lg p-3 text-sm">
                               <div className="flex justify-between items-start mb-2">
                                 <div className="font-medium text-gray-800 dark:text-gray-200">
-                                  {booking.check_in} → {booking.check_out}
+                                  {fmtDate(booking.check_in)} → {fmtDate(booking.check_out)}
                                 </div>
                                 <span className={`px-2 py-1 rounded text-xs font-semibold ${bookingStatusColor[booking.status]}`}>
                                   {bookingStatusLabel[booking.status]}

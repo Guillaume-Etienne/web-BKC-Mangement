@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { TaxiTrip, TaxiManagerPayment } from '../../types/database'
-import { todayISO } from '../../utils/dates'
+import { todayISO, fmtDate } from '../../utils/dates'
 
 // ── Dual-currency helpers (MZN first, € translation beside) ──────────────────
 const mznToEur = (mzn: number, rate: number) => Math.round(mzn / (rate || 1))
@@ -221,7 +221,7 @@ export default function TaxiFinanceTab({ trips, payments, eurMznRate, onAddPayme
                 </tr>
               ) : payments.map(p => (
                 <tr key={p.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <td className="px-3 py-2 whitespace-nowrap text-gray-800 dark:text-gray-200">{p.date}</td>
+                  <td className="px-3 py-2 whitespace-nowrap text-gray-800 dark:text-gray-200">{fmtDate(p.date)}</td>
                   <td className="px-3 py-2 text-right font-semibold text-blue-900 dark:text-blue-400">{p.amount_mzn.toLocaleString()}</td>
                   <td className="px-3 py-2 text-gray-500 dark:text-gray-400 text-xs">{p.notes ?? <span className="italic text-gray-300 dark:text-gray-500">—</span>}</td>
                   <td className="px-3 py-2 text-center">

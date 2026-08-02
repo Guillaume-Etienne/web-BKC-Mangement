@@ -9,7 +9,7 @@ import {
   computeDiningForBooking, getLessonClientRate, getConfiguredRate, computeStandaloneTaxiRevenue,
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate,
 } from './utils'
-import { todayISO } from '../../utils/dates'
+import { todayISO, fmtDate } from '../../utils/dates'
 
 interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
 
@@ -484,7 +484,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                     <div key={l.id} className="text-xs text-gray-500 dark:text-gray-400">
                       <div className="flex justify-between items-center">
                         <span>
-                          {l.type} · {l.duration_hours}h · {l.date}{instr ? ` (${instr.first_name})` : ''}
+                          {l.type} · {l.duration_hours}h · {fmtDate(l.date)}{instr ? ` (${instr.first_name})` : ''}
                           {l.type === 'group' && <span className="ml-1">× {heads}</span>}
                           {l.participant_ids.length > 0 && (
                             <span className="ml-1 text-blue-400 dark:text-blue-300">— {partNames(l.participant_ids)}</span>
@@ -533,7 +533,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                     <div key={r.id} className="text-xs text-gray-500 dark:text-gray-400">
                       <div className="flex justify-between items-center">
                         <span>
-                          {r.date} · <span className="capitalize">{typeLabel}</span> · {r.slot}
+                          {fmtDate(r.date)} · <span className="capitalize">{typeLabel}</span> · {r.slot}
                           {r.participant_id && partName(r.participant_id) && (
                             <span className="ml-1 text-blue-400 dark:text-blue-300">— {partName(r.participant_id)}</span>
                           )}
@@ -568,7 +568,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
               <div className="px-4 py-2 space-y-1">
                 {bkTaxis.map(t => (
                   <div key={t.id} className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                    <span>{t.date} · {t.type} · {t.nb_persons}p</span>
+                    <span>{fmtDate(t.date)} · {t.type} · {t.nb_persons}p</span>
                     <span>{fmtEur(t.price_eur)}</span>
                   </div>
                 ))}
@@ -602,7 +602,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                     return (
                       <div key={ev.id} className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
                         <span>
-                          {ev.date} · {ev.name || '(unnamed)'} · {attending.length}p @ {fmtEur(ev.price_per_person)}
+                          {fmtDate(ev.date)} · {ev.name || '(unnamed)'} · {attending.length}p @ {fmtEur(ev.price_per_person)}
                           <span className="ml-1 text-blue-400 dark:text-blue-300">— {attending.map(a => partName(a.person_id) ?? a.person_name).join(', ')}</span>
                         </span>
                         <span>{fmtEur(evTotal)}</span>
@@ -625,7 +625,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                 {bkActivities.map(a => (
                   <div key={a.id} className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
                     <span>
-                      {a.date} · {a.label} · {a.nb_persons}p
+                      {fmtDate(a.date)} · {a.label} · {a.nb_persons}p
                       {a.participant_ids.length > 0 && (
                         <span className="ml-1 text-blue-400 dark:text-blue-300">— {partNames(a.participant_ids)}</span>
                       )}
@@ -734,7 +734,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                   <div className="px-4 py-2 space-y-1">
                     {lines.map((l, i) => (
                       <div key={i} className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                        <span>{l.date} · {l.label}</span>
+                        <span>{fmtDate(l.date)} · {l.label}</span>
                         <span>{fmtEur(l.amount)}</span>
                       </div>
                     ))}
@@ -806,7 +806,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                 ) : (
                   <div className={`flex items-center justify-between text-sm rounded-lg px-4 py-2 ${p.is_discount ? 'bg-purple-50 dark:bg-purple-950/40' : 'bg-gray-50 dark:bg-gray-800'}`}>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-gray-400 dark:text-gray-400 text-xs">{p.date}</span>
+                      <span className="text-gray-400 dark:text-gray-400 text-xs">{fmtDate(p.date)}</span>
                       {p.is_discount ? (
                         <span className="px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">Discount</span>
                       ) : (
@@ -919,7 +919,7 @@ export default function BookingFinances({ data, handlers }: Props) {
                       {client ? `${client.first_name} ${client.last_name}` : '–'}
                     </td>
                     <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">
-                      {b.check_in} → {b.check_out}
+                      {fmtDate(b.check_in)} → {fmtDate(b.check_out)}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(total)}</td>
                     <td className="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">{fmtEur(paid)}</td>
@@ -984,7 +984,7 @@ export default function BookingFinances({ data, handlers }: Props) {
             <tbody>
               {standaloneTrips.map(t => (
                 <tr key={t.id} className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <td className="px-4 py-2 text-gray-600 dark:text-gray-400">{t.date}</td>
+                  <td className="px-4 py-2 text-gray-600 dark:text-gray-400">{fmtDate(t.date)}</td>
                   <td className="px-4 py-2 text-gray-600 dark:text-gray-400">{t.type}</td>
                   <td className="px-4 py-2 text-gray-500 dark:text-gray-400">{t.nb_persons}p</td>
                   <td className="px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{t.notes ?? '–'}</td>

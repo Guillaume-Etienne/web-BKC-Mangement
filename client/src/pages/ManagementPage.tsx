@@ -8,7 +8,7 @@ import type { Instructor, Lesson, BillableType, PriceItem, PriceCategory, Shared
 import AccommodationsTab from '../components/management/AccommodationsTab'
 import SeasonsTab from '../components/management/SeasonsTab'
 import DatabaseTab from '../components/management/DatabaseTab'
-import { todayISO } from '../utils/dates'
+import { todayISO, fmtDate } from '../utils/dates'
 
 const KITE_LEVEL_LABELS: Record<KiteLevel, string> = {
   'beg-total':      'Beg-Total',
@@ -491,7 +491,7 @@ export default function ManagementPage() {
                         <div className="space-y-3 max-h-60 overflow-y-auto">
                           {getInstructorLessons(selectedInstructor.id).map((lesson) => (
                             <div key={lesson.id} className="border rounded-lg p-3 text-sm">
-                              <div className="font-medium text-gray-800 dark:text-gray-200 mb-2">{lesson.date} at {lesson.start_time}</div>
+                              <div className="font-medium text-gray-800 dark:text-gray-200 mb-2">{fmtDate(lesson.date)} at {lesson.start_time}</div>
                               <div className="text-gray-600 dark:text-gray-400 space-y-1">
                                 <p>Type: {lesson.type === 'private' ? 'Private' : lesson.type === 'group' ? 'Group' : 'Supervision'}</p>
                                 <p>Duration: {lesson.duration_hours}h</p>
@@ -829,7 +829,7 @@ export default function ManagementPage() {
                         >
                           <span className="font-mono text-sm font-bold text-blue-600 dark:text-blue-400">#{String(b.booking_number).padStart(3, '0')}</span>
                           <span className="font-medium text-gray-800 dark:text-gray-200">{b.client?.first_name} {b.client?.last_name}</span>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">{b.check_in} → {b.check_out}</span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">{fmtDate(b.check_in)} → {fmtDate(b.check_out)}</span>
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[b.status]}`}>{b.status}</span>
                           <span className="text-sm text-gray-400 dark:text-gray-400 ml-auto flex items-center gap-1">
                             {guests.length} guest{guests.length !== 1 ? 's' : ''}
@@ -912,7 +912,7 @@ export default function ManagementPage() {
                           .sort((a, b) => `${a.client?.last_name ?? ''}${a.client?.first_name ?? ''}`.localeCompare(`${b.client?.last_name ?? ''}${b.client?.first_name ?? ''}`))
                           .map(b => (
                             <option key={b.id} value={b.booking_number}>
-                              {b.client ? `${b.client.first_name} ${b.client.last_name}` : 'Unknown'} — #{String(b.booking_number).padStart(3, '0')} ({b.check_in} → {b.check_out})
+                              {b.client ? `${b.client.first_name} ${b.client.last_name}` : 'Unknown'} — #{String(b.booking_number).padStart(3, '0')} ({fmtDate(b.check_in)} → {fmtDate(b.check_out)})
                             </option>
                           ))}
                       </select>

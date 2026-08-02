@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef, BookingParticipant } from '../../types/database'
 import { computeTaxiMarginEur } from '../accounting/utils'
-import { todayISO } from '../../utils/dates'
+import { todayISO, fmtDate } from '../../utils/dates'
 
 const STATUS_CONFIG: Record<TaxiTripStatus, { label: string; card: string; badge: string }> = {
   confirmed:    { label: 'Confirmed',     card: 'from-slate-50 dark:from-slate-800 to-gray-50 dark:to-gray-800 border-gray-200 dark:border-gray-800',     badge: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' },
@@ -17,7 +17,7 @@ function guestName(bookingId: string | null, bookings: BookingRef[]): string {
 
 function bookingLabel(b: BookingRef): string {
   const name = b.client ? `${b.client.first_name} ${b.client.last_name}` : '?'
-  return `#${String(b.booking_number).padStart(3, '0')} — ${name} (${b.check_in} → ${b.check_out})`
+  return `#${String(b.booking_number).padStart(3, '0')} — ${name} (${fmtDate(b.check_in)} → ${fmtDate(b.check_out)})`
 }
 
 // ── Summary table — réalisés vs prévus ───────────────────────────────────────
@@ -114,9 +114,9 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
 
   function getTripsForDriver(driverId: string | 'unassigned'): TaxiTrip[] {
     if (driverId === 'unassigned') {
-      return trips.filter(t => t.taxi_driver_id === null).sort((a, b) => `${a.date}${a.start_time}`.localeCompare(`${b.date}${b.start_time}`))
+      return trips.filter(t => t.taxi_driver_id === null).sort((a, b) => `${fmtDate(a.date)}${a.start_time}`.localeCompare(`${fmtDate(b.date)}${b.start_time}`))
     }
-    return trips.filter(t => t.taxi_driver_id === driverId).sort((a, b) => `${a.date}${a.start_time}`.localeCompare(`${b.date}${b.start_time}`))
+    return trips.filter(t => t.taxi_driver_id === driverId).sort((a, b) => `${fmtDate(a.date)}${a.start_time}`.localeCompare(`${fmtDate(b.date)}${b.start_time}`))
   }
 
   function openEdit(trip: TaxiTrip) {
@@ -265,7 +265,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
 
                         {/* Trip info */}
                         <div className="font-bold text-gray-900 dark:text-gray-100 mb-1">
-                          {trip.date} · {trip.start_time}
+                          {fmtDate(trip.date)} · {trip.start_time}
                         </div>
 
                         <div className="text-xs text-gray-700 dark:text-gray-300 mb-2">

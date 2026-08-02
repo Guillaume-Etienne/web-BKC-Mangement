@@ -3,7 +3,7 @@ import type { Booking, BookingParticipant, BookingRoom, DiningEvent, EventAttend
 import { useTable } from '../../hooks/useSupabase'
 import { supabase } from '../../lib/supabase'
 import { getConfiguredRate } from '../accounting/utils'
-import { todayISO } from '../../utils/dates'
+import { todayISO, fmtDate } from '../../utils/dates'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -610,7 +610,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
                 >
                   <span>{ev.type === 'menu' ? '🍽️' : '🍖'}</span>
                   <span className="font-medium text-gray-800 dark:text-gray-200 flex-1 truncate">{ev.name || '(unnamed)'}</span>
-                  <span className="text-gray-400 dark:text-gray-400 shrink-0">{ev.date} · {ev.time}</span>
+                  <span className="text-gray-400 dark:text-gray-400 shrink-0">{fmtDate(ev.date)} · {ev.time}</span>
                   <span className="text-emerald-600 dark:text-emerald-400 font-semibold shrink-0">{evAttending} pers.</span>
                   {ev.price_per_person > 0 && <span className="text-blue-600 dark:text-blue-400 font-semibold shrink-0">€{evTotal}</span>}
                   {evUnpaid.count > 0 && (

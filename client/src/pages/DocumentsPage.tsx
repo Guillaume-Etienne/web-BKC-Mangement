@@ -19,6 +19,7 @@ import {
   emptyAccountingData,
 } from '../components/accounting/utils'
 import type { SharedAccountingData } from '../components/accounting/types'
+import { fmtDate } from '../utils/dates'
 
 // ── Guide sections — legacy localStorage fallback ──────────────────────────────
 // Sections now live in the document_templates table. This read-only fallback
@@ -50,7 +51,7 @@ function getRoomLabels(bookingId: string, bookingRooms: { booking_id: string; ro
 
 function bookingLabel(b: Booking): string {
   const name = b.client ? `${b.client.first_name} ${b.client.last_name}` : 'Unknown'
-  return `#${String(b.booking_number).padStart(3, '0')} — ${name}  (${b.check_in} → ${b.check_out})`
+  return `#${String(b.booking_number).padStart(3, '0')} — ${name}  (${fmtDate(b.check_in)} → ${fmtDate(b.check_out)})`
 }
 
 function clientEmail(b: Booking | undefined): string {

@@ -1,4 +1,5 @@
 import type { Booking } from '../../types/database'
+import { fmtDate } from '../../utils/dates'
 
 const statusColors: Record<string, string> = {
   confirmed: 'bg-emerald-500',
@@ -26,7 +27,7 @@ export default function BookingBar({ booking, startCol, endCol }: BookingBarProp
         gridColumnStart: startCol,
         gridColumnEnd: endCol,
       }}
-      title={`${clientName} — ${booking.check_in} → ${booking.check_out} (${booking.status})`}
+      title={`${clientName} — ${fmtDate(booking.check_in)} → ${fmtDate(booking.check_out)} (${booking.status})`}
     >
       {clientName}
     </div>

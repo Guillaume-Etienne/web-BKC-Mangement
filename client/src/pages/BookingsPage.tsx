@@ -9,7 +9,7 @@ import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, R
 import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
 import { getFullHouseRate, getBaseNightlyRate } from '../utils/roomPricing'
 import { getConfiguredRate } from '../components/accounting/utils'
-import { todayISO } from '../utils/dates'
+import { todayISO, fmtDate } from '../utils/dates'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -955,7 +955,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                 {d.check_in && d.check_out && (
                   <div className="flex justify-between text-gray-600 dark:text-gray-400">
                     <span>🏄 Stay</span>
-                    <span>{d.check_in} → {d.check_out} ({nights}N)</span>
+                    <span>{fmtDate(d.check_in)} → {fmtDate(d.check_out)} ({nights}N)</span>
                   </div>
                 )}
                 {(d.visa_entry_date || d.visa_exit_date) && (
@@ -1614,7 +1614,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                       {getRoomLabel(b.id)}
                     </td>
                     <td className="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">
-                      {b.check_in} → {b.check_out}
+                      {fmtDate(b.check_in)} → {fmtDate(b.check_out)}
                     </td>
                     <td className="px-3 py-2">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusColor[b.status]}`}>
@@ -1666,7 +1666,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                 </span>
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1 mb-3">
-                <p>📅 {b.check_in} → {b.check_out}</p>
+                <p>📅 {fmtDate(b.check_in)} → {fmtDate(b.check_out)}</p>
                 <p>👥 {bookingParticipants.filter(p => p.booking_id === b.id).length} pax · 📚 {b.num_lessons} lessons
                   {(b.taxi_arrival || b.taxi_departure) && ` · 🚕`}
                 </p>

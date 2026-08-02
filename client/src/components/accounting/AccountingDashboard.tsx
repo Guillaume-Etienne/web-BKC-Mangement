@@ -3,7 +3,7 @@ import type { SharedAccountingData } from './types'
 import CollectionsModal from './CollectionsModal'
 import SeasonComparison from './SeasonComparison'
 import { filterDataToSeason } from './seasonFilter'
-import { todayISO } from '../../utils/dates'
+import { todayISO, fmtDate } from '../../utils/dates'
 import {
   computeSeasonTotals,
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
@@ -123,7 +123,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
           <button
             key={s.id}
             onClick={() => setScope({ kind: 'season', id: s.id })}
-            title={`${s.start_date} → ${s.end_date}`}
+            title={`${fmtDate(s.start_date)} → ${fmtDate(s.end_date)}`}
             className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
               scope.kind === 'season' && scope.id === s.id
                 ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -145,7 +145,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
       </div>
       {activeSeason && (
         <span className="text-xs text-gray-500 dark:text-gray-400">
-          {activeSeason.start_date} → {activeSeason.end_date}
+          {fmtDate(activeSeason.start_date)} → {fmtDate(activeSeason.end_date)}
         </span>
       )}
       {seasons.length === 0 && (
@@ -384,7 +384,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
                         {onOpenBooking && <span className="text-gray-300 dark:text-gray-500 mr-1">↗</span>}
                         {client ? `${client.first_name} ${client.last_name}` : b.id}
                       </td>
-                      <td className="py-2 text-gray-500 dark:text-gray-400">{b.check_in}</td>
+                      <td className="py-2 text-gray-500 dark:text-gray-400">{fmtDate(b.check_in)}</td>
                       <td className="py-2">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[b.status]}`}>
                           {b.status}

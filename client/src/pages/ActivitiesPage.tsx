@@ -8,7 +8,7 @@ import type {
   ActivityProviderType, ActivityPaymentFlow, ActivityPaymentDirection,
   SharedLink, BookingRef,
 } from '../types/database'
-import { todayISO } from '../utils/dates'
+import { todayISO, fmtDate } from '../utils/dates'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -189,7 +189,7 @@ function BookingForm({ initial, providers, bookingRefs, allParticipants, onSave,
             <option value="">— No linked booking —</option>
             {bookingRefs.map(b => (
               <option key={b.id} value={b.id}>
-                #{String(b.booking_number).padStart(3,'0')} · {b.client?.first_name} {b.client?.last_name} · {b.check_in}
+                #{String(b.booking_number).padStart(3,'0')} · {b.client?.first_name} {b.client?.last_name} · {fmtDate(b.check_in)}
               </option>
             ))}
           </select>
@@ -506,7 +506,7 @@ function ProviderPanel({
                 <tbody>
                   {bookings.sort((a, b) => b.date.localeCompare(a.date)).map(b => (
                     <tr key={b.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{b.date}</td>
+                      <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(b.date)}</td>
                       <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{b.label}</td>
                       <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{clientName(b)}</td>
                       <td className="px-3 py-2 text-center text-gray-600 dark:text-gray-400">{b.nb_persons}</td>
@@ -568,7 +568,7 @@ function ProviderPanel({
                 <tbody>
                   {payments.map(p => (
                     <tr key={p.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{p.date}</td>
+                      <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{fmtDate(p.date)}</td>
                       <td className="px-3 py-2">
                         <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
                           p.direction === 'to_provider' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
@@ -843,7 +843,7 @@ export default function ActivitiesPage() {
                   <tbody>
                     {filteredBookings.sort((a, b) => b.date.localeCompare(a.date)).map(b => (
                       <tr key={b.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{b.date}</td>
+                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(b.date)}</td>
                         <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{providerName(b.provider_id)}</td>
                         <td className="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">{b.label}</td>
                         <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{clientName(b)}</td>

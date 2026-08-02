@@ -7,7 +7,7 @@ import {
   computeInstructorDiningCharges,
   getInstructorRate, fmtEur,
 } from './utils'
-import { todayISO } from '../../utils/dates'
+import { todayISO, fmtDate } from '../../utils/dates'
 
 interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
 
@@ -246,7 +246,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
                 <div key={l.id} className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800">
                     <div className="flex items-center gap-3 text-sm flex-wrap">
-                      <span className="text-gray-400 dark:text-gray-400 text-xs w-24 flex-shrink-0">{l.date}</span>
+                      <span className="text-gray-400 dark:text-gray-400 text-xs w-24 flex-shrink-0">{fmtDate(l.date)}</span>
                       <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
                         l.type === 'private'    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
                         l.type === 'group'      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' :
@@ -327,7 +327,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
             {iDebts.map(d => (
               <div key={d.id} className="flex items-center justify-between bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2 text-sm">
                 <div className="flex items-center gap-3">
-                  <span className="text-gray-400 dark:text-gray-400 text-xs">{d.date}</span>
+                  <span className="text-gray-400 dark:text-gray-400 text-xs">{fmtDate(d.date)}</span>
                   <span className="text-gray-700 dark:text-gray-300">{d.description}</span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -361,7 +361,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
               return (
                 <div key={ev.id} className="flex items-center justify-between bg-rose-50 dark:bg-rose-950/40 rounded-lg px-4 py-2 text-sm">
                   <div className="flex items-center gap-3">
-                    <span className="text-gray-400 dark:text-gray-400 text-xs">{ev.date}</span>
+                    <span className="text-gray-400 dark:text-gray-400 text-xs">{fmtDate(ev.date)}</span>
                     <span className="text-gray-700 dark:text-gray-300">{ev.name || '(unnamed)'}</span>
                   </div>
                   <span className="font-semibold text-rose-700 dark:text-rose-400">− {fmtEur(evCharge)}</span>
@@ -408,7 +408,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
             {iPayments.map(p => (
               <div key={p.id} className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 rounded-lg px-4 py-2 text-sm">
                 <div className="flex items-center gap-3">
-                  <span className="text-gray-400 dark:text-gray-400 text-xs">{p.date}</span>
+                  <span className="text-gray-400 dark:text-gray-400 text-xs">{fmtDate(p.date)}</span>
                   <span className="px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
                     {METHOD_LABELS[p.method]}
                   </span>
