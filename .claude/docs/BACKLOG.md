@@ -193,21 +193,28 @@ double comptage : le coût est dans `billed`, qui ne fait pas partie de `net` �
 par un test. Le KPI « Total out » a été mis à jour aussi, sinon il contredisait le tableau
 juste en dessous. **191 tests.**
 
-### 2. 📅 « Net result » n'est pas filtré par saison
-`computeSeasonTotals` lit **toutes** les résas, dépenses et leçons depuis l'origine ; la
-table `seasons` est passée dans `SharedAccountingData` mais **jamais utilisée**. Le libellé
-disait « Net result (season) ». Sans donnée réelle et avec une seule saison, ça ne change
-rien aujourd'hui ; à la deuxième saison le chiffre devient un cumul à vie sous une étiquette
-« saison ». **J'ai seulement rendu le libellé honnête (« all time »)** — implémenter un vrai
-filtre demande tes règles : quelle saison est « courante », et on coupe sur la date de résa,
-de check-in ou de paiement ? **→ à trancher avant l'ouverture de mi-septembre.**
+### 2. ~~📅 « Net result » n'est pas filtré par saison~~ — ✅ CORRIGÉ (2026-08-02, `16a5fac`→`4ac9faa`)
+**Décisions gui** : découpe sur la **date de check-in** (une résa appartient entièrement à la
+saison de son arrivée, jamais coupée en deux), et les 3 étapes faites d'un coup.
+Implémentation en 3 commits : `filterDataToSeason` **restreint le jeu de données en amont**
+sans toucher à un seul calcul (donc rien à revérifier côté maths) ; écran Options → Seasons
+pour créer/éditer les saisons ; sélecteur `All time / saison / ⇄ Compare` sur le Dashboard.
+Invariant verrouillé par un test : deux saisons adjacentes doivent sommer au total all-time.
+**208 tests.**
+⬜ **Reste (gui)** : saisir ses **vraies dates de saison** dans Options → Seasons
+(une saison = début septembre → mi-mars, sans chevauchement).
+⬜ **Reste (Claude, chantier séparé)** : `PlanningView` garde **sa propre définition en dur**
+(1er sept → 31 mars) — 3ᵉ source de vérité pour la même notion. À faire pointer sur la table
+`seasons` pour que planning et compta ne puissent pas diverger.
 
-### 3. 🧾 Une chambre sans tarif s'affiche « €0 » **sur la page client partagée**
-Constaté en vrai sur le lien client `#021` : `H1/B 11 nuits ×100 € = 1 100 €`, puis
-**`H1/F 11 nuits × 0 € = 0 €`**. C'est le point « tarifs des maisons » déjà listé plus bas,
-mais vu du client : un lien partagé qui circule (WhatsApp, mail transféré) montre une
-chambre facturée 0 €. **→ soit saisir le tarif, soit masquer/étiqueter les lignes à 0 sur
-la page client.**
+### 3. ~~🧾 Une chambre sans tarif s'affiche « €0 » sur la page client partagée~~ — ✅ CORRIGÉ (2026-08-02, `09df7f2`)
+**Décision gui : masquer purement et simplement** la ligne à 0 €, plutôt que l'étiqueter.
+`ClientSharePage` ne liste plus que les lignes `total > 0`. Attention au piège : le 0 vient
+d'un `0.00` **explicitement écrit** en base (motif « maison entière » — tout le prix est porté
+par une seule chambre), pas d'une donnée manquante, donc aucun repli `??` ne pouvait
+l'attraper. Le total facturé est inchangé.
+⚠️ **Ça traite le symptôme visible par le client, pas la cause** : les hébergements sans
+tarif de vente restent listés ci-dessous (B1, San Martinho, prix maison entière à confirmer).
 
 ---
 
@@ -495,10 +502,18 @@ place) — à redéployer un jour par cohérence repo↔runtime, non urgent.
 
 ## 📧 Emails — demandes de gui (2026-07-28)
 
-### Retouches sur l'email de documents — 🔜 gui doit préciser
+### Retouches sur l'email de documents — 🔶 une demande traitée, les autres à préciser
 Test d'envoi depuis Documents fait le 2026-07-28 (post-fix S1) : **ça marche**, mais gui veut
 des **modifications sur le contenu de ce mail**. À préciser : *lequel* (`visa_letter`,
 `booking_confirmation`, `travel_guide`, `welcome_guide`) et *quoi*.
+
+✅ **Première demande traitée (2026-08-02, `6ccaafb`) — `booking_confirmation`** : les
+**estimations de prix disparaissent**, dans les 3 langues et dans le **PDF comme dans l'email**
+(ne corriger que le PDF aurait envoyé un mail le contredisant). Il ne reste que le **montant
+réglé**. Partent avec : le « Total estimé » (reconstruit à chaque affichage depuis des prix
+qui bougent encore — un client lit ça comme un devis) et le « Solde restant », qui n'était que
+`total − versé`. Effet de bord bienvenu : suppression de l'input « Estimated total » et d'un
+`useEffect` qui lançait **11 requêtes Supabase en parallèle** à chaque changement de résa.
 👉 Ces templates sont **côté front** (`client/src/utils/emailTemplates.ts`) : modification
 simple, pas de redéploiement d'Edge Function, juste un build + push Vercel.
 ⚠️ Ne pas confondre avec les textes de `notify-submission` (formulaire public), eux **en dur
