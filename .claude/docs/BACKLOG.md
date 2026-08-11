@@ -18,6 +18,7 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
+| **`2026-08-11_external_stays_flat_rate.sql`** | Séjours externes : forfait (`total_cost` / `total_sell_price`) au lieu du par-nuit, `accommodations.external_billing`, et **fermeture d'une fuite de marge** — `total_cost` et le référentiel externe étaient lisibles par les liens partagés. **6 vérifs par curl anon en bas du fichier.** ⚠️ Le code livré avec narrowe les `select()` de `ClientSharePage` : sans la migration la page client tombe en 42501. | ⬜ | ⬜ |
 | ~~`2026-07-31_equipment_pricing_defaults.sql`~~ | Nouvelle table `equipment_pricing_defaults` (1 ligne) : les 3 curseurs du tab Equipment → CA (part matériel, part accessoires, ratio kite/planche), jusque-là en dur dans `EquipmentPage.tsx`. Pas d'accès anon. | ✅ 2026-08-01 | ✅ 2026-08-01 |
 
 > ✅ **Registre vide au 2026-08-01.** Vérifié par curl anon sur les DEUX bases :

@@ -47,6 +47,10 @@ CREATE TABLE accommodations (
   total_rooms     INTEGER NOT NULL DEFAULT 1,
   is_active       BOOLEAN NOT NULL DEFAULT true,
   cost_per_night  NUMERIC(10,2),   -- what we pay the owner (bungalows); NULL for owned houses
+  -- true = carries no room_rate; the amount lives on external_accommodation_bookings,
+  -- case by case (San Martinho, the "No accommodation" row). Exempt from the
+  -- "no sell price" badge. See 2026-08-11_external_stays_flat_rate.sql.
+  external_billing BOOLEAN NOT NULL DEFAULT false,
   created_at      TIMESTAMPTZ DEFAULT now()
 );
 
@@ -483,12 +487,12 @@ CREATE TABLE booking_room_prices (
   PRIMARY KEY (booking_id, room_id)
 );
 
+-- Référentiel : une simple liste de lieux. Les montants varient d'un séjour à
+-- l'autre, ils vivent donc sur la ligne de séjour, pas ici.
 CREATE TABLE external_accommodations (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name                  TEXT NOT NULL,
   provider              external_accommodation_provider NOT NULL,
-  cost_per_night        NUMERIC(8,2) NOT NULL DEFAULT 0,
-  sell_price_per_night  NUMERIC(8,2) NOT NULL DEFAULT 0,
   notes                 TEXT,
   is_active             BOOLEAN NOT NULL DEFAULT true
 );
@@ -499,8 +503,8 @@ CREATE TABLE external_accommodation_bookings (
   external_accommodation_id  UUID NOT NULL REFERENCES external_accommodations(id),
   check_in                   DATE NOT NULL,
   check_out                  DATE NOT NULL,
-  cost_per_night             NUMERIC(8,2) NOT NULL,  -- snapshot
-  sell_price_per_night       NUMERIC(8,2) NOT NULL,  -- snapshot
+  total_cost                 NUMERIC(10,2) NOT NULL DEFAULT 0,  -- forfait payé à l'hébergeur, jamais anon
+  total_sell_price           NUMERIC(10,2) NOT NULL DEFAULT 0,  -- forfait facturé au client
   notes                      TEXT
 );
 
@@ -873,6 +877,16 @@ REVOKE SELECT ON lesson_rate_overrides FROM anon;
 -- Le REVOKE d'abord, sinon le GRANT de table posé par Supabase laisse tout lisible.
 REVOKE SELECT ON room_rates FROM anon;
 GRANT  SELECT (room_id, price_per_night) ON room_rates TO anon;
+-- Séjours externes → le client voit ce qu'il paie, jamais ce que NOUS payons.
+-- `total_cost` est notre prix d'achat : le laisser lisible exposait la marge à
+-- tout porteur de lien client (fermé le 2026-08-11, cf. migration du même jour).
+REVOKE SELECT ON external_accommodation_bookings FROM anon;
+GRANT  SELECT (id, booking_id, external_accommodation_id, check_in, check_out, total_sell_price)
+  ON external_accommodation_bookings TO anon;
+-- Référentiel des lieux externes : sa policy est `share_type() IS NOT NULL`, donc
+-- lisible par TOUS les types de liens — d'où le narrowing à l'identité seule.
+REVOKE SELECT ON external_accommodations FROM anon;
+GRANT  SELECT (id, name, provider, is_active) ON external_accommodations TO anon;
 -- taxi_drivers → identity + contact + vehicle (phone kept on purpose: guests can
 -- call their taxi); never email/notes/margin_percent/default pricing.
 REVOKE SELECT ON taxi_drivers FROM anon;
