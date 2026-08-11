@@ -12,48 +12,64 @@ const TYPE_META: Record<AccommodationType, { icon: string; label: string; plural
 }
 
 // ── Accommodation form (module scope) ────────────────────────────────────────
+interface AccFormData {
+  name: string
+  is_active: boolean
+  type: AccommodationType
+  cost_per_night: number | null
+  external_billing: boolean
+}
 interface AccFormProps {
-  initial: { name: string; is_active: boolean; type: AccommodationType; cost_per_night: string }
+  initial: { name: string; is_active: boolean; type: AccommodationType; cost_per_night: string; external_billing: boolean }
   title: string
   lockType?: boolean
   /** Present when editing an existing accommodation: lets the same modal set
-   *  sell prices. Absent on creation — the rooms the rates hang off don't
-   *  exist until the accommodation is inserted. */
-  rateContext?: { accommodation: Accommodation; rooms: Room[]; rates: RoomRate[]; onRatesSaved: () => void }
-  onSave: (data: { name: string; is_active: boolean; type: AccommodationType; cost_per_night: number | null }) => Promise<void>
+   *  sell prices and manage rooms. Absent on creation — the rooms both hang off
+   *  don't exist until the accommodation is inserted. */
+  editContext?: {
+    accommodation: Accommodation
+    rooms: Room[]
+    rates: RoomRate[]
+    onRatesSaved: () => void
+    onRoomsChanged: () => void
+  }
+  onSave: (data: AccFormData) => Promise<void>
   onClose: () => void
 }
-function AccForm({ initial, title, lockType, rateContext, onSave, onClose }: AccFormProps) {
+function AccForm({ initial, title, lockType, editContext, onSave, onClose }: AccFormProps) {
   const [name,    setName]    = useState(initial.name)
   const [active,  setActive]  = useState(initial.is_active)
   const [type,    setType]    = useState(initial.type)
   const [cost,    setCost]    = useState(initial.cost_per_night)
+  const [external, setExternal] = useState(initial.external_billing)
   const [saving,  setSaving]  = useState(false)
   const [rateValues, setRateValues] = useState<Record<string, string>>(() =>
-    rateContext ? initialRateValues(rateContext.accommodation, rateContext.rooms, rateContext.rates) : {})
+    editContext ? initialRateValues(editContext.accommodation, editContext.rooms, editContext.rates) : {})
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     // Rates first: if they fail we keep the modal open rather than closing on a
-    // half-applied edit. onSave() is what dismisses it.
-    if (rateContext) {
-      const failures = await saveRates(rateValues, rateContext.rates)
+    // half-applied edit. onSave() is what dismisses it. Skipped when the place
+    // is billed per stay — there is no grid to write.
+    if (editContext && !external) {
+      const failures = await saveRates(rateValues, editContext.rates)
       if (failures.length > 0) { setSaving(false); alertRatesFailed(failures); return }
-      rateContext.onRatesSaved()
+      editContext.onRatesSaved()
     }
     await onSave({
       name: name.trim(),
       is_active: active,
       type,
       cost_per_night: type === 'bungalow' && cost !== '' ? parseFloat(cost) : null,
+      external_billing: external,
     })
     setSaving(false)
   }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full ${rateContext ? 'max-w-lg' : 'max-w-sm'}`}>
+      <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-h-[90vh] overflow-y-auto ${editContext ? 'max-w-lg' : 'max-w-sm'}`}>
         <div className="flex justify-between items-center p-4 border-b">
           <h3 className="font-bold text-gray-800 dark:text-gray-200">{title}</h3>
           <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-xl font-bold">✕</button>
@@ -92,17 +108,40 @@ function AccForm({ initial, title, lockType, rateContext, onSave, onClose }: Acc
                 className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           )}
-          {rateContext ? (
-            <div className="pt-1 border-t border-gray-200 dark:border-gray-800">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 mb-2">
-                Sell prices — what the guest pays
-              </p>
-              <RateFields accommodation={rateContext.accommodation} rooms={rateContext.rooms}
-                values={rateValues} onChange={(k, v) => setRateValues(p => ({ ...p, [k]: v }))} />
-            </div>
+          <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+            <input type="checkbox" checked={external} onChange={e => setExternal(e.target.checked)} className="rounded mt-0.5" />
+            <span>
+              Billed per stay, not per night
+              <span className="block text-xs text-gray-500 dark:text-gray-400">
+                For places we don't price ourselves — a third-party hotel, or guests with
+                their own arrangement. The amount is entered on each booking instead.
+              </span>
+            </span>
+          </label>
+          {editContext ? (
+            <>
+              {!external && (
+                <div className="pt-1 border-t border-gray-200 dark:border-gray-800">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 mb-2">
+                    Sell prices — what the guest pays
+                  </p>
+                  <RateFields accommodation={editContext.accommodation} rooms={editContext.rooms}
+                    values={rateValues} onChange={(k, v) => setRateValues(p => ({ ...p, [k]: v }))} />
+                </div>
+              )}
+              <div className="pt-1 border-t border-gray-200 dark:border-gray-800">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 mb-2">
+                  Rooms {external && <span className="font-normal text-gray-500 dark:text-gray-400">— one per simultaneous stay</span>}
+                </p>
+                {/* Applied immediately, unlike the fields above: adding a room changes
+                    what the rest of this form can even show. Renaming keeps the rate. */}
+                <RoomsEditor accommodation={editContext.accommodation} rooms={editContext.rooms}
+                  onChanged={editContext.onRoomsChanged} />
+              </div>
+            </>
           ) : (
             <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-              Sell prices can be set once the accommodation exists — reopen this form after saving.
+              Rooms and sell prices can be set once the accommodation exists — reopen this form after saving.
             </p>
           )}
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
@@ -252,6 +291,87 @@ function alertRatesFailed(failures: string[]) {
   alert(`The rates were NOT saved.\n\n${failures.join('\n')}\n\nStays booked here would be priced at 0 € — please try again.`)
 }
 
+// ── Rooms: the structure rates and the planning grid both hang off ───────────
+
+async function addRoom(accId: string, name: string, roomCount: number): Promise<string | null> {
+  const { error } = await supabase.from('rooms').insert([{ accommodation_id: accId, name, capacity: 2 }])
+  if (error) return error.message
+  await supabase.from('accommodations').update({ total_rooms: roomCount + 1 }).eq('id', accId)
+  return null
+}
+
+/** Renaming is safe: rates are keyed by room id, so a renamed room keeps its
+ *  price. Only the label moves. */
+async function renameRoom(roomId: string, name: string): Promise<string | null> {
+  const { error } = await supabase.from('rooms').update({ name }).eq('id', roomId)
+  return error ? error.message : null
+}
+
+/** `booking_rooms.room_id` is ON DELETE CASCADE, so deleting an occupied room
+ *  would strip it from those bookings without a word — and the stay would go on
+ *  existing with no accommodation at all. Count first, refuse if occupied. */
+async function deleteRoom(roomId: string, accId: string, roomCount: number): Promise<string | null> {
+  const { count, error: countErr } = await supabase
+    .from('booking_rooms').select('booking_id', { count: 'exact', head: true }).eq('room_id', roomId)
+  if (countErr) return countErr.message
+  if ((count ?? 0) > 0) {
+    return `${count} booking(s) still occupy this room. Move them elsewhere first — deleting it now would quietly leave them with no accommodation.`
+  }
+  const { error } = await supabase.from('rooms').delete().eq('id', roomId)
+  if (error) return error.message
+  await supabase.from('accommodations').update({ total_rooms: Math.max(0, roomCount - 1) }).eq('id', accId)
+  return null
+}
+
+interface RoomsEditorProps {
+  accommodation: Accommodation
+  rooms: Room[]
+  onChanged: () => void
+}
+function RoomsEditor({ accommodation, rooms, onChanged }: RoomsEditorProps) {
+  const [newName, setNewName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const sorted = sortRooms(rooms)
+
+  async function run(op: Promise<string | null>) {
+    setBusy(true)
+    const err = await op
+    setBusy(false)
+    if (err) { alert(err); return }
+    onChanged()
+  }
+
+  return (
+    <div className="space-y-2">
+      {sorted.length === 0 && (
+        <p className="text-xs text-red-600 dark:text-red-400">
+          No rooms yet — this accommodation cannot be booked or priced.
+        </p>
+      )}
+      {sorted.map(r => (
+        <div key={r.id} className="flex items-center gap-2">
+          <input type="text" defaultValue={r.name} disabled={busy}
+            onBlur={e => { const v = e.target.value.trim(); if (v && v !== r.name) run(renameRoom(r.id, v)) }}
+            className="flex-1 text-sm border rounded px-2 py-1" />
+          <button type="button" disabled={busy}
+            onClick={() => run(deleteRoom(r.id, accommodation.id, rooms.length))}
+            className="p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded text-sm disabled:opacity-50">🗑️</button>
+        </div>
+      ))}
+      <div className="flex items-center gap-2">
+        <input type="text" value={newName} disabled={busy} placeholder="Add a room / spot…"
+          onChange={e => setNewName(e.target.value)}
+          className="flex-1 text-sm border rounded px-2 py-1" />
+        <button type="button" disabled={busy || newName.trim() === ''}
+          onClick={() => run(addRoom(accommodation.id, newName.trim(), rooms.length)).then(() => setNewName(''))}
+          className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded text-sm font-medium disabled:opacity-50">
+          + Add
+        </button>
+      </div>
+    </div>
+  )
+}
+
 interface RateFieldsProps {
   accommodation: Accommodation
   rooms: Room[]
@@ -350,7 +470,7 @@ export default function AccommodationsTab() {
 
   // ── CRUD ────────────────────────────────────────────────────────────────────
 
-  async function handleCreate(data: { name: string; is_active: boolean; type: AccommodationType; cost_per_night: number | null }) {
+  async function handleCreate(data: AccFormData) {
     const { data: inserted, error } = await supabase
       .from('accommodations')
       .insert([{
@@ -359,6 +479,7 @@ export default function AccommodationsTab() {
         total_rooms: data.type === 'house' ? 2 : 1,
         is_active: data.is_active,
         cost_per_night: data.cost_per_night,
+        external_billing: data.external_billing,
       }])
       .select('id')
       .single()
@@ -379,11 +500,16 @@ export default function AccommodationsTab() {
     setShowForm(false)
   }
 
-  async function handleEdit(data: { name: string; is_active: boolean; type: AccommodationType; cost_per_night: number | null }) {
+  async function handleEdit(data: AccFormData) {
     if (!editing) return
     const { error } = await supabase
       .from('accommodations')
-      .update({ name: data.name, is_active: data.is_active, cost_per_night: data.cost_per_night })
+      .update({
+        name: data.name,
+        is_active: data.is_active,
+        cost_per_night: data.cost_per_night,
+        external_billing: data.external_billing,
+      })
       .eq('id', editing.id)
     if (error) { alert('Error: ' + error.message); return }
     refreshAccommodations()
@@ -421,8 +547,11 @@ export default function AccommodationsTab() {
 
   /** Rates this accommodation is expected to carry but doesn't. A stay on one
    *  of these is billed 0 € in silence (`getBaseNightlyRate` falls back to 0),
-   *  which is why it earns a red badge rather than a discreet dash. */
+   *  which is why it earns a red badge rather than a discreet dash.
+   *  Places billed per stay expect none — flagging them would cry wolf forever
+   *  and teach the badge to be ignored. */
   function missingRates(acc: Accommodation, rms: Room[]): string[] {
+    if (acc.external_billing) return []
     return rateKeys(acc, rms)
       .filter(({ key }) => !roomRates.some(r => r.room_id === key))
       .map(({ short }) => short)
@@ -479,16 +608,22 @@ export default function AccommodationsTab() {
                             <div>
                               <p className="font-bold text-gray-800 dark:text-gray-200 text-sm">{TYPE_META[acc.type].icon} {acc.name}</p>
                               <div className="mt-1 flex gap-3 text-xs text-gray-500 dark:text-gray-400">
-                                {rateKeys(acc, rms).map(({ key, short }) => (
-                                  <span key={key}>{acc.type === 'house' ? `${short}: ` : ''}{getRateLabel(key)}</span>
-                                ))}
+                                {acc.external_billing ? (
+                                  <span className="text-blue-600 dark:text-blue-400">
+                                    per-stay pricing · {rms.length} spot{rms.length === 1 ? '' : 's'}
+                                  </span>
+                                ) : (
+                                  rateKeys(acc, rms).map(({ key, short }) => (
+                                    <span key={key}>{acc.type === 'house' ? `${short}: ` : ''}{getRateLabel(key)}</span>
+                                  ))
+                                )}
                                 {acc.cost_per_night != null && (
                                   <span className="text-amber-600 dark:text-amber-400">cost: {acc.cost_per_night}€/n</span>
                                 )}
                               </div>
                               {rms.length === 0 ? (
                                 <p className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
-                                  ⚠ no rooms — cannot be priced, stays billed 0 €
+                                  ⚠ no rooms — cannot be booked{acc.external_billing ? '' : ' or priced'}
                                 </p>
                               ) : missingRates(acc, rms).length > 0 && (
                                 <p className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
@@ -546,17 +681,24 @@ export default function AccommodationsTab() {
               <button onClick={() => setSelected(null)} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 text-xl">✕</button>
             </div>
 
-            {/* Rates */}
+            {/* Rates — a place billed per stay has no grid to show */}
             <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
               <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                {selected.type === 'bungalow' ? 'Sell Rate' : 'Nightly Rates'}
+                {selected.external_billing ? 'Pricing' : selected.type === 'bungalow' ? 'Sell Rate' : 'Nightly Rates'}
               </h4>
-              <RatesForm
-                accommodation={selected}
-                rooms={selRooms}
-                rates={roomRates}
-                onSaved={() => refreshRates()}
-              />
+              {selected.external_billing ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Billed per stay — the amount is entered on each booking, not here.
+                  Its {selRooms.length} spot{selRooms.length === 1 ? '' : 's'} cap how many stays can run at once.
+                </p>
+              ) : (
+                <RatesForm
+                  accommodation={selected}
+                  rooms={selRooms}
+                  rates={roomRates}
+                  onSaved={() => refreshRates()}
+                />
+              )}
             </div>
 
             {/* Rental periods — houses only */}
@@ -594,7 +736,7 @@ export default function AccommodationsTab() {
       {/* ── Modals ───────────────────────────────────────────────────────── */}
       {showForm && (
         <AccForm
-          initial={{ name: '', is_active: true, type: 'house', cost_per_night: '' }}
+          initial={{ name: '', is_active: true, type: 'house', cost_per_night: '', external_billing: false }}
           title="New accommodation"
           onSave={handleCreate}
           onClose={() => setShowForm(false)}
@@ -607,14 +749,19 @@ export default function AccommodationsTab() {
             is_active: editing.is_active,
             type: editing.type,
             cost_per_night: editing.cost_per_night != null ? String(editing.cost_per_night) : '',
+            // `?? false` only bites in the window before the migration is applied,
+            // where the column doesn't exist yet — after it, NOT NULL DEFAULT false.
+            // Without it the checkbox starts uncontrolled and React complains.
+            external_billing: editing.external_billing ?? false,
           }}
           title={`Edit ${editing.name}`}
           lockType
-          rateContext={{
+          editContext={{
             accommodation: editing,
             rooms: accRooms(editing.id),
             rates: roomRates,
             onRatesSaved: refreshRates,
+            onRoomsChanged: refreshRooms,
           }}
           onSave={handleEdit}
           onClose={() => setEditing(null)}
