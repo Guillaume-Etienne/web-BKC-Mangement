@@ -229,17 +229,27 @@ tarif de vente restent listés ci-dessous (B1, San Martinho, prix maison entièr
 
 - **Tarifs des chambres** : H2 et H3 n'avaient **que** leur prix maison entière ; F et B y
   sont ajoutés à **70 / 50** (les tarifs donnés par gui, identiques à ceux que H1 portait
-  déjà). ⚠️ **Les prix maison entière n'ont PAS été touchés** : gui a dit « 100 € », mais
-  PROD porte **150 / 140 / 160**, un prix distinct par maison — c'était très probablement le
-  100 de l'ancienne constante en dur, répété de mémoire. **En attente de sa confirmation.**
+  déjà). ✅ **Prix maison entière tranchés — vérifié à l'écran sur PROD le 2026-08-11** :
+  H1/H2/H3 portent **100 €/n** chacune (gui les a saisis lui-même depuis le 31/07 ; le
+  150/140/160 relevé alors n'existe plus). Conséquence assumée : la maison entière est
+  **20 € moins chère** que ses deux chambres vendues séparément (F 70 + B 50 = 120), soit
+  −17 %. `getBaseNightlyRate` applique bien 100/2 par chambre en full house, jamais F+B.
 - **Prix du dîner** : **12 €** (Options → Pricing → Meals). Variable dans les faits, c'est le
   montant d'ouverture d'un nouveau repas, éditable repas par repas.
 - **Paie des moniteurs** : rien à faire, **déjà correct** — Tere **0/0/0** (compagne de gui),
   Gui **0/0/0**, Pierrot 18/20/8, Rémi 18/20/5. La note « encore aux défauts 50/35/25 »
   était périmée.
-- ⬜ **Reste ouvert** : le bungalow **B1 n'a pas de prix de vente** (`—`, coût 45 €/n) et
-  **San Martinho** (catégorie « other ») non plus. À confirmer avec gui — un séjour y sera
-  facturé 0 tant que rien n'est saisi.
+- ✅ **B1 a bien un prix de vente** (50 €/n, coût 45 €/n) — vérifié à l'écran sur PROD le
+  2026-08-11. L'entrée précédente (« B1 n'a pas de prix ») était périmée. ⚠️ Marge de
+  **5 €/nuit** seulement : à assumer ou à revoir, ce n'est pas un bug.
+- 🔶 **San Martinho — cas spécial, en cours de conception (2026-08-11)**. Seul hébergement
+  sans prix de vente, et ce n'est **pas** un oubli : décision gui, les clients s'y logent en
+  direct, **aucun argent ne transite par le centre** (ni revenu ni coût). Ce qu'on veut
+  quand même suivre : nombre de clients, cours, locations. Deux besoins distincts en sortent
+  — (a) hébergement **non facturable**, (b) **plusieurs réservations simultanées** sur le
+  même lieu (impossible aujourd'hui : un `other` n'a qu'une chambre `Room`).
+  ⛔ Ne pas poser de badge « no rate configured » dessus avant d'avoir tranché, sinon
+  l'alerte est fausse en permanence. Discussion ouverte, aucun code écrit.
 2. ✅ **Extraire les agrégats** dashboard + CashFlow en fonctions pures et les tester.
    Vérifié iso-comportement sur TEST (4 413 € / +891 €). Détail : `TEST_SUITE_ACCOUNTING.md`.
 3. 🔶 **Trancher les décisions métier** (`TEST_SUITE_ACCOUNTING.md`, section « Comportements
@@ -508,8 +518,12 @@ place) — à redéployer un jour par cohérence repo↔runtime, non urgent.
 - Un lien `restaurant` lit toute la liste clients du centre ; tokens sans expiration.
 - **Divergence `bookings.amount_paid` vs table `payments`** : ce n'est PAS un bug, c'est
   assumé — `payments` est la source de vérité (cf. mémoire projet).
-- **Question ouverte pour gui** : le tarif instructeur sert de prix client ET de coût ⇒ marge
-  nulle sur les cours particuliers. Modèle voulu (marge sur hébergement/location) ou bug ?
+- ~~**Question ouverte** : le tarif instructeur sert de prix client ET de coût ⇒ marge nulle
+  sur les cours particuliers.~~ ✅ **SANS OBJET depuis le 2026-07-29** — l'audit date du 25/07,
+  la séparation prix client / paie moniteur a été livrée le 29. Deux barèmes indépendants :
+  prix client dans `price_items` (Options → Pricing), paie dans `instructors.rate_*`, les deux
+  figés à la création de la leçon. Cf. `LESSON_PRICING.md`. **Ne pas re-poser la question** :
+  elle a déjà fait perdre du temps le 2026-08-11 en étant relayée depuis cette liste.
 
 ---
 

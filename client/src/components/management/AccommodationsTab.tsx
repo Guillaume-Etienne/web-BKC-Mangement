@@ -16,19 +16,32 @@ interface AccFormProps {
   initial: { name: string; is_active: boolean; type: AccommodationType; cost_per_night: string }
   title: string
   lockType?: boolean
+  /** Present when editing an existing accommodation: lets the same modal set
+   *  sell prices. Absent on creation — the rooms the rates hang off don't
+   *  exist until the accommodation is inserted. */
+  rateContext?: { accommodation: Accommodation; rooms: Room[]; rates: RoomRate[]; onRatesSaved: () => void }
   onSave: (data: { name: string; is_active: boolean; type: AccommodationType; cost_per_night: number | null }) => Promise<void>
   onClose: () => void
 }
-function AccForm({ initial, title, lockType, onSave, onClose }: AccFormProps) {
+function AccForm({ initial, title, lockType, rateContext, onSave, onClose }: AccFormProps) {
   const [name,    setName]    = useState(initial.name)
   const [active,  setActive]  = useState(initial.is_active)
   const [type,    setType]    = useState(initial.type)
   const [cost,    setCost]    = useState(initial.cost_per_night)
   const [saving,  setSaving]  = useState(false)
+  const [rateValues, setRateValues] = useState<Record<string, string>>(() =>
+    rateContext ? initialRateValues(rateContext.accommodation, rateContext.rooms, rateContext.rates) : {})
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
+    // Rates first: if they fail we keep the modal open rather than closing on a
+    // half-applied edit. onSave() is what dismisses it.
+    if (rateContext) {
+      const failures = await saveRates(rateValues, rateContext.rates)
+      if (failures.length > 0) { setSaving(false); alertRatesFailed(failures); return }
+      rateContext.onRatesSaved()
+    }
     await onSave({
       name: name.trim(),
       is_active: active,
@@ -40,7 +53,7 @@ function AccForm({ initial, title, lockType, onSave, onClose }: AccFormProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-sm">
+      <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full ${rateContext ? 'max-w-lg' : 'max-w-sm'}`}>
         <div className="flex justify-between items-center p-4 border-b">
           <h3 className="font-bold text-gray-800 dark:text-gray-200">{title}</h3>
           <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-xl font-bold">✕</button>
@@ -78,6 +91,19 @@ function AccForm({ initial, title, lockType, onSave, onClose }: AccFormProps) {
                 placeholder="e.g. 25"
                 className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
+          )}
+          {rateContext ? (
+            <div className="pt-1 border-t border-gray-200 dark:border-gray-800">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 mb-2">
+                Sell prices — what the guest pays
+              </p>
+              <RateFields accommodation={rateContext.accommodation} rooms={rateContext.rooms}
+                values={rateValues} onChange={(k, v) => setRateValues(p => ({ ...p, [k]: v }))} />
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+              Sell prices can be set once the accommodation exists — reopen this form after saving.
+            </p>
           )}
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
             <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="rounded" />
@@ -165,7 +191,98 @@ function RentalForm({ accommodationId, onAdd }: RentalFormProps) {
   )
 }
 
-// ── Rates inline form (module scope) — adapts to house vs other ──────────────
+// ── Rates: shared model between the edit modal and the detail panel ──────────
+// Historically the house form looked its rooms up by NAME (`r.name === 'F'`),
+// so a room named anything else silently dropped out of the save — the field
+// accepted a number and nothing was written. Rates are keyed by room id here;
+// the name is only ever a label.
+
+const ROOM_ORDER = ['F', 'B']
+function sortRooms(rooms: Room[]): Room[] {
+  return [...rooms].sort((a, b) => {
+    const ia = ROOM_ORDER.indexOf(a.name)
+    const ib = ROOM_ORDER.indexOf(b.name)
+    if (ia !== -1 || ib !== -1) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+    return a.name.localeCompare(b.name)
+  })
+}
+
+/** Every rate an accommodation is expected to carry, in display order: one per
+ *  room, plus the flat `full_{id}` key for houses (a single price, NOT F + B). */
+function rateKeys(acc: Accommodation, rooms: Room[]): { key: string; label: string; short: string }[] {
+  const isHouse = acc.type === 'house'
+  const keys = sortRooms(rooms).map(r => ({
+    key: r.id,
+    short: r.name,
+    label: isHouse
+      ? `${r.name}${r.name === 'F' ? ' — Sea view' : r.name === 'B' ? ' — Back room' : ''} (€/night)`
+      : `${r.name} — Sell price (€/night)`,
+  }))
+  return isHouse
+    ? [...keys, { key: `full_${acc.id}`, short: 'Full', label: 'Full house (€/night)' }]
+    : keys
+}
+
+function initialRateValues(acc: Accommodation, rooms: Room[], rates: RoomRate[]): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const { key } of rateKeys(acc, rooms)) {
+    out[key] = String(rates.find(r => r.room_id === key)?.price_per_night ?? '')
+  }
+  return out
+}
+
+/** Upserts every non-empty field. @returns error messages, empty when all saved. */
+async function saveRates(values: Record<string, string>, rates: RoomRate[]): Promise<string[]> {
+  const ops = Object.entries(values)
+    .filter(([, v]) => v !== '')
+    .map(async ([roomId, v]) => {
+      const existing = rates.find(r => r.room_id === roomId)
+      const price = parseFloat(v)
+      const { error } = existing
+        ? await supabase.from('room_rates').update({ price_per_night: price }).eq('id', existing.id)
+        : await supabase.from('room_rates').insert([{ room_id: roomId, price_per_night: price, notes: null }])
+      return error ? error.message : null
+    })
+  return (await Promise.all(ops)).filter((e): e is string => e !== null)
+}
+
+/** A rate that looks saved but isn't is worse than one that was never set: the
+ *  booking wizard finds nothing and quietly starts the stay at 0 €. */
+function alertRatesFailed(failures: string[]) {
+  alert(`The rates were NOT saved.\n\n${failures.join('\n')}\n\nStays booked here would be priced at 0 € — please try again.`)
+}
+
+interface RateFieldsProps {
+  accommodation: Accommodation
+  rooms: Room[]
+  values: Record<string, string>
+  onChange: (key: string, value: string) => void
+}
+function RateFields({ accommodation, rooms, values, onChange }: RateFieldsProps) {
+  const keys = rateKeys(accommodation, rooms)
+  if (keys.length === 0) {
+    return (
+      <p className="text-sm text-red-600 dark:text-red-400">
+        This accommodation has no rooms, so it can carry no price — stays here would be billed 0 €.
+      </p>
+    )
+  }
+  const cols = keys.length >= 3 ? 'grid-cols-3' : keys.length === 2 ? 'grid-cols-2' : 'grid-cols-1 max-w-xs'
+  return (
+    <div className={`grid gap-3 ${cols}`}>
+      {keys.map(({ key, label }) => (
+        <div key={key}>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{label}</label>
+          <input type="number" min="0" step="0.5" value={values[key] ?? ''} placeholder="—"
+            onChange={e => onChange(key, e.target.value)}
+            className="w-full text-sm border rounded px-2 py-1.5" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Rates inline form (module scope) — detail panel ──────────────────────────
 interface RatesFormProps {
   accommodation: Accommodation
   rooms: Room[]
@@ -173,110 +290,27 @@ interface RatesFormProps {
   onSaved: () => void
 }
 function RatesForm({ accommodation, rooms, rates, onSaved }: RatesFormProps) {
-  const isHouse = accommodation.type === 'house'
-  const roomF = isHouse ? rooms.find(r => r.name === 'F') : null
-  const roomB = isHouse ? rooms.find(r => r.name === 'B') : null
-
-  function getRate(roomId: string): string {
-    return String(rates.find(r => r.room_id === roomId)?.price_per_night ?? '')
-  }
-
-  // For houses: F, B, Full.  For bungalow/other: one rate per room
-  const [priceF,    setPriceF]    = useState(() => roomF ? getRate(roomF.id) : '')
-  const [priceB,    setPriceB]    = useState(() => roomB ? getRate(roomB.id) : '')
-  const [priceFull, setPriceFull] = useState(() => isHouse ? getRate(`full_${accommodation.id}`) : '')
-  const [roomPrices, setRoomPrices] = useState<Record<string, string>>(() => {
-    if (isHouse) return {}
-    const m: Record<string, string> = {}
-    for (const r of rooms) m[r.id] = getRate(r.id)
-    return m
-  })
+  const [values, setValues] = useState(() => initialRateValues(accommodation, rooms, rates))
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (isHouse) {
-      setPriceF(roomF ? getRate(roomF.id) : '')
-      setPriceB(roomB ? getRate(roomB.id) : '')
-      setPriceFull(getRate(`full_${accommodation.id}`))
-    } else {
-      const m: Record<string, string> = {}
-      for (const r of rooms) m[r.id] = getRate(r.id)
-      setRoomPrices(m)
-    }
+    setValues(initialRateValues(accommodation, rooms, rates))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rates, rooms])
-
-  /** @returns the error message if the rate did not save, null if it did. */
-  async function upsertRate(roomId: string, price: number): Promise<string | null> {
-    const existing = rates.find(r => r.room_id === roomId)
-    const { error } = existing
-      ? await supabase.from('room_rates').update({ price_per_night: price }).eq('id', existing.id)
-      : await supabase.from('room_rates').insert([{ room_id: roomId, price_per_night: price, notes: null }])
-    return error ? error.message : null
-  }
+  }, [rates, rooms, accommodation.id])
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const ops: Promise<string | null>[] = []
-    if (isHouse) {
-      if (roomF && priceF !== '') ops.push(upsertRate(roomF.id, parseFloat(priceF)))
-      if (roomB && priceB !== '') ops.push(upsertRate(roomB.id, parseFloat(priceB)))
-      if (priceFull !== '')       ops.push(upsertRate(`full_${accommodation.id}`, parseFloat(priceFull)))
-    } else {
-      for (const r of rooms) {
-        const val = roomPrices[r.id]
-        if (val !== '') ops.push(upsertRate(r.id, parseFloat(val)))
-      }
-    }
-    const failures = (await Promise.all(ops)).filter((e): e is string => e !== null)
+    const failures = await saveRates(values, rates)
     setSaving(false)
-    if (failures.length > 0) {
-      // A rate that looks saved but isn't is worse than one that was never set:
-      // the booking wizard finds nothing and quietly starts the stay at 0 €.
-      alert(`The rates were NOT saved.\n\n${failures.join('\n')}\n\nStays booked here would be priced at 0 € — please try again.`)
-      return
-    }
+    if (failures.length > 0) { alertRatesFailed(failures); return }
     onSaved()
   }
 
   return (
     <form onSubmit={handleSave} className="space-y-3">
-      {isHouse ? (
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">F — Sea view (€/night)</label>
-            <input type="number" min="0" step="0.5" value={priceF} placeholder="—"
-              onChange={e => setPriceF(e.target.value)}
-              className="w-full text-sm border rounded px-2 py-1.5" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">B — Back room (€/night)</label>
-            <input type="number" min="0" step="0.5" value={priceB} placeholder="—"
-              onChange={e => setPriceB(e.target.value)}
-              className="w-full text-sm border rounded px-2 py-1.5" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Full house (€/night)</label>
-            <input type="number" min="0" step="0.5" value={priceFull} placeholder="—"
-              onChange={e => setPriceFull(e.target.value)}
-              className="w-full text-sm border rounded px-2 py-1.5" />
-          </div>
-        </div>
-      ) : (
-        <div className={`grid gap-3 ${rooms.length === 1 ? 'grid-cols-1 max-w-xs' : 'grid-cols-2'}`}>
-          {rooms.map(r => (
-            <div key={r.id}>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                {r.name} — Sell price (€/night)
-              </label>
-              <input type="number" min="0" step="0.5" value={roomPrices[r.id] ?? ''} placeholder="—"
-                onChange={e => setRoomPrices(p => ({ ...p, [r.id]: e.target.value }))}
-                className="w-full text-sm border rounded px-2 py-1.5" />
-            </div>
-          ))}
-        </div>
-      )}
+      <RateFields accommodation={accommodation} rooms={rooms} values={values}
+        onChange={(k, v) => setValues(p => ({ ...p, [k]: v }))} />
       <button type="submit" disabled={saving}
         className="px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium text-sm disabled:opacity-60">
         {saving ? 'Saving…' : 'Save rates'}
@@ -385,6 +419,15 @@ export default function AccommodationsTab() {
     return r ? `${r.price_per_night}€/n` : '—'
   }
 
+  /** Rates this accommodation is expected to carry but doesn't. A stay on one
+   *  of these is billed 0 € in silence (`getBaseNightlyRate` falls back to 0),
+   *  which is why it earns a red badge rather than a discreet dash. */
+  function missingRates(acc: Accommodation, rms: Room[]): string[] {
+    return rateKeys(acc, rms)
+      .filter(({ key }) => !roomRates.some(r => r.room_id === key))
+      .map(({ short }) => short)
+  }
+
   function accRooms(accId: string)    { return rooms.filter(r => r.accommodation_id === accId) }
   function accRentals(accId: string)  { return houseRentals.filter(r => r.accommodation_id === accId) }
 
@@ -436,21 +479,22 @@ export default function AccommodationsTab() {
                             <div>
                               <p className="font-bold text-gray-800 dark:text-gray-200 text-sm">{TYPE_META[acc.type].icon} {acc.name}</p>
                               <div className="mt-1 flex gap-3 text-xs text-gray-500 dark:text-gray-400">
-                                {acc.type === 'house' ? (
-                                  <>
-                                    <span>F: {getRateLabel(rms.find(r => r.name === 'F')?.id ?? '')}</span>
-                                    <span>B: {getRateLabel(rms.find(r => r.name === 'B')?.id ?? '')}</span>
-                                    <span>Full: {getRateLabel(`full_${acc.id}`)}</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    {rms.map(r => <span key={r.id}>{getRateLabel(r.id)}</span>)}
-                                    {acc.cost_per_night != null && (
-                                      <span className="text-amber-600 dark:text-amber-400">cost: {acc.cost_per_night}€/n</span>
-                                    )}
-                                  </>
+                                {rateKeys(acc, rms).map(({ key, short }) => (
+                                  <span key={key}>{acc.type === 'house' ? `${short}: ` : ''}{getRateLabel(key)}</span>
+                                ))}
+                                {acc.cost_per_night != null && (
+                                  <span className="text-amber-600 dark:text-amber-400">cost: {acc.cost_per_night}€/n</span>
                                 )}
                               </div>
+                              {rms.length === 0 ? (
+                                <p className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
+                                  ⚠ no rooms — cannot be priced, stays billed 0 €
+                                </p>
+                              ) : missingRates(acc, rms).length > 0 && (
+                                <p className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
+                                  ⚠ no sell price: {missingRates(acc, rms).join(', ')} — billed 0 €
+                                </p>
+                              )}
                               {acc.type === 'house' && (
                                 <div className="mt-0.5 text-xs text-gray-400 dark:text-gray-400">
                                   {accRentals(acc.id).length} rental period(s)
@@ -566,6 +610,12 @@ export default function AccommodationsTab() {
           }}
           title={`Edit ${editing.name}`}
           lockType
+          rateContext={{
+            accommodation: editing,
+            rooms: accRooms(editing.id),
+            rates: roomRates,
+            onRatesSaved: refreshRates,
+          }}
           onSave={handleEdit}
           onClose={() => setEditing(null)}
         />
