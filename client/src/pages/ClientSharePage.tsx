@@ -19,6 +19,14 @@ type BookingWithClient = Pick<Booking,
   'num_center_access' | 'center_access_rate'
 > & { client: Pick<Client, 'id' | 'first_name' | 'last_name'> | null }
 
+// Same rule for external stays: `total_cost` is our purchase price and `notes`
+// are internal, so neither is granted to anon. Typing the narrowed shape keeps
+// the compiler on the side of the GRANT — reaching for a hidden column no
+// longer compiles.
+type SharedExternalStay = Pick<ExternalAccommodationBooking,
+  'id' | 'booking_id' | 'external_accommodation_id' | 'check_in' | 'check_out' | 'total_sell_price'>
+type SharedExternalPlace = Pick<ExternalAccommodation, 'id' | 'name' | 'provider' | 'is_active'>
+
 interface Props {
   bookingNumber: number
 }
@@ -90,8 +98,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const [taxis,          setTaxis]          = useState<TaxiTrip[]>([])
   const [diningEvents,   setDiningEvents]   = useState<DiningEvent[]>([])
   const [participants,   setParticipants]   = useState<BookingParticipant[]>([])
-  const [extAccomBkgs,   setExtAccomBkgs]   = useState<ExternalAccommodationBooking[]>([])
-  const [extAccoms,      setExtAccoms]      = useState<ExternalAccommodation[]>([])
+  const [extAccomBkgs,   setExtAccomBkgs]   = useState<SharedExternalStay[]>([])
+  const [extAccoms,      setExtAccoms]      = useState<SharedExternalPlace[]>([])
   const [activityBkgs,   setActivityBkgs]   = useState<ActivityBooking[]>([])
   const [loading,        setLoading]        = useState(true)
 
@@ -132,8 +140,13 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       supabase.from('taxi_trips').select('*').eq('booking_id', id).order('date'),
       supabase.from('dining_events').select('*'),
       supabase.from('booking_participants').select('id, booking_id, first_name, last_name').eq('booking_id', id),
-      supabase.from('external_accommodation_bookings').select('*').eq('booking_id', id),
-      supabase.from('external_accommodations').select('*'),
+      // Column-restricted for anon: the guest sees what THEY pay, never what we
+      // pay the hotel (`total_cost`) nor internal `notes`. A `select('*')` here
+      // returns 42501 and blanks the whole page — list the columns explicitly.
+      supabase.from('external_accommodation_bookings')
+        .select('id, booking_id, external_accommodation_id, check_in, check_out, total_sell_price')
+        .eq('booking_id', id),
+      supabase.from('external_accommodations').select('id, name, provider, is_active'),
       supabase.from('activity_bookings').select('*').eq('booking_id', id).order('date'),
       // Base rates, used only when this booking has no price snapshot. Column-restricted
       // for anon (no `notes`), and RLS only returns the rooms of this very booking.
@@ -217,17 +230,22 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   // every room is 0 the section hides itself.
   const billedAccomRows = accomRows.filter(row => row.total > 0)
 
-  // External accommodation rows
-  const extAccomRows = extAccomBkgs.map(e => {
-    const acc = extAccoms.find(a => a.id === e.external_accommodation_id)
-    const n = nightsBetween(e.check_in, e.check_out)
-    return {
-      label: acc?.name ?? 'External',
-      nights: n,
-      pricePerNight: e.sell_price_per_night,
-      total: e.sell_price_per_night * n,
-    }
-  })
+  // External accommodation rows. Priced as a flat rate for the whole stay, so
+  // there is no per-night figure to show — the column stays empty rather than
+  // displaying a division the guest never agreed to.
+  // Zero-priced stays are hidden for the same reason as own rooms billed 0 €
+  // (2026-08-02): a self-managed stay is not a line item on the guest's bill.
+  const extAccomRows = extAccomBkgs
+    .filter(e => e.total_sell_price > 0)
+    .map(e => {
+      const acc = extAccoms.find(a => a.id === e.external_accommodation_id)
+      return {
+        label: acc?.name ?? 'External',
+        nights: nightsBetween(e.check_in, e.check_out),
+        pricePerNight: null as number | null,
+        total: e.total_sell_price,
+      }
+    })
 
   const accomTotal = billedAccomRows.reduce((s, r) => s + r.total, 0)
     + extAccomRows.reduce((s, r) => s + r.total, 0)
@@ -355,7 +373,9 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                   <tr key={`ext-${i}`} className="border-b border-gray-50 dark:border-gray-800">
                     <td className="px-5 py-3 font-medium text-gray-800 dark:text-gray-200">{row.label}</td>
                     <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">{row.nights}</td>
-                    <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">{fmtEur(row.pricePerNight)}</td>
+                    <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">
+                      {row.pricePerNight != null ? fmtEur(row.pricePerNight) : '—'}
+                    </td>
                     <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(row.total)}</td>
                   </tr>
                 ))}

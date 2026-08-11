@@ -1,12 +1,12 @@
 import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity, TaxiDriver, TaxiTrip, TaxiPricingDefaults, Equipment, EquipmentRental, SharedLink, Season, RoomRate, BookingRoomPrice, ExternalAccommodation, ExternalAccommodationBooking, Payment, InstructorDebt, InstructorPayment, LessonRateOverride, Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry } from '../types/database'
 
 export const mockAccommodations: Accommodation[] = [
-  { id: 'h1', name: 'H-1', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null },
-  { id: 'h2', name: 'H-2', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null },
-  { id: 'h3', name: 'H-3', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null },
-  { id: 'b1', name: 'B-1', type: 'bungalow', total_rooms: 1, is_active: true, cost_per_night: 25 },
-  { id: 'b2', name: 'B-2', type: 'bungalow', total_rooms: 1, is_active: true, cost_per_night: 25 },
-  { id: 'b3', name: 'B-3', type: 'bungalow', total_rooms: 1, is_active: true, cost_per_night: 25 },
+  { id: 'h1', name: 'H-1', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null, external_billing: false },
+  { id: 'h2', name: 'H-2', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null, external_billing: false },
+  { id: 'h3', name: 'H-3', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null, external_billing: false },
+  { id: 'b1', name: 'B-1', type: 'bungalow', total_rooms: 1, is_active: true, cost_per_night: 25, external_billing: false },
+  { id: 'b2', name: 'B-2', type: 'bungalow', total_rooms: 1, is_active: true, cost_per_night: 25, external_billing: false },
+  { id: 'b3', name: 'B-3', type: 'bungalow', total_rooms: 1, is_active: true, cost_per_night: 25, external_billing: false },
 ]
 
 export const mockRooms: Room[] = [
@@ -239,13 +239,13 @@ export const mockBookingRoomPrices: BookingRoomPrice[] = [
 ]
 
 export const mockExternalAccommodations: ExternalAccommodation[] = [
-  { id: 'ea1', name: 'Bungalow Palmeiras #1', provider: 'palmeiras', cost_per_night: 45, sell_price_per_night: 70, notes: 'Vue jardin', is_active: true },
-  { id: 'ea2', name: 'Bungalow Palmeiras #2', provider: 'palmeiras', cost_per_night: 55, sell_price_per_night: 85, notes: 'Vue piscine', is_active: true },
-  { id: 'ea3', name: 'Hotel Varanda do Mar', provider: 'other', cost_per_night: 80, sell_price_per_night: 110, notes: 'À 5min du spot', is_active: true },
+  { id: 'ea1', name: 'Bungalow Palmeiras #1', provider: 'palmeiras', notes: 'Vue jardin', is_active: true },
+  { id: 'ea2', name: 'Bungalow Palmeiras #2', provider: 'palmeiras', notes: 'Vue piscine', is_active: true },
+  { id: 'ea3', name: 'Hotel Varanda do Mar', provider: 'other', notes: 'À 5min du spot', is_active: true },
 ]
 
 export const mockExternalAccommodationBookings: ExternalAccommodationBooking[] = [
-  { id: 'eab1', booking_id: 'bk4', external_accommodation_id: 'ea1', check_in: '2026-02-20', check_out: '2026-02-28', cost_per_night: 45, sell_price_per_night: 70, notes: null },
+  { id: 'eab1', booking_id: 'bk4', external_accommodation_id: 'ea1', check_in: '2026-02-20', check_out: '2026-02-28', total_cost: 360, total_sell_price: 560, notes: null },
 ]
 
 export const mockPayments: Payment[] = [

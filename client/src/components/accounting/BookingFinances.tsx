@@ -438,18 +438,20 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                 {extAccomm.map(e => {
                   const acc = data.externalAccommodations.find(a => a.id === e.external_accommodation_id)
                   const n = countNights(e.check_in, e.check_out)
-                  const revenue = e.sell_price_per_night * n
-                  const cost    = e.cost_per_night * n
+                  // Flat rate for the whole stay — the night count is shown for
+                  // context only, it never multiplies anything.
+                  const revenue = e.total_sell_price
+                  const cost    = e.total_cost
                   return (
                     <div key={e.id} className="space-y-0.5">
                       <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                        <span>{acc?.name ?? 'External'} × {n}N @ {fmtEur(e.sell_price_per_night)}/N</span>
+                        <span>{acc?.name ?? 'External'} × {n}N — flat rate</span>
                         <span>{fmtEur(revenue)}</span>
                       </div>
                       {cost > 0 && (
                         <>
                           <div className="flex justify-between text-xs text-gray-400 dark:text-gray-400 pl-4">
-                            <span>Cost @ {fmtEur(e.cost_per_night)}/N</span>
+                            <span>Cost</span>
                             <span className="text-red-400 dark:text-red-300">−{fmtEur(cost)}</span>
                           </div>
                           <div className="flex justify-between text-xs font-medium pl-4">

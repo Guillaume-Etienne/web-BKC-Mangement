@@ -9,6 +9,10 @@ export interface Accommodation {
   total_rooms: number
   is_active: boolean
   cost_per_night: number | null  // what we pay the owner (bungalows); null for owned houses
+  // true = carries no room_rate on purpose; the amount lives on the external stay,
+  // case by case (San Martinho, the "No accommodation" row). Exempt from the
+  // "no sell price" badge — that is the whole point of the flag.
+  external_billing: boolean
 }
 
 export interface Room {
@@ -491,25 +495,25 @@ export interface BookingRoomPrice {
 // External accommodation (Palmeiras bungalows, other hotels)
 export type ExternalAccommodationProvider = 'palmeiras' | 'other'
 
+// A place we don't own. Just a list of names — amounts vary from one stay to the
+// next, so they live on the stay, not here.
 export interface ExternalAccommodation {
   id: string
   name: string
   provider: ExternalAccommodationProvider
-  cost_per_night: number        // what we pay
-  sell_price_per_night: number  // what we charge the client
-  notes: string | null
+  notes: string | null          // internal, never readable by a share link
   is_active: boolean
 }
 
-// Booking using an external accommodation
+// One stay at an external place, priced as a lump sum for the whole stay.
 export interface ExternalAccommodationBooking {
   id: string
   booking_id: string
   external_accommodation_id: string
   check_in: string
   check_out: string
-  cost_per_night: number        // snapshot at time of booking
-  sell_price_per_night: number  // snapshot at time of booking
+  total_cost: number            // what we pay the provider — never readable by anon
+  total_sell_price: number      // what the guest pays; 0 = free / self-managed
   notes: string | null
 }
 

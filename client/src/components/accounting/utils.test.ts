@@ -202,23 +202,40 @@ describe('computeExternalAccommodationCost', () => {
     expect(revenue - computeExternalAccommodationCost(booking, data)).toBe(280) // 600 − 320
   })
 
-  it('ignores later changes to the master rate (snapshot wins)', () => {
-    const data = mkData({
-      externalAccommodations: [mkExternalAccommodation({ cost_per_night: 999 })],
-      externalAccommodationBkgs: [mkExternalBooking({ check_in: '2026-11-01', check_out: '2026-11-05', cost_per_night: 80 })],
+  // The whole reason the flat rate replaced a per-night price: what was agreed
+  // with the hotel must not move because a departure date did.
+  it('keeps the agreed amount when the stay dates change', () => {
+    const short = mkData({
+      externalAccommodations: [mkExternalAccommodation()],
+      externalAccommodationBkgs: [mkExternalBooking({ check_in: '2026-11-01', check_out: '2026-11-02', total_cost: 320 })],
     })
-    expect(computeExternalAccommodationCost(booking, data)).toBe(320)
+    const long = mkData({
+      externalAccommodations: [mkExternalAccommodation()],
+      externalAccommodationBkgs: [mkExternalBooking({ check_in: '2026-11-01', check_out: '2026-11-20', total_cost: 320 })],
+    })
+    expect(computeExternalAccommodationCost(booking, short)).toBe(320)
+    expect(computeExternalAccommodationCost(booking, long)).toBe(320)
   })
 
   it('sums several external stays on the same booking', () => {
     const data = mkData({
       externalAccommodations: [mkExternalAccommodation()],
       externalAccommodationBkgs: [
-        mkExternalBooking({ id: 'e1', check_in: '2026-11-01', check_out: '2026-11-03', cost_per_night: 80 }),
-        mkExternalBooking({ id: 'e2', check_in: '2026-11-03', check_out: '2026-11-05', cost_per_night: 90 }),
+        mkExternalBooking({ id: 'e1', check_in: '2026-11-01', check_out: '2026-11-03', total_cost: 160 }),
+        mkExternalBooking({ id: 'e2', check_in: '2026-11-03', check_out: '2026-11-05', total_cost: 180 }),
       ],
     })
     expect(computeExternalAccommodationCost(booking, data)).toBe(340) // 160 + 180
+  })
+
+  // A self-managed stay: the guest sleeps there, no money moves through us.
+  it('bills nothing for a stay left at zero', () => {
+    const data = mkData({
+      externalAccommodations: [mkExternalAccommodation()],
+      externalAccommodationBkgs: [mkExternalBooking({ total_cost: 0, total_sell_price: 0 })],
+    })
+    expect(computeExternalAccommodationCost(booking, data)).toBe(0)
+    expect(computeAccommodationRevenue(booking, data)).toBe(0)
   })
 
   it('costs nothing when the booking has no external stay', () => {

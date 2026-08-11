@@ -12,7 +12,7 @@ import type { SharedAccountingData } from './types'
 import { emptyAccountingData } from './utils'
 
 export function mkAccommodation(over: Partial<Accommodation> = {}): Accommodation {
-  return { id: 'acc1', name: 'House 1', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null, ...over }
+  return { id: 'acc1', name: 'House 1', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null, external_billing: false, ...over }
 }
 
 export function mkRoom(over: Partial<Room> = {}): Room {
@@ -121,7 +121,7 @@ export function mkTaxiTrip(over: Partial<TaxiTrip> = {}): TaxiTrip {
 export function mkExternalAccommodation(over: Partial<ExternalAccommodation> = {}): ExternalAccommodation {
   return {
     id: 'ext1', name: 'Palmeiras', provider: 'palmeiras',
-    cost_per_night: 80, sell_price_per_night: 150, notes: null, is_active: true,
+    notes: null, is_active: true,
     ...over,
   }
 }
@@ -130,7 +130,7 @@ export function mkExternalBooking(over: Partial<ExternalAccommodationBooking> = 
   return {
     id: 'extbk1', booking_id: 'bk1', external_accommodation_id: 'ext1',
     check_in: '2026-11-01', check_out: '2026-11-05',
-    cost_per_night: 80, sell_price_per_night: 150, notes: null,
+    total_cost: 320, total_sell_price: 600, notes: null,
     ...over,
   }
 }

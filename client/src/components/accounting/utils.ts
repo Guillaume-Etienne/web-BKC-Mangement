@@ -58,23 +58,21 @@ export function computeAccommodationRevenue(booking: Booking, data: SharedAccoun
     .filter(br => br.booking_id === booking.id)
     .reduce((sum, br) => sum + getRoomNightlyRate(booking.id, br.room_id, data) * nights, 0)
 
+  // External stays are priced as a lump sum for the whole stay, not per night:
+  // moving a departure date must not silently re-price what was agreed.
   const extAccomm = data.externalAccommodationBkgs
     .filter(e => e.booking_id === booking.id)
-    .reduce((sum, e) => {
-      const n = countNights(e.check_in, e.check_out)
-      return sum + e.sell_price_per_night * n
-    }, 0)
+    .reduce((sum, e) => sum + e.total_sell_price, 0)
 
   return ownRooms + extAccomm
 }
 
 /** External accommodation cost for a booking (what we pay the provider).
- *  Uses the booking's own cost snapshot — same rule as the sell price — so that
- *  changing the master rate never rewrites the cost of past stays. */
+ *  A lump sum per stay, like the sell price — never derived from the dates. */
 export function computeExternalAccommodationCost(booking: Booking, data: SharedAccountingData): number {
   return data.externalAccommodationBkgs
     .filter(e => e.booking_id === booking.id)
-    .reduce((sum, e) => sum + e.cost_per_night * countNights(e.check_in, e.check_out), 0)
+    .reduce((sum, e) => sum + e.total_cost, 0)
 }
 
 /** Client price €/h for a lesson: the snapshot taken at creation, else the rate
