@@ -390,13 +390,26 @@ Code fait & build OK. Découverte : les sections des guides vivaient en **localS
 3. **RESTE** : gui ouvre Documents → Travel Guide **dans son navigateur habituel** et clique
    **Save** (migre ses textes localStorage vers la DB — sur PROD **et** TEST si les textes
    diffèrent) ; idem Welcome Guide après avoir rempli les placeholders `[…]`.
-4. **RESTE — traductions EN/ES des textes FR de gui** (workflow convenu 2026-07-10,
-   Claude n'a pas accès à la table — anon 42501) : gui rédige le FR dans l'app + Save,
-   puis colle à Claude le résultat de
-   `SELECT id, title->>'fr', content->>'fr' FROM document_templates WHERE doc_type='welcome_guide' ORDER BY sort_order;`
-   → Claude rend un script `UPDATE … jsonb_set(…)` en/es idempotent → gui l'applique
-   **TEST + PROD**. Retouches ponctuelles ensuite : simple copier-coller chat → éditeur
-   Templates. (Plan C : Claude in Chrome sur la session admin — lent, dernier recours.)
+   🔶 **Travel Guide : gui dit l'avoir rempli en FR le 2026-08-11** — reste à confirmer que
+   le **Save** a bien été fait (l'éditeur travaille sur un brouillon local) et sur quelle base.
+4. 🔶 **EN COURS — traductions EN/ES des textes FR de gui** (workflow : mémoire
+   `templates-translation-workflow` ; Claude n'a **aucun** accès à la table — anon 42501).
+   **⏸️ En attente de gui au 2026-08-11** : il a rempli le **Travel Guide** en français et
+   demandé les traductions. Requête à lui redemander s'il revient sans l'avoir collée —
+   elle renvoie **une seule cellule**, donc un clic pour copier, pas de colonnes tronquées :
+
+   ```sql
+   SELECT jsonb_pretty(jsonb_agg(jsonb_build_object(
+            'id', id, 'order', sort_order, 'active', is_active,
+            'title_fr', title->>'fr', 'content_fr', content->>'fr'
+          ) ORDER BY sort_order))
+   FROM document_templates WHERE doc_type = 'travel_guide';
+   ```
+
+   → Claude rend un script `UPDATE … jsonb_set(…)` idempotent qui ne touche **que** `en`/`es`
+   (jamais `fr`) → gui l'applique **TEST + PROD**. Résultat `null` = rien n'a été sauvé.
+   Même chose ensuite pour `welcome_guide`. Retouches ponctuelles : copier-coller chat →
+   éditeur Templates. (Plan C : Claude in Chrome sur la session admin — lent, dernier recours.)
 
 ---
 
