@@ -41,4 +41,4 @@ COMMIT;
 
 -- Config / prix conservés : accommodations, rooms, room_rates, price_items,
 -- equipment, instructors, taxi_drivers, taxi_pricing_defaults,
--- external_accommodations, activity_providers, seasons, palmeiras_*.
+-- activity_providers, seasons, palmeiras_*.

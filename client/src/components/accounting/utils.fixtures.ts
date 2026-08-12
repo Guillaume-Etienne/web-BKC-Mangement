@@ -3,7 +3,7 @@
  *  what the scenario is about. Test files stay readable and type-safe. */
 import type {
   Accommodation, ActivityBooking, Booking, BookingParticipant, BookingRoom, BookingRoomPrice,
-  DiningEvent, EquipmentRental, EventAttendee, ExternalAccommodation, ExternalAccommodationBooking,
+  DiningEvent, EquipmentRental, EventAttendee, ExternalAccommodationBooking,
   Instructor, InstructorDebt, InstructorPayment, Lesson, LessonRateOverride, LessonType, PriceItem,
   Payment, Room, RoomRate, TaxiTrip, BillableType,
 } from '../../types/database'
@@ -118,17 +118,9 @@ export function mkTaxiTrip(over: Partial<TaxiTrip> = {}): TaxiTrip {
   }
 }
 
-export function mkExternalAccommodation(over: Partial<ExternalAccommodation> = {}): ExternalAccommodation {
-  return {
-    id: 'ext1', name: 'Palmeiras', provider: 'palmeiras',
-    notes: null, is_active: true,
-    ...over,
-  }
-}
-
 export function mkExternalBooking(over: Partial<ExternalAccommodationBooking> = {}): ExternalAccommodationBooking {
   return {
-    id: 'extbk1', booking_id: 'bk1', external_accommodation_id: 'ext1',
+    id: 'extbk1', booking_id: 'bk1', accommodation_id: 'acc1',
     check_in: '2026-11-01', check_out: '2026-11-05',
     total_cost: 320, total_sell_price: 600, notes: null,
     ...over,

@@ -11,7 +11,7 @@ import {
 } from './utils'
 import {
   mkAccommodation, mkActivityBooking, mkAttendee, mkBooking, mkBookingRoom, mkBookingRoomPrice,
-  mkData, mkDiningEvent, mkExternalAccommodation, mkExternalBooking, mkHouseSetup,
+  mkData, mkDiningEvent, mkExternalBooking, mkHouseSetup,
   mkInstructor, mkInstructorDebt, mkInstructorPayment, mkLesson, mkLessonOverride, mkLessonPrices,
   mkParticipant, mkPayment, mkPrice, mkRental, mkRoom, mkRoomRate, mkTaxiTrip,
 } from './utils.fixtures'
@@ -130,7 +130,6 @@ describe('computeAccommodationRevenue', () => {
 
   it('bills an external accommodation on its own dates', () => {
     const data = mkData({
-      externalAccommodations: [mkExternalAccommodation()],
       externalAccommodationBkgs: [mkExternalBooking({ check_in: '2026-11-01', check_out: '2026-11-05' })],
     })
     expect(computeAccommodationRevenue(booking, data)).toBe(600) // 150 × 4
@@ -141,7 +140,6 @@ describe('computeAccommodationRevenue', () => {
       ...base,
       bookingRooms: [mkBookingRoom({ room_id: 'roomF' })],
       bookingRoomPrices: [mkBookingRoomPrice({ room_id: 'roomF', price_per_night: 60 })],
-      externalAccommodations: [mkExternalAccommodation()],
       externalAccommodationBkgs: [mkExternalBooking()],
     })
     expect(computeAccommodationRevenue(booking, data)).toBe(1020) // 420 + 600
@@ -162,7 +160,6 @@ describe('computeAccommodationRevenue', () => {
     // credited nothing while the cost was still charged → a phantom loss.
     const sameDay = mkBooking({ check_in: '2026-11-01', check_out: '2026-11-01' })
     const data = mkData({
-      externalAccommodations: [mkExternalAccommodation()],
       externalAccommodationBkgs: [mkExternalBooking({ check_in: '2026-11-01', check_out: '2026-11-05' })],
     })
     expect(computeAccommodationRevenue(sameDay, data)).toBe(600)              // 150 × 4
@@ -187,7 +184,6 @@ describe('computeExternalAccommodationCost', () => {
 
   it('costs the stay at the booking cost snapshot', () => {
     const data = mkData({
-      externalAccommodations: [mkExternalAccommodation()],
       externalAccommodationBkgs: [mkExternalBooking({ check_in: '2026-11-01', check_out: '2026-11-05' })],
     })
     expect(computeExternalAccommodationCost(booking, data)).toBe(320) // 80 × 4
@@ -195,7 +191,6 @@ describe('computeExternalAccommodationCost', () => {
 
   it('leaves a margin of sell − cost on the stay', () => {
     const data = mkData({
-      externalAccommodations: [mkExternalAccommodation()],
       externalAccommodationBkgs: [mkExternalBooking({ check_in: '2026-11-01', check_out: '2026-11-05' })],
     })
     const revenue = computeAccommodationRevenue(booking, data)
@@ -206,11 +201,9 @@ describe('computeExternalAccommodationCost', () => {
   // with the hotel must not move because a departure date did.
   it('keeps the agreed amount when the stay dates change', () => {
     const short = mkData({
-      externalAccommodations: [mkExternalAccommodation()],
       externalAccommodationBkgs: [mkExternalBooking({ check_in: '2026-11-01', check_out: '2026-11-02', total_cost: 320 })],
     })
     const long = mkData({
-      externalAccommodations: [mkExternalAccommodation()],
       externalAccommodationBkgs: [mkExternalBooking({ check_in: '2026-11-01', check_out: '2026-11-20', total_cost: 320 })],
     })
     expect(computeExternalAccommodationCost(booking, short)).toBe(320)
@@ -219,7 +212,6 @@ describe('computeExternalAccommodationCost', () => {
 
   it('sums several external stays on the same booking', () => {
     const data = mkData({
-      externalAccommodations: [mkExternalAccommodation()],
       externalAccommodationBkgs: [
         mkExternalBooking({ id: 'e1', check_in: '2026-11-01', check_out: '2026-11-03', total_cost: 160 }),
         mkExternalBooking({ id: 'e2', check_in: '2026-11-03', check_out: '2026-11-05', total_cost: 180 }),
@@ -231,7 +223,6 @@ describe('computeExternalAccommodationCost', () => {
   // A self-managed stay: the guest sleeps there, no money moves through us.
   it('bills nothing for a stay left at zero', () => {
     const data = mkData({
-      externalAccommodations: [mkExternalAccommodation()],
       externalAccommodationBkgs: [mkExternalBooking({ total_cost: 0, total_sell_price: 0 })],
     })
     expect(computeExternalAccommodationCost(booking, data)).toBe(0)

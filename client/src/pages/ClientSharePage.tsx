@@ -5,7 +5,7 @@ import type {
   Room, Accommodation, Payment, Lesson, Instructor,
   EquipmentRental, TaxiTrip,
   DiningEvent, BookingParticipant,
-  ExternalAccommodationBooking, ExternalAccommodation,
+  ExternalAccommodationBooking,
   ActivityBooking, RoomRate,
 } from '../types/database'
 import { getBaseNightlyRate } from '../utils/roomPricing'
@@ -24,8 +24,7 @@ type BookingWithClient = Pick<Booking,
 // the compiler on the side of the GRANT — reaching for a hidden column no
 // longer compiles.
 type SharedExternalStay = Pick<ExternalAccommodationBooking,
-  'id' | 'booking_id' | 'external_accommodation_id' | 'check_in' | 'check_out' | 'total_sell_price'>
-type SharedExternalPlace = Pick<ExternalAccommodation, 'id' | 'name' | 'provider' | 'is_active'>
+  'id' | 'booking_id' | 'accommodation_id' | 'check_in' | 'check_out' | 'total_sell_price'>
 
 interface Props {
   bookingNumber: number
@@ -99,7 +98,6 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const [diningEvents,   setDiningEvents]   = useState<DiningEvent[]>([])
   const [participants,   setParticipants]   = useState<BookingParticipant[]>([])
   const [extAccomBkgs,   setExtAccomBkgs]   = useState<SharedExternalStay[]>([])
-  const [extAccoms,      setExtAccoms]      = useState<SharedExternalPlace[]>([])
   const [activityBkgs,   setActivityBkgs]   = useState<ActivityBooking[]>([])
   const [loading,        setLoading]        = useState(true)
 
@@ -144,9 +142,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       // pay the hotel (`total_cost`) nor internal `notes`. A `select('*')` here
       // returns 42501 and blanks the whole page — list the columns explicitly.
       supabase.from('external_accommodation_bookings')
-        .select('id, booking_id, external_accommodation_id, check_in, check_out, total_sell_price')
+        .select('id, booking_id, accommodation_id, check_in, check_out, total_sell_price')
         .eq('booking_id', id),
-      supabase.from('external_accommodations').select('id, name, provider, is_active'),
       supabase.from('activity_bookings').select('*').eq('booking_id', id).order('date'),
       // Base rates, used only when this booking has no price snapshot. Column-restricted
       // for anon (no `notes`), and RLS only returns the rooms of this very booking.
@@ -154,7 +151,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
     ]).then(([
       bkgRoomsRes, pricesRes, roomsRes, acomsRes, paymentsRes,
       lessonsRes, instrRes, rentalsRes, taxisRes,
-      diningRes, partRes, extBkgRes, extAccomRes, actBkgRes, roomRatesRes,
+      diningRes, partRes, extBkgRes, actBkgRes, roomRatesRes,
     ]) => {
       setBkgRooms(bkgRoomsRes.data ?? [])
       setRoomPrices(pricesRes.data ?? [])
@@ -170,7 +167,6 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       // anon only receives id/first_name/last_name (column-restricted); the page uses only those
       setParticipants((partRes.data ?? []) as unknown as BookingParticipant[])
       setExtAccomBkgs(extBkgRes.data ?? [])
-      setExtAccoms(extAccomRes.data ?? [])
       setActivityBkgs(actBkgRes.data ?? [])
       // anon only receives room_id/price_per_night (column-restricted); the page uses only those
       setRoomRates((roomRatesRes.data ?? []) as unknown as RoomRate[])
@@ -238,7 +234,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const extAccomRows = extAccomBkgs
     .filter(e => e.total_sell_price > 0)
     .map(e => {
-      const acc = extAccoms.find(a => a.id === e.external_accommodation_id)
+      const acc = accoms.find(a => a.id === e.accommodation_id)
       return {
         label: acc?.name ?? 'External',
         nights: nightsBetween(e.check_in, e.check_out),

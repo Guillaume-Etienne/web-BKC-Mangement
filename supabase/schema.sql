@@ -28,7 +28,6 @@ CREATE TYPE billable_type                   AS ENUM (
 CREATE TYPE equipment_condition             AS ENUM ('new', 'good', 'fair', 'damaged', 'retired');
 CREATE TYPE rental_slot                     AS ENUM ('morning', 'afternoon', 'full_day');
 CREATE TYPE payment_method                  AS ENUM ('cash_eur', 'cash_mzn', 'transfer', 'card_palmeiras');
-CREATE TYPE external_accommodation_provider AS ENUM ('palmeiras', 'other');
 CREATE TYPE kite_level                      AS ENUM ('beg-total', 'beg-bodydrag', 'beg-waterstart', 'intermediate', 'advanced');
 CREATE TYPE palmeiras_entry_type            AS ENUM ('expense', 'income');
 CREATE TYPE event_person_type               AS ENUM ('instructor', 'participant', 'extra');
@@ -487,20 +486,14 @@ CREATE TABLE booking_room_prices (
   PRIMARY KEY (booking_id, room_id)
 );
 
--- Référentiel : une simple liste de lieux. Les montants varient d'un séjour à
--- l'autre, ils vivent donc sur la ligne de séjour, pas ici.
-CREATE TABLE external_accommodations (
-  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name                  TEXT NOT NULL,
-  provider              external_accommodation_provider NOT NULL,
-  notes                 TEXT,
-  is_active             BOOLEAN NOT NULL DEFAULT true
-);
-
+-- Un séjour dans un hébergement qu'on ne tarife pas soi-même (external_billing).
+-- Il pointe sur `accommodations` : un seul lieu, celui d'où le planning tire ses
+-- lignes. Le référentiel parallèle `external_accommodations` a été supprimé le
+-- 2026-08-12 — vide, jamais écrit, et il imposait deux fiches par hôtel.
 CREATE TABLE external_accommodation_bookings (
   id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id                 UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
-  external_accommodation_id  UUID NOT NULL REFERENCES external_accommodations(id),
+  accommodation_id           UUID NOT NULL REFERENCES accommodations(id) ON DELETE CASCADE,
   check_in                   DATE NOT NULL,
   check_out                  DATE NOT NULL,
   total_cost                 NUMERIC(10,2) NOT NULL DEFAULT 0,  -- forfait payé à l'hébergeur, jamais anon
@@ -657,7 +650,7 @@ BEGIN
     'shared_links', 'form_submissions',
     'activity_providers', 'activity_bookings', 'activity_payments',
     'seasons', 'house_rentals', 'room_rates', 'booking_room_prices',
-    'external_accommodations', 'external_accommodation_bookings',
+    'external_accommodation_bookings',
     'payments',
     'instructor_debts', 'instructor_payments', 'lesson_rate_overrides',
     'expenses',
@@ -846,8 +839,6 @@ CREATE POLICY "anon_read_instructors" ON instructors
   FOR SELECT TO anon USING (share_type() IS NOT NULL);
 CREATE POLICY "anon_read_equipment" ON equipment
   FOR SELECT TO anon USING (share_type() IS NOT NULL);
-CREATE POLICY "anon_read_ext_accommodations" ON external_accommodations
-  FOR SELECT TO anon USING (share_type() IS NOT NULL);
 
 -- Column-level hardening: anon may read ONLY identity columns of clients /
 -- booking_participants (never passport_number, email, phone, birth_date,
@@ -881,12 +872,8 @@ GRANT  SELECT (room_id, price_per_night) ON room_rates TO anon;
 -- `total_cost` est notre prix d'achat : le laisser lisible exposait la marge à
 -- tout porteur de lien client (fermé le 2026-08-11, cf. migration du même jour).
 REVOKE SELECT ON external_accommodation_bookings FROM anon;
-GRANT  SELECT (id, booking_id, external_accommodation_id, check_in, check_out, total_sell_price)
+GRANT  SELECT (id, booking_id, accommodation_id, check_in, check_out, total_sell_price)
   ON external_accommodation_bookings TO anon;
--- Référentiel des lieux externes : sa policy est `share_type() IS NOT NULL`, donc
--- lisible par TOUS les types de liens — d'où le narrowing à l'identité seule.
-REVOKE SELECT ON external_accommodations FROM anon;
-GRANT  SELECT (id, name, provider, is_active) ON external_accommodations TO anon;
 -- taxi_drivers → identity + contact + vehicle (phone kept on purpose: guests can
 -- call their taxi); never email/notes/margin_percent/default pricing.
 REVOKE SELECT ON taxi_drivers FROM anon;

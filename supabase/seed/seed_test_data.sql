@@ -110,11 +110,14 @@ BEGIN
   SELECT id INTO v_bung_r FROM rooms WHERE accommodation_id=v_bung ORDER BY name LIMIT 1;
   IF v_bung_r IS NULL THEN INSERT INTO rooms(accommodation_id,name,capacity) VALUES (v_bung,'Bungalow',2) RETURNING id INTO v_bung_r; END IF;
 
-  -- ---- CONFIG : logement externe (Palmeiras de préférence) -----------------
-  SELECT id INTO v_ext FROM external_accommodations WHERE is_active ORDER BY (provider='palmeiras') DESC LIMIT 1;
+  -- ---- CONFIG : logement externe -------------------------------------------
+  -- Depuis le 2026-08-12 il n'y a plus de référentiel séparé : un logement externe
+  -- est un `accommodations` marqué external_billing (il ne porte aucun tarif, le
+  -- montant vit sur la ligne de séjour).
+  SELECT id INTO v_ext FROM accommodations WHERE external_billing AND is_active ORDER BY name LIMIT 1;
   IF v_ext IS NULL THEN
-    INSERT INTO external_accommodations(name,provider,cost_per_night,sell_price_per_night)
-    VALUES ('Palmeiras Room (demo)','palmeiras',30,45) RETURNING id INTO v_ext;
+    INSERT INTO accommodations(name,type,total_rooms,external_billing)
+    VALUES ('Palmeiras Room (demo)','other',1,true) RETURNING id INTO v_ext;
   END IF;
 
   -- ---- CONFIG : chauffeurs --------------------------------------------------
@@ -244,8 +247,9 @@ BEGIN
     VALUES (v_b2,'Paul','Schmidt','beg-total',true,true,'[SEED] beginner lessons') RETURNING id INTO v_b2_p2;
 
   -- logement EXTERNE (pas de booking_rooms)
-  INSERT INTO external_accommodation_bookings(booking_id,external_accommodation_id,check_in,check_out,cost_per_night,sell_price_per_night,notes)
-    VALUES (v_b2,v_ext,'2026-09-20','2026-09-27',30,45,'[SEED] Palmeiras room');
+  -- Forfait pour tout le séjour (7 nuits) depuis le 2026-08-11, plus un prix/nuit.
+  INSERT INTO external_accommodation_bookings(booking_id,accommodation_id,check_in,check_out,total_cost,total_sell_price,notes)
+    VALUES (v_b2,v_ext,'2026-09-20','2026-09-27',210,315,'[SEED] Palmeiras room');
 
   -- leçon + location
   INSERT INTO lessons(booking_id,instructor_id,participant_ids,date,start_time,duration_hours,type,notes)

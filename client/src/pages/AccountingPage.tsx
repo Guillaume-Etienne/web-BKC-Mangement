@@ -20,7 +20,7 @@ import ExpensesTab          from '../components/accounting/ExpensesTab'
 import EventsTab            from '../components/accounting/EventsTab'
 import UnverifiedPayments   from '../components/accounting/UnverifiedPayments'
 import type {
-  ExternalAccommodation, ExternalAccommodationBooking, HouseRental, Season,
+  ExternalAccommodationBooking, HouseRental, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride, EquipmentRental,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   TaxiPricingDefaults, TaxiManagerPayment,
@@ -54,7 +54,6 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: bookingRooms }             = useBookingRooms()
   const { data: bookingRoomPricesData }    = useBookingRoomPrices()
   const { data: roomRates }                = useTable<RoomRate>('room_rates')
-  const { data: externalAccommodations }   = useTable<ExternalAccommodation>('external_accommodations')
   const { data: externalAccommodationBkgs }= useTable<ExternalAccommodationBooking>('external_accommodation_bookings')
   const { data: diningEvents }             = useTable<DiningEvent>('dining_events', { order: 'date', ascending: false })
   const { data: lessonsData }              = useLessons()
@@ -119,7 +118,6 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     bookingRoomPrices,
     roomRates,
     externalAccommodationBkgs,
-    externalAccommodations,
     diningEvents,
     lessons,
     instructors,

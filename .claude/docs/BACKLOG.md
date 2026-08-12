@@ -18,8 +18,19 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
-| **`2026-08-11_external_stays_flat_rate.sql`** | Séjours externes : forfait (`total_cost` / `total_sell_price`) au lieu du par-nuit, `accommodations.external_billing`, et **fermeture d'une fuite de marge** — `total_cost` et le référentiel externe étaient lisibles par les liens partagés. **6 vérifs par curl anon en bas du fichier.** ⚠️ Le code livré avec narrowe les `select()` de `ClientSharePage` : sans la migration la page client tombe en 42501. | ⬜ | ⬜ |
+| **`2026-08-12_external_stays_single_place.sql`** | **Suite du 11.** Le séjour externe pointe désormais sur `accommodations` (`accommodation_id`) et le référentiel parallèle `external_accommodations` est **supprimé** — préalable au chantier San Martinho (planning + séjours simultanés). Garde-fou : la migration échoue au lieu de détruire si une ligne a été saisie. **6 vérifs par curl en bas du fichier.** ⚠️ **Le code déployé lit `accommodation_id`** : sans la migration, `ClientSharePage` demande une colonne inexistante → 42703, page client vide. Appliquer **avant ou avec** le push. | ⬜ | ⬜ |
+| ~~`2026-08-11_external_stays_flat_rate.sql`~~ | Séjours externes : forfait (`total_cost` / `total_sell_price`) au lieu du par-nuit, `accommodations.external_billing`, et **fermeture d'une fuite de marge** — `total_cost` était lisible par les liens partagés. | ✅ 2026-08-12 | ✅ 2026-08-12 |
 | ~~`2026-07-31_equipment_pricing_defaults.sql`~~ | Nouvelle table `equipment_pricing_defaults` (1 ligne) : les 3 curseurs du tab Equipment → CA (part matériel, part accessoires, ratio kite/planche), jusque-là en dur dans `EquipmentPage.tsx`. Pas d'accès anon. | ✅ 2026-08-01 | ✅ 2026-08-01 |
+
+> ✅ **`2026-08-11` vérifiée le 2026-08-12 par curl anon sur les DEUX bases** (gui l'avait
+> appliquée sans le dire ; la vérif a servi à trancher *quelle version* était passée) :
+> `cost_per_night` → **42703** (le par-nuit a disparu), `total_cost` → **42501** (la fuite de
+> marge est fermée), `accommodations?select=external_billing` → **200**, contrôle négatif
+> `colonne_bidon` → 42703. Et `external_accommodations?select=id` → **200 []** :
+> c'est bien la version committée qui a tourné, pas le refactor « un seul lieu ».
+>
+> ⚠️ **Ne jamais réécrire un fichier de migration déjà appliqué** — d'où le fichier
+> `2026-08-12` séparé plutôt qu'une retouche du `2026-08-11`.
 
 > ✅ **Registre vide au 2026-08-01.** Vérifié par curl anon sur les DEUX bases :
 > `equipment_pricing_defaults?select=equipment_share` → **200**, et le contrôle négatif
@@ -250,7 +261,15 @@ tarif de vente restent listés ci-dessous (B1, San Martinho, prix maison entièr
   — (a) hébergement **non facturable**, (b) **plusieurs réservations simultanées** sur le
   même lieu (impossible aujourd'hui : un `other` n'a qu'une chambre `Room`).
   ⛔ Ne pas poser de badge « no rate configured » dessus avant d'avoir tranché, sinon
-  l'alerte est fausse en permanence. Discussion ouverte, aucun code écrit.
+  l'alerte est fausse en permanence.
+  **Avancement au 2026-08-12 — la plomberie est faite, le produit non** :
+  (a) est réglé (`external_billing`, migration du 11 appliquée + badge exempté), et les
+  séjours externes vivent maintenant sur `accommodations` avec un forfait
+  (migration du 12, **à appliquer**). ⬜ **Reste** : (b) plusieurs réservations simultanées
+  sur le même lieu — l'idée retenue est **une « chambre » par séjour simultané** dans
+  `rooms`, ce qui laisse le planning et le drag & drop intacts ; et surtout **aucun écran
+  ne sait encore créer un séjour externe** — `external_accommodation_bookings` n'a
+  toujours aucun `insert` dans le code, elle n'est lue que par la compta et la page client.
 2. ✅ **Extraire les agrégats** dashboard + CashFlow en fonctions pures et les tester.
    Vérifié iso-comportement sur TEST (4 413 € / +891 €). Détail : `TEST_SUITE_ACCOUNTING.md`.
 3. 🔶 **Trancher les décisions métier** (`TEST_SUITE_ACCOUNTING.md`, section « Comportements

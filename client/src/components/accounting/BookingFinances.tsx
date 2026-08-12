@@ -436,7 +436,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                   )
                 })}
                 {extAccomm.map(e => {
-                  const acc = data.externalAccommodations.find(a => a.id === e.external_accommodation_id)
+                  const acc = data.accommodations.find(a => a.id === e.accommodation_id)
                   const n = countNights(e.check_in, e.check_out)
                   // Flat rate for the whole stay — the night count is shown for
                   // context only, it never multiplies anything.

@@ -493,23 +493,15 @@ export interface BookingRoomPrice {
 }
 
 // External accommodation (Palmeiras bungalows, other hotels)
-export type ExternalAccommodationProvider = 'palmeiras' | 'other'
 
-// A place we don't own. Just a list of names — amounts vary from one stay to the
-// next, so they live on the stay, not here.
-export interface ExternalAccommodation {
-  id: string
-  name: string
-  provider: ExternalAccommodationProvider
-  notes: string | null          // internal, never readable by a share link
-  is_active: boolean
-}
-
-// One stay at an external place, priced as a lump sum for the whole stay.
+// One stay in an accommodation we don't price ourselves (external_billing),
+// charged as a lump sum for the whole stay. It points at `accommodations`: the
+// same place the planning grid draws its rows from, so an accommodation is
+// never described in two tables at once.
 export interface ExternalAccommodationBooking {
   id: string
   booking_id: string
-  external_accommodation_id: string
+  accommodation_id: string
   check_in: string
   check_out: string
   total_cost: number            // what we pay the provider — never readable by anon

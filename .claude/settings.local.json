@@ -70,7 +70,8 @@
       "Skill(claude-api)",
       "Bash(awk 'NR>60' \"C:/gui/web/2026/Claude-Code-Projet/.claude/docs/BACKLOG.md\")",
       "Bash(awk NR>210 *)",
-      "Bash(echo \"=== exit: $? ===\")"
+      "Bash(echo \"=== exit: $? ===\")",
+      "Bash(python -)"
     ]
   }
 }

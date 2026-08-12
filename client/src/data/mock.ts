@@ -1,4 +1,4 @@
-import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity, TaxiDriver, TaxiTrip, TaxiPricingDefaults, Equipment, EquipmentRental, SharedLink, Season, RoomRate, BookingRoomPrice, ExternalAccommodation, ExternalAccommodationBooking, Payment, InstructorDebt, InstructorPayment, LessonRateOverride, Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry } from '../types/database'
+import type { Accommodation, Room, Booking, BookingRoom, Client, Instructor, Lesson, PriceItem, DayActivity, TaxiDriver, TaxiTrip, TaxiPricingDefaults, Equipment, EquipmentRental, SharedLink, Season, RoomRate, BookingRoomPrice, ExternalAccommodationBooking, Payment, InstructorDebt, InstructorPayment, LessonRateOverride, Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry } from '../types/database'
 
 export const mockAccommodations: Accommodation[] = [
   { id: 'h1', name: 'H-1', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null, external_billing: false },
@@ -238,14 +238,8 @@ export const mockBookingRoomPrices: BookingRoomPrice[] = [
   { booking_id: 'bk6', room_id: 'r9', price_per_night: 60, override_note: null },
 ]
 
-export const mockExternalAccommodations: ExternalAccommodation[] = [
-  { id: 'ea1', name: 'Bungalow Palmeiras #1', provider: 'palmeiras', notes: 'Vue jardin', is_active: true },
-  { id: 'ea2', name: 'Bungalow Palmeiras #2', provider: 'palmeiras', notes: 'Vue piscine', is_active: true },
-  { id: 'ea3', name: 'Hotel Varanda do Mar', provider: 'other', notes: 'À 5min du spot', is_active: true },
-]
-
 export const mockExternalAccommodationBookings: ExternalAccommodationBooking[] = [
-  { id: 'eab1', booking_id: 'bk4', external_accommodation_id: 'ea1', check_in: '2026-02-20', check_out: '2026-02-28', total_cost: 360, total_sell_price: 560, notes: null },
+  { id: 'eab1', booking_id: 'bk4', accommodation_id: 'b1', check_in: '2026-02-20', check_out: '2026-02-28', total_cost: 360, total_sell_price: 560, notes: null },
 ]
 
 export const mockPayments: Payment[] = [

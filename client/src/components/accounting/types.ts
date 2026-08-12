@@ -1,6 +1,6 @@
 import type {
   Accommodation, Booking, BookingParticipant, Client, Room, RoomRate, BookingRoom, BookingRoomPrice,
-  ExternalAccommodationBooking, ExternalAccommodation,
+  ExternalAccommodationBooking,
   HouseRental, Lesson, Instructor, Equipment, EquipmentRental, TaxiTrip, TaxiManagerPayment, Season, PriceItem,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
@@ -17,8 +17,7 @@ export interface SharedAccountingData {
   bookingRooms:              BookingRoom[]
   bookingRoomPrices:         BookingRoomPrice[]
   roomRates:                 RoomRate[]   // base rates, incl. `full_{accId}` full-house price
-  externalAccommodationBkgs: ExternalAccommodationBooking[]
-  externalAccommodations:    ExternalAccommodation[]
+  externalAccommodationBkgs: ExternalAccommodationBooking[]  // name resolved via `accommodations`
   diningEvents:              DiningEvent[]
   lessons:                   Lesson[]
   instructors:               Instructor[]

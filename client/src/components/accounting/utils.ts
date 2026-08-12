@@ -11,7 +11,7 @@ export function emptyAccountingData(): SharedAccountingData {
   return {
     accommodations: [], bookingParticipants: [], houseRentals: [], bookings: [], clients: [],
     rooms: [], bookingRooms: [], bookingRoomPrices: [], roomRates: [],
-    externalAccommodationBkgs: [], externalAccommodations: [], diningEvents: [],
+    externalAccommodationBkgs: [], diningEvents: [],
     lessons: [], instructors: [], priceItems: [], equipment: [], equipmentRentals: [],
     taxiTrips: [], taxiManagerPayments: [], eurMznRate: 65, seasons: [],
     payments: [], instructorDebts: [], instructorPayments: [], lessonRateOverrides: [],
