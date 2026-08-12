@@ -18,7 +18,7 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
-| **`2026-08-12_external_stays_single_place.sql`** | **Suite du 11.** Le séjour externe pointe désormais sur `accommodations` (`accommodation_id`) et le référentiel parallèle `external_accommodations` est **supprimé** — préalable au chantier San Martinho (planning + séjours simultanés). Garde-fou : la migration échoue au lieu de détruire si une ligne a été saisie. **6 vérifs par curl en bas du fichier.** ⚠️ **Le code déployé lit `accommodation_id`** : sans la migration, `ClientSharePage` demande une colonne inexistante → 42703, page client vide. Appliquer **avant ou avec** le push. | ⬜ | ⬜ |
+| **`2026-08-12_external_stays_single_place.sql`** | **Suite du 11.** Le séjour externe pointe désormais sur `accommodations` (`accommodation_id`) et le référentiel parallèle `external_accommodations` est **supprimé** — préalable au chantier San Martinho (planning + séjours simultanés). **Réécrite le 2026-08-12 après un échec** : elle **rattache** les lignes existantes (crée l'hébergement + ses emplacements, re-pointe les séjours, `NOT NULL` seulement après) au lieu de supposer la table vide. **7 vérifs en bas du fichier**, dont une **connectée** (le curl anon ne peut pas voir les lignes). ⚠️ **Le code déployé lit `accommodation_id`** : sans la migration, `ClientSharePage` demande une colonne inexistante → 42703, page client vide. Appliquer **avant ou avec** le push. | ⬜ | ⬜ |
 | ~~`2026-08-11_external_stays_flat_rate.sql`~~ | Séjours externes : forfait (`total_cost` / `total_sell_price`) au lieu du par-nuit, `accommodations.external_billing`, et **fermeture d'une fuite de marge** — `total_cost` était lisible par les liens partagés. | ✅ 2026-08-12 | ✅ 2026-08-12 |
 | ~~`2026-07-31_equipment_pricing_defaults.sql`~~ | Nouvelle table `equipment_pricing_defaults` (1 ligne) : les 3 curseurs du tab Equipment → CA (part matériel, part accessoires, ratio kite/planche), jusque-là en dur dans `EquipmentPage.tsx`. Pas d'accès anon. | ✅ 2026-08-01 | ✅ 2026-08-01 |
 
@@ -31,6 +31,16 @@
 >
 > ⚠️ **Ne jamais réécrire un fichier de migration déjà appliqué** — d'où le fichier
 > `2026-08-12` séparé plutôt qu'une retouche du `2026-08-11`.
+>
+> 🔴 **LEÇON DU 2026-08-12 — `[]` en anon ne veut PAS dire « table vide ».** Depuis la
+> Phase 2, RLS masque les lignes tant qu'il n'y a pas de `x-share-token` valide : un curl
+> anon qui renvoie `[]` prouve seulement « rien de lisible sans token ». La migration du 11
+> a été écrite en croyant `external_accommodation_bookings` vide sur la foi de ce `[]` — elle
+> a **remplacé les colonnes par-nuit par des colonnes forfait `DEFAULT 0`**, donc mis à zéro
+> les montants de la ligne qui s'y trouvait (du seed sur TEST : 30/45 €/nuit perdus). Le
+> garde-fou de la migration du 12 l'a révélé en refusant de tourner.
+> **→ Pour compter des lignes, il faut être connecté** (SQL editor, ou l'app avec la session
+> admin). Le curl anon sert à prouver des **permissions** (42501/42703), jamais un volume.
 
 > ✅ **Registre vide au 2026-08-01.** Vérifié par curl anon sur les DEUX bases :
 > `equipment_pricing_defaults?select=equipment_share` → **200**, et le contrôle négatif
