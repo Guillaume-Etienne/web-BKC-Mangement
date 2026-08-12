@@ -10,6 +10,13 @@
 
 ## 🚨 MIGRATIONS SQL EN ATTENTE D'APPLICATION (gui)
 
+> ✅ **Registre VIDE au 2026-08-12.** Les deux migrations « séjours externes » (11 et 12) sont
+> passées sur TEST **et** PROD, et les 7 contrôles curl anon donnent **exactement le même
+> résultat sur les deux bases** : `external_accommodations` → 404 (table supprimée),
+> `accommodation_id` → 200, `external_accommodation_id` → 42703, `total_cost` → **42501**
+> (marge fermée), contrôle négatif → 42703, `external_billing` → 200.
+> ⚠️ **Reste à pousser le code** : Vercel déploie du code qui lit `accommodation_id`.
+
 > Registre des migrations écrites mais **pas encore passées**. Une ligne par migration ;
 > on la raye seulement après vérification **par curl anon** sur les DEUX bases.
 > Rappel : TEST + PROD dans la foulée, et ne jamais croire « c'est passé » sans test réel
@@ -18,7 +25,7 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
-| **`2026-08-12_external_stays_single_place.sql`** ⬅️ **TEST OK, reste PROD** | **Suite du 11.** Le séjour externe pointe désormais sur `accommodations` (`accommodation_id`) et le référentiel parallèle `external_accommodations` est **supprimé** — préalable au chantier San Martinho (planning + séjours simultanés). **Réécrite le 2026-08-12 après un échec** : elle **rattache** les lignes existantes (crée l'hébergement + ses emplacements, re-pointe les séjours, `NOT NULL` seulement après) au lieu de supposer la table vide. **7 vérifs en bas du fichier**, dont une **connectée** (le curl anon ne peut pas voir les lignes). ⚠️ **Le code déployé lit `accommodation_id`** : sans la migration, `ClientSharePage` demande une colonne inexistante → 42703, page client vide. Appliquer **avant ou avec** le push. | ✅ 2026-08-12 | ⬜ |
+| ~~`2026-08-12_external_stays_single_place.sql`~~ | **Suite du 11.** Le séjour externe pointe désormais sur `accommodations` (`accommodation_id`) et le référentiel parallèle `external_accommodations` est **supprimé** — préalable au chantier San Martinho (planning + séjours simultanés). **Réécrite le 2026-08-12 après un échec** : elle **rattache** les lignes existantes (crée l'hébergement + ses emplacements, re-pointe les séjours, `NOT NULL` seulement après) au lieu de supposer la table vide. **7 vérifs en bas du fichier**, dont une **connectée** (le curl anon ne peut pas voir les lignes). ⚠️ **Le code déployé lit `accommodation_id`** : sans la migration, `ClientSharePage` demande une colonne inexistante → 42703, page client vide. Appliquer **avant ou avec** le push. | ✅ 2026-08-12 | ✅ 2026-08-12 |
 | ~~`2026-08-11_external_stays_flat_rate.sql`~~ | Séjours externes : forfait (`total_cost` / `total_sell_price`) au lieu du par-nuit, `accommodations.external_billing`, et **fermeture d'une fuite de marge** — `total_cost` était lisible par les liens partagés. | ✅ 2026-08-12 | ✅ 2026-08-12 |
 | ~~`2026-07-31_equipment_pricing_defaults.sql`~~ | Nouvelle table `equipment_pricing_defaults` (1 ligne) : les 3 curseurs du tab Equipment → CA (part matériel, part accessoires, ratio kite/planche), jusque-là en dur dans `EquipmentPage.tsx`. Pas d'accès anon. | ✅ 2026-08-01 | ✅ 2026-08-01 |
 
