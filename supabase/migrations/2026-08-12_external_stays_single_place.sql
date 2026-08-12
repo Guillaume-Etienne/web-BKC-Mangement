@@ -139,10 +139,14 @@ COMMIT;
 --    curl "$URL/rest/v1/external_accommodations?select=id" -H "apikey: $ANON"
 --    → 404 « relation ... does not exist »   (c'était 200 [] avant)
 --
--- 2) La nouvelle colonne existe et reste fermée aux liens non-client :
+-- 2) La nouvelle colonne existe et est bien lisible (elle EST dans le GRANT :
+--    le client doit pouvoir rattacher son séjour à un nom d'hébergement) :
 --    curl "$URL/rest/v1/external_accommodation_bookings?select=accommodation_id" \
 --         -H "apikey: $ANON" -H "Authorization: Bearer $ANON"
---    → 42501 « permission denied »           (c'était 42703 avant)
+--    → **200 []**                            (c'était 42703 avant)
+--    ⚠️ Une première rédaction annonçait 42501 ici : c'était faux, et ça aurait fait
+--    passer un succès pour un échec. 42501 est attendu sur `total_cost` (vérif 4),
+--    pas sur une colonne accordée. Le `[]` vient de RLS, pas d'un refus.
 --
 -- 3) L'ancienne colonne a disparu :
 --    select=external_accommodation_id        → 42703 (c'était 200 [] avant)

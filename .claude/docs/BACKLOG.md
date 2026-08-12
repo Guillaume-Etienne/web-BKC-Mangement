@@ -18,7 +18,7 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
-| **`2026-08-12_external_stays_single_place.sql`** | **Suite du 11.** Le séjour externe pointe désormais sur `accommodations` (`accommodation_id`) et le référentiel parallèle `external_accommodations` est **supprimé** — préalable au chantier San Martinho (planning + séjours simultanés). **Réécrite le 2026-08-12 après un échec** : elle **rattache** les lignes existantes (crée l'hébergement + ses emplacements, re-pointe les séjours, `NOT NULL` seulement après) au lieu de supposer la table vide. **7 vérifs en bas du fichier**, dont une **connectée** (le curl anon ne peut pas voir les lignes). ⚠️ **Le code déployé lit `accommodation_id`** : sans la migration, `ClientSharePage` demande une colonne inexistante → 42703, page client vide. Appliquer **avant ou avec** le push. | ⬜ | ⬜ |
+| **`2026-08-12_external_stays_single_place.sql`** ⬅️ **TEST OK, reste PROD** | **Suite du 11.** Le séjour externe pointe désormais sur `accommodations` (`accommodation_id`) et le référentiel parallèle `external_accommodations` est **supprimé** — préalable au chantier San Martinho (planning + séjours simultanés). **Réécrite le 2026-08-12 après un échec** : elle **rattache** les lignes existantes (crée l'hébergement + ses emplacements, re-pointe les séjours, `NOT NULL` seulement après) au lieu de supposer la table vide. **7 vérifs en bas du fichier**, dont une **connectée** (le curl anon ne peut pas voir les lignes). ⚠️ **Le code déployé lit `accommodation_id`** : sans la migration, `ClientSharePage` demande une colonne inexistante → 42703, page client vide. Appliquer **avant ou avec** le push. | ✅ 2026-08-12 | ⬜ |
 | ~~`2026-08-11_external_stays_flat_rate.sql`~~ | Séjours externes : forfait (`total_cost` / `total_sell_price`) au lieu du par-nuit, `accommodations.external_billing`, et **fermeture d'une fuite de marge** — `total_cost` était lisible par les liens partagés. | ✅ 2026-08-12 | ✅ 2026-08-12 |
 | ~~`2026-07-31_equipment_pricing_defaults.sql`~~ | Nouvelle table `equipment_pricing_defaults` (1 ligne) : les 3 curseurs du tab Equipment → CA (part matériel, part accessoires, ratio kite/planche), jusque-là en dur dans `EquipmentPage.tsx`. Pas d'accès anon. | ✅ 2026-08-01 | ✅ 2026-08-01 |
 
@@ -285,6 +285,12 @@ tarif de vente restent listés ci-dessous (B1, San Martinho, prix maison entièr
     soustrait nulle part** — corrigé (`externalStayCosts`, même traitement que les
     bungalows), sinon le premier séjour saisi aurait compté l'argent de l'hôtel comme
     notre marge. Verrouillé par 2 tests + l'identité du Net result.
+  ✅ **Vérifié bout-en-bout sur TEST le 2026-08-12** (migration passée + app pilotée au
+  navigateur) : deux résas **qui se chevauchent** posées sur Spot 1 et Spot 2 du même lieu,
+  Spot 1 passant à « ⚠ Booked » sur les dates communes ; les 2 lignes écrites en base avec
+  leurs forfaits ; dashboard **2 250 → 2 715 €** de CA et **+742 → +897 €** de résultat
+  (= +465 encaissés −310 payés à l'hôtel), carte « External stays −310 € » apparue.
+  Données de test supprimées, dashboard revenu **exactement** à +742 € / 2 250 €.
   ⬜ **Décisions laissées ouvertes** (aucune ne bloque l'usage) : le séjour prend les dates
   de la résa (pas de dates propres — à ouvrir si un client change d'hébergement en cours
   de séjour) ; le coût n'apparaît **pas** dans le CashFlow, comme les bungalows et les

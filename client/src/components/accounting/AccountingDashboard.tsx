@@ -247,7 +247,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
           <p className={`text-sm font-semibold uppercase tracking-wide ${netResult >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
             Net result ({activeSeason ? activeSeason.label : 'all time'})
           </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Revenue (taxis net of driver + manager) + palmeiras − instructors − houses − bungalows − activity providers − expenses</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Revenue (taxis net of driver + manager) + palmeiras − instructors − houses − bungalows − external stays − activity providers − expenses</p>
         </div>
         <p className={`text-4xl font-bold ${netResult >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>{sign(netResult)}</p>
       </div>
