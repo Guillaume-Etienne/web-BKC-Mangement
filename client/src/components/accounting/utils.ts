@@ -313,6 +313,7 @@ export interface SeasonTotals {
   activityCosts: number
   houseRentalCosts: number
   bungalowCosts: number
+  externalStayCosts: number   // what we pay places we don't own (external_billing)
   totalExpenses: number
   palmeirasNet: number
   netResult: number
@@ -381,6 +382,16 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
     return sum + (acc?.cost_per_night ?? 0) * countNights(bk.check_in, bk.check_out)
   }, 0)
 
+  // Same shape as bungalows, and for the same reason: what the guest pays for an
+  // external stay is already inside accomRev, so only what we pay the place is
+  // subtracted here. Without this the whole purchase price would be counted as
+  // margin — the leak the 2026-08-11 migration closed on the *reading* side.
+  const externalStayCosts = data.externalAccommodationBkgs.reduce((sum, e) => {
+    const bk = data.bookings.find(b => b.id === e.booking_id)
+    if (!bk || bk.status === 'cancelled') return sum
+    return sum + e.total_cost
+  }, 0)
+
   const palmeirasNet =
     data.palmeirasReversals.reduce((s, r) => s + r.net_amount, 0)
     + data.palmeirasEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
@@ -388,14 +399,15 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
     - data.palmeirasEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
 
   const netResult = totalRevenue + palmeirasNet
-    - instructorCosts - houseRentalCosts - bungalowCosts - activityCosts - totalExpenses
+    - instructorCosts - houseRentalCosts - bungalowCosts - externalStayCosts
+    - activityCosts - totalExpenses
 
   return {
     accomRev, lessonsRev, rentalsRev, taxiRevGross, taxiCosts, taxiMargin,
     activitiesRev, eventsRev, centerAccessRev, totalRevenue,
     billedNet, totalPaid, unverifiedPaid, totalDue,
-    instructorCosts, activityCosts, houseRentalCosts, bungalowCosts, totalExpenses,
-    palmeirasNet, netResult,
+    instructorCosts, activityCosts, houseRentalCosts, bungalowCosts, externalStayCosts,
+    totalExpenses, palmeirasNet, netResult,
   }
 }
 

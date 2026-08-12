@@ -37,6 +37,7 @@ const COSTS: Line[] = [
   { label: 'Instructors',       pick: t => t.instructorCosts,  cost: true },
   { label: 'Houses',            pick: t => t.houseRentalCosts, cost: true },
   { label: 'Bungalow owners',   pick: t => t.bungalowCosts,    cost: true },
+  { label: 'External stays',    pick: t => t.externalStayCosts, cost: true },
   { label: 'Activity providers', pick: t => t.activityCosts,   cost: true },
   { label: 'Expenses',          pick: t => t.totalExpenses,    cost: true },
 ]

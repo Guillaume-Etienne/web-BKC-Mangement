@@ -70,7 +70,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
     accomRev, lessonsRev, rentalsRev, taxiRevGross, taxiCosts, taxiMargin,
     activitiesRev, eventsRev, centerAccessRev, totalRevenue,
     billedNet, totalPaid, unverifiedPaid, totalDue,
-    instructorCosts, activityCosts, houseRentalCosts, bungalowCosts, totalExpenses,
+    instructorCosts, activityCosts, houseRentalCosts, bungalowCosts, externalStayCosts, totalExpenses,
     palmeirasNet, netResult,
   } = computeSeasonTotals(scoped)
 
@@ -220,6 +220,14 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
           <p className="text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400 mb-1">Activity providers</p>
           <p className="text-2xl font-bold text-red-800 dark:text-red-400">−{fmt(activityCosts)}</p>
         </div>
+        {/* Hidden until a stay exists: an always-zero card next to seven live ones
+            teaches the eye to skip the row. */}
+        {externalStayCosts > 0 && (
+          <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400 mb-1">External stays</p>
+            <p className="text-2xl font-bold text-red-800 dark:text-red-400">−{fmt(externalStayCosts)}</p>
+          </div>
+        )}
         <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400 mb-1">Expenses</p>
           <p className="text-2xl font-bold text-red-800 dark:text-red-400">−{fmt(totalExpenses)}</p>

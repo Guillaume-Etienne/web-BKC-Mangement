@@ -62,9 +62,9 @@ export function filterDataToSeason(
     ...data,
 
     // ── Reference data: left whole on purpose ──────────────────────────────
-    // accommodations, clients, rooms, roomRates, externalAccommodations,
-    // instructors, priceItems, equipment, seasons, eurMznRate and
-    // lessonRateOverrides all come through untouched via the spread above.
+    // accommodations, clients, rooms, roomRates, instructors, priceItems,
+    // equipment, seasons, eurMznRate and lessonRateOverrides all come through
+    // untouched via the spread above.
 
     // ── The booking, and everything that hangs off it ──────────────────────
     bookings,

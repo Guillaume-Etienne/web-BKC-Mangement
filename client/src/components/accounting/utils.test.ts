@@ -128,11 +128,28 @@ describe('computeAccommodationRevenue', () => {
     expect(computeAccommodationRevenue(booking, data)).toBe(700) // 100 × 7, not 110 × 7
   })
 
-  it('bills an external accommodation on its own dates', () => {
+  it('bills an external stay at its flat rate, whatever its dates', () => {
     const data = mkData({
       externalAccommodationBkgs: [mkExternalBooking({ check_in: '2026-11-01', check_out: '2026-11-05' })],
     })
-    expect(computeAccommodationRevenue(booking, data)).toBe(600) // 150 × 4
+    // 600 for the stay — not 600 × 4 nights, and not re-divided per night either.
+    expect(computeAccommodationRevenue(booking, data)).toBe(600)
+  })
+
+  it('counts an occupied external spot once, not twice', () => {
+    // The booking holds a real room (so the planning shows it) AND a flat stay
+    // line. The room carries an explicit 0 because the place is externally
+    // billed; the money must come from the stay line alone.
+    const extAcc  = mkAccommodation({ id: 'accX', name: 'San Martinho', type: 'other', external_billing: true })
+    const extRoom = mkRoom({ id: 'spot1', accommodation_id: 'accX', name: 'Spot 1' })
+    const data = mkData({
+      accommodations: [extAcc],
+      rooms: [extRoom],
+      bookingRooms: [mkBookingRoom({ room_id: 'spot1' })],
+      bookingRoomPrices: [mkBookingRoomPrice({ room_id: 'spot1', price_per_night: 0 })],
+      externalAccommodationBkgs: [mkExternalBooking({ accommodation_id: 'accX', total_sell_price: 600 })],
+    })
+    expect(computeAccommodationRevenue(booking, data)).toBe(600)
   })
 
   it('adds own rooms and external stays together', () => {
@@ -846,9 +863,28 @@ describe('computeSeasonTotals', () => {
     expect(t.netResult).toBe(506)
     expect(t.netResult).toBe(
       t.totalRevenue + t.palmeirasNet
-      - t.instructorCosts - t.houseRentalCosts - t.bungalowCosts
+      - t.instructorCosts - t.houseRentalCosts - t.bungalowCosts - t.externalStayCosts
       - t.activityCosts - t.totalExpenses
     )
+  })
+
+  it('subtracts what an external place is paid, keeping only the margin', () => {
+    const data = fullSeason()
+    data.externalAccommodationBkgs = [mkExternalBooking({ total_cost: 210, total_sell_price: 315 })]
+    const t = computeSeasonTotals(data)
+    // The guest's 315 lands in accommodation revenue…
+    expect(t.accomRev).toBe(735)             // 420 + 315
+    expect(t.externalStayCosts).toBe(210)
+    // …so only the 105 € margin may reach the bottom line. Counting the sell price
+    // without the purchase price would book the hotel's own money as ours.
+    expect(t.netResult).toBe(611)            // 506 + 315 − 210
+  })
+
+  it('ignores an external stay attached to a cancelled booking', () => {
+    const data = fullSeason()
+    data.bookings = [mkBooking({ status: 'cancelled' })]
+    data.externalAccommodationBkgs = [mkExternalBooking({ total_cost: 210, total_sell_price: 315 })]
+    expect(computeSeasonTotals(data).externalStayCosts).toBe(0)
   })
 
   it('totals zero on an empty season', () => {

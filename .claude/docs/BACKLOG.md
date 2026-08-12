@@ -262,14 +262,23 @@ tarif de vente restent listés ci-dessous (B1, San Martinho, prix maison entièr
   même lieu (impossible aujourd'hui : un `other` n'a qu'une chambre `Room`).
   ⛔ Ne pas poser de badge « no rate configured » dessus avant d'avoir tranché, sinon
   l'alerte est fausse en permanence.
-  **Avancement au 2026-08-12 — la plomberie est faite, le produit non** :
-  (a) est réglé (`external_billing`, migration du 11 appliquée + badge exempté), et les
-  séjours externes vivent maintenant sur `accommodations` avec un forfait
-  (migration du 12, **à appliquer**). ⬜ **Reste** : (b) plusieurs réservations simultanées
-  sur le même lieu — l'idée retenue est **une « chambre » par séjour simultané** dans
-  `rooms`, ce qui laisse le planning et le drag & drop intacts ; et surtout **aucun écran
-  ne sait encore créer un séjour externe** — `external_accommodation_bookings` n'a
-  toujours aucun `insert` dans le code, elle n'est lue que par la compta et la page client.
+  **✅ LIVRÉ le 2026-08-12** (reste la migration du 12 à passer). Comment ça marche :
+  - **(a) non facturable** : `accommodations.external_billing` — le lieu ne porte aucun
+    `room_rate`, pas de badge rouge, et Management affiche « per-stay pricing · N spots ».
+  - **(b) séjours simultanés** : une **chambre = un emplacement**, créée depuis le crayon.
+    Le planning dessine déjà une ligne par chambre → **zéro changement** au drag & drop,
+    et le détecteur de conflit empêche deux résas sur le même emplacement.
+  - **La saisie** : dans le wizard (étape Stay), cocher un emplacement fait apparaître un
+    bloc « whole stay » avec **We pay / Charged** et la marge calculée. Écrit une ligne
+    `external_accommodation_bookings` par lieu (pas par emplacement) aux dates de la résa.
+  - **La compta** : le prix client était déjà dans `accomRev`, mais **le coût n'était
+    soustrait nulle part** — corrigé (`externalStayCosts`, même traitement que les
+    bungalows), sinon le premier séjour saisi aurait compté l'argent de l'hôtel comme
+    notre marge. Verrouillé par 2 tests + l'identité du Net result.
+  ⬜ **Décisions laissées ouvertes** (aucune ne bloque l'usage) : le séjour prend les dates
+  de la résa (pas de dates propres — à ouvrir si un client change d'hébergement en cours
+  de séjour) ; le coût n'apparaît **pas** dans le CashFlow, comme les bungalows et les
+  loyers de maison : c'est un engagement, la sortie de caisse se saisit dans Expenses.
 2. ✅ **Extraire les agrégats** dashboard + CashFlow en fonctions pures et les tester.
    Vérifié iso-comportement sur TEST (4 413 € / +891 €). Détail : `TEST_SUITE_ACCOUNTING.md`.
 3. 🔶 **Trancher les décisions métier** (`TEST_SUITE_ACCOUNTING.md`, section « Comportements

@@ -5,13 +5,17 @@ import { useBookings, useBookingRooms, useBookingRoomPrices, useBookingParticipa
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useTaxiDrivers } from '../hooks/useTaxis'
 import { useTable } from '../hooks/useSupabase'
-import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, Lesson, EquipmentRental, Payment } from '../types/database'
+import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, Lesson, EquipmentRental, Payment, ExternalAccommodationBooking } from '../types/database'
 import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
 import { getFullHouseRate, getBaseNightlyRate } from '../utils/roomPricing'
 import { getConfiguredRate } from '../components/accounting/utils'
 import { todayISO, fmtDate } from '../utils/dates'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+/** What a stay in an externally-billed place costs us and earns us. Two figures
+ *  and not one: the margin on these places is the whole point of tracking them. */
+interface ExternalStayAmounts { cost: number; sell: number }
 
 interface WizardData {
   // Step 1 – Client
@@ -30,6 +34,12 @@ interface WizardData {
   visa_exit_date: string
   room_ids: string[]
   room_prices: Record<string, number>
+  // Stays in a place we don't price ourselves (`accommodations.external_billing`,
+  // e.g. San Martinho): one flat amount for the whole stay, never a nightly rate —
+  // moving a departure date must not silently re-price what was agreed with the
+  // hotel. Keyed by accommodation id: taking two spots there is still one stay,
+  // one bill. `cost` is what we pay them, `sell` what the guest is charged.
+  external_stays: Record<string, ExternalStayAmounts>
   status: BookingStatus
   // Step 3 – Guests
   participants: ParticipantData[]
@@ -55,7 +65,8 @@ const EMPTY_WIZARD: WizardData = {
   client_id: '',
   new_client_first_name: '', new_client_last_name: '', new_client_email: '',
   new_client_phone: '', new_client_nationality: '', new_client_kite_level: '',
-  check_in: '', check_out: '', visa_entry_date: '', visa_exit_date: '', room_ids: [], room_prices: {}, status: 'provisional',
+  check_in: '', check_out: '', visa_entry_date: '', visa_exit_date: '', room_ids: [], room_prices: {},
+  external_stays: {}, status: 'provisional',
   participants: [], couples_count: 0, children_count: 0,
   arrival_time: '', departure_time: '',
   taxi_arrival: false, taxi_departure: false, taxi_driver_id: null,
@@ -341,17 +352,39 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
     rooms: rooms.filter(r => r.accommodation_id === acc.id),
   })).filter(g => g.rooms.length > 0)
 
+  function isExternallyBilled(accId: string | undefined): boolean {
+    return !!accId && !!accommodations.find(a => a.id === accId)?.external_billing
+  }
+
+  /** One stay line per externally-billed accommodation among the selected rooms:
+   *  created when its first spot is taken, dropped with its last. Amounts already
+   *  typed are kept — adding a second spot must not wipe the agreed price. */
+  function syncExternalStays(roomIds: string[]): Record<string, ExternalStayAmounts> {
+    const next: Record<string, ExternalStayAmounts> = {}
+    for (const rid of roomIds) {
+      const accId = rooms.find(r => r.id === rid)?.accommodation_id
+      if (!accId || !isExternallyBilled(accId)) continue
+      next[accId] = d.external_stays[accId] ?? { cost: 0, sell: 0 }
+    }
+    return next
+  }
+
   // Room selection helpers
   function toggleRoom(roomId: string) {
     if (d.room_ids.includes(roomId)) {
       const newPrices = { ...d.room_prices }
       delete newPrices[roomId]
-      update({ room_ids: d.room_ids.filter(id => id !== roomId), room_prices: newPrices })
+      const nextIds = d.room_ids.filter(id => id !== roomId)
+      update({ room_ids: nextIds, room_prices: newPrices, external_stays: syncExternalStays(nextIds) })
     } else {
+      // Externally-billed spots carry no nightly rate by design: their money lives
+      // on the stay line below, so the per-night price stays at 0 on purpose.
       const baseRate = roomRates.find(r => r.room_id === roomId)?.price_per_night ?? 0
+      const nextIds = [...d.room_ids, roomId]
       update({
-        room_ids: [...d.room_ids, roomId],
+        room_ids: nextIds,
         room_prices: { ...d.room_prices, [roomId]: d.room_prices[roomId] ?? baseRate },
+        external_stays: syncExternalStays(nextIds),
       })
     }
   }
@@ -360,7 +393,8 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
     if (allSelected) {
       const newPrices = { ...d.room_prices }
       accRoomIds.forEach(id => delete newPrices[id])
-      update({ room_ids: d.room_ids.filter(id => !accRoomIds.includes(id)), room_prices: newPrices })
+      const nextIds = d.room_ids.filter(id => !accRoomIds.includes(id))
+      update({ room_ids: nextIds, room_prices: newPrices, external_stays: syncExternalStays(nextIds) })
     } else {
       // Full house has a single flat price (Management → "Full house €/night"),
       // not the sum of both rooms. Split evenly across rooms so the per-room
@@ -370,7 +404,8 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
       const newPrices = { ...d.room_prices }
       const each = (getFullHouseRate(accId, roomRates) ?? 0) / accRoomIds.length
       accRoomIds.forEach(id => { newPrices[id] = each })
-      update({ room_ids: [...d.room_ids.filter(id => !accRoomIds.includes(id)), ...accRoomIds], room_prices: newPrices })
+      const nextIds = [...d.room_ids.filter(id => !accRoomIds.includes(id)), ...accRoomIds]
+      update({ room_ids: nextIds, room_prices: newPrices, external_stays: syncExternalStays(nextIds) })
     }
   }
   function isHouseAvailable(accId: string): boolean | null {
@@ -636,6 +671,9 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                       const units: Unit[] = []
                       for (const [accId, accRoomIds] of byAcc) {
                         const acc = accommodations.find(a => a.id === accId)
+                        // Externally-billed places are priced per stay, below — they
+                        // have no €/night line to show here.
+                        if (acc?.external_billing) continue
                         const accTotalRooms = rooms.filter(r => r.accommodation_id === accId).length
                         const isFullHouse = acc?.type === 'house' && accTotalRooms === 2 && accRoomIds.length === 2
                         if (isFullHouse) {
@@ -670,10 +708,59 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                         )
                       })
                     })()}
-                    {d.room_ids.length > 1 && (
+
+                    {/* Externally-billed stays: one flat amount for the whole stay,
+                        and what we pay the place alongside it — the margin is the
+                        only reason these bookings are worth tracking at all. */}
+                    {Object.entries(d.external_stays).map(([accId, amt]) => {
+                      const acc = accommodations.find(a => a.id === accId)
+                      const spots = d.room_ids.filter(id => rooms.find(r => r.id === id)?.accommodation_id === accId).length
+                      const setAmt = (patch: Partial<ExternalStayAmounts>) =>
+                        update({ external_stays: { ...d.external_stays, [accId]: { ...amt, ...patch } } })
+                      return (
+                        <div key={accId} className="border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg p-2 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+                              {acc?.name ?? 'External stay'}
+                              <span className="text-xs text-gray-400 dark:text-gray-400 ml-2">
+                                {spots} spot{spots === 1 ? '' : 's'} · whole stay
+                              </span>
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 dark:text-gray-400 flex-1">We pay the place</span>
+                            <input
+                              type="number" min="0" step="1" value={amt.cost}
+                              onChange={e => setAmt({ cost: parseFloat(e.target.value) || 0 })}
+                              className="w-20 px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-xs text-gray-400 dark:text-gray-400 w-16 shrink-0">€ total</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 dark:text-gray-400 flex-1">Charged to the guest</span>
+                            <input
+                              type="number" min="0" step="1" value={amt.sell}
+                              onChange={e => setAmt({ sell: parseFloat(e.target.value) || 0 })}
+                              className="w-20 px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-xs text-gray-400 dark:text-gray-400 w-16 shrink-0">€ total</span>
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {amt.sell === 0 && amt.cost === 0
+                              ? 'Nothing goes through the center — tracked for the planning only.'
+                              : <>Margin <span className={amt.sell - amt.cost < 0 ? 'text-red-500 dark:text-red-400 font-medium' : 'font-medium'}>{amt.sell - amt.cost} €</span> for the whole stay</>}
+                          </p>
+                        </div>
+                      )
+                    })}
+
+                    {(d.room_ids.length > 1 || Object.keys(d.external_stays).length > 0) && (
                       <div className="flex justify-between items-center pt-2 border-t text-sm font-semibold text-gray-700 dark:text-gray-300">
                         <span>Total accommodation</span>
-                        <span>{d.room_ids.reduce((s, id) => s + (d.room_prices[id] ?? 0) * nights, 0)} €</span>
+                        <span>
+                          {d.room_ids.reduce((s, id) => s + (d.room_prices[id] ?? 0) * nights, 0)
+                            + Object.values(d.external_stays).reduce((s, a) => s + a.sell, 0)} €
+                        </span>
                       </div>
                     )}
                   </div>
@@ -1110,6 +1197,8 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   const { data: accommodations } = useAccommodations()
   const { data: houseRentals } = useTable<HouseRental>('house_rentals')
   const { data: roomRatesData } = useTable<RoomRate>('room_rates')
+  const { data: externalStaysData, refresh: refreshExternalStays } =
+    useTable<ExternalAccommodationBooking>('external_accommodation_bookings')
   const { data: priceItemsData } = useTable<PriceItem>('price_items')
   // €/day per own-gear guest, from Options → Pricing. 0 when nothing is configured:
   // the rate is shown and editable on the booking, so a missing one is visible.
@@ -1366,6 +1455,29 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       if (pricesInsErr) problems.push(`⚠️ THIS BOOKING HAS NO FROZEN PRICES (${pricesInsErr.message}). Re-open it and set them again, or it will be billed at today's rates.`)
     }
 
+    // 5b. External stays (delete all + re-insert, same shape as the rooms above).
+    //     Nothing to freeze per night here: the row IS the agreed price, for the
+    //     whole stay. One row per externally-billed accommodation, even when the
+    //     booking occupies several of its spots.
+    const { error: extDelErr } = await supabase
+      .from('external_accommodation_bookings').delete().eq('booking_id', bookingId)
+    if (extDelErr) problems.push(`External stays were not updated (${extDelErr.message}). The previous ones are still in place.`)
+    else {
+      const extRows = Object.entries(data.external_stays).map(([accId, amt]) => ({
+        booking_id:       bookingId,
+        accommodation_id: accId,
+        check_in:         data.check_in,
+        check_out:        data.check_out,
+        total_cost:       amt.cost,
+        total_sell_price: amt.sell,
+        notes:            null,
+      }))
+      if (extRows.length > 0) {
+        const { error: extInsErr } = await supabase.from('external_accommodation_bookings').insert(extRows)
+        if (extInsErr) problems.push(`⚠️ THE EXTERNAL STAY WAS NOT SAVED (${extInsErr.message}). Its cost and price are lost — re-open the booking and set them again.`)
+      }
+    }
+
     // 6. Auto-create an unverified payment for any INCREASE in "amount already paid".
     //    New booking → previous is 0. Edit → only the added delta (idempotent: re-saving
     //    without changing the field creates nothing; bumping it creates the difference).
@@ -1424,6 +1536,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
 
     refreshBookings()
     refreshBookingRooms()
+    refreshExternalStays()
     setSaving(false)
 
     if (problems.length > 0) {
@@ -1461,6 +1574,11 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       visa_entry_date: b.visa_entry_date ?? '', visa_exit_date: b.visa_exit_date ?? '',
       room_ids: brs.map(r => r.room_id),
       room_prices,
+      external_stays: Object.fromEntries(
+        externalStaysData
+          .filter(e => e.booking_id === b.id)
+          .map(e => [e.accommodation_id, { cost: e.total_cost, sell: e.total_sell_price }])
+      ),
       status: b.status,
       participants: (() => {
         const existing = bookingParticipants.filter(p => p.booking_id === b.id).map(p => ({

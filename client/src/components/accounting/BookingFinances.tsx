@@ -404,6 +404,18 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                   const isEditing = editingRoomPriceId === br.room_id
                   const roomLabel = acc ? `${acc.name}/${room?.name}` : (room?.name ?? br.room_id)
                   const hasNoPrice = !snap
+                  // A spot in an externally-billed place holds no nightly rate by
+                  // design: showing it at 0 €/N next to the flat line below would
+                  // read as a missing price, which is exactly the alarm we want to
+                  // keep meaningful elsewhere.
+                  if (acc?.external_billing) {
+                    return (
+                      <div key={br.room_id} className="flex justify-between text-xs text-gray-400 dark:text-gray-400">
+                        <span>{roomLabel} × {nights}N</span>
+                        <span className="italic">billed per stay ↓</span>
+                      </div>
+                    )
+                  }
                   return (
                     <div key={br.room_id} className="text-xs text-gray-500 dark:text-gray-400">
                       <div className="flex justify-between items-center">
