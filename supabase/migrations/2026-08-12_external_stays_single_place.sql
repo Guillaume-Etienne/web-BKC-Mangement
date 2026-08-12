@@ -59,12 +59,15 @@ BEGIN
     -- Combien d'emplacements ? Le plus grand nombre de séjours qui se chevauchent
     -- sur ce lieu. Majorant volontaire : un emplacement en trop ne coûte rien,
     -- un emplacement manquant rendrait deux séjours impossibles à poser au planning.
-    SELECT GREATEST(1, MAX(overlaps)) INTO spots
+    -- ⚠️ Ne PAS nommer cette colonne `overlaps` : c'est un mot réservé
+    -- (l'opérateur standard `(a, b) OVERLAPS (c, d)`), et `MAX(overlaps)` casse
+    -- le parseur — « syntax error at or near ")" », vécu le 2026-08-12.
+    SELECT GREATEST(1, MAX(concurrent_stays)) INTO spots
     FROM (
       SELECT (SELECT COUNT(*) FROM external_accommodation_bookings o
                WHERE o.external_accommodation_id = r.id
                  AND o.check_in  < e.check_out
-                 AND o.check_out > e.check_in) AS overlaps
+                 AND o.check_out > e.check_in) AS concurrent_stays
       FROM external_accommodation_bookings e
       WHERE e.external_accommodation_id = r.id
     ) AS counts;
