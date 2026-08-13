@@ -231,9 +231,23 @@ Invariant verrouillé par un test : deux saisons adjacentes doivent sommer au to
 **208 tests.**
 ⬜ **Reste (gui)** : saisir ses **vraies dates de saison** dans Options → Seasons
 (une saison = début septembre → mi-mars, sans chevauchement).
-⬜ **Reste (Claude, chantier séparé)** : `PlanningView` garde **sa propre définition en dur**
-(1er sept → 31 mars) — 3ᵉ source de vérité pour la même notion. À faire pointer sur la table
-`seasons` pour que planning et compta ne puissent pas diverger.
+✅ **FAIT le 2026-08-13** — `PlanningView` lit la table `seasons`, la 3ᵉ source de vérité a
+disparu. Nouveau module pur `utils/seasonWindow.ts` (**16 tests**, 239 au total) :
+- La grille s'ouvre sur la saison **contenant aujourd'hui**, sinon la **prochaine à démarrer**
+  (le creux avril→août n'appartient à aucune saison : on y montre celle qu'on est en train de
+  remplir, pas celle qui vient de finir), sinon la dernière connue.
+- Les flèches parcourent les saisons de la table et **s'éteignent aux extrémités**.
+- ⚠️ **Piège traité** : l'ancienne fenêtre commençait un 1er et finissait un dernier-du-mois,
+  donc l'en-tête comptait des **mois entiers**. Une saison saisie à la main finit « mi-mars » :
+  compter mars pour 31 jours décalait **toutes les barres** d'une quinzaine. Premier et dernier
+  mois sont désormais rognés sur les vraies bornes — vérifié à l'écran sur TEST avec la saison
+  15/09 → 15/03 : septembre = **16 colonnes**, mars = **15**, total 182.
+- **Repli si la table est vide** : comportement d'avant à l'identique (Sep→Mar, navigation par
+  année, libellé `2026/27` suivi d'un `*`), pour qu'un planning ne devienne jamais vide faute
+  de configuration.
+- ⚠️ **Vu au passage sur TEST** : deux saisons s'y **chevauchent** (01/09→31/05 et 15/09→15/03),
+  toutes deux nommées « 2026-2027 ». Sans conséquence pour le planning (il en montre une à la
+  fois), mais la compta compterait deux fois. À nettoyer avec les vraies dates.
 
 ### 3. ~~🧾 Une chambre sans tarif s'affiche « €0 » sur la page client partagée~~ — ✅ CORRIGÉ (2026-08-02, `09df7f2`)
 **Décision gui : masquer purement et simplement** la ligne à 0 €, plutôt que l'étiqueter.

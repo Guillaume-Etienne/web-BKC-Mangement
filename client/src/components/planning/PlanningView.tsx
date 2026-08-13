@@ -4,7 +4,9 @@ import TotalsRow from './TotalsRow'
 import LessonWeekView from './LessonWeekView'
 import NowView from './NowView'
 import ForecastView from './ForecastView'
-import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental, PriceItem, BookingParticipant, Room, Accommodation, AccommodationType } from '../../types/database'
+import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental, PriceItem, BookingParticipant, Room, Accommodation, AccommodationType, Season } from '../../types/database'
+import { seasonWindowAt, seasonOffsetBounds, monthColumns } from '../../utils/seasonWindow'
+import { toISODate } from '../../utils/dates'
 import { useBookingDrag, CELL_W, type DragMode } from '../../hooks/useBookingDrag'
 import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
 import { useTable } from '../../hooks/useSupabase'
@@ -201,15 +203,6 @@ function getMondayOfWeek(date: Date): Date {
   return d
 }
 
-/** Returns the September of the current kitesurf season (Sep–Mar). */
-function getSeasonYear(today: Date): number {
-  const m = today.getMonth()
-  const y = today.getFullYear()
-  if (m >= 8) return y       // Sep–Dec: season starts this year
-  if (m <= 3) return y - 1   // Jan–Mar: season started last Sep
-  return y                   // Apr–Aug: show upcoming season
-}
-
 export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: string) => void } = {}) {
   const { data: accommodations } = useAccommodations()
   const { data: rooms } = useRooms()
@@ -226,31 +219,33 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   const { data: bookingParticipants } = useBookingParticipants()
   const now = new Date()
 
-  // ── Season (Sep → Mar) ──────────────────────────────────────────
-  const [seasonYear, setSeasonYear] = useState(() => getSeasonYear(now))
+  // ── Season ──────────────────────────────────────────────────────
+  // From the `seasons` table — the same rows Accounting reads — so the two
+  // screens can no longer disagree on where a season starts. The grid keeps its
+  // old Sep→Mar window while that table is empty (see utils/seasonWindow.ts).
+  const { data: seasons } = useTable<Season>('seasons', { order: 'start_date' })
+  const [seasonOffset, setSeasonOffset] = useState(0)
 
-  const seasonStart = useMemo(() => new Date(seasonYear, 8, 1), [seasonYear])
-  const seasonEnd   = useMemo(() => new Date(seasonYear + 1, 2, 31), [seasonYear])
+  const season = useMemo(() => seasonWindowAt(seasons, now, seasonOffset),
+    // `now` is re-created each render; the day it represents is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [seasons, seasonOffset, toISODate(now)])
+  const seasonBounds = useMemo(() => seasonOffsetBounds(seasons, now),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [seasons, toISODate(now)])
+
+  const seasonStart = season.start
+  const seasonEnd   = season.end
 
   const totalDays = useMemo(() =>
     Math.round((seasonEnd.getTime() - seasonStart.getTime()) / 86400000) + 1
   , [seasonStart, seasonEnd])
 
-  // Month groups for the two-row header
-  const monthGroups = useMemo(() => {
-    const groups: { label: string; shortLabel: string; days: number; colStart: number }[] = []
-    let col = 0
-    let cursor = new Date(seasonStart)
-    while (cursor <= seasonEnd) {
-      const m = cursor.getMonth()
-      const y = cursor.getFullYear()
-      const days = new Date(y, m + 1, 0).getDate()
-      groups.push({ label: `${MONTH_NAMES[m]} ${y}`, shortLabel: MONTH_SHORT[m], days, colStart: col })
-      col += days
-      cursor = new Date(y, m + 1, 1)
-    }
-    return groups
-  }, [seasonStart, seasonEnd])
+  // Month groups for the two-row header, clipped to the window: a season typed
+  // by hand can start or end mid-month, unlike the Sep 1 → Mar 31 it replaces.
+  const monthGroups = useMemo(
+    () => monthColumns(seasonStart, seasonEnd, MONTH_NAMES, MONTH_SHORT),
+    [seasonStart, seasonEnd])
 
   // ── Month nav ────────────────────────────────────────────────────
   const currentMonthIdx = useMemo(() => {
@@ -290,9 +285,9 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   }
 
   const changeSeason = (delta: number) => {
-    setSeasonYear(y => y + delta)
+    setSeasonOffset(o => Math.min(seasonBounds.max, Math.max(seasonBounds.min, o + delta)))
     setNavMonthIdx(0)
-    // scroll to Sep (start of new season) after re-render
+    // scroll back to the first month of the new season after re-render
     setTimeout(() => {
       if (scrollRef.current) scrollRef.current.scrollLeft = 0
     }, 0)
@@ -697,12 +692,15 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             <div className="flex items-center flex-wrap justify-center gap-1.5 md:gap-2 w-full md:w-auto">
               {/* Season selector */}
               <div className="flex items-center gap-0.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg px-1 py-0.5 md:py-1">
-                <button onClick={() => changeSeason(-1)} className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-xs md:text-sm text-blue-700 dark:text-blue-400">←</button>
-                <span className="text-xs md:text-sm font-bold text-blue-800 dark:text-blue-400 min-w-[46px] md:min-w-[90px] text-center">
-                  <span className="md:hidden">{String(seasonYear).slice(2)}/{String(seasonYear + 1).slice(2)}</span>
-                  <span className="hidden md:inline">{seasonYear}/{String(seasonYear + 1).slice(2)}</span>
+                <button onClick={() => changeSeason(-1)} disabled={seasonOffset <= seasonBounds.min}
+                  className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-30 disabled:hover:bg-transparent text-xs md:text-sm text-blue-700 dark:text-blue-400">←</button>
+                <span className="text-xs md:text-sm font-bold text-blue-800 dark:text-blue-400 min-w-[46px] md:min-w-[90px] text-center"
+                  title={season.configured ? undefined : 'No season configured — Options → Seasons'}>
+                  <span className="md:hidden">{season.shortLabel}</span>
+                  <span className="hidden md:inline">{season.label}{season.configured ? '' : ' *'}</span>
                 </span>
-                <button onClick={() => changeSeason(+1)} className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-xs md:text-sm text-blue-700 dark:text-blue-400">→</button>
+                <button onClick={() => changeSeason(+1)} disabled={seasonOffset >= seasonBounds.max}
+                  className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-30 disabled:hover:bg-transparent text-xs md:text-sm text-blue-700 dark:text-blue-400">→</button>
               </div>
               {/* Month nav */}
               <div className="flex items-center gap-0.5">
