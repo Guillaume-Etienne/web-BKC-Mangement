@@ -127,9 +127,8 @@ les 10 postes sont là et **aucune ligne rouge**. Les 3 leçons ont gardé **leu
 intact : 120 € / 6 000 MZN / 1 000 MZN / 70). Activités : catalogue libre, sans badge.
 **Rien n'a été modifié en PROD.**
 
-⬜ **Non vérifié en PROD, à contrôler par gui** : Options → Accommodations. Sur TEST les 3
-maisons n'ont aucun tarif ; si c'est pareil en PROD, une résa maison entière démarrera à
-**0 €** (avant, elle prenait 100 € en dur — un montant que personne n'avait choisi).
+~~⬜ Non vérifié en PROD : Options → Accommodations~~ ✅ **Fait le 2026-08-11** — H1/H2/H3
+portent 100 €/n chacune, saisies par gui (détail plus bas dans « Réglages de données »).
 
 **TEST : appliquée et vérifiée le 2026-07-29** — les 4 contrôles verts (tarifs rattachés,
 zéro orpheline, colonne snapshot présente, `rate_private` en anon → 42501 et
@@ -338,7 +337,8 @@ tarif de vente restent listés ci-dessous (B1, San Martinho, prix maison entièr
    l'**accès centre** n'avaient aucun écran de réglage, et trois montants vivaient dans le
    code (accès centre 5 €, full house 100 €, tarifs de location 40/20/55/25/35).
    Tout est semé en base **aux montants d'avant**, donc rien ne change dans ce qui est
-   facturé — ces prix deviennent visibles et modifiables. ⬜ Reste : appliquer la migration.
+   facturé — ces prix deviennent visibles et modifiables. ✅ Migration passée TEST 30/07,
+   PROD 31/07 (registre en tête de fichier).
 
 7. ✅ **Snapshot de la paie moniteur** (`lessons.instructor_rate`, 2026-07-30). C'était la
    seule source de montant sans gel : la paie était lue au tarif **courant**, donc monter
@@ -511,10 +511,10 @@ rooms/accommodations/roomRates au calcul du total Summary, même bug là-bas).
 appliqué, « ⚠ no price » quand il n'y a vraiment rien (0 €).
 **Reste → tâche C3 ci-dessous** (décidé avec gui le 2026-07-28 : on le fait ensuite).
 
-### C3 — Même fallback sur la page client partagée — ✅ CODÉ (2026-07-30), ⬜ migration à appliquer
+### C3 — Même fallback sur la page client partagée — ✅ TERMINÉ (code 2026-07-30, migration TEST 30/07 + PROD 31/07)
 `ClientSharePage` retombe désormais sur `getBaseNightlyRate()` quand la résa n'a pas de prix
-figé, au lieu d'afficher **0 €/nuit** au client. Code fait ; il ne s'allume qu'une fois la
-migration `2026-07-30_rental_pricing_and_room_rates.sql` passée.
+figé, au lieu d'afficher **0 €/nuit** au client. Migration passée sur les deux bases et
+vérifiée par curl (4 contrôles, cf. registre en tête de fichier).
 
 **Décision gui (2026-07-30) : liens `client` uniquement**, et j'ai resserré plus loin que la
 spec d'origine — un token client ne lit **que les clés de sa propre réservation**
