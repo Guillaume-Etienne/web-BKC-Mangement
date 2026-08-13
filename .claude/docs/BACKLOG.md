@@ -245,9 +245,11 @@ disparu. Nouveau module pur `utils/seasonWindow.ts` (**16 tests**, 239 au total)
 - **Repli si la table est vide** : comportement d'avant à l'identique (Sep→Mar, navigation par
   année, libellé `2026/27` suivi d'un `*`), pour qu'un planning ne devienne jamais vide faute
   de configuration.
-- ⚠️ **Vu au passage sur TEST** : deux saisons s'y **chevauchent** (01/09→31/05 et 15/09→15/03),
-  toutes deux nommées « 2026-2027 ». Sans conséquence pour le planning (il en montre une à la
-  fois), mais la compta compterait deux fois. À nettoyer avec les vraies dates.
+- ✅ **Chevauchement nettoyé sur TEST le 2026-08-13** : il y avait deux « 2026-2027 »
+  (01/09→31/05 et 15/09→15/03) — la compta aurait compté deux fois en mode Compare.
+  **Décision gui : garder 15/09/2026 → 15/03/2027**, l'autre supprimée. TEST n'a plus qu'une
+  saison ; le bouton *Compare* disparaît de lui-même (il exige 2 saisons).
+  ⬜ **PROD reste à faire par gui** — ces dates sont celles de TEST, pas forcément les siennes.
 
 ### 3. ~~🧾 Une chambre sans tarif s'affiche « €0 » sur la page client partagée~~ — ✅ CORRIGÉ (2026-08-02, `09df7f2`)
 **Décision gui : masquer purement et simplement** la ligne à 0 €, plutôt que l'étiqueter.
