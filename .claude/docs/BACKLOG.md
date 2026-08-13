@@ -298,6 +298,12 @@ tarif de vente restent listés ci-dessous (B1, San Martinho, prix maison entièr
   leurs forfaits ; dashboard **2 250 → 2 715 €** de CA et **+742 → +897 €** de résultat
   (= +465 encaissés −310 payés à l'hôtel), carte « External stays −310 € » apparue.
   Données de test supprimées, dashboard revenu **exactement** à +742 € / 2 250 €.
+  ✅ **Page client partagée vérifiée le 2026-08-13** (vrai lien `client_…` de la résa #003) :
+  la ligne du séjour affiche le **nom du lieu**, « — » en Per night (aucun prix/nuit inventé
+  à partir d'un forfait) et **€315** en total, inclus dans le sous-total. Surtout, **testé
+  avec le vrai token** : `select=total_cost` → **42501**, `notes` → 42501, `select=*` → 42501,
+  seules les colonnes accordées passent. La fuite de marge est fermée en conditions réelles,
+  pas seulement en théorie.
   ⬜ **Décisions laissées ouvertes** (aucune ne bloque l'usage) : le séjour prend les dates
   de la résa (pas de dates propres — à ouvrir si un client change d'hébergement en cours
   de séjour) ; le coût n'apparaît **pas** dans le CashFlow, comme les bungalows et les
