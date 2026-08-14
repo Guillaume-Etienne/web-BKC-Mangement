@@ -83,6 +83,7 @@ const LINK_TYPE_LABELS: Record<SharedLinkType, { icon: string; label: string }> 
   activity_provider: { icon: '🏕️', label: 'Activity Provider' },
   booking_form:      { icon: '📝', label: 'Public Booking Form' },
   restaurant:        { icon: '🍽️', label: 'Hotel Restaurant Planning' },
+  enquiry_form:      { icon: '📣', label: 'Website Enquiry Form (iframe)' },
 }
 
 function generateToken(type: SharedLinkType) {

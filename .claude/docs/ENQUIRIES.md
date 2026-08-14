@@ -212,6 +212,18 @@ qui refuse de supprimer une origine utilisée).
    (noms, message, notes, contacts) **insensible aux accents** — « fevrier » trouve « février ».
    Pastilles *To chase / New / No dates* et **filtre par couleur de statut**. Vérifié au
    navigateur avec 9 fiches. **262 tests.**
+3. ✅ **Formulaire léger + iframe + emails** (2026-08-14) — page publique servie par un lien
+   `enquiry_form`, quatre champs, honeypot + délai de 3 s hérités du formulaire de résa.
+   **Langue** : `?lang=` passé par le site (lui seul sait quelle page il sert), repli sur le
+   navigateur, plus trois drapeaux pour le visiteur que les deux premiers ont mal deviné.
+   **Iframe** : hauteur transmise en continu (sinon barre de défilement interne, le détail qui
+   trahit) et événement de succès (sinon les stats du site ne voient aucune conversion).
+   **Emails** : nouvelle fonction `notify-enquiry` — séparée de `notify-submission` exprès, dont
+   les textes sont ceux de gui et qui n'a pas à être redéployée pour ça. Trigger pg_net
+   déclenché **seulement** sur `channel='form'`.
+   ⬜ **Reste à gui** : déployer la fonction, passer la migration `c` (2 valeurs à remplacer),
+   créer le lien dans Options → Shared Links, et transmettre `ENQUIRY_FORM_EMBED.md` au projet
+   site web. **268 tests.**
 2. Le tableau (frise, silence, couleurs, groupes, recherche).
 3. Le formulaire léger hébergé + iframe + contrat avec le projet site web.
 4. Rattachement : lien personnalisé, puis rapprochement à l'arrivée.

@@ -35,6 +35,7 @@ const DriverSharePage           = lazy(() => import('./pages/DriverSharePage'))
 const TaxiManagerSharePage      = lazy(() => import('./pages/TaxiManagerSharePage'))
 const ActivityProviderSharePage = lazy(() => import('./pages/ActivityProviderSharePage'))
 const BookingFormPage           = lazy(() => import('./pages/BookingFormPage'))
+const EnquiryFormPage           = lazy(() => import('./pages/EnquiryFormPage'))
 const RestaurantSharePage       = lazy(() => import('./pages/RestaurantSharePage'))
 import type { SharedLink } from './types/database'
 
@@ -123,6 +124,7 @@ function App() {
       sharedLink.type === 'taxi_manager'      ? <TaxiManagerSharePage /> :
       sharedLink.type === 'activity_provider' ? <ActivityProviderSharePage providerId={sharedLink.params?.provider_id ?? ''} /> :
       sharedLink.type === 'booking_form'      ? <BookingFormPage /> :
+      sharedLink.type === 'enquiry_form'      ? <EnquiryFormPage /> :
       sharedLink.type === 'restaurant'        ? <RestaurantSharePage /> :
       null
     // An unknown type falls through to the normal app, exactly as before.
