@@ -1,5 +1,15 @@
 -- 2026-08-14 (c) — Un email à chaque demande reçue.
 --
+-- 🔴 CORRIGÉ LE 2026-08-14 APRÈS INCIDENT — rejouer ce fichier (il remplace le
+-- trigger en place). La première version laissait une erreur de `net.http_post`
+-- **annuler l'insertion de la demande** : appliquée avec les placeholders non
+-- remplacés, elle a rendu le formulaire public inopérant sur TEST (toute
+-- insertion `channel='form'` en `XX000 Quote command returned error`). Le
+-- commentaire promettait « l'email est un effet de bord, jamais une condition » —
+-- le code, lui, ne le faisait pas. C'est désormais vrai, via un bloc EXCEPTION.
+-- En attendant de rejouer : `DROP TRIGGER IF EXISTS trg_notify_enquiry ON enquiries;`
+-- rétablit le formulaire immédiatement (au prix des emails).
+--
 -- ⚠️ CE FICHIER CONTIENT DEUX VALEURS À REMPLACER À LA MAIN. C'est le seul du
 -- projet dans ce cas : l'URL du projet Supabase et le `NOTIFY_SECRET` diffèrent
 -- entre TEST et PROD, et le secret n'a rien à faire dans un dépôt Git.
@@ -37,21 +47,29 @@ BEGIN
     FROM enquiry_sources s
    WHERE s.id = NEW.source_id;
 
-  PERFORM net.http_post(
-    url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/notify-enquiry',
-    headers := jsonb_build_object(
-                 'Content-Type',     'application/json',
-                 'x-notify-secret',  '<NOTIFY_SECRET>'
-               ),
-    body    := jsonb_build_object(
-                 'record',       to_jsonb(NEW),
-                 'source_label', COALESCE(v_source, '')
-               )
-  );
+  -- ⚠️ LE BLOC EXCEPTION EST LE CŒUR DE CE TRIGGER, pas une précaution de style.
+  -- Sans lui, une erreur de `net.http_post` **annule l'INSERT** : le formulaire
+  -- public renvoie « l'envoi a échoué » au visiteur, et la demande est perdue.
+  -- Vécu le 2026-08-14 : une URL restée avec son `<PROJECT_REF>` non remplacé a
+  -- fait échouer toute insertion `channel='form'` en XX000. Une notification
+  -- ratée doit coûter un email, jamais un client.
+  BEGIN
+    PERFORM net.http_post(
+      url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/notify-enquiry',
+      headers := jsonb_build_object(
+                   'Content-Type',     'application/json',
+                   'x-notify-secret',  '<NOTIFY_SECRET>'
+                 ),
+      body    := jsonb_build_object(
+                   'record',       to_jsonb(NEW),
+                   'source_label', COALESCE(v_source, '')
+                 )
+    );
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'notify_enquiry_inserted: notification non envoyée (%): %', SQLSTATE, SQLERRM;
+  END;
 
-  -- Toujours NEW : l'email est un effet de bord, jamais une condition. Si la
-  -- notification échoue, la demande doit exister quand même — c'est elle qui
-  -- compte, l'email n'est qu'une commodité.
+  -- Toujours NEW : l'email est un effet de bord, jamais une condition.
   RETURN NEW;
 END $$;
 
