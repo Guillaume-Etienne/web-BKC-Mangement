@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
-  silenceDays, silenceTone, fmtArrivalMonth, wantsLabels, isSettled, isQualified,
-  SILENCE_WARN_DAYS,
+  silenceDays, silenceTone, fmtArrivalMonth, isSettled, isQualified,
+  monthBand, groupByArrivalMonth, matchesSearch, SILENCE_WARN_DAYS,
 } from './enquiries'
 import type { Enquiry } from '../types/database'
 
@@ -56,15 +56,6 @@ describe('fmtArrivalMonth', () => {
   })
 })
 
-describe('wantsLabels', () => {
-  it('keeps a fixed order so absence reads as fast as presence', () => {
-    expect(wantsLabels({ wants_lessons: true, wants_rental: false, wants_accommodation: true }))
-      .toEqual(['🪁 lessons', '🛏 stay'])
-    expect(wantsLabels({ wants_lessons: false, wants_rental: false, wants_accommodation: false }))
-      .toEqual([])
-  })
-})
-
 describe('isSettled', () => {
   it('treats won and lost as out of the working list', () => {
     expect(isSettled('won')).toBe(true)
@@ -88,5 +79,79 @@ describe('isQualified', () => {
     // A budget without a size or a date is not a qualified enquiry: it is a
     // number typed in passing, and the row still needs reading.
     expect(isQualified(mkEnquiry({ budget_eur: 1500 }))).toBe(false)
+  })
+})
+
+// ─── The scannable table (step 2) ─────────────────────────────────────────────
+
+describe('monthBand', () => {
+  it('spans from the earliest arrival to the latest, gaps included', () => {
+    // The empty months are the point: scanning the column shows where the
+    // season is thin, which a list of dates never tells you.
+    expect(monthBand(['2026-12', '2027-03', '2027-01'])).toEqual(
+      ['2026-12', '2027-01', '2027-02', '2027-03'])
+  })
+  it('crosses a year boundary', () => {
+    expect(monthBand(['2026-11', '2027-02'])).toEqual(
+      ['2026-11', '2026-12', '2027-01', '2027-02'])
+  })
+  it('ignores enquiries with no month', () => {
+    expect(monthBand([null, '2027-02', null])).toEqual(['2027-02'])
+  })
+  it('is empty when nobody has said when', () => {
+    expect(monthBand([null, null])).toEqual([])
+  })
+  it('refuses to stretch to a hundred cells for one stray year', () => {
+    expect(monthBand(['2026-09', '2035-01']).length).toBe(14)
+  })
+})
+
+describe('groupByArrivalMonth', () => {
+  const list = [
+    mkEnquiry({ id: 'a', arrival_month: '2027-02', party_size: 4, last_contact_at: '2026-08-10T00:00:00Z' }),
+    mkEnquiry({ id: 'b', arrival_month: '2027-02', party_size: 2, status: 'won', last_contact_at: '2026-08-01T00:00:00Z' }),
+    mkEnquiry({ id: 'c', arrival_month: null, party_size: null }),
+    mkEnquiry({ id: 'd', arrival_month: '2026-12', party_size: 3 }),
+  ]
+
+  it('puts the undated group first — that is the day’s pile, not the leftovers', () => {
+    expect(groupByArrivalMonth(list).map(g => g.key)).toEqual([null, '2026-12', '2027-02'])
+  })
+
+  it('carries totals on the group, so a collapsed header still says something', () => {
+    const feb = groupByArrivalMonth(list).find(g => g.key === '2027-02')!
+    expect(feb.items).toHaveLength(2)
+    expect(feb.people).toBe(6)
+    expect(feb.won).toBe(1)
+  })
+
+  it('sorts inside a group by silence, longest first', () => {
+    const feb = groupByArrivalMonth(list).find(g => g.key === '2027-02')!
+    expect(feb.items.map(e => e.id)).toEqual(['b', 'a'])
+  })
+})
+
+describe('matchesSearch', () => {
+  const e = mkEnquiry({
+    name: 'Müller', email: 'muller@example.com',
+    message: 'We are four in February', source_other: 'a friend who came in 2024',
+  })
+
+  it('matches an empty query', () => {
+    expect(matchesSearch(e, [], '   ')).toBe(true)
+  })
+  it('ignores case and accents — typing "muller" finds "Müller"', () => {
+    expect(matchesSearch(e, [], 'muller')).toBe(true)
+    expect(matchesSearch(e, [], 'MÜLLER')).toBe(true)
+  })
+  it('searches the message and the notes, not just the name', () => {
+    expect(matchesSearch(e, [], 'february')).toBe(true)
+    expect(matchesSearch(e, ['called them, waiting on flights'], 'flights')).toBe(true)
+  })
+  it('searches how they said they found us', () => {
+    expect(matchesSearch(e, [], 'friend')).toBe(true)
+  })
+  it('says no when it is not there', () => {
+    expect(matchesSearch(e, ['nothing here'], 'kitesurf')).toBe(false)
   })
 })

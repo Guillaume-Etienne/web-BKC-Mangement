@@ -49,14 +49,70 @@ export function fmtArrivalMonth(month: string | null): string {
   return `${names[m - 1]} ${y}`
 }
 
-/** What the visitor said they want, in a fixed order so the eye reads presence
- *  and absence at the same speed. */
-export function wantsLabels(e: Pick<Enquiry, 'wants_lessons' | 'wants_rental' | 'wants_accommodation'>): string[] {
-  const out: string[] = []
-  if (e.wants_lessons) out.push('🪁 lessons')
-  if (e.wants_rental) out.push('🎿 rental')
-  if (e.wants_accommodation) out.push('🛏 stay')
-  return out
+/** The months the arrival band spans, from the earliest arrival on record to the
+ *  latest — the same band on every row, so scanning the column shows the season
+ *  filling up and the empty months between.
+ *
+ *  Built from the data rather than from the `seasons` table on purpose: an
+ *  arrival outside the configured season would fall off a season-shaped band,
+ *  and someone asking about next December is exactly who must not disappear.
+ *  Capped so a stray 2035 enquiry cannot stretch it to a hundred cells. */
+export function monthBand(months: (string | null)[], maxCells = 14): string[] {
+  const known = months.filter((m): m is string => !!m).sort()
+  if (known.length === 0) return []
+  const [fy, fm] = known[0].split('-').map(Number)
+  const [ly, lm] = known[known.length - 1].split('-').map(Number)
+  const span = Math.min((ly - fy) * 12 + (lm - fm) + 1, maxCells)
+  return Array.from({ length: span }, (_, i) => {
+    const d = new Date(fy, fm - 1 + i, 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
+}
+
+export interface EnquiryGroup {
+  key: string | null          // 'YYYY-MM', or null for "nobody said when"
+  items: Enquiry[]
+  people: number              // party sizes, for the header line
+  won: number
+}
+
+/** Rows grouped by arrival month, most recent month last.
+ *
+ *  The undated group comes FIRST and never collapses: those are the enquiries
+ *  nobody has read yet, and they are the day's work. Sorting them to the bottom
+ *  with the old months would bury exactly what needs doing. */
+export function groupByArrivalMonth(enquiries: Enquiry[]): EnquiryGroup[] {
+  const byKey = new Map<string | null, Enquiry[]>()
+  for (const e of enquiries) {
+    const k = e.arrival_month ?? null
+    byKey.set(k, [...(byKey.get(k) ?? []), e])
+  }
+  const dated = [...byKey.entries()]
+    .filter(([k]) => k !== null)
+    .sort((a, b) => (a[0] as string).localeCompare(b[0] as string))
+  const undated = byKey.has(null) ? [[null, byKey.get(null)!] as const] : []
+
+  return [...undated, ...dated].map(([key, items]) => ({
+    key,
+    items: [...items].sort((a, b) => a.last_contact_at.localeCompare(b.last_contact_at)),
+    people: items.reduce((n, e) => n + (e.party_size ?? 0), 0),
+    won: items.filter(e => e.status === 'won').length,
+  }))
+}
+
+/** One search box over names, contact details, the message and the notes.
+ *  Case- and accent-insensitive: gui types "muller", the row says "Müller". */
+export function matchesSearch(e: Enquiry, notes: string[], query: string): boolean {
+  const q = norm(query.trim())
+  if (!q) return true
+  const hay = norm([e.name, e.email, e.phone, e.message, e.source_other, ...notes].filter(Boolean).join(' '))
+  return hay.includes(q)
+}
+
+function norm(s: string): string {
+  // Escaped range rather than literal combining marks: those are invisible in an
+  // editor and get mangled by the next tool that touches the file.
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
 /** A fiche nobody has read yet: the message is still the only real content.

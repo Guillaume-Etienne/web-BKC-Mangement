@@ -202,6 +202,16 @@ qui refuse de supprimer une origine utilisée).
    colonnes vides. Vérifié au navigateur bout-en-bout sur TEST.
    ⚠️ **L'onglet Submissions vit encore à côté** — il se replie dans ce pipeline à l'étape 4,
    et la barre de navigation revient alors à une seule entrée.
+2. ✅ **Le tableau qui se lit en balayant** (2026-08-14) — pleine largeur, la qualification
+   passe en surimpression (c'est un geste qui demande de la concentration). Groupes par mois
+   d'arrivée, **passés repliés**, en-tête portant ses totaux **même fermé**, groupe « No dates
+   yet » toujours en tête et jamais replié. Frise d'arrivée commune à toutes les lignes,
+   **construite sur les données et non sur la table `seasons`** : une arrivée hors saison
+   configurée tomberait d'une frise calée sur la saison, et c'est justement celui qui demande
+   pour décembre prochain qui ne doit pas disparaître (plafonnée à 14 cases). Recherche unique
+   (noms, message, notes, contacts) **insensible aux accents** — « fevrier » trouve « février ».
+   Pastilles *To chase / New / No dates* et **filtre par couleur de statut**. Vérifié au
+   navigateur avec 9 fiches. **262 tests.**
 2. Le tableau (frise, silence, couleurs, groupes, recherche).
 3. Le formulaire léger hébergé + iframe + contrat avec le projet site web.
 4. Rattachement : lien personnalisé, puis rapprochement à l'arrivée.
