@@ -40,22 +40,30 @@ Points tranchés :
   Cinq, pas douze. Chaque statut a **sa couleur**, et la couleur est un critère de tri et de
   filtre à part entière — c'est comme ça que gui retrouve ses fiches.
 - **Silence** : jours depuis le dernier échange. Orange à **7 jours** (à réajuster à l'usage).
-- **Origine** : « sa raison d'être, c'est la statistique » (gui). Donc **deux niveaux** — la
-  réponse **libre** telle que le visiteur l'a écrite (« un ami venu en 2024 » vaut mieux que
-  « Bouche-à-oreille »), et **une catégorie** que gui pose en un clic pendant la qualification,
-  sur une liste courte et modifiable. C'est la catégorie qui se compte, la phrase qui se lit.
-  Classer à la main coûte une seconde et donne des chiffres justes, là où une liste déroulante
-  sur le formulaire pousse tout le monde vers « Autre ». Poser la question **à l'humain** vaut
-  mieux que n'importe quel pistage technique : ça dit d'où viennent les gens qui viennent
-  vraiment, pas seulement ceux qui cliquent.
+- **Origine** : « sa raison d'être, c'est la statistique » (gui). Donc **une liste déroulante**
+  sur le formulaire public, **alimentée et modifiable par gui** — décision gui du 2026-08-14.
+  Ce que ça implique :
+  - La liste vit **en base**, pas dans le code (sinon chaque ajout demande un déploiement), et
+    s'édite dans **Options** à côté de Pricing / Seasons / Shared Links.
+  - ⚠️ **Trois libellés par entrée (FR/EN/ES)** : la liste s'affiche sur le formulaire public,
+    qui est trilingue. Même gabarit que `document_templates` (jsonb par langue).
+  - ⚠️ **On désactive, on ne supprime pas.** Une entrée effacée casserait les statistiques des
+    demandes passées qui la référencent — même leçon que les tarifs verrouillés de
+    Options → Pricing.
+  - **Garder « Autre » avec une précision libre.** Sans ça, quelqu'un venu par un ami est
+    forcé dans une case fausse : la statistique paraît nette et ment. « Autre » renseigné est
+    plus honnête, et dit à gui quelle entrée ajouter à sa liste.
+  Poser la question **à l'humain** vaut mieux que n'importe quel pistage technique : ça dit
+  d'où viennent les gens qui viennent vraiment, pas seulement ceux qui cliquent.
 - **Un seul utilisateur** (gui) : pas d'assignation, pas de « qui suit qui ».
 
 ## Les écrans
 
 ### L'écran de qualification — le cœur du dispositif
 
-Le formulaire public ne capture que nom / email / origine / texte libre. **La structure ne
-viendra donc jamais du visiteur** : le nombre, les dates, les envies sont dans la prose.
+Le formulaire public ne capture que nom / email / origine (liste déroulante) / texte libre.
+**La structure ne viendra donc jamais du visiteur** : le nombre, les dates, les envies sont
+dans la prose.
 
 D'où l'écran qui compte : le **message à gauche, quatre petits champs à droite** (combien,
 quand, cours/loc, budget). On lit, on remplit, on referme — vingt secondes. Si qualifier
@@ -158,12 +166,17 @@ Deux façons de l'alimenter, au choix :
   spam, il est **rejeté**. C'est exactement le piège déjà vécu avec Resend en juillet
   (bounces « 550 rejected by DMARC policy »). Ajouter seulement — ne jamais toucher au SPF
   racine ni au MX Infomaniak.
-- ⚠️ **Brevo est une liste de diffusion, pas un CRM.** Y verser quelqu'un qui demandait une
-  dispo, c'est l'inscrire à une newsletter qu'il n'a pas demandée — risque légal côté européen,
-  et surtout délivrabilité (plaintes spam). **Une case à cocher** sur le formulaire
-  (« tenez-moi informé »), stockée avec la demande ; **seuls les cochés** partent vers Brevo.
-  C'est le seul ajout au formulaire — une case, pas un champ, donc quasi indolore.
-  Si la newsletter n'est pas prioritaire : rien à ajouter, et on n'envoie que vers HubSpot.
+- **Pas de case de consentement — décision gui (2026-08-14).** Toute demande part vers Brevo.
+  Motif : une ou deux newsletters par an, les gens se désabonneront s'ils veulent.
+  *Ce qui a été dit et écarté, pour que la décision ne soit pas rouverte à l'aveugle* : le
+  RGPD suit la **résidence de la personne**, pas celle de l'entreprise — les clients sont
+  majoritairement européens (formulaire en FR/EN/ES), donc « c'est le Mozambique » ne change
+  pas l'exposition. Et le risque réel est la **délivrabilité** : Brevo surveille les plaintes,
+  et `bilenekite.com` étant en DMARC `p=reject`, une réputation dégradée toucherait aussi les
+  lettres de visa et confirmations envoyées par Resend depuis le même domaine.
+  ➡️ Garde-fous retenus malgré tout : **lien de désinscription** (Brevo l'ajoute d'office, ne
+  pas le retirer) et, si gui le veut un jour, une simple mention sous le bouton Envoyer —
+  aucune friction, contrairement à une case.
 - **La synchro ne bloque jamais et reste visible** : la demande est enregistrée d'abord.
   Témoin sur la fiche + bouton « renvoyer ». Une synchro qui échoue en silence est un client
   perdu sans le savoir.
@@ -177,6 +190,7 @@ jusqu'à la planification ; et aucun blocage si ça échoue.
 
 ## Découpe proposée
 
+0. Liste des origines (table + écran d'édition dans Options). Petit, et le formulaire en dépend.
 1. Table + écran de qualification + création manuelle. Utilisable seul, dès le premier jour.
 2. Le tableau (frise, silence, couleurs, groupes, recherche).
 3. Le formulaire léger hébergé + iframe + contrat avec le projet site web.
