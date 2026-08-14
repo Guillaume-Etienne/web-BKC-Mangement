@@ -15,7 +15,7 @@ CREATE TYPE day_slot                        AS ENUM ('morning', 'afternoon', 'ev
 CREATE TYPE price_category                  AS ENUM ('lesson', 'activity', 'rental', 'meal', 'center_access');
 CREATE TYPE taxi_trip_type                  AS ENUM ('aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other');
 CREATE TYPE taxi_trip_status                AS ENUM ('confirmed', 'needs_details', 'done');
-CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form', 'restaurant');
+CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form', 'restaurant', 'enquiry_form');
 CREATE TYPE equipment_category              AS ENUM ('kite', 'board', 'surfboard', 'foilboard');
 -- Tout ce que l'app facture automatiquement : une valeur = un tarif (index unique sur
 -- price_items). Brancher un nouveau poste = ajouter une valeur, pas une colonne.
@@ -648,8 +648,82 @@ CREATE TABLE enquiry_sources (
 );
 
 -- Readable by any valid share link (the public form needs the list), labels only.
-REVOKE SELECT ON enquiry_sources FROM anon;
+REVOKE ALL ON enquiry_sources FROM anon;
 GRANT  SELECT (id, label, sort_order, is_active) ON enquiry_sources TO anon;
+
+
+-- ── Enquiries ────────────────────────────────────────────────────────────────
+-- Someone who wrote in but has not booked. Deliberately touches neither the
+-- planning nor the accounts: no room, no money, nothing computeSeasonTotals can
+-- read — a prospect modelled as a `provisional` booking would inflate revenue by
+-- everything that never shows up. Design: .claude/docs/ENQUIRIES.md
+--
+-- Absent on purpose: no season_id (derived from arrival_month at display time,
+-- as accounting derives it from check-in) and no archived_at ("archived" is
+-- simply status won/lost — a second way to say the same thing ends up
+-- contradicting the first).
+
+CREATE TABLE enquiries (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- how the record entered the app; NOT what the visitor answered to
+  -- "how did you hear about us?" (that is source_id)
+  channel         TEXT NOT NULL DEFAULT 'form' CHECK (channel IN ('form', 'manual')),
+
+  name            TEXT NOT NULL,          -- the only required field
+  email           TEXT,
+  phone           TEXT,
+  language        TEXT NOT NULL DEFAULT 'en',
+  message         TEXT,                   -- what they wrote, verbatim
+
+  source_id       UUID REFERENCES enquiry_sources(id) ON DELETE RESTRICT,
+  source_other    TEXT,
+
+  -- qualification, filled by gui while reading the message; all nullable
+  party_size      INTEGER CHECK (party_size IS NULL OR party_size > 0),
+  arrival_month   TEXT CHECK (arrival_month IS NULL OR arrival_month ~ '^\d{4}-\d{2}$'),
+  wants_lessons       BOOLEAN NOT NULL DEFAULT false,
+  wants_rental        BOOLEAN NOT NULL DEFAULT false,
+  wants_accommodation BOOLEAN NOT NULL DEFAULT false,
+  budget_eur      NUMERIC(10,2) CHECK (budget_eur IS NULL OR budget_eur >= 0),  -- whole party
+
+  -- TEXT + CHECK, not an enum: adding a status mid-season must not require the
+  -- two-file enum dance.
+  status          TEXT NOT NULL DEFAULT 'new'
+                    CHECK (status IN ('new', 'talking', 'waiting', 'won', 'lost')),
+  lost_reason     TEXT,
+  last_contact_at TIMESTAMPTZ NOT NULL DEFAULT now(),   -- drives the "silence" column
+
+  client_id          UUID REFERENCES clients(id)          ON DELETE SET NULL,
+  booking_id         UUID REFERENCES bookings(id)         ON DELETE SET NULL,
+  form_submission_id UUID REFERENCES form_submissions(id) ON DELETE SET NULL,
+
+  crm_synced_at   TIMESTAMPTZ,   -- HubSpot / Brevo; never blocks the insert
+  crm_error       TEXT
+);
+
+-- The conversation, appended. A table rather than jsonb: searched by keyword,
+-- and one more line must not rewrite the whole history.
+CREATE TABLE enquiry_notes (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  enquiry_id  UUID NOT NULL REFERENCES enquiries(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  body        TEXT NOT NULL
+);
+
+CREATE INDEX idx_enquiries_status        ON enquiries(status);
+CREATE INDEX idx_enquiries_arrival_month ON enquiries(arrival_month);
+CREATE INDEX idx_enquiry_notes_enquiry   ON enquiry_notes(enquiry_id);
+
+-- The public form writes and never reads back. No anon SELECT policy at all, so
+-- RLS refuses reads by default; the column GRANT bounds what may be written.
+REVOKE ALL ON enquiries FROM anon;
+GRANT  INSERT (name, email, phone, language, message, source_id, source_other)
+  ON enquiries TO anon;
+-- Left out on purpose: party_size, arrival_month, budget_eur, the wants_*, the
+-- links and the sync columns. Those are qualification — gui's, not the visitor's.
+
+REVOKE ALL ON enquiry_notes FROM anon;   -- what gui thinks of a client
 
 
 -- ============================================================
@@ -677,7 +751,8 @@ BEGIN
     'instructor_debts', 'instructor_payments', 'lesson_rate_overrides',
     'expenses',
     'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries',
-    'email_logs', 'document_templates', 'enquiry_sources'
+    'email_logs', 'document_templates',
+    'enquiry_sources', 'enquiries', 'enquiry_notes'
   ]) LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format(
@@ -713,6 +788,14 @@ GRANT  EXECUTE ON FUNCTION resolve_share_token(TEXT) TO anon, authenticated;
 CREATE POLICY "anon_insert_form_submissions" ON form_submissions
   FOR INSERT TO anon
   WITH CHECK (status = 'pending');
+
+-- Idem pour le formulaire léger de demande : il insère, il ne relit jamais.
+-- Le WITH CHECK verrouille les deux champs qui ne doivent pas venir du dehors —
+-- personne ne s'auto-déclare « gagnée » ni ne se fait passer pour une saisie
+-- manuelle ; les colonnes accordées bornent le reste.
+CREATE POLICY "anon_insert_enquiries" ON enquiries
+  FOR INSERT TO anon
+  WITH CHECK (status = 'new' AND channel = 'form');
 
 -- ── Accès anon : RLS token-aware (Phase 2, 2026-07-06) ────────────────────────
 -- Le front des pages partagées (?share=<token>) envoie le token dans le header
