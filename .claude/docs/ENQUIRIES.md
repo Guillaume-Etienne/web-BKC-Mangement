@@ -224,6 +224,21 @@ qui refuse de supprimer une origine utilisée).
    ⬜ **Reste à gui** : déployer la fonction, passer la migration `c` (2 valeurs à remplacer),
    créer le lien dans Options → Shared Links, et transmettre `ENQUIRY_FORM_EMBED.md` au projet
    site web. **268 tests.**
+4. 🔶 **Rattachement — la moitié « liens » est faite** (2026-08-14), la fusion d'onglet non.
+   - **Par construction** : bouton « Create a personalised link » sur la fiche → crée un lien
+     `booking_form` portant `params.enquiry_id`. Le formulaire complet embarque cet identifiant
+     dans son `payload`, et à la création de la réservation la demande passe **won** avec
+     `booking_id`, `client_id`, `form_submission_id`. **Aucune migration** : l'existence du lien
+     est la trace, une colonne de plus aurait été une deuxième vérité à tenir à jour.
+   - **Par rapprochement** : une soumission arrivée sans lien déclenche « Is this someone you
+     were already talking to ? » — email exact d'abord, nom approchant ensuite, **jamais de
+     fusion automatique**. Rattacher ne passe **pas** en `won` : aucune réservation n'existe
+     encore, et « won » doit continuer à vouloir dire « ils viennent ».
+   - Vérifié au navigateur bout-en-bout sur TEST : lien → formulaire complet rempli → payload
+     porteur du bon `enquiry_id` → réservation #12 créée → demande fermée ; puis le cas orphelin
+     (même email → suggestion → rattachement sans changement de statut). **274 tests.**
+   ⬜ **Reste** : replier l'onglet Submissions dans Enquiries — laissé exprès tant que gui n'a
+   pas eu les écrans en main, la file de soumissions marche et n'a pas à être cassée d'avance.
 2. Le tableau (frise, silence, couleurs, groupes, recherche).
 3. Le formulaire léger hébergé + iframe + contrat avec le projet site web.
 4. Rattachement : lien personnalisé, puis rapprochement à l'arrivée.

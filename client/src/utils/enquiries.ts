@@ -115,6 +115,47 @@ function norm(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
+export interface EnquiryMatch {
+  enquiry: Enquiry
+  /** Why we think it is the same person — shown to gui, who decides. */
+  reason: 'email' | 'name'
+}
+
+/** Enquiries that might be the person behind a submission.
+ *
+ *  This is the fallback path. The normal one is by construction: gui sends a
+ *  personalised link from the enquiry, and the submission comes back already
+ *  attached. This runs for the visitor who found the full form on his own.
+ *
+ *  It **suggests**, and gui confirms — never an automatic merge. On data this
+ *  loose a wrong merge mixes two people's passports and payments together, and
+ *  that is not the kind of mistake you notice, nor one you can unpick later.
+ *
+ *  Email first because it is the only near-identifier here; a name match alone
+ *  is a hint, not a fact — there are two Anna Schmidts eventually. Settled
+ *  enquiries are skipped: matching a new request to a stay that already
+ *  happened would tie the new booking to the wrong record. */
+export function findCandidateEnquiries(
+  submission: { email?: string | null; name?: string | null },
+  enquiries: Enquiry[],
+): EnquiryMatch[] {
+  const email = (submission.email ?? '').trim().toLowerCase()
+  const name = norm(submission.name ?? '')
+  const open = enquiries.filter(e => !isSettled(e.status) && e.form_submission_id == null)
+
+  const byEmail = email
+    ? open.filter(e => (e.email ?? '').trim().toLowerCase() === email)
+    : []
+  const byName = name.length >= 3
+    ? open.filter(e => !byEmail.includes(e) && (norm(e.name).includes(name) || name.includes(norm(e.name))))
+    : []
+
+  return [
+    ...byEmail.map(e => ({ enquiry: e, reason: 'email' as const })),
+    ...byName.map(e => ({ enquiry: e, reason: 'name' as const })),
+  ]
+}
+
 /** A fiche nobody has read yet: the message is still the only real content.
  *  These are shown differently in the list — a row of empty columns looks like
  *  a broken tool, whereas "not qualified yet" is the day's to-do. */

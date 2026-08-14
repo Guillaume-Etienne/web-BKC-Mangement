@@ -55,6 +55,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
   const [notes, setNotes] = useState<EnquiryNote[]>([])
   const [newNote, setNewNote] = useState('')
   const [saving, setSaving] = useState(false)
+  const [formLink, setFormLink] = useState<{ token: string } | null>(null)
 
   const isNew = !enquiry
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm(f => ({ ...f, [k]: v }))
@@ -118,6 +119,40 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
     setNotes(n => [data as EnquiryNote, ...n])
     setNewNote('')
     onSaved()
+  }
+
+  /** The link that already exists for this enquiry, if any. No column stores it:
+   *  the `shared_links` row IS the record, which is one fewer thing to keep in
+   *  step with reality. */
+  useEffect(() => {
+    if (!enquiry) { setFormLink(null); return }
+    let cancelled = false
+    supabase.from('shared_links').select('token, params').eq('type', 'booking_form')
+      .then(({ data }) => {
+        if (cancelled) return
+        const hit = (data ?? []).find(l => (l.params as Record<string, string> | null)?.enquiry_id === enquiry.id)
+        setFormLink(hit ? { token: hit.token as string } : null)
+      })
+    return () => { cancelled = true }
+  }, [enquiry])
+
+  function formUrl(token: string) {
+    return `${window.location.origin}/?share=${token}`
+  }
+
+  async function createFormLink() {
+    if (!enquiry) return
+    setSaving(true)
+    const token = `booking_form_${Math.random().toString(36).slice(2, 12)}`
+    const { error } = await supabase.from('shared_links').insert({
+      token, type: 'booking_form',
+      label: `Booking form — ${enquiry.name}`,
+      params: { enquiry_id: enquiry.id },
+      is_active: true,
+    })
+    setSaving(false)
+    if (error) { alert(`The link was NOT created.\n\n${error.message}`); return }
+    setFormLink({ token })
   }
 
   async function remove() {
@@ -269,6 +304,41 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
           </button>
         )}
       </div>
+
+      {/* ── The bridge to a real booking ───────────────────────────────────── */}
+      {!isNew && enquiry && (
+        <div className="border-t border-gray-200 dark:border-gray-800 pt-4 space-y-2">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Full booking form</h3>
+          {formLink ? (
+            <>
+              <div className="flex gap-2">
+                <input readOnly value={formUrl(formLink.token)} onFocus={e => e.currentTarget.select()}
+                  className={`${inputCls} font-mono text-xs`} />
+                <button type="button" onClick={() => navigator.clipboard?.writeText(formUrl(formLink.token))}
+                  className="shrink-0 px-3 py-1.5 bg-gray-800 dark:bg-gray-700 text-white rounded text-sm font-medium">
+                  Copy
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {enquiry.form_submission_id
+                  ? '✅ Filled in — the submission came back attached to this enquiry.'
+                  : 'Sent but not filled in yet. That is worth a nudge on its own.'}
+              </p>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={createFormLink} disabled={saving}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-lg font-semibold text-sm">
+                Create a personalised link
+              </button>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                A link that carries this enquiry, so what comes back is attached by construction
+                rather than matched afterwards on a name that may have changed.
+              </p>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ── Notes: the thread ─────────────────────────────────────────────── */}
       {!isNew && (

@@ -367,6 +367,10 @@ export interface FormTraveler {
 // Full raw answers captured by the public booking form (stored in form_submissions.payload)
 export interface BookingFormPayload {
   language: Lang
+  // Set when the visitor arrived through a link generated from an enquiry: the
+  // submission then comes back already attached, with nothing to match by hand.
+  // Optional — the full form is also reachable on its own.
+  enquiry_id?: string
   // Group
   reference_name: string
   email: string

@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useTable } from '../hooks/useSupabase'
-import type { FormSubmission, FormSubmissionStatus, Lang } from '../types/database'
+import type { Enquiry, FormSubmission, FormSubmissionStatus, Lang } from '../types/database'
 import { activityCountColumns } from '../utils/bookingActivity'
 import { addDaysISO as addDays, fmtDate } from '../utils/dates'
+import { findCandidateEnquiries, fmtArrivalMonth } from '../utils/enquiries'
 
 // Admin review queue for public booking-form submissions.
 // English UI (admin chrome). Approving turns a submission into a real
@@ -26,9 +27,12 @@ function splitName(full: string): { first: string; last: string } {
 
 
 // ─── Detail / review panel (module scope = focus-safe inputs) ─────────────────
-interface DetailProps { s: FormSubmission; onDone: () => void }
-function SubmissionDetail({ s, onDone }: DetailProps) {
+interface DetailProps { s: FormSubmission; onDone: () => void; enquiries: Enquiry[] }
+function SubmissionDetail({ s, onDone, enquiries }: DetailProps) {
   const p = s.payload
+  const candidates = useMemo(
+    () => findCandidateEnquiries({ email: p.email, name: p.reference_name }, enquiries),
+    [p.email, p.reference_name, enquiries])
   const [checkIn, setCheckIn] = useState(p.country_entry_date || '')
   const [checkOut, setCheckOut] = useState(
     p.country_entry_date ? addDays(p.country_entry_date, p.nights_bilene || 0) : ''
@@ -39,6 +43,19 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
 
   const alreadyCreated = !!s.created_booking_id
   const datesValid = !!(checkIn && checkOut && checkOut > checkIn)
+
+  /** gui says it is the same person. We only record the link — the enquiry is
+   *  not marked won here: no booking exists yet, and "won" must keep meaning
+   *  "they are coming". */
+  async function linkEnquiry(enquiryId: string) {
+    setBusy(true)
+    const { error } = await supabase.from('enquiries')
+      .update({ form_submission_id: s.id, last_contact_at: new Date().toISOString() })
+      .eq('id', enquiryId)
+    setBusy(false)
+    if (error) { setError('Enquiry link: ' + error.message); return }
+    onDone()
+  }
 
   async function createBooking() {
     if (!datesValid || alreadyCreated) return
@@ -126,6 +143,22 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
       .update({ status: 'approved', reviewed_at: new Date().toISOString(), created_booking_id: booking.id })
       .eq('id', s.id)
     if (uErr) { setError('Submission update: ' + uErr.message); setBusy(false); return }
+
+    // 5. Close the loop on the enquiry this came from, when there was one.
+    //    Reported rather than swallowed: a booking that exists while its
+    //    enquiry still sits in the working list is how the same person gets
+    //    chased for an answer they already gave.
+    const enquiryId = (p as { enquiry_id?: string }).enquiry_id
+    if (enquiryId) {
+      const { error: eErr } = await supabase.from('enquiries').update({
+        status: 'won',
+        booking_id: booking.id,
+        client_id: client.id,
+        form_submission_id: s.id,
+        last_contact_at: new Date().toISOString(),
+      }).eq('id', enquiryId)
+      if (eErr) setError(`Booking created, but the enquiry was not marked won: ${eErr.message}`)
+    }
 
     setBusy(false)
     onDone()
@@ -218,6 +251,36 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Waiver accepted</span><span className="font-medium">{p.waiver_accepted ? `✅ ${p.waiver_version}` : '❌'}</span></div>
       </div>
 
+      {/* Which enquiry is this person? Attached by construction when they came
+          through a personalised link; otherwise suggested, never merged on our
+          own — a wrong merge mixes two people's passports and payments, and
+          that is neither noticed nor undone easily. */}
+      {s.status === 'pending' && !p.enquiry_id && candidates.length > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-xl p-4 space-y-2">
+          <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">
+            Is this someone you were already talking to?
+          </p>
+          {candidates.map(c => (
+            <div key={c.enquiry.id} className="flex items-center justify-between gap-3 flex-wrap text-sm">
+              <span className="text-gray-700 dark:text-gray-300">
+                <strong>{c.enquiry.name}</strong>
+                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                  {c.reason === 'email' ? 'same email' : 'similar name'}
+                  {c.enquiry.arrival_month && ` · ${fmtArrivalMonth(c.enquiry.arrival_month)}`}
+                </span>
+              </span>
+              <button onClick={() => linkEnquiry(c.enquiry.id)} disabled={busy}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white rounded text-xs font-semibold">
+                It's the same person
+              </button>
+            </div>
+          ))}
+          <p className="text-xs text-amber-800 dark:text-amber-400">
+            Ignore this if it is someone new — nothing happens until you say so.
+          </p>
+        </div>
+      )}
+
       {/* Bilene dates + actions */}
       {s.status === 'pending' && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3">
@@ -296,6 +359,8 @@ function SubmissionDetail({ s, onDone }: DetailProps) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function SubmissionsPage() {
   const { data: submissions, loading, refresh } = useTable<FormSubmission>('form_submissions', { order: 'submitted_at', ascending: false })
+  // For the "is this someone you were already talking to?" suggestion.
+  const { data: enquiries } = useTable<Enquiry>('enquiries', { order: 'last_contact_at' })
   const [tab, setTab] = useState<FormSubmissionStatus>('pending')
   const [openId, setOpenId] = useState<string | null>(null)
 
@@ -364,7 +429,7 @@ export default function SubmissionsPage() {
                     <span className="text-gray-300 dark:text-gray-500 text-sm">{open ? '▲' : '▼'}</span>
                   </div>
                 </button>
-                {open && <SubmissionDetail s={s} onDone={() => { setOpenId(null); refresh() }} />}
+                {open && <SubmissionDetail s={s} enquiries={enquiries} onDone={() => { setOpenId(null); refresh() }} />}
               </div>
             )
           })}

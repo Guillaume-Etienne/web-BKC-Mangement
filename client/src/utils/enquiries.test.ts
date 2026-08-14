@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   silenceDays, silenceTone, fmtArrivalMonth, isSettled, isQualified,
-  monthBand, groupByArrivalMonth, matchesSearch, SILENCE_WARN_DAYS,
+  monthBand, groupByArrivalMonth, matchesSearch, findCandidateEnquiries, SILENCE_WARN_DAYS,
 } from './enquiries'
 import type { Enquiry } from '../types/database'
 
@@ -153,5 +153,44 @@ describe('matchesSearch', () => {
   })
   it('says no when it is not there', () => {
     expect(matchesSearch(e, ['nothing here'], 'kitesurf')).toBe(false)
+  })
+})
+
+describe('findCandidateEnquiries', () => {
+  const anna  = mkEnquiry({ id: 'anna',  name: 'Anna Schmidt', email: 'anna@example.com' })
+  const other = mkEnquiry({ id: 'other', name: 'Tom Wilson',   email: 'tom@example.com' })
+  const won   = mkEnquiry({ id: 'won',   name: 'Anna Schmidt', email: 'anna@example.com', status: 'won' })
+  const taken = mkEnquiry({ id: 'taken', name: 'Lena K.', email: 'lena@example.com', form_submission_id: 'sub1' })
+
+  it('matches on email first — the only near-identifier here', () => {
+    const m = findCandidateEnquiries({ email: 'ANNA@example.com', name: 'A. S.' }, [other, anna])
+    expect(m.map(x => x.enquiry.id)).toEqual(['anna'])
+    expect(m[0].reason).toBe('email')
+  })
+
+  it('falls back to the name, flagged as the weaker reason', () => {
+    const m = findCandidateEnquiries({ email: 'new-address@example.com', name: 'Anna Schmidt' }, [anna, other])
+    expect(m).toHaveLength(1)
+    expect(m[0]).toMatchObject({ reason: 'name' })
+  })
+
+  it('never proposes the same enquiry twice', () => {
+    const m = findCandidateEnquiries({ email: 'anna@example.com', name: 'Anna Schmidt' }, [anna])
+    expect(m).toHaveLength(1)
+  })
+
+  it('ignores enquiries already settled or already attached', () => {
+    // Tying a fresh request to a stay that already happened would hang the new
+    // booking off the wrong record.
+    expect(findCandidateEnquiries({ email: 'anna@example.com', name: 'Anna Schmidt' }, [won])).toEqual([])
+    expect(findCandidateEnquiries({ email: 'lena@example.com', name: 'Lena K.' }, [taken])).toEqual([])
+  })
+
+  it('does not match on a name too short to mean anything', () => {
+    expect(findCandidateEnquiries({ email: '', name: 'Jo' }, [anna, other])).toEqual([])
+  })
+
+  it('returns nothing rather than guessing when there is nothing to go on', () => {
+    expect(findCandidateEnquiries({ email: null, name: null }, [anna, other])).toEqual([])
   })
 })

@@ -123,7 +123,9 @@ function App() {
       sharedLink.type === 'driver'            ? <DriverSharePage driverId={sharedLink.params?.driver_id ?? ''} /> :
       sharedLink.type === 'taxi_manager'      ? <TaxiManagerSharePage /> :
       sharedLink.type === 'activity_provider' ? <ActivityProviderSharePage providerId={sharedLink.params?.provider_id ?? ''} /> :
-      sharedLink.type === 'booking_form'      ? <BookingFormPage /> :
+      // `enquiry_id` is present only on a link generated from an enquiry, which
+      // is what lets the submission come back already attached to it.
+      sharedLink.type === 'booking_form'      ? <BookingFormPage enquiryId={sharedLink.params?.enquiry_id} /> :
       sharedLink.type === 'enquiry_form'      ? <EnquiryFormPage /> :
       sharedLink.type === 'restaurant'        ? <RestaurantSharePage /> :
       null

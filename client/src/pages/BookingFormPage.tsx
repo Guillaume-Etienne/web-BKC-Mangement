@@ -204,7 +204,11 @@ function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: Travele
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-export default function BookingFormPage() {
+/** `enquiryId` is carried by the personalised link gui sends from an enquiry.
+ *  It rides along in the payload so the submission comes back attached, instead
+ *  of being matched afterwards on a name and an email that may both have
+ *  changed. Absent when someone finds the form on their own. */
+export default function BookingFormPage({ enquiryId }: { enquiryId?: string } = {}) {
   const [lang, setLang] = useState<Lang>(detectLang())
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(1)
@@ -287,6 +291,7 @@ export default function BookingFormPage() {
     setError(false)
     const payload: BookingFormPayload = {
       language: lang,
+      ...(enquiryId ? { enquiry_id: enquiryId } : {}),
       reference_name: d.reference_name.trim(),
       email: d.email.trim(),
       phone: d.phone.trim(),
