@@ -190,8 +190,18 @@ jusqu'à la planification ; et aucun blocage si ça échoue.
 
 ## Découpe proposée
 
-0. Liste des origines (table + écran d'édition dans Options). Petit, et le formulaire en dépend.
-1. Table + écran de qualification + création manuelle. Utilisable seul, dès le premier jour.
+✅ **Schéma complet appliqué TEST + PROD le 2026-08-14** (`2026-08-14a` puis `b`), vérifié par
+curl anon sur les deux bases **et** connecté (semis, défauts, cascade des notes, et le `23503`
+qui refuse de supprimer une origine utilisée).
+
+0. ✅ **Liste des origines** — Options → 📣 Sources. Trilingue, retirable jamais supprimable.
+1. ✅ **Onglet Enquiries** (2026-08-14) — liste de travail triée par silence, écran de
+   qualification (message à gauche, les quatre champs à droite), création manuelle, notes
+   datées qui remettent le silence à zéro, compteurs *Open / People expected / To chase*.
+   Une fiche non qualifiée affiche son message et une pastille « to qualify » au lieu de
+   colonnes vides. Vérifié au navigateur bout-en-bout sur TEST.
+   ⚠️ **L'onglet Submissions vit encore à côté** — il se replie dans ce pipeline à l'étape 4,
+   et la barre de navigation revient alors à une seule entrée.
 2. Le tableau (frise, silence, couleurs, groupes, recherche).
 3. Le formulaire léger hébergé + iframe + contrat avec le projet site web.
 4. Rattachement : lien personnalisé, puis rapprochement à l'arrivée.

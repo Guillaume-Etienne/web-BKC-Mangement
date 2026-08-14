@@ -2,7 +2,10 @@ import type { Booking, Payment } from '../../types/database'
 
 export type ActionPriority = 'urgent' | 'week' | 'monitor'
 
-export type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions'
+/** The app's navigable pages — **the single declaration**. App.tsx, Navigation
+ *  and HomePage import it. It used to be copied into each of them, so adding a
+ *  page meant four edits and three type errors before the build went green. */
+export type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions' | 'enquiries'
 
 export interface PendingAction {
   id: string

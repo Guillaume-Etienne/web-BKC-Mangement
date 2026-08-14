@@ -635,3 +635,43 @@ export interface EnquirySource {
   is_active: boolean
   created_at?: string
 }
+
+// An enquiry: someone who wrote in but has not booked. Touches neither the
+// planning nor the accounts — see .claude/docs/ENQUIRIES.md.
+export type EnquiryStatus = 'new' | 'talking' | 'waiting' | 'won' | 'lost'
+export type EnquiryChannel = 'form' | 'manual'
+
+export interface Enquiry {
+  id: string
+  created_at: string
+  channel: EnquiryChannel        // how the record entered the app
+  name: string                   // the only required field
+  email: string | null
+  phone: string | null
+  language: string
+  message: string | null         // what they wrote, verbatim
+  source_id: string | null       // "how did you hear about us?"
+  source_other: string | null
+  // Qualification — all nullable: an unqualified enquiry is a normal state
+  party_size: number | null
+  arrival_month: string | null   // 'YYYY-MM', never a day
+  wants_lessons: boolean
+  wants_rental: boolean
+  wants_accommodation: boolean
+  budget_eur: number | null      // whole party
+  status: EnquiryStatus
+  lost_reason: string | null
+  last_contact_at: string        // drives the "silence" column
+  client_id: string | null
+  booking_id: string | null
+  form_submission_id: string | null
+  crm_synced_at: string | null
+  crm_error: string | null
+}
+
+export interface EnquiryNote {
+  id: string
+  enquiry_id: string
+  created_at: string
+  body: string
+}

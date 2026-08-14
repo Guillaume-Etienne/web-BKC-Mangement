@@ -7,7 +7,7 @@ import ChunkBoundary from './components/layout/ChunkBoundary'
 import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
 import { computePendingActions } from './components/pending/pendingActions'
-import type { PendingAction } from './components/pending/pendingActions'
+import type { PendingAction, Page } from './components/pending/pendingActions'
 import type { Booking, Payment } from './types/database'
 
 // Everything past the first screen is fetched when it is actually opened.
@@ -27,6 +27,7 @@ const DocumentsPage             = lazy(() => import('./pages/DocumentsPage'))
 const AccountingPage            = lazy(() => import('./pages/AccountingPage'))
 const ActivitiesPage            = lazy(() => import('./pages/ActivitiesPage'))
 const SubmissionsPage           = lazy(() => import('./pages/SubmissionsPage'))
+const EnquiriesPage             = lazy(() => import('./pages/EnquiriesPage'))
 const ForecastSharePage         = lazy(() => import('./pages/ForecastSharePage'))
 const TaxiSharePage             = lazy(() => import('./pages/TaxiSharePage'))
 const ClientSharePage           = lazy(() => import('./pages/ClientSharePage'))
@@ -47,7 +48,7 @@ function PageLoading() {
   )
 }
 
-type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions'
+// Page lives in pendingActions.ts — one declaration for the whole app.
 
 // ── Public share token from URL (sync, module scope) ──────────────────────
 const shareToken = new URLSearchParams(window.location.search).get('share')
@@ -164,6 +165,7 @@ function App() {
             {currentPage === 'accounting' && <AccountingPage onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
             {currentPage === 'activities' && <ActivitiesPage />}
             {currentPage === 'submissions' && <SubmissionsPage />}
+            {currentPage === 'enquiries'  && <EnquiriesPage />}
           </Suspense>
         </ChunkBoundary>
       </main>

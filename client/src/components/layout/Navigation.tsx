@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { currentEnv } from '../../lib/supabase'
 import { useTheme } from '../../hooks/useTheme'
+import type { Page } from '../pending/pendingActions'
 
 interface NavigationProps {
-  currentPage: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions'
-  onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions') => void
+  currentPage: Page
+  onNavigate: (page: Page) => void
   onLogout: () => void
   urgentCount?: number
   submissionsCount?: number
@@ -26,9 +27,12 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
     { id: 'taxis',      label: 'Taxis',      icon: '🚕' },
     { id: 'activities', label: 'Activities', icon: '🏕️' },
     { id: 'submissions',label: 'Submissions',icon: '📝' },
+    // Temporary neighbour of Submissions: the review queue folds into this
+    // pipeline at step 4, and the nav goes back to one entry (ENQUIRIES.md).
+    { id: 'enquiries',  label: 'Enquiries',  icon: '📣' },
   ] as const
 
-  const handleNavigate = (page: 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions') => {
+  const handleNavigate = (page: Page) => {
     setMobileMenuOpen(false)
     onNavigate(page)
   }
