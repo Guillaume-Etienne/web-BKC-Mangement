@@ -622,3 +622,16 @@ export interface DocumentTemplateRow {
   content: { fr: string; en: string; es: string }
   updated_at?: string
 }
+
+// Enquiry sources — the "how did you hear about us?" choices on the public form,
+// edited in Options → Sources. Trilingual because the form is; kept in the
+// database so a new one costs gui a click, not a deployment.
+// Retired sources are deactivated, never deleted: past enquiries point at them
+// and the end-of-season attribution stats would lose their rows.
+export interface EnquirySource {
+  id: string
+  label: { fr: string; en: string; es: string }
+  sort_order: number
+  is_active: boolean
+  created_at?: string
+}

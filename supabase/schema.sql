@@ -630,6 +630,28 @@ CREATE TABLE document_templates (
 REVOKE ALL ON document_templates FROM anon;  -- admin only, jamais anon
 
 
+-- ── Enquiry sources ──────────────────────────────────────────────────────────
+-- The "how did you hear about us?" choices on the public form, edited in
+-- Options → Sources. In the database rather than the code so gui can add one
+-- without a deployment; trilingual because the public form is.
+-- Deactivate, never delete: past enquiries point here and the end-of-season
+-- attribution stats depend on it. "Other" is deliberately NOT a row — the form
+-- always appends it, so it cannot be removed and force someone who came through
+-- a friend into a box that makes the statistic look clean and lie.
+
+CREATE TABLE enquiry_sources (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  label      JSONB   NOT NULL DEFAULT '{}'::jsonb,  -- { fr, en, es }
+  sort_order INT     NOT NULL DEFAULT 0,
+  is_active  BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Readable by any valid share link (the public form needs the list), labels only.
+REVOKE SELECT ON enquiry_sources FROM anon;
+GRANT  SELECT (id, label, sort_order, is_active) ON enquiry_sources TO anon;
+
+
 -- ============================================================
 -- RLS — Row Level Security
 -- Règle de base : authentifié = accès complet, anon = rien
@@ -655,7 +677,7 @@ BEGIN
     'instructor_debts', 'instructor_payments', 'lesson_rate_overrides',
     'expenses',
     'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries',
-    'email_logs', 'document_templates'
+    'email_logs', 'document_templates', 'enquiry_sources'
   ]) LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format(
@@ -839,6 +861,10 @@ CREATE POLICY "anon_read_instructors" ON instructors
   FOR SELECT TO anon USING (share_type() IS NOT NULL);
 CREATE POLICY "anon_read_equipment" ON equipment
   FOR SELECT TO anon USING (share_type() IS NOT NULL);
+-- The public form's "how did you hear about us?" list. Only the active entries:
+-- a source gui retired stays in the table for past statistics, not on the form.
+CREATE POLICY "anon_read_enquiry_sources" ON enquiry_sources
+  FOR SELECT TO anon USING (share_type() IS NOT NULL AND is_active);
 
 -- Column-level hardening: anon may read ONLY identity columns of clients /
 -- booking_participants (never passport_number, email, phone, birth_date,
