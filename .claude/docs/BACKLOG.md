@@ -189,6 +189,56 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
 
 ---
 
+## 📥 Requests / Enquiries — ✅ EN SERVICE (2026-08-15), 4 restes
+
+Chantier livré et vérifié **sur les deux bases** : origines trilingues (Options → 📣 Sources),
+tableau scannable, formulaire léger en iframe (`?lang=`), rattachement demande↔réservation,
+emails (notif admin + accusé visiteur), synchro Brevo, onglet unique **📥 Requests** à deux
+sous-onglets, 3 lignes de pending actions, `frame-ancestors` limité à bilenekite.com.
+**283 tests.** Conception et décisions : **`.claude/docs/ENQUIRIES.md`**. Contrat pour le
+projet site web : **`.claude/docs/ENQUIRY_FORM_EMBED.md`**.
+
+### 🔐 1. Faire tourner deux secrets — le seul point pressant
+
+Le 2026-08-15, gui avait collé dans `client/.env.local` sa **clé API Brevo** et
+`NOTIFY_ENQUIRY_SECRET`. Le fichier est bien gitignored (jamais suivi, absent de l'historique,
+vérifié) : **aucune fuite vers le dépôt**. Mais les deux valeurs se sont affichées en clair
+dans une sortie de terminal, donc dans une conversation archivée.
+
+- **Clé Brevo** : régénérer dans Brevo, mettre à jour le secret `BREVO_API_KEY` sur PROD. 2 min.
+- **`NOTIFY_ENQUIRY_SECRET`** : plus lourd — nouvelle valeur dans les secrets **et** rejouer
+  `2026-08-14c` avec elle, sur les deux bases. Ce qu'il ouvre : appeler `notify-enquiry` avec
+  une charge arbitraire, donc **envoyer des emails depuis `no-reply@bilenekite.com`** vers
+  n'importe quelle adresse. C'est la faille S1 refermée en juillet.
+- ⚠️ Le fichier porte désormais un avertissement en commentaire. **Aucun secret n'a sa place
+  dans `.env.local`** — seulement les URLs et les clés anon, publiques par nature.
+
+### ⬜ 2. Ping mensuel pour garder la clé Brevo vivante — conçu, pas codé
+
+**Une clé Brevo se désactive après 90 jours sans appel**, et la synchro n'est appelée que par
+une demande du formulaire. L'activité étant saisonnière (sept → mi-mars), le creux d'avril à
+août suffit à la tuer — et la panne ne se verrait qu'à la première demande de la rentrée, quand
+les contacts comptent le plus.
+
+Parade : une tâche `pg_cron` mensuelle qui appelle **notre fonction** (pas Brevo directement,
+pour que la clé reste dans un seul endroit), laquelle tape `GET /v3/account`. Rien n'est envoyé,
+le compteur repart à zéro.
+
+### ⬜ 3. Deux questions ouvertes sur le périmètre Brevo
+
+- Le **formulaire de réservation complet** n'alimente pas Brevo (il passe par
+  `notify-submission`, non modifié). Or quelqu'un qui remplit le dossier complet est plus
+  qualifié que celui qui pose une question.
+- Les **fiches saisies à la main** (WhatsApp, Instagram) non plus : le trigger ne se déclenche
+  que sur `channel='form'`.
+
+### 🧹 4. Restes de test en PROD
+
+Demandes `BREVO-V2 14h18` et `Guillaume` (l'essai de gui lui-même), plus le contact
+`gsetienne9+brevotest@gmail.com` dans Brevo. Sans conséquence, mais autant partir propre.
+
+---
+
 ## 🔎 Audit global du 2026-07-31 (Opus, nuit) — 3 constats qui demandent une DÉCISION de gui
 
 > Le reste de l'audit a été corrigé et committé (6 commits `ae096c1`→`5576d38`). Ces trois-là
