@@ -18,11 +18,28 @@ ne viendront jamais et le résultat est faux de plusieurs milliers d'euros.
 **Décision gui : une demande n'apparaît pas dans le planning.** À rediscuter un jour si le
 besoin de poser des options se fait sentir ; ce n'est pas le cas aujourd'hui.
 
-## Où ça vit
+## Où ça vit — **arrêté le 2026-08-15**
 
-**L'onglet Submissions devient Enquiries.** Pas de 12ᵉ onglet : une soumission du formulaire
-public n'est qu'une demande dont l'origine est le site. Sinon on cherche la même personne à
-deux endroits selon qu'elle a écrit par le site ou par WhatsApp.
+**Une seule entrée de menu, « 📥 Requests », avec deux onglets à l'intérieur** : *Enquiries*
+et *Booking forms*. Décision gui, et meilleure que ce que j'avais recommandé.
+
+Ma proposition initiale — tout fondre dans un seul écran — aurait logé un dossier de quarante
+champs (passeports, décharge, dates de visa) dans un panneau conçu pour être expédié en vingt
+secondes. Cette version règle le vrai problème (chercher la même personne à deux endroits du
+menu) tout en laissant à chaque objet l'écran qui lui convient : une demande est une
+conversation, une soumission est un dossier administratif.
+
+**Les pastilles veulent dire « du nouveau est arrivé », jamais « il reste du travail ».** Une
+sur l'entrée du menu (la somme), une par onglet. Elles retombent à zéro quand tout est lu —
+une pastille qui ne s'éteint jamais devient un décor, exactement l'argument retenu pour le
+badge « no rate configured » des hébergements. Les relances vivent dans les Pending actions et
+dans la pastille *To chase* du tableau.
+
+**Trois lignes dans les Pending actions de la Home** (`pendingActions.ts`, désormais testé) :
+non qualifiées en **urgent** — une personne attend une réponse, là où un dossier attend bien —,
+silence ≥ 7 jours **cette semaine**, échec de synchro Brevo en **surveillance**. Les comptes
+sont calculés par `utils/enquiries.ts` et non par des filtres SQL recopiés, pour que la Home et
+le tableau ne puissent pas se contredire.
 
 ## Le modèle
 
@@ -234,8 +251,6 @@ qui refuse de supprimer une origine utilisée).
    datées qui remettent le silence à zéro, compteurs *Open / People expected / To chase*.
    Une fiche non qualifiée affiche son message et une pastille « to qualify » au lieu de
    colonnes vides. Vérifié au navigateur bout-en-bout sur TEST.
-   ⚠️ **L'onglet Submissions vit encore à côté** — il se replie dans ce pipeline à l'étape 4,
-   et la barre de navigation revient alors à une seule entrée.
 2. ✅ **Le tableau qui se lit en balayant** (2026-08-14) — pleine largeur, la qualification
    passe en surimpression (c'est un geste qui demande de la concentration). Groupes par mois
    d'arrivée, **passés repliés**, en-tête portant ses totaux **même fermé**, groupe « No dates

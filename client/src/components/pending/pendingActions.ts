@@ -5,7 +5,7 @@ export type ActionPriority = 'urgent' | 'week' | 'monitor'
 /** The app's navigable pages — **the single declaration**. App.tsx, Navigation
  *  and HomePage import it. It used to be copied into each of them, so adding a
  *  page meant four edits and three type errors before the build went green. */
-export type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'submissions' | 'enquiries'
+export type Page = 'home' | 'planning' | 'bookings' | 'clients' | 'management' | 'taxis' | 'equipment' | 'documents' | 'accounting' | 'activities' | 'requests'
 
 export interface PendingAction {
   id: string
@@ -21,6 +21,12 @@ export interface PendingActionsData {
   payments: Payment[]
   taxiTripUnlinkedCount: number
   pendingFormSubmissionsCount: number
+  /** Enquiries nobody has read yet — someone is waiting for an answer. */
+  unqualifiedEnquiriesCount?: number
+  /** Open enquiries with no exchange for SILENCE_WARN_DAYS or more. */
+  silentEnquiriesCount?: number
+  /** Enquiries whose Brevo push failed: a contact gui believes he has. */
+  crmFailedCount?: number
 }
 
 function addDays(date: Date, days: number): Date {
@@ -183,14 +189,54 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
     }
   }
 
+  // ── 🔴 Enquiries nobody has read ──────────────────────────────────────────
+  // Urgent, above the booking forms below: a booking form is a dossier that
+  // waits well, an unread enquiry is a person waiting for an answer.
+  if ((data.unqualifiedEnquiriesCount ?? 0) > 0) {
+    const n = data.unqualifiedEnquiriesCount!
+    actions.push({
+      id: 'unqualified-enquiries',
+      priority: 'urgent',
+      message: `${n} new enquir${n > 1 ? 'ies' : 'y'} to read`,
+      route: 'requests',
+      routeLabel: 'Requests',
+    })
+  }
+
   // ── 🟡 New public booking-form submissions to review ───────────────────────
   if (data.pendingFormSubmissionsCount > 0) {
     actions.push({
       id: 'pending-submissions',
       priority: 'week',
       message: `${data.pendingFormSubmissionsCount} new booking form${data.pendingFormSubmissionsCount > 1 ? 's' : ''} to review`,
-      route: 'submissions',
-      routeLabel: 'Submissions',
+      route: 'requests',
+      routeLabel: 'Requests',
+    })
+  }
+
+  // ── 🟡 Enquiries gone quiet ───────────────────────────────────────────────
+  if ((data.silentEnquiriesCount ?? 0) > 0) {
+    const n = data.silentEnquiriesCount!
+    actions.push({
+      id: 'silent-enquiries',
+      priority: 'week',
+      message: `${n} enquir${n > 1 ? 'ies' : 'y'} waiting on you for a week or more`,
+      route: 'requests',
+      routeLabel: 'Requests',
+    })
+  }
+
+  // ── 🟢 Brevo pushes that failed ───────────────────────────────────────────
+  // Nothing is blocked, which is exactly why it needs saying: these are
+  // contacts gui believes are in his CRM and are not.
+  if ((data.crmFailedCount ?? 0) > 0) {
+    const n = data.crmFailedCount!
+    actions.push({
+      id: 'crm-failed',
+      priority: 'monitor',
+      message: `${n} enquir${n > 1 ? 'ies' : 'y'} not added to Brevo`,
+      route: 'requests',
+      routeLabel: 'Requests',
     })
   }
 

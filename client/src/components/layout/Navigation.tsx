@@ -26,10 +26,9 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
     { id: 'equipment',  label: 'Equipment',  icon: '🎿' },
     { id: 'taxis',      label: 'Taxis',      icon: '🚕' },
     { id: 'activities', label: 'Activities', icon: '🏕️' },
-    { id: 'submissions',label: 'Submissions',icon: '📝' },
-    // Temporary neighbour of Submissions: the review queue folds into this
-    // pipeline at step 4, and the nav goes back to one entry (ENQUIRIES.md).
-    { id: 'enquiries',  label: 'Enquiries',  icon: '📣' },
+    // One entry for everything that arrives from outside; the two objects keep
+    // their own screens as tabs inside it (RequestsPage).
+    { id: 'requests',   label: 'Requests',   icon: '📥' },
   ] as const
 
   const handleNavigate = (page: Page) => {
@@ -81,7 +80,7 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
                       {urgentCount}
                     </span>
                   )}
-                  {item.id === 'submissions' && submissionsCount > 0 && (
+                  {item.id === 'requests' && submissionsCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-sky-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                       {submissionsCount}
                     </span>

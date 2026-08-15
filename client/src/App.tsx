@@ -8,7 +8,8 @@ import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
 import { computePendingActions } from './components/pending/pendingActions'
 import type { PendingAction, Page } from './components/pending/pendingActions'
-import type { Booking, Payment } from './types/database'
+import type { Booking, Payment, Enquiry } from './types/database'
+import { isSettled, isQualified, silenceDays, SILENCE_WARN_DAYS } from './utils/enquiries'
 
 // Everything past the first screen is fetched when it is actually opened.
 // Before this, one bundle held the whole app: a guest opening a taxi or client
@@ -26,8 +27,7 @@ const EquipmentPage             = lazy(() => import('./pages/EquipmentPage'))
 const DocumentsPage             = lazy(() => import('./pages/DocumentsPage'))
 const AccountingPage            = lazy(() => import('./pages/AccountingPage'))
 const ActivitiesPage            = lazy(() => import('./pages/ActivitiesPage'))
-const SubmissionsPage           = lazy(() => import('./pages/SubmissionsPage'))
-const EnquiriesPage             = lazy(() => import('./pages/EnquiriesPage'))
+const RequestsPage              = lazy(() => import('./pages/RequestsPage'))
 const ForecastSharePage         = lazy(() => import('./pages/ForecastSharePage'))
 const TaxiSharePage             = lazy(() => import('./pages/TaxiSharePage'))
 const ClientSharePage           = lazy(() => import('./pages/ClientSharePage'))
@@ -85,11 +85,24 @@ function App() {
       supabase.from('payments').select('id, booking_id, is_verified, is_discount'),
       supabase.from('taxi_trips').select('booking_id'),
       supabase.from('form_submissions').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-    ]).then(([{ data: bookings }, { data: payments }, { data: taxis }, { count: pendingSubs }]) => {
+      // Whole rows rather than counts: "unqualified" and "silent" are decided in
+      // one place, utils/enquiries.ts, and duplicating either as a SQL filter
+      // here would let the Home page and the Requests table disagree.
+      supabase.from('enquiries').select('status, party_size, arrival_month, wants_lessons, wants_rental, wants_accommodation, last_contact_at, crm_error'),
+    ]).then(([{ data: bookings }, { data: payments }, { data: taxis }, { count: pendingSubs }, { data: enquiries }]) => {
       const bkgs = (bookings ?? []) as Booking[]
       const pmts = (payments ?? []) as Payment[]
+      const enqs = (enquiries ?? []) as Enquiry[]
       const unlinked = (taxis ?? []).filter((t: { booking_id: string | null }) => !t.booking_id).length
-      setPendingActions(computePendingActions({ bookings: bkgs, payments: pmts, taxiTripUnlinkedCount: unlinked, pendingFormSubmissionsCount: pendingSubs ?? 0 }))
+      const open = enqs.filter(e => !isSettled(e.status))
+      setPendingActions(computePendingActions({
+        bookings: bkgs, payments: pmts,
+        taxiTripUnlinkedCount: unlinked,
+        pendingFormSubmissionsCount: pendingSubs ?? 0,
+        unqualifiedEnquiriesCount: open.filter(e => !isQualified(e)).length,
+        silentEnquiriesCount: open.filter(e => silenceDays(e.last_contact_at) >= SILENCE_WARN_DAYS).length,
+        crmFailedCount: enqs.filter(e => !!e.crm_error).length,
+      }))
     })
   }, [session])
 
@@ -154,7 +167,7 @@ function App() {
   // Authenticated
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={pendingActions.filter(a => a.priority === 'urgent').length} submissionsCount={pendingActions.filter(a => a.id === 'pending-submissions').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
+      <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={pendingActions.filter(a => a.priority === 'urgent').length} submissionsCount={pendingActions.filter(a => a.id === 'pending-submissions' || a.id === 'unqualified-enquiries').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
       <main className="w-full">
         <ChunkBoundary>
           <Suspense fallback={<PageLoading />}>
@@ -168,8 +181,7 @@ function App() {
             {currentPage === 'documents'  && <DocumentsPage />}
             {currentPage === 'accounting' && <AccountingPage onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
             {currentPage === 'activities' && <ActivitiesPage />}
-            {currentPage === 'submissions' && <SubmissionsPage />}
-            {currentPage === 'enquiries'  && <EnquiriesPage />}
+            {currentPage === 'requests'   && <RequestsPage />}
           </Suspense>
         </ChunkBoundary>
       </main>
