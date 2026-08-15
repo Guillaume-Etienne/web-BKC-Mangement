@@ -3,10 +3,14 @@
 // Triggered by a pg_net TRIGGER on `enquiries` INSERT, server-side, so it fires
 // even if the visitor closes the tab and cannot be called by anon.
 //
-// Sends up to 2 emails via Resend (no email_logs entry — these are
-// notifications, not the official documents tracked there):
-//   1. ADMIN  → contact@bilenekite.com : who wrote, and what they wrote
-//   2. VISITOR → enquiry.email          : trilingual acknowledgment (FR/EN/ES)
+// Does three things, in this order — each one unable to spoil the previous:
+//   1. ADMIN email  → contact@bilenekite.com : who wrote, and what they wrote
+//   2. VISITOR email → enquiry.email          : trilingual acknowledgment
+//   3. BREVO contact → upserted, and the outcome written back onto the enquiry
+//      (`crm_synced_at` / `crm_error`) so a contact that never arrived is
+//      visible on the fiche instead of being assumed.
+// (No email_logs entry: these are notifications, not the official documents
+// tracked there.)
 //
 // WHY A SEPARATE FUNCTION rather than a branch inside notify-submission:
 // that one carries the wording of the booking-form emails, which is gui's own
@@ -18,6 +22,8 @@
 // Secrets: RESEND_API_KEY (already there) + NOTIFY_ENQUIRY_SECRET (to create,
 //          one value per project — see the migration for why it is not the
 //          NOTIFY_SECRET that notify-submission uses).
+//          Optional: BREVO_API_KEY (no key = no contact pushed, and that is not
+//          an error), BREVO_LIST_ID (no list = contact created outside any list).
 // Trigger: see supabase/migrations/2026-08-14c_enquiry_notify_trigger.sql
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -107,6 +113,76 @@ function adminHtml(r: Record<string, unknown>, sourceLabel: string): string {
     + `</div></div></body></html>`
 }
 
+/** Push the visitor into Brevo as a contact.
+ *
+ *  `updateEnabled` makes it an upsert: someone who writes twice updates their
+ *  own contact instead of raising a duplicate error. Without it the second
+ *  enquiry from a returning guest would be recorded as a failure.
+ *
+ *  Returns null on success, or the reason — which ends up on the enquiry, so a
+ *  contact that never made it into Brevo is visible rather than assumed.
+ *  Skipped entirely when no key is set: deploying this before gui creates the
+ *  secret must not turn into an error on every enquiry. */
+async function pushToBrevo(email: string, name: string): Promise<string | null> {
+  const key = Deno.env.get('BREVO_API_KEY')
+  if (!key) return null                    // not configured yet — not a failure
+  if (!email) return null                  // no address, no contact to create
+
+  // The form asks "what should we call you?", one free field. Splitting on the
+  // first space is a guess, so the whole answer is kept in FIRSTNAME and only
+  // the obvious surname goes to LASTNAME — better a full name in one field than
+  // a mangled one across two.
+  const parts = name.trim().split(/\s+/)
+  const attributes: Record<string, string> = parts.length > 1
+    ? { FIRSTNAME: parts[0], LASTNAME: parts.slice(1).join(' ') }
+    : { FIRSTNAME: name.trim() }
+
+  const listId = Number(Deno.env.get('BREVO_LIST_ID') ?? '')
+  const body: Record<string, unknown> = { email, attributes, updateEnabled: true }
+  if (Number.isFinite(listId) && listId > 0) body.listIds = [listId]
+
+  try {
+    const res = await fetch('https://api.brevo.com/v3/contacts', {
+      method: 'POST',
+      headers: { 'api-key': key, 'Content-Type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (res.ok) return null
+    const detail = (await res.text()).slice(0, 300)
+    console.error(`Brevo refused ${email}: ${res.status} ${detail}`)
+    return `Brevo ${res.status}: ${detail}`
+  } catch (e) {
+    console.error('Brevo unreachable:', e)
+    return `Brevo unreachable: ${String(e).slice(0, 200)}`
+  }
+}
+
+/** Record what became of the Brevo push, on the enquiry itself.
+ *
+ *  Best effort by design: the enquiry and the emails already happened, and
+ *  failing to write a status must not undo them. Uses the service role key that
+ *  Supabase injects into every Edge Function. */
+async function recordCrmStatus(enquiryId: string, error: string | null) {
+  const url = Deno.env.get('SUPABASE_URL')
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!url || !key || !enquiryId) return
+  try {
+    await fetch(`${url}/rest/v1/enquiries?id=eq.${enquiryId}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: key, Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json', Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        crm_synced_at: error ? null : new Date().toISOString(),
+        crm_error: error,
+      }),
+    })
+  } catch (e) {
+    console.error('Could not record the CRM status:', e)
+  }
+}
+
 async function sendEmail(apiKey: string, to: string, subject: string, html: string) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -167,7 +243,12 @@ serve(async (req) => {
       )
     }
 
-    return new Response(JSON.stringify({ adminOk, clientOk }), {
+    // Brevo last, and never in the way: the emails have already gone out, and a
+    // CRM that is down must not cost a notification.
+    const brevoError = await pushToBrevo(visitorEmail, String(record.name ?? ''))
+    if (visitorEmail) await recordCrmStatus(String(record.id ?? ''), brevoError)
+
+    return new Response(JSON.stringify({ adminOk, clientOk, brevoError }), {
       headers: { ...CORS, 'Content-Type': 'application/json' },
     })
   } catch (e) {

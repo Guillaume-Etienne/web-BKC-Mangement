@@ -305,6 +305,24 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
         )}
       </div>
 
+      {/* Brevo, said out loud. A CRM push that failed in silence is a contact
+          gui thinks he has and does not — worse than not syncing at all. */}
+      {!isNew && enquiry?.channel === 'form' && enquiry.email && (
+        <p className="text-xs">
+          {enquiry.crm_error ? (
+            <span className="text-red-600 dark:text-red-400">
+              ⚠ Not added to Brevo — {enquiry.crm_error}
+            </span>
+          ) : enquiry.crm_synced_at ? (
+            <span className="text-gray-500 dark:text-gray-400">
+              ✅ In Brevo since {new Date(enquiry.crm_synced_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            </span>
+          ) : (
+            <span className="text-gray-400 dark:text-gray-500">Brevo sync not configured</span>
+          )}
+        </p>
+      )}
+
       {/* ── The bridge to a real booking ───────────────────────────────────── */}
       {!isNew && enquiry && (
         <div className="border-t border-gray-200 dark:border-gray-800 pt-4 space-y-2">

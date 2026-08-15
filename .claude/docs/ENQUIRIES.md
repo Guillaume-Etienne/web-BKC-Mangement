@@ -181,6 +181,31 @@ Deux façons de l'alimenter, au choix :
   Témoin sur la fiche + bouton « renvoyer ». Une synchro qui échoue en silence est un client
   perdu sans le savoir.
 
+## Brevo — livré le 2026-08-15 (étape 5)
+
+**Appel direct depuis `notify-enquiry`, sans Zapier** (décision gui) : la fonction tourne déjà
+à chaque demande du formulaire, elle a la ligne sous la main. Un abonnement de moins, une clé
+de plus.
+
+- **Upsert** (`updateEnabled: true`) : quelqu'un qui écrit deux fois met à jour son contact au
+  lieu de provoquer un doublon en erreur.
+- **En dernier, et jamais bloquant** : les emails sont déjà partis, un CRM en panne ne doit pas
+  coûter une notification.
+- **Sans clé, rien ne se passe et ce n'est pas une erreur** — déployer la fonction avant de
+  créer le secret ne casse rien.
+- **Le résultat est écrit sur la demande** (`crm_synced_at` / `crm_error`, colonnes prévues dès
+  le schéma) et affiché sur la fiche. Une synchro ratée en silence est un contact que gui croit
+  avoir : pire que pas de synchro du tout.
+- Seules les demandes **du formulaire** partent (le trigger ne se déclenche que sur
+  `channel='form'`) : une fiche saisie depuis WhatsApp ne crée pas de contact.
+
+**Secrets à poser par base** : `BREVO_API_KEY` (obligatoire pour que ça pousse),
+`BREVO_LIST_ID` (facultatif — sans lui le contact est créé hors liste).
+**Aucune migration** : les colonnes existaient déjà.
+
+⬜ **Non couvert** : les soumissions du **formulaire de réservation complet** ne partent pas
+vers Brevo (elles passent par `notify-submission`). À décider si gui le veut aussi.
+
 ## Plus tard, pas maintenant
 
 Faire lire le paragraphe libre pour **pré-remplir les quatre champs en suggestion**
