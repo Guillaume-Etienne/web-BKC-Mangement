@@ -10,7 +10,13 @@
 
 ## 🚨 MIGRATIONS SQL EN ATTENTE D'APPLICATION (gui)
 
-> ✅ **Registre VIDE au 2026-08-12.** Les deux migrations « séjours externes » (11 et 12) sont
+> ✅ **Registre VIDE au 2026-08-15.** Les trois migrations du chantier Enquiries (`14a`, `14b`,
+> `14c`) sont passées sur TEST **et** PROD, et la chaîne email est prouvée bout-en-bout des
+> deux côtés. Contrôles PROD du 2026-08-15 : `notify-enquiry` → **401** avec un mauvais secret
+> (déployée, fail-closed), insertion `channel='form'` → **201**, écriture de `budget_eur` par
+> un visiteur → **42501**, lecture des demandes → **42501**.
+>
+> ✅ **Registre vide au 2026-08-12 également.** Les deux migrations « séjours externes » (11 et 12) sont
 > passées sur TEST **et** PROD, et les 7 contrôles curl anon donnent **exactement le même
 > résultat sur les deux bases** : `external_accommodations` → 404 (table supprimée),
 > `accommodation_id` → 200, `external_accommodation_id` → 42703, `total_cost` → **42501**
@@ -25,7 +31,7 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
-| **`2026-08-14c_enquiry_notify_trigger.sql`** ⚠️ **2 valeurs à remplacer + un secret à créer** ⬅️ **TEST OK, reste PROD** | Trigger pg_net sur `enquiries` INSERT → Edge Function **`notify-enquiry`** (à déployer d'abord : `supabase functions deploy notify-enquiry --no-verify-jwt`). Envoie la notif admin + l'accusé au visiteur. `<PROJECT_REF>` et `<NOTIFY_SECRET>` diffèrent par base — le secret existe déjà (celui de `notify-submission`), rien à créer. Ne se déclenche **que** sur `channel='form'` : une fiche saisie à la main n'envoie pas d'email. **Chaîne prouvée bout-en-bout sur TEST le 2026-08-15** (insertion → trigger → fonction → Resend → boîte de gui, notification admin **et** accusé visiteur). **Sur PROD, 4 gestes dans cet ordre** : créer le secret `NOTIFY_ENQUIRY_SECRET` (valeur au choix), déployer `notify-enquiry`, rejouer ce fichier avec la même valeur + `oslsbansxaajcpwhivmx`, tester. | ✅ 2026-08-15 | ⬜ |
+| ~~`2026-08-14c_enquiry_notify_trigger.sql`~~ | Trigger pg_net sur `enquiries` INSERT → Edge Function **`notify-enquiry`** (à déployer d'abord : `supabase functions deploy notify-enquiry --no-verify-jwt`). Envoie la notif admin + l'accusé au visiteur. ⚠️ **Secret DÉDIÉ `NOTIFY_ENQUIRY_SECRET`**, à créer par base, surtout pas le `NOTIFY_SECRET` de `notify-submission` : un secret Supabase **ne se relit pas** (empreinte seule), donc le réécrire aurait cassé les emails du formulaire de réservation. Ne se déclenche **que** sur `channel='form'` : une fiche saisie à la main n'envoie pas d'email. **Chaîne prouvée bout-en-bout sur TEST le 2026-08-15** (insertion → trigger → fonction → Resend → boîte de gui, notification admin **et** accusé visiteur). **Sur PROD, 4 gestes dans cet ordre** : créer le secret `NOTIFY_ENQUIRY_SECRET` (valeur au choix), déployer `notify-enquiry`, rejouer ce fichier avec la même valeur + `oslsbansxaajcpwhivmx`, tester. | ✅ 2026-08-15 | ✅ 2026-08-15 |
 | ~~`2026-08-14a_enquiry_form_link_type.sql`~~ | Ajoute la valeur d'enum `enquiry_form` à `shared_link_type` (le formulaire léger est une page publique servie par lien signé). **Ne peut pas être fusionnée avec (b)** : PostgreSQL refuse d'utiliser une valeur d'enum ajoutée dans la même transaction, et le dashboard exécute tout un script dans UNE transaction → `55P04`. | ✅ 2026-08-14 | ✅ 2026-08-14 |
 | ~~`2026-08-14b_enquiries.sql`~~ | **Tout le schéma du chantier Enquiries** en un fichier (`ENQUIRIES.md`) : `enquiry_sources` (origines trilingues, semées ×6, éditables Options → 📣 Sources), `enquiries` (identité, message, qualification, statut, silence, rattachements, témoin de synchro CRM) et `enquiry_notes` (le fil de la conversation). Le formulaire public **écrit** (colonnes bornées par GRANT) et **ne relit jamais** ; notes strictement admin. **6 vérifs en bas du fichier**, dont **deux connectées** — le curl anon ne peut pas voir les lignes. | ✅ 2026-08-14 | ✅ 2026-08-14 |
 | ~~`2026-08-12_external_stays_single_place.sql`~~ | **Suite du 11.** Le séjour externe pointe désormais sur `accommodations` (`accommodation_id`) et le référentiel parallèle `external_accommodations` est **supprimé** — préalable au chantier San Martinho (planning + séjours simultanés). **Réécrite le 2026-08-12 après un échec** : elle **rattache** les lignes existantes (crée l'hébergement + ses emplacements, re-pointe les séjours, `NOT NULL` seulement après) au lieu de supposer la table vide. **7 vérifs en bas du fichier**, dont une **connectée** (le curl anon ne peut pas voir les lignes). ⚠️ **Le code déployé lit `accommodation_id`** : sans la migration, `ClientSharePage` demande une colonne inexistante → 42703, page client vide. Appliquer **avant ou avec** le push. | ✅ 2026-08-12 | ✅ 2026-08-12 |
