@@ -113,6 +113,10 @@ function adminHtml(r: Record<string, unknown>, sourceLabel: string): string {
     + `</div></div></body></html>`
 }
 
+/** Three outcomes, not two. `skipped` exists so that "nobody configured Brevo"
+ *  can never be recorded as "the contact is in Brevo". */
+type BrevoOutcome = { state: 'ok' } | { state: 'skipped' } | { state: 'failed'; reason: string }
+
 /** Push the visitor into Brevo as a contact.
  *
  *  `updateEnabled` makes it an upsert: someone who writes twice updates their
@@ -123,10 +127,13 @@ function adminHtml(r: Record<string, unknown>, sourceLabel: string): string {
  *  contact that never made it into Brevo is visible rather than assumed.
  *  Skipped entirely when no key is set: deploying this before gui creates the
  *  secret must not turn into an error on every enquiry. */
-async function pushToBrevo(email: string, name: string): Promise<string | null> {
+async function pushToBrevo(email: string, name: string): Promise<BrevoOutcome> {
   const key = Deno.env.get('BREVO_API_KEY')
-  if (!key) return null                    // not configured yet — not a failure
-  if (!email) return null                  // no address, no contact to create
+  // "Not configured" is its own state, deliberately NOT success: writing
+  // crm_synced_at here would light up "✅ In Brevo" on the fiche for a contact
+  // that was never created. A witness that lies is worse than none.
+  if (!key) return { state: 'skipped' }
+  if (!email) return { state: 'skipped' }  // no address, no contact to create
 
   // The form asks "what should we call you?", one free field. Splitting on the
   // first space is a guess, so the whole answer is kept in FIRSTNAME and only
@@ -147,13 +154,13 @@ async function pushToBrevo(email: string, name: string): Promise<string | null> 
       headers: { 'api-key': key, 'Content-Type': 'application/json', accept: 'application/json' },
       body: JSON.stringify(body),
     })
-    if (res.ok) return null
+    if (res.ok) return { state: 'ok' }
     const detail = (await res.text()).slice(0, 300)
     console.error(`Brevo refused ${email}: ${res.status} ${detail}`)
-    return `Brevo ${res.status}: ${detail}`
+    return { state: 'failed', reason: `Brevo ${res.status}: ${detail}` }
   } catch (e) {
     console.error('Brevo unreachable:', e)
-    return `Brevo unreachable: ${String(e).slice(0, 200)}`
+    return { state: 'failed', reason: `Brevo unreachable: ${String(e).slice(0, 200)}` }
   }
 }
 
@@ -245,10 +252,14 @@ serve(async (req) => {
 
     // Brevo last, and never in the way: the emails have already gone out, and a
     // CRM that is down must not cost a notification.
-    const brevoError = await pushToBrevo(visitorEmail, String(record.name ?? ''))
-    if (visitorEmail) await recordCrmStatus(String(record.id ?? ''), brevoError)
+    const brevo = await pushToBrevo(visitorEmail, String(record.name ?? ''))
+    // Nothing is written when it was skipped: the columns stay null and the
+    // fiche says "not configured", which is the truth.
+    if (brevo.state !== 'skipped') {
+      await recordCrmStatus(String(record.id ?? ''), brevo.state === 'failed' ? brevo.reason : null)
+    }
 
-    return new Response(JSON.stringify({ adminOk, clientOk, brevoError }), {
+    return new Response(JSON.stringify({ adminOk, clientOk, brevo }), {
       headers: { ...CORS, 'Content-Type': 'application/json' },
     })
   } catch (e) {
