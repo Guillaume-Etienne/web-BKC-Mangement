@@ -199,9 +199,18 @@ de plus.
 - Seules les demandes **du formulaire** partent (le trigger ne se déclenche que sur
   `channel='form'`) : une fiche saisie depuis WhatsApp ne crée pas de contact.
 
-**Secrets à poser par base** : `BREVO_API_KEY` (obligatoire pour que ça pousse),
-`BREVO_LIST_ID` (facultatif — sans lui le contact est créé hors liste).
-**Aucune migration** : les colonnes existaient déjà.
+**Secrets** : `BREVO_API_KEY` (obligatoire pour que ça pousse), `BREVO_LIST_ID` (facultatif —
+sans lui le contact est créé hors liste). **Aucune migration** : les colonnes existaient déjà.
+
+⚠️ **Brevo est configuré en PROD UNIQUEMENT — décision gui du 2026-08-15**, écart assumé à la
+règle « TEST + PROD dans la foulée ». Motif : ne pas polluer le CRM avec des contacts d'essai.
+Conséquences à connaître :
+- Sur TEST, `BREVO_API_KEY` est absente → la fonction **saute la synchro sans erreur** et la
+  fiche affiche « Brevo sync not configured ». C'est le comportement voulu, pas une panne.
+- **TEST ne peut donc pas détecter une régression Brevo.** Toute modification de
+  `pushToBrevo` se vérifie directement en PROD, sur une demande de contrôle qu'on supprime
+  ensuite — avec le contact correspondant à retirer de Brevo.
+- ⚠️ **La clé se désactive après 90 jours sans appel** : voir le ping mensuel prévu ci-dessous.
 
 ⬜ **Non couvert** : les soumissions du **formulaire de réservation complet** ne partent pas
 vers Brevo (elles passent par `notify-submission`). À décider si gui le veut aussi.
