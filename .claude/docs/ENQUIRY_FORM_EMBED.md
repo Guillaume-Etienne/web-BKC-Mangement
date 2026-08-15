@@ -75,18 +75,33 @@ texte libre, et sont renseignés côté app à la lecture. Les demander ici fera
 2. Un email part à `contact@bilenekite.com` avec le message complet.
 3. Un accusé de réception part au visiteur, dans sa langue, s'il a laissé un email.
 
-## À faire une fois côté hébergement
+## Qui a le droit d'encadrer le formulaire — **fait le 2026-08-15**
 
-⚠️ **Autoriser l'encadrement uniquement depuis le domaine du site.** Par défaut la réponse
-peut être refusée par le navigateur, ou au contraire ouverte à tous — et « ouverte à tous »
-signifie que n'importe qui peut encadrer ce formulaire sur son propre site et faire passer ses
-demandes pour les vôtres. Sur Vercel, un en-tête sur la réponse :
+`client/vercel.json` pose l'en-tête sur **toutes** les réponses de l'app :
 
 ```
-Content-Security-Policy: frame-ancestors 'self' https://www.bilenekite.com https://bilenekite.com
+Content-Security-Policy: frame-ancestors 'self' https://bilenekite.com https://www.bilenekite.com
 ```
 
-(et **pas** `X-Frame-Options: DENY`, qui bloquerait tout).
+Le navigateur du visiteur refuse alors d'afficher l'app dans un cadre servi par un autre
+domaine. Cela vaut aussi pour l'app d'administration, ce qui est souhaitable : rien ici n'a
+vocation à être encadré ailleurs.
+
+⚠️ **Les deux domaines sont listés exprès** (apex *et* www). Si le site répond sur les deux et
+qu'un seul est déclaré, le formulaire devient une page blanche sur l'autre — la protection
+casserait ce qu'elle est censée protéger.
+
+⚠️ **Ne pas y ajouter `X-Frame-Options: DENY`**, qui bloquerait tout, y compris le site.
+
+**Ce que ça protège, et ce que ça ne protège pas.** Ça évite que le formulaire s'affiche sur un
+site tiers — un intérêt d'image. Ça ne protège **pas** les demandes : quelqu'un qui encadre le
+formulaire n'en détourne aucune, elles arrivent chez gui de toute façon. Et ça ne change rien
+au fait que la clé anon est publique : créer des demandes en tapant l'API directement reste
+possible, honeypot et délai de 3 s ne valant que pour l'interface. Si un jour il faut se
+défendre du spam, c'est là qu'il faudra agir, pas ici.
+
+⚠️ **Le serveur de développement Vite n'envoie pas cet en-tête** : en local, l'encadrement
+marche depuis n'importe où. La vérification n'a de sens que sur le déploiement Vercel.
 
 ## Points de vigilance
 
