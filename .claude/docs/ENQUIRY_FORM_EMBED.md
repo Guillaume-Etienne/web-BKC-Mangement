@@ -103,6 +103,16 @@ défendre du spam, c'est là qu'il faudra agir, pas ici.
 ⚠️ **Le serveur de développement Vite n'envoie pas cet en-tête** : en local, l'encadrement
 marche depuis n'importe où. La vérification n'a de sens que sur le déploiement Vercel.
 
+✅ **Vérifié le 2026-08-15, les deux moitiés** : l'en-tête est renvoyé sur toutes les routes
+(`curl -I`) ; depuis une page servie sur `localhost` — origine absente de la liste — l'app
+reste un cadre vide, tandis qu'`example.com` s'affiche dans le cadre voisin (le témoin qui rend
+le résultat concluant) ; et gui a confirmé que le formulaire s'affiche toujours sur son site.
+
+⚠️ **Méthode** : `contentDocument` et `location.href` renvoient la **même chose** pour un cadre
+bloqué et pour un cadre chargé d'une autre origine — deux sondes successives n'ont donc rien
+prouvé, et la seconde concluait l'inverse de la vérité. Le seul test fiable est **visuel, avec
+un témoin autorisé à côté**. À refaire de cette façon si la liste de domaines change.
+
 ## Points de vigilance
 
 - **Le formulaire est épinglé sur la base de production.** Ne pas le tester en le pointant
