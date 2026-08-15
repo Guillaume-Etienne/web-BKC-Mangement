@@ -15,8 +15,9 @@
 // mine to touch. This one can be deployed, broken and fixed on its own.
 //
 // Deploy : supabase functions deploy notify-enquiry --no-verify-jwt
-// Secrets: RESEND_API_KEY and NOTIFY_SECRET — both already exist on both
-//          projects for notify-submission; nothing new to create.
+// Secrets: RESEND_API_KEY (already there) + NOTIFY_ENQUIRY_SECRET (to create,
+//          one value per project — see the migration for why it is not the
+//          NOTIFY_SECRET that notify-submission uses).
 // Trigger: see supabase/migrations/2026-08-14c_enquiry_notify_trigger.sql
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -122,10 +123,16 @@ async function sendEmail(apiKey: string, to: string, subject: string, html: stri
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
+  // Its OWN secret, deliberately not the NOTIFY_SECRET that notify-submission
+  // uses. Supabase secrets cannot be read back once set — only a digest is
+  // shown — so reusing that one would have meant overwriting a value the
+  // booking-form trigger still carries hardcoded, repairing the enquiry emails
+  // by breaking the ones that work.
+  //
   // Fail CLOSED: a missing secret refuses every call rather than turning this
   // into an open relay. Same rule as notify-submission since the 2026-07-28 fix.
-  const secret = Deno.env.get('NOTIFY_SECRET')
-  if (!secret) console.error('NOTIFY_SECRET is not set — refusing all calls')
+  const secret = Deno.env.get('NOTIFY_ENQUIRY_SECRET')
+  if (!secret) console.error('NOTIFY_ENQUIRY_SECRET is not set — refusing all calls')
   if (!secret || req.headers.get('x-notify-secret') !== secret) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...CORS, 'Content-Type': 'application/json' },

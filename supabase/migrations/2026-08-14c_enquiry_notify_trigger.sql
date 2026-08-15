@@ -11,11 +11,20 @@
 -- rétablit le formulaire immédiatement (au prix des emails).
 --
 -- ⚠️ CE FICHIER CONTIENT DEUX VALEURS À REMPLACER À LA MAIN. C'est le seul du
--- projet dans ce cas : l'URL du projet Supabase et le `NOTIFY_SECRET` diffèrent
+-- projet dans ce cas : l'URL du projet Supabase et le secret diffèrent
 -- entre TEST et PROD, et le secret n'a rien à faire dans un dépôt Git.
---   <PROJECT_REF>    → oslsbansxaajcpwhivmx en PROD, uefezhyqcggpzomowpww en TEST
---   <NOTIFY_SECRET>  → la valeur déjà présente dans les secrets Edge Functions
---                      du projet (celle qu'utilise notify-submission)
+--   <PROJECT_REF>            → oslsbansxaajcpwhivmx en PROD, uefezhyqcggpzomowpww en TEST
+--   <NOTIFY_ENQUIRY_SECRET>  → une valeur QUE VOUS CHOISISSEZ, posée aussi dans
+--                              les secrets Edge Functions du projet
+--
+-- ⚠️ POURQUOI UN SECRET DÉDIÉ, ET PAS LE `NOTIFY_SECRET` EXISTANT
+-- Les secrets Supabase ne sont **pas relisibles** une fois posés : le dashboard
+-- n'en montre qu'une empreinte. Impossible donc de recopier `NOTIFY_SECRET` dans
+-- ce fichier — et le réécrire avec une valeur connue casserait
+-- `notify-submission`, dont le trigger porte l'ancienne valeur en dur. Un secret
+-- par consommateur : chacun se change sans toucher à l'autre.
+-- (Vécu le 2026-08-15 : trigger et fonction avec deux valeurs différentes →
+--  `net._http_response` en 401, aucune erreur visible ailleurs, aucun email.)
 --
 -- PRÉREQUIS : déployer d'abord la fonction
 --   supabase functions deploy notify-enquiry --no-verify-jwt
@@ -58,7 +67,7 @@ BEGIN
       url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/notify-enquiry',
       headers := jsonb_build_object(
                    'Content-Type',     'application/json',
-                   'x-notify-secret',  '<NOTIFY_SECRET>'
+                   'x-notify-secret',  '<NOTIFY_ENQUIRY_SECRET>'
                  ),
       body    := jsonb_build_object(
                    'record',       to_jsonb(NEW),
@@ -104,7 +113,7 @@ CREATE TRIGGER trg_notify_enquiry
 --
 -- 4) Si aucun email n'arrive, regarder dans l'ordre :
 --    • les logs de la fonction (dashboard → Edge Functions → notify-enquiry) ;
---      un 401 = le `<NOTIFY_SECRET>` du trigger ne correspond pas au secret ;
+--      un 401 = la valeur du trigger ne correspond pas à `NOTIFY_ENQUIRY_SECRET` ;
 --    • `SELECT * FROM net._http_response ORDER BY created DESC LIMIT 5;`
 --      (la réponse HTTP réellement reçue par pg_net).
 -- ════════════════════════════════════════════════════════════════════════════
