@@ -1,9 +1,9 @@
 # Enquiries — l'avant-réservation
 
-> Conception arrêtée avec gui les 2026-08-13/14. **Rien n'est codé.** Ce document est à
-> relire à froid et à corriger avant d'écrire la première ligne.
+> Conception arrêtée avec gui les 2026-08-13/14, **livrée et en service sur les deux bases au
+> 2026-08-15** (étapes 0 à 5). L'avancement se lit en bas, § « Découpe ».
 > Nom retenu pour l'UI : **Enquiries** (le mot de l'hôtellerie ; décrit ce que la chose est,
-> pas ce que la personne vaut). En français on dit « demandes ».
+> pas ce que la personne vaut), sous l'entrée de menu **Requests**. En français : « demandes ».
 
 ## La règle qui tient tout
 
