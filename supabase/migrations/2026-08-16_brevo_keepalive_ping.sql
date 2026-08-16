@@ -12,11 +12,14 @@
 -- Postgres. `brevo-ping` fait un GET /v3/account : rien n'est envoyé, rien
 -- n'est stocké, le seul but est qu'un appel API ait eu lieu.
 --
--- ⚠️ CE FICHIER CONTIENT DEUX VALEURS À REMPLACER À LA MAIN — même piège que
--- `2026-08-14c_enquiry_notify_trigger.sql`, même raison :
---   <PROJECT_REF>        → oslsbansxaajcpwhivmx (PROD)
---   <BREVO_PING_SECRET>  → une valeur QUE VOUS CHOISISSEZ, posée aussi dans
---                          les secrets Edge Functions du projet
+-- ⚠️ CE FICHIER CONTIENT UNE VALEUR À REMPLACER À LA MAIN, JAMAIS COMMITÉE —
+-- même piège que `2026-08-14c_enquiry_notify_trigger.sql`, même raison : un
+-- secret n'a rien à faire dans un dépôt Git. <PROJECT_REF> est déjà rempli
+-- (oslsbansxaajcpwhivmx, pas sensible — PROD only, cf. ci-dessous).
+--   <BREVO_PING_SECRET>  → la valeur posée dans les secrets Edge Functions du
+--                          projet (les deux doivent être IDENTIQUES). Remplacer
+--                          uniquement dans votre copie locale avant d'exécuter
+--                          dans le SQL editor — ne pas commiter le résultat.
 --
 -- ⚠️ POURQUOI UN SECRET DÉDIÉ, ET PAS UN SECRET EXISTANT
 -- Les secrets Supabase ne sont pas relisibles une fois posés (dashboard =
@@ -46,7 +49,7 @@ BEGIN
   -- suivant de toute façon — pas la peine qu'il échoue bruyamment).
   BEGIN
     PERFORM net.http_post(
-      url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/brevo-ping',
+      url     := 'https://oslsbansxaajcpwhivmx.supabase.co/functions/v1/brevo-ping',
       headers := jsonb_build_object(
                    'Content-Type',     'application/json',
                    'x-notify-secret',  '<BREVO_PING_SECRET>'
