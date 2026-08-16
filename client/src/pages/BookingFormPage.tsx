@@ -204,15 +204,35 @@ function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: Travele
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-/** `enquiryId` is carried by the personalised link gui sends from an enquiry.
- *  It rides along in the payload so the submission comes back attached, instead
- *  of being matched afterwards on a name and an email that may both have
- *  changed. Absent when someone finds the form on their own. */
-export default function BookingFormPage({ enquiryId }: { enquiryId?: string } = {}) {
-  const [lang, setLang] = useState<Lang>(detectLang())
+/** `enquiryId` and the prefill fields are carried by the personalised link gui
+ *  sends from an enquiry — a snapshot taken when the link was created (see
+ *  EnquiryPanel.createFormLink), not a live lookup: anon has no SELECT on
+ *  enquiries. `enquiryId` itself still rides along in the payload so the
+ *  submission comes back attached, instead of being matched afterwards on a
+ *  name and an email that may both have changed. All absent when someone
+ *  finds the form on their own. */
+interface BookingFormPageProps {
+  enquiryId?: string
+  prefillName?: string
+  prefillEmail?: string
+  prefillPhone?: string
+  prefillLang?: string
+}
+
+function isLang(v: string | undefined): v is Lang {
+  return v === 'fr' || v === 'en' || v === 'es'
+}
+
+export default function BookingFormPage({ enquiryId, prefillName, prefillEmail, prefillPhone, prefillLang }: BookingFormPageProps = {}) {
+  const [lang, setLang] = useState<Lang>(() => isLang(prefillLang) ? prefillLang : detectLang())
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(1)
-  const [d, setD] = useState<FormData>(EMPTY_FORM)
+  const [d, setD] = useState<FormData>(() => ({
+    ...EMPTY_FORM,
+    reference_name: prefillName || '',
+    email: prefillEmail || '',
+    phone: prefillPhone || '',
+  }))
   const [travelers, setTravelers] = useState<FormTraveler[]>([{ first_name: '', last_name: '', passport_number: '' }])
   const [showWaiver, setShowWaiver] = useState(false)
   const [submitting, setSubmitting] = useState(false)

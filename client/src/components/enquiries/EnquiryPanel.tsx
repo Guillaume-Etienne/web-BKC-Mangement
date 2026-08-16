@@ -57,6 +57,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
   const [newNote, setNewNote] = useState('')
   const [saving, setSaving] = useState(false)
   const [formLink, setFormLink] = useState<{ token: string } | null>(null)
+  const [refreshed, setRefreshed] = useState(false)
 
   const isNew = !enquiry
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm(f => ({ ...f, [k]: v }))
@@ -141,6 +142,16 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
     return `${window.location.origin}/?share=${token}`
   }
 
+  function formLinkParams(e: Enquiry) {
+    return {
+      enquiry_id: e.id,
+      name: e.name,
+      email: e.email ?? '',
+      phone: e.phone ?? '',
+      language: e.language,
+    }
+  }
+
   async function createFormLink() {
     if (!enquiry) return
     setSaving(true)
@@ -148,12 +159,31 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
     const { error } = await supabase.from('shared_links').insert({
       token, type: 'booking_form',
       label: `Booking form — ${enquiry.name}`,
-      params: { enquiry_id: enquiry.id },
+      // Snapshotted at creation time, not looked up live — anon has no SELECT
+      // on enquiries, and re-fetching would mean widening that boundary just
+      // to pre-fill four fields. Use "Refresh" below if the enquiry changes.
+      params: formLinkParams(enquiry),
       is_active: true,
     })
     setSaving(false)
     if (error) { alert(`The link was NOT created.\n\n${error.message}`); return }
     setFormLink({ token })
+  }
+
+  // Same token (nothing already sent needs to change), fresh snapshot — for
+  // links created before name/email/phone/language rode along, or after the
+  // enquiry was edited since the link went out.
+  async function refreshFormLink() {
+    if (!enquiry || !formLink) return
+    setSaving(true)
+    const { error } = await supabase.from('shared_links').update({
+      label: `Booking form — ${enquiry.name}`,
+      params: formLinkParams(enquiry),
+    }).eq('token', formLink.token)
+    setSaving(false)
+    if (error) { alert(`The link was NOT refreshed.\n\n${error.message}`); return }
+    setRefreshed(true)
+    setTimeout(() => setRefreshed(false), 2500)
   }
 
   async function remove() {
@@ -336,6 +366,11 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
                 <button type="button" onClick={() => navigator.clipboard?.writeText(formUrl(formLink.token))}
                   className="shrink-0 px-3 py-1.5 bg-gray-800 dark:bg-gray-700 text-white rounded text-sm font-medium">
                   Copy
+                </button>
+                <button type="button" onClick={refreshFormLink} disabled={saving}
+                  title="Same link, fresh name/email/phone/language snapshot from this enquiry"
+                  className="shrink-0 px-3 py-1.5 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-40 rounded text-sm font-medium">
+                  {refreshed ? '✅' : 'Refresh'}
                 </button>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">
