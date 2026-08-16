@@ -36,7 +36,8 @@ Add to your MCP client config:
 }
 ```
 
-(`cwd` matters — that's where `dotenv` looks for `.env`.)
+(`cwd` is just tidy here — `.env` is resolved next to this package's own source, not from the
+caller's working directory, so it's found either way.)
 
 To run it standalone for a smoke test: `npm start` (needs a stdio MCP client attached, e.g.
 `npx @modelcontextprotocol/inspector npx tsx src/index.ts`).

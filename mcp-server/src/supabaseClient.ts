@@ -1,5 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
-import 'dotenv/config'
+import { config as loadEnv } from 'dotenv'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+
+// Resolve .env next to this package regardless of the caller's cwd — the MCP
+// client (Claude Code/Desktop) launches this process with its own cwd, not
+// necessarily mcp-server/, so `dotenv/config`'s default (process.cwd()) can't
+// be trusted here.
+const here = dirname(fileURLToPath(import.meta.url))
+loadEnv({ path: join(here, '..', '.env') })
 
 const target = (process.env.SUPABASE_TARGET ?? 'test').trim().toLowerCase()
 if (target !== 'test' && target !== 'prod') {
