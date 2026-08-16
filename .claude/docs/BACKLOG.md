@@ -10,10 +10,10 @@
 
 ## 🚨 MIGRATIONS SQL EN ATTENTE D'APPLICATION (gui)
 
-> 🆕 **`2026-08-16c_lesson_price_tiers.sql` en attente** — tarification dégressive par
-> palier (cours privés/groupe). Table `price_tiers`, admin-only, aucun placeholder à
-> remplacer. Une seule tâche, TEST + PROD comme d'habitude. Vérification par curl anon →
-> 42501, contrôle négatif → 42703 (détail en bas du fichier SQL).
+> ✅ **`2026-08-16c_lesson_price_tiers.sql` appliquée et vérifiée TEST + PROD le
+> 2026-08-16** — tarification dégressive par palier. Curl anon sur `price_tiers` →
+> **42501** sur les deux bases, contrôle négatif `colonne_bidon` → **42703**. Registre
+> vide sur ce fichier désormais.
 
 > ✅ **`2026-08-16b_agency_billing_foundation.sql` appliquée et vérifiée TEST + PROD le
 > 2026-08-16** — fondations de la facturation aux agences partenaires (§ Requests/Enquiries
@@ -383,8 +383,10 @@ un seul tarif pour toute une leçon groupe basé sur le **premier participant**.
   le premier participant, repli sur les heures de cette résa seule quand personne n'est lié à
   un `Client`, snapshot toujours prioritaire, jamais de palier sur supervision. **299 tests.**
 
-⬜ **Reste (gui)** : appliquer la migration TEST + PROD, vérifier par curl anon (`price_tiers`
-→ 42501, contrôle négatif → 42703, détail en tête de fichier).
+✅ **Migration appliquée et vérifiée TEST + PROD le 2026-08-16** — curl anon sur
+`price_tiers` → 42501 sur les deux bases, contrôle négatif → 42703.
+⬜ **Reste (gui)** : saisir les vrais seuils dans Options → Pricing (le formulaire existe,
+aucun palier n'est encore posé).
 
 🔶 **Déviation assumée par rapport au plan initial** : `EquipmentPage.tsx` (calcul de marge
 matériel, déjà une estimation approximative) **n'a pas été rendu tier-aware** — il n'a
