@@ -195,7 +195,7 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
 
 ---
 
-## 📥 Requests / Enquiries — ✅ EN SERVICE (2026-08-15), 3 restes
+## 📥 Requests / Enquiries — ✅ EN SERVICE (2026-08-15), 2 restes
 
 Chantier livré et vérifié **sur les deux bases** : origines trilingues (Options → 📣 Sources),
 tableau scannable, formulaire léger en iframe (`?lang=`), rattachement demande↔réservation,
@@ -204,20 +204,15 @@ sous-onglets, 3 lignes de pending actions, `frame-ancestors` limité à bileneki
 **283 tests.** Conception et décisions : **`.claude/docs/ENQUIRIES.md`**. Contrat pour le
 projet site web : **`.claude/docs/ENQUIRY_FORM_EMBED.md`**.
 
-### 🔐 1. Faire tourner deux secrets — le seul point pressant
+### ✅ 1. Faire tourner deux secrets — RÉGLÉ (2026-08-16)
 
 Le 2026-08-15, gui avait collé dans `client/.env.local` sa **clé API Brevo** et
-`NOTIFY_ENQUIRY_SECRET`. Le fichier est bien gitignored (jamais suivi, absent de l'historique,
-vérifié) : **aucune fuite vers le dépôt**. Mais les deux valeurs se sont affichées en clair
-dans une sortie de terminal, donc dans une conversation archivée.
-
-- **Clé Brevo** : régénérer dans Brevo, mettre à jour le secret `BREVO_API_KEY` sur PROD. 2 min.
-- **`NOTIFY_ENQUIRY_SECRET`** : plus lourd — nouvelle valeur dans les secrets **et** rejouer
-  `2026-08-14c` avec elle, sur les deux bases. Ce qu'il ouvre : appeler `notify-enquiry` avec
-  une charge arbitraire, donc **envoyer des emails depuis `no-reply@bilenekite.com`** vers
-  n'importe quelle adresse. C'est la faille S1 refermée en juillet.
-- ⚠️ Le fichier porte désormais un avertissement en commentaire. **Aucun secret n'a sa place
-  dans `.env.local`** — seulement les URLs et les clés anon, publiques par nature.
+`NOTIFY_ENQUIRY_SECRET`, qui se sont affichées en clair dans une conversation archivée
+(fichier bien gitignored — aucune fuite vers le dépôt). **Les deux ont été tournées et
+vérifiées par gui le 2026-08-16** : nouvelle clé Brevo (`BREVO_API_KEY`) et nouvelle valeur de
+`NOTIFY_ENQUIRY_SECRET` rejouée avec `2026-08-14c` sur PROD. Le fichier `.env.local` porte
+désormais un avertissement en commentaire — **aucun secret n'a sa place là**, seulement les
+URLs et les clés anon, publiques par nature.
 
 ### ✅ 2. Ping mensuel pour garder la clé Brevo vivante — LIVRÉ et vérifié le 2026-08-16
 
@@ -243,10 +238,10 @@ proprement si `BREVO_API_KEY` est absente, mais la tâche n'est même pas posée
 - Les **fiches saisies à la main** (WhatsApp, Instagram) non plus : le trigger ne se déclenche
   que sur `channel='form'`.
 
-### 🧹 4. Restes de test en PROD
+### ✅ 4. Restes de test en PROD — nettoyé (2026-08-16)
 
 Demandes `BREVO-V2 14h18` et `Guillaume` (l'essai de gui lui-même), plus le contact
-`gsetienne9+brevotest@gmail.com` dans Brevo. Sans conséquence, mais autant partir propre.
+`gsetienne9+brevotest@gmail.com` dans Brevo — supprimés par gui.
 
 ### 💡 5. Idée non tranchée — agences partenaires (ex. Fun&Fly)
 
@@ -270,14 +265,13 @@ Martinho comme une chambre normale à 0 €/nuit au lieu du bloc We pay/Charged.
 **Corrigé au navigateur (Options → Accommodations → San Martinho → coché la case → Save)**,
 confirmé revenu à « per-stay pricing · 1 spot » sans badge. Aucune donnée existante touchée.
 
-### ⬜ 7. Réservation #022 (Loïc SENE / Fun&Fly) — reste à détailler les cours
+### ✅ 7. Réservation #022 (Loïc SENE / Fun&Fly) — cours détaillés dans le planning (2026-08-16)
 
-Créée le 2026-08-16 en test (conversion enquête → résa) : Loïc SENE + Julie LE FOULER,
-19→28/10/2026, San Martinho (0€/0€, per-stay, rien facturé), statut **Provisional**, 0€ payé.
-Le wizard ne capture qu'un compteur générique (« 1 lesson ») — **reste à saisir dans le
-planning** les deux blocs réels : stage privatif **10h du 20 au 24/10**, puis privatif **4h du
-25 au 26/10**, Loïc uniquement (Julie ne prend pas de cours). Détail complet dans les notes
-internes de la résa. Enquête d'origine marquée **Won** et reliée (`client_id`/`booking_id`).
+Créée le 2026-08-16 (conversion enquête → résa) : Loïc SENE + Julie LE FOULER, 19→28/10/2026,
+San Martinho (0€/0€, per-stay, rien facturé), statut **Provisional**, 0€ payé. Les deux blocs
+de cours (stage privatif **10h du 20 au 24/10**, puis privatif **4h du 25 au 26/10**, Loïc
+uniquement) sont désormais saisis dans le planning par gui. Enquête d'origine marquée **Won**
+et reliée (`client_id`/`booking_id`).
 
 ---
 
@@ -330,7 +324,7 @@ sans toucher à un seul calcul (donc rien à revérifier côté maths) ; écran 
 pour créer/éditer les saisons ; sélecteur `All time / saison / ⇄ Compare` sur le Dashboard.
 Invariant verrouillé par un test : deux saisons adjacentes doivent sommer au total all-time.
 **208 tests.**
-⬜ **Reste (gui)** : saisir ses **vraies dates de saison** dans Options → Seasons
+✅ **Fait (gui)** : vraies dates de saison saisies dans Options → Seasons
 (une saison = début septembre → mi-mars, sans chevauchement).
 ✅ **FAIT le 2026-08-13** — `PlanningView` lit la table `seasons`, la 3ᵉ source de vérité a
 disparu. Nouveau module pur `utils/seasonWindow.ts` (**16 tests**, 239 au total) :
@@ -350,7 +344,7 @@ disparu. Nouveau module pur `utils/seasonWindow.ts` (**16 tests**, 239 au total)
   (01/09→31/05 et 15/09→15/03) — la compta aurait compté deux fois en mode Compare.
   **Décision gui : garder 15/09/2026 → 15/03/2027**, l'autre supprimée. TEST n'a plus qu'une
   saison ; le bouton *Compare* disparaît de lui-même (il exige 2 saisons).
-  ⬜ **PROD reste à faire par gui** — ces dates sont celles de TEST, pas forcément les siennes.
+  ✅ **PROD fait par gui (2026-08-16)**.
 
 ### 3. ~~🧾 Une chambre sans tarif s'affiche « €0 » sur la page client partagée~~ — ✅ CORRIGÉ (2026-08-02, `09df7f2`)
 **Décision gui : masquer purement et simplement** la ligne à 0 €, plutôt que l'étiqueter.
