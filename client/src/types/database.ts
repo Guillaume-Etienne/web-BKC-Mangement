@@ -94,11 +94,51 @@ export interface Booking {
   waiver_accepted_at: string | null          // ISO timestamp when liability waiver accepted
   waiver_version: string | null              // version of the accepted waiver text
   referral_source: string | null             // "how did you hear about us"
+  agency_id?: string | null                  // 2026-08-16, foundations only — see Agency below
 }
 
 export interface BookingRoom {
   booking_id: string
   room_id: string
+}
+
+// Partner agencies (Fun&Fly & co.) — foundations posed 2026-08-16, nothing
+// writes AgencyBillingLine yet. See .claude/docs/BACKLOG.md for the roadmap.
+export type AgencyRateCategory = 'lesson' | 'rental' | 'transfer' | 'accommodation'
+
+export interface Agency {
+  id: string
+  name: string
+  commission_percent: number   // flat %, retained by the agency on the gross billed amount
+  notes: string | null
+  is_active: boolean
+}
+
+export interface AgencyRateItem {
+  id: string
+  agency_id: string
+  category: AgencyRateCategory
+  label: string
+  unit_hours: number | null    // package size, category === 'lesson' only
+  price: number
+  is_active: boolean           // deactivate, never delete — same rule as billable price_items
+}
+
+/** One invoice line — not one per Lesson/EquipmentRental/TaxiTrip row. A 10x2h
+ *  package stays a single 450€ line even once it becomes 10 separate lessons in
+ *  the planning; those lessons reference this row's id to track hours done vs
+ *  `unit_hours` remaining, they don't each carry their own price. */
+export interface AgencyBillingLine {
+  id: string
+  booking_id: string
+  agency_id: string
+  participant_id: string | null      // a package belongs to one traveler, not the whole booking
+  agency_rate_item_id: string | null
+  price: number                      // frozen at creation, like Lesson.price_per_hour
+  unit_hours: number | null          // frozen at creation, lesson packages only
+  invoiced_at: string | null
+  paid_at: string | null
+  notes: string | null
 }
 
 // Dining events ("Now" tab)
@@ -174,6 +214,7 @@ export interface Lesson {
    *  past lessons. null → fall back to the current rate. A per-lesson override
    *  still outranks it: that is an explicit decision on this lesson. */
   instructor_rate: number | null
+  agency_billing_line_id?: string | null  // 2026-08-16, foundations only — see AgencyBillingLine
   instructor?: Instructor
   clients?: Client[]
 }
@@ -259,6 +300,7 @@ export interface TaxiTrip {
   // (3) the whole MZN margin then goes to the center, tuned via price_eur / price_driver_mzn.
   // Admin views (List/Kanban) should badge these trips "🔒 Private taxi / Táxi privado".
   margin_manager_mzn: number
+  agency_billing_line_id?: string | null  // 2026-08-16, foundations only — see AgencyBillingLine
 }
 
 export interface TaxiPricingDefaults {
@@ -448,6 +490,7 @@ export interface EquipmentRental {
   slot: RentalSlot
   price: number
   notes: string | null
+  agency_billing_line_id?: string | null  // 2026-08-16, foundations only — see AgencyBillingLine
 }
 
 /** Tuning knobs for the Equipment page's "CA" tab — how much of a lesson's
@@ -494,6 +537,7 @@ export interface BookingRoomPrice {
   room_id: string
   price_per_night: number
   override_note: string | null
+  agency_billing_line_id?: string | null  // 2026-08-16, foundations only — see AgencyBillingLine
 }
 
 // External accommodation (Palmeiras bungalows, other hotels)

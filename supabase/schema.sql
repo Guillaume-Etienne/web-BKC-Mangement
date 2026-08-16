@@ -86,6 +86,23 @@ CREATE TABLE clients (
 CREATE UNIQUE INDEX idx_clients_import_id ON clients(import_id) WHERE import_id IS NOT NULL;
 
 
+-- ── Partner agencies (Fun&Fly & co.) ─────────────────────────────────────────
+-- Foundations only, posed 2026-08-16b. See agency_rate_items / agency_billing_lines
+-- below (after booking_participants) and .claude/docs/BACKLOG.md for the roadmap
+-- (nothing writes agency_billing_lines yet — wizard/planning wiring is Phase 2+).
+
+CREATE TABLE agencies (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                TEXT NOT NULL,
+  commission_percent  NUMERIC(5,2) NOT NULL DEFAULT 0,
+  notes               TEXT,
+  is_active           BOOLEAN NOT NULL DEFAULT true,
+  created_at          TIMESTAMPTZ DEFAULT now()
+);
+
+REVOKE ALL ON agencies FROM anon;  -- admin only, jamais anon
+
+
 -- ── Bookings ──────────────────────────────────────────────────────────────────
 
 CREATE SEQUENCE booking_number_seq START 1;
@@ -124,6 +141,7 @@ CREATE TABLE bookings (
   waiver_accepted_at        TIMESTAMPTZ,  -- when client accepted the liability waiver
   waiver_version            TEXT,         -- version string of the accepted waiver text
   referral_source           TEXT,         -- "how did you hear about us"
+  agency_id                 UUID REFERENCES agencies(id) ON DELETE SET NULL,  -- 2026-08-16b, foundations only
   created_at                TIMESTAMPTZ DEFAULT now(),
   CONSTRAINT check_dates CHECK (check_out > check_in)
 );
@@ -164,6 +182,47 @@ CREATE TABLE booking_participants (
 CREATE INDEX idx_booking_participants_booking ON booking_participants(booking_id);
 
 
+-- ── Partner agencies, continued (grille tarifaire + lignes facturables) ──────
+-- Foundations only, posed 2026-08-16b — nothing writes agency_billing_lines yet.
+
+CREATE TABLE agency_rate_items (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agency_id    UUID NOT NULL REFERENCES agencies(id) ON DELETE CASCADE,
+  category     TEXT NOT NULL CHECK (category IN ('lesson', 'rental', 'transfer', 'accommodation')),
+  label        TEXT NOT NULL,
+  unit_hours   NUMERIC(5,2),                    -- package size, category='lesson' only
+  price        NUMERIC(10,2) NOT NULL,
+  is_active    BOOLEAN NOT NULL DEFAULT true,    -- deactivate, never delete — see price_items
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_agency_rate_items_agency ON agency_rate_items(agency_id);
+
+-- One row = one invoice line, even when a 10x2h package becomes 10 separate
+-- Lesson rows in the planning. participant_id nullable: a package belongs to
+-- one traveler (see the real Fun&Fly invoice: 3 family members, 3 separate
+-- "Pack Privé" lines), but stays optional for lines that don't concern one.
+CREATE TABLE agency_billing_lines (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id           UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  agency_id            UUID NOT NULL REFERENCES agencies(id),
+  participant_id       UUID REFERENCES booking_participants(id) ON DELETE SET NULL,
+  agency_rate_item_id  UUID REFERENCES agency_rate_items(id),
+  price                NUMERIC(10,2) NOT NULL,   -- frozen at creation, like lessons.price_per_hour
+  unit_hours           NUMERIC(5,2),             -- frozen at creation, lesson packages only
+  invoiced_at          TIMESTAMPTZ,
+  paid_at              TIMESTAMPTZ,
+  notes                TEXT,
+  created_at           TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_agency_billing_booking ON agency_billing_lines(booking_id);
+CREATE INDEX idx_agency_billing_agency  ON agency_billing_lines(agency_id);
+
+REVOKE ALL ON agency_rate_items    FROM anon;  -- admin only, jamais anon
+REVOKE ALL ON agency_billing_lines FROM anon;  -- admin only, jamais anon
+
+
 -- ── Instructors & Lessons ─────────────────────────────────────────────────────
 
 CREATE TABLE instructors (
@@ -196,6 +255,7 @@ CREATE TABLE lessons (
   notes            TEXT,
   kite_id          UUID,            -- FK to equipment (nullable)
   board_id         UUID,            -- FK to equipment (nullable)
+  agency_billing_line_id UUID REFERENCES agency_billing_lines(id) ON DELETE SET NULL,  -- 2026-08-16b, foundations only
   created_at       TIMESTAMPTZ DEFAULT now()
 );
 
@@ -284,6 +344,7 @@ CREATE TABLE equipment_rentals (
   slot            rental_slot NOT NULL,
   price           NUMERIC(8,2) NOT NULL DEFAULT 0,
   notes           TEXT,
+  agency_billing_line_id UUID REFERENCES agency_billing_lines(id) ON DELETE SET NULL,  -- 2026-08-16b, foundations only
   created_at      TIMESTAMPTZ DEFAULT now()
 );
 
@@ -336,6 +397,7 @@ CREATE TABLE taxi_trips (
   price_eur           INTEGER NOT NULL DEFAULT 120,       -- fixed EUR price charged to client
   price_driver_mzn    INTEGER NOT NULL DEFAULT 6000,      -- what driver gets (MZN)
   margin_manager_mzn  INTEGER NOT NULL DEFAULT 1000,      -- manager commission (MZN)
+  agency_billing_line_id UUID REFERENCES agency_billing_lines(id) ON DELETE SET NULL,  -- 2026-08-16b, foundations only
   created_at          TIMESTAMPTZ DEFAULT now()
 );
 
@@ -483,6 +545,7 @@ CREATE TABLE booking_room_prices (
   room_id          UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
   price_per_night  NUMERIC(8,2) NOT NULL,
   override_note    TEXT,
+  agency_billing_line_id UUID REFERENCES agency_billing_lines(id) ON DELETE SET NULL,  -- 2026-08-16b, foundations only
   PRIMARY KEY (booking_id, room_id)
 );
 
@@ -752,7 +815,8 @@ BEGIN
     'expenses',
     'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries',
     'email_logs', 'document_templates',
-    'enquiry_sources', 'enquiries', 'enquiry_notes'
+    'enquiry_sources', 'enquiries', 'enquiry_notes',
+    'agencies', 'agency_rate_items', 'agency_billing_lines'
   ]) LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format(

@@ -395,6 +395,65 @@ valeur d'enum**, pas une colonne — c'est pour ça que `lesson_type` et `rental
 > location : tous sortis en base). `category='taxi'` a disparu — ces lignes n'étaient
 > lues par personne, le vrai réglage taxi est dans `taxi_pricing_defaults`.
 
+### `agencies` / `agency_rate_items` / `agency_billing_lines` — fondations posées 2026-08-16
+
+Facturation aux agences partenaires (Fun&Fly & co.) : elles envoient des clients, le centre
+rend le service, mais c'est l'**agence** qui doit être facturée — à un tarif catalogue propre
+à chaque agence, moins une commission qu'elle retient. Conçu et confirmé sur une vraie facture
+Fun&Fly (`temp/Factu BKC 2025 FFLY Famille Brunet.xlsx`). **Migration
+`2026-08-16b_agency_billing_foundation.sql` : schéma + écran Options → 🤝 Agencies
+(`AgenciesTab.tsx`) seulement.** Rien n'écrit encore dans `agency_billing_lines` — le wizard,
+le planning et la page client ne connaissent pas encore la notion. Roadmap complète :
+`.claude/docs/BACKLOG.md` § Agences partenaires.
+
+**`agencies` → `Agency`**
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| name | string | |
+| commission_percent | number | % retenu par l'agence sur le total facturé (20 chez Fun&Fly) |
+| notes | string \| null | coordonnées de facturation, en texte libre — pas de PDF généré |
+| is_active | boolean | |
+
+**`agency_rate_items` → `AgencyRateItem`** — la grille tarifaire d'une agence.
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| agency_id | string (UUID) | |
+| category | `'lesson' \| 'rental' \| 'transfer' \| 'accommodation'` | TEXT+CHECK, pas un enum Postgres (évite le piège "ALTER TYPE dans la même transaction") |
+| label | string | ex. "Pack cours Privé 10x 2h" |
+| unit_hours | number \| null | taille du forfait, `category='lesson'` seulement |
+| price | number | tarif catalogue fixe |
+| is_active | boolean | **On désactive, on ne supprime pas** — même règle que les tarifs verrouillés de `price_items` |
+
+**`agency_billing_lines` → `AgencyBillingLine`** — l'unité facturable réelle, une ligne = une
+ligne de facture (pas une ligne par leçon : un forfait 10×2h reste une seule ligne à 450€ même
+consommé en 10 séances dans le planning).
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| booking_id | string (UUID) | |
+| agency_id | string (UUID) | |
+| participant_id | string \| null (FK → booking_participants) | un forfait appartient à un voyageur précis (facture Brunet : 3 personnes, 3 lignes) |
+| agency_rate_item_id | string \| null | quelle ligne de catalogue |
+| price | number | **figé à la création**, même logique que `lessons.price_per_hour` |
+| unit_hours | number \| null | figé à la création, forfaits cours seulement |
+| invoiced_at / paid_at | string \| null (ISO ts) | pas de statut enum — même idiome que `waiver_accepted_at`/`crm_synced_at` |
+| notes | string \| null | |
+
+**Colonnes ajoutées** (nullables, non renseignées tant que la Phase 2 n'est pas codée) :
+`bookings.agency_id`, `lessons.agency_billing_line_id`,
+`equipment_rentals.agency_billing_line_id`, `taxi_trips.agency_billing_line_id`,
+`booking_room_prices.agency_billing_line_id`.
+
+> ⚠️ **Masquer un prix côté client n'est pas un GRANT de colonne ici** — contrairement à
+> `external_accommodation_bookings.total_cost` (jamais montré à personne), `lessons.price_per_hour`
+> doit rester visible pour un client normal mais disparaître **seulement quand la leçon est
+> facturée à une agence** (même ligne, deux comportements selon `agency_billing_line_id`). Un
+> GRANT de colonne ne peut pas conditionner par la valeur d'une autre colonne — il faudra une
+> fonction SECURITY DEFINER façon `share_room_keys()` qui redact la colonne, pas juste un
+> REVOKE/GRANT. Encore à faire (Phase 4 du BACKLOG), non couvert par la migration du 16 août.
+
 ### `shared_links` → `SharedLink`
 | Field | Type | Notes |
 |-------|------|-------|

@@ -10,6 +10,13 @@
 
 ## 🚨 MIGRATIONS SQL EN ATTENTE D'APPLICATION (gui)
 
+> 🆕 **`2026-08-16b_agency_billing_foundation.sql` en attente** — fondations de la
+> facturation aux agences partenaires (§ Requests/Enquiries point 5). 3 tables neuves
+> (`agencies`, `agency_rate_items`, `agency_billing_lines`), toutes admin-only. Pas de
+> placeholder à remplacer, s'applique telle quelle. Une seule tâche, TEST + PROD comme
+> d'habitude (aucun écart assumé ici, contrairement à Brevo). Vérification par curl anon →
+> 42501 sur les 3 tables (détail en bas du fichier SQL).
+
 > ✅ **`2026-08-16_brevo_keepalive_ping.sql` appliquée et vérifiée en PROD le 2026-08-16**
 > (ping mensuel Brevo, § Requests/Enquiries point 2 — **PROD uniquement**, décision gui, même
 > écart assumé que pour `BREVO_API_KEY`). Job `cron.job` créé (`jobid=1`, premier job cron du
@@ -242,16 +249,61 @@ d'alimenter Brevo. Ne pas rouvrir cette question sans une raison nouvelle.
 Demandes `BREVO-V2 14h18` et `Guillaume` (l'essai de gui lui-même), plus le contact
 `gsetienne9+brevotest@gmail.com` dans Brevo — supprimés par gui.
 
-### 💡 5. Idée non tranchée — agences partenaires (ex. Fun&Fly)
+### 🔶 5. Facturation aux agences partenaires (Fun&Fly & co.) — fondations livrées (2026-08-16)
 
-Repérée le 2026-08-16 en traitant une demande venue de **Fun&Fly**, une agence avec qui gui
-travaille : le modèle actuel (`enquiries`/`bookings`) ne distingue pas « un client final » d'
-« une agence qui réserve pour le compte de clients ». gui dit qu'il y en a **plusieurs comme
-ça**. Pas conçu, pas chiffré — à creuser le jour où gui veut : au minimum une notion
-d'agence/partenaire rattachable à une demande et à une réservation ; possiblement une logique
-de commission différente de la facturation directe. Ne pas confondre avec `enquiry_sources`
-(« comment nous avez-vous trouvé », en lecture seule côté visiteur) — une agence partenaire
-réserve activement, ce n'est pas juste un canal statistique.
+Repéré le 2026-08-16 en traitant une demande venue de **Fun&Fly** : le centre rend le service
+(cours, location, transfert, parfois hébergement en maison/bungalow) mais c'est l'**agence**
+qui doit être facturée, pas le client — à un tarif catalogue propre à chaque agence, moins une
+commission qu'elle retient. gui dit qu'il y a **plusieurs agences comme ça**. Confirmé sur une
+vraie facture Fun&Fly (`temp/Factu BKC 2025 FFLY Famille Brunet.xlsx` : catalogue fixe par
+agence, ex. "Pack cours Privé 10x 2h" = 450€, commission 20% retenue sur le total). Ne pas
+confondre avec `enquiry_sources` (« comment nous avez-vous trouvé », lecture seule côté
+visiteur) — une agence partenaire réserve activement, ce n'est pas un canal statistique.
+Design complet et exploration du code : `.claude/docs/data-model.md` § agencies.
+
+**✅ Phase 1 — fondations livrées** (plan approuvé, 3 tables + écran de gestion) :
+- Migration `2026-08-16b_agency_billing_foundation.sql` : `agencies`, `agency_rate_items`
+  (grille tarifaire par agence, TEXT+CHECK plutôt qu'un enum), `agency_billing_lines` (une
+  ligne = une ligne de facture, découplée des leçons individuelles — un forfait 10×2h reste
+  une seule ligne à 450€ même en 10 séances planning) ; colonnes `agency_id`/
+  `agency_billing_line_id` posées sur `bookings`/`lessons`/`equipment_rentals`/`taxi_trips`/
+  `booking_room_prices` (nullables, rien ne les remplit encore). RLS admin-only, `REVOKE ALL`
+  anon (même gabarit que `document_templates`). **⬜ Reste (gui) : appliquer la migration sur
+  PROD** (TEST optionnel), vérifier par curl anon → 42501 sur les 3 tables.
+- Nouvel onglet **Options → 🤝 Agencies** (`AgenciesTab.tsx`) : CRUD agence (nom, commission %,
+  actif) + grille tarifaire (catégorie, libellé, heures de forfait, prix — désactivable jamais
+  supprimable, même règle que les tarifs verrouillés de Pricing). `npm run build`/`test` OK,
+  283 tests (aucun test cassé, aucune logique de calcul touchée). **⬜ Reste : Claude in Chrome
+  sur PROD une fois la migration passée** — créer "Fun & Fly" (20%), saisir les 4 lignes vues
+  dans l'Excel (Pack Privé 10x2h=450€/20h, Pack Semi Privé 10x2h=330€/20h, Transfert=220€).
+
+**⬜ Phase 2 — brancher `agency_id`** dans l'étape Client du wizard (`BookingsPage.tsx`) :
+choisir l'agence à la création d'une résa.
+
+**⬜ Phase 3 — consommation** : dans `LessonWeekView.tsx`/`ForecastView.tsx` (création de
+leçon) et les points de création taxi/rental/chambre, proposer de rattacher la ligne à un
+`agency_billing_line` existant ou d'en créer un depuis la grille de l'agence.
+
+**⬜ Phase 4 — masquage côté client (le point sensible)** : `ClientSharePage.tsx` affiche
+aujourd'hui `lessons.price_per_hour` sans restriction anon. Un GRANT de colonne ne peut pas
+cacher un prix *seulement quand `agency_billing_line_id` est posé* — il faudra une fonction
+SECURITY DEFINER façon `share_room_keys()` qui renvoie les leçons avec `price_per_hour` à
+`NULL` quand la ligne est facturée à une agence. Terrain nouveau pour le projet (jusqu'ici les
+fonctions RLS scopent des lignes, pas des colonnes conditionnelles) — à vérifier par curl comme
+d'habitude, sans exception. Affichage "fait / reste à faire" (décision gui : simple, pas de
+système de crédit) : somme des `duration_hours` des leçons partageant le même
+`agency_billing_line_id`, comparée à `unit_hours` figé sur la ligne.
+
+**⬜ Phase 5 — exclure du calcul client** : `computeAccommodationRevenue`/
+`computeLessonsRevenue`/etc. (`accounting/utils.ts`) doivent sauter les lignes
+`agency_billing_line_id IS NOT NULL` — sinon un cours facturé à l'agence compte aussi comme dû
+par le client (double compte). Aucun calcul existant ne connaît cette notion aujourd'hui,
+vérifié par exploration du code le 2026-08-16.
+
+**⬜ Phase 6 — onglet compta Agencies** : calqué sur `PalmeirasTab.tsx` — sélecteur de
+période, KPI (brut facturé / commission / net dû), tableau des `agency_billing_lines` avec
+`invoiced_at`/`paid_at` à cocher, `computeAgencyTotals` pur et testé. Facturation **au fil de
+l'eau, revue avec gui avant envoi** (pas d'automatisation de l'envoi) — décision gui.
 
 ### ✅ 6. San Martinho — `external_billing` activé en PROD (2026-08-16)
 
