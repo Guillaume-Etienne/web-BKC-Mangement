@@ -227,7 +227,9 @@ Conséquences à connaître :
 - **TEST ne peut donc pas détecter une régression Brevo.** Toute modification de
   `pushToBrevo` se vérifie directement en PROD, sur une demande de contrôle qu'on supprime
   ensuite — avec le contact correspondant à retirer de Brevo.
-- ⚠️ **La clé se désactive après 90 jours sans appel** : voir le ping mensuel prévu ci-dessous.
+- ⚠️ **La clé se désactive après 90 jours sans appel** : parade codée le 2026-08-16 (Edge
+  Function `brevo-ping` + `pg_cron` mensuel) — détail et reste à déployer dans
+  `BACKLOG.md` § Requests/Enquiries, point 2.
 
 ⬜ **Non couvert** : les soumissions du **formulaire de réservation complet** ne partent pas
 vers Brevo (elles passent par `notify-submission`). À décider si gui le veut aussi.

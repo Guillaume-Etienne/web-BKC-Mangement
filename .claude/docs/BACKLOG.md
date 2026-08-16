@@ -10,7 +10,15 @@
 
 ## 🚨 MIGRATIONS SQL EN ATTENTE D'APPLICATION (gui)
 
-> ✅ **Registre VIDE au 2026-08-15.** Les trois migrations du chantier Enquiries (`14a`, `14b`,
+> 🆕 **Une migration en attente au 2026-08-16** : `2026-08-16_brevo_keepalive_ping.sql`
+> (ping mensuel Brevo, § Requests/Enquiries point 2). **Prérequis avant de l'exécuter** :
+> déployer `supabase functions deploy brevo-ping --no-verify-jwt`, créer le secret
+> `BREVO_PING_SECRET` (une valeur par base), puis remplacer les 2 placeholders du fichier
+> (`<PROJECT_REF>`, `<BREVO_PING_SECRET>`) avant de l'exécuter dans le SQL editor. Peut être
+> posée sur **TEST et PROD** sans risque — sans `BREVO_API_KEY` (absente sur TEST), la fonction
+> répond juste `{skipped:true}`.
+
+> ✅ **Registre vide au 2026-08-15 avant ce qui précède.** Les trois migrations du chantier Enquiries (`14a`, `14b`,
 > `14c`) sont passées sur TEST **et** PROD, et la chaîne email est prouvée bout-en-bout des
 > deux côtés. Contrôles PROD du 2026-08-15 : `notify-enquiry` → **401** avec un mauvais secret
 > (déployée, fail-closed), insertion `channel='form'` → **201**, écriture de `budget_eur` par
@@ -213,16 +221,21 @@ dans une sortie de terminal, donc dans une conversation archivée.
 - ⚠️ Le fichier porte désormais un avertissement en commentaire. **Aucun secret n'a sa place
   dans `.env.local`** — seulement les URLs et les clés anon, publiques par nature.
 
-### ⬜ 2. Ping mensuel pour garder la clé Brevo vivante — conçu, pas codé
+### 🔶 2. Ping mensuel pour garder la clé Brevo vivante — codé le 2026-08-16, reste à déployer
 
 **Une clé Brevo se désactive après 90 jours sans appel**, et la synchro n'est appelée que par
 une demande du formulaire. L'activité étant saisonnière (sept → mi-mars), le creux d'avril à
 août suffit à la tuer — et la panne ne se verrait qu'à la première demande de la rentrée, quand
 les contacts comptent le plus.
 
-Parade : une tâche `pg_cron` mensuelle qui appelle **notre fonction** (pas Brevo directement,
-pour que la clé reste dans un seul endroit), laquelle tape `GET /v3/account`. Rien n'est envoyé,
-le compteur repart à zéro.
+Parade codée : nouvelle Edge Function **`brevo-ping`** (`supabase/functions/brevo-ping/`) qui
+tape `GET /v3/account` — rien n'est envoyé, le compteur repart à zéro — protégée par son propre
+secret `BREVO_PING_SECRET` (même gabarit que `notify-enquiry`, un secret par consommateur).
+Appelée mensuellement par `pg_cron` via la migration `2026-08-16_brevo_keepalive_ping.sql`
+(registre en tête de fichier). Skippe proprement si `BREVO_API_KEY` est absente (TEST).
+**⬜ Reste (gui)** : déployer la fonction, créer le secret, remplacer les 2 placeholders de la
+migration, l'exécuter sur les 2 bases, vérifier (`SELECT ping_brevo_keepalive();` — détail des
+contrôles en bas du fichier SQL).
 
 ### ⬜ 3. Deux questions ouvertes sur le périmètre Brevo
 
@@ -236,6 +249,37 @@ le compteur repart à zéro.
 
 Demandes `BREVO-V2 14h18` et `Guillaume` (l'essai de gui lui-même), plus le contact
 `gsetienne9+brevotest@gmail.com` dans Brevo. Sans conséquence, mais autant partir propre.
+
+### 💡 5. Idée non tranchée — agences partenaires (ex. Fun&Fly)
+
+Repérée le 2026-08-16 en traitant une demande venue de **Fun&Fly**, une agence avec qui gui
+travaille : le modèle actuel (`enquiries`/`bookings`) ne distingue pas « un client final » d'
+« une agence qui réserve pour le compte de clients ». gui dit qu'il y en a **plusieurs comme
+ça**. Pas conçu, pas chiffré — à creuser le jour où gui veut : au minimum une notion
+d'agence/partenaire rattachable à une demande et à une réservation ; possiblement une logique
+de commission différente de la facturation directe. Ne pas confondre avec `enquiry_sources`
+(« comment nous avez-vous trouvé », en lecture seule côté visiteur) — une agence partenaire
+réserve activement, ce n'est pas juste un canal statistique.
+
+### ✅ 6. San Martinho — `external_billing` activé en PROD (2026-08-16)
+
+En convertissant la demande Fun&Fly (ci-dessus) en réservation, trouvé que la vraie fiche
+PROD de San Martinho n'avait **jamais eu la case « Billed per stay, not per night » cochée**,
+alors que le chantier du 2026-08-12 avait bien livré et vérifié la fonctionnalité — juste
+jamais appliquée à la fiche réelle. Symptôme avant correctif : badge rouge « no sell price:
+Room — billed 0€ » dans Options → Accommodations, et le wizard New Booking proposait San
+Martinho comme une chambre normale à 0 €/nuit au lieu du bloc We pay/Charged.
+**Corrigé au navigateur (Options → Accommodations → San Martinho → coché la case → Save)**,
+confirmé revenu à « per-stay pricing · 1 spot » sans badge. Aucune donnée existante touchée.
+
+### ⬜ 7. Réservation #022 (Loïc SENE / Fun&Fly) — reste à détailler les cours
+
+Créée le 2026-08-16 en test (conversion enquête → résa) : Loïc SENE + Julie LE FOULER,
+19→28/10/2026, San Martinho (0€/0€, per-stay, rien facturé), statut **Provisional**, 0€ payé.
+Le wizard ne capture qu'un compteur générique (« 1 lesson ») — **reste à saisir dans le
+planning** les deux blocs réels : stage privatif **10h du 20 au 24/10**, puis privatif **4h du
+25 au 26/10**, Loïc uniquement (Julie ne prend pas de cours). Détail complet dans les notes
+internes de la résa. Enquête d'origine marquée **Won** et reliée (`client_id`/`booking_id`).
 
 ---
 
