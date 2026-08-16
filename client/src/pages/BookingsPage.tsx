@@ -4,8 +4,9 @@ import { useClients } from '../hooks/useClients'
 import { useBookings, useBookingRooms, useBookingRoomPrices, useBookingParticipants } from '../hooks/useBookings'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useTaxiDrivers } from '../hooks/useTaxis'
+import { useAgencies } from '../hooks/useAgencies'
 import { useTable } from '../hooks/useSupabase'
-import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, Lesson, EquipmentRental, Payment, ExternalAccommodationBooking } from '../types/database'
+import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, Lesson, EquipmentRental, Payment, ExternalAccommodationBooking, Agency } from '../types/database'
 import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
 import { getFullHouseRate, getBaseNightlyRate } from '../utils/roomPricing'
 import { getConfiguredRate } from '../components/accounting/utils'
@@ -27,6 +28,11 @@ interface WizardData {
   new_client_phone: string
   new_client_nationality: string
   new_client_kite_level: KiteLevel | ''
+  // Referred by a partner agency (Fun&Fly & co.) — foundations only, posed 2026-08-16.
+  // Doesn't change billing yet: the wizard still charges the client normally.
+  // Just tags the booking so Phase 3+ (consumption, client-side hiding) has
+  // something to hang off. '' = direct booking, no agency.
+  agency_id: string
   // Step 2 – Stay
   check_in: string
   check_out: string
@@ -65,6 +71,7 @@ const EMPTY_WIZARD: WizardData = {
   client_id: '',
   new_client_first_name: '', new_client_last_name: '', new_client_email: '',
   new_client_phone: '', new_client_nationality: '', new_client_kite_level: '',
+  agency_id: '',
   check_in: '', check_out: '', visa_entry_date: '', visa_exit_date: '', room_ids: [], room_prices: {},
   external_stays: {}, status: 'provisional',
   participants: [], couples_count: 0, children_count: 0,
@@ -279,6 +286,7 @@ interface WizardProps {
   clientsLoading: boolean
   rooms: Room[]
   accommodations: Accommodation[]
+  agencies: Agency[]
   houseRentals: HouseRental[]
   roomRates: RoomRate[]
   drivers: TaxiDriver[]
@@ -292,7 +300,7 @@ interface WizardProps {
   onSave: (data: WizardData, isNew: boolean, editingId?: string | null) => void
 }
 
-function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, houseRentals, roomRates, drivers, bookings, bookingRooms, editingBookingId, isEditing, recordedPaid, onCancel, onSave }: WizardProps) {
+function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, agencies, houseRentals, roomRates, drivers, bookings, bookingRooms, editingBookingId, isEditing, recordedPaid, onCancel, onSave }: WizardProps) {
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(isEditing ? 6 : 1)
   const [d, setD] = useState<WizardData>(initial)
@@ -534,6 +542,17 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                   <button type="button" onClick={() => setCreatingClient(false)}
                     className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">← Back to list</button>
                 </>
+              )}
+
+              {agencies.length > 0 && (
+                <Field label="Referred by (optional)" hint="A partner agency (Fun&Fly & co.) — doesn't change billing yet, just tags the booking.">
+                  <select value={d.agency_id} onChange={e => update({ agency_id: e.target.value })} className={inputCls}>
+                    <option value="">— direct booking —</option>
+                    {agencies.filter(a => a.is_active).map(a => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
+                </Field>
               )}
             </div>
           )}
@@ -1195,6 +1214,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   const { data: bookingRoomPricesData } = useBookingRoomPrices()
   const { data: rooms } = useRooms()
   const { data: accommodations } = useAccommodations()
+  const { data: agencies } = useAgencies()
   const { data: houseRentals } = useTable<HouseRental>('house_rentals')
   const { data: roomRatesData } = useTable<RoomRate>('room_rates')
   const { data: externalStaysData, refresh: refreshExternalStays } =
@@ -1322,6 +1342,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     // 2. Insert or update booking
     const bookingFields = {
       client_id: clientId,
+      agency_id: data.agency_id || null,
       check_in: data.check_in,
       check_out: data.check_out,
       visa_entry_date: data.visa_entry_date || null,
@@ -1570,6 +1591,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     return {
       ...EMPTY_WIZARD,
       client_id: b.client_id,
+      agency_id: b.agency_id ?? '',
       check_in: b.check_in, check_out: b.check_out,
       visa_entry_date: b.visa_entry_date ?? '', visa_exit_date: b.visa_exit_date ?? '',
       room_ids: brs.map(r => r.room_id),
@@ -1808,6 +1830,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           clientsLoading={clientsLoading}
           rooms={rooms}
           accommodations={accommodations}
+          agencies={agencies}
           houseRentals={houseRentals}
           roomRates={roomRatesData}
           drivers={taxiDrivers}

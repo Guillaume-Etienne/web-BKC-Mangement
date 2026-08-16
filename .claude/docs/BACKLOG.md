@@ -284,8 +284,17 @@ Design complet et exploration du code : `.claude/docs/data-model.md` § agencies
   les doublons de la facture réelle (3× Pack Privé, 2× Pack Semi Privé) viennent du nombre de
   personnes facturées, pas de tarifs différents — pas de 4ᵉ ligne à créer. **Phase 1 close.**
 
-**⬜ Phase 2 — brancher `agency_id`** dans l'étape Client du wizard (`BookingsPage.tsx`) :
-choisir l'agence à la création d'une résa.
+**✅ Phase 2 — `agency_id` branché dans le wizard (2026-08-16)** : sélecteur "Referred by
+(optional)" ajouté à l'étape Client (`BookingsPage.tsx`), sous la recherche/création de
+client — liste les agences actives, "— direct booking —" par défaut, hint explicite ("ne
+change pas la facturation, tague juste la résa"). Champ `agency_id` sur `WizardData`, transmis
+par `bookingToWizard`/`bookingFields` dans les deux sens. `npm run build`/`test` OK, 283 tests.
+✅ **Vérifié au navigateur sur PROD** : "Fun & Fly" listée dans le sélecteur ; résa réelle
+**#022 (Loïc SENE) reliée à Fun & Fly** — celle-là même qui a motivé ce chantier — et
+`agency_id` confirmé en base par requête directe. Aucune régression sur les résas existantes
+(#021, #023 rouvertes en édition, "— direct booking —" par défaut comme attendu).
+**Toujours pas de changement de facturation** : c'est juste le tag, la consommation (Phase 3)
+et le masquage client (Phase 4) restent à faire.
 
 **⬜ Phase 3 — consommation** : dans `LessonWeekView.tsx`/`ForecastView.tsx` (création de
 leçon) et les points de création taxi/rental/chambre, proposer de rattacher la ligne à un
