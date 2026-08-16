@@ -4,7 +4,8 @@ import { useInstructors } from '../hooks/useInstructors'
 import { useLessons } from '../hooks/useLessons'
 import { useTable } from '../hooks/useSupabase'
 import { useBookings, useBookingParticipants } from '../hooks/useBookings'
-import type { Instructor, Lesson, BillableType, PriceItem, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults, TaxiDriver, BookingStatus, KiteLevel } from '../types/database'
+import { usePriceTiers } from '../hooks/usePriceTiers'
+import type { Instructor, Lesson, BillableType, PriceItem, PriceTier, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults, TaxiDriver, BookingStatus, KiteLevel } from '../types/database'
 import AccommodationsTab from '../components/management/AccommodationsTab'
 import SeasonsTab from '../components/management/SeasonsTab'
 import SourcesTab from '../components/management/SourcesTab'
@@ -128,6 +129,26 @@ export default function ManagementPage() {
   const [selectedPriceCategory, setSelectedPriceCategory] = useState<PriceCategory>('lesson')
 
   useEffect(() => { setPriceItems(priceItemsData) }, [priceItemsData])
+
+  // ── Volume tiers on top of lesson_private/lesson_group (2026-08-16) ──────
+  const { data: priceTiersData, refresh: refreshPriceTiers } = usePriceTiers()
+  const [priceTiers, setPriceTiers] = useState<PriceTier[]>([])
+  const [newTierHours, setNewTierHours] = useState<Record<string, string>>({})
+  const [newTierPrice, setNewTierHoursPrice] = useState<Record<string, string>>({})
+
+  useEffect(() => { setPriceTiers(priceTiersData) }, [priceTiersData])
+
+  async function handleAddTier(billableType: 'lesson_private' | 'lesson_group') {
+    const hours = parseFloat(newTierHours[billableType] ?? '')
+    const price = parseFloat(newTierPrice[billableType] ?? '')
+    if (!Number.isFinite(hours) || hours <= 0 || !Number.isFinite(price) || price < 0) return
+    const { error } = await supabase.from('price_tiers')
+      .insert([{ billable_type: billableType, min_hours: hours, price_per_hour: price }])
+    if (error) { alert('Error: ' + error.message); return }
+    setNewTierHours(h => ({ ...h, [billableType]: '' }))
+    setNewTierHoursPrice(p => ({ ...p, [billableType]: '' }))
+    refreshPriceTiers()
+  }
 
   // ── Taxi pricing defaults (Supabase) ──────────────────────────────────────
   // Most recently edited row wins (same ordering as TaxiPage, so both screens agree)
@@ -642,6 +663,60 @@ export default function ManagementPage() {
                       ))}
                     </div>
                     </>
+                  )}
+
+                  {/* Volume tiers — private/group lessons only. The base rate
+                      above stays the implicit "0h+" step; a row here is one
+                      threshold above it. Add-only for now (deactivate/remove
+                      later if gui asks once he's tried it). */}
+                  {category === 'lesson' && (
+                    <div className="mt-4 space-y-4">
+                      {(['lesson_private', 'lesson_group'] as const).map(billableType => {
+                        const tiersForType = priceTiers
+                          .filter(t => t.billable_type === billableType)
+                          .sort((a, b) => a.min_hours - b.min_hours)
+                        return (
+                          <div key={billableType} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                              🎚️ Volume tiers — {BILLABLE_LABELS[billableType]}
+                            </p>
+                            <p className="text-xs text-gray-400 dark:text-gray-400 mb-3">
+                              Cumulative hours count across the client's entire history, never reset per
+                              stay or season. Below the first tier, the base rate above applies.
+                            </p>
+                            {tiersForType.length > 0 && (
+                              <div className="space-y-1 mb-3">
+                                {tiersForType.map(t => (
+                                  <p key={t.id} className="text-sm text-gray-700 dark:text-gray-300">
+                                    {t.min_hours}h+ → <span className="font-medium">{t.price_per_hour}€/h</span>
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex flex-wrap items-end gap-2">
+                              <div>
+                                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">From (hours)</label>
+                                <input type="number" min="0" step="0.5" placeholder="e.g. 10"
+                                  value={newTierHours[billableType] ?? ''}
+                                  onChange={e => setNewTierHours(h => ({ ...h, [billableType]: e.target.value }))}
+                                  className="w-28 px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200" />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Price (€/h)</label>
+                                <input type="number" min="0" step="0.5" placeholder="e.g. 25"
+                                  value={newTierPrice[billableType] ?? ''}
+                                  onChange={e => setNewTierHoursPrice(p => ({ ...p, [billableType]: e.target.value }))}
+                                  className="w-28 px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200" />
+                              </div>
+                              <button onClick={() => handleAddTier(billableType)}
+                                className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700">
+                                + Add tier
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
                   )}
                 </div>
               )

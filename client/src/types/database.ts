@@ -244,6 +244,19 @@ export interface PriceItem {
   billable_type: BillableType | null
 }
 
+/** A volume discount step on top of a lesson's base `price_items` rate — lesson
+ *  types only ('lesson_private' | 'lesson_group'), never rentals/meals/etc.
+ *  The base price stays the implicit "0h+" tier; a row here is one threshold
+ *  above it. See `cumulativeHoursBefore`/`getTierRate` in accounting/utils.ts —
+ *  the cumulative hours that pick a tier run over the client's whole history,
+ *  never reset per stay or season. */
+export interface PriceTier {
+  id: string
+  billable_type: 'lesson_private' | 'lesson_group'
+  min_hours: number
+  price_per_hour: number
+}
+
 /** Every post the app bills automatically. One rate row per value (unique index),
  *  so adding a billable post later is one enum value, not one more column. */
 export type BillableType =

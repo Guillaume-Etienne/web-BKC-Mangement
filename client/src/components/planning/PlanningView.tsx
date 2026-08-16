@@ -10,6 +10,7 @@ import { toISODate } from '../../utils/dates'
 import { useBookingDrag, CELL_W, type DragMode } from '../../hooks/useBookingDrag'
 import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
 import { useTable } from '../../hooks/useSupabase'
+import { usePriceTiers } from '../../hooks/usePriceTiers'
 import { useBookings, useBookingRooms, useBookingParticipants } from '../../hooks/useBookings'
 import { useLessons, useDayActivities } from '../../hooks/useLessons'
 import { useInstructors } from '../../hooks/useInstructors'
@@ -216,6 +217,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   const { data: equipment } = useEquipment()
   const { data: rentalsData } = useEquipmentRentals()
   const { data: priceItems } = useTable<PriceItem>('price_items')
+  const { data: priceTiers } = usePriceTiers()
   const { data: bookingParticipants } = useBookingParticipants()
   const now = new Date()
 
@@ -941,6 +943,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
               equipment={equipment}
               rentals={rentals}
               priceItems={priceItems}
+              priceTiers={priceTiers}
               bookingParticipants={bookingParticipants}
               onAddLesson={onAddLesson}
               onUpdateLesson={onUpdateLesson}

@@ -9,6 +9,7 @@ import { useEquipment, useEquipmentRentals } from '../hooks/useEquipment'
 import { useTaxiTrips } from '../hooks/useTaxis'
 import { useActivityBookings, useActivityPayments } from '../hooks/useActivities'
 import { useTable } from '../hooks/useSupabase'
+import { usePriceTiers } from '../hooks/usePriceTiers'
 import { persist } from '../components/accounting/persist'
 import AccountingDashboard  from '../components/accounting/AccountingDashboard'
 import BookingFinances      from '../components/accounting/BookingFinances'
@@ -72,6 +73,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   // it likes, so "the last one" was a coin flip as soon as a second season exists.
   const { data: seasons }                  = useTable<Season>('seasons', { order: 'start_date' })
   const { data: priceItems }               = useTable<PriceItem>('price_items')
+  const { data: priceTiers }               = usePriceTiers()
 
   // ── Mutable state (Supabase) ──────────────────────────────────────────────
   const { data: paymentsData }           = usePayments()
@@ -122,6 +124,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     lessons,
     instructors,
     priceItems,
+    priceTiers,
     equipment,
     equipmentRentals,
     taxiTrips,

@@ -1,7 +1,7 @@
 import type {
   Accommodation, Booking, BookingParticipant, Client, Room, RoomRate, BookingRoom, BookingRoomPrice,
   ExternalAccommodationBooking,
-  HouseRental, Lesson, Instructor, Equipment, EquipmentRental, TaxiTrip, TaxiManagerPayment, Season, PriceItem,
+  HouseRental, Lesson, Instructor, Equipment, EquipmentRental, TaxiTrip, TaxiManagerPayment, Season, PriceItem, PriceTier,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   DiningEvent, ActivityBooking, ActivityPayment,
@@ -22,6 +22,7 @@ export interface SharedAccountingData {
   lessons:                   Lesson[]
   instructors:               Instructor[]
   priceItems:                PriceItem[]  // client-facing rates; lesson rows keyed by lesson_type
+  priceTiers:                PriceTier[]  // volume discount steps on top of lesson_private/lesson_group
   equipment:                 Equipment[]
   equipmentRentals:          EquipmentRental[]
   taxiTrips:                 TaxiTrip[]

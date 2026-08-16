@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useClients } from '../hooks/useClients'
-import { useBookings } from '../hooks/useBookings'
+import { useBookings, useBookingParticipants } from '../hooks/useBookings'
+import { useLessons } from '../hooks/useLessons'
 import type { Client, Booking, KiteLevel } from '../types/database'
 import { fmtDate } from '../utils/dates'
+import { clientParticipantIds, cumulativeHoursBefore } from '../components/accounting/utils'
 
 interface ClientsPageProps {
   onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients') => void
@@ -50,6 +52,20 @@ const MOBILE_VIEW_KEY = 'clients_mobile_view'
 export default function ClientsPage({ onNavigate }: ClientsPageProps) {
   const { data: clients, loading, error, refresh: refreshClients } = useClients()
   const { data: bookings } = useBookings()
+  const { data: bookingParticipants } = useBookingParticipants()
+  const { data: lessons } = useLessons()
+
+  /** Lifetime hours, private and group separately — never reset per stay or
+   *  season (decision gui, 2026-08-16), the same rule the tiered pricing uses
+   *  to pick a client's rate. Shown here so that rule stays visible rather than
+   *  living only in a calculation nobody sees. */
+  function lifetimeHours(clientId: string) {
+    const ids = clientParticipantIds(clientId, bookingParticipants)
+    return {
+      private: cumulativeHoursBefore(ids, 'private', lessons),
+      group: cumulativeHoursBefore(ids, 'group', lessons),
+    }
+  }
 
   const [searchTerm, setSearchTerm] = useState('')
   const [filterLevel, setFilterLevel] = useState<'' | KiteLevel>('')
@@ -452,6 +468,15 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                           {kiteLevelLabels[selectedClient.kite_level]}
                         </span>
                       ) : <p className="text-gray-800 dark:text-gray-200">–</p>}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Lifetime kite hours</p>
+                      <p className="text-gray-800 dark:text-gray-200">
+                        🪁 Private: {lifetimeHours(selectedClient.id).private}h · Group: {lifetimeHours(selectedClient.id).group}h
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">
+                        Counts every stay, never reset — this is what volume pricing tiers key off (Options → Pricing).
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Notes</p>

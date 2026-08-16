@@ -319,6 +319,22 @@ CREATE TABLE price_items (
 CREATE UNIQUE INDEX idx_price_items_billable_type
   ON price_items(billable_type) WHERE billable_type IS NOT NULL;
 
+-- Tarification dégressive par palier — cours privés et groupe seulement.
+-- Posée 2026-08-16c. Le tarif de base (price_items.price ci-dessus) reste le
+-- palier "0h+" implicite ; une ligne ici = un palier SUPPLÉMENTAIRE. Le cumul
+-- d'heures qui détermine le palier applicable court sur toute la vie du client,
+-- jamais remis à zéro (voir client/src/components/accounting/utils.ts).
+CREATE TABLE price_tiers (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  billable_type  TEXT NOT NULL CHECK (billable_type IN ('lesson_private', 'lesson_group')),
+  min_hours      NUMERIC(6,2) NOT NULL,
+  price_per_hour NUMERIC(8,2) NOT NULL,
+  created_at     TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (billable_type, min_hours)
+);
+
+REVOKE ALL ON price_tiers FROM anon;  -- admin only, jamais anon
+
 
 -- ── Equipment ─────────────────────────────────────────────────────────────────
 
@@ -816,7 +832,8 @@ BEGIN
     'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries',
     'email_logs', 'document_templates',
     'enquiry_sources', 'enquiries', 'enquiry_notes',
-    'agencies', 'agency_rate_items', 'agency_billing_lines'
+    'agencies', 'agency_rate_items', 'agency_billing_lines',
+    'price_tiers'
   ]) LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format(

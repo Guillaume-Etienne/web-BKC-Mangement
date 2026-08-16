@@ -4,7 +4,7 @@
 import type {
   Accommodation, ActivityBooking, Booking, BookingParticipant, BookingRoom, BookingRoomPrice,
   DiningEvent, EquipmentRental, EventAttendee, ExternalAccommodationBooking,
-  Instructor, InstructorDebt, InstructorPayment, Lesson, LessonRateOverride, LessonType, PriceItem,
+  Instructor, InstructorDebt, InstructorPayment, Lesson, LessonRateOverride, LessonType, PriceItem, PriceTier,
   Payment, Room, RoomRate, TaxiTrip, BillableType,
 } from '../../types/database'
 import { lessonBillable } from '../../types/database'
@@ -94,6 +94,10 @@ export function mkPrice(billable: BillableType, price: number, over: Partial<Pri
     id: `pi_${billable}`, category: 'lesson', name: billable, description: null,
     price, unit: null, billable_type: billable, ...over,
   }
+}
+
+export function mkPriceTier(over: Partial<PriceTier> = {}): PriceTier {
+  return { id: 'tier1', billable_type: 'lesson_private', min_hours: 10, price_per_hour: 25, ...over }
 }
 
 export function mkLessonOverride(over: Partial<LessonRateOverride> = {}): LessonRateOverride {

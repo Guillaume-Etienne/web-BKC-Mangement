@@ -1,19 +1,20 @@
 import { describe, it, expect } from 'vitest'
 import {
   countNights, getRoomNightlyRate, computeAccommodationRevenue, computeExternalAccommodationCost,
-  computeLessonsRevenue, getLessonClientRate, getInstructorRate, getConfiguredRate, computeRentalsRevenue,
+  computeLessonsRevenue, getLessonClientRate, resolveLessonRate, getInstructorRate, getConfiguredRate, computeRentalsRevenue,
   computeTaxiRevenue, computeStandaloneTaxiRevenue, computeTaxiMarginEur,
   computeActivityRevenueForBooking, computeCenterAccessRevenue,
   computeDiningForBooking, computeDiningRevenue, computeInstructorDiningCharges,
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
   computeInstructorEarned, computeInstructorDebts, computeInstructorPaid, computeInstructorBalance,
   computeSeasonTotals, suggestDeposit, fmtEur, fmtMonth,
+  clientParticipantIds, cumulativeHoursBefore, getTierRate,
 } from './utils'
 import {
   mkAccommodation, mkActivityBooking, mkAttendee, mkBooking, mkBookingRoom, mkBookingRoomPrice,
   mkData, mkDiningEvent, mkExternalBooking, mkHouseSetup,
   mkInstructor, mkInstructorDebt, mkInstructorPayment, mkLesson, mkLessonOverride, mkLessonPrices,
-  mkParticipant, mkPayment, mkPrice, mkRental, mkRoom, mkRoomRate, mkTaxiTrip,
+  mkParticipant, mkPayment, mkPrice, mkPriceTier, mkRental, mkRoom, mkRoomRate, mkTaxiTrip,
 } from './utils.fixtures'
 import type { Lesson } from '../../types/database'
 
@@ -351,6 +352,141 @@ describe('getLessonClientRate', () => {
     const legacy = { ...mkLesson(), price_per_hour: undefined } as unknown as Lesson
     expect(getLessonClientRate(legacy, priceItems)).toBe(60)
     expect(Number.isNaN(getLessonClientRate(legacy, priceItems))).toBe(false)
+  })
+})
+
+// ─── Volume-tiered lesson pricing (2026-08-16) ─────────────────────────────────
+
+describe('clientParticipantIds', () => {
+  it('collects every booking_participants row linked to a client, across bookings', () => {
+    const participants = [
+      mkParticipant({ id: 'p1', booking_id: 'bk1', client_id: 'cli1' }),
+      mkParticipant({ id: 'p2', booking_id: 'bk2', client_id: 'cli1' }), // returning next stay
+      mkParticipant({ id: 'p3', booking_id: 'bk1', client_id: 'cli2' }), // someone else
+      mkParticipant({ id: 'p4', booking_id: 'bk1', client_id: null }),  // never linked
+    ]
+    expect(clientParticipantIds('cli1', participants)).toEqual(new Set(['p1', 'p2']))
+  })
+})
+
+describe('cumulativeHoursBefore', () => {
+  const ids = new Set(['p1'])
+  // Chronological: les1 (11-01, 4h) → les2 (11-02, 4h) → les3 (11-03, 4h)
+  const lessons = [
+    mkLesson({ id: 'les1', date: '2026-11-01', duration_hours: 4, type: 'private', participant_ids: ['p1'] }),
+    mkLesson({ id: 'les2', date: '2026-11-02', duration_hours: 4, type: 'private', participant_ids: ['p1'] }),
+    mkLesson({ id: 'les3', date: '2026-11-03', duration_hours: 4, type: 'private', participant_ids: ['p1'] }),
+  ]
+  it('sums every matching lesson when nothing is excluded (a lifetime total)', () => {
+    expect(cumulativeHoursBefore(ids, 'private', lessons)).toBe(12)
+  })
+  it('sums only what came strictly before the excluded lesson', () => {
+    expect(cumulativeHoursBefore(ids, 'private', lessons, 'les3')).toBe(8)
+    expect(cumulativeHoursBefore(ids, 'private', lessons, 'les1')).toBe(0)
+  })
+  it('ignores lessons of a different type or a different participant', () => {
+    const mixed = [
+      ...lessons,
+      mkLesson({ id: 'lesGroup', date: '2026-11-04', duration_hours: 10, type: 'group', participant_ids: ['p1'] }),
+      mkLesson({ id: 'lesOther', date: '2026-11-04', duration_hours: 10, type: 'private', participant_ids: ['p9'] }),
+    ]
+    expect(cumulativeHoursBefore(ids, 'private', mixed)).toBe(12)
+  })
+})
+
+describe('getTierRate', () => {
+  const tiers = [
+    mkPriceTier({ id: 't10', billable_type: 'lesson_private', min_hours: 10, price_per_hour: 25 }),
+    mkPriceTier({ id: 't20', billable_type: 'lesson_private', min_hours: 20, price_per_hour: 20 }),
+  ]
+  it('returns null under the first threshold — the base price_items rate applies', () => {
+    expect(getTierRate('lesson_private', 5, tiers)).toBe(null)
+  })
+  it('picks the highest threshold reached', () => {
+    expect(getTierRate('lesson_private', 15, tiers)).toBe(25)
+    expect(getTierRate('lesson_private', 25, tiers)).toBe(20)
+  })
+  it('is exact-boundary inclusive: reaching min_hours exactly counts', () => {
+    expect(getTierRate('lesson_private', 10, tiers)).toBe(25)
+  })
+  it('ignores tiers configured for a different billable type', () => {
+    expect(getTierRate('lesson_group', 25, tiers)).toBe(null)
+  })
+})
+
+describe('getLessonClientRate / resolveLessonRate with tiers', () => {
+  const priceItems = mkLessonPrices() // private=60, group=36
+  const tiers = [mkPriceTier({ billable_type: 'lesson_private', min_hours: 8, price_per_hour: 25 })]
+  const bookingParticipants = [mkParticipant({ id: 'p1', booking_id: 'bk1', client_id: 'cli1' })]
+  // Same shape as cumulativeHoursBefore's fixture: 4h + 4h before a 3rd lesson.
+  const priorLessons = [
+    mkLesson({ id: 'les1', date: '2026-11-01', duration_hours: 4, type: 'private', participant_ids: ['p1'], price_per_hour: null }),
+    mkLesson({ id: 'les2', date: '2026-11-02', duration_hours: 4, type: 'private', participant_ids: ['p1'], price_per_hour: null }),
+  ]
+
+  it('stays at the base rate for the lesson that crosses the threshold, not before it', () => {
+    // Before les1: 0h cumulative → base rate.
+    expect(getLessonClientRate(priorLessons[0], priceItems, { tiers, allLessons: priorLessons, bookingParticipants })).toBe(60)
+    // Before les2: 4h cumulative, still under 8h → base rate.
+    expect(getLessonClientRate(priorLessons[1], priceItems, { tiers, allLessons: priorLessons, bookingParticipants })).toBe(60)
+  })
+  it('gives the tiered rate to the lesson that reaches the threshold', () => {
+    const les3 = mkLesson({ id: 'les3', date: '2026-11-03', duration_hours: 4, type: 'private', participant_ids: ['p1'], price_per_hour: null })
+    const allLessons = [...priorLessons, les3]
+    expect(getLessonClientRate(les3, priceItems, { tiers, allLessons, bookingParticipants })).toBe(25)
+  })
+  it('counts hours from a previous, separate booking — the lifetime rule', () => {
+    const returningVisit = mkLesson({
+      id: 'les_return', booking_id: 'bk2', date: '2027-01-10', duration_hours: 1,
+      type: 'private', participant_ids: ['p2'], price_per_hour: null,
+    })
+    const bp = [
+      mkParticipant({ id: 'p1', booking_id: 'bk1', client_id: 'cli1' }),
+      mkParticipant({ id: 'p2', booking_id: 'bk2', client_id: 'cli1' }), // same client, new stay
+    ]
+    // 8h already done last time (from priorLessons + les3-equivalent) puts this
+    // brand new booking's very first lesson straight into the tier.
+    const les3 = mkLesson({ id: 'les3', date: '2026-11-03', duration_hours: 4, type: 'private', participant_ids: ['p1'], price_per_hour: null })
+    const allLessons = [...priorLessons, les3, returningVisit]
+    expect(getLessonClientRate(returningVisit, priceItems, { tiers, allLessons, bookingParticipants: bp })).toBe(25)
+  })
+  it('for a group lesson, keys off the FIRST participant only (decision gui)', () => {
+    // p1 has 8h of history (tiered), p2 has none — the lesson still bills one
+    // rate for everyone, based on p1 since they're listed first.
+    const groupTiers = [mkPriceTier({ billable_type: 'lesson_group', min_hours: 8, price_per_hour: 20 })]
+    const groupHistory = [
+      mkLesson({ id: 'g1', date: '2026-11-01', duration_hours: 4, type: 'group', participant_ids: ['p1'] }),
+      mkLesson({ id: 'g2', date: '2026-11-02', duration_hours: 4, type: 'group', participant_ids: ['p1'] }),
+    ]
+    const newGroupLesson = mkLesson({ id: 'g3', date: '2026-11-03', type: 'group', participant_ids: ['p1', 'p2'], price_per_hour: null })
+    const allLessons = [...groupHistory, newGroupLesson]
+    expect(getLessonClientRate(newGroupLesson, priceItems, { tiers: groupTiers, allLessons, bookingParticipants })).toBe(20)
+  })
+  it('falls back to counting just this lesson\'s own participant when nobody is linked to a Client', () => {
+    // No client_id on the lead participant → still tiers on this booking's own
+    // hours rather than refusing to tier at all.
+    const unlinked = [mkParticipant({ id: 'pX', booking_id: 'bk9', client_id: null })]
+    const history = [
+      mkLesson({ id: 'h1', date: '2026-11-01', duration_hours: 4, type: 'private', participant_ids: ['pX'] }),
+      mkLesson({ id: 'h2', date: '2026-11-02', duration_hours: 4, type: 'private', participant_ids: ['pX'] }),
+    ]
+    const next = mkLesson({ id: 'h3', date: '2026-11-03', duration_hours: 1, type: 'private', participant_ids: ['pX'], price_per_hour: null })
+    const allLessons = [...history, next]
+    expect(getLessonClientRate(next, priceItems, { tiers, allLessons, bookingParticipants: unlinked })).toBe(25)
+  })
+  it('the snapshot always wins, even with a tier context that would say otherwise', () => {
+    const custom = mkLesson({ price_per_hour: 99, type: 'private', participant_ids: ['p1'] })
+    expect(getLessonClientRate(custom, priceItems, { tiers, allLessons: [], bookingParticipants })).toBe(99)
+  })
+  it('never tiers supervision lessons', () => {
+    const supervisionTiers = [mkPriceTier({ billable_type: 'lesson_private', min_hours: 0, price_per_hour: 5 })]
+    const sup = mkLesson({ type: 'supervision', participant_ids: ['p1'], price_per_hour: null })
+    expect(getLessonClientRate(sup, priceItems, { tiers: supervisionTiers, allLessons: [sup], bookingParticipants })).toBe(40)
+  })
+  it('resolveLessonRate returns null (not 0) when nothing is configured — what a new lesson should freeze', () => {
+    expect(resolveLessonRate({ id: '', type: 'private', participant_ids: ['p1'], price_per_hour: null }, [])).toBe(null)
+    // getLessonClientRate is the display-friendly 0 for the same input.
+    expect(getLessonClientRate(mkLesson({ type: 'private', price_per_hour: null }), [])).toBe(0)
   })
 })
 

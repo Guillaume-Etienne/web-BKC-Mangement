@@ -10,6 +10,11 @@
 
 ## 🚨 MIGRATIONS SQL EN ATTENTE D'APPLICATION (gui)
 
+> 🆕 **`2026-08-16c_lesson_price_tiers.sql` en attente** — tarification dégressive par
+> palier (cours privés/groupe). Table `price_tiers`, admin-only, aucun placeholder à
+> remplacer. Une seule tâche, TEST + PROD comme d'habitude. Vérification par curl anon →
+> 42501, contrôle négatif → 42703 (détail en bas du fichier SQL).
+
 > ✅ **`2026-08-16b_agency_billing_foundation.sql` appliquée et vérifiée TEST + PROD le
 > 2026-08-16** — fondations de la facturation aux agences partenaires (§ Requests/Enquiries
 > point 5). Curl anon sur les 3 tables (`agencies`, `agency_rate_items`,
@@ -339,6 +344,59 @@ San Martinho (0€/0€, per-stay, rien facturé), statut **Provisional**, 0€ 
 de cours (stage privatif **10h du 20 au 24/10**, puis privatif **4h du 25 au 26/10**, Loïc
 uniquement) sont désormais saisis dans le planning par gui. Enquête d'origine marquée **Won**
 et reliée (`client_id`/`booking_id`).
+
+---
+
+## ✅ Tarification dégressive par palier (cours privés/groupe) — livrée (2026-08-16)
+
+Repéré en concevant la facturation agences : aujourd'hui 2h ou 20h de cours coûtent le même
+prix à l'heure, pour tout le monde. Décisions gui : prix/h par palier (pas %), calé sur le
+**cumul d'heures avant la leçon du jour** (celle qui franchit le seuil reste à l'ancien tarif),
+cumul **à vie** (jamais remis à zéro), cours privés et groupe seulement (jamais supervision),
+un seul tarif pour toute une leçon groupe basé sur le **premier participant**. Conçu avec
+`/plan` (2 agents d'exploration), design complet dans `.claude/docs/LESSON_PRICING.md`
+§ Tarification dégressive par palier.
+
+**Livré** :
+- Migration `2026-08-16c_lesson_price_tiers.sql` — table `price_tiers` (`billable_type`,
+  `min_hours`, `price_per_hour`), admin-only. Le tarif de base (`price_items.price`) reste le
+  palier "0h+" implicite.
+- Calcul pur dans `accounting/utils.ts` : `clientParticipantIds` (le join croisé-résas qui
+  n'existait nulle part), `cumulativeHoursBefore` (tri chronologique + cumul, modèle
+  `runningBalances` de `cashFlowUtils.ts`), `getTierRate`, et `getLessonClientRate` étendue
+  (le snapshot gagne toujours ; `resolveLessonRate` séparée pour préserver le `null` — "rien
+  configuré" — qu'un nouveau `price_per_hour` doit figer, distinct du `0` d'affichage).
+  Propagation gratuite à `computeBookingTotal`/`computeSeasonTotals`/`AccountingDashboard` via
+  `computeLessonsRevenue` ; 2 sites d'appel directs mis à jour dans `BookingFinances.tsx`.
+- `LessonWeekView.tsx` fige le tarif au palier applicable **à la création** de la leçon (comme
+  le reste des snapshots du projet). `ForecastView.tsx` continue de soumettre `null`
+  (comportement déjà existant, pas touché) — ses leçons héritent du calcul au moment de leur
+  lecture, pas de leur création ; différence mineure préexistante, pas une régression.
+- **Fiche client** (`ClientsPage.tsx`, onglet Info) : compteur "Lifetime kite hours" (Private/
+  Group séparés) + légende rappelant que le cumul ne se remet jamais à zéro — le rappel visible
+  demandé par gui plutôt qu'une note qui se perd.
+- **Options → Pricing**, sous les lignes Private/Group : bloc "🎚️ Volume tiers", liste des
+  paliers existants + formulaire d'ajout (heures, prix). Pas de suppression/édition dans l'UI
+  pour l'instant (décision : ajouter/lister d'abord, gui demandera si besoin une fois testé).
+- **16 nouveaux tests** (`utils.test.ts`), style existant (fixtures `mk*`, un `it()` par cas) :
+  boundary exact du palier, cumul multi-résas (l'habitué qui revient), leçon groupe basée sur
+  le premier participant, repli sur les heures de cette résa seule quand personne n'est lié à
+  un `Client`, snapshot toujours prioritaire, jamais de palier sur supervision. **299 tests.**
+
+⬜ **Reste (gui)** : appliquer la migration TEST + PROD, vérifier par curl anon (`price_tiers`
+→ 42501, contrôle négatif → 42703, détail en tête de fichier).
+
+🔶 **Déviation assumée par rapport au plan initial** : `EquipmentPage.tsx` (calcul de marge
+matériel, déjà une estimation approximative) **n'a pas été rendu tier-aware** — il n'a
+aujourd'hui aucun accès à `bookingParticipants`, et le fil à tirer (3 fonctions imbriquées)
+était disproportionné pour un chiffre déjà approximatif. Impact réel quasi nul : ne joue que
+pour une leçon jamais résolue (`price_per_hour` encore `null`), un cas de plus en plus rare
+puisque `LessonWeekView` fige désormais le prix à la création. À faire si gui le demande.
+
+⬜ **Hors scope, noté pour plus tard** : le rattachement à l'épuisement d'un forfait agence
+(réutilisera `cumulativeHoursBefore` telle quelle) ; suppression/édition des paliers dans l'UI ;
+prix barré sur les PDF/emails de résa (aucun des deux fichiers concernés ne touche
+aujourd'hui à un prix de leçon).
 
 ---
 

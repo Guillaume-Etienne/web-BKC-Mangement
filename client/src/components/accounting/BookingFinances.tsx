@@ -489,7 +489,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
               <div className="px-4 py-2 space-y-1">
                 {bkLessons.map(l => {
                   const instr = data.instructors.find(i => i.id === l.instructor_id)
-                  const rate = getLessonClientRate(l, data.priceItems)
+                  const rate = getLessonClientRate(l, data.priceItems, { tiers: data.priceTiers, allLessons: data.lessons, bookingParticipants: data.bookingParticipants })
                   const listRate = getConfiguredRate(data.priceItems, lessonBillable(l.type)) ?? 0
                   const isCustom = l.price_per_hour !== null && l.price_per_hour !== listRate
                   const heads = l.type === 'group' ? l.participant_ids.length : 1
@@ -695,7 +695,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
             if (!l.participant_ids.includes(part.id)) continue
             const instr = data.instructors.find(i => i.id === l.instructor_id)
             // Group lessons are billed per head, so each participant carries one share
-            const rate = getLessonClientRate(l, data.priceItems)
+            const rate = getLessonClientRate(l, data.priceItems, { tiers: data.priceTiers, allLessons: data.lessons, bookingParticipants: data.bookingParticipants })
             lines.push({
               date: l.date,
               label: `${l.type} lesson ${l.duration_hours}h${instr ? ` (${instr.first_name})` : ''}`,

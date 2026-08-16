@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import type { Lesson, DayActivity, DaySlot, LessonType, RentalType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem } from '../../types/database'
-import { lessonBillable, rentalBillable } from '../../types/database'
-import { currentInstructorRate } from '../accounting/utils'
+import type { Lesson, DayActivity, DaySlot, LessonType, RentalType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem, PriceTier } from '../../types/database'
+import { rentalBillable } from '../../types/database'
+import { currentInstructorRate, resolveLessonRate } from '../accounting/utils'
 import { toISODate as dateToISO } from '../../utils/dates'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -118,6 +118,7 @@ interface LessonWeekViewProps {
   equipment: Equipment[]
   rentals: EquipmentRental[]
   priceItems: PriceItem[]
+  priceTiers: PriceTier[]
   onAddLesson: (l: Omit<Lesson, 'id'>) => void
   onUpdateLesson: (l: Lesson) => void
   onDeleteLesson: (id: string) => void
@@ -132,7 +133,7 @@ interface LessonWeekViewProps {
 
 export default function LessonWeekView({
   days, lessons, dayActivities,
-  bookings, instructors, clients, bookingParticipants, equipment, rentals, priceItems,
+  bookings, instructors, clients, bookingParticipants, equipment, rentals, priceItems, priceTiers,
   onAddLesson, onUpdateLesson, onDeleteLesson,
   onAddActivity, onDeleteActivity,
   onAddRental, onUpdateRental, onDeleteRental,
@@ -203,9 +204,17 @@ export default function LessonWeekView({
     return instr ? currentInstructorRate({ type }, instr) : null
   }
 
-  /** Client price €/h from Options → Pricing, keyed by what it bills (never by name). */
-  function lessonPrice(type: LessonType): number | null {
-    return priceItems.find(p => p.billable_type === lessonBillable(type))?.price ?? null
+  /** Client price €/h from Options → Pricing, keyed by what it bills (never by
+   *  name) — tiered for private/group when the participant's cumulative hours
+   *  reach a configured threshold (see resolveLessonRate). `null` when nothing
+   *  is configured at all, so the lesson freezes with an unresolved price
+   *  rather than a wrong zero. */
+  function lessonPrice(type: LessonType, participantIds: string[]): number | null {
+    return resolveLessonRate(
+      { id: '', type, participant_ids: participantIds, price_per_hour: null },
+      priceItems,
+      { tiers: priceTiers, allLessons: lessons, bookingParticipants }
+    )
   }
 
   // ── Booking lookup ────────────────────────────────────────────────────────
@@ -370,7 +379,7 @@ export default function LessonWeekView({
         board_id: addForm.board_id,
         // Freeze BOTH of today's scales: changing the price list or someone's pay
         // later must not reprice this lesson (same rule as booking_room_prices).
-        price_per_hour: lessonPrice(addForm.type),
+        price_per_hour: lessonPrice(addForm.type, addForm.participant_ids),
         instructor_rate: instructorPay(addForm.instructor_id, addForm.type),
       })
     } else if (addForm.kind === 'activity') {

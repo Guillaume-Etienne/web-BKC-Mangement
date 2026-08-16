@@ -82,6 +82,44 @@ La migration révoque :
 ⚠️ Son `select` liste les colonnes explicitement : avec l'ancien select la page
 renverrait **42501** et n'afficherait plus rien.
 
+## Tarification dégressive par palier (2026-08-16)
+
+Au-dessus du prix de base ci-dessus : `price_tiers` (`billable_type`, `min_hours`,
+`price_per_hour`) fait baisser le prix/h des cours **privés et groupe** une fois un
+certain cumul d'heures atteint — jamais `supervision`. Le prix de base reste le palier
+« 0h+ » implicite ; une ligne de `price_tiers` est un palier **supplémentaire**.
+
+Décisions gui : prix/h par palier (pas un pourcentage), et surtout **le cumul court sur
+toute la vie du client, jamais remis à zéro** (ni par séjour, ni par saison) — un
+habitué qui revient garde son palier. Affiché sur la fiche client (Clients → onglet
+Info, « Lifetime kite hours ») pour que cette règle reste visible plutôt qu'enfouie
+dans un calcul.
+
+**La règle de bascule** : le cumul regardé pour une leçon est celui **avant** elle
+(`cumulativeHoursBefore`, `accounting/utils.ts`) — la leçon qui fait franchir le seuil
+reste au tarif d'avant, c'est la **suivante** qui passe au palier. Pas de découpage
+d'une leçon entre deux tarifs.
+
+**Groupe** : un seul tarif pour toute la leçon (comme aujourd'hui), basé sur le cumul
+du **premier** participant de la liste — décision gui, pour ne pas transformer la
+facturation groupe (un rate × N têtes) en somme de tarifs individualisés.
+
+**Le join qui n'existait pas** : une leçon référence des `booking_participants.id`, pas
+des `clients.id` directement — `clientParticipantIds()` fait le lien pour retrouver
+*toutes* les fiches participant d'un même client, toutes résas confondues.
+
+**Snapshot inchangé** : `lessons.price_per_hour` gagne toujours. La subtilité est que
+« rien n'est configuré » doit rester `null` (pour qu'un tarif posé plus tard s'applique
+encore) alors que l'affichage veut un `0` franc — d'où `resolveLessonRate` (renvoie
+`null`) séparée de `getLessonClientRate` (`resolveLessonRate(...) ?? 0`).
+
+`LessonWeekView.tsx` fige le palier applicable à la création, comme le reste.
+`ForecastView.tsx` continue de soumettre `null` (déjà le cas avant les paliers) — ses
+leçons se résolvent au moment où elles sont lues, pas à leur création.
+
+Migration : `2026-08-16c_lesson_price_tiers.sql`. Écran : Options → Pricing, sous les
+lignes Private/Group (« 🎚️ Volume tiers » — ajouter/lister, pas encore de suppression).
+
 ## À faire par gui
 
 1. Passer la migration sur **TEST et PROD**, puis les vérifications en bas du fichier
@@ -93,6 +131,9 @@ renverrait **42501** et n'afficherait plus rien.
 
 ## Tests
 
-`client/src/components/accounting/utils.test.ts` — 97 tests, dont la séparation des
-deux barèmes, le snapshot qui gèle un tarif, le groupe facturé par tête mais payé à
-plat, le moniteur à 0 €, et le rattachement par `lesson_type` insensible au renommage.
+`client/src/components/accounting/utils.test.ts` — dont la séparation des deux
+barèmes, le snapshot qui gèle un tarif, le groupe facturé par tête mais payé à plat, le
+moniteur à 0 €, et le rattachement par `lesson_type` insensible au renommage. Depuis le
+2026-08-16, +16 tests sur les paliers (boundary exact, cumul multi-résas, groupe basé
+sur le premier participant, repli sans `Client` lié, snapshot toujours prioritaire).
+**299 tests au total.**

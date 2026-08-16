@@ -1,4 +1,4 @@
-import type { Booking, BookingParticipant, Payment, Lesson, Instructor, LessonRateOverride, DiningEvent, PriceItem, BillableType } from '../../types/database'
+import type { Booking, BookingParticipant, Payment, Lesson, LessonType, Instructor, LessonRateOverride, DiningEvent, PriceItem, BillableType, PriceTier } from '../../types/database'
 import { lessonBillable } from '../../types/database'
 import type { SharedAccountingData } from './types'
 import { getBaseNightlyRate } from '../../utils/roomPricing'
@@ -12,7 +12,7 @@ export function emptyAccountingData(): SharedAccountingData {
     accommodations: [], bookingParticipants: [], houseRentals: [], bookings: [], clients: [],
     rooms: [], bookingRooms: [], bookingRoomPrices: [], roomRates: [],
     externalAccommodationBkgs: [], diningEvents: [],
-    lessons: [], instructors: [], priceItems: [], equipment: [], equipmentRentals: [],
+    lessons: [], instructors: [], priceItems: [], priceTiers: [], equipment: [], equipmentRentals: [],
     taxiTrips: [], taxiManagerPayments: [], eurMznRate: 65, seasons: [],
     payments: [], instructorDebts: [], instructorPayments: [], lessonRateOverrides: [],
     expenses: [], palmeirasRents: [], palmeirasReversals: [], palmeirasEntries: [],
@@ -75,14 +75,97 @@ export function computeExternalAccommodationCost(booking: Booking, data: SharedA
     .reduce((sum, e) => sum + e.total_cost, 0)
 }
 
-/** Client price €/h for a lesson: the snapshot taken at creation, else the rate
- *  currently configured in Options → Pricing. This is what the CLIENT pays and
- *  has nothing to do with what the instructor earns (see getInstructorRate). */
-export function getLessonClientRate(lesson: Lesson, priceItems: PriceItem[]): number {
+/** Every `booking_participants.id` ever linked to this client, across every one
+ *  of their bookings — the cross-booking join a lifetime hours count needs and
+ *  that nothing else in the app does today (every existing participant lookup
+ *  is scoped to a single booking). */
+export function clientParticipantIds(clientId: string, bookingParticipants: BookingParticipant[]): Set<string> {
+  return new Set(bookingParticipants.filter(p => p.client_id === clientId).map(p => p.id))
+}
+
+/** Sum of `duration_hours` for lessons of this type touching any of these
+ *  participants, strictly before `excludeLessonId` in chronological order.
+ *  "Before", not "up to and including": the lesson that crosses a tier stays at
+ *  the old rate, only the next one gets the new one — no splitting a single
+ *  lesson across two prices. Omit `excludeLessonId` for a plain running total
+ *  (the client fiche's lifetime counter, or a brand new lesson that has no id
+ *  yet). Model: `runningBalances` in cashFlowUtils.ts (sort ascending, walk). */
+export function cumulativeHoursBefore(
+  participantIds: Set<string>,
+  lessonType: LessonType,
+  allLessons: Lesson[],
+  excludeLessonId?: string
+): number {
+  const chronological = allLessons
+    .filter(l => l.type === lessonType && l.participant_ids.some(id => participantIds.has(id)))
+    .sort((a, b) => (a.date + a.start_time + a.id).localeCompare(b.date + b.start_time + b.id))
+  let sum = 0
+  for (const l of chronological) {
+    if (l.id === excludeLessonId) break
+    sum += l.duration_hours
+  }
+  return sum
+}
+
+/** The €/h a volume tier sets once cumulative hours reach it — the highest
+ *  `min_hours` at or below the total, or null when none is configured (not a
+ *  tiered billable type, or still under the first threshold: the base
+ *  `price_items` rate applies, which is the implicit "0h+" tier). */
+export function getTierRate(billableType: BillableType, cumulativeHours: number, tiers: PriceTier[]): number | null {
+  const applicable = tiers
+    .filter(t => t.billable_type === billableType && t.min_hours <= cumulativeHours)
+    .sort((a, b) => b.min_hours - a.min_hours)
+  return applicable[0]?.price_per_hour ?? null
+}
+
+/** Everything a tiered rate lookup needs beyond the lesson and the price list. */
+export interface TierContext {
+  tiers: PriceTier[]
+  allLessons: Lesson[]
+  bookingParticipants: BookingParticipant[]
+}
+
+/** What a lesson's client price resolves to right now — snapshot, else tier,
+ *  else the flat configured rate — or `null` when nothing is configured at all.
+ *  That `null` matters: it is what a newly-created lesson should freeze onto
+ *  `price_per_hour` in place of the flat lookup, so a rate configured *after*
+ *  the lesson still applies (same "unresolved, not zero" contract the flat
+ *  lookup already had before tiers existed). `getLessonClientRate` below is
+ *  the display-friendly version that collapses this to a number. */
+export function resolveLessonRate(lesson: Pick<Lesson, 'id' | 'type' | 'participant_ids' | 'price_per_hour'>, priceItems: PriceItem[], tierCtx?: TierContext): number | null {
   // Loose != on purpose: before the migration lands, rows come back without the
   // column at all, and `undefined !== null` would return undefined → NaN amounts.
   if (lesson.price_per_hour != null) return lesson.price_per_hour
-  return getConfiguredRate(priceItems, lessonBillable(lesson.type)) ?? 0
+
+  if (tierCtx && (lesson.type === 'private' || lesson.type === 'group')) {
+    // A group lesson bills one rate for everyone (unchanged), based on the
+    // FIRST participant's own history — not individualised per head. Decision
+    // gui: simplest, doesn't restructure group billing for a mixed-level edge
+    // case that doesn't happen in practice (groups tend to book together).
+    const lead = tierCtx.bookingParticipants.find(p => p.id === lesson.participant_ids[0])
+    // No client link on the lead participant → still count this booking's own
+    // hours rather than giving up on tiering entirely; just can't see their
+    // history from other stays.
+    const ids = lead?.client_id
+      ? clientParticipantIds(lead.client_id, tierCtx.bookingParticipants)
+      : new Set(lesson.participant_ids[0] ? [lesson.participant_ids[0]] : [])
+    if (ids.size > 0) {
+      const cumulative = cumulativeHoursBefore(ids, lesson.type, tierCtx.allLessons, lesson.id)
+      const tierRate = getTierRate(lessonBillable(lesson.type), cumulative, tierCtx.tiers)
+      if (tierRate != null) return tierRate
+    }
+  }
+
+  return getConfiguredRate(priceItems, lessonBillable(lesson.type))
+}
+
+/** Client price €/h for a lesson — same resolution as `resolveLessonRate`, but
+ *  0 instead of null when nothing is configured, for screens that display a
+ *  number rather than decide what to freeze onto a new row. This is what the
+ *  CLIENT pays and has nothing to do with what the instructor earns (see
+ *  getInstructorRate). */
+export function getLessonClientRate(lesson: Lesson, priceItems: PriceItem[], tierCtx?: TierContext): number {
+  return resolveLessonRate(lesson, priceItems, tierCtx) ?? 0
 }
 
 /** The configured rate for a billable post, or null when none is set.
@@ -95,10 +178,11 @@ export function getConfiguredRate(priceItems: PriceItem[], type: BillableType): 
 /** Lessons revenue for a booking.
  *  Group lessons are priced per head, so multiply by participant count. */
 export function computeLessonsRevenue(booking: Booking, data: SharedAccountingData): number {
+  const tierCtx = { tiers: data.priceTiers, allLessons: data.lessons, bookingParticipants: data.bookingParticipants }
   return data.lessons
     .filter(l => l.booking_id === booking.id)
     .reduce((sum, l) => {
-      const base = getLessonClientRate(l, data.priceItems) * l.duration_hours
+      const base = getLessonClientRate(l, data.priceItems, tierCtx) * l.duration_hours
       return sum + (l.type === 'group' ? base * l.participant_ids.length : base)
     }, 0)
 }
