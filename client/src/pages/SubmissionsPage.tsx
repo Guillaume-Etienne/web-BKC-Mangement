@@ -5,6 +5,7 @@ import type { Enquiry, FormSubmission, FormSubmissionStatus, Lang } from '../typ
 import { activityCountColumns } from '../utils/bookingActivity'
 import { addDaysISO as addDays, fmtDate } from '../utils/dates'
 import { findCandidateEnquiries, fmtArrivalMonth } from '../utils/enquiries'
+import { splitName } from '../utils/names'
 
 // Admin review queue for public booking-form submissions.
 // English UI (admin chrome). Approving turns a submission into a real
@@ -16,13 +17,6 @@ const STATUS_BADGE: Record<FormSubmissionStatus, string> = {
   pending:  'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
   approved: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
   rejected: 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400',
-}
-
-
-function splitName(full: string): { first: string; last: string } {
-  const parts = full.trim().split(/\s+/)
-  if (parts.length <= 1) return { first: full.trim(), last: '' }
-  return { first: parts[0], last: parts.slice(1).join(' ') }
 }
 
 

@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "types": ["node"],
+    "noEmit": true,
+    "skipLibCheck": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": [
+    "src",
+    "../client/src/types/database.ts",
+    "../client/src/utils/dates.ts",
+    "../client/src/utils/roomPricing.ts",
+    "../client/src/utils/bookingActivity.ts",
+    "../client/src/utils/enquiries.ts",
+    "../client/src/utils/names.ts",
+    "../client/src/utils/seasonWindow.ts",
+    "../client/src/components/accounting/types.ts",
+    "../client/src/components/accounting/utils.ts",
+    "../client/src/components/accounting/seasonFilter.ts",
+    "../client/src/components/pending/pendingActions.ts"
+  ]
+}

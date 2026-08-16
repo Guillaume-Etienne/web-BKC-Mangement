@@ -1,0 +1,22 @@
+{
+  "name": "bkc-mcp-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Local MCP server for BKC — read/write access to Supabase for gui's own Claude sessions. Never deployed.",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@supabase/supabase-js": "^2.98.0",
+    "dotenv": "^16.4.5",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.19.0",
+    "typescript": "~5.9.3"
+  }
+}
