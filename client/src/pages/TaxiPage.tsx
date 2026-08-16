@@ -10,15 +10,7 @@ import { supabase } from '../lib/supabase'
 
 import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults, TaxiManagerPayment, BookingRef, SharedLink } from '../types/database'
 import { todayISO } from '../utils/dates'
-
-const FALLBACK_PRICING: TaxiPricingDefaults = {
-  id: '',
-  default_price_eur:    120,
-  default_driver_mzn:   6000,
-  default_manager_mzn:  1000,
-  eur_mzn_rate:         65,
-  updated_at:           new Date().toISOString(),
-}
+import { FALLBACK_TAXI_PRICING as FALLBACK_PRICING } from '../utils/taxiPricing'
 
 export default function TaxiPage() {
   const { data: trips, loading: tripsLoading, error: tripsError, refresh: refreshTrips } = useTaxiTrips()

@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useTable } from '../hooks/useSupabase'
-import type { Enquiry, FormSubmission, FormSubmissionStatus, Lang } from '../types/database'
+import type { Enquiry, FormSubmission, FormSubmissionStatus, Lang, TaxiPricingDefaults } from '../types/database'
 import { activityCountColumns } from '../utils/bookingActivity'
 import { addDaysISO as addDays, fmtDate } from '../utils/dates'
 import { findCandidateEnquiries, fmtArrivalMonth } from '../utils/enquiries'
 import { splitName } from '../utils/names'
+import { FALLBACK_TAXI_PRICING } from '../utils/taxiPricing'
 
 // Admin review queue for public booking-form submissions.
 // English UI (admin chrome). Approving turns a submission into a real
@@ -34,6 +35,9 @@ function SubmissionDetail({ s, onDone, enquiries }: DetailProps) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmAction, setConfirmAction] = useState<'reject' | 'reopen' | null>(null)
+  // Most recently edited row wins, same guard as TaxiPage (stale duplicate rows → wrong default price)
+  const { data: pricingDefaultsData } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
+  const pricingDefaults = pricingDefaultsData[0] ?? FALLBACK_TAXI_PRICING
 
   const alreadyCreated = !!s.created_booking_id
   const datesValid = !!(checkIn && checkOut && checkOut > checkIn)
@@ -134,6 +138,37 @@ function SubmissionDetail({ s, onDone, enquiries }: DetailProps) {
         }))
       )
       if (pErr) { setError('Participants: ' + pErr.message); setBusy(false); return }
+    }
+
+    // 3.5 Taxi trips — same auto-create as the manual booking wizard, minus the
+    // driver (the guest never picks one). Below 4 people it is safely a small
+    // taxi, so the standard defaults are pre-filled; above that the vehicle
+    // changes and so does the price, so it is left at 0 for gui to fill in.
+    const nbPersons = travelers.length || 1
+    const smallTaxi = nbPersons <= 3
+    const taxiBase = {
+      booking_id:         booking.id,
+      taxi_driver_id:     null,
+      status:             'needs_details' as const,
+      nb_persons:         nbPersons,
+      nb_luggage:         p.luggage_count || 0,
+      nb_boardbags:       p.boardbag_count || 0,
+      notes:              null,
+      price_eur:          smallTaxi ? pricingDefaults.default_price_eur : 0,
+      price_driver_mzn:   smallTaxi ? pricingDefaults.default_driver_mzn : 0,
+      margin_manager_mzn: smallTaxi ? pricingDefaults.default_manager_mzn : 0,
+    }
+    if (p.taxi_arrival) {
+      const { error: taxiInErr } = await supabase.from('taxi_trips').insert({
+        ...taxiBase, date: checkIn, start_time: p.arrival_time || '00:00', type: 'aero-to-center',
+      })
+      if (taxiInErr) setError(`Booking created, but the arrival transfer was not (${taxiInErr.message}). Add it in Taxis.`)
+    }
+    if (p.taxi_departure) {
+      const { error: taxiOutErr } = await supabase.from('taxi_trips').insert({
+        ...taxiBase, date: checkOut, start_time: p.departure_time || '00:00', type: 'center-to-aero',
+      })
+      if (taxiOutErr) setError(`Booking created, but the departure transfer was not (${taxiOutErr.message}). Add it in Taxis.`)
     }
 
     // 4. Mark submission approved
