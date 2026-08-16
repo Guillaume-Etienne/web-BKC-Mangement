@@ -195,7 +195,7 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
 
 ---
 
-## 📥 Requests / Enquiries — ✅ EN SERVICE (2026-08-15), 2 restes
+## 📥 Requests / Enquiries — ✅ EN SERVICE (2026-08-15), 1 reste
 
 Chantier livré et vérifié **sur les deux bases** : origines trilingues (Options → 📣 Sources),
 tableau scannable, formulaire léger en iframe (`?lang=`), rattachement demande↔réservation,
@@ -230,13 +230,12 @@ proprement si `BREVO_API_KEY` est absente, mais la tâche n'est même pas posée
 ✅ **Déployée et vérifiée en PROD le 2026-08-16** : job cron actif (`jobid=1`), appel manuel
 `SELECT ping_brevo_keepalive();` → **`net._http_response.status_code = 200`**.
 
-### ⬜ 3. Deux questions ouvertes sur le périmètre Brevo
+### ✅ 3. Périmètre Brevo — TRANCHÉ (2026-08-16) : rien à changer
 
-- Le **formulaire de réservation complet** n'alimente pas Brevo (il passe par
-  `notify-submission`, non modifié). Or quelqu'un qui remplit le dossier complet est plus
-  qualifié que celui qui pose une question.
-- Les **fiches saisies à la main** (WhatsApp, Instagram) non plus : le trigger ne se déclenche
-  que sur `channel='form'`.
+**Décision gui** : le périmètre actuel suffit — tant que Brevo est alimenté quand quelqu'un
+contacte via le site (formulaire léger `channel='form'`), c'est bon. Le formulaire de
+réservation complet et les fiches saisies à la main (WhatsApp, Instagram) **n'ont pas besoin**
+d'alimenter Brevo. Ne pas rouvrir cette question sans une raison nouvelle.
 
 ### ✅ 4. Restes de test en PROD — nettoyé (2026-08-16)
 
