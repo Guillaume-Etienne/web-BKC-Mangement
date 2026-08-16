@@ -11,12 +11,13 @@
 ## 🚨 MIGRATIONS SQL EN ATTENTE D'APPLICATION (gui)
 
 > 🆕 **Une migration en attente au 2026-08-16** : `2026-08-16_brevo_keepalive_ping.sql`
-> (ping mensuel Brevo, § Requests/Enquiries point 2). **Prérequis avant de l'exécuter** :
-> déployer `supabase functions deploy brevo-ping --no-verify-jwt`, créer le secret
-> `BREVO_PING_SECRET` (une valeur par base), puis remplacer les 2 placeholders du fichier
-> (`<PROJECT_REF>`, `<BREVO_PING_SECRET>`) avant de l'exécuter dans le SQL editor. Peut être
-> posée sur **TEST et PROD** sans risque — sans `BREVO_API_KEY` (absente sur TEST), la fonction
-> répond juste `{skipped:true}`.
+> (ping mensuel Brevo, § Requests/Enquiries point 2). **Décision gui du 2026-08-16 : PROD
+> uniquement** — tout ce qui touche Brevo reste sur une seule base, comme le reste du chantier
+> Brevo (`BREVO_API_KEY` déjà PROD-only). **Écart assumé à la règle « TEST + PROD dans la
+> foulée »**, même motif que pour `BREVO_API_KEY`. Prérequis avant de l'exécuter : déployer
+> `supabase functions deploy brevo-ping --no-verify-jwt`, créer le secret `BREVO_PING_SECRET`
+> sur PROD, remplacer les 2 placeholders du fichier (`<PROJECT_REF>` = `oslsbansxaajcpwhivmx`,
+> `<BREVO_PING_SECRET>`) avant de l'exécuter dans le SQL editor **PROD**.
 
 > ✅ **Registre vide au 2026-08-15 avant ce qui précède.** Les trois migrations du chantier Enquiries (`14a`, `14b`,
 > `14c`) sont passées sur TEST **et** PROD, et la chaîne email est prouvée bout-en-bout des
@@ -232,10 +233,11 @@ Parade codée : nouvelle Edge Function **`brevo-ping`** (`supabase/functions/bre
 tape `GET /v3/account` — rien n'est envoyé, le compteur repart à zéro — protégée par son propre
 secret `BREVO_PING_SECRET` (même gabarit que `notify-enquiry`, un secret par consommateur).
 Appelée mensuellement par `pg_cron` via la migration `2026-08-16_brevo_keepalive_ping.sql`
-(registre en tête de fichier). Skippe proprement si `BREVO_API_KEY` est absente (TEST).
-**⬜ Reste (gui)** : déployer la fonction, créer le secret, remplacer les 2 placeholders de la
-migration, l'exécuter sur les 2 bases, vérifier (`SELECT ping_brevo_keepalive();` — détail des
-contrôles en bas du fichier SQL).
+(registre en tête de fichier). Skippe proprement si `BREVO_API_KEY` est absente (TEST) — mais
+**décision gui : PROD uniquement**, comme le reste de Brevo.
+**⬜ Reste (gui)** : déployer la fonction, créer le secret sur PROD, remplacer les 2
+placeholders de la migration, l'exécuter sur PROD, vérifier (`SELECT ping_brevo_keepalive();`
+— détail des contrôles en bas du fichier SQL).
 
 ### ⬜ 3. Deux questions ouvertes sur le périmètre Brevo
 

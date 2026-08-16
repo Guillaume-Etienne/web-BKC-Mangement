@@ -14,7 +14,7 @@
 --
 -- ⚠️ CE FICHIER CONTIENT DEUX VALEURS À REMPLACER À LA MAIN — même piège que
 -- `2026-08-14c_enquiry_notify_trigger.sql`, même raison :
---   <PROJECT_REF>        → oslsbansxaajcpwhivmx en PROD, uefezhyqcggpzomowpww en TEST
+--   <PROJECT_REF>        → oslsbansxaajcpwhivmx (PROD)
 --   <BREVO_PING_SECRET>  → une valeur QUE VOUS CHOISISSEZ, posée aussi dans
 --                          les secrets Edge Functions du projet
 --
@@ -27,10 +27,9 @@
 -- PRÉREQUIS : déployer d'abord la fonction
 --   supabase functions deploy brevo-ping --no-verify-jwt
 --
--- SUR TEST : `BREVO_API_KEY` n'existe pas (décision gui du 2026-08-15, pour ne
--- pas polluer le CRM avec des contacts d'essai) — la fonction répond
--- `{skipped:true}` sans erreur. La tâche cron peut donc être posée sur les
--- DEUX bases sans risque : elle ne fait juste rien d'utile sur TEST.
+-- ⚠️ PROD UNIQUEMENT — décision gui du 2026-08-16, même écart assumé que pour
+-- `BREVO_API_KEY` : tout ce qui touche Brevo reste sur une seule base, pour ne
+-- pas polluer le CRM avec des essais. **Ne pas exécuter ce fichier sur TEST.**
 
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
@@ -78,7 +77,7 @@ SELECT cron.schedule(
 );
 
 -- ════════════════════════════════════════════════════════════════════════════
--- VÉRIFICATION — sur TEST d'abord, puis PROD.
+-- VÉRIFICATION — sur PROD (seule base concernée).
 --
 -- 1) Le job existe et est actif :
 --    SELECT jobname, schedule, active FROM cron.job WHERE jobname = 'brevo-keepalive-ping';
@@ -87,11 +86,10 @@ SELECT cron.schedule(
 --    SELECT ping_brevo_keepalive();
 --    puis, quelques secondes après (l'appel est asynchrone) :
 --    SELECT * FROM net._http_response ORDER BY created DESC LIMIT 1;
---    → doit montrer un status_code 200. Sur TEST, regarder plutôt les logs de
---    la fonction (dashboard → Edge Functions → brevo-ping) : `{"skipped":true}`.
+--    → doit montrer un status_code 200.
 --
 -- 3) Si le status est 401 : la valeur du fichier ne correspond pas à
 --    BREVO_PING_SECRET dans les secrets Edge Functions — les deux doivent être
---    IDENTIQUES sur la même base (piège déjà vécu le 2026-08-15 avec
---    NOTIFY_ENQUIRY_SECRET : trigger et fonction avec deux valeurs différentes).
+--    IDENTIQUES (piège déjà vécu le 2026-08-15 avec NOTIFY_ENQUIRY_SECRET :
+--    trigger et fonction avec deux valeurs différentes).
 -- ════════════════════════════════════════════════════════════════════════════
