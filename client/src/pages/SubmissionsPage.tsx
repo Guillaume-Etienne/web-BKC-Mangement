@@ -78,6 +78,10 @@ function SubmissionDetail({ s, onDone, enquiries }: DetailProps) {
     if (p.taxi_arrival && p.transfer_to_bilene_date) noteBits.push(`Transfer to Bilene: ${p.transfer_to_bilene_date}${p.transfer_to_bilene_time ? ` ${p.transfer_to_bilene_time}` : ''}.`)
     if (p.taxi_departure && p.transfer_to_airport_date) noteBits.push(`Transfer to airport: ${p.transfer_to_airport_date}${p.transfer_to_airport_time ? ` ${p.transfer_to_airport_time}` : ''}.`)
     if (p.referral_source) noteBits.push(`Heard about us: ${p.referral_source}.`)
+    // Carry the enquiry's own message/context along, same as the MCP conversion path —
+    // only when the submission rode a personalised link (payload.enquiry_id).
+    const linkedEnquiry = p.enquiry_id ? enquiries.find(e => e.id === p.enquiry_id) : undefined
+    if (linkedEnquiry?.message) noteBits.push(`Original message: "${linkedEnquiry.message}"`)
     // Activity counters derived from the per-traveler form flags (kept in sync on the participants below)
     const formTravelers = (p.travelers ?? []).filter(t => t.first_name.trim())
     const { data: booking, error: bErr } = await supabase.from('bookings').insert({
