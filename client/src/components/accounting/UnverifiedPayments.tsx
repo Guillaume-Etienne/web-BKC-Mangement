@@ -38,6 +38,7 @@ export default function UnverifiedPayments({ data, handlers }: Props) {
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-800 border-b">
               <tr>
@@ -90,6 +91,7 @@ export default function UnverifiedPayments({ data, handlers }: Props) {
               </tr>
             </tfoot>
           </table>
+          </div>
         </div>
       )}
     </div>
