@@ -10,14 +10,11 @@
 
 ## 🚨 MIGRATIONS SQL EN ATTENTE D'APPLICATION (gui)
 
-> 🆕 **Une migration en attente au 2026-08-16** : `2026-08-16_brevo_keepalive_ping.sql`
-> (ping mensuel Brevo, § Requests/Enquiries point 2). **Décision gui du 2026-08-16 : PROD
-> uniquement** — tout ce qui touche Brevo reste sur une seule base, comme le reste du chantier
-> Brevo (`BREVO_API_KEY` déjà PROD-only). **Écart assumé à la règle « TEST + PROD dans la
-> foulée »**, même motif que pour `BREVO_API_KEY`. Prérequis avant de l'exécuter : déployer
-> `supabase functions deploy brevo-ping --no-verify-jwt`, créer le secret `BREVO_PING_SECRET`
-> sur PROD, remplacer les 2 placeholders du fichier (`<PROJECT_REF>` = `oslsbansxaajcpwhivmx`,
-> `<BREVO_PING_SECRET>`) avant de l'exécuter dans le SQL editor **PROD**.
+> ✅ **`2026-08-16_brevo_keepalive_ping.sql` appliquée et vérifiée en PROD le 2026-08-16**
+> (ping mensuel Brevo, § Requests/Enquiries point 2 — **PROD uniquement**, décision gui, même
+> écart assumé que pour `BREVO_API_KEY`). Job `cron.job` créé (`jobid=1`, premier job cron du
+> projet), `SELECT ping_brevo_keepalive();` puis `net._http_response` → **status_code 200**.
+> **Pas exécutée sur TEST — normal, ne pas la rejouer là-bas.**
 
 > ✅ **Registre vide au 2026-08-15 avant ce qui précède.** Les trois migrations du chantier Enquiries (`14a`, `14b`,
 > `14c`) sont passées sur TEST **et** PROD, et la chaîne email est prouvée bout-en-bout des
@@ -198,7 +195,7 @@ Contexte complet : `.claude/docs/LESSON_PRICING.md`.
 
 ---
 
-## 📥 Requests / Enquiries — ✅ EN SERVICE (2026-08-15), 4 restes
+## 📥 Requests / Enquiries — ✅ EN SERVICE (2026-08-15), 3 restes
 
 Chantier livré et vérifié **sur les deux bases** : origines trilingues (Options → 📣 Sources),
 tableau scannable, formulaire léger en iframe (`?lang=`), rattachement demande↔réservation,
@@ -222,22 +219,21 @@ dans une sortie de terminal, donc dans une conversation archivée.
 - ⚠️ Le fichier porte désormais un avertissement en commentaire. **Aucun secret n'a sa place
   dans `.env.local`** — seulement les URLs et les clés anon, publiques par nature.
 
-### 🔶 2. Ping mensuel pour garder la clé Brevo vivante — codé le 2026-08-16, reste à déployer
+### ✅ 2. Ping mensuel pour garder la clé Brevo vivante — LIVRÉ et vérifié le 2026-08-16
 
 **Une clé Brevo se désactive après 90 jours sans appel**, et la synchro n'est appelée que par
 une demande du formulaire. L'activité étant saisonnière (sept → mi-mars), le creux d'avril à
 août suffit à la tuer — et la panne ne se verrait qu'à la première demande de la rentrée, quand
 les contacts comptent le plus.
 
-Parade codée : nouvelle Edge Function **`brevo-ping`** (`supabase/functions/brevo-ping/`) qui
-tape `GET /v3/account` — rien n'est envoyé, le compteur repart à zéro — protégée par son propre
+Parade : Edge Function **`brevo-ping`** (`supabase/functions/brevo-ping/`) qui tape
+`GET /v3/account` — rien n'est envoyé, le compteur repart à zéro — protégée par son propre
 secret `BREVO_PING_SECRET` (même gabarit que `notify-enquiry`, un secret par consommateur).
-Appelée mensuellement par `pg_cron` via la migration `2026-08-16_brevo_keepalive_ping.sql`
-(registre en tête de fichier). Skippe proprement si `BREVO_API_KEY` est absente (TEST) — mais
-**décision gui : PROD uniquement**, comme le reste de Brevo.
-**⬜ Reste (gui)** : déployer la fonction, créer le secret sur PROD, remplacer les 2
-placeholders de la migration, l'exécuter sur PROD, vérifier (`SELECT ping_brevo_keepalive();`
-— détail des contrôles en bas du fichier SQL).
+Appelée mensuellement par `pg_cron` (migration `2026-08-16_brevo_keepalive_ping.sql`, 1er de
+chaque mois à 03:00 UTC). **PROD uniquement** (décision gui), comme le reste de Brevo — skippe
+proprement si `BREVO_API_KEY` est absente, mais la tâche n'est même pas posée sur TEST.
+✅ **Déployée et vérifiée en PROD le 2026-08-16** : job cron actif (`jobid=1`), appel manuel
+`SELECT ping_brevo_keepalive();` → **`net._http_response.status_code = 200`**.
 
 ### ⬜ 3. Deux questions ouvertes sur le périmètre Brevo
 
