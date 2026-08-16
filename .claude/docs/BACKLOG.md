@@ -10,12 +10,12 @@
 
 ## 🚨 MIGRATIONS SQL EN ATTENTE D'APPLICATION (gui)
 
-> 🆕 **`2026-08-16b_agency_billing_foundation.sql` en attente** — fondations de la
-> facturation aux agences partenaires (§ Requests/Enquiries point 5). 3 tables neuves
-> (`agencies`, `agency_rate_items`, `agency_billing_lines`), toutes admin-only. Pas de
-> placeholder à remplacer, s'applique telle quelle. Une seule tâche, TEST + PROD comme
-> d'habitude (aucun écart assumé ici, contrairement à Brevo). Vérification par curl anon →
-> 42501 sur les 3 tables (détail en bas du fichier SQL).
+> ✅ **`2026-08-16b_agency_billing_foundation.sql` appliquée et vérifiée TEST + PROD le
+> 2026-08-16** — fondations de la facturation aux agences partenaires (§ Requests/Enquiries
+> point 5). Curl anon sur les 3 tables (`agencies`, `agency_rate_items`,
+> `agency_billing_lines`) → **42501** sur les deux bases ; contrôle négatif `colonne_bidon` →
+> **42703** ; `lessons.agency_billing_line_id` → **200 `[]`** (colonne présente, RLS masque
+> juste les lignes). Registre vide sur ce fichier désormais.
 
 > ✅ **`2026-08-16_brevo_keepalive_ping.sql` appliquée et vérifiée en PROD le 2026-08-16**
 > (ping mensuel Brevo, § Requests/Enquiries point 2 — **PROD uniquement**, décision gui, même
@@ -268,14 +268,15 @@ Design complet et exploration du code : `.claude/docs/data-model.md` § agencies
   une seule ligne à 450€ même en 10 séances planning) ; colonnes `agency_id`/
   `agency_billing_line_id` posées sur `bookings`/`lessons`/`equipment_rentals`/`taxi_trips`/
   `booking_room_prices` (nullables, rien ne les remplit encore). RLS admin-only, `REVOKE ALL`
-  anon (même gabarit que `document_templates`). **⬜ Reste (gui) : appliquer la migration sur
-  PROD** (TEST optionnel), vérifier par curl anon → 42501 sur les 3 tables.
+  anon (même gabarit que `document_templates`). ✅ **Migration appliquée et vérifiée TEST +
+  PROD le 2026-08-16** — curl anon → 42501 sur les 3 tables, contrôle négatif → 42703 (détail
+  en tête de fichier, § Migrations en attente).
 - Nouvel onglet **Options → 🤝 Agencies** (`AgenciesTab.tsx`) : CRUD agence (nom, commission %,
   actif) + grille tarifaire (catégorie, libellé, heures de forfait, prix — désactivable jamais
   supprimable, même règle que les tarifs verrouillés de Pricing). `npm run build`/`test` OK,
   283 tests (aucun test cassé, aucune logique de calcul touchée). **⬜ Reste : Claude in Chrome
-  sur PROD une fois la migration passée** — créer "Fun & Fly" (20%), saisir les 4 lignes vues
-  dans l'Excel (Pack Privé 10x2h=450€/20h, Pack Semi Privé 10x2h=330€/20h, Transfert=220€).
+  sur PROD** — créer "Fun & Fly" (20%), saisir les 4 lignes vues dans l'Excel (Pack Privé
+  10x2h=450€/20h, Pack Semi Privé 10x2h=330€/20h, Transfert=220€).
 
 **⬜ Phase 2 — brancher `agency_id`** dans l'étape Client du wizard (`BookingsPage.tsx`) :
 choisir l'agence à la création d'une résa.
