@@ -315,8 +315,24 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
           <p className="text-gray-500 dark:text-gray-400 mt-1">Financial overview of the kite center</p>
         </div>
 
-        {/* Tab bar */}
-        <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-1 mb-8 overflow-x-auto">
+        {/* Tab bar — a 9-way horizontal scroller doesn't work on a phone (most
+            tabs sit off-screen with only a faint arrow hinting they exist), so
+            mobile gets a native <select> instead; sm: and up keep the strip. */}
+        <select
+          value={tab}
+          onChange={e => setTab(e.target.value as Tab)}
+          className="md:hidden w-full mb-8 px-4 py-2.5 rounded-xl font-medium text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200"
+        >
+          {TABS.map(t => {
+            const unverifiedCount = t.id === 'unverified' ? payments.filter(p => !p.is_verified).length : 0
+            return (
+              <option key={t.id} value={t.id}>
+                {t.icon} {t.label}{unverifiedCount > 0 ? ` (${unverifiedCount})` : ''}
+              </option>
+            )
+          })}
+        </select>
+        <div className="hidden md:flex gap-1 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-1 mb-8 overflow-x-auto">
           {TABS.map(t => {
             const unverifiedCount = t.id === 'unverified' ? payments.filter(p => !p.is_verified).length : 0
             return (
