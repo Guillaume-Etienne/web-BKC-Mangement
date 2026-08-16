@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Enquiry, EnquiryNote, EnquirySource, EnquiryStatus } from '../../types/database'
 import { STATUS_META, STATUS_ORDER, fmtArrivalMonth } from '../../utils/enquiries'
+import MonthInput from '../common/MonthInput'
 
 /** Read the message, fill four fields, close. Twenty seconds.
  *
@@ -230,8 +231,8 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
               <label className={labelCls}>When</label>
               {/* A month, never a day: "February" is what people say, and an
                   invented day reads like a commitment. */}
-              <input type="month" value={form.arrival_month}
-                onChange={e => set('arrival_month', e.target.value)} className={inputCls} />
+              <MonthInput value={form.arrival_month} allowEmpty
+                onChange={v => set('arrival_month', v)} className="w-full" />
             </div>
           </div>
 

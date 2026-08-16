@@ -4,6 +4,7 @@ import type { PalmeirasRent, PalmeirasReversal, PalmeirasEntry } from '../../typ
 import { fmtEur, fmtMonth } from './utils'
 import { buildBungalowRows, computePalmeirasTotals } from './palmeirasUtils'
 import { thisMonthISO } from '../../utils/dates'
+import MonthInput from '../common/MonthInput'
 
 interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
 
@@ -33,8 +34,7 @@ function RentForm({ existing, onSave, onCancel }: { existing?: PalmeirasRent; on
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Month</label>
-          <input type="month" value={month} onChange={e => setMonth(e.target.value)}
-            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
+          <MonthInput value={month} onChange={setMonth} className="w-full" focusRing="focus:ring-red-300" />
         </div>
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Amount (€)</label>
@@ -74,8 +74,7 @@ function ReversalForm({ existing, onSave, onCancel }: { existing?: PalmeirasReve
       <div className="grid grid-cols-3 gap-3">
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Month</label>
-          <input type="month" value={month} onChange={e => setMonth(e.target.value)}
-            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+          <MonthInput value={month} onChange={setMonth} className="w-full" focusRing="focus:ring-emerald-400" />
         </div>
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Palmeiras gross (€)</label>
@@ -319,11 +318,9 @@ export default function PalmeirasTab({ data, handlers }: Props) {
         </div>
         {period === 'custom' && (
           <div className="flex items-center gap-2 text-sm">
-            <input type="month" value={customFrom} onChange={e => setFrom(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            <MonthInput value={customFrom} onChange={setFrom} allowEmpty />
             <span className="text-gray-400 dark:text-gray-400">→</span>
-            <input type="month" value={customTo} onChange={e => setTo(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            <MonthInput value={customTo} onChange={setTo} allowEmpty />
           </div>
         )}
         {period === 'single' && (

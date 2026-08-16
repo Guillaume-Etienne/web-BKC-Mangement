@@ -3,6 +3,7 @@ import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { Expense } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
+import MonthInput from '../common/MonthInput'
 
 const DEFAULT_CATEGORIES: string[] = ['Equipment', 'Maintenance', 'Transport', 'Staff', 'Admin', 'Other']
 
@@ -262,8 +263,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search…"
             className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-48" />
-          <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <MonthInput value={filterMonth} onChange={setFilterMonth} allowEmpty />
           <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
             <option value="all">All categories</option>
@@ -351,11 +351,9 @@ export default function ExpensesTab({ data, handlers }: Props) {
           </div>
           {sumPeriod === 'custom' && (
             <div className="flex items-center gap-2 text-sm">
-              <input type="month" value={sumFrom} onChange={e => setSumFrom(e.target.value)}
-                className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <MonthInput value={sumFrom} onChange={setSumFrom} allowEmpty />
               <span className="text-gray-400 dark:text-gray-400">→</span>
-              <input type="month" value={sumTo} onChange={e => setSumTo(e.target.value)}
-                className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <MonthInput value={sumTo} onChange={setSumTo} allowEmpty />
             </div>
           )}
         </div>

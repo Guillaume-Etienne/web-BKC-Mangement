@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import type { SharedAccountingData } from './types'
 import { fmtEur, fmtMonth } from './utils'
 import { buildCashFlowRows, filterRowsByPeriod, sumCashFlowRows, runningBalances } from './cashFlowUtils'
+import MonthInput from '../common/MonthInput'
 
 interface Props { data: SharedAccountingData }
 
@@ -60,11 +61,9 @@ export default function CashFlow({ data }: Props) {
 
         {mode === 'custom' && (
           <div className="flex items-center gap-2 text-sm">
-            <input type="month" value={customFrom} onChange={e => setFrom(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            <MonthInput value={customFrom} onChange={setFrom} allowEmpty />
             <span className="text-gray-400 dark:text-gray-400">→</span>
-            <input type="month" value={customTo} onChange={e => setTo(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            <MonthInput value={customTo} onChange={setTo} allowEmpty />
           </div>
         )}
       </div>
