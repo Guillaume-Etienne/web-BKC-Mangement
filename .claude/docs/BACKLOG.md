@@ -249,7 +249,7 @@ d'alimenter Brevo. Ne pas rouvrir cette question sans une raison nouvelle.
 Demandes `BREVO-V2 14h18` et `Guillaume` (l'essai de gui lui-même), plus le contact
 `gsetienne9+brevotest@gmail.com` dans Brevo — supprimés par gui.
 
-### 🔶 5. Facturation aux agences partenaires (Fun&Fly & co.) — fondations livrées (2026-08-16)
+### ✅ 5. Facturation aux agences partenaires (Fun&Fly & co.) — fondations livrées et vérifiées (2026-08-16)
 
 Repéré le 2026-08-16 en traitant une demande venue de **Fun&Fly** : le centre rend le service
 (cours, location, transfert, parfois hébergement en maison/bungalow) mais c'est l'**agence**
@@ -274,9 +274,15 @@ Design complet et exploration du code : `.claude/docs/data-model.md` § agencies
 - Nouvel onglet **Options → 🤝 Agencies** (`AgenciesTab.tsx`) : CRUD agence (nom, commission %,
   actif) + grille tarifaire (catégorie, libellé, heures de forfait, prix — désactivable jamais
   supprimable, même règle que les tarifs verrouillés de Pricing). `npm run build`/`test` OK,
-  283 tests (aucun test cassé, aucune logique de calcul touchée). **⬜ Reste : Claude in Chrome
-  sur PROD** — créer "Fun & Fly" (20%), saisir les 4 lignes vues dans l'Excel (Pack Privé
-  10x2h=450€/20h, Pack Semi Privé 10x2h=330€/20h, Transfert=220€).
+  283 tests (aucun test cassé, aucune logique de calcul touchée).
+  ✅ **Vérifié au navigateur sur PROD le 2026-08-16** (Claude in Chrome) : agence **Fun & Fly**
+  créée (20% commission, notes avec la raison sociale Aquaphyle/Toulouse/TVA relevées sur la
+  facture), 3 lignes de grille saisies — Pack cours Privé 10x2h (20h, 450€), Pack cours Semi
+  Privé 10x2h (20h, 330€), Transfert Maputo↔Bilene (220€, catégorie transfer → pas de champ
+  heures, comme prévu). Bascule Deactivate/Reactivate testée sur une ligne, comportement
+  correct (grisée, bouton inversé, remise à l'identique). Trois lignes suffisent au catalogue :
+  les doublons de la facture réelle (3× Pack Privé, 2× Pack Semi Privé) viennent du nombre de
+  personnes facturées, pas de tarifs différents — pas de 4ᵉ ligne à créer. **Phase 1 close.**
 
 **⬜ Phase 2 — brancher `agency_id`** dans l'étape Client du wizard (`BookingsPage.tsx`) :
 choisir l'agence à la création d'une résa.
