@@ -329,9 +329,56 @@ dans les totaux client facture deux fois le même euro. **Aucune migration** —
 - ✅ **Vérifié par curl anon sur les DEUX bases** : les 4 colonnes `agency_billing_line_id`
   → **200 `[]`**, contrôle négatif `colonne_bidon` → **42703**, `agency_billing_lines`
   → **42501** (la table de facturation reste fermée en anon).
-- ⬜ **Reste (gui)** : test au navigateur sur la résa **#022** (Claude in Chrome proposé) —
-  créer la ligne « Pack cours Privé 10x2h » à 450 € pour Loïc SENE et y rattacher les 14h
-  déjà saisies.
+- ✅ **Campagne de test complète menée le 2026-08-17 sur TEST** (Claude in Chrome + service_role),
+  base restaurée à ses chiffres exacts (4 817 € / #001 = 1 326 €) :
+  agence + grille créées à l'écran, résa taguée, **5 services des 4 types** rattachés → total
+  client **1 326 € → 606 €** (exactement les 720 € déplacés), compteur **3,5h/20h**,
+  **dépassement 2h/1h en ambre**, déplacement d'un service d'une ligne à l'autre, tampons
+  invoiced/paid (timestamps en base), suppression de ligne rendant ses services au client
+  (`ON DELETE SET NULL` **et** état local), **page client partagée** affichant « — » avec le
+  solde inchangé (chambre agence disparue, cours visibles sans prix, sous-total cours 0 €).
+  Écriture vérifiée en base sur les 4 tables. **3 défauts trouvés et corrigés** (`16eb23d`) —
+  détail ci-dessous.
+- ⬜ **Reste (gui)** : la saisie réelle sur **#022 est impossible en l'état** — voir le point
+  ⚠️ juste après.
+
+#### 🔴 Les 3 défauts trouvés par la campagne (corrigés, `16eb23d`)
+
+1. **Le dashboard affichait un total que ses propres lignes ne faisaient pas** : 4 022 € au
+   sommet de lignes sommant à 3 662 €. La part agence était bien dans `totalRevenue` mais
+   n'avait **aucune ligne** dans « Revenue breakdown », alors que les services qu'elle couvre
+   avaient été retirés des lignes du dessus. Ligne **Agencies** ajoutée (masquée tant qu'elle
+   vaut 0, sous-titre « brut − commission ») + **un test verrouille l'identité** « la somme des
+   lignes == totalRevenue ». C'est le défaut que la couche de calcul seule ne pouvait pas voir.
+2. **Le serveur MCP était cassé** : `fetchAccountingBundle` construisait un
+   `SharedAccountingData` **sans `priceTiers`** (manquant depuis le chantier paliers du 16/08)
+   **ni les 3 collections agence**. `computeSeasonTotals` fait `.filter` dessus →
+   `get_accounting_summary` et `get_booking` auraient jeté une TypeError **au prochain
+   redémarrage** du serveur (le process en cours tenait encore l'ancien module en mémoire, d'où
+   l'absence de symptôme). `npm run typecheck` dans `mcp-server/` le disait déjà.
+   **Leçon : `mcp-server/` consomme le code de `client/` — tout ajout à `SharedAccountingData`
+   doit être répercuté là-bas, et son typecheck lancé.**
+3. **`npm run build` (`tsc -b`) est plus strict que `tsc --noEmit`** : il a seul attrapé un
+   narrowing perdu dans une closure (`agency` possiblement `undefined`). Confirme la règle déjà
+   écrite en tête de ce fichier : **`npm run build` avant tout push**, pas seulement un typecheck.
+
+*(Noté sans conclusion : un warning React « unique key prop » dans `BookingFinances` est apparu
+une fois dans la console pendant la campagne, **non reproductible** ensuite — ni sur une résa
+avec agence, ni sans, ni en rejouant la séquence. Toutes les listes des deux fichiers ont bien
+une `key`. Probablement un rechargement à chaud de Vite pendant que j'éditais les sources.
+À resignaler s'il réapparaît en conditions normales.)*
+
+#### ⚠️ PROD : la table `lessons` est VIDE — les 14h de #022 n'existent pas
+
+Constaté le 2026-08-17 via le MCP (lecture seule) : `lessons` compte **0 ligne en PROD**, et
+la résa #022 n'a **aucun cours**. La note du 16/08 disant « les deux blocs de cours (10h puis
+4h) sont désormais saisis dans le planning par gui » **ne correspond pas à la base** — soit la
+saisie n'a pas été enregistrée, soit elle a été faite sur TEST. Conséquence : impossible de
+rattacher quoi que ce soit à une ligne de facture Fun & Fly pour l'instant.
+**→ gui : ressaisir les cours de #022 dans le planning**, puis créer la ligne « Pack cours
+Privé 10x2h » (450 €, 20h) pour Loïc SENE et l'y rattacher. Rappel du piège maison :
+[fonctionnalité livrée ≠ appliquée aux vraies fiches].
+*(PROD contient bien l'agence Fun & Fly, ses 3 lignes de grille et les 4 paliers de prix.)*
 
 **🔶 Phase 4 — masquage côté client : la moitié visible est faite, la protection réseau non.**
 Fait le 2026-08-17 dans `ClientSharePage.tsx` : une ligne couverte par l'agence affiche
