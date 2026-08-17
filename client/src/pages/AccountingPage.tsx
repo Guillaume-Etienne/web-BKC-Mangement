@@ -8,9 +8,11 @@ import { useInstructors } from '../hooks/useInstructors'
 import { useEquipment, useEquipmentRentals } from '../hooks/useEquipment'
 import { useTaxiTrips } from '../hooks/useTaxis'
 import { useActivityBookings, useActivityPayments } from '../hooks/useActivities'
+import { useAgencies, useAgencyRateItems, useAgencyBillingLines } from '../hooks/useAgencies'
 import { useTable } from '../hooks/useSupabase'
 import { usePriceTiers } from '../hooks/usePriceTiers'
 import { persist } from '../components/accounting/persist'
+import { getRoomNightlyRate } from '../components/accounting/utils'
 import AccountingDashboard  from '../components/accounting/AccountingDashboard'
 import BookingFinances      from '../components/accounting/BookingFinances'
 import InstructorPayroll    from '../components/accounting/InstructorPayroll'
@@ -26,6 +28,7 @@ import type {
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   TaxiPricingDefaults, TaxiManagerPayment,
   DiningEvent, BookingRoomPrice, RoomRate, PriceItem, Lesson,
+  AgencyBillingLine, TaxiTrip,
 } from '../types/database'
 
 type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'cashflow' | 'expenses' | 'events' | 'unverified'
@@ -62,12 +65,14 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: equipment }                = useEquipment()
   const { data: equipmentRentalsData }     = useEquipmentRentals()
   const [equipmentRentals, setEquipmentRentals] = useState<EquipmentRental[]>([])
-  const { data: taxiTrips }                = useTaxiTrips()
+  const { data: taxiTripsData }            = useTaxiTrips()
   const { data: taxiManagerPayments }      = useTable<TaxiManagerPayment>('taxi_manager_payments', { order: 'date', ascending: false })
   // order matters: several rows may exist, every screen must pick the most recent (8000€ bug)
   const { data: taxiPricingDefaults }      = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
   const { data: activityBookings }         = useActivityBookings()
   const { data: activityPayments }         = useActivityPayments()
+  const { data: agencies }                 = useAgencies()
+  const { data: agencyRateItems }          = useAgencyRateItems()
   // Ordered on purpose: four tabs read `seasons[seasons.length - 1]` as "the
   // current season". Without an ORDER BY, Postgres returns rows in whatever order
   // it likes, so "the last one" was a coin flip as soon as a second season exists.
@@ -77,6 +82,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
 
   // ── Mutable state (Supabase) ──────────────────────────────────────────────
   const { data: paymentsData }           = usePayments()
+  const { data: agencyBillingLinesData } = useAgencyBillingLines()
   const { data: instructorDebtsData }    = useTable<InstructorDebt>('instructor_debts', { order: 'date', ascending: false })
   const { data: instructorPaymentsData } = useTable<InstructorPayment>('instructor_payments', { order: 'date', ascending: false })
   const { data: lessonOverridesData }    = useTable<LessonRateOverride>('lesson_rate_overrides')
@@ -86,6 +92,8 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: palmeirasEntriesData }   = useTable<PalmeirasEntry>('palmeiras_entries', { order: 'month', ascending: false })
 
   const [lessons,            setLessons]            = useState<Lesson[]>([])
+  const [taxiTrips,          setTaxiTrips]          = useState<TaxiTrip[]>([])
+  const [agencyBillingLines, setAgencyBillingLines] = useState<AgencyBillingLine[]>([])
   const [bookingRoomPrices,  setBookingRoomPrices]  = useState<BookingRoomPrice[]>([])
   const [payments,           setPayments]           = useState<Payment[]>([])
   const [instructorDebts,    setInstructorDebts]    = useState<InstructorDebt[]>([])
@@ -97,6 +105,8 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const [palmeirasEntries,   setPalmeirasEntries]   = useState<PalmeirasEntry[]>([])
 
   useEffect(() => setLessons(lessonsData),                     [lessonsData])
+  useEffect(() => setTaxiTrips(taxiTripsData),                 [taxiTripsData])
+  useEffect(() => setAgencyBillingLines(agencyBillingLinesData), [agencyBillingLinesData])
   useEffect(() => setBookingRoomPrices(bookingRoomPricesData), [bookingRoomPricesData])
   useEffect(() => setEquipmentRentals(equipmentRentalsData),  [equipmentRentalsData])
   useEffect(() => setPayments(paymentsData),                   [paymentsData])
@@ -141,6 +151,9 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     palmeirasEntries,
     activityBookings,
     activityPayments,
+    agencies,
+    agencyRateItems,
+    agencyBillingLines,
   }
 
   // ── Handlers (optimistic local update, rolled back if the DB refuses) ─────
@@ -303,6 +316,78 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         () => setPalmeirasEntries(before), 'the entry deletion')
     },
 
+    // ── Partner-agency billing ────────────────────────────────────────────
+    addAgencyBillingLine: (l: AgencyBillingLine) => {
+      const before = agencyBillingLines
+      setAgencyBillingLines(prev => [...prev, l])
+      persist(supabase.from('agency_billing_lines').insert([l]),
+        () => setAgencyBillingLines(before), 'the agency billing line')
+    },
+    updateAgencyBillingLine: (l: AgencyBillingLine) => {
+      const before = agencyBillingLines
+      setAgencyBillingLines(prev => prev.map(x => x.id === l.id ? l : x))
+      const { id, ...fields } = l
+      persist(supabase.from('agency_billing_lines').update(fields).eq('id', id),
+        () => setAgencyBillingLines(before), 'the agency billing line')
+    },
+    deleteAgencyBillingLine: (id: string) => {
+      // Detach everything first: the FK is ON DELETE SET NULL, but the local
+      // state has to follow or the screen keeps showing services attached to a
+      // line that no longer exists — and they would stay off the client's bill.
+      const beforeLines = agencyBillingLines
+      const beforeLessons = lessons, beforeRentals = equipmentRentals
+      const beforeTaxis = taxiTrips, beforeRoomPrices = bookingRoomPrices
+      const detach = <T extends { agency_billing_line_id?: string | null }>(rows: T[]) =>
+        rows.map(r => r.agency_billing_line_id === id ? { ...r, agency_billing_line_id: null } : r)
+      setAgencyBillingLines(prev => prev.filter(x => x.id !== id))
+      setLessons(detach); setEquipmentRentals(detach); setTaxiTrips(detach); setBookingRoomPrices(detach)
+      persist(supabase.from('agency_billing_lines').delete().eq('id', id), () => {
+        setAgencyBillingLines(beforeLines)
+        setLessons(beforeLessons); setEquipmentRentals(beforeRentals)
+        setTaxiTrips(beforeTaxis); setBookingRoomPrices(beforeRoomPrices)
+      }, 'the agency billing line deletion')
+    },
+
+    setLessonAgencyLine: (lesson_id: string, lineId: string | null) => {
+      const before = lessons
+      setLessons(prev => prev.map(l => l.id === lesson_id ? { ...l, agency_billing_line_id: lineId } : l))
+      persist(supabase.from('lessons').update({ agency_billing_line_id: lineId }).eq('id', lesson_id),
+        () => setLessons(before), 'the lesson billing link')
+    },
+    setRentalAgencyLine: (rental_id: string, lineId: string | null) => {
+      const before = equipmentRentals
+      setEquipmentRentals(prev => prev.map(r => r.id === rental_id ? { ...r, agency_billing_line_id: lineId } : r))
+      persist(supabase.from('equipment_rentals').update({ agency_billing_line_id: lineId }).eq('id', rental_id),
+        () => setEquipmentRentals(before), 'the rental billing link')
+    },
+    setTaxiAgencyLine: (trip_id: string, lineId: string | null) => {
+      const before = taxiTrips
+      setTaxiTrips(prev => prev.map(t => t.id === trip_id ? { ...t, agency_billing_line_id: lineId } : t))
+      persist(supabase.from('taxi_trips').update({ agency_billing_line_id: lineId }).eq('id', trip_id),
+        () => setTaxiTrips(before), 'the transfer billing link')
+    },
+    setRoomAgencyLine: (booking_id: string, room_id: string, lineId: string | null) => {
+      // booking_room_prices has no id: the row is keyed by (booking, room), and
+      // it may not exist yet — a room left at its base rate has no snapshot. In
+      // that case freeze today's rate on the way in, exactly like an edit does,
+      // rather than writing a row with a price of 0.
+      const before = bookingRoomPrices
+      const existing = bookingRoomPrices.find(p => p.booking_id === booking_id && p.room_id === room_id)
+      const row: BookingRoomPrice = existing
+        ? { ...existing, agency_billing_line_id: lineId }
+        : {
+            booking_id, room_id,
+            price_per_night: getRoomNightlyRate(booking_id, room_id, sharedData),
+            override_note: null,
+            agency_billing_line_id: lineId,
+          }
+      setBookingRoomPrices(prev => {
+        const idx = prev.findIndex(p => p.booking_id === booking_id && p.room_id === room_id)
+        return idx >= 0 ? prev.map((x, i) => i === idx ? row : x) : [...prev, row]
+      })
+      persist(supabase.from('booking_room_prices').upsert([row]),
+        () => setBookingRoomPrices(before), 'the room billing link')
+    },
   }
 
   return (

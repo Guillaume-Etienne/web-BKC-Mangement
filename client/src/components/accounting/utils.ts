@@ -17,7 +17,79 @@ export function emptyAccountingData(): SharedAccountingData {
     payments: [], instructorDebts: [], instructorPayments: [], lessonRateOverrides: [],
     expenses: [], palmeirasRents: [], palmeirasReversals: [], palmeirasEntries: [],
     activityBookings: [], activityPayments: [],
+    agencies: [], agencyRateItems: [], agencyBillingLines: [],
   }
+}
+
+// ── Partner-agency billing ──────────────────────────────────────────────────
+//
+// A lesson, rental, taxi trip or room carrying an `agency_billing_line_id` is
+// billed to the agency that sent the guest, NOT to the guest. The money is real
+// either way, it just changes debtor — so every client-facing total below skips
+// those rows, and `computeAgencyTotals` counts them instead. Getting only half
+// of that right is the expensive mistake: skip them everywhere and the revenue
+// vanishes, skip them nowhere and the same euro is billed twice.
+
+/** True when this row is owed by an agency rather than by the client.
+ *  Loose `!=` on purpose, like `resolveLessonRate`: rows fetched before the
+ *  column existed come back with `undefined`, and `undefined !== null` would
+ *  read as "agency billed" and silently drop the row from the client's bill. */
+export function isAgencyBilled(row: { agency_billing_line_id?: string | null }): boolean {
+  return row.agency_billing_line_id != null
+}
+
+/** Same question for a booked room, which carries the flag on its price
+ *  snapshot (`booking_room_prices`) — the row `bookingRooms` has no field of
+ *  its own. No snapshot at all → billed to the client, as always. */
+export function isRoomAgencyBilled(bookingId: string, roomId: string, data: SharedAccountingData): boolean {
+  const snapshot = data.bookingRoomPrices.find(p => p.booking_id === bookingId && p.room_id === roomId)
+  return snapshot ? isAgencyBilled(snapshot) : false
+}
+
+/** Hours already taught against one invoice line — the "14h of the 20h package
+ *  done" counter. Group lessons count their wall-clock duration once: a package
+ *  is a number of hours in the water, not a number of billed heads. */
+export function agencyLineHoursUsed(lineId: string, lessons: Lesson[]): number {
+  return lessons
+    .filter(l => l.agency_billing_line_id === lineId)
+    .reduce((sum, l) => sum + l.duration_hours, 0)
+}
+
+export interface AgencyTotals {
+  gross: number        // what we invoice the agency, at its own catalogue price
+  commission: number   // what the agency retains (its % of gross)
+  net: number          // what actually reaches the centre
+  invoiced: number     // gross of the lines already marked invoiced_at
+  paid: number         // net of the lines already marked paid_at
+  outstanding: number  // net billed but not yet paid
+}
+
+/** Agency-billed money over a set of lines, commission applied per line — each
+ *  agency has its own rate, so a single global percentage would be wrong as soon
+ *  as a second agency exists. Cancelled bookings are dropped for the same reason
+ *  they are dropped from client revenue: nothing was sold. */
+export function computeAgencyTotals(
+  data: SharedAccountingData,
+  filter?: { agencyId?: string; bookingId?: string }
+): AgencyTotals {
+  const cancelled = new Set(data.bookings.filter(b => b.status === 'cancelled').map(b => b.id))
+  const lines = data.agencyBillingLines.filter(l =>
+    !cancelled.has(l.booking_id) &&
+    (!filter?.agencyId  || l.agency_id  === filter.agencyId) &&
+    (!filter?.bookingId || l.booking_id === filter.bookingId)
+  )
+
+  let gross = 0, commission = 0, invoiced = 0, paid = 0, outstanding = 0
+  for (const l of lines) {
+    const pct = data.agencies.find(a => a.id === l.agency_id)?.commission_percent ?? 0
+    const cut = l.price * pct / 100
+    gross += l.price
+    commission += cut
+    if (l.invoiced_at) invoiced += l.price
+    if (l.paid_at) paid += l.price - cut
+    else outstanding += l.price - cut
+  }
+  return { gross, commission, net: gross - commission, invoiced, paid, outstanding }
 }
 
 /** Nightly rate for a room within a booking (snapshot → base rate fallback).
@@ -47,7 +119,8 @@ export function countNights(checkIn: string, checkOut: string): number {
   )
 }
 
-/** Accommodation revenue for a booking (own rooms + external).
+/** Accommodation revenue for a booking (own rooms + external), as owed BY THE
+ *  CLIENT — rooms billed to a partner agency are left out (see isAgencyBilled).
  *  No early return on a zero-night booking: own rooms fall out at 0 on their own,
  *  and an external stay carries its own dates — bailing out early credited no
  *  revenue for it while computeExternalAccommodationCost still charged the cost. */
@@ -56,6 +129,7 @@ export function computeAccommodationRevenue(booking: Booking, data: SharedAccoun
 
   const ownRooms = data.bookingRooms
     .filter(br => br.booking_id === booking.id)
+    .filter(br => !isRoomAgencyBilled(booking.id, br.room_id, data))
     .reduce((sum, br) => sum + getRoomNightlyRate(booking.id, br.room_id, data) * nights, 0)
 
   // External stays are priced as a lump sum for the whole stay, not per night:
@@ -175,29 +249,32 @@ export function getConfiguredRate(priceItems: PriceItem[], type: BillableType): 
   return priceItems.find(p => p.billable_type === type)?.price ?? null
 }
 
-/** Lessons revenue for a booking.
+/** Lessons revenue for a booking, as owed BY THE CLIENT — lessons billed to a
+ *  partner agency are left out (see isAgencyBilled).
  *  Group lessons are priced per head, so multiply by participant count. */
 export function computeLessonsRevenue(booking: Booking, data: SharedAccountingData): number {
   const tierCtx = { tiers: data.priceTiers, allLessons: data.lessons, bookingParticipants: data.bookingParticipants }
   return data.lessons
-    .filter(l => l.booking_id === booking.id)
+    .filter(l => l.booking_id === booking.id && !isAgencyBilled(l))
     .reduce((sum, l) => {
       const base = getLessonClientRate(l, data.priceItems, tierCtx) * l.duration_hours
       return sum + (l.type === 'group' ? base * l.participant_ids.length : base)
     }, 0)
 }
 
-/** Equipment rentals revenue for a booking */
+/** Equipment rentals revenue for a booking, agency-billed ones excluded */
 export function computeRentalsRevenue(booking: Booking, data: SharedAccountingData): number {
   return data.equipmentRentals
-    .filter(r => r.booking_id === booking.id)
+    .filter(r => r.booking_id === booking.id && !isAgencyBilled(r))
     .reduce((sum, r) => sum + r.price, 0)
 }
 
-/** Taxi revenue for a booking */
+/** Taxi revenue for a booking, agency-billed trips excluded.
+ *  Only the client-facing PRICE moves to the agency — the driver and manager
+ *  are still paid in MZN either way, so taxi costs are untouched by this. */
 export function computeTaxiRevenue(booking: Booking, data: SharedAccountingData): number {
   return data.taxiTrips
-    .filter(t => t.booking_id === booking.id)
+    .filter(t => t.booking_id === booking.id && !isAgencyBilled(t))
     .reduce((sum, t) => sum + t.price_eur, 0)
 }
 
@@ -227,10 +304,10 @@ export function computeCenterAccessRevenue(booking: Booking): number {
   return booking.num_center_access * countNights(booking.check_in, booking.check_out) * (booking.center_access_rate ?? 0)
 }
 
-/** Taxi revenue for trips not linked to any booking */
+/** Taxi revenue for trips not linked to any booking, agency-billed ones excluded */
 export function computeStandaloneTaxiRevenue(data: SharedAccountingData): number {
   return data.taxiTrips
-    .filter(t => t.booking_id === null)
+    .filter(t => t.booking_id === null && !isAgencyBilled(t))
     .reduce((sum, t) => sum + t.price_eur, 0)
 }
 
@@ -388,11 +465,15 @@ export interface SeasonTotals {
   activitiesRev: number
   eventsRev: number
   centerAccessRev: number
+  agencyGross: number        // billed to partner agencies, before their commission
+  agencyCommission: number   // what they retain
+  agencyRev: number          // what reaches us — the part counted in totalRevenue
+  agencyOutstanding: number  // net billed to agencies and not yet paid
   totalRevenue: number
-  billedNet: number
+  billedNet: number          // owed BY CLIENTS (agency-billed rows excluded)
   totalPaid: number
   unverifiedPaid: number
-  totalDue: number
+  totalDue: number           // still owed by clients; agencies are agencyOutstanding
   instructorCosts: number
   activityCosts: number
   houseRentalCosts: number
@@ -429,9 +510,14 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
   const centerAccessRev = activeBookings.reduce((s, b) => s + computeCenterAccessRevenue(b), 0)
 
   const activeTrips  = data.taxiTrips.filter(t => t.booking_id === null || activeIds.has(t.booking_id))
-  const taxiRevGross = activeTrips.reduce((s, t) => s + t.price_eur, 0)
-  const taxiMargin   = activeTrips.reduce((s, t) => s + computeTaxiMarginEur(t, data.eurMznRate), 0)
-  const taxiCosts    = taxiRevGross - taxiMargin
+  // Gross counts client-billed trips only — an agency transfer is invoiced on its
+  // own line, at the agency's catalogue price, so counting price_eur here too
+  // would bill the same ride twice. The COST stays on every active trip: the
+  // driver is paid either way, and dropping it would make the ride look free.
+  // On a dataset with no agency line this is identical to the previous formula.
+  const taxiRevGross = activeTrips.filter(t => !isAgencyBilled(t)).reduce((s, t) => s + t.price_eur, 0)
+  const taxiCosts    = activeTrips.reduce((s, t) => s + (t.price_eur - computeTaxiMarginEur(t, data.eurMznRate)), 0)
+  const taxiMargin   = taxiRevGross - taxiCosts
 
   // we_pay_provider → the client pays us; provider_pays_us → the provider reverses their cut
   const activeActs    = data.activityBookings.filter(a => a.booking_id === null || activeIds.has(a.booking_id))
@@ -439,7 +525,14 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
   const activityCosts = activeActs.reduce((s, a) => s + (a.payment_flow === 'we_pay_provider' ? a.price_provider : 0), 0)
 
   const eventsRev    = computeDiningRevenue(data.diningEvents)
-  const totalRevenue = accomRev + lessonsRev + rentalsRev + taxiMargin + eventsRev + activitiesRev + centerAccessRev
+
+  // Partner agencies. The revenue every other line above just gave up (lessons,
+  // rentals, transfers and rooms carrying an agency_billing_line_id) comes back
+  // here at the agency's own catalogue price, NET of the commission it retains —
+  // the same convention as taxi, where the centre only books what it keeps.
+  const agency = computeAgencyTotals(data)
+
+  const totalRevenue = accomRev + lessonsRev + rentalsRev + taxiMargin + eventsRev + activitiesRev + centerAccessRev + agency.net
 
   const billedNet = activeBookings.reduce(
     (s, b) => s + computeBookingTotal(b, data) - computeBookingDiscounts(b.id, data.payments), 0)
@@ -488,7 +581,10 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
 
   return {
     accomRev, lessonsRev, rentalsRev, taxiRevGross, taxiCosts, taxiMargin,
-    activitiesRev, eventsRev, centerAccessRev, totalRevenue,
+    activitiesRev, eventsRev, centerAccessRev,
+    agencyGross: agency.gross, agencyCommission: agency.commission,
+    agencyRev: agency.net, agencyOutstanding: agency.outstanding,
+    totalRevenue,
     billedNet, totalPaid, unverifiedPaid, totalDue,
     instructorCosts, activityCosts, houseRentalCosts, bungalowCosts, externalStayCosts,
     totalExpenses, palmeirasNet, netResult,

@@ -10,6 +10,7 @@ import {
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate,
 } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
+import AgencyBillingPanel from './AgencyBillingPanel'
 
 interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
 
@@ -680,6 +681,11 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           )}
         </div>
       </div>
+
+      {/* Partner agency — only for a booking tagged with one in the wizard.
+          Everything it takes over disappears from the breakdown above: the total
+          right there is what the GUEST owes, never the whole stay's value. */}
+      <AgencyBillingPanel booking={b} data={data} handlers={handlers} />
 
       {/* Per-guest breakdown (collapsible) */}
       {(() => {

@@ -6,6 +6,7 @@ import type {
   DiningEvent, EquipmentRental, EventAttendee, ExternalAccommodationBooking,
   Instructor, InstructorDebt, InstructorPayment, Lesson, LessonRateOverride, LessonType, PriceItem, PriceTier,
   Payment, Room, RoomRate, TaxiTrip, BillableType,
+  Agency, AgencyRateItem, AgencyBillingLine,
 } from '../../types/database'
 import { lessonBillable } from '../../types/database'
 import type { SharedAccountingData } from './types'
@@ -170,6 +171,31 @@ export function mkActivityBooking(over: Partial<ActivityBooking> = {}): Activity
     label: 'Safari', nb_persons: 2, participant_ids: ['p1'],
     price_client: 100, price_provider: 70, payment_flow: 'we_pay_provider',
     notes: null, created_at: '2026-01-01T00:00:00Z',
+    ...over,
+  }
+}
+
+// ── Partner agencies (Fun&Fly & co.) ────────────────────────────────────────
+// Defaults mirror the real Fun & Fly setup: 20% commission, a 20h private
+// package at 450€ — the invoice this whole feature was designed against.
+
+export function mkAgency(over: Partial<Agency> = {}): Agency {
+  return { id: 'ag1', name: 'Fun & Fly', commission_percent: 20, notes: null, is_active: true, ...over }
+}
+
+export function mkAgencyRateItem(over: Partial<AgencyRateItem> = {}): AgencyRateItem {
+  return {
+    id: 'ari1', agency_id: 'ag1', category: 'lesson',
+    label: 'Pack cours Privé 10x2h', unit_hours: 20, price: 450, is_active: true,
+    ...over,
+  }
+}
+
+export function mkAgencyLine(over: Partial<AgencyBillingLine> = {}): AgencyBillingLine {
+  return {
+    id: 'abl1', booking_id: 'bk1', agency_id: 'ag1', participant_id: 'p1',
+    agency_rate_item_id: 'ari1', price: 450, unit_hours: 20,
+    invoiced_at: null, paid_at: null, notes: null,
     ...over,
   }
 }

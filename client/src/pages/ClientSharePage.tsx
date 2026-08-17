@@ -58,6 +58,17 @@ function getLessonRate(l: Lesson): number {
   return l.price_per_hour ?? 0
 }
 
+/** A service billed to the partner agency that sent this guest. It stays on the
+ *  page — they still want to see the lessons they took — but shows no price and
+ *  adds nothing to the subtotal, because they owe nothing for it.
+ *
+ *  ⚠️ This is a DISPLAY rule, not a protection: the price still travels over the
+ *  wire in the same row. Actually redacting it needs the SECURITY DEFINER
+ *  function of Phase 4 (see BACKLOG § agencies) — a column GRANT cannot hide a
+ *  value conditionally on another column. */
+const coveredByAgency = (row: { agency_billing_line_id?: string | null }) =>
+  row.agency_billing_line_id != null
+
 const METHOD_LABELS: Record<string, string> = {
   cash_eur:        'Cash (€)',
   cash_mzn:        'Cash (MZN)',
@@ -214,7 +225,9 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       label: room && accom ? roomLabel(room, accom) : br.room_id,
       nights,
       pricePerNight,
-      total: nights * pricePerNight,
+      // A room picked up by the agency comes out at 0, which the filter below
+      // drops — same treatment as any other room the guest is not charged for.
+      total: priceRow && coveredByAgency(priceRow) ? 0 : nights * pricePerNight,
       note: priceRow?.override_note ?? null,
     }
   })
@@ -261,16 +274,21 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       duration: l.duration_hours,
       instructor: instr ? instr.first_name : '?',
       guests: partNames(l.participant_ids),
-      total: rate * l.duration_hours * (l.type === 'group' ? l.participant_ids.length : 1),
+      total: coveredByAgency(l) ? null : rate * l.duration_hours * (l.type === 'group' ? l.participant_ids.length : 1),
     }
   })
-  const lessonsTotal = lessonRows.reduce((s, r) => s + r.total, 0)
+  const lessonsTotal = lessonRows.reduce((s, r) => s + (r.total ?? 0), 0)
 
   // Equipment rentals
-  const rentalsTotal = rentals.reduce((s, r) => s + r.price, 0)
+  const rentalsTotal = rentals.reduce((s, r) => s + (coveredByAgency(r) ? 0 : r.price), 0)
 
   // Taxis
-  const taxiTotal = taxis.reduce((s, t) => s + t.price_eur, 0)
+  const taxiTotal = taxis.reduce((s, t) => s + (coveredByAgency(t) ? 0 : t.price_eur), 0)
+
+  // Anything the agency picked up, so the page can explain the blank prices
+  // instead of leaving the guest wondering what "—" means.
+  const hasAgencyCovered =
+    lessons.some(coveredByAgency) || rentals.some(coveredByAgency) || taxis.some(coveredByAgency)
 
   // Dining events (match participants to attendees)
   const partIds = new Set(participants.map(p => p.id))
@@ -408,7 +426,9 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                     <td className="px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
                     <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">{r.duration}h</td>
                     <td className="px-5 py-3 text-gray-600 dark:text-gray-400">{r.instructor}</td>
-                    <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
+                      {r.total == null ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(r.total)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -440,7 +460,9 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                     <td className="px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
                     <td className="px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.participant_id ? partName(r.participant_id) ?? '' : ''}</td>
                     <td className="px-5 py-3 text-gray-600 dark:text-gray-400 capitalize">{r.slot.replace('_', ' ')}</td>
-                    <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.price)}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
+                      {coveredByAgency(r) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(r.price)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -472,7 +494,9 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                     <td className="px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(t.date)}</td>
                     <td className="px-5 py-3 text-gray-600 dark:text-gray-400">{TAXI_TYPE_LABELS[t.type] ?? t.type}</td>
                     <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">{t.nb_persons}</td>
-                    <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(t.price_eur)}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
+                      {coveredByAgency(t) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(t.price_eur)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -737,6 +761,12 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 <span className="font-bold text-blue-600 dark:text-blue-400 text-lg">{fmtEur(Math.abs(balance))} credit</span>
               )}
             </div>
+            {hasAgencyCovered && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 pt-2 border-t border-gray-100 dark:border-gray-800">
+                Lines shown as “—” are covered by the agency that arranged your trip.
+                They are not charged to you and are not part of the balance above.
+              </p>
+            )}
           </div>
         </section>
 

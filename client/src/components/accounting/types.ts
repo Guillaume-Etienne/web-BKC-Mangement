@@ -5,6 +5,7 @@ import type {
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   DiningEvent, ActivityBooking, ActivityPayment,
+  Agency, AgencyRateItem, AgencyBillingLine,
 } from '../../types/database'
 
 export interface SharedAccountingData {
@@ -39,6 +40,9 @@ export interface SharedAccountingData {
   palmeirasEntries:          PalmeirasEntry[]
   activityBookings:          ActivityBooking[]
   activityPayments:          ActivityPayment[]
+  agencies:                  Agency[]
+  agencyRateItems:           AgencyRateItem[]   // per-agency catalogue, priced at line creation
+  agencyBillingLines:        AgencyBillingLine[]  // what a partner agency owes us, not the client
 }
 
 export interface AccountingHandlers {
@@ -66,4 +70,16 @@ export interface AccountingHandlers {
   updatePalmeirasReversal: (r: PalmeirasReversal)  => void
   addPalmeirasEntry:       (e: PalmeirasEntry)     => void
   deletePalmeirasEntry:    (id: string)            => void
+  /** Partner-agency invoice lines (Phase 3). `price`/`unit_hours` are frozen by
+   *  the caller at creation, like every other snapshot in the app. */
+  addAgencyBillingLine:    (l: AgencyBillingLine)  => void
+  updateAgencyBillingLine: (l: AgencyBillingLine)  => void
+  deleteAgencyBillingLine: (id: string)            => void
+  /** Attach/detach one service row to an invoice line. `lineId === null` gives it
+   *  back to the client. The room variant is keyed by (booking, room) because
+   *  booking_room_prices has no id of its own. */
+  setLessonAgencyLine:     (lesson_id: string, lineId: string | null) => void
+  setRentalAgencyLine:     (rental_id: string, lineId: string | null) => void
+  setTaxiAgencyLine:       (trip_id: string,   lineId: string | null) => void
+  setRoomAgencyLine:       (booking_id: string, room_id: string, lineId: string | null) => void
 }

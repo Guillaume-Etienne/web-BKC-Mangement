@@ -9,9 +9,10 @@ import {
   computeInstructorEarned, computeInstructorDebts, computeInstructorPaid, computeInstructorBalance,
   computeSeasonTotals, suggestDeposit, fmtEur, fmtMonth,
   clientParticipantIds, cumulativeHoursBefore, getTierRate,
+  isAgencyBilled, agencyLineHoursUsed, computeAgencyTotals,
 } from './utils'
 import {
-  mkAccommodation, mkActivityBooking, mkAttendee, mkBooking, mkBookingRoom, mkBookingRoomPrice,
+  mkAccommodation, mkActivityBooking, mkAgency, mkAgencyLine, mkAttendee, mkBooking, mkBookingRoom, mkBookingRoomPrice,
   mkData, mkDiningEvent, mkExternalBooking, mkHouseSetup,
   mkInstructor, mkInstructorDebt, mkInstructorPayment, mkLesson, mkLessonOverride, mkLessonPrices,
   mkParticipant, mkPayment, mkPrice, mkPriceTier, mkRental, mkRoom, mkRoomRate, mkTaxiTrip,
@@ -1108,5 +1109,244 @@ describe('formatting', () => {
   })
   it('formats a month key as a short English month', () => {
     expect(norm(fmtMonth('2026-02'))).toBe('Feb 2026')
+  })
+})
+
+// ─── 16. Partner-agency billing ───────────────────────────────────────────────
+
+describe('isAgencyBilled', () => {
+  it('reads a set line id as agency-billed', () => {
+    expect(isAgencyBilled({ agency_billing_line_id: 'abl1' })).toBe(true)
+  })
+  it('reads null as billed to the client', () => {
+    expect(isAgencyBilled({ agency_billing_line_id: null })).toBe(false)
+  })
+  it('reads a MISSING column as billed to the client', () => {
+    // A row fetched before the column existed comes back without the field. The
+    // dangerous direction is the other one: treating undefined as agency-billed
+    // would silently drop every old lesson off the client's bill.
+    expect(isAgencyBilled({})).toBe(false)
+  })
+})
+
+describe('client revenue skips agency-billed rows', () => {
+  const bk = mkBooking()
+
+  it('leaves an agency-billed lesson off the client bill', () => {
+    const base = { bookings: [bk], priceItems: mkLessonPrices(), bookingParticipants: [mkParticipant({ id: 'p1' })] }
+    const client = mkData({ ...base, lessons: [mkLesson({ duration_hours: 2 })] })
+    const agency = mkData({ ...base, lessons: [mkLesson({ duration_hours: 2, agency_billing_line_id: 'abl1' })] })
+    expect(computeLessonsRevenue(bk, client)).toBe(120)
+    expect(computeLessonsRevenue(bk, agency)).toBe(0)
+  })
+
+  it('leaves an agency-billed rental off the client bill', () => {
+    expect(computeRentalsRevenue(bk, mkData({ equipmentRentals: [mkRental({ price: 45 })] }))).toBe(45)
+    expect(computeRentalsRevenue(bk, mkData({
+      equipmentRentals: [mkRental({ price: 45, agency_billing_line_id: 'abl1' })],
+    }))).toBe(0)
+  })
+
+  it('leaves an agency-billed transfer off the client bill', () => {
+    expect(computeTaxiRevenue(bk, mkData({ taxiTrips: [mkTaxiTrip()] }))).toBe(120)
+    expect(computeTaxiRevenue(bk, mkData({
+      taxiTrips: [mkTaxiTrip({ agency_billing_line_id: 'abl1' })],
+    }))).toBe(0)
+  })
+
+  it('leaves a standalone agency-billed transfer off the standalone total', () => {
+    expect(computeStandaloneTaxiRevenue(mkData({
+      taxiTrips: [mkTaxiTrip({ booking_id: null, agency_billing_line_id: 'abl1' })],
+    }))).toBe(0)
+  })
+
+  it('leaves an agency-billed room off the client bill', () => {
+    const { acc, roomF, rates } = mkHouseSetup(100)
+    const base = { accommodations: [acc], rooms: [roomF], roomRates: rates, bookingRooms: [mkBookingRoom({ room_id: 'roomF' })] }
+    const client = mkData({ ...base, bookingRoomPrices: [mkBookingRoomPrice({ room_id: 'roomF', price_per_night: 60 })] })
+    const agency = mkData({ ...base, bookingRoomPrices: [mkBookingRoomPrice({ room_id: 'roomF', price_per_night: 60, agency_billing_line_id: 'abl1' })] })
+    expect(computeAccommodationRevenue(bk, client)).toBe(420)   // 60 × 7 nights
+    expect(computeAccommodationRevenue(bk, agency)).toBe(0)
+  })
+
+  it('bills the client only what is left once a package is moved to the agency', () => {
+    const data = mkData({
+      bookings: [bk], priceItems: mkLessonPrices(), bookingParticipants: [mkParticipant({ id: 'p1' })],
+      lessons: [
+        mkLesson({ id: 'l1', duration_hours: 2, agency_billing_line_id: 'abl1' }),  // agency's 120
+        mkLesson({ id: 'l2', duration_hours: 2, date: '2026-11-03' }),              // client's 120
+      ],
+      agencies: [mkAgency()],
+      agencyBillingLines: [mkAgencyLine()],
+    })
+    expect(computeBookingTotal(bk, data)).toBe(120)
+  })
+
+  it('still counts agency-billed hours towards volume tiers', () => {
+    // The guest really did those hours — who paid for them changes nothing to
+    // how experienced they are, so the tier ladder must not reset.
+    const ids = clientParticipantIds('cli1', [mkParticipant({ id: 'p1', client_id: 'cli1' })])
+    const lessons = [
+      mkLesson({ id: 'l1', duration_hours: 10, agency_billing_line_id: 'abl1' }),
+      mkLesson({ id: 'l2', duration_hours: 2, date: '2026-11-05' }),
+    ]
+    expect(cumulativeHoursBefore(ids, 'private', lessons, 'l2')).toBe(10)
+  })
+})
+
+describe('agencyLineHoursUsed', () => {
+  it('sums the hours taught against one line', () => {
+    const lessons = [
+      mkLesson({ id: 'l1', duration_hours: 2, agency_billing_line_id: 'abl1' }),
+      mkLesson({ id: 'l2', duration_hours: 3, agency_billing_line_id: 'abl1' }),
+      mkLesson({ id: 'l3', duration_hours: 5, agency_billing_line_id: 'abl2' }),
+      mkLesson({ id: 'l4', duration_hours: 4 }),
+    ]
+    expect(agencyLineHoursUsed('abl1', lessons)).toBe(5)
+  })
+
+  it('counts a group lesson once, not once per head', () => {
+    // A package is hours in the water, not billed heads — unlike client revenue,
+    // which multiplies a group lesson by its participants.
+    const lessons = [mkLesson({ type: 'group', duration_hours: 2, participant_ids: ['p1', 'p2', 'p3'], agency_billing_line_id: 'abl1' })]
+    expect(agencyLineHoursUsed('abl1', lessons)).toBe(2)
+  })
+
+  it('returns 0 for a line nothing is attached to yet', () => {
+    expect(agencyLineHoursUsed('abl1', [mkLesson()])).toBe(0)
+  })
+})
+
+describe('computeAgencyTotals', () => {
+  it('applies each agency its own commission', () => {
+    const data = mkData({
+      bookings: [mkBooking()],
+      agencies: [mkAgency({ id: 'ag1', commission_percent: 20 }), mkAgency({ id: 'ag2', name: 'Other', commission_percent: 10 })],
+      agencyBillingLines: [
+        mkAgencyLine({ id: 'abl1', agency_id: 'ag1', price: 450 }),   // −90
+        mkAgencyLine({ id: 'abl2', agency_id: 'ag2', price: 200 }),   // −20
+      ],
+    })
+    const t = computeAgencyTotals(data)
+    expect(t.gross).toBe(650)
+    expect(t.commission).toBe(110)
+    expect(t.net).toBe(540)
+  })
+
+  it('scopes to one agency or one booking', () => {
+    const data = mkData({
+      bookings: [mkBooking({ id: 'bk1' }), mkBooking({ id: 'bk2' })],
+      agencies: [mkAgency()],
+      agencyBillingLines: [
+        mkAgencyLine({ id: 'abl1', booking_id: 'bk1', price: 450 }),
+        mkAgencyLine({ id: 'abl2', booking_id: 'bk2', price: 200 }),
+      ],
+    })
+    expect(computeAgencyTotals(data, { bookingId: 'bk1' }).gross).toBe(450)
+    expect(computeAgencyTotals(data, { agencyId: 'ag1' }).gross).toBe(650)
+    expect(computeAgencyTotals(data, { agencyId: 'nope' }).gross).toBe(0)
+  })
+
+  it('splits paid from outstanding, both net of commission', () => {
+    const data = mkData({
+      bookings: [mkBooking()],
+      agencies: [mkAgency()],
+      agencyBillingLines: [
+        mkAgencyLine({ id: 'abl1', price: 450, invoiced_at: '2026-10-30T10:00:00Z', paid_at: '2026-11-05T10:00:00Z' }),
+        mkAgencyLine({ id: 'abl2', price: 200, invoiced_at: '2026-10-30T10:00:00Z' }),
+      ],
+    })
+    const t = computeAgencyTotals(data)
+    expect(t.invoiced).toBe(650)     // gross, that is what the invoice says
+    expect(t.paid).toBe(360)         // 450 − 20%
+    expect(t.outstanding).toBe(160)  // 200 − 20%
+  })
+
+  it('drops lines belonging to a cancelled booking', () => {
+    const data = mkData({
+      bookings: [mkBooking({ status: 'cancelled' })],
+      agencies: [mkAgency()],
+      agencyBillingLines: [mkAgencyLine({ price: 450 })],
+    })
+    expect(computeAgencyTotals(data).gross).toBe(0)
+  })
+
+  it('assumes no commission for an agency that no longer exists', () => {
+    // Never invent a rate: without the agency row the safe reading is that the
+    // whole invoiced amount reaches us, not that some unknown cut was taken.
+    const data = mkData({ bookings: [mkBooking()], agencies: [], agencyBillingLines: [mkAgencyLine({ price: 450 })] })
+    expect(computeAgencyTotals(data).net).toBe(450)
+  })
+})
+
+describe('computeSeasonTotals with agency billing', () => {
+  /** The same booking twice: once billed to the guest, once to Fun & Fly. */
+  function pair() {
+    const shared = {
+      bookings: [mkBooking()],
+      priceItems: mkLessonPrices(),
+      bookingParticipants: [mkParticipant({ id: 'p1' })],
+      instructors: [mkInstructor()],
+    }
+    const toClient = mkData({ ...shared, lessons: [mkLesson({ duration_hours: 10 })] })   // 10 × 60 = 600
+    const toAgency = mkData({
+      ...shared,
+      lessons: [mkLesson({ duration_hours: 10, agency_billing_line_id: 'abl1' })],
+      agencies: [mkAgency()],                                     // 20 %
+      agencyBillingLines: [mkAgencyLine({ price: 450 })],          // net 360
+    })
+    return { toClient, toAgency }
+  }
+
+  it('moves the money from client revenue to agency revenue, without losing it', () => {
+    const { toClient, toAgency } = pair()
+    const c = computeSeasonTotals(toClient)
+    const a = computeSeasonTotals(toAgency)
+    expect(c.lessonsRev).toBe(600)
+    expect(a.lessonsRev).toBe(0)          // the client owes nothing for it
+    expect(a.agencyGross).toBe(450)
+    expect(a.agencyCommission).toBe(90)
+    expect(a.agencyRev).toBe(360)         // what actually reaches us
+    expect(a.totalRevenue).toBe(360)      // counted once, at the agency's price
+  })
+
+  it('keeps the instructor cost when the client is not the one paying', () => {
+    const { toClient, toAgency } = pair()
+    expect(computeSeasonTotals(toAgency).instructorCosts)
+      .toBe(computeSeasonTotals(toClient).instructorCosts)
+  })
+
+  it('stops asking the client for money billed to the agency', () => {
+    const { toAgency } = pair()
+    const t = computeSeasonTotals(toAgency)
+    expect(t.billedNet).toBe(0)
+    expect(t.totalDue).toBe(0)
+    expect(t.agencyOutstanding).toBe(360)   // owed by the agency instead
+  })
+
+  it('bills an agency transfer once, and still pays the driver', () => {
+    const data = mkData({
+      bookings: [mkBooking()],
+      taxiTrips: [mkTaxiTrip({ agency_billing_line_id: 'abl1' })],   // 120 € client price, 96 € cost
+      agencies: [mkAgency()],
+      agencyBillingLines: [mkAgencyLine({ price: 220, unit_hours: null, agency_rate_item_id: 'ari2' })],
+    })
+    const t = computeSeasonTotals(data)
+    expect(t.taxiRevGross).toBe(0)      // the 120 € client fare is not charged
+    expect(t.taxiCosts).toBe(96)        // the driver is paid either way
+    expect(t.taxiMargin).toBe(-96)      // the ride alone is a loss…
+    expect(t.agencyRev).toBe(176)       // …covered by the agency line, 220 − 20%
+    expect(t.totalRevenue).toBe(80)     // 176 − 96
+  })
+
+  it('leaves every figure untouched when no agency is involved', () => {
+    // The regression guard for the whole phase: on today's data — no agency
+    // line anywhere — the dashboard must read exactly as before.
+    const { toClient } = pair()
+    const t = computeSeasonTotals(toClient)
+    expect(t.agencyGross).toBe(0)
+    expect(t.agencyRev).toBe(0)
+    expect(t.totalRevenue).toBe(600)
+    expect(t.billedNet).toBe(600)
   })
 })

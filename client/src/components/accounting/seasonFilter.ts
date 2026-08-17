@@ -77,6 +77,10 @@ export function filterDataToSeason(
     equipmentRentals:          followsBooking(data.equipmentRentals),
     taxiTrips:                 followsBooking(data.taxiTrips),
     activityBookings:          followsBooking(data.activityBookings),
+    // An invoice line has no date of its own — it is invoiced when the stay it
+    // belongs to happens, so it follows the booking like everything else.
+    // `agencies` and `agencyRateItems` are reference data, left whole above.
+    agencyBillingLines:        byBookingId(data.agencyBillingLines),
 
     // ── Standalone: each row carries the date that places it ───────────────
     expenses:            byOwnDate(data.expenses),
