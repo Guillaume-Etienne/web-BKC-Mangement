@@ -1339,6 +1339,18 @@ describe('computeSeasonTotals with agency billing', () => {
     expect(t.totalRevenue).toBe(80)     // 176 − 96
   })
 
+  it('keeps every revenue line adding up to totalRevenue', () => {
+    // Caught for real on TEST 2026-08-17: the dashboard showed 4 022 € on top of
+    // lines summing to 3 662 €, because the agency share had no row of its own.
+    // A total that its own breakdown cannot explain is how people stop trusting
+    // the figures, so the identity is locked here rather than in the component.
+    const { toAgency } = pair()
+    const t = computeSeasonTotals(toAgency)
+    const lines = t.accomRev + t.lessonsRev + t.rentalsRev + t.taxiMargin
+      + t.activitiesRev + t.eventsRev + t.centerAccessRev + t.agencyRev
+    expect(lines).toBe(t.totalRevenue)
+  })
+
   it('leaves every figure untouched when no agency is involved', () => {
     // The regression guard for the whole phase: on today's data — no agency
     // line anywhere — the dashboard must read exactly as before.

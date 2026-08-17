@@ -68,7 +68,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   // are documented on computeSeasonTotals rather than scattered here.
   const {
     accomRev, lessonsRev, rentalsRev, taxiRevGross, taxiCosts, taxiMargin,
-    activitiesRev, eventsRev, centerAccessRev, totalRevenue,
+    activitiesRev, eventsRev, centerAccessRev, agencyRev, agencyGross, agencyCommission, totalRevenue,
     billedNet, totalPaid, unverifiedPaid, totalDue,
     instructorCosts, activityCosts, houseRentalCosts, bungalowCosts, externalStayCosts, totalExpenses,
     palmeirasNet, netResult,
@@ -267,12 +267,23 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
               { label: 'Activities',    value: activitiesRev,color: 'bg-teal-500' },
               { label: 'Events',        value: eventsRev,    color: 'bg-rose-400' },
               { label: 'Center access', value: centerAccessRev, color: 'bg-cyan-500' },
+              // Partner agencies. Hidden until one is actually billed — every
+              // other line here is a permanent part of the business, this one is
+              // not. It must never be omitted once non-zero though: the services
+              // it covers have been subtracted from the lines above, so without
+              // it the rows no longer add up to the total underneath them.
+              ...(agencyRev !== 0 ? [{ label: 'Agencies', value: agencyRev, color: 'bg-indigo-500' }] : []),
             ].map(c => (
               <div key={c.label} className="flex items-center gap-3">
                 <div className="w-28 shrink-0">
                   <p className="text-sm text-gray-600 dark:text-gray-400">{c.label}</p>
                   {c.label === 'Taxi margin' && standaloneTrips.length > 0 && (
                     <p className="text-xs text-amber-500 dark:text-amber-400">incl. {standaloneTrips.length} unlinked</p>
+                  )}
+                  {c.label === 'Agencies' && (
+                    <p className="text-xs text-indigo-500 dark:text-indigo-400">
+                      {fmt(agencyGross)} − {fmt(agencyCommission)} commission
+                    </p>
                   )}
                 </div>
                 <Bar value={c.value} max={totalRevenue} color={c.color} />

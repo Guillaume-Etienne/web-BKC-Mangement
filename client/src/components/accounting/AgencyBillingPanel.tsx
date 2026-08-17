@@ -39,6 +39,10 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
   // booking wizard ("Referred by"), Phase 2.
   const agency = data.agencies.find(a => a.id === b.agency_id)
   if (!agency) return null
+  // Bound here rather than reaching for `agency` inside the callbacks below:
+  // narrowing from the guard above does not survive into a closure that runs
+  // later, and a non-null assertion would only silence the compiler.
+  const agencyId = agency.id
 
   const lines = data.agencyBillingLines
     .filter(l => l.booking_id === b.id)
@@ -111,7 +115,7 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
     handlers.addAgencyBillingLine({
       id: crypto.randomUUID(),
       booking_id: b.id,
-      agency_id: agency.id,
+      agency_id: agencyId,
       participant_id: participantId,
       agency_rate_item_id: item?.id ?? null,
       // Frozen at creation, like every other price snapshot in the app: retouching
