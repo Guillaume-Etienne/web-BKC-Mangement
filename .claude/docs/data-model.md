@@ -441,18 +441,35 @@ consommé en 10 séances dans le planning).
 | invoiced_at / paid_at | string \| null (ISO ts) | pas de statut enum — même idiome que `waiver_accepted_at`/`crm_synced_at` |
 | notes | string \| null | |
 
-**Colonnes ajoutées** (nullables, non renseignées tant que la Phase 2 n'est pas codée) :
-`bookings.agency_id`, `lessons.agency_billing_line_id`,
-`equipment_rentals.agency_billing_line_id`, `taxi_trips.agency_billing_line_id`,
-`booking_room_prices.agency_billing_line_id`.
+**Colonnes ajoutées** : `bookings.agency_id` (posé par le wizard, Phase 2) et
+`agency_billing_line_id` sur `lessons`, `equipment_rentals`, `taxi_trips` et
+`booking_room_prices` — **renseignées depuis le 2026-08-17** (Phase 3), par le panneau
+🤝 Agency billing de la fiche résa (`AgencyBillingPanel.tsx`, Accounting → Bookings).
+FK `ON DELETE SET NULL` : supprimer une ligne de facture rend ses services au client.
+
+> 💰 **La règle de comptage, à ne jamais appliquer à moitié.** Un service portant un
+> `agency_billing_line_id` est dû par l'**agence**, pas par le client. Donc :
+> `computeLessonsRevenue`, `computeRentalsRevenue`, `computeTaxiRevenue` et
+> `computeAccommodationRevenue` le **sautent** (helper `isAgencyBilled`, et
+> `isRoomAgencyBilled` pour une chambre, qui porte le drapeau sur son snapshot de prix), et
+> `computeSeasonTotals` le **récupère** en `agencyRev` = prix catalogue de l'agence **net de sa
+> commission**. Sauter partout fait disparaître le revenu ; ne sauter nulle part le facture
+> deux fois. Un test verrouille l'iso-comportement sur un jeu sans aucune ligne agence.
+>
+> ⚠️ **Le taxi est le cas piégeux** : une course facturée à l'agence abandonne son prix client
+> mais **garde son coût** (chauffeur + manager, payés quoi qu'il arrive), donc sa marge est
+> négative — compensée par la ligne agence. Sans ça, la course paraîtrait gratuite.
 
 > ⚠️ **Masquer un prix côté client n'est pas un GRANT de colonne ici** — contrairement à
 > `external_accommodation_bookings.total_cost` (jamais montré à personne), `lessons.price_per_hour`
 > doit rester visible pour un client normal mais disparaître **seulement quand la leçon est
 > facturée à une agence** (même ligne, deux comportements selon `agency_billing_line_id`). Un
-> GRANT de colonne ne peut pas conditionner par la valeur d'une autre colonne — il faudra une
-> fonction SECURITY DEFINER façon `share_room_keys()` qui redact la colonne, pas juste un
-> REVOKE/GRANT. Encore à faire (Phase 4 du BACKLOG), non couvert par la migration du 16 août.
+> GRANT de colonne ne peut pas conditionner par la valeur d'une autre colonne : il faut une
+> fonction SECURITY DEFINER façon `share_room_keys()` qui redact la colonne.
+> **État au 2026-08-17** : `ClientSharePage` **affiche « — »** au lieu du prix et exclut la
+> ligne du solde — mais c'est une règle d'affichage, la valeur voyage toujours dans la réponse
+> (les 4 colonnes sont lisibles en anon, vérifié par curl). La redaction réelle reste à faire,
+> Phase 4 du BACKLOG.
 
 ### `shared_links` → `SharedLink`
 | Field | Type | Notes |

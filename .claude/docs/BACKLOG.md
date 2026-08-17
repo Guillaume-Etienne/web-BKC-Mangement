@@ -301,30 +301,63 @@ par `bookingToWizard`/`bookingFields` dans les deux sens. `npm run build`/`test`
 **Toujours pas de changement de facturation** : c'est juste le tag, la consommation (Phase 3)
 et le masquage client (Phase 4) restent à faire.
 
-**⬜ Phase 3 — consommation** : dans `LessonWeekView.tsx`/`ForecastView.tsx` (création de
-leçon) et les points de création taxi/rental/chambre, proposer de rattacher la ligne à un
-`agency_billing_line` existant ou d'en créer un depuis la grille de l'agence.
+**✅ Phases 3 + 5 — consommation et exclusion du calcul client (2026-08-17, `892c12d`)**
+Livrées **ensemble, exprès** : dès qu'un service porte un `agency_billing_line_id`, le laisser
+dans les totaux client facture deux fois le même euro. **Aucune migration** — les 4 colonnes
+étaient déjà en base depuis le 16/08.
+- **Ergonomie tranchée avec gui** : pas de sélecteur dans le planning, un **panneau dans la
+  fiche résa** (Accounting → Bookings → 🤝 Agency billing, `AgencyBillingPanel.tsx`), visible
+  seulement si la résa porte un `agency_id`. Raison : les cours de #022 étaient **déjà saisis**,
+  un sélecteur à la création ne les aurait jamais rattrapés. **Périmètre choisi : les 4
+  sources** (cours, locations, transferts, chambres).
+- Le panneau : créer une ligne de facture depuis la grille de l'agence (prix et `unit_hours`
+  **figés à la création**, éditables car une vraie facture s'écarte parfois du catalogue),
+  barre de progression *heures faites / forfait* (⚠ ambre au dépassement), un `<select>` par
+  service (« — billed to guest — » ou une ligne), tampons Invoiced/Paid, suppression avec
+  avertissement du nombre de services qui repartent chez le client.
+- **Couche de calcul** : `isAgencyBilled` / `isRoomAgencyBilled` / `agencyLineHoursUsed` /
+  `computeAgencyTotals` (commission **par agence**, jamais un % global). Les 4 `compute*Revenue`
+  sautent les lignes agence ; `computeSeasonTotals` récupère l'argent en `agencyRev` **net de
+  commission** (même convention que le taxi, où seule la marge est comptée) + `agencyGross`,
+  `agencyCommission`, `agencyOutstanding`.
+- ⚠️ **Le taxi garde son COÛT** sur un transfert agence (le chauffeur est payé quoi qu'il
+  arrive) et n'abandonne que le prix client — donc la marge d'une course agence est négative,
+  compensée par la ligne agence. Sans ça la course paraîtrait gratuite. Verrouillé par un test.
+- **Garde-fou de non-régression** : un test vérifie que sur un jeu **sans aucune ligne agence**
+  tous les chiffres sont identiques à avant. 23 nouveaux tests, **322 au total**.
+- `filterDataToSeason` : une ligne de facture n'a pas de date propre → elle **suit sa résa**.
+- ✅ **Vérifié par curl anon sur les DEUX bases** : les 4 colonnes `agency_billing_line_id`
+  → **200 `[]`**, contrôle négatif `colonne_bidon` → **42703**, `agency_billing_lines`
+  → **42501** (la table de facturation reste fermée en anon).
+- ⬜ **Reste (gui)** : test au navigateur sur la résa **#022** (Claude in Chrome proposé) —
+  créer la ligne « Pack cours Privé 10x2h » à 450 € pour Loïc SENE et y rattacher les 14h
+  déjà saisies.
 
-**⬜ Phase 4 — masquage côté client (le point sensible)** : `ClientSharePage.tsx` affiche
-aujourd'hui `lessons.price_per_hour` sans restriction anon. Un GRANT de colonne ne peut pas
-cacher un prix *seulement quand `agency_billing_line_id` est posé* — il faudra une fonction
-SECURITY DEFINER façon `share_room_keys()` qui renvoie les leçons avec `price_per_hour` à
-`NULL` quand la ligne est facturée à une agence. Terrain nouveau pour le projet (jusqu'ici les
-fonctions RLS scopent des lignes, pas des colonnes conditionnelles) — à vérifier par curl comme
-d'habitude, sans exception. Affichage "fait / reste à faire" (décision gui : simple, pas de
-système de crédit) : somme des `duration_hours` des leçons partageant le même
-`agency_billing_line_id`, comparée à `unit_hours` figé sur la ligne.
-
-**⬜ Phase 5 — exclure du calcul client** : `computeAccommodationRevenue`/
-`computeLessonsRevenue`/etc. (`accounting/utils.ts`) doivent sauter les lignes
-`agency_billing_line_id IS NOT NULL` — sinon un cours facturé à l'agence compte aussi comme dû
-par le client (double compte). Aucun calcul existant ne connaît cette notion aujourd'hui,
-vérifié par exploration du code le 2026-08-16.
+**🔶 Phase 4 — masquage côté client : la moitié visible est faite, la protection réseau non.**
+Fait le 2026-08-17 dans `ClientSharePage.tsx` : une ligne couverte par l'agence affiche
+**« — »** au lieu d'un prix, sort du sous-total et du solde, et une note explique la mention au
+client (« covered by the agency that arranged your trip »). Les chambres agence tombent à 0 →
+elles disparaissent, comme toute ligne à 0 depuis le 2026-08-02.
+⚠️ **C'est un masquage d'AFFICHAGE, pas une protection** : `price_per_hour` voyage toujours dans
+la réponse réseau (vérifié : les 4 colonnes sont lisibles en anon, c'est d'ailleurs ce qui fait
+marcher le masquage). La vraie redaction demande toujours une fonction **SECURITY DEFINER**
+façon `share_room_keys()` renvoyant `price_per_hour` à `NULL` quand la ligne est facturée à une
+agence — un GRANT de colonne ne peut pas conditionner par la valeur d'une autre colonne.
+Terrain nouveau (jusqu'ici les fonctions RLS scopent des lignes, pas des colonnes
+conditionnelles) — à vérifier par curl **avec un vrai token client**, sans exception.
 
 **⬜ Phase 6 — onglet compta Agencies** : calqué sur `PalmeirasTab.tsx` — sélecteur de
 période, KPI (brut facturé / commission / net dû), tableau des `agency_billing_lines` avec
-`invoiced_at`/`paid_at` à cocher, `computeAgencyTotals` pur et testé. Facturation **au fil de
-l'eau, revue avec gui avant envoi** (pas d'automatisation de l'envoi) — décision gui.
+`invoiced_at`/`paid_at` à cocher. Facturation **au fil de l'eau, revue avec gui avant envoi**
+(pas d'automatisation de l'envoi) — décision gui.
+**Déjà fait pour elle** : `computeAgencyTotals` (pur, testé, scopable par agence ou par résa)
+et les tampons invoiced/paid, posables depuis le panneau de la fiche résa. Il reste la **vue
+d'ensemble** : aujourd'hui on ne peut pas répondre à « que me doit Fun & Fly, toutes résas
+confondues ? » sans ouvrir chaque réservation.
+⬜ **Décision ouverte, pas tranchée le 17/08** : le **CashFlow** ne connaît pas l'argent des
+agences. Un `paid_at` est pourtant une vraie date d'encaissement — il manque une colonne
+« Agencies », exactement comme celles décidées pour Palmeiras (01/08) et Providers (01/08).
+Chacune de ces colonnes a fait l'objet d'une décision de gui : je n'en invente pas une seule.
 
 ### ✅ 6. San Martinho — `external_billing` activé en PROD (2026-08-16)
 
