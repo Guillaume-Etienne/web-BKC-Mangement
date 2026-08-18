@@ -839,16 +839,26 @@ Code fait & build OK. Découverte : les sections des guides vivaient en **localS
    `document_templates` → `42501 permission denied` (pas `[]` — REVOKE effectif, table
    présente). Enum `welcome_guide` prouvé présent : `email_logs?type=eq.welcome_guide`
    passe le parseur (`[]`) alors que `eq.zzz_bidon` → `22P02 invalid input value`.
-3. **RESTE** : gui ouvre Documents → Travel Guide **dans son navigateur habituel** et clique
-   **Save** (migre ses textes localStorage vers la DB — sur PROD **et** TEST si les textes
-   diffèrent) ; idem Welcome Guide après avoir rempli les placeholders `[…]`.
-   🔶 **Travel Guide : gui dit l'avoir rempli en FR le 2026-08-11** — reste à confirmer que
-   le **Save** a bien été fait (l'éditeur travaille sur un brouillon local) et sur quelle base.
-4. 🔶 **EN COURS — traductions EN/ES des textes FR de gui** (workflow : mémoire
-   `templates-translation-workflow` ; Claude n'a **aucun** accès à la table — anon 42501).
-   **⏸️ En attente de gui au 2026-08-11** : il a rempli le **Travel Guide** en français et
-   demandé les traductions. Requête à lui redemander s'il revient sans l'avoir collée —
-   elle renvoie **une seule cellule**, donc un clic pour copier, pas de colonnes tronquées :
+3. ✅ **Travel Guide : Save CONFIRMÉ** (mesuré le 2026-08-18 en service_role) — `document_templates`
+   PROD porte **6 sections `travel_guide`** avec le FR de gui (Argent liquide, Mise à jour Argent
+   liquide en Meticals, Ce qu'il faut apporter, Santé, Comment nous rejoindre, Visa). TEST en a
+   aussi mais **divergent** (titre #1 `en` = « General » vs « Cash » en PROD) — normal, deux bases,
+   ne pas chercher à les aligner.
+   ⬜ **RESTE : le Welcome Guide n'a JAMAIS été sauvé** — **0 ligne `welcome_guide`** en PROD. Il
+   tourne donc encore sur les défauts en dur avec les placeholders `[…]`. gui doit remplir les
+   placeholders dans Documents → Welcome Guide puis cliquer **Save**.
+4. 🔴 **À FAIRE — traductions EN/ES du Travel Guide : le guide envoyé aux clients étrangers ne dit
+   PAS la même chose que le français.** Mesuré le 2026-08-18, longueur du contenu par section :
+   `fr 549 / en 125 / es 166` · `171/151/175` · `393/174/200` · `221/196/234` · **`970/174/200`** ·
+   `593/149/191`. Autrement dit **EN et ES sont restés les textes par défaut d'origine** pendant que
+   gui réécrivait le FR — jusqu'à 5× plus court, et parfois sur un autre sujet (titre #2 : FR
+   « Mise à jour Argent liquide en Meticals » vs EN « Airport currency exchange »).
+   ✅ **Le blocage annoncé le 2026-08-11 n'existe plus** : « Claude n'a aucun accès à la table »
+   était vrai en **anon** (42501), mais `mcp-server/.env` porte les **clés service_role des deux
+   bases** — la table se lit directement, sans aller-retour SQL par gui. L'aller-retour ne reste
+   nécessaire que pour **écrire** (décision : Claude produit le script, gui l'applique).
+   Requête d'origine, conservée si gui préfère la coller lui-même — elle renvoie **une seule
+   cellule**, donc un clic pour copier :
 
    ```sql
    SELECT jsonb_pretty(jsonb_agg(jsonb_build_object(
@@ -1004,11 +1014,13 @@ jusqu'à ~1 h.
 
 ## 🟡 Quand gui veut
 
-- **Bug prix taxi 8000 €** — fix code fait (`order updated_at desc` des 2 côtés, commit `4364316`).
-  Diag `diagnostics_taxi_pricing.sql` : **TEST fait le 06/07 → OK, rien à corriger** ;
-  **PROD en attente** (incident Supabase le 06/07 au soir) → relancer sur PROD dès que
-  rétabli, puis corriger si besoin (`default_price_eur`=120, purger doublons
-  `taxi_pricing_defaults`).
+- ~~**Bug prix taxi 8000 €**~~ ✅ **CLOS le 2026-08-18.** Fix code fait le 06/07
+  (`order updated_at desc` des 2 côtés, `4364316`) ; le diag restait à passer sur PROD depuis
+  l'incident Supabase du 06/07 au soir. **Fait** (service_role, lecture seule) :
+  `taxi_pricing_defaults` PROD contient **exactement UNE ligne**, `default_price_eur = 120`,
+  6000/1000 MZN, taux 70, `updated_at` 2026-06-30. **Aucun doublon, aucune valeur MZN dans le
+  champ EUR → rien à corriger.** Les deux `DELETE`/`UPDATE` optionnels du fichier de diagnostic
+  sont donc sans objet.
 - ~~**Anti-spam formulaire public**~~ ✅ FAIT (2026-07-06, `318e467`) : honeypot off-screen
   (`website`) + refus silencieux des soumissions <3s après chargement — les deux tombent sur
   le faux écran de succès (zéro insert, zéro email, le bot n'apprend rien). Kill switch
