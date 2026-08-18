@@ -375,6 +375,32 @@ export function currentInstructorRate(lesson: Pick<Lesson, 'type'>, instructor: 
     : instructor.rate_supervision
 }
 
+/** Re-freeze the payout when a lesson changes hands — or changes type, which has
+ *  its own scale. The snapshot belongs to whoever actually teaches the lesson.
+ *
+ *  Why this exists: the planning is built the day before, so lessons get
+ *  reassigned (edited, or dragged into another instructor's column) long after
+ *  they were created. Carrying the original instructor's rate over would pay the
+ *  new one on someone else's scale — silently, and in both directions: an owner
+ *  at 0 €/h inheriting 18 €/h invents a cost, and a paid instructor inheriting
+ *  0 €/h erases a real debt towards them.
+ *
+ *  Anything else leaves the lesson untouched, snapshot included — that is the
+ *  whole point of freezing it (raising someone's rate in October must not
+ *  rewrite what July owed them). */
+export function reFreezeInstructorRate(
+  updated: Lesson,
+  previous: Pick<Lesson, 'instructor_id' | 'type'>,
+  instructors: Instructor[]
+): Lesson {
+  if (updated.instructor_id === previous.instructor_id && updated.type === previous.type) return updated
+  const instr = instructors.find(i => i.id === updated.instructor_id)
+  // Unknown instructor → null, "nobody said", not 0 "this is free": the same
+  // distinction getConfiguredRate makes, so the figure shows up as unresolved
+  // instead of quietly costing nothing.
+  return { ...updated, instructor_rate: instr ? currentInstructorRate(updated, instr) : null }
+}
+
 /** Total earned by an instructor (lessons × payout rates, after overrides).
  *  Flat per hour: a group lesson pays the same whatever the number of students
  *  (the centre keeps the difference — the client is billed per head).

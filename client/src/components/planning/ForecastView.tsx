@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import type { Lesson, LessonType, EquipmentRental, Instructor, Client, Equipment } from '../../types/database'
-import { currentInstructorRate } from '../accounting/utils'
+import { currentInstructorRate, reFreezeInstructorRate } from '../accounting/utils'
 import { toISODate as dateToISO, addDays } from '../../utils/dates'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -193,8 +193,12 @@ function EditLessonModal({ lesson, startHour, totalSlots, clients, instructors, 
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    onSave({ ...lesson, type, participant_ids: clientIds, instructor_id: instrId,
-      start_time: slotToTime(startSlot, startHour), duration_hours: durSlots * 0.5, notes: notes || null })
+    // Re-freeze the payout when the lesson changes hands or type (see
+    // reFreezeInstructorRate) — this modal can do both at once.
+    onSave(reFreezeInstructorRate(
+      { ...lesson, type, participant_ids: clientIds, instructor_id: instrId,
+        start_time: slotToTime(startSlot, startHour), duration_hours: durSlots * 0.5, notes: notes || null },
+      lesson, instructors))
   }
 
   return (
@@ -502,12 +506,15 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
 
   function onPointerUp() {
     if (!dragLesson || !dragPreview) { setDragLesson(null); return }
-    onUpdateLesson({
+    // Dragging a lesson into another instructor's column reassigns it, so the
+    // payout snapshot has to follow — the quietest way this could have gone
+    // wrong, since it takes no form and no confirmation.
+    onUpdateLesson(reFreezeInstructorRate({
       ...dragLesson,
       start_time:     slotToTime(dragPreview.startSlot, startHour),
       duration_hours: dragPreview.durationSlots * 0.5,
       instructor_id:  dragPreview.instructorId,
-    })
+    }, dragLesson, instructors))
     setDragLesson(null)
     setDragPreview(null)
   }

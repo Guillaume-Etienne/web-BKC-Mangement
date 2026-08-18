@@ -9,7 +9,7 @@ import {
   computeInstructorEarned, computeInstructorDebts, computeInstructorPaid, computeInstructorBalance,
   computeSeasonTotals, suggestDeposit, fmtEur, fmtMonth,
   clientParticipantIds, cumulativeHoursBefore, getTierRate,
-  isAgencyBilled, agencyLineHoursUsed, computeAgencyTotals,
+  isAgencyBilled, agencyLineHoursUsed, computeAgencyTotals, reFreezeInstructorRate,
 } from './utils'
 import {
   mkAccommodation, mkActivityBooking, mkAgency, mkAgencyLine, mkAttendee, mkBooking, mkBookingRoom, mkBookingRoomPrice,
@@ -1112,7 +1112,57 @@ describe('formatting', () => {
   })
 })
 
-// ─── 16. Partner-agency billing ───────────────────────────────────────────────
+// ─── 16. Re-freezing the payout when a lesson changes hands ───────────────────
+
+describe('reFreezeInstructorRate', () => {
+  const remi  = mkInstructor({ id: 'remi', rate_private: 18, rate_group: 20, rate_supervision: 5 })
+  const owner = mkInstructor({ id: 'gui',  rate_private: 0,  rate_group: 0,  rate_supervision: 0 })
+  const all = [remi, owner]
+
+  it('re-freezes on the new instructor scale when the lesson is reassigned', () => {
+    const before = mkLesson({ instructor_id: 'remi', instructor_rate: 18 })
+    const after  = reFreezeInstructorRate({ ...before, instructor_id: 'gui' }, before, all)
+    expect(after.instructor_rate).toBe(0)
+  })
+
+  it('re-freezes the other way too, so a real debt is not erased', () => {
+    // The dangerous direction: a lesson created on an owner at 0 €/h, handed to
+    // a paid instructor the day before. Keeping the 0 would owe them nothing.
+    const before = mkLesson({ instructor_id: 'gui', instructor_rate: 0 })
+    const after  = reFreezeInstructorRate({ ...before, instructor_id: 'remi' }, before, all)
+    expect(after.instructor_rate).toBe(18)
+  })
+
+  it('follows a change of lesson type, which has its own scale', () => {
+    const before = mkLesson({ instructor_id: 'remi', type: 'private', instructor_rate: 18 })
+    const after  = reFreezeInstructorRate({ ...before, type: 'group' }, before, all)
+    expect(after.instructor_rate).toBe(20)
+  })
+
+  it('leaves the snapshot alone when neither changed', () => {
+    // Even if the instructor has been given a raise since — that is what the
+    // snapshot is for. Here their scale says 18 but the lesson was frozen at 15.
+    const before = mkLesson({ instructor_id: 'remi', instructor_rate: 15 })
+    const after  = reFreezeInstructorRate({ ...before, notes: 'moved to 10am' }, before, all)
+    expect(after.instructor_rate).toBe(15)
+  })
+
+  it('leaves an unknown instructor unresolved rather than free', () => {
+    const before = mkLesson({ instructor_id: 'remi', instructor_rate: 18 })
+    const after  = reFreezeInstructorRate({ ...before, instructor_id: 'ghost' }, before, all)
+    expect(after.instructor_rate).toBeNull()
+  })
+
+  it('feeds through to what the instructor is owed', () => {
+    const before = mkLesson({ id: 'l1', instructor_id: 'remi', duration_hours: 2, instructor_rate: 18 })
+    const moved  = reFreezeInstructorRate({ ...before, instructor_id: 'gui' }, before, all)
+    const data = mkData({ instructors: all, lessons: [moved], bookings: [mkBooking()] })
+    expect(computeInstructorEarned('gui', data)).toBe(0)
+    expect(computeInstructorEarned('remi', data)).toBe(0)
+  })
+})
+
+// ─── 17. Partner-agency billing ───────────────────────────────────────────────
 
 describe('isAgencyBilled', () => {
   it('reads a set line id as agency-billed', () => {

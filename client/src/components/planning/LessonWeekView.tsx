@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Lesson, DayActivity, DaySlot, LessonType, RentalType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem, PriceTier } from '../../types/database'
 import { rentalBillable } from '../../types/database'
-import { currentInstructorRate, resolveLessonRate } from '../accounting/utils'
+import { currentInstructorRate, reFreezeInstructorRate, resolveLessonRate } from '../accounting/utils'
 import { toISODate as dateToISO } from '../../utils/dates'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -419,7 +419,11 @@ export default function LessonWeekView({
   function submitEdit(e: React.FormEvent) {
     e.preventDefault()
     if (!editLesson) return
-    onUpdateLesson({ ...editLesson, ...editData } as Lesson)
+    // Re-freeze the payout if this lesson just changed instructor or type —
+    // see reFreezeInstructorRate. The client price is deliberately NOT touched:
+    // it can be overridden by hand from Accounting, and recomputing it here
+    // would quietly undo that decision.
+    onUpdateLesson(reFreezeInstructorRate({ ...editLesson, ...editData } as Lesson, editLesson, instructors))
     setEditLesson(null)
   }
 
