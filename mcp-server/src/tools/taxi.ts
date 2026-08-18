@@ -1,10 +1,14 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { supabase } from '../supabaseClient.js'
-import type { TaxiTrip, TaxiTripStatus, TaxiDriver, Booking, Client } from '../../../client/src/types/database.js'
+import type { TaxiTrip, TaxiTripType, TaxiTripStatus, TaxiDriver, TaxiPricingDefaults, Booking, Client } from '../../../client/src/types/database.js'
+import { FALLBACK_TAXI_PRICING } from '../../../client/src/utils/taxiPricing.js'
 import { jsonResult, errorResult } from '../result.js'
 
 const TAXI_TRIP_STATUSES = ['confirmed', 'needs_details', 'done'] as const satisfies readonly TaxiTripStatus[]
+const TAXI_TRIP_TYPES = [
+  'aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other',
+] as const satisfies readonly TaxiTripType[]
 
 export function registerTaxiTools(server: McpServer) {
   server.registerTool(
@@ -137,6 +141,59 @@ export function registerTaxiTools(server: McpServer) {
       const { error } = await supabase.from('taxi_trips').update(patch).eq('id', taxi_trip_id)
       if (error) return errorResult(`Updating taxi trip: ${error.message}`)
       return jsonResult({ ok: true, taxi_trip_id, updated: patch })
+    }
+  )
+
+  server.registerTool(
+    'create_taxi_trip',
+    {
+      title: 'Create a taxi trip',
+      description:
+        'Create a new taxi trip. Price fields (price_eur, price_driver_mzn, margin_manager_mzn) ' +
+        'default to the current taxi_pricing_defaults row, same as the "+" button in the app — pass ' +
+        'them explicitly to override. taxi_driver_id and booking_id are optional (null = unassigned/' +
+        'not linked to a booking).',
+      inputSchema: {
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD'),
+        start_time: z.string().regex(/^\d{2}:\d{2}$/, 'HH:MM'),
+        type: z.enum(TAXI_TRIP_TYPES),
+        status: z.enum(TAXI_TRIP_STATUSES).optional().describe('Default: confirmed'),
+        taxi_driver_id: z.string().uuid().nullable().optional(),
+        booking_id: z.string().uuid().nullable().optional(),
+        nb_persons: z.number().int().min(1).optional().describe('Default: 1'),
+        nb_luggage: z.number().int().min(0).optional().describe('Default: 0'),
+        nb_boardbags: z.number().int().min(0).optional().describe('Default: 0'),
+        notes: z.string().nullable().optional(),
+        price_eur: z.number().nonnegative().optional(),
+        price_driver_mzn: z.number().nonnegative().optional(),
+        margin_manager_mzn: z.number().nonnegative().optional(),
+      },
+    },
+    async ({ date, start_time, type, status, taxi_driver_id, booking_id, nb_persons, nb_luggage, nb_boardbags, notes, price_eur, price_driver_mzn, margin_manager_mzn }) => {
+      const { data: defaultsRows, error: dErr } = await supabase
+        .from('taxi_pricing_defaults').select('*').order('updated_at', { ascending: false }).limit(1)
+      if (dErr) return errorResult(`Loading pricing defaults: ${dErr.message}`)
+      const defaults = ((defaultsRows ?? [])[0] as TaxiPricingDefaults | undefined) ?? FALLBACK_TAXI_PRICING
+
+      const trip = {
+        date,
+        start_time,
+        type,
+        status: status ?? 'confirmed',
+        taxi_driver_id: taxi_driver_id ?? null,
+        booking_id: booking_id ?? null,
+        nb_persons: nb_persons ?? 1,
+        nb_luggage: nb_luggage ?? 0,
+        nb_boardbags: nb_boardbags ?? 0,
+        notes: notes ?? null,
+        price_eur: price_eur ?? defaults.default_price_eur,
+        price_driver_mzn: price_driver_mzn ?? defaults.default_driver_mzn,
+        margin_manager_mzn: margin_manager_mzn ?? defaults.default_manager_mzn,
+      }
+
+      const { data, error } = await supabase.from('taxi_trips').insert(trip).select('*').single()
+      if (error) return errorResult(`Creating taxi trip: ${error.message}`)
+      return jsonResult({ ok: true, trip: data as TaxiTrip })
     }
   )
 
