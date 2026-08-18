@@ -9,7 +9,12 @@ import {
 import { usePref, Segmented } from './taxiShareUI'
 import { todayISO } from '../utils/dates'
 
-type TripWithClient = TaxiTrip & {
+// The shape anon is actually served (column-level GRANT — see security-rls.md).
+// The manager is paid on `margin_manager_mzn`; the client price and the driver's
+// fee are not granted to a manager token any more.
+type TripWithClient = Pick<TaxiTrip,
+  'id' | 'date' | 'start_time' | 'type' | 'status' | 'taxi_driver_id' | 'booking_id' |
+  'nb_persons' | 'nb_luggage' | 'nb_boardbags' | 'notes' | 'margin_manager_mzn'> & {
   booking?: { client?: { first_name: string; last_name: string } | null } | null
 }
 
@@ -104,9 +109,12 @@ export default function TaxiManagerSharePage() {
       const [driversRes, tripsRes, paymentsRes] = await Promise.all([
         // Column-restricted for anon (see security-rls.md, Lot C)
         supabase.from('taxi_drivers').select('id, name, phone, vehicle, seats'),
+        // Column-restricted for anon since 2026-08-18c (`*` → 42501). The manager
+        // is paid on his commission, so that is what he gets — not the client
+        // price, and not the driver's fee either (he never had a use for it).
         supabase
           .from('taxi_trips')
-          .select('*, booking:bookings(client:clients(first_name, last_name))')
+          .select('id, date, start_time, type, status, taxi_driver_id, booking_id, nb_persons, nb_luggage, nb_boardbags, notes, margin_manager_mzn, booking:bookings(client:clients(first_name, last_name))')
           .order('date', { ascending: false }),
         supabase.from('taxi_manager_payments').select('*').order('date', { ascending: false }),
       ])

@@ -11,7 +11,13 @@ import { todayISO } from '../utils/dates'
 
 interface Props { driverId: string }
 
-type TripWithClient = TaxiTrip & {
+// The shape anon is actually served (column-level GRANT — see security-rls.md).
+// `price_driver_mzn` is what this page is about; the client price and the
+// manager's commission are not granted to a driver token any more, so leaving
+// them out of the type is what keeps a future edit from reaching for them.
+type TripWithClient = Pick<TaxiTrip,
+  'id' | 'date' | 'start_time' | 'type' | 'status' | 'taxi_driver_id' | 'booking_id' |
+  'nb_persons' | 'nb_luggage' | 'nb_boardbags' | 'notes' | 'price_driver_mzn'> & {
   booking?: { client?: { first_name: string; last_name: string } | null } | null
 }
 
@@ -111,9 +117,12 @@ export default function DriverSharePage({ driverId }: Props) {
       const [driverRes, tripsRes] = await Promise.all([
         // Column-restricted for anon (see security-rls.md, Lot C)
         supabase.from('taxi_drivers').select('id, name, phone, vehicle, seats').eq('id', driverId).single(),
+        // Column-restricted for anon since 2026-08-18c (`*` → 42501). The driver
+        // needs his own fee; the client price is none of his business and is no
+        // longer served to a driver token at all.
         supabase
           .from('taxi_trips')
-          .select('*, booking:bookings(client:clients(first_name, last_name))')
+          .select('id, date, start_time, type, status, taxi_driver_id, booking_id, nb_persons, nb_luggage, nb_boardbags, notes, price_driver_mzn, booking:bookings(client:clients(first_name, last_name))')
           .eq('taxi_driver_id', driverId)
           .order('date', { ascending: false }),
       ])

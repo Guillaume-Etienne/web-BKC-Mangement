@@ -465,12 +465,13 @@ FK `ON DELETE SET NULL` : supprimer une ligne de facture rend ses services au cl
 > `external_accommodation_bookings.total_cost` (jamais montré à personne), `lessons.price_per_hour`
 > doit rester visible pour un client normal mais disparaître **seulement quand la leçon est
 > facturée à une agence** (même ligne, deux comportements selon `agency_billing_line_id`). Un
-> GRANT de colonne ne peut pas conditionner par la valeur d'une autre colonne : il faut une
-> fonction SECURITY DEFINER façon `share_room_keys()` qui redact la colonne.
-> **État au 2026-08-17** : `ClientSharePage` **affiche « — »** au lieu du prix et exclut la
-> ligne du solde — mais c'est une règle d'affichage, la valeur voyage toujours dans la réponse
-> (les 4 colonnes sont lisibles en anon, vérifié par curl). La redaction réelle reste à faire,
-> Phase 4 du BACKLOG.
+> GRANT de colonne ne peut pas conditionner par la valeur d'une autre colonne.
+> ✅ **Résolu le 2026-08-18 (Phase 4)** par une **colonne générée** et non par la fonction
+> SECURITY DEFINER envisagée d'abord — celle-ci aurait contourné la RLS et obligé à réécrire
+> tout le scoping de lignes à l'intérieur. Les 4 tables portent désormais un miroir
+> `share_price*` (`GENERATED ALWAYS AS (CASE WHEN agency_billing_line_id IS NULL THEN <prix> END)
+> STORED`), seul lisible par `anon`, relu sous son nom d'origine par alias PostgREST. Détail et
+> pièges : `security-rls.md` § Rédaction conditionnelle d'une colonne.
 
 ### `shared_links` → `SharedLink`
 | Field | Type | Notes |

@@ -16,7 +16,13 @@ export default function TaxiSharePage() {
   const [lang,     setLang]     = usePref<TaxiLang>('taxi_share_lang', 'pt')
   const [dateMode, setDateMode] = usePref<DateMode>('taxi_share_datemode', 'readable')
 
-  const { data: allTrips,   loading: tripsLoading   } = useTable<TaxiTrip>('taxi_trips',   { order: 'date' })
+  // Column-restricted for anon since 2026-08-18c: `*` returns 42501 and empties
+  // the board. This page is a schedule — it shows no money at all, so it asks
+  // for neither the client price nor the driver/manager figures.
+  const { data: allTrips,   loading: tripsLoading   } = useTable<TaxiTrip>('taxi_trips',   {
+    select: 'id, date, start_time, type, status, taxi_driver_id, booking_id, nb_persons, nb_luggage, nb_boardbags, notes',
+    order: 'date',
+  })
   // Column-restricted for anon (see security-rls.md, Lot C): no email/notes/pricing defaults
   const { data: allDrivers                           } = useTable<TaxiDriver>('taxi_drivers', { select: 'id, name, phone, vehicle, seats', order: 'name' })
   const { data: allBookings                          } = useTable<Booking & { client: Client | null }>('bookings', { select: 'id, client_id, client:clients(first_name, last_name)' })

@@ -49,6 +49,8 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
+| **`2026-08-18b_agency_price_redaction_columns.sql`** | **⬜ À PASSER (TEST + PROD). Sans danger, à n'importe quel moment** — n'ajoute que 4 colonnes générées `share_price*` (`lessons`, `equipment_rentals`, `taxi_trips`, `booking_room_prices`), NULL quand la ligne est facturée à une agence. Ne révoque rien, donc ne peut casser aucune page. Phase 4 des agences. | ⬜ | ⬜ |
+| **`2026-08-18c_agency_price_revoke.sql`** | 🚦 **À PASSER SEULEMENT APRÈS (1) le fichier `b` sur la même base ET (2) le déploiement Vercel du commit qui narrowe les pages partagées.** C'est lui qui ferme la fuite : `REVOKE`/`GRANT` par colonne sur les 4 tables — `anon` perd les prix clients bruts, et au passage **`lessons.instructor_rate` (PAIE moniteur, 3ᵉ copie manquée par le durcissement du 2026-07-29)** et `taxi_trips.price_eur`. Passé trop tôt → toutes les pages partagées en 42501 (page blanche). **Vérification obligatoire par curl avec un VRAI token client** (un curl anon nu ne prouve rien) : recette complète en bas du fichier. | ⬜ | ⬜ |
 | ~~`2026-08-18_agency_short_code.sql`~~ | Ajoute `agencies.short_code` — le badge `(FF)` affiché à côté du nom du client dans le planning, les cartes Daily/Forecast, la liste Bookings et la compta. Sème les 3 codes existants (`FF`, `Adek`, `Decat`) par `ILIKE` sur le nom : **backfill unique dont le résultat est stocké**, pas une correspondance par nom à l'exécution (une agence non reconnue n'aura simplement pas de badge, à saisir dans Options → 🤝 Agencies). **Pas de GRANT anon** : `agencies` reste admin-only, sinon le planning Forecast partagé exposerait le nom commercial des partenaires. ⚠️ **Le curl anon ne prouve RIEN ici** (table admin-only : `42501` avant comme après) — vérifiée le 2026-08-18 en **service_role** sur les deux bases : `select=short_code` répond, contrôle négatif `colonne_bidon` → **42703**. PROD porte les 3 codes semés (`Adekua`→`Adek` 12 %, `Decathlon`→`Decat` 10 %, `Fun & Fly`→`FF` 20 %) ; TEST rend `[]`, normal, il a été nettoyé après la campagne du 18. | ✅ 2026-08-18 | ✅ 2026-08-18 |
 | ~~`2026-08-14c_enquiry_notify_trigger.sql`~~ | Trigger pg_net sur `enquiries` INSERT → Edge Function **`notify-enquiry`** (à déployer d'abord : `supabase functions deploy notify-enquiry --no-verify-jwt`). Envoie la notif admin + l'accusé au visiteur. ⚠️ **Secret DÉDIÉ `NOTIFY_ENQUIRY_SECRET`**, à créer par base, surtout pas le `NOTIFY_SECRET` de `notify-submission` : un secret Supabase **ne se relit pas** (empreinte seule), donc le réécrire aurait cassé les emails du formulaire de réservation. Ne se déclenche **que** sur `channel='form'` : une fiche saisie à la main n'envoie pas d'email. **Chaîne prouvée bout-en-bout sur TEST le 2026-08-15** (insertion → trigger → fonction → Resend → boîte de gui, notification admin **et** accusé visiteur). **Sur PROD, 4 gestes dans cet ordre** : créer le secret `NOTIFY_ENQUIRY_SECRET` (valeur au choix), déployer `notify-enquiry`, rejouer ce fichier avec la même valeur + `oslsbansxaajcpwhivmx`, tester. | ✅ 2026-08-15 | ✅ 2026-08-15 |
 | ~~`2026-08-14a_enquiry_form_link_type.sql`~~ | Ajoute la valeur d'enum `enquiry_form` à `shared_link_type` (le formulaire léger est une page publique servie par lien signé). **Ne peut pas être fusionnée avec (b)** : PostgreSQL refuse d'utiliser une valeur d'enum ajoutée dans la même transaction, et le dashboard exécute tout un script dans UNE transaction → `55P04`. | ✅ 2026-08-14 | ✅ 2026-08-14 |
@@ -299,8 +301,8 @@ par `bookingToWizard`/`bookingFields` dans les deux sens. `npm run build`/`test`
 **#022 (Loïc SENE) reliée à Fun & Fly** — celle-là même qui a motivé ce chantier — et
 `agency_id` confirmé en base par requête directe. Aucune régression sur les résas existantes
 (#021, #023 rouvertes en édition, "— direct booking —" par défaut comme attendu).
-**Toujours pas de changement de facturation** : c'est juste le tag, la consommation (Phase 3)
-et le masquage client (Phase 4) restent à faire.
+**Toujours pas de changement de facturation** à ce stade : c'était juste le tag. *(La
+consommation — Phase 3 — a suivi le 17/08, et la redaction client — Phase 4 — le 18/08.)*
 
 **✅ Phases 3 + 5 — consommation et exclusion du calcul client (2026-08-17, `892c12d`)**
 Livrées **ensemble, exprès** : dès qu'un service porte un `agency_billing_line_id`, le laisser
@@ -398,18 +400,41 @@ a changé — un snapshot intact continue de protéger la paie passée d'une aug
 Le prix client n'est **pas** retouché : il est éditable à la main depuis Accounting, le
 recalculer effacerait cette décision en silence. **329 tests.**
 
-**🔶 Phase 4 — masquage côté client : la moitié visible est faite, la protection réseau non.**
-Fait le 2026-08-17 dans `ClientSharePage.tsx` : une ligne couverte par l'agence affiche
-**« — »** au lieu d'un prix, sort du sous-total et du solde, et une note explique la mention au
-client (« covered by the agency that arranged your trip »). Les chambres agence tombent à 0 →
-elles disparaissent, comme toute ligne à 0 depuis le 2026-08-02.
-⚠️ **C'est un masquage d'AFFICHAGE, pas une protection** : `price_per_hour` voyage toujours dans
-la réponse réseau (vérifié : les 4 colonnes sont lisibles en anon, c'est d'ailleurs ce qui fait
-marcher le masquage). La vraie redaction demande toujours une fonction **SECURITY DEFINER**
-façon `share_room_keys()` renvoyant `price_per_hour` à `NULL` quand la ligne est facturée à une
-agence — un GRANT de colonne ne peut pas conditionner par la valeur d'une autre colonne.
-Terrain nouveau (jusqu'ici les fonctions RLS scopent des lignes, pas des colonnes
-conditionnelles) — à vérifier par curl **avec un vrai token client**, sans exception.
+**✅ Phase 4 — redaction réelle des prix agence (2026-08-18)**
+La moitié visible datait du 17/08 (`ClientSharePage` affiche **« — »**, exclut la ligne du solde,
+et une note explique la mention au client). Ce qui manquait — la protection réseau — est livré :
+`price_per_hour` ne voyage plus du tout.
+- **Mécanisme : une colonne générée**, pas la fonction SECURITY DEFINER envisagée au départ.
+  4 miroirs `share_price*` (`GENERATED ALWAYS AS (CASE WHEN agency_billing_line_id IS NULL THEN
+  <prix> END) STORED`), seuls lisibles par `anon`, relus sous leur nom d'origine par **alias
+  PostgREST** (`price_per_hour:share_price_per_hour`) → aucun calcul de page réécrit.
+  **Pourquoi ce choix** : une fonction SECURITY DEFINER (ou une vue non `security_invoker`)
+  tourne avec les droits du propriétaire et **contourne la RLS** — tout le scoping de lignes des
+  policies `anon_read_*` aurait dû être réécrit dedans, où une seule erreur de `WHERE` fuite la
+  table entière. La colonne générée ne touche à aucune policy, et n'est pas inscriptible.
+  Raisonnement complet : `security-rls.md` § Rédaction conditionnelle d'une colonne.
+- **`NULL` et non `0`** : zéro est un prix légitime (location offerte), donc le « — » continue de
+  s'appuyer sur `agency_billing_line_id`, qui reste lisible.
+- **5 pages partagées narrowées** dans le même commit (`*` → 42501 après le REVOKE) : Client,
+  Forecast, Taxi, Driver, TaxiManager. Chacune est désormais **typée sur la forme réellement
+  servie** (`Pick<>`), pour qu'aller chercher une colonne fermée ne compile plus.
+- **🔴 Deux fuites fermées au passage** : `lessons.instructor_rate` — la **paie moniteur**, 3ᵉ
+  copie du chiffre que le durcissement du 2026-07-29 avait manquée (il avait révoqué
+  `instructors.rate_*` et `lesson_rate_overrides`), lisible jusqu'ici depuis n'importe quel lien
+  client ; et `taxi_trips.price_eur`, qu'aucune page taxi n'affiche.
+- **Un défaut de cohérence corrigé** : la ventilation par invité de `ClientSharePage` chiffrait
+  les services d'agence que les sous-totaux excluaient — les deux ne s'additionnaient donc pas
+  au même nombre sur une résa agence. Elles sont maintenant omises, comme partout ailleurs.
+- ⬜ **2 migrations à passer dans l'ordre** (registre en tête) : `b` sans danger quand gui veut,
+  `c` **seulement après le déploiement Vercel**. Vérification par curl **avec un vrai token
+  client** — recette prête en bas de `2026-08-18c`.
+
+**🔓 Reste ouvert (décision gui) — la marge chauffeur est visible par le client.**
+`taxi_trips.price_driver_mzn` et `margin_manager_mzn` sont lisibles par **tout** token valide, y
+compris un token client : un hôte peut voir ce qu'on paie son chauffeur, donc notre marge. Même
+famille que la fuite `total_cost` fermée le 2026-08-11, mais elle ne se ferme pas par un GRANT :
+un privilège de colonne est par **rôle**, pas par type de token, et les pages driver/manager en
+ont un besoin réel. Il faudrait une surface par type de token (vue ou fonction) — à trancher.
 
 **✅ Phase 6 — onglet Accounting → 🤝 Agencies (2026-08-18, `f1b05ba`)**
 Répond à « que me doit Fun & Fly, toutes résas confondues ? » — il fallait jusque-là ouvrir

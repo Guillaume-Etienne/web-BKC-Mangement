@@ -26,6 +26,32 @@ type BookingWithClient = Pick<Booking,
 type SharedExternalStay = Pick<ExternalAccommodationBooking,
   'id' | 'booking_id' | 'accommodation_id' | 'check_in' | 'check_out' | 'total_sell_price'>
 
+// The four sources of a guest's bill, Phase 4 (2026-08-18c). `anon` no longer
+// reads the raw client price at all — only the generated `share_price*` mirror,
+// which the database nulls out when the line is billed to a partner agency. The
+// select aliases it back to the familiar field name, so the page's arithmetic is
+// unchanged; what changes is that a covered service now has NO price to leak,
+// instead of one drawn over with "—".
+//
+// That is why every price below is `| null` where the table says NOT NULL: the
+// nullability IS the redaction, and typing it keeps the compiler on the side of
+// the GRANT — reading a hidden column no longer compiles.
+type SharedRoomPrice = Pick<BookingRoomPrice, 'booking_id' | 'room_id' | 'override_note' | 'agency_billing_line_id'>
+  & { price_per_night: number | null }
+
+// (`price_per_hour` is already nullable on Lesson — a lesson without a snapshot
+//  falls back to the current rate — so the alias needs no widening here.)
+type SharedLesson = Pick<Lesson,
+  'id' | 'booking_id' | 'instructor_id' | 'participant_ids' | 'date' | 'start_time' |
+  'duration_hours' | 'type' | 'notes' | 'price_per_hour' | 'agency_billing_line_id'>
+
+type SharedRental = Pick<EquipmentRental,
+  'id' | 'equipment_id' | 'booking_id' | 'participant_id' | 'date' | 'slot' | 'agency_billing_line_id'>
+  & { price: number | null }
+
+type SharedTaxi = Pick<TaxiTrip, 'id' | 'date' | 'type' | 'nb_persons' | 'agency_billing_line_id'>
+  & { price_eur: number | null }
+
 interface Props {
   bookingNumber: number
 }
@@ -52,9 +78,11 @@ function roomLabel(room: Room, accom: Accommodation): string {
   return accom.type === 'house' ? `${house}/${side}` : accom.name
 }
 
-/** Client price €/h for a lesson — the snapshot taken when the lesson was booked.
- *  Instructor payout rates are deliberately NOT readable from a share link. */
-function getLessonRate(l: Lesson): number {
+/** Client price €/h for a lesson — the snapshot taken when the lesson was booked,
+ *  read through the redacted `share_price_per_hour` mirror. Instructor payout
+ *  rates are deliberately NOT readable from a share link (and since 2026-08-18c
+ *  `lessons.instructor_rate` is revoked from anon, not merely left unread). */
+function getLessonRate(l: SharedLesson): number {
   return l.price_per_hour ?? 0
 }
 
@@ -62,10 +90,11 @@ function getLessonRate(l: Lesson): number {
  *  page — they still want to see the lessons they took — but shows no price and
  *  adds nothing to the subtotal, because they owe nothing for it.
  *
- *  ⚠️ This is a DISPLAY rule, not a protection: the price still travels over the
- *  wire in the same row. Actually redacting it needs the SECURITY DEFINER
- *  function of Phase 4 (see BACKLOG § agencies) — a column GRANT cannot hide a
- *  value conditionally on another column. */
+ *  Since Phase 4 (2026-08-18c) this is no longer only a display rule: the price
+ *  of a covered line does not reach the browser at all — the database serves
+ *  NULL through the `share_price*` columns. This flag is what lets the page tell
+ *  "covered by the agency" apart from "genuinely free", which a bare NULL could
+ *  not, and it drives the "—" and the note explaining it. */
 const coveredByAgency = (row: { agency_billing_line_id?: string | null }) =>
   row.agency_billing_line_id != null
 
@@ -97,15 +126,15 @@ const STATUS_CFG = {
 export default function ClientSharePage({ bookingNumber }: Props) {
   const [booking,        setBooking]        = useState<BookingWithClient | 'not_found' | undefined>(undefined)
   const [bkgRooms,       setBkgRooms]       = useState<BookingRoom[]>([])
-  const [roomPrices,     setRoomPrices]     = useState<BookingRoomPrice[]>([])
+  const [roomPrices,     setRoomPrices]     = useState<SharedRoomPrice[]>([])
   const [roomRates,      setRoomRates]      = useState<RoomRate[]>([])
   const [rooms,          setRooms]          = useState<Room[]>([])
   const [accoms,         setAccoms]         = useState<Accommodation[]>([])
   const [payments,       setPayments]       = useState<Payment[]>([])
-  const [lessons,        setLessons]        = useState<Lesson[]>([])
+  const [lessons,        setLessons]        = useState<SharedLesson[]>([])
   const [instructors,    setInstructors]    = useState<Instructor[]>([])
-  const [rentals,        setRentals]        = useState<EquipmentRental[]>([])
-  const [taxis,          setTaxis]          = useState<TaxiTrip[]>([])
+  const [rentals,        setRentals]        = useState<SharedRental[]>([])
+  const [taxis,          setTaxis]          = useState<SharedTaxi[]>([])
   const [diningEvents,   setDiningEvents]   = useState<DiningEvent[]>([])
   const [participants,   setParticipants]   = useState<BookingParticipant[]>([])
   const [extAccomBkgs,   setExtAccomBkgs]   = useState<SharedExternalStay[]>([])
@@ -137,16 +166,28 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
     Promise.all([
       supabase.from('booking_rooms').select('*').eq('booking_id', id),
-      supabase.from('booking_room_prices').select('*').eq('booking_id', id),
+      // Phase 4: the price comes from the redacted `share_price*` column, aliased
+      // back to its usual name. Asking for the raw one — or for `*` — returns
+      // 42501 and blanks the page, which is the point: the value a guest must not
+      // see is not sent to the browser at all.
+      supabase.from('booking_room_prices')
+        .select('booking_id, room_id, override_note, agency_billing_line_id, price_per_night:share_price_per_night')
+        .eq('booking_id', id),
       supabase.from('rooms').select('*'),
       supabase.from('accommodations').select('*'),
       supabase.from('payments').select('*').eq('booking_id', id).order('date'),
-      supabase.from('lessons').select('*').eq('booking_id', id).order('date'),
+      supabase.from('lessons')
+        .select('id, booking_id, instructor_id, participant_ids, date, start_time, duration_hours, type, notes, agency_billing_line_id, price_per_hour:share_price_per_hour')
+        .eq('booking_id', id).order('date'),
       // Column-restricted for anon: identity ONLY. The rate_* columns are the
       // instructor payout scale and are no longer readable from a share link.
       supabase.from('instructors').select('id, first_name, last_name'),
-      supabase.from('equipment_rentals').select('*').eq('booking_id', id).order('date'),
-      supabase.from('taxi_trips').select('*').eq('booking_id', id).order('date'),
+      supabase.from('equipment_rentals')
+        .select('id, equipment_id, booking_id, participant_id, date, slot, agency_billing_line_id, price:share_price')
+        .eq('booking_id', id).order('date'),
+      supabase.from('taxi_trips')
+        .select('id, date, type, nb_persons, agency_billing_line_id, price_eur:share_price_eur')
+        .eq('booking_id', id).order('date'),
       supabase.from('dining_events').select('*'),
       supabase.from('booking_participants').select('id, booking_id, first_name, last_name').eq('booking_id', id),
       // Column-restricted for anon: the guest sees what THEY pay, never what we
@@ -280,10 +321,10 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const lessonsTotal = lessonRows.reduce((s, r) => s + (r.total ?? 0), 0)
 
   // Equipment rentals
-  const rentalsTotal = rentals.reduce((s, r) => s + (coveredByAgency(r) ? 0 : r.price), 0)
+  const rentalsTotal = rentals.reduce((s, r) => s + (coveredByAgency(r) ? 0 : r.price ?? 0), 0)
 
   // Taxis
-  const taxiTotal = taxis.reduce((s, t) => s + (coveredByAgency(t) ? 0 : t.price_eur), 0)
+  const taxiTotal = taxis.reduce((s, t) => s + (coveredByAgency(t) ? 0 : t.price_eur ?? 0), 0)
 
   // Anything the agency picked up, so the page can explain the blank prices
   // instead of leaving the guest wondering what "—" means.
@@ -461,7 +502,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                     <td className="px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.participant_id ? partName(r.participant_id) ?? '' : ''}</td>
                     <td className="px-5 py-3 text-gray-600 dark:text-gray-400 capitalize">{r.slot.replace('_', ' ')}</td>
                     <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
-                      {coveredByAgency(r) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(r.price)}
+                      {coveredByAgency(r) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(r.price ?? 0)}
                     </td>
                   </tr>
                 ))}
@@ -495,7 +536,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                     <td className="px-5 py-3 text-gray-600 dark:text-gray-400">{TAXI_TYPE_LABELS[t.type] ?? t.type}</td>
                     <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">{t.nb_persons}</td>
                     <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
-                      {coveredByAgency(t) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(t.price_eur)}
+                      {coveredByAgency(t) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(t.price_eur ?? 0)}
                     </td>
                   </tr>
                 ))}
@@ -607,8 +648,16 @@ export default function ClientSharePage({ bookingNumber }: Props) {
           const guestData = participants.map(part => {
             const lines: Line[] = []
 
+            // Agency-covered services are skipped here, as everywhere else on this
+            // page. They used to slip through: the subtotals excluded them (Phase 5)
+            // while this per-guest breakdown still priced them, so the two did not
+            // add up to the same number on an agency booking. Since Phase 4 the
+            // price would arrive as NULL anyway and the line would read "0 €",
+            // which tells the guest nothing — leaving it out is what the rest of
+            // the page does with a service they are not charged for.
             for (const l of lessons) {
               if (!l.participant_ids.includes(part.id)) continue
+              if (coveredByAgency(l)) continue
               const instr = instructors.find(i => i.id === l.instructor_id)
               const rate = getLessonRate(l)
               lines.push({
@@ -620,7 +669,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
             for (const r of rentals) {
               if (r.participant_id !== part.id) continue
-              lines.push({ date: r.date, label: `rental · ${r.slot}`, amount: r.price })
+              if (coveredByAgency(r)) continue
+              lines.push({ date: r.date, label: `rental · ${r.slot}`, amount: r.price ?? 0 })
             }
 
             for (const ev of diningEvents) {

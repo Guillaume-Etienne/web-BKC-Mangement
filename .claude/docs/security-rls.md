@@ -29,15 +29,18 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 | `clients` | 🟢 **identité only** (id, prénom, nom) — email/tél/passeport/naissance/contacts d'urgence **bloqués** | ClientSharePage, ForecastSharePage |
 | `booking_participants` | 🟢 **identité only** (id, prénom, nom) — passeport/notes/client_id **bloqués** | ClientSharePage |
 | `bookings` | 🟢 **planning only** (id, n°, dates, status, client_id, center access) — contacts urgence/notes/amount_paid/visa/waiver **bloqués** | ClientSharePage / RestaurantSharePage / embeds taxi |
-| `booking_rooms`, `booking_room_prices` | 🟠 chambres + prix | ClientSharePage / Forecast |
+| `booking_rooms` | 🟠 chambres | ClientSharePage / Forecast |
+| `booking_room_prices` | 🟢 **prix rédigé** (`share_price_per_night`) — `price_per_night` brut **bloqué** depuis `2026-08-18c` | ClientSharePage |
 | `payments` | 🔴 **finances** (montants, paiements) | ClientSharePage |
-| `taxi_trips`, `taxi_drivers` | 🟠 trajets + tarifs | Taxi / Driver share |
+| `taxi_trips` | 🟠 trajets + **paie chauffeur/manager** (`price_driver_mzn`, `margin_manager_mzn` — lisibles par TOUT token, ⚠️ décision en attente) ; prix client rédigé (`share_price_eur`), `price_eur` brut **bloqué** | Taxi / Driver / Manager / Client share |
+| `taxi_drivers` | 🟢 identité + contact + véhicule | Taxi / Driver share |
 | `taxi_manager_payments` | 🔴 **finances** (commissions, avances) | TaxiManagerSharePage |
-| `lessons` | 🟠 cours — inclut `price_per_hour`, le prix **client** figé (c'est ce que la page client affiche) | ClientSharePage / Forecast |
+| `lessons` | 🟢 cours + **prix rédigé** (`share_price_per_hour`). Bloqués depuis `2026-08-18c` : `price_per_hour` brut et **`instructor_rate` (PAIE moniteur)** | ClientSharePage / Forecast |
 | `instructors` | 🟢 **identité only** (id, prénom, nom) — `rate_*` = **paie**, révoqué depuis `2026-07-29_lesson_pricing.sql` | ClientSharePage / Forecast |
 | `lesson_rate_overrides` | ⛔ **non exposée** — exception sur la paie d'un moniteur (révoquée le 2026-07-29) | — |
 | `activity_providers`, `activity_bookings`, `activity_payments` | 🟠 activités + finances | ActivityProviderSharePage |
-| `equipment`, `equipment_rentals` | 🟡 matériel | ClientSharePage |
+| `equipment` | 🟢 référentiel matériel | ClientSharePage / Forecast |
+| `equipment_rentals` | 🟢 locations + **prix rédigé** (`share_price`) — `price` brut et `notes` **bloqués** depuis `2026-08-18c` | ClientSharePage / Forecast |
 | `dining_events` | 🟡 repas | ClientSharePage |
 | `external_accommodations`, `external_accommodation_bookings` | 🟡 hébergements ext. | ClientSharePage |
 | `rooms`, `accommodations` | 🟢 référentiel | Forecast / Client |
@@ -86,6 +89,43 @@ colonne, **grepper le repo** pour la colonne et vérifier chaque page partagée.
 - **Lot B ✅ fait (2026-07-04)** : GRANT colonnes sur `bookings` + narrowing du `select('*')` de ClientSharePage.
 - **Lot C ✅ fait (2026-07-06, décisions gui)** : GRANT colonnes sur les 3 tables restantes (migration `2026-07-06_lot_c_columns.sql`) + narrowing des `select('*')` des 6 pages partagées. `instructors` → identité + tarifs (nécessaires au détail de prix de ClientSharePage) ; `taxi_drivers` → id/name/**phone** (gardé volontairement : appeler son taxi)/vehicle/seats — jamais email/notes/margin_percent/tarifs par défaut ; `activity_providers` → fiche publique sans les notes internes.
 - **Phase 2 ✅ implémentée (2026-07-06)** : **RLS token-aware** — le front des pages partagées envoie le token dans le header `x-share-token` (`client/src/lib/supabase.ts`) et TOUTES les policies anon SELECT exigent un `shared_link` actif du bon type, scopé à SES lignes (token client → son booking, driver → ses trajets, manager → trajets avec commission, etc.). **Sans token valide, `anon` ne lit plus AUCUNE ligne.** Migration : `2026-07-06_phase2_token_rls.sql` ; matrice d'accès et pièges : `phase2-rls-token-aware.md`. Conséquences : le tableau « exposé » ci-dessus se lit désormais « exposé au porteur d'un token du bon type » ; les pages partagées perdent le live-update Realtime (le websocket n'envoie pas le header) — elles chargent normalement au refresh ; tout nouveau type de lien doit être ajouté aux policies.
+
+## Rédaction conditionnelle d'une colonne (Phase 4 des agences, 2026-08-18)
+
+**Le problème** : un service facturé à une agence partenaire ne doit montrer aucun prix sur la
+page du client. Un privilège de colonne ne sait pas l'exprimer — il est binaire, alors que la
+condition dépend d'**une autre colonne de la même ligne** (`agency_billing_line_id`).
+
+**La solution retenue : une colonne générée.** Quatre colonnes `share_price*`
+(`lessons`, `equipment_rentals`, `taxi_trips`, `booking_room_prices`), chacune
+`GENERATED ALWAYS AS (CASE WHEN agency_billing_line_id IS NULL THEN <prix> END) STORED`. `anon`
+n'a le GRANT que sur le miroir, jamais sur le prix brut, et les pages partagées le relisent sous
+son nom habituel grâce à un **alias PostgREST** (`select=price_per_hour:share_price_per_hour`) —
+donc aucun calcul de page à réécrire.
+
+**Pourquoi PAS la fonction SECURITY DEFINER** que le BACKLOG proposait (et pas une vue non
+`security_invoker` non plus) : elle s'exécute avec les droits du propriétaire, donc elle
+**contourne la RLS**. Tout le scoping de lignes qui vit aujourd'hui dans les policies
+`anon_read_*` devrait être réécrit dedans, et une seule erreur de `WHERE` fuite la table
+entière à n'importe quel porteur de token. La colonne générée ne touche à aucune policy : la
+RLS continue de scoper les lignes exactement comme avant, et la valeur est déjà rédigée avant
+qu'un privilège soit même consulté. Elle est en prime **non inscriptible** (`GENERATED ALWAYS`),
+donc aucun écran ne peut la désynchroniser du vrai prix.
+
+⚠️ **`NULL` et non `0`** : zéro est un prix légitime (location offerte, transfert comp'), et la
+page doit pouvoir distinguer « couvert par l'agence » de « gratuit ». C'est
+`agency_billing_line_id` (toujours lisible) qui porte cette distinction et déclenche le « — ».
+
+⚠️ **Coût de la manœuvre** : tout `select()` anon sur ces 4 tables doit lister ses colonnes
+(`*` → 42501). Narrowées dans le même commit : ClientShare, ForecastShare, TaxiShare,
+DriverShare, TaxiManagerShare. C'est le piège du 2026-07-29, en plus large.
+
+🔓 **Restent ouverts, et c'est une décision de gui** (BACKLOG § agences) :
+`taxi_trips.price_driver_mzn` et `margin_manager_mzn` sont lisibles par **tout** token valide,
+y compris un token client — un hôte peut donc voir ce qu'on paie son chauffeur, c'est-à-dire
+notre marge. Un privilège de colonne étant par **rôle** et non par type de token, et les pages
+driver/manager en ayant réellement besoin, fermer ça demande une surface par type de token
+(vue ou fonction), pas un GRANT.
 
 ## Autres surfaces (rappel)
 - **Clé `anon`** publique = normal (Supabase), la sécurité repose sur RLS.

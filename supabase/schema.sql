@@ -255,7 +255,13 @@ CREATE TABLE lessons (
   notes            TEXT,
   kite_id          UUID,            -- FK to equipment (nullable)
   board_id         UUID,            -- FK to equipment (nullable)
-  agency_billing_line_id UUID REFERENCES agency_billing_lines(id) ON DELETE SET NULL,  -- 2026-08-16b, foundations only
+  agency_billing_line_id UUID REFERENCES agency_billing_lines(id) ON DELETE SET NULL,  -- 2026-08-16b, in use since Phases 3+5 (2026-08-17)
+  -- Redacted mirror of price_per_hour for shared links (Phase 4, 2026-08-18b/c):
+  -- NULL when the lesson is billed to a partner agency. anon reads THIS column and
+  -- never price_per_hour, so a covered price never reaches the browser at all.
+  share_price_per_hour NUMERIC(8,2) GENERATED ALWAYS AS (
+    CASE WHEN agency_billing_line_id IS NULL THEN price_per_hour END
+  ) STORED,
   created_at       TIMESTAMPTZ DEFAULT now()
 );
 
@@ -360,7 +366,11 @@ CREATE TABLE equipment_rentals (
   slot            rental_slot NOT NULL,
   price           NUMERIC(8,2) NOT NULL DEFAULT 0,
   notes           TEXT,
-  agency_billing_line_id UUID REFERENCES agency_billing_lines(id) ON DELETE SET NULL,  -- 2026-08-16b, foundations only
+  agency_billing_line_id UUID REFERENCES agency_billing_lines(id) ON DELETE SET NULL,  -- 2026-08-16b, in use since Phases 3+5 (2026-08-17)
+  -- Redacted mirror for shared links (Phase 4) — see lessons.share_price_per_hour.
+  share_price NUMERIC(8,2) GENERATED ALWAYS AS (
+    CASE WHEN agency_billing_line_id IS NULL THEN price END
+  ) STORED,
   created_at      TIMESTAMPTZ DEFAULT now()
 );
 
@@ -413,7 +423,13 @@ CREATE TABLE taxi_trips (
   price_eur           INTEGER NOT NULL DEFAULT 120,       -- fixed EUR price charged to client
   price_driver_mzn    INTEGER NOT NULL DEFAULT 6000,      -- what driver gets (MZN)
   margin_manager_mzn  INTEGER NOT NULL DEFAULT 1000,      -- manager commission (MZN)
-  agency_billing_line_id UUID REFERENCES agency_billing_lines(id) ON DELETE SET NULL,  -- 2026-08-16b, foundations only
+  agency_billing_line_id UUID REFERENCES agency_billing_lines(id) ON DELETE SET NULL,  -- 2026-08-16b, in use since Phases 3+5 (2026-08-17)
+  -- Redacted mirror for shared links (Phase 4) — see lessons.share_price_per_hour.
+  -- Only the CLIENT price is redacted: the driver is still owed his fee and the
+  -- manager his commission when an agency pays for the trip.
+  share_price_eur INTEGER GENERATED ALWAYS AS (
+    CASE WHEN agency_billing_line_id IS NULL THEN price_eur END
+  ) STORED,
   created_at          TIMESTAMPTZ DEFAULT now()
 );
 
@@ -561,7 +577,11 @@ CREATE TABLE booking_room_prices (
   room_id          UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
   price_per_night  NUMERIC(8,2) NOT NULL,
   override_note    TEXT,
-  agency_billing_line_id UUID REFERENCES agency_billing_lines(id) ON DELETE SET NULL,  -- 2026-08-16b, foundations only
+  agency_billing_line_id UUID REFERENCES agency_billing_lines(id) ON DELETE SET NULL,  -- 2026-08-16b, in use since Phases 3+5 (2026-08-17)
+  -- Redacted mirror for shared links (Phase 4) — see lessons.share_price_per_hour.
+  share_price_per_night NUMERIC(8,2) GENERATED ALWAYS AS (
+    CASE WHEN agency_billing_line_id IS NULL THEN price_per_night END
+  ) STORED,
   PRIMARY KEY (booking_id, room_id)
 );
 
@@ -1073,6 +1093,37 @@ GRANT  SELECT (id, name, phone, vehicle, seats) ON taxi_drivers TO anon;
 REVOKE SELECT ON activity_providers FROM anon;
 GRANT  SELECT (id, name, type, phone, email, website, show_prices)
   ON activity_providers TO anon;
+-- ── Phase 4 des agences (2026-08-18c) : les 4 sources d'une facture client ────
+-- anon ne lit plus AUCUN prix client brut, seulement le miroir `share_price*`
+-- (colonne générée) que la base met à NULL quand la ligne est facturée à une
+-- agence partenaire. Avant ça, la page client dessinait « — » par-dessus un prix
+-- qui voyageait quand même dans la réponse réseau.
+-- Fermé au passage, volontairement : `lessons.instructor_rate` (la PAIE moniteur,
+-- 3ᵉ copie du chiffre que le durcissement du 2026-07-29 avait manquée) et
+-- `taxi_trips.price_eur` (aucune page taxi ne l'affiche).
+-- ⚠️ Restent ouverts et attendent une décision : `taxi_trips.price_driver_mzn` et
+-- `margin_manager_mzn`, lisibles par TOUT token valide — un client peut donc voir
+-- ce qu'on paie son chauffeur. Un privilège de colonne est par RÔLE, pas par type
+-- de token, et les pages driver/manager en ont réellement besoin.
+REVOKE SELECT ON lessons FROM anon;
+GRANT  SELECT (id, booking_id, instructor_id, participant_ids, date, start_time,
+               duration_hours, type, notes, share_price_per_hour,
+               agency_billing_line_id)
+  ON lessons TO anon;
+REVOKE SELECT ON equipment_rentals FROM anon;
+GRANT  SELECT (id, equipment_id, booking_id, participant_id, date, slot,
+               share_price, agency_billing_line_id)
+  ON equipment_rentals TO anon;
+REVOKE SELECT ON taxi_trips FROM anon;
+GRANT  SELECT (id, date, start_time, type, status, taxi_driver_id, booking_id,
+               nb_persons, nb_luggage, nb_boardbags, notes,
+               price_driver_mzn, margin_manager_mzn,
+               share_price_eur, agency_billing_line_id)
+  ON taxi_trips TO anon;
+REVOKE SELECT ON booking_room_prices FROM anon;
+GRANT  SELECT (booking_id, room_id, override_note, share_price_per_night,
+               agency_billing_line_id)
+  ON booking_room_prices TO anon;
 
 
 

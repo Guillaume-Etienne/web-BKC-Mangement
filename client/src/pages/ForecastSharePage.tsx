@@ -3,6 +3,20 @@ import type { Lesson, LessonType, EquipmentRental, Instructor, Client, Equipment
 import { useTable } from '../hooks/useSupabase'
 import { toISODate as dateToISO, addDays } from '../utils/dates'
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+// The shapes anon is actually served (column-level GRANT — see security-rls.md).
+// Typing them narrow keeps the compiler on the side of the GRANT: reaching for
+// the client price or the instructor payout no longer compiles here.
+type ForecastLesson = Pick<Lesson,
+  'id' | 'booking_id' | 'instructor_id' | 'participant_ids' | 'date' | 'start_time' |
+  'duration_hours' | 'type' | 'notes'>
+
+// `price` is the redacted mirror: null when the rental is billed to an agency.
+type ForecastRental = Pick<EquipmentRental,
+  'id' | 'equipment_id' | 'booking_id' | 'participant_id' | 'date' | 'slot'>
+  & { price: number | null }
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SLOT_H = 36
@@ -50,8 +64,20 @@ export default function ForecastSharePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(() => addDays(today, 1))
   const [mobileInstrIdx, setMobileInstrIdx] = useState(0)
 
-  const { data: lessons } = useTable<Lesson>('lessons', { order: 'date' })
-  const { data: rentals } = useTable<EquipmentRental>('equipment_rentals', { order: 'date' })
+  // Column-restricted for anon since 2026-08-18c, same trap as the instructors
+  // below: `*` returns 42501 and empties the page. This view shows who teaches
+  // what and when, so it never asks for the lesson's client price at all — and
+  // `lessons.instructor_rate` (payroll) is now revoked, not merely unused.
+  const { data: lessons } = useTable<ForecastLesson>('lessons', {
+    select: 'id, booking_id, instructor_id, participant_ids, date, start_time, duration_hours, type, notes',
+    order: 'date',
+  })
+  // Rentals DO show a price here (they always have), so this one reads the
+  // redacted mirror: a rental billed to a partner agency arrives as null.
+  const { data: rentals } = useTable<ForecastRental>('equipment_rentals', {
+    select: 'id, equipment_id, booking_id, participant_id, date, slot, price:share_price',
+    order: 'date',
+  })
   // Column-restricted for anon: identity ONLY. rate_* is instructor payroll and is
   // revoked from anon (2026-07-29_lesson_pricing.sql) — asking for it returns 42501
   // and empties the whole page. This view never needed them.
@@ -240,7 +266,11 @@ export default function ForecastSharePage() {
                           <div>
                             <div className="font-semibold text-amber-900 dark:text-amber-400">{rt.icon} {rt.label}</div>
                             <div className="text-amber-700 dark:text-amber-400 truncate">{client?.first_name} {client?.last_name}</div>
-                            <div className="text-amber-600 dark:text-amber-400 font-medium">€{r.price}</div>
+                            {/* null = billed to a partner agency, so there is no
+                                price to show here — "€" alone would read as a bug. */}
+                            <div className="text-amber-600 dark:text-amber-400 font-medium">
+                              {r.price != null ? `€${r.price}` : '—'}
+                            </div>
                           </div>
                         </div>
                       )
