@@ -339,8 +339,9 @@ dans les totaux client facture deux fois le même euro. **Aucune migration** —
   solde inchangé (chambre agence disparue, cours visibles sans prix, sous-total cours 0 €).
   Écriture vérifiée en base sur les 4 tables. **3 défauts trouvés et corrigés** (`16eb23d`) —
   détail ci-dessous.
-- ⬜ **Reste (gui)** : la saisie réelle sur **#022 est impossible en l'état** — voir le point
-  ⚠️ juste après.
+- ℹ️ **La saisie des cours de #022 attend octobre, et c'est normal** — les cours se saisissent
+  la veille, voir le point juste après. La ligne de facture Fun & Fly, elle, peut être créée
+  dès maintenant : elle ne dépend pas des leçons.
 
 #### 🔴 Les 3 défauts trouvés par la campagne (corrigés, `16eb23d`)
 
@@ -481,8 +482,9 @@ un seul tarif pour toute une leçon groupe basé sur le **premier participant**.
 
 ✅ **Migration appliquée et vérifiée TEST + PROD le 2026-08-16** — curl anon sur
 `price_tiers` → 42501 sur les deux bases, contrôle négatif → 42703.
-⬜ **Reste (gui)** : saisir les vrais seuils dans Options → Pricing (le formulaire existe,
-aucun palier n'est encore posé).
+✅ **Paliers réels saisis par gui le 2026-08-17** (PROD, Options → Pricing) :
+**privé** 60 €/h de base → **4h : 55 €/h** → **10h : 52 €/h** ; **groupe** 45 €/h de base →
+**4h : 43 €/h** → **10h : 41 €/h**. Le chantier est clos, plus rien en attente ici.
 
 🔶 **Déviation assumée par rapport au plan initial** : `EquipmentPage.tsx` (calcul de marge
 matériel, déjà une estimation approximative) **n'a pas été rendu tier-aware** — il n'a
