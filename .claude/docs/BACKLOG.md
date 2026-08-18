@@ -410,14 +410,27 @@ agence — un GRANT de colonne ne peut pas conditionner par la valeur d'une autr
 Terrain nouveau (jusqu'ici les fonctions RLS scopent des lignes, pas des colonnes
 conditionnelles) — à vérifier par curl **avec un vrai token client**, sans exception.
 
-**⬜ Phase 6 — onglet compta Agencies** : calqué sur `PalmeirasTab.tsx` — sélecteur de
-période, KPI (brut facturé / commission / net dû), tableau des `agency_billing_lines` avec
-`invoiced_at`/`paid_at` à cocher. Facturation **au fil de l'eau, revue avec gui avant envoi**
-(pas d'automatisation de l'envoi) — décision gui.
-**Déjà fait pour elle** : `computeAgencyTotals` (pur, testé, scopable par agence ou par résa)
-et les tampons invoiced/paid, posables depuis le panneau de la fiche résa. Il reste la **vue
-d'ensemble** : aujourd'hui on ne peut pas répondre à « que me doit Fun & Fly, toutes résas
-confondues ? » sans ouvrir chaque réservation.
+**✅ Phase 6 — onglet Accounting → 🤝 Agencies (2026-08-18, `f1b05ba`)**
+Répond à « que me doit Fun & Fly, toutes résas confondues ? » — il fallait jusque-là ouvrir
+chaque réservation une par une. Filtre All time / saison, sélecteur d'agence, KPI (brut,
+commission, net, encore dû), une ligne par facture avec compteur de forfait et tampons
+invoiced/paid. **Facturation manuelle et relue avant envoi** (décision gui) : l'écran
+enregistre ce qui est sorti et ce qui est rentré, il n'envoie rien.
+- `buildAgencyInvoiceRows` (pur, **9 tests**) résout chaque ligne contre son agence, sa résa,
+  son voyageur, son libellé catalogue et ses heures consommées. **Chacune de ces jointures peut
+  revenir vide sur des données réelles** (ligne dont la résa a été supprimée, forfait sans
+  voyageur nommé) → un repli et un test pour chacune, plutôt qu'un crash de tout l'onglet.
+- **Le filtre de période réutilise `filterDataToSeason`** au lieu d'inventer une 2ᵉ règle : une
+  ligne de facture n'a pas de date propre, elle suit sa réservation — et ces chiffres doivent
+  coller à ceux du dashboard.
+- **Un test verrouille « la somme des lignes == les KPI »** : les deux sont calculés séparément,
+  c'est exactement comme ça qu'ils divergent (leçon du 17/08 sur le dashboard).
+- Le sélecteur d'agence ne liste que les agences **présentes dans la période**, pour qu'en
+  choisir une ne donne jamais un tableau vide.
+✅ **Vérifié à l'écran sur TEST** avec 2 agences à commissions différentes (10 % et 20 %) :
+670 € brut / −112 € / 558 € net / 360 € dus, compteur 3,5h/10h, filtre saison écartant bien un
+check-in du 14/09 d'une saison démarrant le 15/09, tampon écrit en base. TEST nettoyé après.
+**338 tests.**
 ⬜ **Décision ouverte, pas tranchée le 17/08** : le **CashFlow** ne connaît pas l'argent des
 agences. Un `paid_at` est pourtant une vraie date d'encaissement — il manque une colonne
 « Agencies », exactement comme celles décidées pour Palmeiras (01/08) et Providers (01/08).
