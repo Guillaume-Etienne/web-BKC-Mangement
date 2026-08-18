@@ -421,8 +421,8 @@ le planning et la page client ne connaissent pas encore la notion. Roadmap compl
 | id | string (UUID) | |
 | agency_id | string (UUID) | |
 | category | `'lesson' \| 'rental' \| 'transfer' \| 'accommodation'` | TEXT+CHECK, pas un enum Postgres (évite le piège "ALTER TYPE dans la même transaction") |
-| label | string | ex. "Pack cours Privé 10x 2h" |
-| unit_hours | number \| null | taille du forfait, `category='lesson'` seulement |
+| label | string | ex. "Pack cours Privé 10x 2h" — ⚠️ **le libellé de l'agence ne dit pas les heures** |
+| unit_hours | number \| null | taille **réelle** du forfait en heures, `category='lesson'` seulement. ⚠️ « Pack cours Privé 10x 2h » vaut **10h au total**, pas 10×2 — erreur commise à la saisie du 16/08 (20h enregistrées), corrigée le 18/08. Toujours demander à gui, ne jamais déduire du libellé. |
 | price | number | tarif catalogue fixe |
 | is_active | boolean | **On désactive, on ne supprime pas** — même règle que les tarifs verrouillés de `price_items` |
 

@@ -282,8 +282,8 @@ Design complet et exploration du code : `.claude/docs/data-model.md` § agencies
   283 tests (aucun test cassé, aucune logique de calcul touchée).
   ✅ **Vérifié au navigateur sur PROD le 2026-08-16** (Claude in Chrome) : agence **Fun & Fly**
   créée (20% commission, notes avec la raison sociale Aquaphyle/Toulouse/TVA relevées sur la
-  facture), 3 lignes de grille saisies — Pack cours Privé 10x2h (20h, 450€), Pack cours Semi
-  Privé 10x2h (20h, 330€), Transfert Maputo↔Bilene (220€, catégorie transfer → pas de champ
+  facture), 3 lignes de grille saisies — Pack cours Privé 10x2h (**10h**, 450€), Pack cours Semi
+  Privé 10x2h (**10h**, 330€), Transfert Maputo↔Bilene (220€, catégorie transfer → pas de champ
   heures, comme prévu). Bascule Deactivate/Reactivate testée sur une ligne, comportement
   correct (grisée, bouton inversé, remise à l'identique). Trois lignes suffisent au catalogue :
   les doublons de la facture réelle (3× Pack Privé, 2× Pack Semi Privé) viennent du nombre de
