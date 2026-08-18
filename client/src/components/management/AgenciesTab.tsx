@@ -167,8 +167,11 @@ function RateItemAddForm({ agencyId, onAdd }: RateItemAddFormProps) {
 interface RateItemsListProps {
   items: AgencyRateItem[]
   onToggleActive: (item: AgencyRateItem) => void
+  onEdit: (item: AgencyRateItem, patch: Pick<AgencyRateItem, 'label' | 'unit_hours' | 'price'>) => void
 }
-function RateItemsList({ items, onToggleActive }: RateItemsListProps) {
+function RateItemsList({ items, onToggleActive, onEdit }: RateItemsListProps) {
+  const [editingId, setEditingId] = useState<string | null>(null)
+
   if (items.length === 0) {
     return <p className="text-sm text-gray-400 dark:text-gray-400 italic">No rate items yet.</p>
   }
@@ -176,26 +179,107 @@ function RateItemsList({ items, onToggleActive }: RateItemsListProps) {
     <div className="space-y-2">
       {items.map(item => (
         <div key={item.id}
-          className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm ${
+          className={`rounded-lg border px-3 py-2 text-sm ${
             item.is_active
               ? 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800'
               : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-800 opacity-60'
           }`}>
-          <div>
-            <span className="mr-1.5">{CATEGORY_META[item.category].icon}</span>
-            <span className="font-medium text-gray-800 dark:text-gray-200">{item.label}</span>
-            {item.unit_hours != null && (
-              <span className="ml-2 text-gray-500 dark:text-gray-400">({item.unit_hours}h)</span>
-            )}
-            <span className="ml-3 font-bold text-gray-800 dark:text-gray-200">{item.price}€</span>
-          </div>
-          <button onClick={() => onToggleActive(item)}
-            className="text-xs px-2 py-1 rounded font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
-            {item.is_active ? 'Deactivate' : 'Reactivate'}
-          </button>
+          {editingId === item.id ? (
+            <RateItemEditForm
+              item={item}
+              onSave={patch => { onEdit(item, patch); setEditingId(null) }}
+              onCancel={() => setEditingId(null)}
+            />
+          ) : (
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="mr-1.5">{CATEGORY_META[item.category].icon}</span>
+                <span className="font-medium text-gray-800 dark:text-gray-200">{item.label}</span>
+                {item.unit_hours != null && (
+                  <span className="ml-2 text-gray-500 dark:text-gray-400">({item.unit_hours}h)</span>
+                )}
+                <span className="ml-3 font-bold text-gray-800 dark:text-gray-200">{item.price}€</span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => setEditingId(item.id)} title="Edit this rate"
+                  className="text-xs px-2 py-1 rounded font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                  ✏️
+                </button>
+                <button onClick={() => onToggleActive(item)}
+                  className="text-xs px-2 py-1 rounded font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                  {item.is_active ? 'Deactivate' : 'Reactivate'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>
+  )
+}
+
+// ── Rate item edit form (module scope) ───────────────────────────────────────
+// The category stays fixed: it decides whether the row carries package hours at
+// all, and changing it after the fact would strand that value. Create another
+// row instead.
+//
+// Editing a rate does NOT re-price anything already invoiced — agency_billing_lines
+// freeze `price` and `unit_hours` at creation, like every other snapshot here. So
+// this corrects the catalogue going forward, it never rewrites past invoices.
+interface RateItemEditFormProps {
+  item: AgencyRateItem
+  onSave: (patch: Pick<AgencyRateItem, 'label' | 'unit_hours' | 'price'>) => void
+  onCancel: () => void
+}
+function RateItemEditForm({ item, onSave, onCancel }: RateItemEditFormProps) {
+  const [label, setLabel] = useState(item.label)
+  const [hours, setHours] = useState(item.unit_hours != null ? String(item.unit_hours) : '')
+  const [price, setPrice] = useState(String(item.price))
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    onSave({
+      label: label.trim(),
+      // Only lesson packages carry hours — a transfer has none by design.
+      unit_hours: item.category === 'lesson' && hours !== '' ? parseFloat(hours) : null,
+      price: parseFloat(price) || 0,
+    })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-2">
+      <div className="flex items-center gap-2">
+        <span>{CATEGORY_META[item.category].icon}</span>
+        <input type="text" value={label} required onChange={e => setLabel(e.target.value)}
+          className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200" />
+      </div>
+      <div className="flex items-center gap-2">
+        {item.category === 'lesson' && (
+          <label className="text-xs text-gray-500 dark:text-gray-400">
+            Total hours
+            <input type="number" min="0" step="0.5" value={hours} onChange={e => setHours(e.target.value)}
+              placeholder="hours in the package"
+              className="ml-1 w-20 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200" />
+          </label>
+        )}
+        <label className="text-xs text-gray-500 dark:text-gray-400">
+          Price €
+          <input type="number" min="0" step="1" value={price} required onChange={e => setPrice(e.target.value)}
+            className="ml-1 w-24 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200" />
+        </label>
+        <div className="ml-auto flex gap-1">
+          <button type="button" onClick={onCancel}
+            className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium">Cancel</button>
+          <button type="submit"
+            className="text-xs px-2 py-1 rounded bg-blue-600 text-white font-medium hover:bg-blue-700">Save</button>
+        </div>
+      </div>
+      {item.category === 'lesson' && (
+        <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+          Hours the package really contains — a label like “10x 2h” may not mean what it says.
+        </p>
+      )}
+    </form>
   )
 }
 
@@ -256,6 +340,15 @@ export default function AgenciesTab() {
   async function handleToggleActive(item: AgencyRateItem) {
     const { error } = await supabase.from('agency_rate_items')
       .update({ is_active: !item.is_active }).eq('id', item.id)
+    if (error) { alert('Error: ' + error.message); return }
+    refreshRateItems()
+  }
+
+  async function handleEditRateItem(
+    item: AgencyRateItem,
+    patch: Pick<AgencyRateItem, 'label' | 'unit_hours' | 'price'>,
+  ) {
+    const { error } = await supabase.from('agency_rate_items').update(patch).eq('id', item.id)
     if (error) { alert('Error: ' + error.message); return }
     refreshRateItems()
   }
@@ -343,7 +436,7 @@ export default function AgenciesTab() {
 
             <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 space-y-4">
               <h4 className="font-semibold text-gray-700 dark:text-gray-300">Rate card</h4>
-              <RateItemsList items={agencyRateItems(selected.id)} onToggleActive={handleToggleActive} />
+              <RateItemsList items={agencyRateItems(selected.id)} onToggleActive={handleToggleActive} onEdit={handleEditRateItem} />
               <RateItemAddForm agencyId={selected.id} onAdd={handleAddRateItem} />
             </div>
           </div>
