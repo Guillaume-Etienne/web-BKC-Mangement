@@ -368,17 +368,33 @@ avec agence, ni sans, ni en rejouant la séquence. Toutes les listes des deux fi
 une `key`. Probablement un rechargement à chaud de Vite pendant que j'éditais les sources.
 À resignaler s'il réapparaît en conditions normales.)*
 
-#### ⚠️ PROD : la table `lessons` est VIDE — les 14h de #022 n'existent pas
+#### ℹ️ PROD : `lessons` est vide, et c'est NORMAL — ne pas le traiter comme une anomalie
 
-Constaté le 2026-08-17 via le MCP (lecture seule) : `lessons` compte **0 ligne en PROD**, et
-la résa #022 n'a **aucun cours**. La note du 16/08 disant « les deux blocs de cours (10h puis
-4h) sont désormais saisis dans le planning par gui » **ne correspond pas à la base** — soit la
-saisie n'a pas été enregistrée, soit elle a été faite sur TEST. Conséquence : impossible de
-rattacher quoi que ce soit à une ligne de facture Fun & Fly pour l'instant.
-**→ gui : ressaisir les cours de #022 dans le planning**, puis créer la ligne « Pack cours
-Privé 10x2h » (450 €, 20h) pour Loïc SENE et l'y rattacher. Rappel du piège maison :
-[fonctionnalité livrée ≠ appliquée aux vraies fiches].
+Constaté le 2026-08-17 via le MCP : `lessons` compte 0 ligne en PROD, #022 n'a aucun cours.
+J'en avais conclu à tort que la saisie du 16/08 « n'était pas passée » et qu'il fallait la
+rattraper. **Faux — corrigé le 2026-08-18 par gui : les cours se saisissent LA VEILLE**, quand
+la météo, les niveaux et les moniteurs disponibles sont connus. Une résa d'octobre sans leçon
+en août est l'état attendu, pas un oubli.
+Le programme convenu vit dans les **notes de la réservation** (« 10h privatif 20-24/10, puis 4h
+privatif 25-26/10 ») — c'est là qu'il doit rester jusqu'à la veille.
+**→ Ne jamais saisir de leçons à l'avance « pour compléter » une résa.** Ce qui reste à faire
+le moment venu : gui saisit les cours au jour le jour, puis la ligne « Pack cours Privé 10x2h »
+(450 €, 20h) est créée pour Loïc SENE et les leçons s'y rattachent **au fil de l'eau** — la
+ligne de facture peut d'ailleurs être créée dès maintenant, elle ne dépend pas des cours.
 *(PROD contient bien l'agence Fun & Fly, ses 3 lignes de grille et les 4 paliers de prix.)*
+
+#### ✅ Conséquence directe : le tarif moniteur suit désormais la réassignation (`9fb1d76`)
+
+Ce process — planning bâti la veille, donc leçons réassignées après coup — rendait un défaut
+préexistant coûteux : `instructor_rate` était figé à la création et **jamais recalculé**, alors
+que trois écrans permettent de changer le moniteur d'une leçon (les deux modales d'édition et
+le **glisser-déposer** de `ForecastView` vers la colonne d'un autre moniteur, le plus discret
+des trois). Un propriétaire à 0 €/h héritant de 18 €/h invente un coût ; un moniteur payé
+héritant de 0 €/h voit une vraie dette disparaître. `reFreezeInstructorRate`
+(`accounting/utils.ts`, pur, 6 tests) re-fige la paie **uniquement** si le moniteur ou le type
+a changé — un snapshot intact continue de protéger la paie passée d'une augmentation ultérieure.
+Le prix client n'est **pas** retouché : il est éditable à la main depuis Accounting, le
+recalculer effacerait cette décision en silence. **329 tests.**
 
 **🔶 Phase 4 — masquage côté client : la moitié visible est faite, la protection réseau non.**
 Fait le 2026-08-17 dans `ClientSharePage.tsx` : une ligne couverte par l'agence affiche
