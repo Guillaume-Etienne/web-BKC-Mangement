@@ -11,6 +11,7 @@ import { useBookingDrag, CELL_W, type DragMode } from '../../hooks/useBookingDra
 import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
 import { useTable } from '../../hooks/useSupabase'
 import { usePriceTiers } from '../../hooks/usePriceTiers'
+import { useAgencies, useAgencyBillingLines } from '../../hooks/useAgencies'
 import { useBookings, useBookingRooms, useBookingParticipants } from '../../hooks/useBookings'
 import { useLessons, useDayActivities } from '../../hooks/useLessons'
 import { useInstructors } from '../../hooks/useInstructors'
@@ -219,6 +220,10 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   const { data: priceItems } = useTable<PriceItem>('price_items')
   const { data: priceTiers } = usePriceTiers()
   const { data: bookingParticipants } = useBookingParticipants()
+  // Agency short codes: the "(FF)" badge shown beside a guest's name on a
+  // booking that came through a partner agency (see agencyMarker).
+  const { data: agencies } = useAgencies()
+  const { data: agencyBillingLines } = useAgencyBillingLines()
   const now = new Date()
 
   // ── Season ──────────────────────────────────────────────────────
@@ -861,6 +866,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                                 seasonStart={seasonStart}
                                 bookings={getBookingsForRoom(room.id)}
                                 bookingParticipants={bookingParticipants}
+                                agencies={agencies}
                                 dragState={dragState}
                                 onPointerDown={onPointerDown}
                                 unavailableDays={unavailableDays}
@@ -893,6 +899,9 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             clients={clients}
             equipment={equipment}
             rentals={rentals}
+            bookings={resolvedBookings}
+            agencies={agencies}
+            agencyBillingLines={agencyBillingLines}
             onAddLesson={onAddLesson}
             onUpdateLesson={onUpdateLesson}
             onDeleteLesson={onDeleteLesson}
@@ -966,6 +975,8 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
               rentals={rentals}
               priceItems={priceItems}
               priceTiers={priceTiers}
+              agencies={agencies}
+              agencyBillingLines={agencyBillingLines}
               bookingParticipants={bookingParticipants}
               onAddLesson={onAddLesson}
               onUpdateLesson={onUpdateLesson}

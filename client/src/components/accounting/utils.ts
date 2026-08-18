@@ -1,4 +1,4 @@
-import type { Booking, BookingParticipant, Payment, Lesson, LessonType, Instructor, LessonRateOverride, DiningEvent, PriceItem, BillableType, PriceTier, AgencyBillingLine } from '../../types/database'
+import type { Booking, BookingParticipant, Payment, Lesson, LessonType, Instructor, LessonRateOverride, DiningEvent, PriceItem, BillableType, PriceTier, Agency, AgencyBillingLine } from '../../types/database'
 import { lessonBillable } from '../../types/database'
 import type { SharedAccountingData } from './types'
 import { getBaseNightlyRate } from '../../utils/roomPricing'
@@ -44,6 +44,42 @@ export function isAgencyBilled(row: { agency_billing_line_id?: string | null }):
 export function isRoomAgencyBilled(bookingId: string, roomId: string, data: SharedAccountingData): boolean {
   const snapshot = data.bookingRoomPrices.find(p => p.booking_id === bookingId && p.room_id === roomId)
   return snapshot ? isAgencyBilled(snapshot) : false
+}
+
+/** Everything the marker needs, so callers outside accounting (the planning
+ *  views) can pass the two slices they already have instead of a full dataset. */
+export interface AgencyLookup {
+  agencies: Agency[]
+  bookings: Pick<Booking, 'id' | 'agency_id'>[]
+  agencyBillingLines: Pick<AgencyBillingLine, 'id' | 'agency_id'>[]
+}
+
+/** The badge shown beside a client's name — `"(FF)"` — or null when there is
+ *  nothing to show. One function for every screen, so a booking can never read
+ *  as an agency booking in the planning and as a direct one in accounting.
+ *
+ *  Resolution order, and it matters:
+ *  1. a service billed to an agency names its invoice line, which names the
+ *     agency — that is the strongest statement ("this lesson is on their
+ *     package"), and it holds even on a booking whose own tag was cleared;
+ *  2. otherwise the booking's own `agency_id` ("this guest came through them").
+ *
+ *  Returns null when the agency has no `short_code`: an empty code means "no
+ *  badge", never a badge invented from the name. That is the whole reason the
+ *  code lives in the database — matching agencies by name in the source is the
+ *  mistake this project already paid for three times (see data-model.md). */
+export function agencyMarker(
+  row: { booking_id?: string | null; agency_billing_line_id?: string | null },
+  lookup: AgencyLookup
+): string | null {
+  const line = row.agency_billing_line_id
+    ? lookup.agencyBillingLines.find(l => l.id === row.agency_billing_line_id)
+    : undefined
+  const agencyId = line?.agency_id
+    ?? (row.booking_id ? lookup.bookings.find(b => b.id === row.booking_id)?.agency_id : null)
+  if (!agencyId) return null
+  const code = lookup.agencies.find(a => a.id === agencyId)?.short_code?.trim()
+  return code ? `(${code})` : null
 }
 
 /** Hours already taught against one invoice line — the "14h of the 20h package

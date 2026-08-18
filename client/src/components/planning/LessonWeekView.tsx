@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import type { Lesson, DayActivity, DaySlot, LessonType, RentalType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem, PriceTier } from '../../types/database'
+import type { Lesson, DayActivity, DaySlot, LessonType, RentalType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine } from '../../types/database'
 import { rentalBillable } from '../../types/database'
-import { currentInstructorRate, reFreezeInstructorRate, resolveLessonRate } from '../accounting/utils'
+import { currentInstructorRate, reFreezeInstructorRate, resolveLessonRate, agencyMarker } from '../accounting/utils'
 import { toISODate as dateToISO } from '../../utils/dates'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -119,6 +119,8 @@ interface LessonWeekViewProps {
   rentals: EquipmentRental[]
   priceItems: PriceItem[]
   priceTiers: PriceTier[]
+  agencies: Agency[]
+  agencyBillingLines: AgencyBillingLine[]
   onAddLesson: (l: Omit<Lesson, 'id'>) => void
   onUpdateLesson: (l: Lesson) => void
   onDeleteLesson: (id: string) => void
@@ -134,6 +136,7 @@ interface LessonWeekViewProps {
 export default function LessonWeekView({
   days, lessons, dayActivities,
   bookings, instructors, clients, bookingParticipants, equipment, rentals, priceItems, priceTiers,
+  agencies, agencyBillingLines,
   onAddLesson, onUpdateLesson, onDeleteLesson,
   onAddActivity, onDeleteActivity,
   onAddRental, onUpdateRental, onDeleteRental,
@@ -215,6 +218,13 @@ export default function LessonWeekView({
       priceItems,
       { tiers: priceTiers, allLessons: lessons, bookingParticipants }
     )
+  }
+
+  /** "(FF)" for anything attached to a partner agency — the booking's own tag,
+   *  or the invoice line this very service is billed on. One helper for lessons
+   *  and rentals alike, so the two can never disagree on the same card. */
+  function markerFor(row: { booking_id?: string | null; agency_billing_line_id?: string | null }): string | null {
+    return agencyMarker(row, { agencies, bookings, agencyBillingLines })
   }
 
   // ── Booking lookup ────────────────────────────────────────────────────────
@@ -605,6 +615,13 @@ export default function LessonWeekView({
                             </div>
                             <div className="font-semibold truncate flex items-center gap-1">
                               {firstClient && <Avatar id={firstClient.id} first_name={firstClient.first_name} last_name={firstClient.last_name} />}
+                              {/* "(FF)" — the booking came through an agency, or this
+                                  very lesson sits on one of their packages. Before the
+                                  name and non-shrinking: on a narrow column the name
+                                  gives way first. */}
+                              {markerFor(lesson) && (
+                                <span className="shrink-0" title="Agency booking">{markerFor(lesson)}</span>
+                              )}
                               <span className="truncate">{firstClient?.first_name} {firstClient?.last_name}</span>
                               {lessonClients.length > 1 && <span className="ml-1 text-[10px] font-normal opacity-70 shrink-0">+{lessonClients.length - 1}</span>}
                             </div>
@@ -673,6 +690,9 @@ export default function LessonWeekView({
                             {equip && <div className="text-[11px] opacity-60 truncate">{equip.name}</div>}
                             <div className="opacity-70 truncate flex items-center gap-1">
                               {client && <Avatar id={client.id} first_name={client.first_name} last_name={client.last_name} />}
+                              {markerFor(r) && (
+                                <span className="shrink-0 font-semibold" title="Agency booking">{markerFor(r)}</span>
+                              )}
                               <span className="truncate">{client?.first_name} {client?.last_name}</span>
                             </div>
                           </div>

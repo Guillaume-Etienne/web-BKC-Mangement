@@ -7,7 +7,7 @@ import { todayISO, fmtDate } from '../../utils/dates'
 import {
   computeSeasonTotals,
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
-  computeInstructorBalance, fmtEur,
+  computeInstructorBalance, fmtEur, agencyMarker,
 } from './utils'
 
 interface Props { data: SharedAccountingData; onOpenBooking?: (id: string) => void }
@@ -401,6 +401,11 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
                     >
                       <td className="py-2 font-medium text-gray-800 dark:text-gray-200">
                         {onOpenBooking && <span className="text-gray-300 dark:text-gray-500 mr-1">↗</span>}
+                        {agencyMarker({ booking_id: b.id }, scoped) && (
+                          <span className="mr-1 text-gray-500 dark:text-gray-400" title="Booking from a partner agency">
+                            {agencyMarker({ booking_id: b.id }, scoped)}
+                          </span>
+                        )}
                         {client ? `${client.first_name} ${client.last_name}` : b.id}
                       </td>
                       <td className="py-2 text-gray-500 dark:text-gray-400">{fmtDate(b.check_in)}</td>

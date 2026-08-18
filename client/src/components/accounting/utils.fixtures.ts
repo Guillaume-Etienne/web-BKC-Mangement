@@ -193,7 +193,7 @@ export function mkClient(over: Partial<Client> = {}): Client {
 }
 
 export function mkAgency(over: Partial<Agency> = {}): Agency {
-  return { id: 'ag1', name: 'Fun & Fly', commission_percent: 20, notes: null, is_active: true, ...over }
+  return { id: 'ag1', name: 'Fun & Fly', commission_percent: 20, short_code: 'FF', notes: null, is_active: true, ...over }
 }
 
 export function mkAgencyRateItem(over: Partial<AgencyRateItem> = {}): AgencyRateItem {

@@ -6,7 +6,7 @@ import {
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
   computeAccommodationRevenue, computeExternalAccommodationCost, computeLessonsRevenue, computeRentalsRevenue,
   computeTaxiRevenue, computeActivityRevenueForBooking, computeCenterAccessRevenue,
-  computeDiningForBooking, getLessonClientRate, getConfiguredRate, computeStandaloneTaxiRevenue,
+  computeDiningForBooking, getLessonClientRate, getConfiguredRate, computeStandaloneTaxiRevenue, agencyMarker,
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate,
 } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
@@ -936,6 +936,13 @@ export default function BookingFinances({ data, handlers }: Props) {
                   >
                     <td className="px-4 py-3 text-gray-400 dark:text-gray-400">#{String(b.booking_number).padStart(3, '0')}</td>
                     <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">
+                      {/* Explains at a glance why this booking's total can be lower
+                          than the stay is worth: part of it is billed to an agency. */}
+                      {agencyMarker({ booking_id: b.id }, data) && (
+                        <span className="mr-1 text-gray-500 dark:text-gray-400" title="Booking from a partner agency">
+                          {agencyMarker({ booking_id: b.id }, data)}
+                        </span>
+                      )}
                       {client ? `${client.first_name} ${client.last_name}` : '–'}
                     </td>
                     <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">

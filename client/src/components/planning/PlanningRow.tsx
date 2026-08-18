@@ -1,6 +1,7 @@
-import type { Booking, BookingParticipant } from '../../types/database'
+import type { Booking, BookingParticipant, Agency } from '../../types/database'
 import type { DragState, DragMode } from '../../hooks/useBookingDrag'
 import { CELL_W } from '../../hooks/useBookingDrag'
+import { agencyMarker } from '../accounting/utils'
 
 // Bar fill + the text that sits on it. The guest name used to be white on every
 // bar, which is the least readable choice these fills allow: 2.5:1 on emerald,
@@ -21,12 +22,13 @@ interface PlanningRowProps {
   seasonStart: Date
   bookings: Booking[]
   bookingParticipants: BookingParticipant[]
+  agencies: Agency[]
   dragState: DragState | null
   onPointerDown: (e: React.PointerEvent, bookingId: string, roomId: string, mode: DragMode) => void
   unavailableDays?: Set<number>
 }
 
-export default function PlanningRow({ roomId, label, totalDays, seasonStart, bookings, bookingParticipants, dragState, onPointerDown, unavailableDays }: PlanningRowProps) {
+export default function PlanningRow({ roomId, label, totalDays, seasonStart, bookings, bookingParticipants, agencies, dragState, onPointerDown, unavailableDays }: PlanningRowProps) {
   const isDropTarget = dragState && dragState.targetRoomId === roomId && dragState.roomId !== roomId
 
   function dateToIdx(dateStr: string): number {
@@ -51,7 +53,11 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
       b.num_center_access > 0 ? `${b.num_center_access}C` : null,
       b.notes || null,
     ].filter(Boolean).join(' · ')
-    return { booking: b, startOffset, endOffset, label }
+    // Kept out of `label` on purpose: the label is truncated by CSS, and on a
+    // three-day bar the badge is the first thing that would disappear. It is
+    // rendered as its own non-shrinking span so the guest name gives way first.
+    const marker = agencyMarker({ booking_id: b.id }, { agencies, bookings, agencyBillingLines: [] })
+    return { booking: b, startOffset, endOffset, label, marker }
   }).filter(s => s.endOffset > 0 && s.startOffset < totalDays)
 
   return (
@@ -110,17 +116,18 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
                 isDragging ? 'opacity-70 shadow-lg z-10' : ''
               }`}
               style={{ left: `${leftPx}px`, width: `${widthPx}px`, cursor: isDragging ? 'grabbing' : 'grab' }}
-              title={seg.label}
+              title={seg.marker ? `${seg.marker} ${seg.label}` : seg.label}
             >
               <div
                 className="absolute left-0 top-0 w-2 h-full cursor-col-resize"
                 onPointerDown={(e) => onPointerDown(e, seg.booking.id, roomId, 'resize-left')}
               />
               <div
-                className="flex-1 px-1.5 truncate"
+                className="flex-1 flex items-center gap-1 px-1.5 min-w-0"
                 onPointerDown={(e) => onPointerDown(e, seg.booking.id, roomId, 'move')}
               >
-                {seg.label}
+                {seg.marker && <span className="shrink-0 font-semibold">{seg.marker}</span>}
+                <span className="truncate">{seg.label}</span>
               </div>
               <div
                 className="absolute right-0 top-0 w-2 h-full cursor-col-resize"

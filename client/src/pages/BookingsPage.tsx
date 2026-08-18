@@ -9,7 +9,7 @@ import { useTable } from '../hooks/useSupabase'
 import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, Lesson, EquipmentRental, Payment, ExternalAccommodationBooking, Agency } from '../types/database'
 import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
 import { getFullHouseRate, getBaseNightlyRate } from '../utils/roomPricing'
-import { getConfiguredRate } from '../components/accounting/utils'
+import { getConfiguredRate, agencyMarker } from '../components/accounting/utils'
 import { todayISO, fmtDate } from '../utils/dates'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1216,6 +1216,9 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   const { data: accommodations } = useAccommodations()
   const { data: agencies } = useAgencies()
   const { data: houseRentals } = useTable<HouseRental>('house_rentals')
+  // The list only ever marks whole bookings, so no invoice lines are needed:
+  // agencyMarker falls straight through to the booking's own agency_id.
+  const agencyLookup = { agencies, bookings, agencyBillingLines: [] }
   const { data: roomRatesData } = useTable<RoomRate>('room_rates')
   const { data: externalStaysData, refresh: refreshExternalStays } =
     useTable<ExternalAccommodationBooking>('external_accommodation_bookings')
@@ -1745,6 +1748,11 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                       #{String(b.booking_number).padStart(3, '0')}
                     </td>
                     <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                      {agencyMarker({ booking_id: b.id }, agencyLookup) && (
+                        <span className="mr-1 text-gray-500 dark:text-gray-400" title="Booking from a partner agency">
+                          {agencyMarker({ booking_id: b.id }, agencyLookup)}
+                        </span>
+                      )}
                       {getClientName(b.client_id)}
                     </td>
                     <td className="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap font-mono text-xs">

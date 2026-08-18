@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
-import type { Lesson, LessonType, EquipmentRental, Instructor, Client, Equipment } from '../../types/database'
-import { currentInstructorRate, reFreezeInstructorRate } from '../accounting/utils'
+import type { Lesson, LessonType, EquipmentRental, Instructor, Client, Equipment, Booking, Agency, AgencyBillingLine } from '../../types/database'
+import { currentInstructorRate, reFreezeInstructorRate, agencyMarker } from '../accounting/utils'
 import { toISODate as dateToISO, addDays } from '../../utils/dates'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -425,6 +425,9 @@ interface ForecastViewProps {
   clients: Client[]
   equipment: Equipment[]
   rentals: EquipmentRental[]
+  bookings: Booking[]
+  agencies: Agency[]
+  agencyBillingLines: AgencyBillingLine[]
   onAddLesson: (l: Omit<Lesson, 'id'>) => void
   onUpdateLesson: (l: Lesson) => void
   onDeleteLesson: (id: string) => void
@@ -432,7 +435,7 @@ interface ForecastViewProps {
   onDeleteRental: (id: string) => void
 }
 
-export default function ForecastView({ lessons, instructors, clients, equipment, rentals, onAddLesson, onUpdateLesson, onDeleteLesson, onAddRental, onDeleteRental }: ForecastViewProps) {
+export default function ForecastView({ lessons, instructors, clients, equipment, rentals, bookings, agencies, agencyBillingLines, onAddLesson, onUpdateLesson, onDeleteLesson, onAddRental, onDeleteRental }: ForecastViewProps) {
   const today = new Date()
 
   const [selectedDate, setSelectedDate]   = useState<Date>(() => addDays(today, 1))
@@ -707,6 +710,14 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
                             <span className={`text-[9px] px-1 rounded font-semibold ${cfg.badge}`}>
                               {lesson.type === 'private' ? 'P' : lesson.type === 'group' ? 'G' : 'S'}
                             </span>
+                            {/* Sits on the top line rather than with the name: the
+                                name row only renders on tall enough blocks, and an
+                                agency lesson must be recognisable at any height. */}
+                            {agencyMarker(lesson, { agencies, bookings, agencyBillingLines }) && (
+                              <span className="text-[9px] font-bold shrink-0" title="Agency booking">
+                                {agencyMarker(lesson, { agencies, bookings, agencyBillingLines })}
+                              </span>
+                            )}
                           </div>
                           {height >= SLOT_H * 2 && (
                             <div className="text-xs font-semibold truncate">

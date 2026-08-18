@@ -9,7 +9,7 @@ import {
   computeInstructorEarned, computeInstructorDebts, computeInstructorPaid, computeInstructorBalance,
   computeSeasonTotals, suggestDeposit, fmtEur, fmtMonth,
   clientParticipantIds, cumulativeHoursBefore, getTierRate,
-  isAgencyBilled, agencyLineHoursUsed, computeAgencyTotals, reFreezeInstructorRate, buildAgencyInvoiceRows,
+  isAgencyBilled, agencyLineHoursUsed, computeAgencyTotals, reFreezeInstructorRate, buildAgencyInvoiceRows, agencyMarker,
 } from './utils'
 import {
   mkAccommodation, mkActivityBooking, mkAgency, mkAgencyLine, mkAgencyRateItem, mkAttendee, mkBooking, mkBookingRoom, mkBookingRoomPrice,
@@ -1327,6 +1327,60 @@ describe('computeAgencyTotals', () => {
     // whole invoiced amount reaches us, not that some unknown cut was taken.
     const data = mkData({ bookings: [mkBooking()], agencies: [], agencyBillingLines: [mkAgencyLine({ price: 450 })] })
     expect(computeAgencyTotals(data).net).toBe(450)
+  })
+})
+
+describe('agencyMarker', () => {
+  const lookup = {
+    agencies: [
+      mkAgency({ id: 'ag1', name: 'Fun & Fly', short_code: 'FF' }),
+      mkAgency({ id: 'ag2', name: 'Decathlon', short_code: 'Decat' }),
+      mkAgency({ id: 'ag3', name: 'No Code Agency', short_code: null }),
+    ],
+    bookings: [
+      mkBooking({ id: 'bk1', agency_id: 'ag1' }),
+      mkBooking({ id: 'bk2', agency_id: null }),
+      mkBooking({ id: 'bk3', agency_id: 'ag3' }),
+    ],
+    agencyBillingLines: [mkAgencyLine({ id: 'abl1', agency_id: 'ag2' })],
+  }
+
+  it('marks a booking tagged to an agency', () => {
+    expect(agencyMarker({ booking_id: 'bk1' }, lookup)).toBe('(FF)')
+  })
+
+  it('shows nothing for a direct booking', () => {
+    expect(agencyMarker({ booking_id: 'bk2' }, lookup)).toBeNull()
+  })
+
+  it('lets the invoice line win over the booking tag', () => {
+    // A lesson on Decathlon's package inside a Fun & Fly booking reads Decat:
+    // who is actually being billed for THIS service is the stronger statement.
+    expect(agencyMarker({ booking_id: 'bk1', agency_billing_line_id: 'abl1' }, lookup)).toBe('(Decat)')
+  })
+
+  it('marks a billed service even when the booking carries no tag', () => {
+    expect(agencyMarker({ booking_id: 'bk2', agency_billing_line_id: 'abl1' }, lookup)).toBe('(Decat)')
+  })
+
+  it('shows nothing when the agency has no short code', () => {
+    // Empty means "no badge" — never one invented from the agency name.
+    expect(agencyMarker({ booking_id: 'bk3' }, lookup)).toBeNull()
+  })
+
+  it('treats a blank short code as no code', () => {
+    const blank = { ...lookup, agencies: [mkAgency({ id: 'ag1', short_code: '   ' })] }
+    expect(agencyMarker({ booking_id: 'bk1' }, blank)).toBeNull()
+  })
+
+  it('shows nothing for a row attached to nothing at all', () => {
+    expect(agencyMarker({ booking_id: null }, lookup)).toBeNull()
+    expect(agencyMarker({}, lookup)).toBeNull()
+  })
+
+  it('survives an unknown booking, line or agency', () => {
+    expect(agencyMarker({ booking_id: 'gone' }, lookup)).toBeNull()
+    expect(agencyMarker({ booking_id: 'bk1', agency_billing_line_id: 'gone' }, lookup)).toBe('(FF)')
   })
 })
 

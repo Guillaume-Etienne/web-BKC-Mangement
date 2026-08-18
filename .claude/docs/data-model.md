@@ -412,6 +412,7 @@ le planning et la page client ne connaissent pas encore la notion. Roadmap compl
 | id | string (UUID) | |
 | name | string | |
 | commission_percent | number | % retenu par l'agence sur le total facturé (20 chez Fun&Fly) |
+| short_code | string \| null | Badge affiché à côté du nom du client partout dans l'app : `(FF) Loic SENE`. **NULL/vide = aucun badge**, jamais un badge déduit du nom (migration `2026-08-18`). Saisi dans Options → 🤝 Agencies. Codes réels : Fun & Fly = `FF`, Adekua = `Adek`, Decathlon = `Decat`. ⚠️ **Pas ouvert à anon** : `agencies` est admin-only et le planning Forecast partagé afficherait sinon le nom commercial des partenaires à qui détient le lien. |
 | notes | string \| null | coordonnées de facturation, en texte libre — pas de PDF généré |
 | is_active | boolean | |
 

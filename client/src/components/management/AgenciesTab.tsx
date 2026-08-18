@@ -14,11 +14,12 @@ const CATEGORY_META: Record<AgencyRateCategory, { icon: string; label: string }>
 interface AgencyFormData {
   name: string
   commission_percent: number
+  short_code: string | null
   notes: string | null
   is_active: boolean
 }
 interface AgencyFormProps {
-  initial: { name: string; commission_percent: string; notes: string; is_active: boolean }
+  initial: { name: string; commission_percent: string; short_code: string; notes: string; is_active: boolean }
   title: string
   onSave: (data: AgencyFormData) => Promise<void>
   onClose: () => void
@@ -26,6 +27,7 @@ interface AgencyFormProps {
 function AgencyForm({ initial, title, onSave, onClose }: AgencyFormProps) {
   const [name,       setName]       = useState(initial.name)
   const [commission, setCommission] = useState(initial.commission_percent)
+  const [shortCode,  setShortCode]  = useState(initial.short_code)
   const [notes,      setNotes]      = useState(initial.notes)
   const [active,     setActive]     = useState(initial.is_active)
   const [saving,     setSaving]     = useState(false)
@@ -36,6 +38,9 @@ function AgencyForm({ initial, title, onSave, onClose }: AgencyFormProps) {
     await onSave({
       name: name.trim(),
       commission_percent: parseFloat(commission) || 0,
+      // Empty stays null, never an empty string: `agencyMarker` reads a missing
+      // code as "no badge", and a stray "" would be one more thing to trim.
+      short_code: shortCode.trim() || null,
       notes: notes.trim() || null,
       is_active: active,
     })
@@ -56,6 +61,19 @@ function AgencyForm({ initial, title, onSave, onClose }: AgencyFormProps) {
               onChange={e => setName(e.target.value)}
               placeholder="e.g. Fun & Fly"
               className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Short code</label>
+            <input type="text" value={shortCode} maxLength={6}
+              onChange={e => setShortCode(e.target.value)}
+              placeholder="e.g. FF"
+              className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+              Shown beside the client’s name across the app — {shortCode.trim()
+                ? <span className="font-medium text-gray-600 dark:text-gray-400">({shortCode.trim()}) Loic SENE</span>
+                : 'e.g. (FF) Loic SENE'}. Leave empty for no badge. Keep it short: it has
+              to fit inside a planning bar.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Commission (%) — retained by the agency</label>
@@ -388,7 +406,12 @@ export default function AgenciesTab() {
                   className={`bg-white dark:bg-gray-900 rounded-lg border-2 p-3 cursor-pointer transition-all ${isSelected ? 'border-blue-500 dark:border-blue-600 shadow-md' : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'}`}>
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-bold text-gray-800 dark:text-gray-200 text-sm">🤝 {agency.name}</p>
+                      <p className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+                        🤝 {agency.name}
+                        {agency.short_code && (
+                          <span className="ml-1.5 font-normal text-gray-500 dark:text-gray-400">({agency.short_code})</span>
+                        )}
+                      </p>
                       <div className="mt-1 flex gap-3 text-xs text-gray-500 dark:text-gray-400">
                         <span>{agency.commission_percent}% commission</span>
                         <span>{items.length} rate item{items.length === 1 ? '' : 's'}</span>
@@ -446,7 +469,7 @@ export default function AgenciesTab() {
       {/* ── Modals ───────────────────────────────────────────────────────── */}
       {showForm && (
         <AgencyForm
-          initial={{ name: '', commission_percent: '', notes: '', is_active: true }}
+          initial={{ name: '', commission_percent: '', short_code: '', notes: '', is_active: true }}
           title="New agency"
           onSave={handleCreate}
           onClose={() => setShowForm(false)}
@@ -457,6 +480,7 @@ export default function AgenciesTab() {
           initial={{
             name: editing.name,
             commission_percent: String(editing.commission_percent),
+            short_code: editing.short_code ?? '',
             notes: editing.notes ?? '',
             is_active: editing.is_active,
           }}
