@@ -6,7 +6,7 @@ import NowView from './NowView'
 import ForecastView from './ForecastView'
 import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental, PriceItem, BookingParticipant, Room, Accommodation, AccommodationType, Season } from '../../types/database'
 import { seasonWindowAt, seasonOffsetBounds, monthColumns } from '../../utils/seasonWindow'
-import { toISODate } from '../../utils/dates'
+import { toISODate, fromISODate } from '../../utils/dates'
 import { useBookingDrag, CELL_W, type DragMode } from '../../hooks/useBookingDrag'
 import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
 import { useTable } from '../../hooks/useSupabase'
@@ -375,6 +375,14 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   const prevDay = () => setFocusedDay(d => shiftDate(d, -1))
   const nextDay = () => setFocusedDay(d => shiftDate(d, 1))
   const goToTodayDay = () => setFocusedDay(todayMidnight())
+  // Jump straight to a picked date — the arrows are too slow to cross months.
+  // Week view snaps to that week's Monday; day/3-day views focus the date itself.
+  const goToDate = (iso: string) => {
+    if (!iso) return
+    const picked = fromISODate(iso)
+    if (dayCount === 7) setWeekStart(getMondayOfWeek(picked))
+    else setFocusedDay(picked)
+  }
   const daysToShow =
     dayCount === 1 ? [focusedDay] :
     dayCount === 3 ? [shiftDate(focusedDay, -1), focusedDay, shiftDate(focusedDay, 1)] :
@@ -907,6 +915,13 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                   <button onClick={goToToday} className="px-3 py-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-800">
                     Today
                   </button>
+                  <input
+                    type="date"
+                    onChange={e => goToDate(e.target.value)}
+                    defaultValue=""
+                    className="px-2 py-1.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-300"
+                    title="Jump to date"
+                  />
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
@@ -918,6 +933,13 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                   <button onClick={goToTodayDay} className="px-3 py-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-800">
                     Today
                   </button>
+                  <input
+                    type="date"
+                    onChange={e => goToDate(e.target.value)}
+                    defaultValue=""
+                    className="px-2 py-1.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-300"
+                    title="Jump to date"
+                  />
                 </div>
               )}
               <div className="flex gap-2">
