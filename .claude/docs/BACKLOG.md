@@ -49,7 +49,7 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
-| **`2026-08-18_agency_short_code.sql`** | **⬜ À PASSER (TEST + PROD).** Ajoute `agencies.short_code` — le badge `(FF)` affiché à côté du nom du client dans le planning, les cartes Daily/Forecast, la liste Bookings et la compta. Sème les 3 codes existants (`FF`, `Adek`, `Decat`) par `ILIKE` sur le nom : **backfill unique dont le résultat est stocké**, pas une correspondance par nom à l'exécution (une agence non reconnue n'aura simplement pas de badge, à saisir dans Options → 🤝 Agencies). **Pas de GRANT anon** : `agencies` reste admin-only, sinon le planning Forecast partagé exposerait le nom commercial des partenaires. ✅ **Déploiement sans danger avant la migration** : `agencyMarker` lit la colonne en optional chaining, une colonne absente = aucun badge, rien ne casse. | ⬜ | ⬜ |
+| ~~`2026-08-18_agency_short_code.sql`~~ | Ajoute `agencies.short_code` — le badge `(FF)` affiché à côté du nom du client dans le planning, les cartes Daily/Forecast, la liste Bookings et la compta. Sème les 3 codes existants (`FF`, `Adek`, `Decat`) par `ILIKE` sur le nom : **backfill unique dont le résultat est stocké**, pas une correspondance par nom à l'exécution (une agence non reconnue n'aura simplement pas de badge, à saisir dans Options → 🤝 Agencies). **Pas de GRANT anon** : `agencies` reste admin-only, sinon le planning Forecast partagé exposerait le nom commercial des partenaires. ⚠️ **Le curl anon ne prouve RIEN ici** (table admin-only : `42501` avant comme après) — vérifiée le 2026-08-18 en **service_role** sur les deux bases : `select=short_code` répond, contrôle négatif `colonne_bidon` → **42703**. PROD porte les 3 codes semés (`Adekua`→`Adek` 12 %, `Decathlon`→`Decat` 10 %, `Fun & Fly`→`FF` 20 %) ; TEST rend `[]`, normal, il a été nettoyé après la campagne du 18. | ✅ 2026-08-18 | ✅ 2026-08-18 |
 | ~~`2026-08-14c_enquiry_notify_trigger.sql`~~ | Trigger pg_net sur `enquiries` INSERT → Edge Function **`notify-enquiry`** (à déployer d'abord : `supabase functions deploy notify-enquiry --no-verify-jwt`). Envoie la notif admin + l'accusé au visiteur. ⚠️ **Secret DÉDIÉ `NOTIFY_ENQUIRY_SECRET`**, à créer par base, surtout pas le `NOTIFY_SECRET` de `notify-submission` : un secret Supabase **ne se relit pas** (empreinte seule), donc le réécrire aurait cassé les emails du formulaire de réservation. Ne se déclenche **que** sur `channel='form'` : une fiche saisie à la main n'envoie pas d'email. **Chaîne prouvée bout-en-bout sur TEST le 2026-08-15** (insertion → trigger → fonction → Resend → boîte de gui, notification admin **et** accusé visiteur). **Sur PROD, 4 gestes dans cet ordre** : créer le secret `NOTIFY_ENQUIRY_SECRET` (valeur au choix), déployer `notify-enquiry`, rejouer ce fichier avec la même valeur + `oslsbansxaajcpwhivmx`, tester. | ✅ 2026-08-15 | ✅ 2026-08-15 |
 | ~~`2026-08-14a_enquiry_form_link_type.sql`~~ | Ajoute la valeur d'enum `enquiry_form` à `shared_link_type` (le formulaire léger est une page publique servie par lien signé). **Ne peut pas être fusionnée avec (b)** : PostgreSQL refuse d'utiliser une valeur d'enum ajoutée dans la même transaction, et le dashboard exécute tout un script dans UNE transaction → `55P04`. | ✅ 2026-08-14 | ✅ 2026-08-14 |
 | ~~`2026-08-14b_enquiries.sql`~~ | **Tout le schéma du chantier Enquiries** en un fichier (`ENQUIRIES.md`) : `enquiry_sources` (origines trilingues, semées ×6, éditables Options → 📣 Sources), `enquiries` (identité, message, qualification, statut, silence, rattachements, témoin de synchro CRM) et `enquiry_notes` (le fil de la conversation). Le formulaire public **écrit** (colonnes bornées par GRANT) et **ne relit jamais** ; notes strictement admin. **6 vérifs en bas du fichier**, dont **deux connectées** — le curl anon ne peut pas voir les lignes. | ✅ 2026-08-14 | ✅ 2026-08-14 |
@@ -455,6 +455,15 @@ San Martinho (0€/0€, per-stay, rien facturé), statut **Provisional**, 0€ 
 de cours (stage privatif **10h du 20 au 24/10**, puis privatif **4h du 25 au 26/10**, Loïc
 uniquement) sont désormais saisis dans le planning par gui. Enquête d'origine marquée **Won**
 et reliée (`client_id`/`booking_id`).
+
+🔴 **Correction du 2026-08-18 — les cours ne sont PAS en base.** Compté en service_role sur
+PROD : `lessons` = **0 ligne**, `agency_billing_lines` = **0 ligne**. La phrase ci-dessus est
+donc fausse (soit saisis sur TEST par erreur, soit jamais enregistrés). Ce n'est pas alarmant
+en soi — [les cours se saisissent la veille](../../CLAUDE.md), et le séjour est en octobre —
+mais deux conséquences à connaître : **l'onglet Accounting → 🤝 Agencies est vide en PROD**
+(aucune ligne à facturer tant que rien n'est rattaché), et le badge `(FF)` ne peut apparaître
+que là où il ne dépend pas d'une leçon (barre de résa du planning, liste Bookings, compta) —
+pas sur les cartes de cours Forecast, faute de cours.
 
 ---
 

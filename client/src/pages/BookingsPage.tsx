@@ -1805,6 +1805,11 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                 <div>
                   <p className="font-bold text-gray-800 dark:text-gray-200">
                     <span className="font-mono text-gray-400 dark:text-gray-400 text-xs mr-1">#{String(b.booking_number).padStart(3, '0')}</span>
+                    {agencyMarker({ booking_id: b.id }, agencyLookup) && (
+                      <span className="mr-1 font-normal text-gray-500 dark:text-gray-400" title="Booking from a partner agency">
+                        {agencyMarker({ booking_id: b.id }, agencyLookup)}
+                      </span>
+                    )}
                     {getClientName(b.client_id)}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{getRoomLabel(b.id)}</p>
