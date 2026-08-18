@@ -618,6 +618,7 @@ export default function ActivitiesPage() {
   const [showProviderForm, setShowProviderForm] = useState(false)
   const [editingProvider,  setEditingProvider]  = useState<ActivityProvider | null>(null)
   const [filterProvider,   setFilterProvider]   = useState<string>('all')
+  const [editingBookingAll, setEditingBookingAll] = useState<ActivityBooking | null>(null)
 
   // Each write below is followed by a refresh, so the screen always ends up
   // showing what the database really holds — but a refused write used to look
@@ -822,6 +823,23 @@ export default function ActivitiesPage() {
               </select>
             </div>
 
+            {editingBookingAll && (
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+                <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-4">Edit booking</h3>
+                <BookingForm
+                  initial={editingBookingAll}
+                  providers={providers}
+                  bookingRefs={bookingRefs}
+                  allParticipants={allParticipants}
+                  onSave={async (b) => {
+                    await editBooking({ ...editingBookingAll, ...b })
+                    setEditingBookingAll(null)
+                  }}
+                  onCancel={() => setEditingBookingAll(null)}
+                />
+              </div>
+            )}
+
             {filteredBookings.length === 0 ? (
               <p className="text-sm text-gray-400 dark:text-gray-400 italic py-8 text-center">No bookings found.</p>
             ) : (
@@ -838,6 +856,7 @@ export default function ActivitiesPage() {
                       <th className="px-4 py-3 font-medium text-right">Client €</th>
                       <th className="px-4 py-3 font-medium text-right">Provider €</th>
                       <th className="px-4 py-3 font-medium">Notes</th>
+                      <th className="px-4 py-3 font-medium text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -858,6 +877,14 @@ export default function ActivitiesPage() {
                         <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{b.price_client > 0 ? `${b.price_client}€` : '–'}</td>
                         <td className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{b.price_provider > 0 ? `${b.price_provider}€` : '–'}</td>
                         <td className="px-4 py-3 text-gray-400 dark:text-gray-400 italic text-xs">{b.notes ?? ''}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1 justify-center">
+                            <button onClick={() => setEditingBookingAll(b)}
+                              className="text-gray-400 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 px-1">✏️</button>
+                            <button onClick={() => deleteBooking(b.id)}
+                              className="text-gray-400 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-1">✕</button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
