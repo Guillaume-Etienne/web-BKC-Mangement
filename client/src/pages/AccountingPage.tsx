@@ -22,6 +22,7 @@ import CashFlow             from '../components/accounting/CashFlow'
 import ExpensesTab          from '../components/accounting/ExpensesTab'
 import EventsTab            from '../components/accounting/EventsTab'
 import UnverifiedPayments   from '../components/accounting/UnverifiedPayments'
+import AgencyBillingTab     from '../components/accounting/AgencyBillingTab'
 import type {
   ExternalAccommodationBooking, HouseRental, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride, EquipmentRental,
@@ -31,7 +32,7 @@ import type {
   AgencyBillingLine, TaxiTrip,
 } from '../types/database'
 
-type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'cashflow' | 'expenses' | 'events' | 'unverified'
+type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'agencies' | 'cashflow' | 'expenses' | 'events' | 'unverified'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'dashboard',   label: 'Dashboard',   icon: '📊' },
@@ -39,6 +40,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'instructors', label: 'Instructors', icon: '🏄' },
   { id: 'houses',      label: 'Accommodations', icon: '🏠' },
   { id: 'palmeiras',   label: 'Palmeiras',   icon: '🏨' },
+  { id: 'agencies',    label: 'Agencies',    icon: '🤝' },
   { id: 'cashflow',    label: 'Cash Flow',   icon: '💸' },
   { id: 'expenses',    label: 'Expenses',    icon: '🧾' },
   { id: 'events',      label: 'Events',      icon: '🍽️' },
@@ -448,6 +450,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         {tab === 'instructors' && <InstructorPayroll   data={sharedData} handlers={handlers} />}
         {tab === 'houses'      && <HousesTab            data={sharedData} />}
         {tab === 'palmeiras'   && <PalmeirasTab        data={sharedData} handlers={handlers} />}
+        {tab === 'agencies'    && <AgencyBillingTab    data={sharedData} handlers={handlers} />}
         {tab === 'cashflow'    && <CashFlow            data={sharedData} />}
         {tab === 'expenses'    && <ExpensesTab         data={sharedData} handlers={handlers} />}
         {tab === 'events'      && <EventsTab           data={sharedData} />}

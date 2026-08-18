@@ -9,10 +9,11 @@ import {
   computeInstructorEarned, computeInstructorDebts, computeInstructorPaid, computeInstructorBalance,
   computeSeasonTotals, suggestDeposit, fmtEur, fmtMonth,
   clientParticipantIds, cumulativeHoursBefore, getTierRate,
-  isAgencyBilled, agencyLineHoursUsed, computeAgencyTotals, reFreezeInstructorRate,
+  isAgencyBilled, agencyLineHoursUsed, computeAgencyTotals, reFreezeInstructorRate, buildAgencyInvoiceRows,
 } from './utils'
 import {
-  mkAccommodation, mkActivityBooking, mkAgency, mkAgencyLine, mkAttendee, mkBooking, mkBookingRoom, mkBookingRoomPrice,
+  mkAccommodation, mkActivityBooking, mkAgency, mkAgencyLine, mkAgencyRateItem, mkAttendee, mkBooking, mkBookingRoom, mkBookingRoomPrice,
+  mkClient,
   mkData, mkDiningEvent, mkExternalBooking, mkHouseSetup,
   mkInstructor, mkInstructorDebt, mkInstructorPayment, mkLesson, mkLessonOverride, mkLessonPrices,
   mkParticipant, mkPayment, mkPrice, mkPriceTier, mkRental, mkRoom, mkRoomRate, mkTaxiTrip,
@@ -1326,6 +1327,94 @@ describe('computeAgencyTotals', () => {
     // whole invoiced amount reaches us, not that some unknown cut was taken.
     const data = mkData({ bookings: [mkBooking()], agencies: [], agencyBillingLines: [mkAgencyLine({ price: 450 })] })
     expect(computeAgencyTotals(data).net).toBe(450)
+  })
+})
+
+describe('buildAgencyInvoiceRows', () => {
+  function setup() {
+    return mkData({
+      bookings: [mkBooking({ id: 'bk1', booking_number: 22, client_id: 'cli1' })],
+      clients: [mkClient({ id: 'cli1', first_name: 'Loic', last_name: 'SENE' })],
+      bookingParticipants: [mkParticipant({ id: 'p1', booking_id: 'bk1', first_name: 'Loic', last_name: 'SENE' })],
+      agencies: [mkAgency()],
+      agencyRateItems: [mkAgencyRateItem()],
+      agencyBillingLines: [mkAgencyLine()],
+      lessons: [
+        mkLesson({ id: 'l1', duration_hours: 2, agency_billing_line_id: 'abl1' }),
+        mkLesson({ id: 'l2', duration_hours: 3, agency_billing_line_id: 'abl1' }),
+        mkLesson({ id: 'l3', duration_hours: 4 }),
+      ],
+    })
+  }
+
+  it('resolves the agency, booking, guest and rate card label', () => {
+    const [row] = buildAgencyInvoiceRows(setup())
+    expect(row.agencyName).toBe('Fun & Fly')
+    expect(row.bookingNumber).toBe(22)
+    expect(row.guestName).toBe('Loic SENE')
+    expect(row.label).toBe('Pack cours Privé 10x2h')
+  })
+
+  it('counts only the hours attached to that line', () => {
+    expect(buildAgencyInvoiceRows(setup())[0].hoursUsed).toBe(5)
+  })
+
+  it('splits commission and net per line', () => {
+    const [row] = buildAgencyInvoiceRows(setup())
+    expect(row.commission).toBe(90)   // 20 % of 450
+    expect(row.net).toBe(360)
+  })
+
+  it('falls back to the booking client when no traveller is named', () => {
+    const data = setup()
+    data.agencyBillingLines = [mkAgencyLine({ participant_id: null })]
+    expect(buildAgencyInvoiceRows(data)[0].guestName).toBe('Loic SENE')
+  })
+
+  it('falls back to the note, then a placeholder, for a custom line', () => {
+    const data = setup()
+    data.agencyBillingLines = [mkAgencyLine({ agency_rate_item_id: null, notes: 'Extra transfer' })]
+    expect(buildAgencyInvoiceRows(data)[0].label).toBe('Extra transfer')
+    data.agencyBillingLines = [mkAgencyLine({ agency_rate_item_id: null, notes: null })]
+    expect(buildAgencyInvoiceRows(data)[0].label).toBe('Custom line')
+  })
+
+  it('survives a line whose booking or agency is gone', () => {
+    // Every join here can come back empty on real data; the row must still
+    // render rather than crash the whole accounting tab.
+    const data = mkData({ agencyBillingLines: [mkAgencyLine()] })
+    const [row] = buildAgencyInvoiceRows(data)
+    expect(row.agencyName).toBe('(unknown agency)')
+    expect(row.bookingNumber).toBeNull()
+    expect(row.guestName).toBe('—')
+    expect(row.commissionPercent).toBe(0)
+    expect(row.net).toBe(450)
+  })
+
+  it('drops cancelled bookings, exactly like computeAgencyTotals', () => {
+    const data = setup()
+    data.bookings = [mkBooking({ id: 'bk1', status: 'cancelled' })]
+    expect(buildAgencyInvoiceRows(data)).toHaveLength(0)
+    expect(computeAgencyTotals(data).gross).toBe(0)
+  })
+
+  it('scopes to one agency', () => {
+    const data = setup()
+    data.agencies = [mkAgency({ id: 'ag1' }), mkAgency({ id: 'ag2', name: 'Other' })]
+    data.agencyBillingLines = [mkAgencyLine({ id: 'a', agency_id: 'ag1' }), mkAgencyLine({ id: 'b', agency_id: 'ag2' })]
+    expect(buildAgencyInvoiceRows(data, { agencyId: 'ag2' }).map(r => r.agencyName)).toEqual(['Other'])
+  })
+
+  it('adds up to the same totals the KPIs show', () => {
+    // The table and the figures above it are computed separately; this is what
+    // stops them from drifting apart.
+    const data = setup()
+    data.agencyBillingLines = [mkAgencyLine({ id: 'a', price: 450 }), mkAgencyLine({ id: 'b', price: 220 })]
+    const rows = buildAgencyInvoiceRows(data)
+    const totals = computeAgencyTotals(data)
+    expect(rows.reduce((s, r) => s + r.line.price, 0)).toBe(totals.gross)
+    expect(rows.reduce((s, r) => s + r.commission, 0)).toBe(totals.commission)
+    expect(rows.reduce((s, r) => s + r.net, 0)).toBe(totals.net)
   })
 })
 

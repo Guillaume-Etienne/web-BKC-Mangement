@@ -2,7 +2,7 @@
  *  Every factory returns a fully-valid entity; pass a Partial to override only
  *  what the scenario is about. Test files stay readable and type-safe. */
 import type {
-  Accommodation, ActivityBooking, Booking, BookingParticipant, BookingRoom, BookingRoomPrice,
+  Accommodation, ActivityBooking, Booking, BookingParticipant, BookingRoom, BookingRoomPrice, Client,
   DiningEvent, EquipmentRental, EventAttendee, ExternalAccommodationBooking,
   Instructor, InstructorDebt, InstructorPayment, Lesson, LessonRateOverride, LessonType, PriceItem, PriceTier,
   Payment, Room, RoomRate, TaxiTrip, BillableType,
@@ -176,8 +176,21 @@ export function mkActivityBooking(over: Partial<ActivityBooking> = {}): Activity
 }
 
 // ── Partner agencies (Fun&Fly & co.) ────────────────────────────────────────
-// Defaults mirror the real Fun & Fly setup: 20% commission, a 20h private
+// Defaults mirror the real Fun & Fly setup: 20% commission, and a private
 // package at 450€ — the invoice this whole feature was designed against.
+// ⚠️ That package is labelled "10x 2h" but really contains 10 hours in TOTAL,
+// not 20 (gui, 2026-08-18). Never read the hours off an agency's own wording.
+
+export function mkClient(over: Partial<Client> = {}): Client {
+  return {
+    id: 'cli1', first_name: 'Julie', last_name: 'Martin',
+    email: null, phone: null, notes: null, nationality: null, passport_number: null,
+    birth_date: null, kite_level: null, import_id: null,
+    emergency_contact_name: null, emergency_contact_phone: null,
+    emergency_contact_email: null, emergency_contact_relation: null,
+    ...over,
+  }
+}
 
 export function mkAgency(over: Partial<Agency> = {}): Agency {
   return { id: 'ag1', name: 'Fun & Fly', commission_percent: 20, notes: null, is_active: true, ...over }
@@ -186,7 +199,7 @@ export function mkAgency(over: Partial<Agency> = {}): Agency {
 export function mkAgencyRateItem(over: Partial<AgencyRateItem> = {}): AgencyRateItem {
   return {
     id: 'ari1', agency_id: 'ag1', category: 'lesson',
-    label: 'Pack cours Privé 10x2h', unit_hours: 20, price: 450, is_active: true,
+    label: 'Pack cours Privé 10x2h', unit_hours: 10, price: 450, is_active: true,
     ...over,
   }
 }
@@ -194,7 +207,7 @@ export function mkAgencyRateItem(over: Partial<AgencyRateItem> = {}): AgencyRate
 export function mkAgencyLine(over: Partial<AgencyBillingLine> = {}): AgencyBillingLine {
   return {
     id: 'abl1', booking_id: 'bk1', agency_id: 'ag1', participant_id: 'p1',
-    agency_rate_item_id: 'ari1', price: 450, unit_hours: 20,
+    agency_rate_item_id: 'ari1', price: 450, unit_hours: 10,
     invoiced_at: null, paid_at: null, notes: null,
     ...over,
   }

@@ -1,4 +1,4 @@
-import type { Booking, BookingParticipant, Payment, Lesson, LessonType, Instructor, LessonRateOverride, DiningEvent, PriceItem, BillableType, PriceTier } from '../../types/database'
+import type { Booking, BookingParticipant, Payment, Lesson, LessonType, Instructor, LessonRateOverride, DiningEvent, PriceItem, BillableType, PriceTier, AgencyBillingLine } from '../../types/database'
 import { lessonBillable } from '../../types/database'
 import type { SharedAccountingData } from './types'
 import { getBaseNightlyRate } from '../../utils/roomPricing'
@@ -53,6 +53,58 @@ export function agencyLineHoursUsed(lineId: string, lessons: Lesson[]): number {
   return lessons
     .filter(l => l.agency_billing_line_id === lineId)
     .reduce((sum, l) => sum + l.duration_hours, 0)
+}
+
+/** One invoice line, resolved against everything the screen needs to show it:
+ *  which agency, which booking, whose package, and how much of it is used. Built
+ *  here rather than in the component so the joins are tested once — every one of
+ *  them can come back empty on real data (a line whose booking was deleted, a
+ *  package not tied to a named traveller). */
+export interface AgencyInvoiceRow {
+  line: AgencyBillingLine
+  agencyName: string
+  commissionPercent: number
+  bookingNumber: number | null
+  guestName: string           // the package holder, else the booking's client
+  label: string               // rate card label, else the note, else a fallback
+  hoursUsed: number           // 0 when the line carries no package
+  commission: number
+  net: number
+}
+
+/** Invoice lines ready to display, newest booking first. Cancelled bookings are
+ *  dropped, exactly like computeAgencyTotals — the two must never disagree about
+ *  what counts, or the table would not add up to the KPIs above it. */
+export function buildAgencyInvoiceRows(
+  data: SharedAccountingData,
+  filter?: { agencyId?: string }
+): AgencyInvoiceRow[] {
+  const cancelled = new Set(data.bookings.filter(b => b.status === 'cancelled').map(b => b.id))
+  return data.agencyBillingLines
+    .filter(l => !cancelled.has(l.booking_id) && (!filter?.agencyId || l.agency_id === filter.agencyId))
+    .map(line => {
+      const agency  = data.agencies.find(a => a.id === line.agency_id)
+      const booking = data.bookings.find(b => b.id === line.booking_id)
+      const part    = data.bookingParticipants.find(p => p.id === line.participant_id)
+      const client  = data.clients.find(c => c.id === booking?.client_id)
+      const item    = data.agencyRateItems.find(r => r.id === line.agency_rate_item_id)
+      const pct     = agency?.commission_percent ?? 0
+      const commission = line.price * pct / 100
+      return {
+        line,
+        agencyName: agency?.name ?? '(unknown agency)',
+        commissionPercent: pct,
+        bookingNumber: booking?.booking_number ?? null,
+        guestName: part
+          ? `${part.first_name} ${part.last_name ?? ''}`.trim()
+          : client ? `${client.first_name} ${client.last_name ?? ''}`.trim() : '—',
+        label: item?.label ?? line.notes ?? 'Custom line',
+        hoursUsed: agencyLineHoursUsed(line.id, data.lessons),
+        commission,
+        net: line.price - commission,
+      }
+    })
+    .sort((a, b) => (b.bookingNumber ?? 0) - (a.bookingNumber ?? 0) || a.label.localeCompare(b.label))
 }
 
 export interface AgencyTotals {
