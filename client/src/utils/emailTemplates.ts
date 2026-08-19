@@ -384,3 +384,55 @@ function emailGuideDoc(
 
   return emailWrapper(`${gt.title} — #${String(booking.booking_number).padStart(3, '0')}`, body)
 }
+
+// ── Client Account link ──────────────────────────────────────────────────────
+
+const CLIENT_ACCOUNT_T: Record<Lang, { title: string; intro: string; button: string }> = {
+  fr: {
+    title: 'Votre espace client',
+    intro: 'Voici le lien vers votre espace personnel : vous y retrouverez le détail de votre séjour et le solde de votre réservation, à tout moment.',
+    button: 'Voir ma réservation',
+  },
+  en: {
+    title: 'Your client account',
+    intro: 'Here is the link to your personal page: your stay details and booking balance, available any time.',
+    button: 'View my booking',
+  },
+  es: {
+    title: 'Su espacio cliente',
+    intro: 'Aquí tiene el enlace a su página personal: el detalle de su estancia y el saldo de su reserva, disponible en cualquier momento.',
+    button: 'Ver mi reserva',
+  },
+}
+
+export function emailClientAccount(booking: Booking, lang: Lang, url: string): string {
+  const t = CLIENT_ACCOUNT_T[lang]
+  const client = booking.client
+  const clientName = client ? `${client.first_name} ${client.last_name}` : '—'
+
+  const body = `
+    <!-- Header -->
+    <div style="background:${BLUE};padding:24px 28px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td valign="middle">
+            <div style="font-size:20px;font-weight:bold;color:#fff;margin-bottom:4px;">${t.title}</div>
+            <div style="font-size:13px;color:#dbeafe;">${clientName} — Booking #${String(booking.booking_number).padStart(3, '0')}</div>
+          </td>
+          <td align="right" valign="middle">
+            <img src="${LOGO_URL}" alt="BKC" height="50" style="display:block;" />
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Content -->
+    <div style="padding:24px 28px;">
+      <p style="font-size:13px;color:#6b7280;margin:0 0 24px;">${t.intro}</p>
+      <div style="text-align:center;">
+        <a href="${url}" style="display:inline-block;background:${BLUE};color:#fff;text-decoration:none;font-size:14px;font-weight:bold;padding:12px 28px;border-radius:6px;">${t.button}</a>
+      </div>
+    </div>`
+
+  return emailWrapper(`${t.title} — #${String(booking.booking_number).padStart(3, '0')}`, body)
+}

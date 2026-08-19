@@ -681,7 +681,7 @@ export interface PalmeirasEntry {
 // and booking_rooms / booking_room_prices. Margin auto-calculated.
 
 // Email logs — transactional emails sent to clients
-export type EmailLogType   = 'booking_confirmation' | 'visa_letter' | 'travel_guide' | 'welcome_guide'
+export type EmailLogType   = 'booking_confirmation' | 'visa_letter' | 'travel_guide' | 'welcome_guide' | 'client_account'
 export type EmailLogStatus = 'pending' | 'sent' | 'delivered' | 'opened' | 'failed'
 
 export interface EmailLog {

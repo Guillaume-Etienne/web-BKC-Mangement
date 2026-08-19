@@ -4,18 +4,19 @@ import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useAgencies } from '../hooks/useAgencies'
 import { useDocumentSections } from '../hooks/useDocumentTemplates'
 import { agencyMarker } from '../components/accounting/utils'
-import type { Room, Accommodation, EmailLog, EmailLogType } from '../types/database'
+import { useTable } from '../hooks/useSupabase'
+import type { Room, Accommodation, EmailLog, EmailLogType, SharedLink } from '../types/database'
 import { defaultTravelGuideSections } from '../data/travelGuide'
 import { defaultWelcomeGuideSections } from '../data/welcomeGuide'
 import type { TravelGuideSection } from '../data/travelGuide'
 import { printVisaLetter } from '../utils/printVisaLetter'
 import { printBookingSummary } from '../utils/printBookingSummary'
 import { printTravelGuide, printWelcomeGuide } from '../utils/printTravelGuide'
-import { emailVisaLetter, emailBookingConfirmation, emailTravelGuide, emailWelcomeGuide } from '../utils/emailTemplates'
+import { emailVisaLetter, emailBookingConfirmation, emailTravelGuide, emailWelcomeGuide, emailClientAccount } from '../utils/emailTemplates'
 import type { Lang } from '../utils/printBookingSummary'
 import type { Booking } from '../types/database'
 import { supabase } from '../lib/supabase'
-import { fmtDate } from '../utils/dates'
+import { fmtDate, todayISO } from '../utils/dates'
 
 // ── Guide sections — legacy localStorage fallback ──────────────────────────────
 // Sections now live in the document_templates table. This read-only fallback
@@ -81,10 +82,21 @@ const DOC_TYPES: { type: EmailLogType; label: string }[] = [
   { type: 'visa_letter',          label: 'Visa Letter' },
   { type: 'travel_guide',         label: 'Travel Guide' },
   { type: 'welcome_guide',        label: 'Welcome Guide' },
+  { type: 'client_account',       label: 'Client Account' },
 ]
 
 function cellKey(bookingId: string, type: EmailLogType): string {
   return `${bookingId}:${type}`
+}
+
+// Same token shape as ManagementPage's Shared Links tab — kept local, like every
+// other small pure helper on this page (bookingLabel, clientEmail, ...).
+function generateClientToken(): string {
+  return `client_${Math.random().toString(36).slice(2, 12)}`
+}
+
+function shareUrl(token: string): string {
+  return `${window.location.origin}/?share=${token}`
 }
 
 function cellStatusClasses(log: EmailLog | undefined): string {
@@ -380,6 +392,9 @@ export default function DocumentsPage() {
   // Overview list only ever marks whole bookings (no invoice lines here), same
   // shortcut BookingsPage uses — agencyMarker falls straight through to agency_id.
   const agencyLookup = { agencies, bookings: allBookings, agencyBillingLines: [] }
+  const { data: sharedLinksData, refresh: refreshSharedLinks } = useTable<SharedLink>('shared_links')
+  const clientLinks = sharedLinksData.filter(l => l.type === 'client')
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null)
 
   const [tab, setTab] = useState<Tab>('overview')
   const [visaBookingId,    setVisaBookingId]    = useState('')
@@ -466,6 +481,41 @@ export default function DocumentsPage() {
     if (!latestLogByKey.has(key)) latestLogByKey.set(key, log)
   }
 
+  // One client-account shared link per booking_number — first match wins, same
+  // limitation ManagementPage already has if duplicates were ever created there.
+  const clientLinkByBookingNumber = new Map<number, SharedLink>()
+  for (const link of clientLinks) {
+    const num = parseInt(link.params?.booking_number ?? '')
+    if (!Number.isNaN(num) && !clientLinkByBookingNumber.has(num)) clientLinkByBookingNumber.set(num, link)
+  }
+
+  async function createClientLink(booking: Booking) {
+    const clientName = booking.client ? `${booking.client.first_name} ${booking.client.last_name}` : `#${booking.booking_number}`
+    const { error } = await supabase.from('shared_links').insert([{
+      token: generateClientToken(),
+      type: 'client' as const,
+      label: `Client Account – ${clientName}`,
+      params: { booking_number: String(booking.booking_number) },
+      created_at: todayISO(),
+      expires_at: null,
+      is_active: true,
+    }])
+    if (error) { alert(`Failed to create link: ${error.message}`); return }
+    refreshSharedLinks()
+  }
+
+  async function reactivateClientLink(link: SharedLink) {
+    const { error } = await supabase.from('shared_links').update({ is_active: true }).eq('id', link.id)
+    if (error) { alert(`Failed to reactivate link: ${error.message}`); return }
+    refreshSharedLinks()
+  }
+
+  function copyClientLink(link: SharedLink) {
+    navigator.clipboard.writeText(shareUrl(link.token)).catch(() => {})
+    setCopiedLinkId(link.id)
+    setTimeout(() => setCopiedLinkId(null), 2000)
+  }
+
   function toggleCell(key: string) {
     setSelectedCells(prev => {
       const next = new Set(prev)
@@ -475,7 +525,10 @@ export default function DocumentsPage() {
     })
   }
 
-  function buildDocumentEmail(type: EmailLogType, booking: Booking, lang: Lang): { subject: string; html: string } {
+  // null = nothing to send (only reachable for 'client_account' if the row's
+  // checkbox got selected right as its link was deleted elsewhere — the cell
+  // itself never renders a checkbox for a booking with no link).
+  function buildDocumentEmail(type: EmailLogType, booking: Booking, lang: Lang): { subject: string; html: string } | null {
     const participants = bookingParticipants.filter(p => p.booking_id === booking.id)
     switch (type) {
       case 'visa_letter':
@@ -491,6 +544,14 @@ export default function DocumentsPage() {
         return { subject: `Traveller's guide — BKC`, html: emailTravelGuide(booking, lang, activeSections) }
       case 'welcome_guide':
         return { subject: `Welcome guide — BKC`, html: emailWelcomeGuide(booking, lang, activeWelcomeSections) }
+      case 'client_account': {
+        const link = clientLinkByBookingNumber.get(booking.booking_number)
+        if (!link) return null
+        return {
+          subject: `Your BKC account — Booking #${booking.booking_number}`,
+          html: emailClientAccount(booking, lang, shareUrl(link.token)),
+        }
+      }
     }
   }
 
@@ -578,11 +639,11 @@ export default function DocumentsPage() {
       const [bookingId, type] = cells[i].split(':') as [string, EmailLogType]
       const booking = activeBookings.find(b => b.id === bookingId)
       const to = clientEmail(booking)
-      if (!booking || !to) {
+      const built = booking ? buildDocumentEmail(type, booking, overviewLang) : null
+      if (!booking || !to || !built) {
         skipped++
       } else {
-        const { subject, html } = buildDocumentEmail(type, booking, overviewLang)
-        const err = await invokeSendEmail(bookingId, type, to, subject, html)
+        const err = await invokeSendEmail(bookingId, type, to, built.subject, built.html)
         if (err) failures++
       }
       setBulkBusy({ kind: 'send', done: i + 1, total: cells.length })
@@ -660,6 +721,7 @@ export default function DocumentsPage() {
           <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 rounded-lg p-4 text-sm text-indigo-800 dark:text-indigo-400">
             One row per booking, one column per document. Check cells to select them, then send or mark as sent.
             Confirmation, Travel Guide and Welcome Guide go out in the language below — the Visa Letter is always Portuguese.
+            The <strong>Client Account</strong> column creates the client's personal booking link the first time — once it exists, 👁 opens it and ⧉ copies it, and its checkbox sends/resends it like any other document.
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -712,6 +774,51 @@ export default function DocumentsPage() {
                       {DOC_TYPES.map(dt => {
                         const key = cellKey(b.id, dt.type)
                         const log = latestLogByKey.get(key)
+
+                        if (dt.type === 'client_account') {
+                          const link = clientLinkByBookingNumber.get(b.booking_number)
+                          if (!link) {
+                            return (
+                              <td key={dt.type} className="text-center p-2">
+                                <button
+                                  onClick={() => createClientLink(b)}
+                                  className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 whitespace-nowrap">
+                                  + Create
+                                </button>
+                              </td>
+                            )
+                          }
+                          if (!link.is_active) {
+                            return (
+                              <td key={dt.type} className="text-center p-2">
+                                <button
+                                  onClick={() => reactivateClientLink(link)}
+                                  title="Link is deactivated"
+                                  className="text-xs px-2 py-1 rounded border border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 whitespace-nowrap">
+                                  ⚠ Reactivate
+                                </button>
+                              </td>
+                            )
+                          }
+                          return (
+                            <td key={dt.type} className="p-2">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <input
+                                  type="checkbox"
+                                  title={cellTitle(log)}
+                                  checked={selectedCells.has(key)}
+                                  onChange={() => toggleCell(key)}
+                                  className={`w-5 h-5 rounded border-2 cursor-pointer ${cellStatusClasses(log)}`}
+                                />
+                                <button onClick={() => window.open(shareUrl(link.token), '_blank')} title="Open" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">👁</button>
+                                <button onClick={() => copyClientLink(link)} title="Copy link" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                                  {copiedLinkId === link.id ? '✓' : '⧉'}
+                                </button>
+                              </div>
+                            </td>
+                          )
+                        }
+
                         return (
                           <td key={dt.type} className="text-center p-2">
                             <input
