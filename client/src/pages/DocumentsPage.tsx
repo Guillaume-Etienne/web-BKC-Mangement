@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useBookings, useBookingRooms, useBookingParticipants } from '../hooks/useBookings'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
+import { useAgencies } from '../hooks/useAgencies'
 import { useDocumentSections } from '../hooks/useDocumentTemplates'
+import { agencyMarker } from '../components/accounting/utils'
 import type { Room, Accommodation, EmailLog, EmailLogType } from '../types/database'
 import { defaultTravelGuideSections } from '../data/travelGuide'
 import { defaultWelcomeGuideSections } from '../data/welcomeGuide'
@@ -374,6 +376,10 @@ export default function DocumentsPage() {
   const { data: bookingParticipants } = useBookingParticipants()
   const { data: rooms } = useRooms()
   const { data: accommodations } = useAccommodations()
+  const { data: agencies } = useAgencies()
+  // Overview list only ever marks whole bookings (no invoice lines here), same
+  // shortcut BookingsPage uses — agencyMarker falls straight through to agency_id.
+  const agencyLookup = { agencies, bookings: allBookings, agencyBillingLines: [] }
 
   const [tab, setTab] = useState<Tab>('overview')
   const [visaBookingId,    setVisaBookingId]    = useState('')
@@ -693,7 +699,14 @@ export default function DocumentsPage() {
                   {overviewBookings.map(b => (
                     <tr key={b.id} className="border-b border-gray-100 dark:border-gray-800 last:border-0">
                       <td className="px-4 py-2 whitespace-nowrap">
-                        <div className="font-medium text-gray-700 dark:text-gray-300">{bookingLabel(b)}</div>
+                        <div className="font-medium text-gray-700 dark:text-gray-300">
+                          {agencyMarker({ booking_id: b.id }, agencyLookup) && (
+                            <span className="mr-1 text-gray-500 dark:text-gray-400" title="Booking from a partner agency">
+                              {agencyMarker({ booking_id: b.id }, agencyLookup)}
+                            </span>
+                          )}
+                          {bookingLabel(b)}
+                        </div>
                         {!clientEmail(b) && <div className="text-xs text-red-500 dark:text-red-400">⚠ no email on file</div>}
                       </td>
                       {DOC_TYPES.map(dt => {
