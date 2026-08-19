@@ -458,10 +458,18 @@ enregistre ce qui est sorti et ce qui est rentré, il n'envoie rien.
 670 € brut / −112 € / 558 € net / 360 € dus, compteur 3,5h/10h, filtre saison écartant bien un
 check-in du 14/09 d'une saison démarrant le 15/09, tampon écrit en base. TEST nettoyé après.
 **338 tests.**
-⬜ **Décision ouverte, pas tranchée le 17/08** : le **CashFlow** ne connaît pas l'argent des
-agences. Un `paid_at` est pourtant une vraie date d'encaissement — il manque une colonne
-« Agencies », exactement comme celles décidées pour Palmeiras (01/08) et Providers (01/08).
-Chacune de ces colonnes a fait l'objet d'une décision de gui : je n'en invente pas une seule.
+✅ **Colonne « Agencies » du CashFlow — tranchée OUI par gui le 2026-08-19 et livrée.**
+Troisième colonne du genre après Palmeiras (01/08) et Providers (01/08). `agenciesIn` = l'argent
+des agences **net de commission, au mois de `paid_at`**, et il entre dans `net`. Aucun double
+compte : une facture agence ne passe jamais par `payments` (les paiements CLIENTS), et les
+services rattachés sont déjà exclus des totaux client depuis la Phase 5. **Deux dates distinctes**
+— `billed` au mois de check-in de la résa (une ligne de facture n'a pas de date propre : même
+règle que le filtre de saison de l'onglet Agencies), `agenciesIn` sur `paid_at`. Une facture
+envoyée mais impayée compte en `billed` et pour rien en caisse. Commission factorisée dans
+`agencyCommission()` — **une seule définition** partagée avec `computeAgencyTotals`, parce que
+deux formules qui divergent, c'est le bug récurrent du projet. **8 tests**, dont un qui verrouille
+`billed === computeSeasonTotals().agencyRev` (le même garde-fou que l'identité Palmeiras).
+**354 tests.**
 
 ### ✅ 6. San Martinho — `external_billing` activé en PROD (2026-08-16)
 

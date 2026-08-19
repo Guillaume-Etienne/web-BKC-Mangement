@@ -201,11 +201,24 @@ Tous les composants accounting partagent :
 **Props :** `{ data }`
 - Sélecteur de période : month / season / custom
 - Types de chart : bars / diverging / line
-- Tableau mensuel : billed (incl. activités), collected, palmIn, expenses, rent, instrPaid, **taxiOut**, net
-- "Billed" inclut : booking totals + taxi standalone + activity net margin par mois
+- Tableau mensuel : billed (incl. activités), collected, palmIn, **agenciesIn**, expenses, rent,
+  instrPaid, **taxiOut**, providersOut, net
+- "Billed" inclut : booking totals + taxi standalone + activity net margin + **net agence** par mois
 - **taxiOut (2026-07-04)** : chauffeurs = `price_driver_mzn` des trips `done` au mois du trajet
   (payés cash au trajet, décision gui) + manager = `taxi_manager_payments` réels au mois du
-  paiement ; MZN→€ au taux global. Net cash = collected + palmIn − toutes les sorties.
+  paiement ; MZN→€ au taux global.
+- **agenciesIn (2026-08-19, décision gui)** : l'argent des agences partenaires, **net de leur
+  commission**, au mois de `paid_at` — une vraie date d'encaissement. Une facture agence ne passe
+  **jamais** par la table `payments` (qui ne contient que ce que paient les CLIENTS), donc aucun
+  double compte ; les services rattachés à une ligne agence sont d'ailleurs exclus de tous les
+  totaux client depuis la Phase 5. **Deux dates distinctes, non interchangeables** : `billed` suit
+  le **mois de check-in de la résa** (une ligne de facture n'a pas de date propre — même règle que
+  le filtre de saison de l'onglet Agencies, pour que les chiffres concordent), `agenciesIn` suit
+  `paid_at`. Une ligne facturée non payée compte en `billed` et pour rien en caisse, exactement
+  comme une résa client impayée. Commission calculée par `agencyCommission()` — **une seule
+  définition**, partagée avec `computeAgencyTotals`, et un test verrouille
+  `billed === computeSeasonTotals().agencyRev`.
+- Net cash = collected + palmIn + agenciesIn − toutes les sorties.
 - Pas de mutations
 
 ### `ExpensesTab` — `accounting/ExpensesTab.tsx`

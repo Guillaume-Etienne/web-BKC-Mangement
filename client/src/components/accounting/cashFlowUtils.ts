@@ -1,5 +1,5 @@
 import type { SharedAccountingData } from './types'
-import { computeBookingTotal, computeBookingDiscounts } from './utils'
+import { computeBookingTotal, computeBookingDiscounts, agencyCommission } from './utils'
 
 /** One month of cash movements. Amounts in EUR. */
 export interface MonthRow {
@@ -23,14 +23,24 @@ export interface MonthRow {
    *  This is the *cash*, not the cost — the cost is already netted out of
    *  `billed`, which is not part of `net`, so there is no double count. */
   providersOut: number
-  net: number        // collected + palmIn − every outflow
+  /** Cash received from partner agencies this month, net of their commission —
+   *  what actually landed, not what was invoiced. Booked on `paid_at`, which is a
+   *  real settlement date, so it belongs in a cash-basis table.
+   *
+   *  No double count with `collected`: an agency settles its invoice outside the
+   *  `payments` table (that one holds what GUESTS pay), and the services on an
+   *  agency line are excluded from every client total since Phase 5.
+   *
+   *  Positive is money coming in, like `palmIn` — not an outflow. */
+  agenciesIn: number
+  net: number        // collected + palmIn + agenciesIn − every outflow
 }
 
 export type CashFlowTotals = Omit<MonthRow, 'month'>
 
 const EMPTY = (month: string): MonthRow => ({
   month, billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0,
-  instrPaid: 0, taxiOut: 0, providersOut: 0, net: 0,
+  instrPaid: 0, taxiOut: 0, providersOut: 0, agenciesIn: 0, net: 0,
 })
 
 /** Monthly cash movements, newest month first.
@@ -59,6 +69,7 @@ export function buildCashFlowRows(data: SharedAccountingData): MonthRow[] {
     payments, expenses, palmeirasRents, palmeirasReversals, palmeirasEntries,
     bookings, instructorPayments, taxiTrips, taxiManagerPayments,
     activityBookings, activityPayments, eurMznRate,
+    agencyBillingLines, agencies,
   } = data
 
   const idx: Record<string, MonthRow> = {}
@@ -121,8 +132,30 @@ export function buildCashFlowRows(data: SharedAccountingData): MonthRow[] {
     else                               row.providersOut -= p.amount
   }
 
+  // Partner agencies (2026-08-19, decision by gui — the third such column after
+  // Palmeiras and the activity providers). An agency invoice is money that comes
+  // in without ever passing through `payments`, so until now it was billed on the
+  // Agencies tab, counted by the dashboard, and completely absent from the cash
+  // table: the month Fun & Fly settled 558 €, the till showed nothing.
+  //
+  // Two different dates on purpose, and neither is interchangeable:
+  //  - `billed` follows the BOOKING's check-in month, because an invoice line
+  //    carries no date of its own (same rule as the season filter on the Agencies
+  //    tab — the figures have to match). Net of commission, like the dashboard.
+  //  - `agenciesIn` follows `paid_at`, the real settlement date. A line that is
+  //    invoiced but unpaid adds to `billed` and nothing to the cash, exactly as
+  //    an unpaid client booking does.
+  const cancelledBookings = new Set(bookings.filter(b => b.status === 'cancelled').map(b => b.id))
+  for (const l of agencyBillingLines) {
+    if (cancelledBookings.has(l.booking_id)) continue
+    const net = l.price - agencyCommission(l, agencies)
+    const booking = bookings.find(b => b.id === l.booking_id)
+    if (booking) ensure(booking.check_in.slice(0, 7)).billed += net
+    if (l.paid_at) ensure(l.paid_at.slice(0, 7)).agenciesIn += net
+  }
+
   for (const row of Object.values(idx)) {
-    row.net = row.collected + row.palmIn
+    row.net = row.collected + row.palmIn + row.agenciesIn
       - row.expenses - row.rent - row.instrPaid - row.taxiOut - row.providersOut
   }
 
@@ -146,9 +179,10 @@ export function sumCashFlowRows(rows: MonthRow[]): CashFlowTotals {
     instrPaid: acc.instrPaid + r.instrPaid,
     taxiOut:   acc.taxiOut   + r.taxiOut,
     providersOut: acc.providersOut + r.providersOut,
+    agenciesIn: acc.agenciesIn + r.agenciesIn,
     net:       acc.net       + r.net,
   }), { billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0,
-        instrPaid: 0, taxiOut: 0, providersOut: 0, net: 0 })
+        instrPaid: 0, taxiOut: 0, providersOut: 0, agenciesIn: 0, net: 0 })
 }
 
 /** Cumulative net per month, walking oldest → newest. */

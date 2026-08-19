@@ -5,6 +5,7 @@ import type { MonthRow } from './cashFlowUtils'
 import {
   mkData, mkBooking, mkBookingRoom, mkBookingRoomPrice, mkHouseSetup,
   mkPayment, mkTaxiTrip, mkActivityBooking, mkInstructorPayment,
+  mkAgency, mkAgencyLine,
 } from './utils.fixtures'
 
 /** Pick one month out of the result set. */
@@ -202,7 +203,7 @@ describe('buildCashFlowRows', () => {
 
 /** A month row carrying only the fields a test cares about. */
 const row = (month: string, net = 0): MonthRow =>
-  ({ month, billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, providersOut: 0, net })
+  ({ month, billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, providersOut: 0, agenciesIn: 0, net })
 
 describe('filterRowsByPeriod', () => {
   const rows = ['2026-12', '2026-11', '2026-10', '2026-09'].map(m => row(m))
@@ -218,11 +219,11 @@ describe('filterRowsByPeriod', () => {
 describe('sumCashFlowRows', () => {
   it('sums every column', () => {
     const rows: MonthRow[] = [
-      { month: '2026-10', billed: 100, collected: 60, unverified: 20, palmIn: 5, expenses: 10, rent: 20, instrPaid: 8, taxiOut: 2, providersOut: 7, net: 25 },
-      { month: '2026-11', billed: 200, collected: 40, unverified: 0,  palmIn: 5, expenses: 10, rent: 20, instrPaid: 2, taxiOut: 3, providersOut: -4, net: 10 },
+      { month: '2026-10', billed: 100, collected: 60, unverified: 20, palmIn: 5, expenses: 10, rent: 20, instrPaid: 8, taxiOut: 2, providersOut: 7, agenciesIn: 30, net: 25 },
+      { month: '2026-11', billed: 200, collected: 40, unverified: 0,  palmIn: 5, expenses: 10, rent: 20, instrPaid: 2, taxiOut: 3, providersOut: -4, agenciesIn: 12, net: 10 },
     ]
     expect(sumCashFlowRows(rows)).toEqual({
-      billed: 300, collected: 100, unverified: 20, palmIn: 10, expenses: 20, rent: 40, instrPaid: 10, taxiOut: 5, providersOut: 3, net: 35,
+      billed: 300, collected: 100, unverified: 20, palmIn: 10, expenses: 20, rent: 40, instrPaid: 10, taxiOut: 5, providersOut: 3, agenciesIn: 42, net: 35,
     })
   })
 
@@ -354,5 +355,85 @@ describe('Palmeiras free entries', () => {
     const data = withEntries()
     const totals = sumCashFlowRows(buildCashFlowRows(data))
     expect(totals.palmIn - totals.rent).toBe(computeSeasonTotals(data).palmeirasNet)
+  })
+})
+
+// ── Partner agencies (2026-08-19) ─────────────────────────────────────────────
+// The column gui asked for after Palmeiras and the providers. An agency invoice
+// never passes through `payments`, so nothing in this table used to show the day
+// the money arrived.
+describe('buildCashFlowRows — partner agencies', () => {
+  /** One booking checking in November, one 450 € line at 20 % commission → 360 € net. */
+  const withAgency = (lineOver = {}) => mkData({
+    agencies: [mkAgency({ commission_percent: 20 })],
+    bookings: [mkBooking({ id: 'bk1', check_in: '2026-11-04', check_out: '2026-11-11' })],
+    agencyBillingLines: [mkAgencyLine({ price: 450, ...lineOver })],
+  })
+
+  it('books the cash on paid_at, net of commission — not on the booking month', () => {
+    const rows = buildCashFlowRows(withAgency({ invoiced_at: '2026-11-30', paid_at: '2026-12-09' }))
+    expect(month(rows, '2026-12')?.agenciesIn).toBe(360)   // 450 − 20 %
+    expect(month(rows, '2026-11')?.agenciesIn).toBe(0)     // billed there, not collected
+  })
+
+  it('counts an unpaid line as billed and as no cash at all', () => {
+    // Exactly how an unpaid client booking behaves: revenue generated, till empty.
+    const rows = buildCashFlowRows(withAgency({ invoiced_at: '2026-11-30', paid_at: null }))
+    expect(month(rows, '2026-11')?.billed).toBe(360)
+    expect(sumCashFlowRows(rows).agenciesIn).toBe(0)
+  })
+
+  it('bills on the booking check-in month, since an invoice line carries no date', () => {
+    // Same rule as the season filter on the Agencies tab, so the two agree.
+    const rows = buildCashFlowRows(withAgency({ paid_at: '2027-02-01' }))
+    expect(month(rows, '2026-11')?.billed).toBe(360)
+  })
+
+  it('ignores the lines of a cancelled booking', () => {
+    const rows = buildCashFlowRows(mkData({
+      agencies: [mkAgency()],
+      bookings: [mkBooking({ id: 'bk1', status: 'cancelled' })],
+      agencyBillingLines: [mkAgencyLine({ paid_at: '2026-12-09' })],
+    }))
+    expect(sumCashFlowRows(rows).agenciesIn).toBe(0)
+  })
+
+  it('feeds net, so the cash actually reaches the bottom line', () => {
+    const rows = buildCashFlowRows(withAgency({ paid_at: '2026-12-09' }))
+    expect(month(rows, '2026-12')?.net).toBe(360)
+  })
+
+  it('does not double count: the guest owes nothing for an agency-billed service', () => {
+    // The services on the line are excluded from client totals (Phase 5) and the
+    // agency settles outside `payments`, so 360 € must appear once, not twice.
+    const data = withAgency({ paid_at: '2026-12-09' })
+    const totals = sumCashFlowRows(buildCashFlowRows(data))
+    expect(totals.collected).toBe(0)
+    expect(totals.agenciesIn).toBe(360)
+  })
+
+  it('agrees with the dashboard on what an agency brings in', () => {
+    // Same guard as the Palmeiras identity above: the dashboard counts agency.net
+    // in totalRevenue, so the billed column here has to land on the same figure.
+    const data = withAgency({ paid_at: '2026-12-09' })
+    const totals = sumCashFlowRows(buildCashFlowRows(data))
+    expect(totals.billed).toBe(computeSeasonTotals(data).agencyRev)
+  })
+
+  it('splits two agencies with different commissions onto their own paid months', () => {
+    const rows = buildCashFlowRows(mkData({
+      agencies: [
+        mkAgency({ id: 'ag1', commission_percent: 20 }),
+        mkAgency({ id: 'ag2', name: 'Adekua', commission_percent: 10, short_code: 'Adek' }),
+      ],
+      bookings: [mkBooking({ id: 'bk1', check_in: '2026-11-04', check_out: '2026-11-11' })],
+      agencyBillingLines: [
+        mkAgencyLine({ id: 'abl1', agency_id: 'ag1', price: 450, paid_at: '2026-12-09' }), // 360
+        mkAgencyLine({ id: 'abl2', agency_id: 'ag2', price: 200, paid_at: '2027-01-05' }), // 180
+      ],
+    }))
+    expect(month(rows, '2026-12')?.agenciesIn).toBe(360)
+    expect(month(rows, '2027-01')?.agenciesIn).toBe(180)
+    expect(month(rows, '2026-11')?.billed).toBe(540)
   })
 })

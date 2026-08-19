@@ -156,6 +156,18 @@ export interface AgencyTotals {
  *  agency has its own rate, so a single global percentage would be wrong as soon
  *  as a second agency exists. Cancelled bookings are dropped for the same reason
  *  they are dropped from client revenue: nothing was sold. */
+/** The agency's cut on one invoice line. Extracted so the commission is defined
+ *  ONCE: `computeAgencyTotals` (the KPIs) and `buildCashFlowRows` (the monthly
+ *  cash) both go through it. Two copies of this formula drifting apart is how a
+ *  screen ends up contradicting another one — the recurring bug of this project. */
+export function agencyCommission(
+  line: { agency_id: string; price: number },
+  agencies: { id: string; commission_percent: number }[]
+): number {
+  const pct = agencies.find(a => a.id === line.agency_id)?.commission_percent ?? 0
+  return line.price * pct / 100
+}
+
 export function computeAgencyTotals(
   data: SharedAccountingData,
   filter?: { agencyId?: string; bookingId?: string }
@@ -169,8 +181,7 @@ export function computeAgencyTotals(
 
   let gross = 0, commission = 0, invoiced = 0, paid = 0, outstanding = 0
   for (const l of lines) {
-    const pct = data.agencies.find(a => a.id === l.agency_id)?.commission_percent ?? 0
-    const cut = l.price * pct / 100
+    const cut = agencyCommission(l, data.agencies)
     gross += l.price
     commission += cut
     if (l.invoiced_at) invoiced += l.price

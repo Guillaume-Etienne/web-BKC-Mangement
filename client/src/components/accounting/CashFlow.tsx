@@ -76,7 +76,7 @@ export default function CashFlow({ data }: Props) {
             warn: totals.unverified > 0 ? `⚠ ${fmtEur(totals.unverified)} still to verify` : null },
           // Must list every outflow `net` subtracts, or this card and the table disagree.
           { label: 'Total out',   value: -(totals.expenses + totals.rent + totals.instrPaid + totals.taxiOut + totals.providersOut), color: 'text-red-700 dark:text-red-400', note: 'Expenses + rent + instructors + taxi + providers' },
-          { label: 'Net cash',    value: totals.net,       color: totals.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400', note: 'Collected − all outflows' },
+          { label: 'Net cash',    value: totals.net,       color: totals.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400', note: 'Collected + Palmeiras + agencies − all outflows' },
         ].map(k => (
           <div key={k.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 py-4">
             <p className="text-xs text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1">{k.label}</p>
@@ -216,7 +216,7 @@ export default function CashFlow({ data }: Props) {
 
       {/* Detailed table */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
-        <table className="w-full text-sm min-w-[900px]">
+        <table className="w-full text-sm min-w-[980px]">
           <thead className="bg-gray-50 dark:bg-gray-800 border-b">
             <tr>
               <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Month</th>
@@ -225,6 +225,10 @@ export default function CashFlow({ data }: Props) {
               <th className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400"
                   title="Reversals owed to us + free income − free expenses. Rent is the next column.">
                 Palmeiras net
+              </th>
+              <th className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400"
+                  title="Cash received from partner agencies this month, net of their commission — booked on the date the invoice was settled, not the date it was sent.">
+                Agencies
               </th>
               <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Expenses</th>
               <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Rent</th>
@@ -252,6 +256,11 @@ export default function CashFlow({ data }: Props) {
                       be negative — the sign follows the value instead of a hardcoded +. */}
                   <td className={`px-4 py-3 text-right ${r.palmIn < 0 ? 'text-red-500 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
                     {r.palmIn ? `${r.palmIn < 0 ? '−' : '+'} ${fmtEur(Math.abs(r.palmIn))}` : '–'}
+                  </td>
+                  {/* Always an inflow: an agency either settled this month or it did
+                      not. A commission is never billed back to us, so no sign flip. */}
+                  <td className="px-4 py-3 text-right text-blue-600 dark:text-blue-400">
+                    {r.agenciesIn ? `+ ${fmtEur(r.agenciesIn)}` : '–'}
                   </td>
                   <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">
                     {r.expenses ? `− ${fmtEur(r.expenses)}` : '–'}
@@ -288,6 +297,7 @@ export default function CashFlow({ data }: Props) {
               <td className={`px-4 py-3 text-right ${totals.palmIn < 0 ? 'text-red-500 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
                 {totals.palmIn < 0 ? '−' : '+'} {fmtEur(Math.abs(totals.palmIn))}
               </td>
+              <td className="px-4 py-3 text-right text-blue-600 dark:text-blue-400">+ {fmtEur(totals.agenciesIn)}</td>
               <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.expenses)}</td>
               <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.rent)}</td>
               <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.instrPaid)}</td>
