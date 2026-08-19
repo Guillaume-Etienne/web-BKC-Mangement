@@ -450,9 +450,12 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
           <p className="text-gray-500 dark:text-gray-400 mt-1">Financial overview of the kite center</p>
         </div>
 
-        {/* Tab bar — a 9-way horizontal scroller doesn't work on a phone (most
+        {/* Tab bar — a 10-way horizontal scroller doesn't work on a phone (most
             tabs sit off-screen with only a faint arrow hinting they exist), so
-            mobile gets a native <select> instead; sm: and up keep the strip. */}
+            mobile gets a native <select> instead. md: and up get the pill strip,
+            wrapping onto a second row instead of scrolling — a desktop window
+            narrower than ~1300px can't fit 10 icon+label tabs on one line, and
+            a hidden scrollbar is worse than a second row. */}
         <select
           value={tab}
           onChange={e => setTab(e.target.value as Tab)}
@@ -467,14 +470,14 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
             )
           })}
         </select>
-        <div className="hidden md:flex gap-1 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-1 mb-8 overflow-x-auto">
+        <div className="hidden md:flex flex-wrap gap-1 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-1 mb-8">
           {TABS.map(t => {
             const unverifiedCount = t.id === 'unverified' ? payments.filter(p => !p.is_verified).length : 0
             return (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm whitespace-nowrap transition-colors flex-1 justify-center ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${
                   tab === t.id
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
