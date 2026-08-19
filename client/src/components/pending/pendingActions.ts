@@ -27,6 +27,9 @@ export interface PendingActionsData {
   silentEnquiriesCount?: number
   /** Enquiries whose Brevo push failed: a contact gui believes he has. */
   crmFailedCount?: number
+  /** Raw email_logs rows — filtered to sent/delivered/opened inside computePendingActions,
+   *  same "pass the table, filter here" convention as bookings/payments. */
+  emailLogs?: { booking_id: string; type: string; status: string }[]
 }
 
 function addDays(date: Date, days: number): Date {
@@ -65,6 +68,14 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
     b.status !== 'cancelled' && parseDate(b.check_out) >= today
   )
 
+  // Docs already sent (or delivered/opened) — a reminder should disappear once
+  // this is true, not just once the deadline is reached.
+  const sentTypes = new Set(
+    (data.emailLogs ?? [])
+      .filter(l => l.status === 'sent' || l.status === 'delivered' || l.status === 'opened')
+      .map(l => `${l.booking_id}:${l.type}`)
+  )
+
   // ── 🔴 Unverified payments ──────────────────────────────────────────────────
   const unverifiedByBooking = new Map<string, number>()
   for (const p of data.payments) {
@@ -101,9 +112,9 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
     }
   }
 
-  // ── 🔴 Visa entry date <= J+4 ──────────────────────────────────────────────
+  // ── 🔴 Visa entry date <= J+4, visa letter not sent yet ────────────────────
   for (const b of activeBookings) {
-    if (b.visa_entry_date) {
+    if (b.visa_entry_date && !sentTypes.has(`${b.id}:visa_letter`)) {
       const visaEntry = parseDate(b.visa_entry_date)
       if (visaEntry >= today && visaEntry <= j4) {
         const daysLeft = Math.round((visaEntry.getTime() - today.getTime()) / 86400000)
@@ -171,9 +182,9 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
     }
   }
 
-  // ── 🟡 Visa entry J+5 to J+7 ──────────────────────────────────────────────
+  // ── 🟡 Visa entry J+5 to J+7, visa letter not sent yet ─────────────────────
   for (const b of activeBookings) {
-    if (b.visa_entry_date) {
+    if (b.visa_entry_date && !sentTypes.has(`${b.id}:visa_letter`)) {
       const visaEntry = parseDate(b.visa_entry_date)
       if (visaEntry > j4 && visaEntry <= j7) {
         const daysLeft = Math.round((visaEntry.getTime() - today.getTime()) / 86400000)
@@ -238,6 +249,66 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
       route: 'requests',
       routeLabel: 'Requests',
     })
+  }
+
+  // ── 🟡 Confirmed booking, confirmation email never sent ────────────────────
+  for (const b of activeBookings) {
+    if (b.status === 'confirmed' && !sentTypes.has(`${b.id}:booking_confirmation`)) {
+      actions.push({
+        id: `confirmation-missing-${b.id}`,
+        priority: 'week',
+        message: 'Booking confirmed — confirmation email not sent',
+        bookingRef: bookingLabel(b),
+        route: 'documents',
+        routeLabel: 'Documents',
+      })
+    }
+  }
+
+  // ── 🔴/🟡 Travel guide not sent, check-in approaching ───────────────────────
+  for (const b of activeBookings) {
+    if (!sentTypes.has(`${b.id}:travel_guide`)) {
+      const checkIn = parseDate(b.check_in)
+      if (checkIn <= j2) {
+        actions.push({
+          id: `travel-guide-urgent-${b.id}`,
+          priority: 'urgent',
+          message: 'Travel guide not sent — check-in very soon',
+          bookingRef: bookingLabel(b),
+          route: 'documents',
+          routeLabel: 'Documents',
+        })
+      } else if (checkIn <= j7) {
+        actions.push({
+          id: `travel-guide-week-${b.id}`,
+          priority: 'week',
+          message: 'Travel guide not sent — check-in within a week',
+          bookingRef: bookingLabel(b),
+          route: 'documents',
+          routeLabel: 'Documents',
+        })
+      }
+    }
+  }
+
+  // ── 🔴 Welcome guide not sent, guest currently on-site ──────────────────────
+  // Stays flagged for the whole stay, not just arrival day, so it isn't missed
+  // if gui doesn't open the app the morning of.
+  for (const b of activeBookings) {
+    if (!sentTypes.has(`${b.id}:welcome_guide`)) {
+      const checkIn = parseDate(b.check_in)
+      const checkOut = parseDate(b.check_out)
+      if (today >= checkIn && today < checkOut) {
+        actions.push({
+          id: `welcome-guide-${b.id}`,
+          priority: 'urgent',
+          message: 'Welcome guide not sent — guest is on-site',
+          bookingRef: bookingLabel(b),
+          route: 'documents',
+          routeLabel: 'Documents',
+        })
+      }
+    }
   }
 
   // ── 🟢 Unlinked taxi trips ─────────────────────────────────────────────────

@@ -89,7 +89,8 @@ function App() {
       // one place, utils/enquiries.ts, and duplicating either as a SQL filter
       // here would let the Home page and the Requests table disagree.
       supabase.from('enquiries').select('status, party_size, arrival_month, wants_lessons, wants_rental, wants_accommodation, last_contact_at, crm_error'),
-    ]).then(([{ data: bookings }, { data: payments }, { data: taxis }, { count: pendingSubs }, { data: enquiries }]) => {
+      supabase.from('email_logs').select('booking_id, type, status'),
+    ]).then(([{ data: bookings }, { data: payments }, { data: taxis }, { count: pendingSubs }, { data: enquiries }, { data: emailLogs }]) => {
       const bkgs = (bookings ?? []) as Booking[]
       const pmts = (payments ?? []) as Payment[]
       const enqs = (enquiries ?? []) as Enquiry[]
@@ -102,6 +103,7 @@ function App() {
         unqualifiedEnquiriesCount: open.filter(e => !isQualified(e)).length,
         silentEnquiriesCount: open.filter(e => silenceDays(e.last_contact_at) >= SILENCE_WARN_DAYS).length,
         crmFailedCount: enqs.filter(e => !!e.crm_error).length,
+        emailLogs: (emailLogs ?? []) as { booking_id: string; type: string; status: string }[],
       }))
     })
   }, [session])

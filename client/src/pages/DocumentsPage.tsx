@@ -72,6 +72,32 @@ const STATUS_CFG: Record<EmailLog['status'], { bg: string; text: string; label: 
   failed:    { bg: 'bg-red-100 dark:bg-red-900/30',    text: 'text-red-800 dark:text-red-400',    label: 'Failed ✗' },
 }
 
+// ── Overview grid helpers ────────────────────────────────────────────────────
+
+const DOC_TYPES: { type: EmailLogType; label: string }[] = [
+  { type: 'booking_confirmation', label: 'Confirmation' },
+  { type: 'visa_letter',          label: 'Visa Letter' },
+  { type: 'travel_guide',         label: 'Travel Guide' },
+  { type: 'welcome_guide',        label: 'Welcome Guide' },
+]
+
+function cellKey(bookingId: string, type: EmailLogType): string {
+  return `${bookingId}:${type}`
+}
+
+function cellStatusClasses(log: EmailLog | undefined): string {
+  if (!log) return 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700'
+  if (log.status === 'failed') return 'bg-red-100 dark:bg-red-900/30 border-red-400 dark:border-red-700'
+  if (log.status === 'pending') return 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-400 dark:border-yellow-700'
+  return 'bg-green-100 dark:bg-green-900/30 border-green-400 dark:border-green-700' // sent / delivered / opened
+}
+
+function cellTitle(log: EmailLog | undefined): string {
+  if (!log) return 'Never sent'
+  const date = log.sent_at ? new Date(log.sent_at).toLocaleString('en-GB') : ''
+  return `${STATUS_CFG[log.status].label}${date ? ` — ${date}` : ''}`
+}
+
 function EmailHistory({ logs }: { logs: EmailLog[] }) {
   if (logs.length === 0) return null
   return (
@@ -340,7 +366,7 @@ function BookingPicker({
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
-type Tab = 'visa' | 'summary' | 'guide' | 'welcome' | 'templates'
+type Tab = 'overview' | 'visa' | 'summary' | 'guide' | 'welcome' | 'templates'
 
 export default function DocumentsPage() {
   const { data: allBookings, loading } = useBookings()
@@ -349,7 +375,7 @@ export default function DocumentsPage() {
   const { data: rooms } = useRooms()
   const { data: accommodations } = useAccommodations()
 
-  const [tab, setTab] = useState<Tab>('visa')
+  const [tab, setTab] = useState<Tab>('overview')
   const [visaBookingId,    setVisaBookingId]    = useState('')
   const [visaSearch,       setVisaSearch]       = useState('')
   const [summaryBookingId, setSummaryBookingId] = useState('')
@@ -400,6 +426,14 @@ export default function DocumentsPage() {
   const [emailLogs,    setEmailLogs]    = useState<EmailLog[]>([])
   const [logsRefresh,  setLogsRefresh]  = useState(0)  // counter to trigger re-fetch
 
+  // Overview tab state — one grid, all bookings x all doc types
+  const [overviewSearch,  setOverviewSearch]  = useState('')
+  const [overviewLang,    setOverviewLang]    = useState<Lang>('en')
+  const [selectedCells,   setSelectedCells]   = useState<Set<string>>(new Set())
+  const [overviewLogs,    setOverviewLogs]    = useState<EmailLog[]>([])
+  const [overviewRefresh, setOverviewRefresh] = useState(0)
+  const [bulkBusy,        setBulkBusy]        = useState<{ kind: 'send' | 'mark'; done: number; total: number } | null>(null)
+
   const activeBookings = allBookings.filter(b => b.status !== 'cancelled')
 
   const effectiveVisaId    = visaBookingId    || activeBookings[0]?.id || ''
@@ -413,6 +447,46 @@ export default function DocumentsPage() {
   const summaryRooms   = getRoomLabels(effectiveSummaryId, bookingRooms, rooms, accommodations)
   const activeSections        = (guideSections   ?? []).filter(s => s.is_active)
   const activeWelcomeSections = (welcomeSections ?? []).filter(s => s.is_active)
+
+  // Overview tab derived data
+  const overviewBookings = filterByClientName(activeBookings, overviewSearch)
+    .slice()
+    .sort((a, b) => a.check_in.localeCompare(b.check_in))
+
+  // overviewLogs is fetched newest-first, so the first entry seen per key is the latest.
+  const latestLogByKey = new Map<string, EmailLog>()
+  for (const log of overviewLogs) {
+    const key = `${log.booking_id}:${log.type}`
+    if (!latestLogByKey.has(key)) latestLogByKey.set(key, log)
+  }
+
+  function toggleCell(key: string) {
+    setSelectedCells(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function buildDocumentEmail(type: EmailLogType, booking: Booking, lang: Lang): { subject: string; html: string } {
+    const participants = bookingParticipants.filter(p => p.booking_id === booking.id)
+    switch (type) {
+      case 'visa_letter':
+        return { subject: `Visa letter — Booking #${booking.booking_number}`, html: emailVisaLetter(booking, participants) }
+      case 'booking_confirmation': {
+        const roomLabels = getRoomLabels(booking.id, bookingRooms, rooms, accommodations)
+        return {
+          subject: `Booking confirmation #${booking.booking_number} — ${booking.client?.first_name ?? ''}`,
+          html: emailBookingConfirmation(booking, roomLabels, lang, activeSections, participants),
+        }
+      }
+      case 'travel_guide':
+        return { subject: `Traveller's guide — BKC`, html: emailTravelGuide(booking, lang, activeSections) }
+      case 'welcome_guide':
+        return { subject: `Welcome guide — BKC`, html: emailWelcomeGuide(booking, lang, activeWelcomeSections) }
+    }
+  }
 
   // Keep the selection valid when search narrows the list past it — otherwise the
   // <select> shows a different booking than the one actually held in state.
@@ -457,22 +531,89 @@ export default function DocumentsPage() {
     return emailLogs.filter(l => l.type === type)
   }
 
+  // Low-level send, shared by the single-booking tabs below and the Overview bulk send.
+  async function invokeSendEmail(bookingId: string, type: EmailLogType, to: string, subject: string, html: string): Promise<string | null> {
+    const { error } = await supabase.functions.invoke('send-email', {
+      body: { booking_id: bookingId, type, to, subject, html },
+    })
+    return error ? (error.message ?? String(error)) : null
+  }
+
   async function sendEmail(type: EmailLogType, to: string, subject: string, html: string) {
     const bookingId = type === 'visa_letter' ? effectiveVisaId : effectiveSummaryId
     if (!bookingId || !to.trim()) return
     setSending(type)
     try {
-      const { error } = await supabase.functions.invoke('send-email', {
-        body: { booking_id: bookingId, type, to: to.trim(), subject, html },
-      })
-      if (error) alert(`Failed to send email: ${error.message ?? String(error)}`)
+      const err = await invokeSendEmail(bookingId, type, to.trim(), subject, html)
+      if (err) alert(`Failed to send email: ${err}`)
       else setLogsRefresh(r => r + 1)
     } finally {
       setSending(null)
     }
   }
 
+  // Fetch every email_logs row for the Overview grid — small table, admin-only, no need to scope.
+  useEffect(() => {
+    if (tab !== 'overview') return
+    supabase
+      .from('email_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setOverviewLogs((data ?? []) as EmailLog[]))
+  }, [tab, overviewRefresh])
+
+  async function handleSendSelected() {
+    const cells = Array.from(selectedCells)
+    if (cells.length === 0) return
+    setBulkBusy({ kind: 'send', done: 0, total: cells.length })
+    let failures = 0
+    let skipped = 0
+    for (let i = 0; i < cells.length; i++) {
+      const [bookingId, type] = cells[i].split(':') as [string, EmailLogType]
+      const booking = activeBookings.find(b => b.id === bookingId)
+      const to = clientEmail(booking)
+      if (!booking || !to) {
+        skipped++
+      } else {
+        const { subject, html } = buildDocumentEmail(type, booking, overviewLang)
+        const err = await invokeSendEmail(bookingId, type, to, subject, html)
+        if (err) failures++
+      }
+      setBulkBusy({ kind: 'send', done: i + 1, total: cells.length })
+    }
+    setBulkBusy(null)
+    setSelectedCells(new Set())
+    setOverviewRefresh(r => r + 1)
+    const okCount = cells.length - failures - skipped
+    if (failures > 0 || skipped > 0) {
+      alert(`Sent ${okCount}/${cells.length}.${failures ? ` ${failures} failed.` : ''}${skipped ? ` ${skipped} skipped (no client email on file).` : ''}`)
+    }
+  }
+
+  async function handleMarkSelected() {
+    const cells = Array.from(selectedCells)
+    if (cells.length === 0) return
+    setBulkBusy({ kind: 'mark', done: 0, total: cells.length })
+    const rows = cells.map(key => {
+      const [bookingId, type] = key.split(':') as [string, EmailLogType]
+      const booking = activeBookings.find(b => b.id === bookingId)
+      return {
+        booking_id: bookingId,
+        type,
+        status: 'sent' as const,
+        recipient_email: clientEmail(booking) || '(manual — no address on file)',
+        sent_at: new Date().toISOString(),
+      }
+    })
+    const { error } = await supabase.from('email_logs').insert(rows)
+    setBulkBusy(null)
+    if (error) alert(`Failed to record: ${error.message}`)
+    setSelectedCells(new Set())
+    setOverviewRefresh(r => r + 1)
+  }
+
   const tabs: { id: Tab; label: string }[] = [
+    { id: 'overview',  label: '📊 Overview' },
     { id: 'visa',      label: '📋 Visa Letter' },
     { id: 'summary',   label: '📄 Booking Summary' },
     { id: 'guide',     label: '🌍 Travel Guide' },
@@ -506,6 +647,96 @@ export default function DocumentsPage() {
           </button>
         ))}
       </div>
+
+      {/* ── Overview ───────────────────────────────────────────────── */}
+      {tab === 'overview' && (
+        <div className="space-y-5">
+          <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 rounded-lg p-4 text-sm text-indigo-800 dark:text-indigo-400">
+            One row per booking, one column per document. Check cells to select them, then send or mark as sent.
+            Confirmation, Travel Guide and Welcome Guide go out in the language below — the Visa Letter is always Portuguese.
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              type="text"
+              value={overviewSearch}
+              onChange={e => setOverviewSearch(e.target.value)}
+              placeholder="🔍 Search by client name…"
+              className="flex-1 min-w-[200px] border rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900"
+            />
+            <div className="flex gap-1">
+              {(['fr', 'en', 'es'] as Lang[]).map(l => (
+                <button key={l} onClick={() => setOverviewLang(l)}
+                  className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                    overviewLang === l ? 'bg-blue-600 text-white border-blue-600 dark:border-blue-500' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}>
+                  {l === 'fr' ? '🇫🇷 FR' : l === 'en' ? '🇬🇧 EN' : '🇪🇸 ES'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-x-auto">
+            {overviewBookings.length === 0 ? (
+              <p className="text-sm text-gray-400 dark:text-gray-400 italic p-5">No active bookings found.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-800">
+                    <th className="text-left px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Booking</th>
+                    {DOC_TYPES.map(dt => (
+                      <th key={dt.type} className="px-2 py-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{dt.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {overviewBookings.map(b => (
+                    <tr key={b.id} className="border-b border-gray-100 dark:border-gray-800 last:border-0">
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        <div className="font-medium text-gray-700 dark:text-gray-300">{bookingLabel(b)}</div>
+                        {!clientEmail(b) && <div className="text-xs text-red-500 dark:text-red-400">⚠ no email on file</div>}
+                      </td>
+                      {DOC_TYPES.map(dt => {
+                        const key = cellKey(b.id, dt.type)
+                        const log = latestLogByKey.get(key)
+                        return (
+                          <td key={dt.type} className="text-center p-2">
+                            <input
+                              type="checkbox"
+                              title={cellTitle(log)}
+                              checked={selectedCells.has(key)}
+                              onChange={() => toggleCell(key)}
+                              className={`w-5 h-5 rounded border-2 cursor-pointer ${cellStatusClasses(log)}`}
+                            />
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleSendSelected}
+              disabled={selectedCells.size === 0 || bulkBusy !== null}
+              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors">
+              {bulkBusy?.kind === 'send' ? `⏳ Sending ${bulkBusy.done}/${bulkBusy.total}…` : `📧 Send selected (${selectedCells.size})`}
+            </button>
+            <button
+              onClick={handleMarkSelected}
+              disabled={selectedCells.size === 0 || bulkBusy !== null}
+              className="flex items-center gap-2 px-4 py-2.5 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors">
+              {bulkBusy?.kind === 'mark' ? '⏳ Recording…' : `✓ Mark as sent manually (${selectedCells.size})`}
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 dark:text-gray-400">
+            "Mark as sent manually" logs the document as sent without emailing anything — use it when a guide was handed over in person or sent via WhatsApp.
+          </p>
+        </div>
+      )}
 
       {/* ── Visa Letter ────────────────────────────────────────────── */}
       {tab === 'visa' && (
