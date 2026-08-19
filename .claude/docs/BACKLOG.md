@@ -1109,8 +1109,26 @@ facture = une résa** · ④ adresses et IBAN **en dur** · ⑤ libellés **au f
   **371 tests.**
 - **`mcp-server` répercuté** (`fetchAccountingBundle`) — la leçon documentée : toute collection
   ajoutée à `SharedAccountingData` doit y aller aussi.
-- ⬜ **Reste : passer la migration, puis vérifier à l'écran** — créer la facture de #022, saisir
-  la réf F&Fly, imprimer, et comparer au modèle Excel.
+✅ **Migration passée et vérifiée sur TEST + PROD le 2026-08-19** (service_role : table → 200,
+anon → **42501**, contrôle négatif → **42703**, `lines.agency_invoice_id` → 200, aucun tampon resté
+sur les lignes). ✅ **Facture de #022 créée en PROD à l'écran** : `INVOICE N° 20260819`,
+**3 lignes sur 3 rattachées**, 890 € brut / 712 € net, vérifié en base.
+
+🔴 **Un bug trouvé par ce premier essai réel, et corrigé (`d570495`)** : créer la facture posait le
+numéro mais **laissait les 3 lignes détachées**, avec des alertes bloquantes à l'écran. Cause :
+`persist` est **fire-and-forget** par conception, donc l'`INSERT` de la facture et les `UPDATE` des
+lignes partaient **en parallèle** — l'UPDATE pouvait atteindre Postgres avant que la facture existe,
+et la clé étrangère le refusait (**23503**). Corrigé par un handler unique `createAgencyInvoice` qui
+**insère, attend, puis rattache en un seul UPDATE groupé** ; si l'insert échoue, les lignes ne sont
+pas touchées. La facture orpheline a été supprimée, les 3 lignes étaient intactes.
+**Leçon réutilisable** : dès qu'une écriture optimiste en amorce une autre **liée par une FK**, les
+séquencer dans un seul handler — le pattern `persist` ne garantit aucun ordre.
+
+- ⬜ **Reste (gui)** : ① **la réf F&Fly de #022** — pas inventée, le champ « Agency ref » est vide,
+  et la facture imprime alors « DESIGNATION » sans la mention « ref F&Fly : … » ; ② **comparer
+  l'impression au modèle Excel** et dire ce qui cloche dans la mise en page. ⚠️ La fenêtre s'ouvre
+  **hors du groupe piloté par l'extension** et lance `window.print()` : **Claude ne peut pas la
+  voir**, seul gui peut relire ce rendu (même limite que la lettre de visa et les guides).
 
 **⬜ Ce qui reste sur cette facture :**
 - ⏸️ **Le second bloc de cours (4h, 25→26/10)** : pas de forfait 4h dans la grille, **gui verra le
