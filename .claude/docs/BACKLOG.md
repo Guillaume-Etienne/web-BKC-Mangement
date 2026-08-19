@@ -1021,6 +1021,37 @@ c'est déjà autorisé là-bas.
 ✅ **FAIT par gui (confirmé le 2026-08-19)** — les demandes arrivent désormais sans attendre le
 cycle de relève. Ne plus le proposer.
 
+## 🧾 À FAIRE AVEC GUI — la première vraie facture Fun & Fly (demandé le 2026-08-19)
+
+Premier passage à l'acte du chantier agences : facturer réellement Fun & Fly pour la résa **#022**
+(Loic SENE + Julie LE FOULER, 19→28/10/2026). **Écran : Accounting → Bookings → #022 → panneau
+🤝 Agency billing.** L'écran n'envoie rien — il enregistre ce qui est sorti et ce qui est rentré,
+la facture part à la main, relue (décision gui).
+
+**État réel de #022 en PROD, relevé le 2026-08-19 (service_role) :**
+- ✅ Grille Fun & Fly en place : **Pack cours Privé 10h = 450 €**, Pack Semi-Privé 10h = 330 €,
+  **Transfert Maputo ↔ Bilene = 220 €**. Commission Fun & Fly = **20 %**.
+- ✅ 2 voyageurs enregistrés (un forfait se rattache à **un** voyageur, pas à la résa).
+- ⚠️ **Rien de facturable n'est encore saisi** : `lessons` **vide**, `equipment_rentals` **vide**,
+  `taxi_trips` **vide**, et la seule chambre est à **0 €/nuit** (San Martinho, per-stay, rien
+  facturé au client — c'est voulu).
+
+**Donc deux façons de procéder, à trancher avec gui :**
+1. **Créer la ligne de forfait maintenant** (450 €, Pack Privé 10h, sur Loic SENE) et laisser les
+   cours s'y rattacher au fur et à mesure de leur saisie — c'est **le modèle prévu** : le compteur
+   « X h / 10 h » de la Phase 6 existe exactement pour ça. La facture est connue d'avance puisque
+   c'est un forfait vendu par l'agence.
+2. **Attendre la saisie des cours** ([ils se saisissent la veille](../../CLAUDE.md), séjour en
+   octobre) puis facturer. Plus tard, mais rien à corriger si le séjour change.
+
+**Deux questions ouvertes pour gui :**
+- Le BACKLOG notait **10h (20→24/10) + 4h (25→26/10)** pour Loic. La grille n'a **pas** de forfait
+  4h → seconde ligne à quel prix ? (Un « 10x2h » vaut 10h au total :
+  [ne jamais déduire les heures d'un libellé](../../CLAUDE.md).)
+- **Aucun transfert n'est saisi** alors que Fun & Fly a un tarif transfert à 220 € : Loic et Julie
+  en ont-ils un ? Piège connu : un transfert facturé à l'agence **garde son coût chauffeur** et
+  n'abandonne que le prix client.
+
 ## 🟡 Quand gui veut
 
 - ~~**Bug prix taxi 8000 €**~~ ✅ **CLOS le 2026-08-18.** Fix code fait le 06/07
