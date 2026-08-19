@@ -1039,8 +1039,14 @@ cycle de relève. Ne plus le proposer.
 - ~~**Supprimer l'import CSV**~~ ✅ FAIT (2026-07-06) : `ImportCSVModal` + `parseGoogleFormsCSV.ts`
   supprimés, ClientsPage nettoyée (bouton, state, handleImport). `import_id` conservé
   (dédup SubmissionsPage).
-- **Logo sur documents** — préciser avec gui QUELS documents avant d'agir.
-  Assets : `client/public/docs/logo-mas.png`, `signature-mas.png`.
+- ~~**Logo sur documents**~~ ✅ **CLOS le 2026-08-19 — rien à coder, décision de gui après
+  inventaire.** La demande de juillet était déjà satisfaite : **les 4 documents portent déjà un
+  logo**, et deux marques distinctes selon l'usage — **lettre de visa → `logo-mas.png`**
+  (« Moçambique Action Sport Lda. », l'entité légale, ce que l'administration attend) ·
+  **Travel Guide / Welcome Guide / Confirmation de résa → `LOGO-bkc.png`** (« BKC Kitesurf
+  Center », la marque commerciale). gui a écarté le co-branding, le remplacement par MAS et
+  l'ajout de la signature sur la confirmation. `signature-mas.png` reste donc réservé au visa.
+  **Ne pas re-poser la question.**
 - **Lien partagé `restaurant` en PROD** — à créer depuis Options → Shared Links quand besoin.
 
 ## 🧹 Housekeeping
