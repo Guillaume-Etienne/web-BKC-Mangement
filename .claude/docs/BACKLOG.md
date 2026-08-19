@@ -1036,21 +1036,26 @@ la facture part à la main, relue (décision gui).
   `taxi_trips` **vide**, et la seule chambre est à **0 €/nuit** (San Martinho, per-stay, rien
   facturé au client — c'est voulu).
 
-**Donc deux façons de procéder, à trancher avec gui :**
-1. **Créer la ligne de forfait maintenant** (450 €, Pack Privé 10h, sur Loic SENE) et laisser les
-   cours s'y rattacher au fur et à mesure de leur saisie — c'est **le modèle prévu** : le compteur
-   « X h / 10 h » de la Phase 6 existe exactement pour ça. La facture est connue d'avance puisque
-   c'est un forfait vendu par l'agence.
-2. **Attendre la saisie des cours** ([ils se saisissent la veille](../../CLAUDE.md), séjour en
-   octobre) puis facturer. Plus tard, mais rien à corriger si le séjour change.
+**✅ Procédure tranchée par gui le 2026-08-19 : on facture LE FORFAIT, sans attendre les cours.**
+« Fun & Fly fait payer des forfaits, pas besoin de décompter les heures avec eux (et sur la
+facture). » Donc la ligne se crée **dès maintenant**, le montant étant connu d'avance. Vérifié
+dans le code : **rien à modifier** — le prix vient de `agency_billing_lines.price`, jamais des
+heures ; le compteur « X h / 10 h » et son ⚠ restent un **indicateur interne** (c'est lui qui a
+révélé les forfaits saisis à 20h au lieu de 10h). Un « 0h / 10h » sur une ligne neuve est normal.
 
-**Deux questions ouvertes pour gui :**
-- Le BACKLOG notait **10h (20→24/10) + 4h (25→26/10)** pour Loic. La grille n'a **pas** de forfait
-  4h → seconde ligne à quel prix ? (Un « 10x2h » vaut 10h au total :
-  [ne jamais déduire les heures d'un libellé](../../CLAUDE.md).)
-- **Aucun transfert n'est saisi** alors que Fun & Fly a un tarif transfert à 220 € : Loic et Julie
-  en ont-ils un ? Piège connu : un transfert facturé à l'agence **garde son coût chauffeur** et
-  n'abandonne que le prix client.
+**⬜ Reste à saisir, avec gui à l'écran :**
+1. **La ligne de forfait cours** : Pack cours Privé 10h, 450 €, sur **Loic SENE**.
+   ⏸️ Le **second bloc de 4h** attend : la grille n'a pas de forfait 4h et **gui verra le prix plus
+   tard** — ne pas inventer de montant, ne pas déduire d'un libellé
+   ([[reference_agency_package_hours]]).
+2. **Le transfert — confirmé par gui : « oui il leur faudra un transfert ».** Rien n'est encore en
+   base. Il faut donc **créer le trajet** puis le rattacher à la facture agence.
+   ❓ **Infos manquantes à lui demander** : la date et l'heure (arrivée le 19/10, départ le 28/10),
+   le sens, **aller simple ou aller-retour** — le tarif s'appelle « Transfert Maputo ↔ Bilene »
+   à 220 €, le libellé ne dit pas si les 220 € couvrent un trajet ou les deux — et le chauffeur.
+   ⚠️ Piège déjà traité : un transfert facturé à l'agence **garde son coût chauffeur** et n'abandonne
+   que le prix client → la course paraît à marge négative, compensée par la ligne agence. C'est
+   voulu ; sans ça la course semblerait gratuite.
 
 ## 🟡 Quand gui veut
 
