@@ -49,8 +49,8 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
-| **`2026-08-18b_agency_price_redaction_columns.sql`** | **⬜ À PASSER (TEST + PROD). Sans danger, à n'importe quel moment** — n'ajoute que 4 colonnes générées `share_price*` (`lessons`, `equipment_rentals`, `taxi_trips`, `booking_room_prices`), NULL quand la ligne est facturée à une agence. Ne révoque rien, donc ne peut casser aucune page. Phase 4 des agences. | ⬜ | ⬜ |
-| **`2026-08-18c_agency_price_revoke.sql`** | 🚦 **À PASSER SEULEMENT APRÈS (1) le fichier `b` sur la même base ET (2) le déploiement Vercel du commit qui narrowe les pages partagées.** C'est lui qui ferme la fuite : `REVOKE`/`GRANT` par colonne sur les 4 tables — `anon` perd les prix clients bruts, et au passage **`lessons.instructor_rate` (PAIE moniteur, 3ᵉ copie manquée par le durcissement du 2026-07-29)** et `taxi_trips.price_eur`. Passé trop tôt → toutes les pages partagées en 42501 (page blanche). **Vérification obligatoire par curl avec un VRAI token client** (un curl anon nu ne prouve rien) : recette complète en bas du fichier. | ⬜ | ⬜ |
+| ~~`2026-08-18b_agency_price_redaction_columns.sql`~~ | Les 4 colonnes générées `share_price*` (`lessons`, `equipment_rentals`, `taxi_trips`, `booking_room_prices`), NULL quand la ligne est facturée à une agence. Phase 4 des agences. Vérifiées en service_role sur les 2 bases → **HTTP 200 sur les 4**. | ✅ 2026-08-18 | ✅ 2026-08-18 |
+| ~~`2026-08-18c_agency_price_revoke.sql`~~ | Le `REVOKE`/`GRANT` par colonne qui **ferme réellement la fuite**. ✅ **Vérifié le 2026-08-19 avec de VRAIS tokens** (client #021, driver, taxi_manager) sur les 2 bases — la seule preuve valable ici, un curl anon nu ne prouve rien. **Colonnes brutes fermées** : `lessons.price_per_hour`, **`lessons.instructor_rate` (paie moniteur)**, `equipment_rentals.price`, `taxi_trips.price_eur`, `booking_room_prices.price_per_night` et `lessons?select=*` → **42501** partout, y compris avec un token driver/manager. **Et les pages marchent** : les 4 `select()` réels de `ClientSharePage` → **200 avec données** (l'alias fonctionne : `price_eur: 120` vient de `share_price_eur`), Driver et TaxiManager → **200**. | ✅ 2026-08-18 | ✅ 2026-08-18 |
 | ~~`2026-08-18_agency_short_code.sql`~~ | Ajoute `agencies.short_code` — le badge `(FF)` affiché à côté du nom du client dans le planning, les cartes Daily/Forecast, la liste Bookings et la compta. Sème les 3 codes existants (`FF`, `Adek`, `Decat`) par `ILIKE` sur le nom : **backfill unique dont le résultat est stocké**, pas une correspondance par nom à l'exécution (une agence non reconnue n'aura simplement pas de badge, à saisir dans Options → 🤝 Agencies). **Pas de GRANT anon** : `agencies` reste admin-only, sinon le planning Forecast partagé exposerait le nom commercial des partenaires. ⚠️ **Le curl anon ne prouve RIEN ici** (table admin-only : `42501` avant comme après) — vérifiée le 2026-08-18 en **service_role** sur les deux bases : `select=short_code` répond, contrôle négatif `colonne_bidon` → **42703**. PROD porte les 3 codes semés (`Adekua`→`Adek` 12 %, `Decathlon`→`Decat` 10 %, `Fun & Fly`→`FF` 20 %) ; TEST rend `[]`, normal, il a été nettoyé après la campagne du 18. | ✅ 2026-08-18 | ✅ 2026-08-18 |
 | ~~`2026-08-14c_enquiry_notify_trigger.sql`~~ | Trigger pg_net sur `enquiries` INSERT → Edge Function **`notify-enquiry`** (à déployer d'abord : `supabase functions deploy notify-enquiry --no-verify-jwt`). Envoie la notif admin + l'accusé au visiteur. ⚠️ **Secret DÉDIÉ `NOTIFY_ENQUIRY_SECRET`**, à créer par base, surtout pas le `NOTIFY_SECRET` de `notify-submission` : un secret Supabase **ne se relit pas** (empreinte seule), donc le réécrire aurait cassé les emails du formulaire de réservation. Ne se déclenche **que** sur `channel='form'` : une fiche saisie à la main n'envoie pas d'email. **Chaîne prouvée bout-en-bout sur TEST le 2026-08-15** (insertion → trigger → fonction → Resend → boîte de gui, notification admin **et** accusé visiteur). **Sur PROD, 4 gestes dans cet ordre** : créer le secret `NOTIFY_ENQUIRY_SECRET` (valeur au choix), déployer `notify-enquiry`, rejouer ce fichier avec la même valeur + `oslsbansxaajcpwhivmx`, tester. | ✅ 2026-08-15 | ✅ 2026-08-15 |
 | ~~`2026-08-14a_enquiry_form_link_type.sql`~~ | Ajoute la valeur d'enum `enquiry_form` à `shared_link_type` (le formulaire léger est une page publique servie par lien signé). **Ne peut pas être fusionnée avec (b)** : PostgreSQL refuse d'utiliser une valeur d'enum ajoutée dans la même transaction, et le dashboard exécute tout un script dans UNE transaction → `55P04`. | ✅ 2026-08-14 | ✅ 2026-08-14 |
@@ -425,9 +425,10 @@ et une note explique la mention au client). Ce qui manquait — la protection r�
 - **Un défaut de cohérence corrigé** : la ventilation par invité de `ClientSharePage` chiffrait
   les services d'agence que les sous-totaux excluaient — les deux ne s'additionnaient donc pas
   au même nombre sur une résa agence. Elles sont maintenant omises, comme partout ailleurs.
-- ⬜ **2 migrations à passer dans l'ordre** (registre en tête) : `b` sans danger quand gui veut,
-  `c` **seulement après le déploiement Vercel**. Vérification par curl **avec un vrai token
-  client** — recette prête en bas de `2026-08-18c`.
+- ✅ **En service depuis le 2026-08-18** : les 2 migrations sont passées sur TEST **et** PROD, et
+  la Phase 4 est **prouvée le 2026-08-19 avec de vrais tokens** (client, driver, taxi_manager) —
+  prix bruts et `instructor_rate` en **42501**, pages partagées en **200**. Détail dans le
+  registre en tête. Le découpage en 2 fichiers a tenu sa promesse : aucun lien client cassé.
 
 **🔓 Reste ouvert (décision gui) — la marge chauffeur est visible par le client.**
 `taxi_trips.price_driver_mzn` et `margin_manager_mzn` sont lisibles par **tout** token valide, y
@@ -1008,9 +1009,9 @@ SPF racine `include:spf.infomaniak.ch -all`, DMARC `p=reject`, et Resend correct
 sur `send.bilenekite.com` (SPF amazonses) + DKIM `resend._domainkey` → alignement DMARC par
 DKIM. ⚠️ **Ne PAS ajouter Resend au SPF racine** : l'enveloppe part de `send.bilenekite.com`,
 c'est déjà autorisé là-bas.
-**Suggestion non faite** (choix de gui) : remplacer la relève POP3 par une **redirection**
-Infomaniak → Gmail, pour recevoir les demandes de résa instantanément au lieu d'attendre
-jusqu'à ~1 h.
+~~**Suggestion non faite** : remplacer la relève POP3 par une redirection Infomaniak → Gmail.~~
+✅ **FAIT par gui (confirmé le 2026-08-19)** — les demandes arrivent désormais sans attendre le
+cycle de relève. Ne plus le proposer.
 
 ## 🟡 Quand gui veut
 
