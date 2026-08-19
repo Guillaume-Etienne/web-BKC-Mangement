@@ -690,7 +690,7 @@ export default function DocumentsPage() {
 
   if (loading || !guideSections || !welcomeSections) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-6">
+      <div className="max-w-6xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-6">📄 Documents</h1>
         <p className="text-gray-500 dark:text-gray-400">Loading bookings…</p>
       </div>
@@ -698,7 +698,7 @@ export default function DocumentsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
       <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">📄 Documents</h1>
 
       {/* Tab bar */}
@@ -860,7 +860,7 @@ export default function DocumentsPage() {
 
       {/* ── Visa Letter ────────────────────────────────────────────── */}
       {tab === 'visa' && (
-        <div className="space-y-5">
+        <div className="max-w-3xl mx-auto space-y-5">
           <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-4 text-sm text-amber-800 dark:text-amber-400">
             Official invitation letter in <strong>Portuguese</strong> for Mozambique visa purposes.
             Date is set to <strong>today</strong> automatically.
@@ -937,7 +937,7 @@ export default function DocumentsPage() {
 
       {/* ── Booking Summary ────────────────────────────────────────── */}
       {tab === 'summary' && (
-        <div className="space-y-5">
+        <div className="max-w-3xl mx-auto space-y-5">
           <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg p-4 text-sm text-blue-800 dark:text-blue-400">
             Client-facing confirmation with stay details, transport info and travel tips.
           </div>
@@ -1011,7 +1011,7 @@ export default function DocumentsPage() {
 
       {/* ── Travel Guide Editor ────────────────────────────────────── */}
       {tab === 'guide' && (
-        <div className="space-y-5">
+        <div className="max-w-3xl mx-auto space-y-5">
           <div className="bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-900 rounded-lg p-4 text-sm text-teal-800 dark:text-teal-400">
             Configure the travel tips included in every Booking Summary.
             Changes are stored in the database once saved — shared across browsers and devices.
@@ -1073,7 +1073,7 @@ export default function DocumentsPage() {
 
       {/* ── Welcome Guide ──────────────────────────────────────────── */}
       {tab === 'welcome' && (
-        <div className="space-y-5">
+        <div className="max-w-3xl mx-auto space-y-5">
           <div className="bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 rounded-lg p-4 text-sm text-sky-800 dark:text-sky-400">
             On-site info for arriving clients — wifi, meals, drinking water, schedules…
             Everything guests always ask, handed over on arrival or emailed a few days before.
@@ -1135,7 +1135,7 @@ export default function DocumentsPage() {
 
       {/* ── Templates ──────────────────────────────────────────────── */}
       {tab === 'templates' && (
-        <div className="space-y-5">
+        <div className="max-w-3xl mx-auto space-y-5">
           <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg p-4 text-sm text-gray-600 dark:text-gray-400">
             Edit the base content of guide sections in all languages.
             Toggle sections on/off per-send in the{' '}
