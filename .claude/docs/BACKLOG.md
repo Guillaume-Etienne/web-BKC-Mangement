@@ -1043,19 +1043,43 @@ dans le code : **rien à modifier** — le prix vient de `agency_billing_lines.p
 heures ; le compteur « X h / 10 h » et son ⚠ restent un **indicateur interne** (c'est lui qui a
 révélé les forfaits saisis à 20h au lieu de 10h). Un « 0h / 10h » sur une ligne neuve est normal.
 
-**⬜ Reste à saisir, avec gui à l'écran :**
-1. **La ligne de forfait cours** : Pack cours Privé 10h, 450 €, sur **Loic SENE**.
-   ⏸️ Le **second bloc de 4h** attend : la grille n'a pas de forfait 4h et **gui verra le prix plus
-   tard** — ne pas inventer de montant, ne pas déduire d'un libellé
-   ([[reference_agency_package_hours]]).
-2. **Le transfert — confirmé par gui : « oui il leur faudra un transfert ».** Rien n'est encore en
-   base. Il faut donc **créer le trajet** puis le rattacher à la facture agence.
-   ❓ **Infos manquantes à lui demander** : la date et l'heure (arrivée le 19/10, départ le 28/10),
-   le sens, **aller simple ou aller-retour** — le tarif s'appelle « Transfert Maputo ↔ Bilene »
-   à 220 €, le libellé ne dit pas si les 220 € couvrent un trajet ou les deux — et le chauffeur.
-   ⚠️ Piège déjà traité : un transfert facturé à l'agence **garde son coût chauffeur** et n'abandonne
-   que le prix client → la course paraît à marge négative, compensée par la ligne agence. C'est
-   voulu ; sans ça la course semblerait gratuite.
+### ✅ SAISIE FAITE EN PROD le 2026-08-19 (au navigateur, avec gui) — **890 € brut / 712 € net**
+
+**Réponses de gui** : les 220 € du tarif « Transfert Maputo ↔ Bilene » valent **par trajet**, pas
+l'aller-retour (ma recommandation était l'inverse — **le libellé ne dit rien du périmètre, il faut
+demander**, même leçon que [[reference_agency_package_hours]]) · chauffeur **Ruiz** · horaires
+déduits de ses habitudes et confirmés.
+
+**2 transferts créés** (Taxis → Add trip), rattachés chacun à sa ligne :
+| Date | Heure | Sens | Règle appliquée |
+|---|---|---|---|
+| 19/10/2026 | 15:05 | Airport → Centre | **l'heure exacte du vol** (arrivée 15:05) |
+| 28/10/2026 | 10:45 | Centre → Airport | **5 h avant le vol** de 15:45 |
+Règles relevées sur ses trajets existants, pas inventées (#023 : vol 09:40 → départ 04:40).
+Prix client 120 €, chauffeur 6 000 MZN, manager 1 000 MZN — les défauts de l'app.
+
+**3 lignes de facture Fun & Fly** (Accounting → Bookings → #022 → 🤝 Agency billing) :
+| Ligne | Brut | Commission 20 % | Net |
+|---|---|---|---|
+| Pack cours Privé 10h — Loic SENE | 450 € | −90 € | **360 €** |
+| Transfert Maputo ↔ Bilene *(arrivée 19/10)* | 220 € | −44 € | **176 €** |
+| Transfert Maputo ↔ Bilene *(départ 28/10)* | 220 € | −44 € | **176 €** |
+| **Total** | **890 €** | **−178 €** | **712 €** |
+
+✅ **Vérifié à l'écran ET en base** : le total client de #022 est retombé de **240 € à 0 €** (les
+transferts sont sortis des totaux client), le total facturé aux clients a baissé de 240 €, et
+**chaque transfert garde son coût chauffeur de 6 000 MZN** — le piège connu, correctement géré.
+Les deux lignes de transfert portent une **note** (« Arrival transfer 19/10 », « Departure transfer
+28/10 ») parce qu'elles s'affichent sinon à l'identique.
+
+**⬜ Ce qui reste sur cette facture :**
+- ⏸️ **Le second bloc de cours (4h, 25→26/10)** : pas de forfait 4h dans la grille, **gui verra le
+  prix plus tard**. Ne rien inventer.
+- ⬜ **Tampons `Invoice` / `Paid`** à cliquer quand la facture partira et quand elle sera réglée.
+  C'est le `paid_at` qui alimente la nouvelle colonne « Agencies » du CashFlow.
+- ℹ️ La ligne forfait affiche **« 0h / 10h »** (le champ heures a été rempli à 10 par le catalogue).
+  gui a dit ne pas décompter les heures avec eux : c'est un **indicateur interne** sans effet sur le
+  montant. Si ce compteur le gêne, vider le champ « Package hours » sur la ligne suffit.
 
 ## 🟡 Quand gui veut
 
