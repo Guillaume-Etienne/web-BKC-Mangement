@@ -198,6 +198,28 @@ CREATE TABLE agency_rate_items (
 
 CREATE INDEX idx_agency_rate_items_agency ON agency_rate_items(agency_id);
 
+-- One invoice sent to a partner agency, for one booking (gui: "une factu = une
+-- résa"). Shaped after the real Fun & Fly template, which prints TWO numbers:
+-- ours (`invoice_number`, the issue date as YYYYMMDD, suffixed -2 for a second
+-- one the same day) and theirs (`agency_ref`, printed as "ref F&Fly : 134606").
+-- Deliberately no UNIQUE (booking_id, agency_id): a service added after the first
+-- invoice went out needs a second invoice on the same booking.
+CREATE TABLE agency_invoices (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agency_id      UUID NOT NULL REFERENCES agencies(id),
+  booking_id     UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  invoice_number TEXT NOT NULL UNIQUE,
+  agency_ref     TEXT,
+  issued_on      DATE NOT NULL DEFAULT CURRENT_DATE,
+  invoiced_at    TIMESTAMPTZ,   -- sent
+  paid_at        TIMESTAMPTZ,   -- settled; feeds the CashFlow "Agencies" column
+  notes          TEXT,
+  created_at     TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_agency_invoices_booking ON agency_invoices(booking_id);
+CREATE INDEX idx_agency_invoices_agency  ON agency_invoices(agency_id);
+
 -- One row = one invoice line, even when a 10x2h package becomes 10 separate
 -- Lesson rows in the planning. participant_id nullable: a package belongs to
 -- one traveler (see the real Fun&Fly invoice: 3 family members, 3 separate
@@ -210,6 +232,12 @@ CREATE TABLE agency_billing_lines (
   agency_rate_item_id  UUID REFERENCES agency_rate_items(id),
   price                NUMERIC(10,2) NOT NULL,   -- frozen at creation, like lessons.price_per_hour
   unit_hours           NUMERIC(5,2),             -- frozen at creation, lesson packages only
+  -- The invoice this line was billed on (2026-08-19). NULL = owed by the agency
+  -- but not yet drawn up on any document: the normal state between entering a
+  -- service and issuing the paper.
+  agency_invoice_id    UUID REFERENCES agency_invoices(id) ON DELETE SET NULL,
+  -- ⚠️ DEPRECATED, dropped by `2026-08-19b`: the stamps moved to agency_invoices,
+  -- because one settles an INVOICE, not a line. Both were empty on TEST and PROD.
   invoiced_at          TIMESTAMPTZ,
   paid_at              TIMESTAMPTZ,
   notes                TEXT,
@@ -218,9 +246,12 @@ CREATE TABLE agency_billing_lines (
 
 CREATE INDEX idx_agency_billing_booking ON agency_billing_lines(booking_id);
 CREATE INDEX idx_agency_billing_agency  ON agency_billing_lines(agency_id);
+CREATE INDEX idx_agency_billing_lines_invoice ON agency_billing_lines(agency_invoice_id);
+
 
 REVOKE ALL ON agency_rate_items    FROM anon;  -- admin only, jamais anon
 REVOKE ALL ON agency_billing_lines FROM anon;  -- admin only, jamais anon
+REVOKE ALL ON agency_invoices      FROM anon;  -- admin only, jamais anon
 
 
 -- ── Instructors & Lessons ─────────────────────────────────────────────────────

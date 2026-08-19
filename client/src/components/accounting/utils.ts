@@ -1,4 +1,4 @@
-import type { Booking, BookingParticipant, Payment, Lesson, LessonType, Instructor, LessonRateOverride, DiningEvent, PriceItem, BillableType, PriceTier, Agency, AgencyBillingLine } from '../../types/database'
+import type { Booking, BookingParticipant, Payment, Lesson, LessonType, Instructor, LessonRateOverride, DiningEvent, PriceItem, BillableType, PriceTier, Agency, AgencyBillingLine, AgencyInvoice } from '../../types/database'
 import { lessonBillable } from '../../types/database'
 import type { SharedAccountingData } from './types'
 import { getBaseNightlyRate } from '../../utils/roomPricing'
@@ -17,7 +17,7 @@ export function emptyAccountingData(): SharedAccountingData {
     payments: [], instructorDebts: [], instructorPayments: [], lessonRateOverrides: [],
     expenses: [], palmeirasRents: [], palmeirasReversals: [], palmeirasEntries: [],
     activityBookings: [], activityPayments: [],
-    agencies: [], agencyRateItems: [], agencyBillingLines: [],
+    agencies: [], agencyRateItems: [], agencyBillingLines: [], agencyInvoices: [],
   }
 }
 
@@ -106,6 +106,9 @@ export interface AgencyInvoiceRow {
   hoursUsed: number           // 0 when the line carries no package
   commission: number
   net: number
+  /** The invoice this line sits on, or null while it is billed to the agency but
+   *  not yet drawn up. The stamps are read from here, never from the line. */
+  invoice: AgencyInvoice | null
 }
 
 /** Invoice lines ready to display, newest booking first. Cancelled bookings are
@@ -138,6 +141,9 @@ export function buildAgencyInvoiceRows(
         hoursUsed: agencyLineHoursUsed(line.id, data.lessons),
         commission,
         net: line.price - commission,
+        invoice: line.agency_invoice_id
+          ? data.agencyInvoices.find(i => i.id === line.agency_invoice_id) ?? null
+          : null,
       }
     })
     .sort((a, b) => (b.bookingNumber ?? 0) - (a.bookingNumber ?? 0) || a.label.localeCompare(b.label))
@@ -179,13 +185,18 @@ export function computeAgencyTotals(
     (!filter?.bookingId || l.booking_id === filter.bookingId)
   )
 
+  // Since 2026-08-19 the stamps live on the INVOICE, not the line: one settles an
+  // invoice. A line with no invoice yet is simply not invoiced — which is the
+  // normal state between billing a service to the agency and drawing up the paper.
+  const invoiceById = new Map(data.agencyInvoices.map(i => [i.id, i]))
   let gross = 0, commission = 0, invoiced = 0, paid = 0, outstanding = 0
   for (const l of lines) {
     const cut = agencyCommission(l, data.agencies)
+    const invoice = l.agency_invoice_id ? invoiceById.get(l.agency_invoice_id) : undefined
     gross += l.price
     commission += cut
-    if (l.invoiced_at) invoiced += l.price
-    if (l.paid_at) paid += l.price - cut
+    if (invoice?.invoiced_at) invoiced += l.price
+    if (invoice?.paid_at) paid += l.price - cut
     else outstanding += l.price - cut
   }
   return { gross, commission, net: gross - commission, invoiced, paid, outstanding }
@@ -731,4 +742,110 @@ export function fmtMonth(yyyymm: string): string {
 /** Suggest deposit amount: 30% of total, min 120€ */
 export function suggestDeposit(total: number): number {
   return Math.max(120, Math.round(total * 0.3))
+}
+
+// ── The agency invoice as a document (2026-08-19) ────────────────────────────
+//
+// Shaped after the real template Fun & Fly expects
+// (`temp/Factu BKC 2025 FFLY Famille Brunet.xlsx`). Kept pure and here rather than
+// in the printer so the labels and the arithmetic are tested: this is the piece
+// that goes out to a partner with money on it.
+
+/** One printed line: what the agency reads, and what it pays for it. */
+export interface AgencyInvoiceDocLine {
+  label: string
+  amount: number
+}
+
+export interface AgencyInvoiceDoc {
+  invoice: AgencyInvoice
+  agencyName: string
+  bookingNumber: number | null
+  guestName: string            // the booking's client — names the invoice ("Famille …")
+  lines: AgencyInvoiceDocLine[]
+  gross: number                // TOTAL TTC on the template
+  commissionPercent: number
+  commission: number           // "dont commission 20%"
+  net: number                  // "Total à payer"
+}
+
+/** French label in the exact form Fun & Fly uses on its own invoices (gui,
+ *  2026-08-19: "plutôt format F&Fly"), resolved in this order:
+ *  1. a transfer attached to the line names itself with its direction and date —
+ *     "Transferts aller Maputo - Bilene le 18/10/2025", the template's wording;
+ *  2. otherwise the line's own note, which exists for exactly this ("what the
+ *     agency's invoice calls this line");
+ *  3. otherwise the rate-card label.
+ *  Never a label invented from a price or an hour count. */
+export function agencyInvoiceLineLabel(
+  line: AgencyBillingLine,
+  data: Pick<SharedAccountingData, 'taxiTrips' | 'agencyRateItems'>
+): string {
+  const trip = data.taxiTrips.find(t => t.agency_billing_line_id === line.id)
+  if (trip) {
+    const [y, m, d] = trip.date.split('-')
+    const when = `${d}/${m}/${y}`
+    if (trip.type === 'aero-to-center') return `Transferts aller Maputo - Bilene le ${when}`
+    if (trip.type === 'center-to-aero') return `Transferts retour Bilene - Maputo le ${when}`
+    return `Transfert le ${when}`
+  }
+  const note = line.notes?.trim()
+  if (note) return note
+  return data.agencyRateItems.find(r => r.id === line.agency_rate_item_id)?.label ?? 'Prestation'
+}
+
+/** Everything the printed invoice needs. Returns null when the invoice has no
+ *  lines yet — there is nothing to send, and printing an empty invoice to a
+ *  partner is worse than printing none. */
+export function buildAgencyInvoiceDoc(
+  invoiceId: string,
+  data: SharedAccountingData
+): AgencyInvoiceDoc | null {
+  const invoice = data.agencyInvoices.find(i => i.id === invoiceId)
+  if (!invoice) return null
+
+  const lines = data.agencyBillingLines.filter(l => l.agency_invoice_id === invoiceId)
+  if (lines.length === 0) return null
+
+  const agency  = data.agencies.find(a => a.id === invoice.agency_id)
+  const booking = data.bookings.find(b => b.id === invoice.booking_id)
+  const client  = data.clients.find(c => c.id === booking?.client_id)
+
+  // Commission from the same helper the KPIs and the CashFlow use — the invoice
+  // must not be the one screen that computes it its own way.
+  let gross = 0, commission = 0
+  const docLines = lines.map(l => {
+    gross += l.price
+    commission += agencyCommission(l, data.agencies)
+    return { label: agencyInvoiceLineLabel(l, data), amount: l.price }
+  })
+
+  return {
+    invoice,
+    agencyName: agency?.name ?? '(agence inconnue)',
+    bookingNumber: booking?.booking_number ?? null,
+    guestName: client ? `${client.first_name} ${client.last_name ?? ''}`.trim() : '—',
+    lines: docLines,
+    gross,
+    commissionPercent: agency?.commission_percent ?? 0,
+    commission,
+    net: gross - commission,
+  }
+}
+
+/** Our invoice number: the issue date as YYYYMMDD, the format gui's template uses
+ *  ("20251029"). Several invoices the same day get -2, -3… (gui: "pas grave on
+ *  incrémente") rather than silently colliding — `invoice_number` is UNIQUE in the
+ *  database, so a collision would be a failed insert, not a cosmetic problem. */
+export function nextInvoiceNumber(issuedOn: string, existing: string[]): string {
+  const base = issuedOn.replace(/-/g, '')
+  const taken = new Set(existing)
+  if (!taken.has(base)) return base
+  for (let n = 2; n <= 99; n++) {
+    const candidate = `${base}-${n}`
+    if (!taken.has(candidate)) return candidate
+  }
+  // 99 invoices in one day is not a real scenario; still, never return a number
+  // that is already taken — the insert would fail and gui would lose the click.
+  return `${base}-${Date.now()}`
 }

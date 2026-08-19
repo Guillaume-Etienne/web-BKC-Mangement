@@ -221,6 +221,38 @@ Tous les composants accounting partagent :
 - Net cash = collected + palmIn + agenciesIn − toutes les sorties.
 - Pas de mutations
 
+### `AgencyBillingPanel` — `accounting/AgencyBillingPanel.tsx`
+**Props :** `{ booking, data, handlers }` — rendu dans la fiche résa de `BookingFinances`,
+et **rien du tout** si la résa n'a pas d'`agency_id`.
+- Les **lignes** de ce qui est dû par l'agence (forfaits du catalogue ou ligne libre), et le
+  rattachement des 4 sources de services (cours, locations, transferts, chambres).
+- **La facture elle-même (2026-08-19)** : « Create the invoice » pose un numéro
+  (`nextInvoiceNumber` = AAAAMMJJ, `-2` si déjà pris le même jour), la date du jour, et **balaie
+  toutes les lignes non facturées de la résa dessus** — une facture = une résa (décision gui).
+  Puis : champ **Agency ref** (le numéro que l'agence nous donne, « ref F&Fly : 134606 »),
+  tampons **Mark sent / Mark paid**, et **🖨️ Print (FR)**.
+- ⚠️ **Les tampons sont sur la FACTURE, plus sur la ligne** : on solde une facture, pas une ligne.
+  `computeAgencyTotals` et `buildCashFlowRows` lisent donc `agency_invoices.paid_at`. Deux
+  sources de vérité pour « payé » étaient exactement la divergence que ce projet a déjà payée.
+- Supprimer une facture **rend ses lignes** au pool « not invoiced » — ça ne annule pas ce que
+  l'agence doit.
+
+### `printAgencyInvoice` — `utils/printAgencyInvoice.ts`
+Le document **en français**, reproduit du modèle réel que Fun & Fly attend
+(`temp/Factu BKC 2025 FFLY Famille Brunet.xlsx`). Page imprimable (même moule que la lettre de
+visa) : **rien n'est envoyé**, gui relit avant d'expédier.
+- **Émetteur = Moçambique Action Sport Lda.** (l'entité légale, comme la lettre de visa) et
+  logo `logo-mas.png` — pas la marque BKC.
+- **En dur (décision gui)** : l'adresse de l'émetteur, l'IBAN/SWIFT, et l'adresse du destinataire
+  indexée par **`agencies.short_code`** — jamais par le nom. Une agence absente de la table
+  imprime son nom **sans adresse** : une mauvaise adresse sur une facture est pire qu'aucune.
+- **Libellés au format de l'agence** (`agencyInvoiceLineLabel`, pur et testé) : un transfert
+  rattaché se nomme lui-même « Transferts aller Maputo - Bilene le 19/10/2026 » ; sinon la note
+  de la ligne ; sinon le libellé du catalogue. Jamais un libellé déduit d'un prix.
+- Totaux : **TOTAL TTC** (brut) · **dont commission X%** · **Total à payer** (net) — les trois,
+  comme le modèle. Calculés par `buildAgencyInvoiceDoc`, avec un test qui verrouille l'égalité
+  avec `computeAgencyTotals` pour que le papier et les KPI ne divergent pas.
+
 ### `ExpensesTab` — `accounting/ExpensesTab.tsx`
 **Props :** `{ data, handlers }`
 - 2 vues : List (tableau + filtres) / Summary (matrice mois × catégorie)

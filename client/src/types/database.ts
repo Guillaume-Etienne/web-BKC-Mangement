@@ -139,6 +139,31 @@ export interface AgencyBillingLine {
   agency_rate_item_id: string | null
   price: number                      // frozen at creation, like Lesson.price_per_hour
   unit_hours: number | null          // frozen at creation, lesson packages only
+  /** The invoice this line was billed on. NULL = owed by the agency but not yet
+   *  drawn up on any invoice — the normal state between entering a service and
+   *  issuing the document. */
+  agency_invoice_id: string | null
+  /** @deprecated Stamps moved to `agency_invoices` on 2026-08-19: one settles an
+   *  invoice, not a line. Both columns were empty on TEST and PROD, and are
+   *  dropped by `2026-08-19b`. Nothing should read them. */
+  invoiced_at: string | null
+  /** @deprecated see `invoiced_at`. */
+  paid_at: string | null
+  notes: string | null
+}
+
+/** One invoice sent to a partner agency, for one booking (gui: "une factu = une
+ *  résa"). Shaped after the real Fun & Fly template, which prints two numbers:
+ *  ours and theirs — see `2026-08-19_agency_invoices.sql`. */
+export interface AgencyInvoice {
+  id: string
+  agency_id: string
+  booking_id: string
+  /** Ours: issue date as YYYYMMDD, suffixed -2, -3… for several the same day. */
+  invoice_number: string
+  /** Theirs, printed as "ref F&Fly : 134606". NULL until the agency provides it. */
+  agency_ref: string | null
+  issued_on: string
   invoiced_at: string | null
   paid_at: string | null
   notes: string | null

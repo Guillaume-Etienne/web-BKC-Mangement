@@ -6,7 +6,7 @@ import type {
   DiningEvent, EquipmentRental, EventAttendee, ExternalAccommodationBooking,
   Instructor, InstructorDebt, InstructorPayment, Lesson, LessonRateOverride, LessonType, PriceItem, PriceTier,
   Payment, Room, RoomRate, TaxiTrip, BillableType,
-  Agency, AgencyRateItem, AgencyBillingLine,
+  Agency, AgencyRateItem, AgencyBillingLine, AgencyInvoice,
 } from '../../types/database'
 import { lessonBillable } from '../../types/database'
 import type { SharedAccountingData } from './types'
@@ -208,7 +208,7 @@ export function mkAgencyLine(over: Partial<AgencyBillingLine> = {}): AgencyBilli
   return {
     id: 'abl1', booking_id: 'bk1', agency_id: 'ag1', participant_id: 'p1',
     agency_rate_item_id: 'ari1', price: 450, unit_hours: 10,
-    invoiced_at: null, paid_at: null, notes: null,
+    agency_invoice_id: null, invoiced_at: null, paid_at: null, notes: null,
     ...over,
   }
 }
@@ -229,4 +229,15 @@ export function mkHouseSetup(fullHouseRate: number | null = 100) {
     ...(fullHouseRate === null ? [] : [mkRoomRate({ id: 'rFull', room_id: 'full_accH', price_per_night: fullHouseRate })]),
   ]
   return { acc, roomF, roomB, rates }
+}
+
+/** One invoice, with its lines already attached by the caller. Stamps live here
+ *  since 2026-08-19 — a test that marks a LINE paid is testing the old model. */
+export function mkAgencyInvoice(over: Partial<AgencyInvoice> = {}): AgencyInvoice {
+  return {
+    id: 'inv1', agency_id: 'ag1', booking_id: 'bk1',
+    invoice_number: '20260819', agency_ref: null, issued_on: '2026-08-19',
+    invoiced_at: null, paid_at: null, notes: null,
+    ...over,
+  }
 }

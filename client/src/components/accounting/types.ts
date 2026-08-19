@@ -5,7 +5,7 @@ import type {
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   DiningEvent, ActivityBooking, ActivityPayment,
-  Agency, AgencyRateItem, AgencyBillingLine,
+  Agency, AgencyRateItem, AgencyBillingLine, AgencyInvoice,
 } from '../../types/database'
 
 export interface SharedAccountingData {
@@ -43,6 +43,7 @@ export interface SharedAccountingData {
   agencies:                  Agency[]
   agencyRateItems:           AgencyRateItem[]   // per-agency catalogue, priced at line creation
   agencyBillingLines:        AgencyBillingLine[]  // what a partner agency owes us, not the client
+  agencyInvoices:            AgencyInvoice[]      // the documents themselves — number, agency ref, invoiced/paid stamps
 }
 
 export interface AccountingHandlers {
@@ -75,6 +76,11 @@ export interface AccountingHandlers {
   addAgencyBillingLine:    (l: AgencyBillingLine)  => void
   updateAgencyBillingLine: (l: AgencyBillingLine)  => void
   deleteAgencyBillingLine: (id: string)            => void
+  /** The invoice itself (2026-08-19). Deleting one hands its lines back to the
+   *  "not yet invoiced" pool — it never destroys what the agency owes. */
+  addAgencyInvoice:        (i: AgencyInvoice)      => void
+  updateAgencyInvoice:     (i: AgencyInvoice)      => void
+  deleteAgencyInvoice:     (id: string)            => void
   /** Attach/detach one service row to an invoice line. `lineId === null` gives it
    *  back to the client. The room variant is keyed by (booking, room) because
    *  booking_room_prices has no id of its own. */

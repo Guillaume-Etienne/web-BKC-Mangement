@@ -2,10 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { buildCashFlowRows, filterRowsByPeriod, sumCashFlowRows, runningBalances } from './cashFlowUtils'
 import { computeSeasonTotals } from './utils'
 import type { MonthRow } from './cashFlowUtils'
+import type { AgencyInvoice } from '../../types/database'
 import {
   mkData, mkBooking, mkBookingRoom, mkBookingRoomPrice, mkHouseSetup,
   mkPayment, mkTaxiTrip, mkActivityBooking, mkInstructorPayment,
-  mkAgency, mkAgencyLine,
+  mkAgency, mkAgencyLine, mkAgencyInvoice,
 } from './utils.fixtures'
 
 /** Pick one month out of the result set. */
@@ -364,10 +365,13 @@ describe('Palmeiras free entries', () => {
 // the money arrived.
 describe('buildCashFlowRows — partner agencies', () => {
   /** One booking checking in November, one 450 € line at 20 % commission → 360 € net. */
-  const withAgency = (lineOver = {}) => mkData({
+  // The stamps live on the INVOICE (2026-08-19), so the cash follows the invoice's
+  // paid_at, never a line's. A line with no invoice at all is not yet billed.
+  const withAgency = (invoiceOver: Partial<AgencyInvoice> | null = {}) => mkData({
     agencies: [mkAgency({ commission_percent: 20 })],
     bookings: [mkBooking({ id: 'bk1', check_in: '2026-11-04', check_out: '2026-11-11' })],
-    agencyBillingLines: [mkAgencyLine({ price: 450, ...lineOver })],
+    agencyInvoices: invoiceOver ? [mkAgencyInvoice(invoiceOver)] : [],
+    agencyBillingLines: [mkAgencyLine({ price: 450, agency_invoice_id: invoiceOver ? 'inv1' : null })],
   })
 
   it('books the cash on paid_at, net of commission — not on the booking month', () => {
@@ -393,7 +397,8 @@ describe('buildCashFlowRows — partner agencies', () => {
     const rows = buildCashFlowRows(mkData({
       agencies: [mkAgency()],
       bookings: [mkBooking({ id: 'bk1', status: 'cancelled' })],
-      agencyBillingLines: [mkAgencyLine({ paid_at: '2026-12-09' })],
+      agencyInvoices: [mkAgencyInvoice({ paid_at: '2026-12-09' })],
+      agencyBillingLines: [mkAgencyLine({ agency_invoice_id: 'inv1' })],
     }))
     expect(sumCashFlowRows(rows).agenciesIn).toBe(0)
   })
@@ -427,9 +432,14 @@ describe('buildCashFlowRows — partner agencies', () => {
         mkAgency({ id: 'ag2', name: 'Adekua', commission_percent: 10, short_code: 'Adek' }),
       ],
       bookings: [mkBooking({ id: 'bk1', check_in: '2026-11-04', check_out: '2026-11-11' })],
+      // One invoice per agency, each settled in its own month.
+      agencyInvoices: [
+        mkAgencyInvoice({ id: 'inv1', agency_id: 'ag1', invoice_number: '20261201', paid_at: '2026-12-09' }),
+        mkAgencyInvoice({ id: 'inv2', agency_id: 'ag2', invoice_number: '20270101', paid_at: '2027-01-05' }),
+      ],
       agencyBillingLines: [
-        mkAgencyLine({ id: 'abl1', agency_id: 'ag1', price: 450, paid_at: '2026-12-09' }), // 360
-        mkAgencyLine({ id: 'abl2', agency_id: 'ag2', price: 200, paid_at: '2027-01-05' }), // 180
+        mkAgencyLine({ id: 'abl1', agency_id: 'ag1', price: 450, agency_invoice_id: 'inv1' }), // 360
+        mkAgencyLine({ id: 'abl2', agency_id: 'ag2', price: 200, agency_invoice_id: 'inv2' }), // 180
       ],
     }))
     expect(month(rows, '2026-12')?.agenciesIn).toBe(360)

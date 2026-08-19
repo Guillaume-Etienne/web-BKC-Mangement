@@ -69,7 +69,7 @@ export function buildCashFlowRows(data: SharedAccountingData): MonthRow[] {
     payments, expenses, palmeirasRents, palmeirasReversals, palmeirasEntries,
     bookings, instructorPayments, taxiTrips, taxiManagerPayments,
     activityBookings, activityPayments, eurMznRate,
-    agencyBillingLines, agencies,
+    agencyBillingLines, agencies, agencyInvoices,
   } = data
 
   const idx: Record<string, MonthRow> = {}
@@ -142,16 +142,20 @@ export function buildCashFlowRows(data: SharedAccountingData): MonthRow[] {
   //  - `billed` follows the BOOKING's check-in month, because an invoice line
   //    carries no date of its own (same rule as the season filter on the Agencies
   //    tab — the figures have to match). Net of commission, like the dashboard.
-  //  - `agenciesIn` follows `paid_at`, the real settlement date. A line that is
-  //    invoiced but unpaid adds to `billed` and nothing to the cash, exactly as
-  //    an unpaid client booking does.
+  //  - `agenciesIn` follows the INVOICE's `paid_at`, the real settlement date —
+  //    since 2026-08-19 that stamp lives on `agency_invoices`, because one settles
+  //    an invoice, not a line. A line invoiced but unpaid, or not yet drawn up on
+  //    any invoice at all, adds to `billed` and nothing to the cash, exactly as an
+  //    unpaid client booking does.
   const cancelledBookings = new Set(bookings.filter(b => b.status === 'cancelled').map(b => b.id))
+  const invoiceById = new Map(agencyInvoices.map(i => [i.id, i]))
   for (const l of agencyBillingLines) {
     if (cancelledBookings.has(l.booking_id)) continue
     const net = l.price - agencyCommission(l, agencies)
     const booking = bookings.find(b => b.id === l.booking_id)
     if (booking) ensure(booking.check_in.slice(0, 7)).billed += net
-    if (l.paid_at) ensure(l.paid_at.slice(0, 7)).agenciesIn += net
+    const paidAt = l.agency_invoice_id ? invoiceById.get(l.agency_invoice_id)?.paid_at : null
+    if (paidAt) ensure(paidAt.slice(0, 7)).agenciesIn += net
   }
 
   for (const row of Object.values(idx)) {

@@ -10,9 +10,10 @@ import {
   computeSeasonTotals, suggestDeposit, fmtEur, fmtMonth,
   clientParticipantIds, cumulativeHoursBefore, getTierRate,
   isAgencyBilled, agencyLineHoursUsed, computeAgencyTotals, reFreezeInstructorRate, buildAgencyInvoiceRows, agencyMarker,
+  nextInvoiceNumber, agencyInvoiceLineLabel, buildAgencyInvoiceDoc,
 } from './utils'
 import {
-  mkAccommodation, mkActivityBooking, mkAgency, mkAgencyLine, mkAgencyRateItem, mkAttendee, mkBooking, mkBookingRoom, mkBookingRoomPrice,
+  mkAccommodation, mkActivityBooking, mkAgency, mkAgencyLine, mkAgencyInvoice, mkAgencyRateItem, mkAttendee, mkBooking, mkBookingRoom, mkBookingRoomPrice,
   mkClient,
   mkData, mkDiningEvent, mkExternalBooking, mkHouseSetup,
   mkInstructor, mkInstructorDebt, mkInstructorPayment, mkLesson, mkLessonOverride, mkLessonPrices,
@@ -1299,18 +1300,38 @@ describe('computeAgencyTotals', () => {
   })
 
   it('splits paid from outstanding, both net of commission', () => {
+    // The stamps are read from the INVOICE (2026-08-19), so two invoices are
+    // needed to have one paid and one merely sent.
     const data = mkData({
       bookings: [mkBooking()],
       agencies: [mkAgency()],
+      agencyInvoices: [
+        mkAgencyInvoice({ id: 'inv1', invoice_number: '20261030', invoiced_at: '2026-10-30T10:00:00Z', paid_at: '2026-11-05T10:00:00Z' }),
+        mkAgencyInvoice({ id: 'inv2', invoice_number: '20261030-2', invoiced_at: '2026-10-30T10:00:00Z' }),
+      ],
       agencyBillingLines: [
-        mkAgencyLine({ id: 'abl1', price: 450, invoiced_at: '2026-10-30T10:00:00Z', paid_at: '2026-11-05T10:00:00Z' }),
-        mkAgencyLine({ id: 'abl2', price: 200, invoiced_at: '2026-10-30T10:00:00Z' }),
+        mkAgencyLine({ id: 'abl1', price: 450, agency_invoice_id: 'inv1' }),
+        mkAgencyLine({ id: 'abl2', price: 200, agency_invoice_id: 'inv2' }),
       ],
     })
     const t = computeAgencyTotals(data)
     expect(t.invoiced).toBe(650)     // gross, that is what the invoice says
     expect(t.paid).toBe(360)         // 450 − 20%
     expect(t.outstanding).toBe(160)  // 200 − 20%
+  })
+
+  it('treats a line on no invoice as neither invoiced nor paid', () => {
+    // The normal state between billing a service to the agency and drawing up the
+    // paper — it is owed, it is outstanding, and it was never sent.
+    const data = mkData({
+      bookings: [mkBooking()],
+      agencies: [mkAgency()],
+      agencyBillingLines: [mkAgencyLine({ price: 450, agency_invoice_id: null })],
+    })
+    const t = computeAgencyTotals(data)
+    expect(t.invoiced).toBe(0)
+    expect(t.paid).toBe(0)
+    expect(t.outstanding).toBe(360)
   })
 
   it('drops lines belonging to a cancelled booking', () => {
@@ -1553,5 +1574,142 @@ describe('computeSeasonTotals with agency billing', () => {
     expect(t.agencyRev).toBe(0)
     expect(t.totalRevenue).toBe(600)
     expect(t.billedNet).toBe(600)
+  })
+})
+
+// ── The invoice document (2026-08-19) ────────────────────────────────────────
+// Shaped after the real Fun & Fly template. This is what leaves the building with
+// money on it, so the labels and the totals are pinned here.
+describe('nextInvoiceNumber', () => {
+  it('is the issue date as YYYYMMDD, like gui template', () => {
+    expect(nextInvoiceNumber('2025-10-29', [])).toBe('20251029')
+  })
+
+  it('suffixes a second invoice issued the same day instead of colliding', () => {
+    // `invoice_number` is UNIQUE in the database: a collision is a failed insert.
+    expect(nextInvoiceNumber('2025-10-29', ['20251029'])).toBe('20251029-2')
+    expect(nextInvoiceNumber('2025-10-29', ['20251029', '20251029-2'])).toBe('20251029-3')
+  })
+
+  it('ignores numbers from other days', () => {
+    expect(nextInvoiceNumber('2025-10-29', ['20251028', '20251030'])).toBe('20251029')
+  })
+})
+
+describe('agencyInvoiceLineLabel', () => {
+  const rateItems = [mkAgencyRateItem({ id: 'ari1', label: 'Pack cours Privé 10x 2h' })]
+
+  it('names an attached transfer in the template French, with its date', () => {
+    const line = mkAgencyLine({ id: 'abl1', agency_rate_item_id: null })
+    const data = { taxiTrips: [mkTaxiTrip({ date: '2025-10-18', type: 'aero-to-center' as const, agency_billing_line_id: 'abl1' })], agencyRateItems: rateItems }
+    expect(agencyInvoiceLineLabel(line, data)).toBe('Transferts aller Maputo - Bilene le 18/10/2025')
+  })
+
+  it('says "retour" for the way back', () => {
+    const line = mkAgencyLine({ id: 'abl1', agency_rate_item_id: null })
+    const data = { taxiTrips: [mkTaxiTrip({ date: '2025-10-28', type: 'center-to-aero' as const, agency_billing_line_id: 'abl1' })], agencyRateItems: rateItems }
+    expect(agencyInvoiceLineLabel(line, data)).toBe('Transferts retour Bilene - Maputo le 28/10/2025')
+  })
+
+  it('prefers the line note over the rate card, since the note exists for that', () => {
+    const line = mkAgencyLine({ notes: 'Pack cours Privé 10x 2h — Loic' })
+    expect(agencyInvoiceLineLabel(line, { taxiTrips: [], agencyRateItems: rateItems }))
+      .toBe('Pack cours Privé 10x 2h — Loic')
+  })
+
+  it('falls back to the rate card label', () => {
+    const line = mkAgencyLine({ notes: null })
+    expect(agencyInvoiceLineLabel(line, { taxiTrips: [], agencyRateItems: rateItems }))
+      .toBe('Pack cours Privé 10x 2h')
+  })
+
+  it('never invents a label when nothing names the line', () => {
+    const line = mkAgencyLine({ agency_rate_item_id: null, notes: null })
+    expect(agencyInvoiceLineLabel(line, { taxiTrips: [], agencyRateItems: [] })).toBe('Prestation')
+  })
+})
+
+describe('buildAgencyInvoiceDoc', () => {
+  /** The real #022 invoice: a 450 € package plus two 220 € transfers, 20 %. */
+  const realCase = () => mkData({
+    agencies: [mkAgency({ id: 'ag1', name: 'Fun & Fly', commission_percent: 20, short_code: 'FF' })],
+    bookings: [mkBooking({ id: 'bk1', booking_number: 22, client_id: 'cl1' })],
+    clients: [mkClient({ id: 'cl1', first_name: 'Loic', last_name: 'SENE' })],
+    agencyRateItems: [
+      mkAgencyRateItem({ id: 'ari1', label: 'Pack cours Privé 10h', price: 450, unit_hours: 10 }),
+      mkAgencyRateItem({ id: 'ari2', label: 'Transfert Maputo ↔ Bilene', price: 220, unit_hours: null }),
+    ],
+    agencyInvoices: [mkAgencyInvoice({ id: 'inv1', invoice_number: '20260819', agency_ref: '134606', issued_on: '2026-08-19' })],
+    agencyBillingLines: [
+      mkAgencyLine({ id: 'abl1', agency_rate_item_id: 'ari1', price: 450, agency_invoice_id: 'inv1' }),
+      mkAgencyLine({ id: 'abl2', agency_rate_item_id: 'ari2', price: 220, unit_hours: null, agency_invoice_id: 'inv1' }),
+      mkAgencyLine({ id: 'abl3', agency_rate_item_id: 'ari2', price: 220, unit_hours: null, agency_invoice_id: 'inv1' }),
+    ],
+    taxiTrips: [
+      mkTaxiTrip({ id: 't1', date: '2026-10-19', type: 'aero-to-center', agency_billing_line_id: 'abl2' }),
+      mkTaxiTrip({ id: 't2', date: '2026-10-28', type: 'center-to-aero', agency_billing_line_id: 'abl3' }),
+    ],
+  })
+
+  it('totals gross, commission and net exactly as the template does', () => {
+    const doc = buildAgencyInvoiceDoc('inv1', realCase())!
+    expect(doc.gross).toBe(890)
+    expect(doc.commission).toBe(178)
+    expect(doc.net).toBe(712)          // "Total à payer"
+    expect(doc.commissionPercent).toBe(20)
+  })
+
+  it('agrees with computeAgencyTotals — the KPIs and the paper must not diverge', () => {
+    const data = realCase()
+    const doc = buildAgencyInvoiceDoc('inv1', data)!
+    const totals = computeAgencyTotals(data, { bookingId: 'bk1' })
+    expect(doc.gross).toBe(totals.gross)
+    expect(doc.net).toBe(totals.net)
+  })
+
+  it('labels each line the way the agency reads it', () => {
+    const doc = buildAgencyInvoiceDoc('inv1', realCase())!
+    expect(doc.lines.map(l => l.label)).toEqual([
+      'Pack cours Privé 10h',
+      'Transferts aller Maputo - Bilene le 19/10/2026',
+      'Transferts retour Bilene - Maputo le 28/10/2026',
+    ])
+  })
+
+  it('carries the number, the agency ref and the guest', () => {
+    const doc = buildAgencyInvoiceDoc('inv1', realCase())!
+    expect(doc.invoice.invoice_number).toBe('20260819')
+    expect(doc.invoice.agency_ref).toBe('134606')
+    expect(doc.bookingNumber).toBe(22)
+    expect(doc.guestName).toBe('Loic SENE')
+  })
+
+  it('leaves out the lines of another invoice', () => {
+    const data = realCase()
+    data.agencyBillingLines[2] = { ...data.agencyBillingLines[2], agency_invoice_id: 'other' }
+    const doc = buildAgencyInvoiceDoc('inv1', data)!
+    expect(doc.lines).toHaveLength(2)
+    expect(doc.gross).toBe(670)
+  })
+
+  it('returns null on an invoice with no line — better no paper than an empty one', () => {
+    const data = realCase()
+    data.agencyBillingLines = []
+    expect(buildAgencyInvoiceDoc('inv1', data)).toBeNull()
+  })
+
+  it('returns null on an unknown invoice instead of throwing', () => {
+    expect(buildAgencyInvoiceDoc('nope', realCase())).toBeNull()
+  })
+
+  it('survives a deleted booking and a nameless client', () => {
+    // Real data breaks joins: the panel must not crash on the way to the printer.
+    const data = realCase()
+    data.bookings = []
+    data.clients = []
+    const doc = buildAgencyInvoiceDoc('inv1', data)!
+    expect(doc.bookingNumber).toBeNull()
+    expect(doc.guestName).toBe('—')
+    expect(doc.gross).toBe(890)
   })
 })

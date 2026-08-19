@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react'
-import type { SharedAccountingData, AccountingHandlers } from './types'
-import type { AgencyBillingLine } from '../../types/database'
+import type { SharedAccountingData } from './types'
 import { buildAgencyInvoiceRows, computeAgencyTotals, fmtEur } from './utils'
 import { filterDataToSeason } from './seasonFilter'
-import { todayISO, fmtDate } from '../../utils/dates'
+import { fmtDate } from '../../utils/dates'
 
-interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
+// Read-only screen: it reports, it never stamps. The invoice — number, agency
+// ref, stamps, printable document — is handled from the booking it belongs to.
+interface Props { data: SharedAccountingData }
 
 /** Invoice lines carry no date of their own — they belong to a booking, and a
  *  booking belongs to the season containing its check-in. So the period filter
@@ -13,7 +14,7 @@ interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
  *  here and on the dashboard must always come from the same slice of data. */
 type Period = 'all' | 'season'
 
-export default function AgencyBillingTab({ data, handlers }: Props) {
+export default function AgencyBillingTab({ data }: Props) {
   const [period, setPeriod]     = useState<Period>('all')
   const [agencyId, setAgencyId] = useState<string>('')
 
@@ -26,9 +27,6 @@ export default function AgencyBillingTab({ data, handlers }: Props) {
   const filter = agencyId ? { agencyId } : undefined
   const rows   = useMemo(() => buildAgencyInvoiceRows(scoped, filter), [scoped, agencyId])
   const totals = useMemo(() => computeAgencyTotals(scoped, filter), [scoped, agencyId])
-
-  const stamp = (l: AgencyBillingLine, field: 'invoiced_at' | 'paid_at') =>
-    handlers.updateAgencyBillingLine({ ...l, [field]: l[field] ? null : todayISO() })
 
   const day = (ts: string | null) => (ts ? fmtDate(ts.slice(0, 10)) : null)
 
@@ -123,23 +121,39 @@ export default function AgencyBillingTab({ data, handlers }: Props) {
                         {fmtEur(r.net)}
                         <span className="block text-xs text-purple-500 dark:text-purple-400">−{fmtEur(r.commission)} ({r.commissionPercent}%)</span>
                       </td>
+                      {/* Read-only since 2026-08-19: the stamps belong to the
+                          invoice, and an invoice is drawn up from the booking
+                          (Accounting → Bookings → 🤝 Agency billing), where the
+                          number, the agency ref and the printable document live.
+                          Stamping from here would have meant guessing which
+                          invoice a line belongs to. */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex gap-1">
-                          <button onClick={() => stamp(r.line, 'invoiced_at')}
-                            title={r.line.invoiced_at ? 'Click to un-mark' : 'Mark as invoiced'}
-                            className={`px-2 py-0.5 rounded text-xs font-medium ${r.line.invoiced_at
-                              ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
-                              : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
-                            {r.line.invoiced_at ? `✓ Invoiced ${day(r.line.invoiced_at)}` : 'Invoice'}
-                          </button>
-                          <button onClick={() => stamp(r.line, 'paid_at')}
-                            title={r.line.paid_at ? 'Click to un-mark' : 'Mark as paid'}
-                            className={`px-2 py-0.5 rounded text-xs font-medium ${r.line.paid_at
-                              ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
-                              : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
-                            {r.line.paid_at ? `✓ Paid ${day(r.line.paid_at)}` : 'Paid'}
-                          </button>
-                        </div>
+                        {!r.invoice ? (
+                          <span className="text-xs text-gray-400 dark:text-gray-500 italic">not invoiced</span>
+                        ) : (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                              🧾 {r.invoice.invoice_number}
+                              {r.invoice.agency_ref && (
+                                <span className="ml-1 text-gray-400 dark:text-gray-500">· ref {r.invoice.agency_ref}</span>
+                              )}
+                            </span>
+                            <span className="flex gap-1">
+                              {r.invoice.invoiced_at && (
+                                <span className="px-1.5 py-0.5 rounded text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                                  sent {day(r.invoice.invoiced_at)}
+                                </span>
+                              )}
+                              {r.invoice.paid_at
+                                ? <span className="px-1.5 py-0.5 rounded text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+                                    paid {day(r.invoice.paid_at)}
+                                  </span>
+                                : <span className="px-1.5 py-0.5 rounded text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
+                                    unpaid
+                                  </span>}
+                            </span>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )

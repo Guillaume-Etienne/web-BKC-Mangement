@@ -6,7 +6,7 @@ import type {
   PriceItem, Equipment, EquipmentRental, TaxiTrip, TaxiManagerPayment, Season, Payment,
   InstructorDebt, InstructorPayment, LessonRateOverride, Expense, PalmeirasRent,
   PalmeirasReversal, PalmeirasEntry, ActivityBooking, ActivityPayment, TaxiPricingDefaults,
-  PriceTier, Agency, AgencyRateItem, AgencyBillingLine,
+  PriceTier, Agency, AgencyRateItem, AgencyBillingLine, AgencyInvoice,
 } from '../../../client/src/types/database.js'
 
 /** Every table `SharedAccountingData` needs, fetched in parallel. This is the
@@ -21,7 +21,7 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     priceItems, equipment, equipmentRentals, taxiTrips, taxiManagerPayments, taxiPricingDefaults,
     seasons, payments, instructorDebts, instructorPayments, lessonRateOverrides, expenses,
     palmeirasRents, palmeirasReversals, palmeirasEntries, activityBookings, activityPayments,
-    priceTiers, agencies, agencyRateItems, agencyBillingLines,
+    priceTiers, agencies, agencyRateItems, agencyBillingLines, agencyInvoices,
   ] = await Promise.all([
     selectAll<Accommodation>('accommodations'),
     selectAll<BookingParticipant>('booking_participants'),
@@ -61,6 +61,7 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     selectAll<Agency>('agencies'),                          // partner agencies, 2026-08-17
     selectAll<AgencyRateItem>('agency_rate_items'),
     selectAll<AgencyBillingLine>('agency_billing_lines'),
+    selectAll<AgencyInvoice>('agency_invoices'),          // the documents, 2026-08-19
   ])
 
   return {
@@ -70,7 +71,7 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     eurMznRate: taxiPricingDefaults[0]?.eur_mzn_rate ?? 65,
     seasons, payments, instructorDebts, instructorPayments, lessonRateOverrides, expenses,
     palmeirasRents, palmeirasReversals, palmeirasEntries, activityBookings, activityPayments,
-    priceTiers, agencies, agencyRateItems, agencyBillingLines,
+    priceTiers, agencies, agencyRateItems, agencyBillingLines, agencyInvoices,
   }
 }
 

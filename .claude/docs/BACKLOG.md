@@ -49,6 +49,8 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
+| **`2026-08-19_agency_invoices.sql`** | **⬜ À PASSER (TEST + PROD).** La **génération de facture agence** : table `agency_invoices` (notre n° `AAAAMMJJ` unique, la **réf que l'agence nous donne**, date, tampons sent/paid) + `agency_billing_lines.agency_invoice_id`. **Aucun DROP → ne peut rien casser.** Les tampons `invoiced_at`/`paid_at` **déménagent de la ligne vers la facture** (on solde une facture, pas une ligne) — vérifié avant d'écrire : **aucune ligne ne portait de tampon sur les 2 bases**, rien n'est perdu. Admin-only (REVOKE anon). ⚠️ Table admin-only → **le curl anon ne prouve rien**, vérifier en service_role ; recette en bas du fichier. | ⬜ | ⬜ |
+| **`2026-08-19b`** *(pas encore écrite)* | Le `DROP` des colonnes `invoiced_at`/`paid_at` devenues mortes sur `agency_billing_lines`, **après** que Vercel ait déployé le code qui ne les lit plus. Même prudence en 2 temps que la Phase 4. Sans urgence : deux colonnes vides ne gênent personne, mais les laisser indéfiniment finirait par tromper quelqu'un. | ⬜ | ⬜ |
 | ~~`2026-08-18b_agency_price_redaction_columns.sql`~~ | Les 4 colonnes générées `share_price*` (`lessons`, `equipment_rentals`, `taxi_trips`, `booking_room_prices`), NULL quand la ligne est facturée à une agence. Phase 4 des agences. Vérifiées en service_role sur les 2 bases → **HTTP 200 sur les 4**. | ✅ 2026-08-18 | ✅ 2026-08-18 |
 | ~~`2026-08-18c_agency_price_revoke.sql`~~ | Le `REVOKE`/`GRANT` par colonne qui **ferme réellement la fuite**. ✅ **Vérifié le 2026-08-19 avec de VRAIS tokens** (client #021, driver, taxi_manager) sur les 2 bases — la seule preuve valable ici, un curl anon nu ne prouve rien. **Colonnes brutes fermées** : `lessons.price_per_hour`, **`lessons.instructor_rate` (paie moniteur)**, `equipment_rentals.price`, `taxi_trips.price_eur`, `booking_room_prices.price_per_night` et `lessons?select=*` → **42501** partout, y compris avec un token driver/manager. **Et les pages marchent** : les 4 `select()` réels de `ClientSharePage` → **200 avec données** (l'alias fonctionne : `price_eur: 120` vient de `share_price_eur`), Driver et TaxiManager → **200**. | ✅ 2026-08-18 | ✅ 2026-08-18 |
 | ~~`2026-08-18_agency_short_code.sql`~~ | Ajoute `agencies.short_code` — le badge `(FF)` affiché à côté du nom du client dans le planning, les cartes Daily/Forecast, la liste Bookings et la compta. Sème les 3 codes existants (`FF`, `Adek`, `Decat`) par `ILIKE` sur le nom : **backfill unique dont le résultat est stocké**, pas une correspondance par nom à l'exécution (une agence non reconnue n'aura simplement pas de badge, à saisir dans Options → 🤝 Agencies). **Pas de GRANT anon** : `agencies` reste admin-only, sinon le planning Forecast partagé exposerait le nom commercial des partenaires. ⚠️ **Le curl anon ne prouve RIEN ici** (table admin-only : `42501` avant comme après) — vérifiée le 2026-08-18 en **service_role** sur les deux bases : `select=short_code` répond, contrôle négatif `colonne_bidon` → **42703**. PROD porte les 3 codes semés (`Adekua`→`Adek` 12 %, `Decathlon`→`Decat` 10 %, `Fun & Fly`→`FF` 20 %) ; TEST rend `[]`, normal, il a été nettoyé après la campagne du 18. | ✅ 2026-08-18 | ✅ 2026-08-18 |
@@ -1071,6 +1073,43 @@ transferts sont sortis des totaux client), le total facturé aux clients a baiss
 **chaque transfert garde son coût chauffeur de 6 000 MZN** — le piège connu, correctement géré.
 Les deux lignes de transfert portent une **note** (« Arrival transfer 19/10 », « Departure transfer
 28/10 ») parce qu'elles s'affichent sinon à l'identique.
+
+### 🧾 GÉNÉRATION DE FACTURE — livrée le 2026-08-19 (à passer + tester)
+
+gui demandait « on a fait la partie génération de facture ? » — **non**, jusqu'ici l'app savait ce
+qui était **dû** mais n'avait aucune notion de facture (ni numéro, ni référence, ni document) ;
+les boutons « Invoice/Paid » n'étaient que des tampons de date. Conçu à partir du **vrai modèle**
+qu'attend Fun & Fly, décodé depuis `temp/Factu BKC 2025 FFLY Famille Brunet.xlsx`.
+
+**Ce que le modèle a appris** (et confirmé indépendamment) : les 2 transferts y sont facturés
+**220 € chacun** → la réponse de gui du 19/08 (« par trajet ») est prouvée par sa propre facture
+2025. Une **ligne par voyageur** (3 packs privés + 2 semi-privés = 5 personnes). **Pas de TVA** à
+calculer : « TOTAL TTC » est la somme des lignes. Et **deux numéros**, à ne pas confondre.
+
+**Décisions de gui (2026-08-19)** : ① `INVOICE N°` = **la date en AAAAMMJJ**, on **incrémente**
+si deux le même jour · ② une **vraie table** plutôt qu'une colonne sur les lignes · ③ **une
+facture = une résa** · ④ adresses et IBAN **en dur** · ⑤ libellés **au format F&Fly**.
+
+- **Modèle** : `agency_invoices` + `agency_billing_lines.agency_invoice_id`. Les **tampons
+  déménagent sur la facture** — on solde une facture, pas une ligne ; deux sources de vérité pour
+  « payé » sont exactement la divergence que ce projet a déjà payée. `computeAgencyTotals` et la
+  colonne « Agencies » du CashFlow lisent donc `agency_invoices.paid_at`.
+- **Pas de contrainte `UNIQUE (booking_id, agency_id)`**, volontairement : le bloc de 4h de #022
+  arrive plus tard, et si la première facture est déjà partie il faudra une seconde facture sur la
+  même résa — la contrainte aurait bloqué le cas qu'on sait déjà venir.
+- **Le document** (`printAgencyInvoice.ts`) : FR, en-tête **Moçambique Action Sport Lda.** (entité
+  légale, comme la lettre de visa), destinataire indexé par **`short_code`** et **jamais par le
+  nom** — une agence inconnue imprime son nom sans adresse, parce qu'une mauvaise adresse sur une
+  facture est pire qu'aucune. Rien n'est envoyé : page imprimable, relue avant expédition.
+- **Libellés au format agence** : un transfert rattaché se nomme « Transferts aller Maputo -
+  Bilene le 19/10/2026 » ; sinon la note de la ligne (le champ existe pour ça) ; sinon le
+  catalogue. **16 tests** sur `nextInvoiceNumber`, `agencyInvoiceLineLabel` et
+  `buildAgencyInvoiceDoc`, dont un qui verrouille `doc.gross === computeAgencyTotals().gross`.
+  **371 tests.**
+- **`mcp-server` répercuté** (`fetchAccountingBundle`) — la leçon documentée : toute collection
+  ajoutée à `SharedAccountingData` doit y aller aussi.
+- ⬜ **Reste : passer la migration, puis vérifier à l'écran** — créer la facture de #022, saisir
+  la réf F&Fly, imprimer, et comparer au modèle Excel.
 
 **⬜ Ce qui reste sur cette facture :**
 - ⏸️ **Le second bloc de cours (4h, 25→26/10)** : pas de forfait 4h dans la grille, **gui verra le

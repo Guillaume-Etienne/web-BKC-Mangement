@@ -8,7 +8,7 @@ import { useInstructors } from '../hooks/useInstructors'
 import { useEquipment, useEquipmentRentals } from '../hooks/useEquipment'
 import { useTaxiTrips } from '../hooks/useTaxis'
 import { useActivityBookings, useActivityPayments } from '../hooks/useActivities'
-import { useAgencies, useAgencyRateItems, useAgencyBillingLines } from '../hooks/useAgencies'
+import { useAgencies, useAgencyRateItems, useAgencyBillingLines, useAgencyInvoices } from '../hooks/useAgencies'
 import { useTable } from '../hooks/useSupabase'
 import { usePriceTiers } from '../hooks/usePriceTiers'
 import { persist } from '../components/accounting/persist'
@@ -29,7 +29,7 @@ import type {
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   TaxiPricingDefaults, TaxiManagerPayment,
   DiningEvent, BookingRoomPrice, RoomRate, PriceItem, Lesson,
-  AgencyBillingLine, TaxiTrip,
+  AgencyBillingLine, AgencyInvoice, TaxiTrip,
 } from '../types/database'
 
 type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'agencies' | 'cashflow' | 'expenses' | 'events' | 'unverified'
@@ -85,6 +85,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   // ── Mutable state (Supabase) ──────────────────────────────────────────────
   const { data: paymentsData }           = usePayments()
   const { data: agencyBillingLinesData } = useAgencyBillingLines()
+  const { data: agencyInvoicesData }     = useAgencyInvoices()
   const { data: instructorDebtsData }    = useTable<InstructorDebt>('instructor_debts', { order: 'date', ascending: false })
   const { data: instructorPaymentsData } = useTable<InstructorPayment>('instructor_payments', { order: 'date', ascending: false })
   const { data: lessonOverridesData }    = useTable<LessonRateOverride>('lesson_rate_overrides')
@@ -96,6 +97,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const [lessons,            setLessons]            = useState<Lesson[]>([])
   const [taxiTrips,          setTaxiTrips]          = useState<TaxiTrip[]>([])
   const [agencyBillingLines, setAgencyBillingLines] = useState<AgencyBillingLine[]>([])
+  const [agencyInvoices, setAgencyInvoices] = useState<AgencyInvoice[]>([])
   const [bookingRoomPrices,  setBookingRoomPrices]  = useState<BookingRoomPrice[]>([])
   const [payments,           setPayments]           = useState<Payment[]>([])
   const [instructorDebts,    setInstructorDebts]    = useState<InstructorDebt[]>([])
@@ -109,6 +111,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   useEffect(() => setLessons(lessonsData),                     [lessonsData])
   useEffect(() => setTaxiTrips(taxiTripsData),                 [taxiTripsData])
   useEffect(() => setAgencyBillingLines(agencyBillingLinesData), [agencyBillingLinesData])
+  useEffect(() => setAgencyInvoices(agencyInvoicesData), [agencyInvoicesData])
   useEffect(() => setBookingRoomPrices(bookingRoomPricesData), [bookingRoomPricesData])
   useEffect(() => setEquipmentRentals(equipmentRentalsData),  [equipmentRentalsData])
   useEffect(() => setPayments(paymentsData),                   [paymentsData])
@@ -156,6 +159,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     agencies,
     agencyRateItems,
     agencyBillingLines,
+    agencyInvoices,
   }
 
   // ── Handlers (optimistic local update, rolled back if the DB refuses) ─────
@@ -350,6 +354,36 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       }, 'the agency billing line deletion')
     },
 
+    // ── The invoice document itself (2026-08-19) ──────────────────────────
+    addAgencyInvoice: (i: AgencyInvoice) => {
+      const before = agencyInvoices
+      setAgencyInvoices(prev => [...prev, i])
+      persist(supabase.from('agency_invoices').insert([i]),
+        () => setAgencyInvoices(before), 'the agency invoice')
+    },
+    updateAgencyInvoice: (i: AgencyInvoice) => {
+      const before = agencyInvoices
+      setAgencyInvoices(prev => prev.map(x => x.id === i.id ? i : x))
+      const { id, ...fields } = i
+      persist(supabase.from('agency_invoices').update(fields).eq('id', id),
+        () => setAgencyInvoices(before), 'the agency invoice')
+    },
+    deleteAgencyInvoice: (id: string) => {
+      // Same care as deleting a line: the FK is ON DELETE SET NULL, but local
+      // state must follow, or the screen keeps showing lines on an invoice that
+      // no longer exists. The lines themselves survive — what the agency owes is
+      // not cancelled by tearing up the paperwork.
+      const beforeInvoices = agencyInvoices
+      const beforeLines = agencyBillingLines
+      setAgencyInvoices(prev => prev.filter(x => x.id !== id))
+      setAgencyBillingLines(prev => prev.map(l =>
+        l.agency_invoice_id === id ? { ...l, agency_invoice_id: null } : l))
+      persist(supabase.from('agency_invoices').delete().eq('id', id), () => {
+        setAgencyInvoices(beforeInvoices)
+        setAgencyBillingLines(beforeLines)
+      }, 'the agency invoice deletion')
+    },
+
     setLessonAgencyLine: (lesson_id: string, lineId: string | null) => {
       const before = lessons
       setLessons(prev => prev.map(l => l.id === lesson_id ? { ...l, agency_billing_line_id: lineId } : l))
@@ -450,7 +484,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         {tab === 'instructors' && <InstructorPayroll   data={sharedData} handlers={handlers} />}
         {tab === 'houses'      && <HousesTab            data={sharedData} />}
         {tab === 'palmeiras'   && <PalmeirasTab        data={sharedData} handlers={handlers} />}
-        {tab === 'agencies'    && <AgencyBillingTab    data={sharedData} handlers={handlers} />}
+        {tab === 'agencies'    && <AgencyBillingTab    data={sharedData} />}
         {tab === 'cashflow'    && <CashFlow            data={sharedData} />}
         {tab === 'expenses'    && <ExpensesTab         data={sharedData} handlers={handlers} />}
         {tab === 'events'      && <EventsTab           data={sharedData} />}
