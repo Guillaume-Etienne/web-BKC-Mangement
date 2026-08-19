@@ -355,11 +355,25 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     },
 
     // ── The invoice document itself (2026-08-19) ──────────────────────────
-    addAgencyInvoice: (i: AgencyInvoice) => {
-      const before = agencyInvoices
+    createAgencyInvoice: (i: AgencyInvoice, lineIds: string[]) => {
+      const beforeInvoices = agencyInvoices
+      const beforeLines = agencyBillingLines
       setAgencyInvoices(prev => [...prev, i])
-      persist(supabase.from('agency_invoices').insert([i]),
-        () => setAgencyInvoices(before), 'the agency invoice')
+      setAgencyBillingLines(prev => prev.map(l =>
+        lineIds.includes(l.id) ? { ...l, agency_invoice_id: i.id } : l))
+      // Sequenced, not fired in parallel: the lines carry a foreign key to the
+      // invoice, so attaching them before the INSERT lands fails with 23503 —
+      // which is exactly what happened on the first real attempt. One await, and
+      // a single grouped UPDATE rather than one round-trip per line.
+      persist((async () => {
+        const inserted = await supabase.from('agency_invoices').insert([i])
+        if (inserted.error || lineIds.length === 0) return inserted
+        return await supabase.from('agency_billing_lines')
+          .update({ agency_invoice_id: i.id }).in('id', lineIds)
+      })(), () => {
+        setAgencyInvoices(beforeInvoices)
+        setAgencyBillingLines(beforeLines)
+      }, 'the agency invoice')
     },
     updateAgencyInvoice: (i: AgencyInvoice) => {
       const before = agencyInvoices

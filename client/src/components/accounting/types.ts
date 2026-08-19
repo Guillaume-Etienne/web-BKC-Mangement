@@ -76,9 +76,14 @@ export interface AccountingHandlers {
   addAgencyBillingLine:    (l: AgencyBillingLine)  => void
   updateAgencyBillingLine: (l: AgencyBillingLine)  => void
   deleteAgencyBillingLine: (id: string)            => void
-  /** The invoice itself (2026-08-19). Deleting one hands its lines back to the
-   *  "not yet invoiced" pool — it never destroys what the agency owes. */
-  addAgencyInvoice:        (i: AgencyInvoice)      => void
+  /** Create the invoice AND attach its lines — one handler, in that order.
+   *
+   *  ⚠️ Two separate calls RACED and failed in production on the first try
+   *  (2026-08-19): `persist` is fire-and-forget, so the line UPDATE reached
+   *  Postgres before the invoice INSERT and the foreign key rejected it (23503),
+   *  leaving an invoice with no lines and three blocking alerts. Sequenced here
+   *  so the lines are only touched once the invoice really exists. */
+  createAgencyInvoice:     (i: AgencyInvoice, lineIds: string[]) => void
   updateAgencyInvoice:     (i: AgencyInvoice)      => void
   deleteAgencyInvoice:     (id: string)            => void
   /** Attach/detach one service row to an invoice line. `lineId === null` gives it

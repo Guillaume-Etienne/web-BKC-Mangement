@@ -152,9 +152,10 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
    *  afterwards when they give it. */
   function createInvoice() {
     const issued = todayISO()
-    const invoiceId = crypto.randomUUID()
-    handlers.addAgencyInvoice({
-      id: invoiceId,
+    // One call: the handler inserts the invoice, THEN attaches the lines. Doing it
+    // as two calls here raced the foreign key and failed (see createAgencyInvoice).
+    handlers.createAgencyInvoice({
+      id: crypto.randomUUID(),
       agency_id: agencyId,
       booking_id: b.id,
       invoice_number: nextInvoiceNumber(issued, data.agencyInvoices.map(i => i.invoice_number)),
@@ -163,10 +164,7 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
       invoiced_at: null,
       paid_at: null,
       notes: null,
-    })
-    for (const l of lines) {
-      if (!l.agency_invoice_id) handlers.updateAgencyBillingLine({ ...l, agency_invoice_id: invoiceId })
-    }
+    }, lines.filter(l => !l.agency_invoice_id).map(l => l.id))
   }
 
   function removeInvoice() {
