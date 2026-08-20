@@ -3,10 +3,10 @@ import { supabase } from '../lib/supabase'
 import { useClients } from '../hooks/useClients'
 import { useBookings, useBookingRooms, useBookingRoomPrices, useBookingParticipants } from '../hooks/useBookings'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
-import { useTaxiDrivers } from '../hooks/useTaxis'
+import { useTaxiDrivers, useTaxiTrips } from '../hooks/useTaxis'
 import { useAgencies } from '../hooks/useAgencies'
 import { useTable } from '../hooks/useSupabase'
-import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, Lesson, EquipmentRental, Payment, ExternalAccommodationBooking, Agency } from '../types/database'
+import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, TaxiTrip, Lesson, EquipmentRental, Payment, ExternalAccommodationBooking, Agency } from '../types/database'
 import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
 import { getFullHouseRate, getBaseNightlyRate } from '../utils/roomPricing'
 import { getConfiguredRate, agencyMarker } from '../components/accounting/utils'
@@ -292,6 +292,7 @@ interface WizardProps {
   drivers: TaxiDriver[]
   bookings: Booking[]
   bookingRooms: BookingRoom[]
+  taxiTrips: TaxiTrip[]
   editingBookingId: string | null
   isEditing: boolean
   /** Sum of non-discount payments already recorded — the accounting source of truth */
@@ -300,7 +301,7 @@ interface WizardProps {
   onSave: (data: WizardData, isNew: boolean, editingId?: string | null) => void
 }
 
-function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, agencies, houseRentals, roomRates, drivers, bookings, bookingRooms, editingBookingId, isEditing, recordedPaid, onCancel, onSave }: WizardProps) {
+function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, agencies, houseRentals, roomRates, drivers, bookings, bookingRooms, taxiTrips, editingBookingId, isEditing, recordedPaid, onCancel, onSave }: WizardProps) {
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(isEditing ? 6 : 1)
   const [d, setD] = useState<WizardData>(initial)
@@ -877,6 +878,12 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                       className="w-4 h-4 rounded border-gray-300 dark:border-gray-700" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">🚕 Taxi needed on arrival</span>
                   </label>
+                  {isEditing && !d.taxi_arrival && taxiTrips.some(t => t.booking_id === editingBookingId && t.type === 'aero-to-center') && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">⚠ A transfer already exists for this booking in Taxis — unchecking here won't remove it, delete it there if it's no longer needed.</p>
+                  )}
+                  {isEditing && d.taxi_arrival && !taxiTrips.some(t => t.booking_id === editingBookingId && t.type === 'aero-to-center') && (
+                    <p className="text-xs text-gray-400 dark:text-gray-400">A transfer request will be created in Taxis when you save.</p>
+                  )}
                 </div>
               </div>
 
@@ -894,6 +901,12 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                       className="w-4 h-4 rounded border-gray-300 dark:border-gray-700" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">🚕 Taxi needed on departure</span>
                   </label>
+                  {isEditing && !d.taxi_departure && taxiTrips.some(t => t.booking_id === editingBookingId && t.type === 'center-to-aero') && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">⚠ A transfer already exists for this booking in Taxis — unchecking here won't remove it, delete it there if it's no longer needed.</p>
+                  )}
+                  {isEditing && d.taxi_departure && !taxiTrips.some(t => t.booking_id === editingBookingId && t.type === 'center-to-aero') && (
+                    <p className="text-xs text-gray-400 dark:text-gray-400">A transfer request will be created in Taxis when you save.</p>
+                  )}
                 </div>
               </div>
 
@@ -1227,6 +1240,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   // the rate is shown and editable on the booking, so a missing one is visible.
   const centerAccessRate = getConfiguredRate(priceItemsData, 'center_access') ?? 0
   const { data: taxiDrivers } = useTaxiDrivers()
+  const { data: taxiTrips, refresh: refreshTaxiTrips } = useTaxiTrips()
   const { data: participantsData } = useBookingParticipants()
   const { data: lessonsData } = useTable<Lesson>('lessons')
   const { data: rentalsData } = useTable<EquipmentRental>('equipment_rentals')
@@ -1522,8 +1536,18 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       if (payErr) problems.push(`⚠️ THE ${paidDelta}€ PAYMENT WAS NOT RECORDED (${payErr.message}). Add it by hand in Accounting → Bookings.`)
     }
 
-    // 7. Auto-create taxi trips (new bookings only)
-    if (isNew) {
+    // 7. Auto-create taxi trips — on a new booking, or on an edit, whenever the
+    //    checkbox is on and no trip of that leg exists yet for this booking.
+    //    Existence, not "did the checkbox just change", is the right condition:
+    //    it also self-heals a booking whose checkbox was already on with no
+    //    trip behind it (the exact gap that prompted this — edits used to skip
+    //    trip creation entirely), and re-saving an already-covered booking still
+    //    creates nothing, so it stays as idempotent as the payment delta above.
+    const existingTripTypes = new Set(taxiTrips.filter(t => t.booking_id === bookingId).map(t => t.type))
+    const wantsNewArrival   = data.taxi_arrival   && !existingTripTypes.has('aero-to-center')
+    const wantsNewDeparture = data.taxi_departure && !existingTripTypes.has('center-to-aero')
+
+    if (wantsNewArrival || wantsNewDeparture) {
       const nbPersons = data.participants.filter(p => p.first_name.trim()).length || 1
       const driver = data.taxi_driver_id ? taxiDrivers.find(dr => dr.id === data.taxi_driver_id) : null
       const taxiBase = {
@@ -1538,7 +1562,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
         price_driver_mzn:   driver?.default_driver_mzn ?? 0,
         margin_manager_mzn: driver?.default_manager_mzn ?? 0,
       }
-      if (data.taxi_arrival) {
+      if (wantsNewArrival) {
         const { error: taxiInErr } = await supabase.from('taxi_trips').insert({
           ...taxiBase,
           date:       data.check_in,
@@ -1547,7 +1571,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
         })
         if (taxiInErr) problems.push(`The arrival transfer was not created (${taxiInErr.message}). Add it in Taxis.`)
       }
-      if (data.taxi_departure) {
+      if (wantsNewDeparture) {
         const { error: taxiOutErr } = await supabase.from('taxi_trips').insert({
           ...taxiBase,
           date:       data.check_out,
@@ -1556,6 +1580,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
         })
         if (taxiOutErr) problems.push(`The departure transfer was not created (${taxiOutErr.message}). Add it in Taxis.`)
       }
+      refreshTaxiTrips()
     }
 
     refreshBookings()
@@ -1849,6 +1874,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           drivers={taxiDrivers}
           bookings={bookings}
           bookingRooms={bookingRooms}
+          taxiTrips={taxiTrips}
           editingBookingId={wizard.editing?.id ?? null}
           isEditing={!!wizard.editing}
           recordedPaid={paymentsData
