@@ -49,6 +49,7 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
+| **`2026-08-20_travel_guide_translations.sql`** | **⬜ À PASSER (TEST + PROD).** Les **traductions EN + ES** des 6 sections du Travel Guide, écrites à partir du FR terminé par gui. **Ne touche pas au français** : `jsonb_set` sur les seules clés `en`/`es`, aucune instruction ne nomme `{fr}`. Idempotent, rejouable. Ce n'est pas du schéma mais du contenu — même endroit que le backfill des `short_code`. Vérifications en bas du fichier (le FR intact, les 3 langues remplies, les longueurs enfin du même ordre). | ⬜ | ⬜ |
 | **`2026-08-19_agency_invoices.sql`** | **⬜ À PASSER (TEST + PROD).** La **génération de facture agence** : table `agency_invoices` (notre n° `AAAAMMJJ` unique, la **réf que l'agence nous donne**, date, tampons sent/paid) + `agency_billing_lines.agency_invoice_id`. **Aucun DROP → ne peut rien casser.** Les tampons `invoiced_at`/`paid_at` **déménagent de la ligne vers la facture** (on solde une facture, pas une ligne) — vérifié avant d'écrire : **aucune ligne ne portait de tampon sur les 2 bases**, rien n'est perdu. Admin-only (REVOKE anon). ⚠️ Table admin-only → **le curl anon ne prouve rien**, vérifier en service_role ; recette en bas du fichier. | ⬜ | ⬜ |
 | **`2026-08-19c`** *(pas encore écrite — renommée, `b` était déjà pris)* | Le `DROP` des colonnes `invoiced_at`/`paid_at` devenues mortes sur `agency_billing_lines`, **après** que Vercel ait déployé le code qui ne les lit plus. Même prudence en 2 temps que la Phase 4. Sans urgence : deux colonnes vides ne gênent personne, mais les laisser indéfiniment finirait par tromper quelqu'un. | ⬜ | ⬜ |
 | ~~`2026-08-19b_client_account_email_type.sql`~~ | *(Session Documents, en parallèle — sans lien avec les agences.)* 5ᵉ valeur d'enum `email_log_type` → `'client_account'`, pour créer/voir/renvoyer le lien perso `?share=` d'une résa depuis Documents → Overview sans passer par Options → Shared Links. Fichier seul (rien n'utilise la valeur dans la même transaction). ✅ **Vérifiée le 2026-08-19 en service_role sur les deux bases** (`email_logs` est admin-only, le curl anon ne prouve rien ici) : `email_logs?type=eq.client_account` → **200 `[]`** (valeur acceptée), contrôle négatif `zzz_bidon` → **22P02 invalid input value**. | ✅ 2026-08-19 | ✅ 2026-08-19 |
@@ -859,8 +860,22 @@ Code fait & build OK. Découverte : les sections des guides vivaient en **localS
    ⬜ **RESTE : le Welcome Guide n'a JAMAIS été sauvé** — **0 ligne `welcome_guide`** en PROD. Il
    tourne donc encore sur les défauts en dur avec les placeholders `[…]`. gui doit remplir les
    placeholders dans Documents → Welcome Guide puis cliquer **Save**.
-4. 🔴 **À FAIRE — traductions EN/ES du Travel Guide : le guide envoyé aux clients étrangers ne dit
-   PAS la même chose que le français.** Mesuré le 2026-08-18, longueur du contenu par section :
+4. ✅ **TRADUCTIONS EN/ES FAITES le 2026-08-20** (`58d0654`), gui ayant terminé la rédaction FR des
+   6 sections. Script prêt : **`supabase/migrations/2026-08-20_travel_guide_translations.sql`** —
+   ⬜ **reste à l'appliquer sur TEST + PROD** (registre en tête).
+   - `jsonb_set` sur les seules clés `en`/`es` : **aucune instruction ne nomme `{fr}`** (vérifié
+     mécaniquement sur le fichier produit), donc le français de gui survit à un rejeu. Idempotent.
+   - Écrit avec `to_jsonb('...'::text)` plutôt qu'avec du JSON littéral : les textes portent des
+     guillemets et de la ponctuation typographique qu'il aurait fallu échapper à la main.
+   - Mêmes ids `tg1..tg6` sur les deux bases, vérifié avant d'écrire → le fichier s'applique tel quel.
+   - ⚠️ **Coquilles relevées dans le FR, volontairement NON corrigées** (le FR est la source de gui,
+     Claude n'y touche pas) : « elle-même limitées en nombre par jours » et « un peu de ce cet
+     argent » (tg1) · « surpplus » (tg2) · « tout ce même un sweet/pantanlon » et « soirée fraiche »
+     (tg3) · « qu'ils vous fournirons » (tg5). Plus une **ambiguïté** dans tg1 : « les taux sont
+     largement au dessus de la normale » — traduit par « bien meilleurs qu'ailleurs », à confirmer.
+
+   *Constat d'origine, conservé pour mémoire :* le guide envoyé aux clients étrangers ne disait
+   **pas** la même chose que le français. Mesuré le 2026-08-18, longueur du contenu par section :
    `fr 549 / en 125 / es 166` · `171/151/175` · `393/174/200` · `221/196/234` · **`970/174/200`** ·
    `593/149/191`. Autrement dit **EN et ES sont restés les textes par défaut d'origine** pendant que
    gui réécrivait le FR — jusqu'à 5× plus court, et parfois sur un autre sujet (titre #2 : FR
