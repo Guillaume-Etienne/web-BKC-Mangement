@@ -883,7 +883,7 @@ BEGIN
     'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries',
     'email_logs', 'document_templates',
     'enquiry_sources', 'enquiries', 'enquiry_notes',
-    'agencies', 'agency_rate_items', 'agency_billing_lines',
+    'agencies', 'agency_rate_items', 'agency_billing_lines', 'agency_invoices',
     'price_tiers'
   ]) LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
