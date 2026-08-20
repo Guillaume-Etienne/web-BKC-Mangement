@@ -49,7 +49,7 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
-| **`2026-08-20_travel_guide_translations.sql`** | **⬜ À PASSER (TEST + PROD).** Les **traductions EN + ES** des 6 sections du Travel Guide, écrites à partir du FR terminé par gui. **Ne touche pas au français** : `jsonb_set` sur les seules clés `en`/`es`, aucune instruction ne nomme `{fr}`. Idempotent, rejouable. Ce n'est pas du schéma mais du contenu — même endroit que le backfill des `short_code`. Vérifications en bas du fichier (le FR intact, les 3 langues remplies, les longueurs enfin du même ordre). | ⬜ | ⬜ |
+| ~~`2026-08-20_travel_guide_translations.sql`~~ | **✅ Passée et vérifiée TEST + PROD le 2026-08-20.** Les **traductions EN + ES** des 6 sections du Travel Guide, écrites à partir du FR terminé par gui. **Ne touche pas au français** : `jsonb_set` sur les seules clés `en`/`es`, aucune instruction ne nomme `{fr}`. Idempotent, rejouable. Ce n'est pas du schéma mais du contenu — même endroit que le backfill des `short_code`. Vérifié en service_role sur les 2 bases : **FR manquant = 0, EN/ES manquant = 0**, guillemets et ponctuation intacts, et les longueurs PROD enfin du même ordre (`549/456/516`, `970/882/950`...). | ✅ 2026-08-20 | ✅ 2026-08-20 |
 | **`2026-08-19_agency_invoices.sql`** | **⬜ À PASSER (TEST + PROD).** La **génération de facture agence** : table `agency_invoices` (notre n° `AAAAMMJJ` unique, la **réf que l'agence nous donne**, date, tampons sent/paid) + `agency_billing_lines.agency_invoice_id`. **Aucun DROP → ne peut rien casser.** Les tampons `invoiced_at`/`paid_at` **déménagent de la ligne vers la facture** (on solde une facture, pas une ligne) — vérifié avant d'écrire : **aucune ligne ne portait de tampon sur les 2 bases**, rien n'est perdu. Admin-only (REVOKE anon). ⚠️ Table admin-only → **le curl anon ne prouve rien**, vérifier en service_role ; recette en bas du fichier. | ⬜ | ⬜ |
 | **`2026-08-19c`** *(pas encore écrite — renommée, `b` était déjà pris)* | Le `DROP` des colonnes `invoiced_at`/`paid_at` devenues mortes sur `agency_billing_lines`, **après** que Vercel ait déployé le code qui ne les lit plus. Même prudence en 2 temps que la Phase 4. Sans urgence : deux colonnes vides ne gênent personne, mais les laisser indéfiniment finirait par tromper quelqu'un. | ⬜ | ⬜ |
 | ~~`2026-08-19b_client_account_email_type.sql`~~ | *(Session Documents, en parallèle — sans lien avec les agences.)* 5ᵉ valeur d'enum `email_log_type` → `'client_account'`, pour créer/voir/renvoyer le lien perso `?share=` d'une résa depuis Documents → Overview sans passer par Options → Shared Links. Fichier seul (rien n'utilise la valeur dans la même transaction). ✅ **Vérifiée le 2026-08-19 en service_role sur les deux bases** (`email_logs` est admin-only, le curl anon ne prouve rien ici) : `email_logs?type=eq.client_account` → **200 `[]`** (valeur acceptée), contrôle négatif `zzz_bidon` → **22P02 invalid input value**. | ✅ 2026-08-19 | ✅ 2026-08-19 |
@@ -868,6 +868,12 @@ Code fait & build OK. Découverte : les sections des guides vivaient en **localS
    - Écrit avec `to_jsonb('...'::text)` plutôt qu'avec du JSON littéral : les textes portent des
      guillemets et de la ponctuation typographique qu'il aurait fallu échapper à la main.
    - Mêmes ids `tg1..tg6` sur les deux bases, vérifié avant d'écrire → le fichier s'applique tel quel.
+   - ✅ **Appliqué et vérifié le 2026-08-20** : sur PROD, `FR manquant = 0`, `EN/ES manquant = 0`,
+     guillemets et ponctuation intacts, longueurs enfin du même ordre (`549/456/516`, `970/882/950`).
+   - ℹ️ **Sur TEST, l'EN/ES ne correspond pas au FR local, et c'est attendu** : les deux bases ont
+     des textes FR différents (gui rédige dans PROD), le script traduit celui de PROD. Écart le plus
+     visible : section #5, `fr 196 / en 882`. Sans conséquence — aucun guide ne part depuis TEST.
+     Ne PAS chercher à aligner les deux bases, c'était déjà la conclusion du 2026-08-19.
    - ⚠️ **Coquilles relevées dans le FR, volontairement NON corrigées** (le FR est la source de gui,
      Claude n'y touche pas) : « elle-même limitées en nombre par jours » et « un peu de ce cet
      argent » (tg1) · « surpplus » (tg2) · « tout ce même un sweet/pantanlon » et « soirée fraiche »
