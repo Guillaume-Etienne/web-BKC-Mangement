@@ -106,6 +106,36 @@ function cellStatusClasses(log: EmailLog | undefined): string {
   return 'bg-green-100 dark:bg-green-900/30 border-green-400 dark:border-green-700' // sent / delivered / opened
 }
 
+/** One cell of the Overview grid: a selection checkbox, wrapped in a pad that
+ *  carries the send status.
+ *
+ *  ⚠️ The colour MUST sit on the wrapper, never on the `<input>` itself. A native
+ *  checkbox is painted by the browser (`appearance: auto`), which ignores
+ *  `background-color` and `border-color` — the classes applied, the computed style
+ *  said green, and the box stayed grey on screen. That is exactly how a document
+ *  sent on 20/08 read as "never sent" for a whole day (see BACKLOG). The project
+ *  has no `@tailwindcss/forms`, so nothing resets that appearance for us. */
+function StatusBox({ log, checked, onToggle }: {
+  log: EmailLog | undefined
+  checked: boolean
+  onToggle: () => void
+}) {
+  return (
+    <span
+      title={cellTitle(log)}
+      className={`inline-flex items-center justify-center w-7 h-7 rounded border-2 ${cellStatusClasses(log)}`}
+    >
+      <input
+        type="checkbox"
+        title={cellTitle(log)}
+        checked={checked}
+        onChange={onToggle}
+        className="w-4 h-4 cursor-pointer"
+      />
+    </span>
+  )
+}
+
 function cellTitle(log: EmailLog | undefined): string {
   if (!log) return 'Never sent'
   const date = log.sent_at ? new Date(log.sent_at).toLocaleString('en-GB') : ''
@@ -803,13 +833,7 @@ export default function DocumentsPage() {
                           return (
                             <td key={dt.type} className="p-2">
                               <div className="flex items-center justify-center gap-1.5">
-                                <input
-                                  type="checkbox"
-                                  title={cellTitle(log)}
-                                  checked={selectedCells.has(key)}
-                                  onChange={() => toggleCell(key)}
-                                  className={`w-5 h-5 rounded border-2 cursor-pointer ${cellStatusClasses(log)}`}
-                                />
+                                <StatusBox log={log} checked={selectedCells.has(key)} onToggle={() => toggleCell(key)} />
                                 <button onClick={() => window.open(shareUrl(link.token), '_blank')} title="Open" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">👁</button>
                                 <button onClick={() => copyClientLink(link)} title="Copy link" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
                                   {copiedLinkId === link.id ? '✓' : '⧉'}
@@ -821,13 +845,7 @@ export default function DocumentsPage() {
 
                         return (
                           <td key={dt.type} className="text-center p-2">
-                            <input
-                              type="checkbox"
-                              title={cellTitle(log)}
-                              checked={selectedCells.has(key)}
-                              onChange={() => toggleCell(key)}
-                              className={`w-5 h-5 rounded border-2 cursor-pointer ${cellStatusClasses(log)}`}
-                            />
+                            <StatusBox log={log} checked={selectedCells.has(key)} onToggle={() => toggleCell(key)} />
                           </td>
                         )
                       })}
