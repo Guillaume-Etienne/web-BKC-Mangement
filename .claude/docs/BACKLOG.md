@@ -1188,13 +1188,25 @@ Vols : **arrivée MPM le 19/10 à 06:45** (TAP 281 parti de Lisbonne le 18 à 19
   F&Fly vend un forfait wing plus court, c'est le **prix du forfait** qu'il faudra revoir, pas le
   taux horaire.
 
+- ⬜ **Il manque les forfaits 4 h** (gui, 21/08 : *« en wing il y a aussi des forfaits 4h, comme en
+  kite »*). La grille F&Fly n'a que des packs 10 h. **Prix à donner par gui** — ne surtout pas le
+  déduire au prorata d'un pack 10 h : [[reference_agency_package_hours]], un libellé d'agence ne dit
+  rien de son contenu. Ça débloque **deux** choses d'un coup : le stage wing de SCHETTINI (« 4x2h »)
+  **et** le second bloc de 4 h de **#022**, en attente de prix depuis le 19/08.
+
 **⬜ Bloquants avant de créer la résa**
-1. **L'hébergement — VÉRIFIÉ le 21/08, et ça n'avait PAS été prévu.** gui pensait que San Martinho
-   avait été modélisé « gigantesque » : en base il n'a **qu'un seul emplacement**, nommé « Room »,
-   **capacité 2**, `total_rooms = 1`. Deux problèmes d'un coup : il est **déjà pris par #022 (SENE)
-   du 19 au 28/10**, et sa capacité 2 ne loge pas **3 personnes**. Il faut donc ajouter des
-   emplacements à San Martinho (décision de gui : combien, quelle capacité, quels noms) — ou loger
-   ailleurs : **H2 et H3 sont libres en entier** sur toute la période.
+1. ✅ **L'hébergement — RÉGLÉ le 21/08.** Vérification faite : San Martinho n'avait **qu'un seul
+   emplacement** (« Room », capacité 2) — ça n'avait donc jamais été prévu, contrairement à ce que
+   gui pensait. Sur sa demande (« il faut qu'on puisse y mettre plein de clients »), l'hôtel compte
+   désormais **6 emplacements de capacité 4** : l'existant renommé **SM-1** (id inchangé, #022 n'est
+   pas affectée) plus **SM-2 → SM-6**, et `total_rooms = 6`.
+   - **Le compromis** : chaque emplacement est une **ligne de planning**, donc 6 lignes San Martinho
+     même vides. 6 est un choix ajustable dans Options → Accommodations, pas une contrainte.
+   - **La « note par zone »** (gui : *« avec une note par client si on veut dire où ils sont plus
+     précisément »*) passe pour l'instant par les **notes de la réservation**, comme le « Booking via
+     Fun&Fly » de #022 : `booking_rooms` n'a pas de champ note. Une colonne dédiée est possible si
+     ça ne suffit pas — petite migration.
+   - État au 21/08 : **SM-1 pris par #022** (19→28/10), **SM-2 à SM-6 libres**.
 2. **« 2x privé 4x2h » = combien d'heures ?** gui : *« mettre une note, il faudra clarifier ça
    auprès de F&Fly »*. Ne rien déduire du libellé — [[reference_agency_package_hours]] : le
    « 10x 2h » valait 10 h au total, pas 20.
