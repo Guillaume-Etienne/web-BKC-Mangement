@@ -8,6 +8,31 @@
 
 ---
 
+## 🔐 Audit sécu du 2026-08-21 (revue indépendante, agent Opus 5) — reste 2 points sur 3
+
+Contexte complet (ce qui est solide, ce qui ne l'est pas) : mémoire, section du jour. Le point 1
+(tokens `Math.random()` → `crypto.randomUUID()`) est **fait et commité** (`6ef3f81`). Restent :
+
+- ⬜ **Les liens `driver`/`taxi`/`taxi_manager`/`restaurant` n'expirent jamais** — `expires_at`
+  existe et la RLS le respecte, mais tous les générateurs le codent en dur à `null`
+  (`TaxiPage.tsx:145`, `ActivitiesPage.tsx:700`, `DocumentsPage.tsx:546` et `:572`). Poser une
+  date par défaut (ex. fin de saison) au lieu de `null`. **Et** resserrer la policy `driver` sur
+  `bookings`/`clients` (`supabase/schema.sql:990-996`) à ses seules courses — un lien chauffeur
+  transféré donne aujourd'hui accès à **tous** les noms de clients et dates (pas d'email/tel/
+  passeport/argent, mais c'est plus large que nécessaire ; sa page ne demande que ses courses).
+- ⬜ **Le formulaire public (`enquiries`/`form_submissions`) n'a de garde-fou anti-spam que côté
+  navigateur** (honeypot + délai 3 s, `EnquiryFormPage.tsx:75`) — contournable en tapant
+  directement l'API. Pas de fuite de données (colonnes bornées, `status`/`channel` verrouillés),
+  mais risque de nuisance (boîte mail noyée, quota Resend, Brevo pollué). Pas de backend pour
+  poser une vraie limite de fréquence — solution la plus simple : un garde-fou en base (refuser
+  au-delà de N insertions/heure depuis la même adresse email par exemple).
+- Optionnel, sans urgence : CSP quasi vide dans `client/vercel.json` (seulement
+  `frame-ancestors`) — mais zéro `dangerouslySetInnerHTML` dans le repo, donc surface XSS réelle
+  très faible. `Referrer-Policy: no-referrer` serait un ajout gratuit vu que les tokens voyagent
+  dans l'URL.
+
+---
+
 ## 🚨 MIGRATIONS SQL EN ATTENTE D'APPLICATION (gui)
 
 > ✅ **`2026-08-16c_lesson_price_tiers.sql` appliquée et vérifiée TEST + PROD le
