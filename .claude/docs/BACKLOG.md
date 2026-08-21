@@ -1160,6 +1160,44 @@ séquencer dans un seul handler — le pattern `persist` ne garantit aucun ordre
   gui a dit ne pas décompter les heures avec eux : c'est un **indicateur interne** sans effet sur le
   montant. Si ce compteur le gêne, vider le champ « Package hours » sur la ligne suffit.
 
+## 🧾 EN COURS — résa SCHETTINI (Fun & Fly, 19→31/10/2026), demandée le 2026-08-21
+
+Demande F&Fly confirmée : **3 voyageurs** (Sonia PODGORSKI ép. SCHETTINI 23/04/1974, Eric
+SCHETTINI 06/09/1964, **Luca 11 ans** 21/01/2015), tél. commun +33 641679034.
+Vols : **arrivée MPM le 19/10 à 06:45** (TAP 281 parti de Lisbonne le 18 à 19:05) ·
+**départ MPM le 31/10 à 09:25** (TAP 282). Prestations : transfert **A/R en véhicule privatisé**,
+**wingfoil 21→24/10 « 2x privé 4x2h »** (les 2 adultes), **stockage matériel perso 19→30/10**
+(les 2 adultes).
+
+**✅ Fait**
+- **+5 % appliqué à la grille F&Fly** (décision gui) : Pack Privé 10h **472,50 €**, Semi-Privé
+  **346,50 €**, Transfert **168 €**. Les factures déjà émises gardent leurs prix figés — c'est le
+  principe des snapshots, #022 reste à 220 €/transfert.
+- **Nouvel outil MCP `create_booking`** (`abb9de9`) : le MCP ne savait créer une résa **que** depuis
+  une enquête, et il n'y en a aucune pour SCHETTINI. Le nouvel outil crée client + résa +
+  voyageurs + chambres, dérive les compteurs `num_*` des voyageurs, et **refuse d'écrire quoi que
+  ce soit si une chambre est déjà prise**.
+  ⚠️ **Nécessite un redémarrage de la session Claude Code** pour apparaître (les outils MCP sont
+  chargés au démarrage ; `tsx` lit le TS directement, donc rien à compiler).
+
+**⬜ Bloquants avant de créer la résa**
+1. **L'hébergement.** gui : « si F&Fly ne parle pas d'hébergement, c'est qu'ils s'en sont occupés,
+   en général San Martinho ». Mais **San Martinho n'a qu'UN emplacement** dans le modèle, et il est
+   déjà occupé par **#022 (SENE) du 19 au 28/10** — chevauchement direct. Il faut soit **ajouter un
+   emplacement** à San Martinho (c'est un hôtel tiers, il peut loger deux groupes : la limite est
+   dans notre saisie, pas dans la réalité), soit loger ailleurs. H2 et H3 sont libres en entier.
+2. **Les tarifs Wingfoil et Stockage n'existent pas** dans la grille F&Fly (elle n'a que Pack Privé,
+   Semi-Privé, Transfert). Prix à demander à gui avant de facturer quoi que ce soit.
+3. **« 2x privé 4x2h » = combien d'heures ?** gui : *« mettre une note, il faudra clarifier ça
+   auprès de F&Fly »*. Ne rien déduire du libellé — [[reference_agency_package_hours]] : le
+   « 10x 2h » valait 10 h au total, pas 20.
+
+**⚠️ Piège identifié : le stockage risque d'être facturé deux fois.** Cocher « matériel perso »
+sur un voyageur déclenche l'**accès centre** facturé au client (`center_access_rate`, 5 €/jour),
+alors que F&Fly paie le gardiennage. Et l'accès centre **n'est pas** une des 4 sources rattachables
+à une facture agence — il n'y a donc aucun mécanisme pour l'exclure. Parade : passer
+`center_access_rate: 0` sur cette résa (le paramètre existe dans le nouvel outil MCP).
+
 ## 🟡 Quand gui veut
 
 - ~~**Bug prix taxi 8000 €**~~ ✅ **CLOS le 2026-08-18.** Fix code fait le 06/07
