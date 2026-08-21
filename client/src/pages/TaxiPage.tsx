@@ -135,7 +135,7 @@ export default function TaxiPage() {
   async function generateDriverLink(driver: TaxiDriver): Promise<void> {
     const existing = driverLinks.find(l => l.params?.driver_id === driver.id)
     if (existing) return
-    const token = `driver_${Math.random().toString(36).slice(2, 12)}`
+    const token = `driver_${crypto.randomUUID()}`
     const { error } = await supabase.from('shared_links').insert([{
       token,
       type:       'driver',

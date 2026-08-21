@@ -93,12 +93,12 @@ function cellKey(bookingId: string, type: EmailLogType): string {
 // Same token shape as ManagementPage's Shared Links tab — kept local, like every
 // other small pure helper on this page (bookingLabel, clientEmail, ...).
 function generateClientToken(): string {
-  return `client_${Math.random().toString(36).slice(2, 12)}`
+  return `client_${crypto.randomUUID()}`
 }
 
 // Same prefix EnquiryPanel.createFormLink already uses for a booking_form link.
 function generateBookingFormToken(): string {
-  return `booking_form_${Math.random().toString(36).slice(2, 12)}`
+  return `booking_form_${crypto.randomUUID()}`
 }
 
 function shareUrl(token: string): string {

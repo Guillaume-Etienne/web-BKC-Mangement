@@ -691,7 +691,7 @@ export default function ActivitiesPage() {
   async function generateProviderLink(provider: ActivityProvider) {
     const existing = providerLinks.find(l => l.params?.provider_id === provider.id)
     if (existing) return
-    const token = `activity_${Math.random().toString(36).slice(2, 12)}`
+    const token = `activity_${crypto.randomUUID()}`
     await supabase.from('shared_links').insert([{
       token, type: 'activity_provider',
       label:      `${TYPE_LABELS[provider.type]}: ${provider.name}`,

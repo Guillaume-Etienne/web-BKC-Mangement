@@ -155,7 +155,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
   async function createFormLink() {
     if (!enquiry) return
     setSaving(true)
-    const token = `booking_form_${Math.random().toString(36).slice(2, 12)}`
+    const token = `booking_form_${crypto.randomUUID()}`
     const { error } = await supabase.from('shared_links').insert({
       token, type: 'booking_form',
       label: `Booking form — ${enquiry.name}`,

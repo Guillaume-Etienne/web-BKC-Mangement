@@ -89,7 +89,7 @@ const LINK_TYPE_LABELS: Record<SharedLinkType, { icon: string; label: string }> 
 }
 
 function generateToken(type: SharedLinkType) {
-  return `${type}_${Math.random().toString(36).slice(2, 12)}`
+  return `${type}_${crypto.randomUUID()}`
 }
 
 function getBaseUrl() {
