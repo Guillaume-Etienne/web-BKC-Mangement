@@ -1190,11 +1190,72 @@ Vols : **arrivée MPM le 19/10 à 06:45** (TAP 281 parti de Lisbonne le 18 à 19
   F&Fly vend un forfait wing plus court, c'est le **prix du forfait** qu'il faudra revoir, pas le
   taux horaire.
 
-- ⬜ **Il manque les forfaits 4 h** (gui, 21/08 : *« en wing il y a aussi des forfaits 4h, comme en
-  kite »*). La grille F&Fly n'a que des packs 10 h. **Prix à donner par gui** — ne surtout pas le
-  déduire au prorata d'un pack 10 h : [[reference_agency_package_hours]], un libellé d'agence ne dit
-  rien de son contenu. Ça débloque **deux** choses d'un coup : le stage wing de SCHETTINI (« 4x2h »)
-  **et** le second bloc de 4 h de **#022**, en attente de prix depuis le 19/08.
+- ✅ **Forfaits 4 h créés** (prix donnés par gui le 21/08) : **Pack cours Privé 4h 200 €** ·
+  **Pack cours Groupe 4h 160 €** · **Pack cours Wing privé 4h 200 €** (règle « wing au prix du
+  kite »). ⬜ **Question de nommage laissée ouverte** : la grille dit « Semi Privé » sur le 10 h et
+  gui a dit « group » pour le 4 h — deux mots pour ce qui est peut-être le même produit. À
+  harmoniser (renommer l'un des deux) ou à confirmer comme deux offres distinctes.
+
+**📋 Grille Fun & Fly au 2026-08-21** (après le +5 %, éditable dans Options → 🤝 Agencies) :
+| Catégorie | Prix | Durée | Libellé |
+|---|---|---|---|
+| lesson | 472,50 € | 10h | Pack cours Privé 10h |
+| lesson | 472,50 € | 10h | Pack cours Wing privé 10h |
+| lesson | 346,50 € | 10h | Pack cours Semi Privé 10h |
+| lesson | 200 € | 4h | Pack cours Privé 4h |
+| lesson | 200 € | 4h | Pack cours Wing privé 4h |
+| lesson | 160 € | 4h | Pack cours Groupe 4h |
+| rental | 7 € | — | Gardiennage matériel personnel — par personne et par jour |
+| transfer | 168 € | — | Transfert Maputo ↔ Bilene |
+
+**✅ #022 (SENE) est débloquée et complète** — le bloc de 4 h manquant a été facturé le 21/08 :
+`450 € (10h) + 200 € (4h, Loic, 25→26/10) + 160 € + 160 €` = **970 € brut**, commission 20 %
+(−194 €), **776 € à payer**. Facture **`20260819`**, **réf F&Fly `142018`** (saisie par gui),
+**pas encore envoyée** (`invoiced_at` nul) — d'où la possibilité d'y ajouter la ligne.
+ℹ️ Constaté au passage : gui a **corrigé les transferts de 220 € à 160 €** et **recréé les
+voyageurs** (leurs ids ont changé, ce qui a fait échouer un premier INSERT en `23503` ; les notes
+que Claude avait mises sur les 2 lignes de transfert ont disparu avec l'ancienne saisie).
+⚠️ Les lignes restent figées à **160 €** malgré le passage de la grille à 168 € : c'est **voulu**,
+un prix figé ne se refacture pas.
+
+### ▶️ PLAN DE REPRISE — à faire au prochain démarrage de session
+
+Tout est prêt sauf le chargement de l'outil. **Dans l'ordre :**
+
+1. **Vérifier que `create_booking` est bien chargé** (outil MCP écrit le 21/08, `abb9de9`).
+2. **Créer la résa** avec ces valeurs exactes :
+   - client : **SCHETTINI Eric** (le contact) — tél `+33 641679034`
+   - `check_in` **2026-10-19**, `check_out` **2026-10-31**, `status` **provisional**
+   - `agency_id` **`1f8ec5eb-1ba1-43de-a3b1-ed18a5bc8ef8`** (Fun & Fly)
+   - `arrival_time` **06:45**, `departure_time` **09:25** *(heures de VOL : TAP 281 arrive le
+     19/10 à 06:45, parti de Lisbonne le 18 à 19:05 ; TAP 282 part le 31/10 à 09:25)*
+   - `taxi_arrival` **true**, `taxi_departure` **true**
+   - ⚠️ **`center_access_rate: 0`** — sinon 11 j × 2 pers. × 5 € = **110 € facturés en trop au
+     client**, alors que F&Fly paie le gardiennage (voir le piège plus bas)
+   - `room_ids` : **`508efd80-7b8f-4bd6-bc5a-c5b3ca085d44`** (San Martinho **SM-2**, capacité 4,
+     libre — SM-1 est pris par #022 jusqu'au 28/10)
+   - `travellers` — 3, dont **les dates de naissance vont dans `notes`** (pas de colonne dédiée) :
+     - **Sonia PODGORSKI ép. SCHETTINI** — notes `23/04/1974 · +33 641679034` ·
+       `does_kite: true, brings_own_gear: true, needs_storage: true, wants_wing_lessons: true`
+     - **Eric SCHETTINI** — notes `06/09/1964 · +33 641679034` · mêmes drapeaux
+     - **Luca SCHETTINI (enfant, 11 ans)** — notes `21/01/2015` · aucun drapeau
+   - `notes` de la résa : *« Via Fun & Fly (réf à demander). Hébergement géré par l'agence —
+     San Martinho, zone à préciser. Wingfoil 21→24/10 : "2x privé 4x2h" — **nombre d'heures à
+     clarifier auprès de F&Fly** (un pack 4h existe désormais ; "4x2h" peut désigner ce pack ou
+     4 séances de 2h). Stockage matériel perso 19→30/10, payé par l'agence : center_access_rate
+     mis à 0 pour ne pas le facturer deux fois. »*
+3. **Créer les 2 transferts** (`create_taxi_trip`), en suivant les règles relevées sur les trajets
+   existants : **arrivée à l'heure exacte du vol**, **départ 5 h avant le vol**.
+   - **19/10 à 06:45** — `aero-to-center` — 3 pax — chauffeur **Ruiz**
+     (`274ae07d-1067-4ba3-8e96-40c0fe2c068b`)
+   - **31/10 à 04:25** — `center-to-aero` — 3 pax — Ruiz *(vol à 09:25)*
+   - ⚠️ Le tarif F&Fly est **par trajet** (prouvé par la facture 2025) → **2 lignes de 168 €**.
+4. **Créer la facture agence** (panneau 🤝 Agency billing de la résa) et y rattacher :
+   - 2 × **Transfert Maputo ↔ Bilene** à 168 € *(les transferts créés à l'étape 3)*
+   - le **wing** : ⏸️ en attente du nombre d'heures — **ne pas inventer**
+   - le **gardiennage** : 7 €/pers./jour × 2 pers. × **11 jours** (19→30/10) = **154 €**
+     *(à confirmer : 11 ou 12 jours selon que le 30/10 compte)*
+5. **Saisir la réf F&Fly** quand l'agence la donne, puis **imprimer** et envoyer.
 
 **⬜ Bloquants avant de créer la résa**
 1. ✅ **L'hébergement — RÉGLÉ le 21/08.** Vérification faite : San Martinho n'avait **qu'un seul
@@ -1224,9 +1285,11 @@ Vols : **arrivée MPM le 19/10 à 06:45** (TAP 281 parti de Lisbonne le 18 à 19
    - État au 21/08 : **SM-1 pris par #022** (19→28/10), **SM-2 à SM-6 libres**.
 2. **« 2x privé 4x2h » = combien d'heures ?** gui : *« mettre une note, il faudra clarifier ça
    auprès de F&Fly »*. Ne rien déduire du libellé — [[reference_agency_package_hours]] : le
-   « 10x 2h » valait 10 h au total, pas 20.
+   « 10x 2h » valait 10 h au total, pas 20. **Depuis le 21/08 un « Pack cours Privé 4h » existe**,
+   ce qui rend le libellé encore plus ambigu : « 4x2h » peut désigner ce pack (4 h) ou 4 séances
+   de 2 h (8 h). Raison de plus pour demander plutôt que d'interpréter.
 3. **L'outil MCP `create_booking` n'est pas encore chargé** dans la session : il faut redémarrer
-   Claude Code pour qu'il apparaisse.
+   Claude Code pour qu'il apparaisse (le serveur lit le TS par `tsx`, rien à compiler).
 
 **🔧 À PRÉVOIR (demandé par gui le 21/08) — le stockage payé par l'agence.**
 gui confirme que **F&Fly paie le gardiennage**, et veut que ce soit géré durablement. Or cocher
