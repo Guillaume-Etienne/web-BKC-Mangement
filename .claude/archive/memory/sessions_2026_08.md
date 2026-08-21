@@ -70,3 +70,46 @@ dans `.claude/docs/BACKLOG.md`. **Le reste-à-faire ne vit PAS ici** : source de
 
 > **Note de clôture (2026-08-18)** : les mentions « rien n'est encore poussé » ci-dessus sont
 > périmées — tout est sur `origin/master` jusqu'à `7ba227a` inclus (vérifié au reflog le 18/08).
+
+## 2026-08-18 — Agences : les 6 phases livrées (clos)
+
+Phase 6 (onglet Agencies), marqueur `(FF)` (colonne `short_code`, **pas** un mapping par nom),
+Phase 4 (redaction réelle des prix par **colonne générée**, pas de fonction SECURITY DEFINER qui
+aurait contourné la RLS), **2 fuites fermées** (`lessons.instructor_rate` = paie moniteur, et
+`taxi_trips.price_eur`), colonne **Agencies du CashFlow**, et **2 bugs d'argent**
+([[reference_refreeze_snapshots_on_reassign]], [[reference_agency_package_hours]]).
+Tout passé, poussé et vérifié avec de vrais tokens. La **première facture Fun & Fly** a été
+saisie en PROD le 19/08 (890 € brut / 712 € net). Piège vécu ce jour-là, repéré avant d'écrire :
+[[reference_dev_port_changes_database]] (navigateur laissé sur TEST).
+
+## 2026-08-19 — Génération de la facture agence (livrée)
+
+Vraie table `agency_invoices` : **une facture = une résa**, notre `INVOICE N°` = `AAAAMMJJ`
+(`-2` si deux le même jour) vs la **réf F&Fly** qu'ils donnent et veulent relire sur la facture —
+deux numéros à ne jamais confondre. Adresses/IBAN en dur, libellés au format F&Fly, doc en FR.
+Les tampons `invoiced_at`/`paid_at` ont déménagé de la ligne vers la facture (on solde une
+facture, pas une ligne — vérifié qu'aucune ligne n'en portait avant migration).
+Pas de `UNIQUE (booking_id, agency_id)` exprès (une résa peut avoir 2 factures dans le temps).
+Adresse destinataire indexée par `short_code`, jamais par le nom. 371 tests.
+Le vrai modèle F&Fly a été décodé depuis un `.xlsx` réel (zip + `sharedStrings.xml`, aucune lib
+nécessaire) — a prouvé indépendamment que le transfert Maputo↔Bilene est **par trajet** (168 €).
+🔴 Bug trouvé par le premier essai réel (`d570495`) : la facture se créait sans rattacher ses
+lignes → [[reference_persist_fk_ordering]]. Les alertes bloquantes gèlent aussi Claude in Chrome.
+**Facture #022 créée en PROD** (`INVOICE N° 20260819`, 890 € brut / 712 € net) — réf F&Fly et
+relecture de l'impression contre le modèle Excel laissées à gui (fenêtre d'impression hors du
+groupe de l'extension, Claude ne peut pas la voir). ⬜ Reste : `2026-08-19c`, DROP des 2 colonnes
+mortes (`invoiced_at`/`paid_at` sur `agency_billing_lines`), après déploiement — sans urgence.
+
+## 2026-08-20 — Travel Guide traduit, et deux bugs d'affichage (clos)
+
+✅ Traductions EN + ES du Travel Guide livrées et appliquées (`58d0654`), vérifiées TEST+PROD :
+`jsonb_set` sur les seules clés `en`/`es`, le FR de gui survit à un rejeu. TEST et PROD ont des
+FR différents (gui rédige dans PROD) — attendu, ne pas aligner. Coquilles FR signalées, non
+corrigées (texte de gui).
+🔴 Overview des Documents : un envoi réel s'affichait « never sent » (`0ad1fac`) — la donnée était
+juste, c'est la couleur posée sur une `<input type=checkbox>` native qui ignorait `bg`/`border` →
+[[reference_native_checkbox_ignores_bg]].
+🔴 Diagnostic FAUX donné avant ça : un curl demandait une colonne inexistante (`42703`), le script
+a lu l'objet d'erreur comme un tableau vide → « email_logs est vide » affirmé à tort, gui avait
+raison → [[reference_read_the_error_not_the_empty_array]].
+🧹 5 serveurs vite tournaient (5173→5177), 4 laissés malgré TaskStop → [[reference_kill_vite_orphans]].

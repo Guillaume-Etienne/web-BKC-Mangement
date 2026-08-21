@@ -1218,78 +1218,49 @@ que Claude avait mises sur les 2 lignes de transfert ont disparu avec l'ancienne
 ⚠️ Les lignes restent figées à **160 €** malgré le passage de la grille à 168 € : c'est **voulu**,
 un prix figé ne se refacture pas.
 
-### ▶️ PLAN DE REPRISE — à faire au prochain démarrage de session
+### ▶️ PLAN DE REPRISE — suite au 21/08
 
-Tout est prêt sauf le chargement de l'outil. **Dans l'ordre :**
+**✅ Étapes 1→3 faites** (session du 21/08, outil `create_booking` chargé après redémarrage) :
+- **Résa #26 créée** (`d39da6b7-318d-492a-a6dd-f3e281cb9db7`) : SCHETTINI Eric, provisional,
+  19/10→31/10, agence Fun & Fly, San Martinho **SM-2** (`508efd80-…`, vérifiée libre par
+  `check_accommodation_availability` — SM-1 bien occupée par #022/Loic SENE jusqu'au 28/10),
+  `center_access_rate: 0`, 3 voyageurs (Sonia, Eric, Luca) avec dates de naissance en notes,
+  notes de résa incluant l'ambiguïté du wing non tranchée.
+- **2 transferts créés** (Ruiz, 3 pax, 168 €/trajet) : `b100d3a3-…` (19/10 06:45, aero→centre) et
+  `760ec72c-…` (31/10 04:25, centre→aero). `payment_summary.billed` de la résa = **336 €**, cohérent.
+  ⚠️ Piège technique noté : passer `&` dans un paramètre de notes via le tool XML l'a stocké en
+  `&amp;` littéral au premier essai — corrigé par `update_taxi_trip` juste après.
 
-1. **Vérifier que `create_booking` est bien chargé** (outil MCP écrit le 21/08, `abb9de9`).
-2. **Créer la résa** avec ces valeurs exactes :
-   - client : **SCHETTINI Eric** (le contact) — tél `+33 641679034`
-   - `check_in` **2026-10-19**, `check_out` **2026-10-31**, `status` **provisional**
-   - `agency_id` **`1f8ec5eb-1ba1-43de-a3b1-ed18a5bc8ef8`** (Fun & Fly)
-   - `arrival_time` **06:45**, `departure_time` **09:25** *(heures de VOL : TAP 281 arrive le
-     19/10 à 06:45, parti de Lisbonne le 18 à 19:05 ; TAP 282 part le 31/10 à 09:25)*
-   - `taxi_arrival` **true**, `taxi_departure` **true**
-   - ⚠️ **`center_access_rate: 0`** — sinon 11 j × 2 pers. × 5 € = **110 € facturés en trop au
-     client**, alors que F&Fly paie le gardiennage (voir le piège plus bas)
-   - `room_ids` : **`508efd80-7b8f-4bd6-bc5a-c5b3ca085d44`** (San Martinho **SM-2**, capacité 4,
-     libre — SM-1 est pris par #022 jusqu'au 28/10)
-   - `travellers` — 3, dont **les dates de naissance vont dans `notes`** (pas de colonne dédiée) :
-     - **Sonia PODGORSKI ép. SCHETTINI** — notes `23/04/1974 · +33 641679034` ·
-       `does_kite: true, brings_own_gear: true, needs_storage: true, wants_wing_lessons: true`
-     - **Eric SCHETTINI** — notes `06/09/1964 · +33 641679034` · mêmes drapeaux
-     - **Luca SCHETTINI (enfant, 11 ans)** — notes `21/01/2015` · aucun drapeau
-   - `notes` de la résa : *« Via Fun & Fly (réf à demander). Hébergement géré par l'agence —
-     San Martinho, zone à préciser. Wingfoil 21→24/10 : "2x privé 4x2h" — **nombre d'heures à
-     clarifier auprès de F&Fly** (un pack 4h existe désormais ; "4x2h" peut désigner ce pack ou
-     4 séances de 2h). Stockage matériel perso 19→30/10, payé par l'agence : center_access_rate
-     mis à 0 pour ne pas le facturer deux fois. »*
-3. **Créer les 2 transferts** (`create_taxi_trip`), en suivant les règles relevées sur les trajets
-   existants : **arrivée à l'heure exacte du vol**, **départ 5 h avant le vol**.
-   - **19/10 à 06:45** — `aero-to-center` — 3 pax — chauffeur **Ruiz**
-     (`274ae07d-1067-4ba3-8e96-40c0fe2c068b`)
-   - **31/10 à 04:25** — `center-to-aero` — 3 pax — Ruiz *(vol à 09:25)*
-   - ⚠️ Le tarif F&Fly est **par trajet** (prouvé par la facture 2025) → **2 lignes de 168 €**.
-4. **Créer la facture agence** (panneau 🤝 Agency billing de la résa) et y rattacher :
-   - 2 × **Transfert Maputo ↔ Bilene** à 168 € *(les transferts créés à l'étape 3)*
-   - le **wing** : ⏸️ en attente du nombre d'heures — **ne pas inventer**
+**⬜ Reste (étapes 4→5, dans l'app — aucun outil MCP pour la facturation agence)**
+4. **Créer la facture agence** (panneau 🤝 Agency billing de la résa #26) et y rattacher :
+   - 2 × **Transfert Maputo ↔ Bilene** à 168 € (déjà créés, ci-dessus)
+   - le **wing** : ⏸️ toujours en attente du nombre d'heures — **ne pas inventer**
    - le **gardiennage** : 7 €/pers./jour × 2 pers. × **11 jours** (19→30/10) = **154 €**
      *(à confirmer : 11 ou 12 jours selon que le 30/10 compte)*
 5. **Saisir la réf F&Fly** quand l'agence la donne, puis **imprimer** et envoyer.
 
-**⬜ Bloquants avant de créer la résa**
-1. ✅ **L'hébergement — RÉGLÉ le 21/08.** Vérification faite : San Martinho n'avait **qu'un seul
-   emplacement** (« Room », capacité 2) — ça n'avait donc jamais été prévu, contrairement à ce que
-   gui pensait. Sur sa demande (« il faut qu'on puisse y mettre plein de clients »), l'hôtel compte
-   désormais **6 emplacements de capacité 4** : l'existant renommé **SM-1** (id inchangé, #022 n'est
-   pas affectée) plus **SM-2 → SM-6**, et `total_rooms = 6`.
-   - ✅ **Le compromis des lignes vides est levé** (`fed3c70`, décision gui du 21/08 : *« il faut
-     qu'on puisse avoir autant de lignes SanMartinho qu'on veut, que ça reste cohérent »*). Nouveau
-     drapeau **`accommodations.hide_empty_rooms`** : le planning ne dessine que les emplacements
-     **occupés dans la saison affichée**, plus **une ligne libre** pour y déposer une résa. gui peut
-     donc en créer autant qu'il veut. Maisons et bungalows inchangés — leurs chambres sont réelles.
-     - **Fenêtre = la saison entière**, pas les jours visibles : faire défiler ne doit pas
-       réorganiser les lignes sous le curseur. Les résas annulées comptent comme occupantes (elles
-       restent dessinées en gris ; une ligne qui disparaît sous une barre visible serait pire).
-     - ⚠️ **Un drapeau, pas un test sur le nom.** « San Martinho seulement » codé par son nom aurait
-       été la 4ᵉ occurrence de l'erreur que ce projet a déjà payée trois fois — et c'est la raison
-       d'être de `agencies.short_code`. Renommer l'hôtel aurait changé le comportement du planning.
-     - Case à cocher dans **Options → Accommodations**, sous « Billed per stay ».
-     - ⬜ **Migration `2026-08-21_hide_empty_rooms.sql` à passer (TEST + PROD).** Sans danger :
-       colonne `DEFAULT false`, le planning se comporte comme avant tant qu'elle n'est pas cochée.
-       Le backfill par `ILIKE '%martinho%'` n'affecte que PROD (TEST a « Palmeiras Room (demo) »).
-   - **La « note par zone »** (gui : *« avec une note par client si on veut dire où ils sont plus
-     précisément »*) passe pour l'instant par les **notes de la réservation**, comme le « Booking via
-     Fun&Fly » de #022 : `booking_rooms` n'a pas de champ note. Une colonne dédiée est possible si
-     ça ne suffit pas — petite migration.
-   - État au 21/08 : **SM-1 pris par #022** (19→28/10), **SM-2 à SM-6 libres**.
-2. **« 2x privé 4x2h » = combien d'heures ?** gui : *« mettre une note, il faudra clarifier ça
-   auprès de F&Fly »*. Ne rien déduire du libellé — [[reference_agency_package_hours]] : le
-   « 10x 2h » valait 10 h au total, pas 20. **Depuis le 21/08 un « Pack cours Privé 4h » existe**,
-   ce qui rend le libellé encore plus ambigu : « 4x2h » peut désigner ce pack (4 h) ou 4 séances
-   de 2 h (8 h). Raison de plus pour demander plutôt que d'interpréter.
-3. **L'outil MCP `create_booking` n'est pas encore chargé** dans la session : il faut redémarrer
-   Claude Code pour qu'il apparaisse (le serveur lit le TS par `tsx`, rien à compiler).
+**⏸️ Toujours ouvert : « 2x privé 4x2h » = combien d'heures ?** gui : *« mettre une note, il
+faudra clarifier ça auprès de F&Fly »*. Ne rien déduire du libellé —
+[[reference_agency_package_hours]] : le « 10x 2h » valait 10 h au total, pas 20. Depuis le 21/08
+un « Pack cours Privé 4h » existe, ce qui rend le libellé encore plus ambigu : « 4x2h » peut
+désigner ce pack (4 h) ou 4 séances de 2 h (8 h). Tant que ce n'est pas clarifié, ne pas créer les
+leçons de wing ni la ligne de facturation correspondante.
+
+**✅ Bloquants résolus le 21/08**
+- **L'hébergement.** San Martinho passé de 1 emplacement (capacité 2) à **6 emplacements de
+  capacité 4** (SM-1→SM-6, `total_rooms = 6`, confirmé par `list_accommodations`). Drapeau
+  **`accommodations.hide_empty_rooms`** (migration `2026-08-21_hide_empty_rooms.sql`, **passée et
+  vérifiée TEST + PROD par gui le 21/08** — `hide_empty_rooms: true` visible sur San Martinho via
+  `list_accommodations`) : le planning ne dessine que les emplacements occupés dans la saison
+  affichée, plus une ligne libre. Un drapeau, pas un test sur le nom.
+  - **La « note par zone »** passe pour l'instant par les notes de la réservation ; pas de colonne
+    dédiée (`booking_rooms` n'en a pas).
+- **`create_booking` chargé** après redémarrage de Claude Code (le serveur MCP lit le TS par
+  `tsx`, rien à compiler) — confirmé disponible en début de cette session.
+- **Migration `2026-08-19_agency_invoices.sql`** — gui indique l'avoir passée aussi (avec la
+  précédente) le 21/08. **Pas encore re-vérifiée par cette session** (table admin-only, le curl
+  anon ne prouve rien ; à confirmer en service_role ou simplement en ouvrant le panneau Agency
+  billing de la résa #26 à l'étape 4 — si le panneau fonctionne, la migration est bien passée).
 
 **🔧 À PRÉVOIR (demandé par gui le 21/08) — le stockage payé par l'agence.**
 gui confirme que **F&Fly paie le gardiennage**, et veut que ce soit géré durablement. Or cocher
