@@ -1180,17 +1180,36 @@ Vols : **arrivée MPM le 19/10 à 06:45** (TAP 281 parti de Lisbonne le 18 à 19
   ⚠️ **Nécessite un redémarrage de la session Claude Code** pour apparaître (les outils MCP sont
   chargés au démarrage ; `tsx` lit le TS directement, donc rien à compiler).
 
+- ✅ **Tarifs Wingfoil et Stockage créés** (décisions gui du 21/08) : **« Pack cours Wing privé 10h »
+  à 472,50 €** (« les cours de wing au même prix que le kite ») et **« Gardiennage matériel
+  personnel — par personne et par jour » à 7 €**, catégorie `rental` faute de catégorie dédiée
+  (les 4 possibles sont lesson/rental/transfer/accommodation).
+  ⚠️ Le prix du wing suppose que « même prix que le kite » signifie **le même forfait 10 h**. Si
+  F&Fly vend un forfait wing plus court, c'est le **prix du forfait** qu'il faudra revoir, pas le
+  taux horaire.
+
 **⬜ Bloquants avant de créer la résa**
-1. **L'hébergement.** gui : « si F&Fly ne parle pas d'hébergement, c'est qu'ils s'en sont occupés,
-   en général San Martinho ». Mais **San Martinho n'a qu'UN emplacement** dans le modèle, et il est
-   déjà occupé par **#022 (SENE) du 19 au 28/10** — chevauchement direct. Il faut soit **ajouter un
-   emplacement** à San Martinho (c'est un hôtel tiers, il peut loger deux groupes : la limite est
-   dans notre saisie, pas dans la réalité), soit loger ailleurs. H2 et H3 sont libres en entier.
-2. **Les tarifs Wingfoil et Stockage n'existent pas** dans la grille F&Fly (elle n'a que Pack Privé,
-   Semi-Privé, Transfert). Prix à demander à gui avant de facturer quoi que ce soit.
-3. **« 2x privé 4x2h » = combien d'heures ?** gui : *« mettre une note, il faudra clarifier ça
+1. **L'hébergement — VÉRIFIÉ le 21/08, et ça n'avait PAS été prévu.** gui pensait que San Martinho
+   avait été modélisé « gigantesque » : en base il n'a **qu'un seul emplacement**, nommé « Room »,
+   **capacité 2**, `total_rooms = 1`. Deux problèmes d'un coup : il est **déjà pris par #022 (SENE)
+   du 19 au 28/10**, et sa capacité 2 ne loge pas **3 personnes**. Il faut donc ajouter des
+   emplacements à San Martinho (décision de gui : combien, quelle capacité, quels noms) — ou loger
+   ailleurs : **H2 et H3 sont libres en entier** sur toute la période.
+2. **« 2x privé 4x2h » = combien d'heures ?** gui : *« mettre une note, il faudra clarifier ça
    auprès de F&Fly »*. Ne rien déduire du libellé — [[reference_agency_package_hours]] : le
    « 10x 2h » valait 10 h au total, pas 20.
+3. **L'outil MCP `create_booking` n'est pas encore chargé** dans la session : il faut redémarrer
+   Claude Code pour qu'il apparaisse.
+
+**🔧 À PRÉVOIR (demandé par gui le 21/08) — le stockage payé par l'agence.**
+gui confirme que **F&Fly paie le gardiennage**, et veut que ce soit géré durablement. Or cocher
+« matériel perso » sur un voyageur facture l'**accès centre au CLIENT** (`center_access_rate`), et
+l'accès centre **n'est pas** une des 4 sources rattachables à une facture agence (cours, locations,
+transferts, chambres) — donc rien ne permet de l'exclure. Parade immédiate sur cette résa :
+`center_access_rate = 0`. **Vraie solution à trancher** : ajouter l'accès centre comme 5ᵉ source
+rattachable, ce qui suppose une colonne `agency_billing_line_id` là où vit cette information —
+aujourd'hui elle n'est nulle part, c'est un simple compteur sur la réservation
+(`num_center_access` × `center_access_rate`). C'est donc un petit chantier, pas une case à cocher.
 
 **⚠️ Piège identifié : le stockage risque d'être facturé deux fois.** Cocher « matériel perso »
 sur un voyageur déclenche l'**accès centre** facturé au client (`center_access_rate`, 5 €/jour),
