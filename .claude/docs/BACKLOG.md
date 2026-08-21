@@ -49,6 +49,7 @@
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
+| **`2026-08-21_hide_empty_rooms.sql`** | **⬜ À PASSER (TEST + PROD). Sans danger** — ajoute `accommodations.hide_empty_rooms` (`BOOLEAN NOT NULL DEFAULT false`) : le planning n'affiche que les emplacements occupés **plus une ligne libre**, pour un hébergement dont les « emplacements » sont une commodité de saisie (San Martinho, passé à 6). Tant que la case n'est pas cochée, **le planning se comporte exactement comme avant**. Backfill `ILIKE '%martinho%'` : n'active que PROD, sans objet sur TEST (« Palmeiras Room (demo) »). ⚠️ **Un drapeau en base, pas un test sur le nom** dans le code. | ⬜ | ⬜ |
 | ~~`2026-08-21_update_form_email_type.sql`~~ | 6ᵉ valeur d'`email_log_type` → `'update_form'`, pour la colonne Documents → Overview qui envoie à un client déjà en résa le lien du formulaire public complet (dates de visa, passeports, contact d'urgence) sur une résa **existante** au lieu d'une enquiry (`params.target_booking_id`). Fichier seul, rien ne s'en sert dans la même transaction. ✅ **Vérifiée le 2026-08-21 en service_role sur les deux bases** (email_logs admin-only, le curl anon ne prouve rien) : `email_logs?type=eq.update_form` → **200 `[]`**, contrôle négatif `zzz_bidon` → **22P02**. | ✅ 2026-08-21 | ✅ 2026-08-21 |
 | ~~`2026-08-20_travel_guide_translations.sql`~~ | **✅ Passée et vérifiée TEST + PROD le 2026-08-20.** Les **traductions EN + ES** des 6 sections du Travel Guide, écrites à partir du FR terminé par gui. **Ne touche pas au français** : `jsonb_set` sur les seules clés `en`/`es`, aucune instruction ne nomme `{fr}`. Idempotent, rejouable. Ce n'est pas du schéma mais du contenu — même endroit que le backfill des `short_code`. Vérifié en service_role sur les 2 bases : **FR manquant = 0, EN/ES manquant = 0**, guillemets et ponctuation intacts, et les longueurs PROD enfin du même ordre (`549/456/516`, `970/882/950`...). | ✅ 2026-08-20 | ✅ 2026-08-20 |
 | **`2026-08-19_agency_invoices.sql`** | **⬜ À PASSER (TEST + PROD).** La **génération de facture agence** : table `agency_invoices` (notre n° `AAAAMMJJ` unique, la **réf que l'agence nous donne**, date, tampons sent/paid) + `agency_billing_lines.agency_invoice_id`. **Aucun DROP → ne peut rien casser.** Les tampons `invoiced_at`/`paid_at` **déménagent de la ligne vers la facture** (on solde une facture, pas une ligne) — vérifié avant d'écrire : **aucune ligne ne portait de tampon sur les 2 bases**, rien n'est perdu. Admin-only (REVOKE anon). ⚠️ Table admin-only → **le curl anon ne prouve rien**, vérifier en service_role ; recette en bas du fichier. | ⬜ | ⬜ |
@@ -1201,8 +1202,21 @@ Vols : **arrivée MPM le 19/10 à 06:45** (TAP 281 parti de Lisbonne le 18 à 19
    gui pensait. Sur sa demande (« il faut qu'on puisse y mettre plein de clients »), l'hôtel compte
    désormais **6 emplacements de capacité 4** : l'existant renommé **SM-1** (id inchangé, #022 n'est
    pas affectée) plus **SM-2 → SM-6**, et `total_rooms = 6`.
-   - **Le compromis** : chaque emplacement est une **ligne de planning**, donc 6 lignes San Martinho
-     même vides. 6 est un choix ajustable dans Options → Accommodations, pas une contrainte.
+   - ✅ **Le compromis des lignes vides est levé** (`fed3c70`, décision gui du 21/08 : *« il faut
+     qu'on puisse avoir autant de lignes SanMartinho qu'on veut, que ça reste cohérent »*). Nouveau
+     drapeau **`accommodations.hide_empty_rooms`** : le planning ne dessine que les emplacements
+     **occupés dans la saison affichée**, plus **une ligne libre** pour y déposer une résa. gui peut
+     donc en créer autant qu'il veut. Maisons et bungalows inchangés — leurs chambres sont réelles.
+     - **Fenêtre = la saison entière**, pas les jours visibles : faire défiler ne doit pas
+       réorganiser les lignes sous le curseur. Les résas annulées comptent comme occupantes (elles
+       restent dessinées en gris ; une ligne qui disparaît sous une barre visible serait pire).
+     - ⚠️ **Un drapeau, pas un test sur le nom.** « San Martinho seulement » codé par son nom aurait
+       été la 4ᵉ occurrence de l'erreur que ce projet a déjà payée trois fois — et c'est la raison
+       d'être de `agencies.short_code`. Renommer l'hôtel aurait changé le comportement du planning.
+     - Case à cocher dans **Options → Accommodations**, sous « Billed per stay ».
+     - ⬜ **Migration `2026-08-21_hide_empty_rooms.sql` à passer (TEST + PROD).** Sans danger :
+       colonne `DEFAULT false`, le planning se comporte comme avant tant qu'elle n'est pas cochée.
+       Le backfill par `ILIKE '%martinho%'` n'affecte que PROD (TEST a « Palmeiras Room (demo) »).
    - **La « note par zone »** (gui : *« avec une note par client si on veut dire où ils sont plus
      précisément »*) passe pour l'instant par les **notes de la réservation**, comme le « Booking via
      Fun&Fly » de #022 : `booking_rooms` n'a pas de champ note. Une colonne dédiée est possible si
