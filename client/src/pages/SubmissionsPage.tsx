@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useTable } from '../hooks/useSupabase'
-import type { Enquiry, FormSubmission, FormSubmissionStatus, Lang, TaxiPricingDefaults } from '../types/database'
+import { useBookings } from '../hooks/useBookings'
+import { useTaxiTrips } from '../hooks/useTaxis'
+import type { Booking, Enquiry, FormSubmission, FormSubmissionStatus, Lang, TaxiPricingDefaults, TaxiTrip } from '../types/database'
 import { activityCountColumns } from '../utils/bookingActivity'
 import { addDaysISO as addDays, fmtDate } from '../utils/dates'
 import { findCandidateEnquiries, fmtArrivalMonth } from '../utils/enquiries'
@@ -10,7 +12,10 @@ import { FALLBACK_TAXI_PRICING } from '../utils/taxiPricing'
 
 // Admin review queue for public booking-form submissions.
 // English UI (admin chrome). Approving turns a submission into a real
-// client + booking (provisional) + booking_participants.
+// client + booking (provisional) + booking_participants — unless the
+// submission carries payload.target_booking_id (sent from Documents →
+// Overview → Update Form on an EXISTING booking), in which case it updates
+// that booking instead of creating a second one.
 
 const LANG_FLAG: Record<Lang, string> = { fr: '🇫🇷', en: '🇬🇧', es: '🇪🇸' }
 
@@ -22,9 +27,10 @@ const STATUS_BADGE: Record<FormSubmissionStatus, string> = {
 
 
 // ─── Detail / review panel (module scope = focus-safe inputs) ─────────────────
-interface DetailProps { s: FormSubmission; onDone: () => void; enquiries: Enquiry[] }
-function SubmissionDetail({ s, onDone, enquiries }: DetailProps) {
+interface DetailProps { s: FormSubmission; onDone: () => void; enquiries: Enquiry[]; bookings: Booking[]; taxiTrips: TaxiTrip[] }
+function SubmissionDetail({ s, onDone, enquiries, bookings, taxiTrips }: DetailProps) {
   const p = s.payload
+  const targetBooking = p.target_booking_id ? bookings.find(b => b.id === p.target_booking_id) : null
   const candidates = useMemo(
     () => findCandidateEnquiries({ email: p.email, name: p.reference_name }, enquiries),
     [p.email, p.reference_name, enquiries])
@@ -197,6 +203,123 @@ function SubmissionDetail({ s, onDone, enquiries }: DetailProps) {
     onDone()
   }
 
+  // Update-form path: the submission carries payload.target_booking_id — this
+  // is a client filling in what was missing on a booking that already exists,
+  // not a new one. Overwrites the relevant fields outright (gui's call: no
+  // diff screen), and never touches check_in/check_out or rooms — those are
+  // fixed by the room booking, this form only ever asked about visa/travel
+  // dates and personal details.
+  async function applyToBooking() {
+    if (!targetBooking || alreadyCreated) return
+    setBusy(true)
+    setError(null)
+
+    // 1. Client — same person, update in place rather than creating a new row.
+    const { first, last } = splitName(p.reference_name)
+    const { error: cErr } = await supabase.from('clients').update({
+      first_name: first || p.reference_name || 'Unknown',
+      last_name: last || '',
+      email: p.email || null,
+      phone: p.phone || null,
+      emergency_contact_name: p.emergency_contact_name || null,
+      emergency_contact_phone: p.emergency_contact_phone || null,
+      emergency_contact_email: p.emergency_contact_email || null,
+      emergency_contact_relation: p.emergency_contact_relation || null,
+    }).eq('id', targetBooking.client_id)
+    if (cErr) { setError('Client: ' + cErr.message); setBusy(false); return }
+
+    // 2. Booking — only the fields this form actually asks about.
+    const formTravelers = (p.travelers ?? []).filter(t => t.first_name.trim())
+    const { error: bErr } = await supabase.from('bookings').update({
+      ...activityCountColumns(formTravelers),
+      visa_entry_date: p.country_entry_date || null,
+      visa_exit_date: p.country_exit_date || null,
+      arrival_time: p.arrival_time || null,
+      departure_time: p.departure_time || null,
+      luggage_count: p.luggage_count || 0,
+      boardbag_count: p.boardbag_count || 0,
+      taxi_arrival: !!p.taxi_arrival,
+      taxi_departure: !!p.taxi_departure,
+      couples_count: p.double_beds || 0,
+      has_travel_insurance: !!p.has_travel_insurance,
+      waiver_accepted_at: p.waiver_accepted ? s.submitted_at : null,
+      waiver_version: p.waiver_accepted ? p.waiver_version : null,
+      referral_source: p.referral_source || null,
+      emergency_contact_name: p.emergency_contact_name || null,
+      emergency_contact_phone: p.emergency_contact_phone || null,
+      emergency_contact_email: p.emergency_contact_email || null,
+    }).eq('id', targetBooking.id)
+    if (bErr) { setError('Booking: ' + bErr.message); setBusy(false); return }
+
+    // 3. Participants — delete-all-then-reinsert, same idiom the wizard already
+    //    uses for external stays: the form is the new source of truth for the
+    //    crew list, not something to reconcile row by row against the old one.
+    const { error: delErr } = await supabase.from('booking_participants').delete().eq('booking_id', targetBooking.id)
+    if (delErr) { setError('Participants: ' + delErr.message); setBusy(false); return }
+    if (formTravelers.length > 0) {
+      const { error: pErr } = await supabase.from('booking_participants').insert(
+        formTravelers.map(t => ({
+          booking_id: targetBooking.id,
+          first_name: t.first_name.trim(),
+          last_name: t.last_name.trim() || null,
+          passport_number: t.passport_number.trim() || null,
+          kite_level: t.does_kite ? (t.kite_level ?? null) : null,
+          does_kite: !!t.does_kite,
+          brings_own_gear: !!t.brings_own_gear,
+          needs_storage: !!t.needs_storage,
+          wants_kite_lessons: !!t.wants_kite_lessons,
+          wants_kite_rental: !!t.wants_kite_rental,
+          wants_wing_lessons: !!t.wants_wing_lessons,
+          client_id: null,
+          notes: null,
+        }))
+      )
+      if (pErr) { setError('Participants: ' + pErr.message); setBusy(false); return }
+    }
+
+    // 4. Taxi trips — same existence guard as the booking wizard (BookingsPage,
+    //    "checkbox creates a trip on edit too"): only create a leg that is both
+    //    requested and not already covered, so re-applying never duplicates.
+    const existingTripTypes = new Set(taxiTrips.filter(t => t.booking_id === targetBooking.id).map(t => t.type))
+    const nbPersons = formTravelers.length || 1
+    const smallTaxi = nbPersons <= 3
+    const taxiBase = {
+      booking_id:         targetBooking.id,
+      taxi_driver_id:     null,
+      status:             'needs_details' as const,
+      nb_persons:         nbPersons,
+      nb_luggage:         p.luggage_count || 0,
+      nb_boardbags:       p.boardbag_count || 0,
+      notes:              null,
+      price_eur:          smallTaxi ? pricingDefaults.default_price_eur : 0,
+      price_driver_mzn:   smallTaxi ? pricingDefaults.default_driver_mzn : 0,
+      margin_manager_mzn: smallTaxi ? pricingDefaults.default_manager_mzn : 0,
+    }
+    if (p.taxi_arrival && !existingTripTypes.has('aero-to-center')) {
+      const { error: taxiInErr } = await supabase.from('taxi_trips').insert({
+        ...taxiBase, date: targetBooking.check_in, start_time: p.arrival_time || '00:00', type: 'aero-to-center',
+      })
+      if (taxiInErr) setError(`Booking updated, but the arrival transfer was not (${taxiInErr.message}). Add it in Taxis.`)
+    }
+    if (p.taxi_departure && !existingTripTypes.has('center-to-aero')) {
+      const { error: taxiOutErr } = await supabase.from('taxi_trips').insert({
+        ...taxiBase, date: targetBooking.check_out, start_time: p.departure_time || '00:00', type: 'center-to-aero',
+      })
+      if (taxiOutErr) setError(`Booking updated, but the departure transfer was not (${taxiOutErr.message}). Add it in Taxis.`)
+    }
+
+    // 5. Mark submission approved — created_booking_id now reads as "the
+    //    booking this submission produced", new or pre-existing, so the same
+    //    alreadyCreated guard above works for both paths without a new column.
+    const { error: uErr } = await supabase.from('form_submissions')
+      .update({ status: 'approved', reviewed_at: new Date().toISOString(), created_booking_id: targetBooking.id })
+      .eq('id', s.id)
+    if (uErr) { setError('Submission update: ' + uErr.message); setBusy(false); return }
+
+    setBusy(false)
+    onDone()
+  }
+
   async function reject() {
     setBusy(true)
     setError(null)
@@ -314,8 +437,65 @@ function SubmissionDetail({ s, onDone, enquiries }: DetailProps) {
         </div>
       )}
 
-      {/* Bilene dates + actions */}
-      {s.status === 'pending' && (
+      {/* Update-form path: target_booking_id set, and it still resolves to a real booking */}
+      {s.status === 'pending' && p.target_booking_id && targetBooking && (
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Sent from an existing booking — applying updates <strong>#{String(targetBooking.booking_number).padStart(3, '0')}</strong> in
+            place (visa dates, transfer times, passport numbers, emergency contact). Room dates and price are never touched.
+          </p>
+          {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
+          {confirmAction === 'reject' ? (
+            <div className="flex items-center gap-3 pt-1">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Reject this submission?</span>
+              <button type="button" onClick={() => { setConfirmAction(null); reject() }} disabled={busy}
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700 transition">
+                Yes, reject
+              </button>
+              <button type="button" onClick={() => setConfirmAction(null)}
+                className="px-3 py-1.5 rounded-lg text-sm text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={applyToBooking} disabled={busy || alreadyCreated}
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition ${!busy && !alreadyCreated ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-400 cursor-not-allowed'}`}>
+                {busy ? 'Working…' : alreadyCreated ? 'Already applied' : `Apply to booking #${String(targetBooking.booking_number).padStart(3, '0')}`}
+              </button>
+              <button type="button" onClick={() => setConfirmAction('reject')} disabled={busy}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                Reject
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      {/* Update-form path, but the booking it targeted is gone — surface it instead of silently falling through to "create a new booking" */}
+      {s.status === 'pending' && p.target_booking_id && !targetBooking && (
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-rose-200 dark:border-rose-900 p-4 space-y-2">
+          <p className="text-sm text-rose-600 dark:text-rose-400">⚠ This was sent from a booking that no longer exists — nothing to apply it to. Reject it, or handle it by hand.</p>
+          <button type="button" onClick={() => setConfirmAction('reject')} disabled={busy}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+            Reject
+          </button>
+          {confirmAction === 'reject' && (
+            <div className="flex items-center gap-3 pt-1">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Reject this submission?</span>
+              <button type="button" onClick={() => { setConfirmAction(null); reject() }} disabled={busy}
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700 transition">
+                Yes, reject
+              </button>
+              <button type="button" onClick={() => setConfirmAction(null)}
+                className="px-3 py-1.5 rounded-lg text-sm text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      {/* Bilene dates + actions — a fresh public submission, not tied to an existing booking */}
+      {s.status === 'pending' && !p.target_booking_id && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3">
           <p className="text-xs text-gray-500 dark:text-gray-400">Confirm the Bilene check-in / check-out before creating the booking (defaulted from country entry + nights).</p>
           <div className="grid grid-cols-2 gap-3">
@@ -359,7 +539,9 @@ function SubmissionDetail({ s, onDone, enquiries }: DetailProps) {
         </div>
       )}
       {s.status === 'approved' && s.created_booking_id && (
-        <p className="text-sm text-green-700 dark:text-green-400">✅ Approved — booking created.</p>
+        <p className="text-sm text-green-700 dark:text-green-400">
+          ✅ Approved — {p.target_booking_id ? 'booking updated.' : 'booking created.'}
+        </p>
       )}
       {s.status === 'rejected' && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3">
@@ -394,6 +576,9 @@ export default function SubmissionsPage() {
   const { data: submissions, loading, refresh } = useTable<FormSubmission>('form_submissions', { order: 'submitted_at', ascending: false })
   // For the "is this someone you were already talking to?" suggestion.
   const { data: enquiries } = useTable<Enquiry>('enquiries', { order: 'last_contact_at' })
+  // Only read when a submission targets an existing booking (Update Form).
+  const { data: bookings } = useBookings()
+  const { data: taxiTrips } = useTaxiTrips()
   const [tab, setTab] = useState<FormSubmissionStatus>('pending')
   const [openId, setOpenId] = useState<string | null>(null)
 
@@ -462,7 +647,7 @@ export default function SubmissionsPage() {
                     <span className="text-gray-300 dark:text-gray-500 text-sm">{open ? '▲' : '▼'}</span>
                   </div>
                 </button>
-                {open && <SubmissionDetail s={s} enquiries={enquiries} onDone={() => { setOpenId(null); refresh() }} />}
+                {open && <SubmissionDetail s={s} enquiries={enquiries} bookings={bookings} taxiTrips={taxiTrips} onDone={() => { setOpenId(null); refresh() }} />}
               </div>
             )
           })}
