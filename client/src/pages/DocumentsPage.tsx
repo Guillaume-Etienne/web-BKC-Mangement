@@ -16,7 +16,7 @@ import { emailVisaLetter, emailBookingConfirmation, emailTravelGuide, emailWelco
 import type { Lang } from '../utils/printBookingSummary'
 import type { Booking } from '../types/database'
 import { supabase } from '../lib/supabase'
-import { fmtDate, todayISO } from '../utils/dates'
+import { fmtDate, todayISO, addDaysISO } from '../utils/dates'
 
 // ── Guide sections — legacy localStorage fallback ──────────────────────────────
 // Sections now live in the document_templates table. This read-only fallback
@@ -543,7 +543,7 @@ export default function DocumentsPage() {
       label: `Client Account – ${clientName}`,
       params: { booking_number: String(booking.booking_number) },
       created_at: todayISO(),
-      expires_at: null,
+      expires_at: addDaysISO(todayISO(), 365),
       is_active: true,
     }])
     if (error) { alert(`Failed to create link: ${error.message}`); return }
@@ -569,7 +569,7 @@ export default function DocumentsPage() {
         language: 'en',
       },
       created_at: todayISO(),
-      expires_at: null,
+      expires_at: addDaysISO(todayISO(), 365),
       is_active: true,
     }])
     if (error) { alert(`Failed to create link: ${error.message}`); return }

@@ -11,7 +11,7 @@ import SeasonsTab from '../components/management/SeasonsTab'
 import SourcesTab from '../components/management/SourcesTab'
 import DatabaseTab from '../components/management/DatabaseTab'
 import AgenciesTab from '../components/management/AgenciesTab'
-import { todayISO, fmtDate } from '../utils/dates'
+import { todayISO, addDaysISO, fmtDate } from '../utils/dates'
 
 const KITE_LEVEL_LABELS: Record<KiteLevel, string> = {
   'beg-total':      'Beg-Total',
@@ -170,7 +170,7 @@ export default function ManagementPage() {
   const [sharedLinks, setSharedLinks] = useState<SharedLink[]>([])
   const [showLinkForm, setShowLinkForm] = useState(false)
   const [linkFormData, setLinkFormData] = useState<{ label: string; type: SharedLinkType; expires_at: string; booking_number: string; driver_id: string }>({
-    label: '', type: 'forecast', expires_at: '', booking_number: '', driver_id: '',
+    label: '', type: 'forecast', expires_at: addDaysISO(todayISO(), 365), booking_number: '', driver_id: '',
   })
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [collapsedLinkTypes, setCollapsedLinkTypes] = useState<Set<string>>(new Set())
@@ -334,7 +334,7 @@ export default function ManagementPage() {
     if (error) { alert('Error: ' + error.message); return }
     refreshSharedLinks()
     setShowLinkForm(false)
-    setLinkFormData({ label: '', type: 'forecast', expires_at: '', booking_number: '', driver_id: '' })
+    setLinkFormData({ label: '', type: 'forecast', expires_at: addDaysISO(todayISO(), 365), booking_number: '', driver_id: '' })
   }
 
   const toggleLinkActive = async (id: string) => {
@@ -1080,22 +1080,37 @@ export default function ManagementPage() {
                             {links.map(link => {
                               const url = `${getBaseUrl()}/?share=${link.token}`
                               const clientName = clientNameForLink(link)
+                              // Expiry is enforced at the RLS level regardless of is_active — a
+                              // link past its date already serves nothing. Surfaced here too, or
+                              // this list would keep calling it "Active" until someone notices
+                              // the link stopped working.
+                              const isExpired = !!link.expires_at && link.expires_at < todayISO()
                               return (
-                                <div key={link.id} className={`px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 ${!link.is_active ? 'opacity-60' : ''}`}>
+                                <div key={link.id} className={`px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 ${(!link.is_active || isExpired) ? 'opacity-60' : ''}`}>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                                       <span className="font-semibold text-gray-800 dark:text-gray-200">{link.label}</span>
                                       {clientName && (
                                         <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-medium">👤 {clientName}</span>
                                       )}
-                                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${link.is_active ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
-                                        {link.is_active ? 'Active' : 'Inactive'}
-                                      </span>
+                                      {isExpired ? (
+                                        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
+                                          ⏰ Expired
+                                        </span>
+                                      ) : (
+                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${link.is_active ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                                          {link.is_active ? 'Active' : 'Inactive'}
+                                        </span>
+                                      )}
                                     </div>
                                     <div className="text-xs text-gray-400 dark:text-gray-400 truncate font-mono">{url}</div>
                                     <div className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">
                                       Created {link.created_at}
-                                      {link.expires_at && ` · Expires ${link.expires_at}`}
+                                      {link.expires_at && (
+                                        <span className={isExpired ? 'text-red-500 dark:text-red-400 font-medium' : ''}>
+                                          {` · ${isExpired ? 'Expired' : 'Expires'} ${link.expires_at}`}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0">

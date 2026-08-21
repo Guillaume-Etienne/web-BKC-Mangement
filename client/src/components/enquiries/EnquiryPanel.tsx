@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import type { Enquiry, EnquiryNote, EnquirySource, EnquiryStatus } from '../../types/database'
 import { STATUS_META, STATUS_ORDER, fmtArrivalMonth } from '../../utils/enquiries'
 import MonthInput from '../common/MonthInput'
+import { todayISO, addDaysISO } from '../../utils/dates'
 
 /** Read the message, fill four fields, close. Twenty seconds.
  *
@@ -163,6 +164,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
       // on enquiries, and re-fetching would mean widening that boundary just
       // to pre-fill four fields. Use "Refresh" below if the enquiry changes.
       params: formLinkParams(enquiry),
+      expires_at: addDaysISO(todayISO(), 365),
       is_active: true,
     })
     setSaving(false)

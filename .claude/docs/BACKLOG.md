@@ -8,18 +8,29 @@
 
 ---
 
-## 🔐 Audit sécu du 2026-08-21 (revue indépendante, agent Opus 5) — reste 2 points sur 3
+## 🔐 Audit sécu du 2026-08-21 (revue indépendante, agent Opus 5) — reste 1 point sur 3
 
-Contexte complet (ce qui est solide, ce qui ne l'est pas) : mémoire, section du jour. Le point 1
-(tokens `Math.random()` → `crypto.randomUUID()`) est **fait et commité** (`6ef3f81`). Restent :
+Contexte complet (ce qui est solide, ce qui ne l'est pas) : mémoire, section du jour.
+Le point 1 (tokens `Math.random()` → `crypto.randomUUID()`) est **fait et commité** (`6ef3f81`).
 
-- ⬜ **Les liens `driver`/`taxi`/`taxi_manager`/`restaurant` n'expirent jamais** — `expires_at`
-  existe et la RLS le respecte, mais tous les générateurs le codent en dur à `null`
-  (`TaxiPage.tsx:145`, `ActivitiesPage.tsx:700`, `DocumentsPage.tsx:546` et `:572`). Poser une
-  date par défaut (ex. fin de saison) au lieu de `null`. **Et** resserrer la policy `driver` sur
-  `bookings`/`clients` (`supabase/schema.sql:990-996`) à ses seules courses — un lien chauffeur
-  transféré donne aujourd'hui accès à **tous** les noms de clients et dates (pas d'email/tel/
-  passeport/argent, mais c'est plus large que nécessaire ; sa page ne demande que ses courses).
+✅ **Expiration par défaut posée le 21/08** (1 an, `gui` : *« 1 an ? qu'en penses-tu ? »* → validé) :
+les 5 générateurs dédiés qui codaient `expires_at: null` en dur (`TaxiPage.tsx` driver,
+`ActivitiesPage.tsx` activity_provider, `DocumentsPage.tsx` client et booking_form/update-form,
+`EnquiryPanel.tsx` booking_form) posent maintenant `addDaysISO(todayISO(), 365)`. Le formulaire
+manuel « + New link » d'Options → Shared Links (seul endroit qui crée aussi `taxi_manager` et
+`restaurant`) préremplit désormais le même défaut, éditable/effaçable à la main — gui peut encore
+faire un lien permanent en vidant le champ (utile pour `enquiry_form`, l'iframe du site, qui doit
+rester valide en continu). **Correction sur ce que j'avais dit à gui** : ce n'était pas
+`driver`/`taxi`/`taxi_manager`/`restaurant` comme annoncé — `taxi` et les 2 types cités n'avaient
+jamais de générateur dédié, seulement le formulaire manuel où la date était déjà éditable.
+Petit **panneau « ⏰ Expired »** ajouté dans Options → Shared Links (`ManagementPage.tsx`) : un
+lien dont `expires_at` est passé s'affiche distinctement (badge rouge, ligne grisée, date en
+rouge) au lieu de rester marqué « Active » jusqu'à ce que quelqu'un signale que ça ne marche plus.
+Vérifié au navigateur (TEST) : lien créé avec une date passée → badge + ligne grisée, corrigé.
+⚠️ Ne resserre pas encore la policy RLS `driver` sur `bookings`/`clients`
+(`supabase/schema.sql:990-996`) à ses seules courses — un lien chauffeur transféré donne toujours
+accès à **tous** les noms de clients et dates (pas d'email/tel/passeport/argent). Reste à faire.
+
 - ⬜ **Le formulaire public (`enquiries`/`form_submissions`) n'a de garde-fou anti-spam que côté
   navigateur** (honeypot + délai 3 s, `EnquiryFormPage.tsx:75`) — contournable en tapant
   directement l'API. Pas de fuite de données (colonnes bornées, `status`/`channel` verrouillés),

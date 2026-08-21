@@ -8,7 +8,7 @@ import type {
   ActivityProviderType, ActivityPaymentFlow, ActivityPaymentDirection,
   SharedLink, BookingRef,
 } from '../types/database'
-import { todayISO, fmtDate } from '../utils/dates'
+import { todayISO, addDaysISO, fmtDate } from '../utils/dates'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -697,7 +697,7 @@ export default function ActivitiesPage() {
       label:      `${TYPE_LABELS[provider.type]}: ${provider.name}`,
       params:     { provider_id: provider.id },
       created_at: todayISO(),
-      expires_at: null, is_active: true,
+      expires_at: addDaysISO(todayISO(), 365), is_active: true,
     }])
     refreshLinks()
   }
