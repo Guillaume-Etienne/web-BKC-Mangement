@@ -18,9 +18,10 @@ interface AccFormData {
   type: AccommodationType
   cost_per_night: number | null
   external_billing: boolean
+  hide_empty_rooms: boolean
 }
 interface AccFormProps {
-  initial: { name: string; is_active: boolean; type: AccommodationType; cost_per_night: string; external_billing: boolean }
+  initial: { name: string; is_active: boolean; type: AccommodationType; cost_per_night: string; external_billing: boolean; hide_empty_rooms: boolean }
   title: string
   lockType?: boolean
   /** Present when editing an existing accommodation: lets the same modal set
@@ -42,6 +43,7 @@ function AccForm({ initial, title, lockType, editContext, onSave, onClose }: Acc
   const [type,    setType]    = useState(initial.type)
   const [cost,    setCost]    = useState(initial.cost_per_night)
   const [external, setExternal] = useState(initial.external_billing)
+  const [hideEmpty, setHideEmpty] = useState(initial.hide_empty_rooms)
   const [saving,  setSaving]  = useState(false)
   const [rateValues, setRateValues] = useState<Record<string, string>>(() =>
     editContext ? initialRateValues(editContext.accommodation, editContext.rooms, editContext.rates) : {})
@@ -63,6 +65,7 @@ function AccForm({ initial, title, lockType, editContext, onSave, onClose }: Acc
       type,
       cost_per_night: type === 'bungalow' && cost !== '' ? parseFloat(cost) : null,
       external_billing: external,
+      hide_empty_rooms: hideEmpty,
     })
     setSaving(false)
   }
@@ -115,6 +118,19 @@ function AccForm({ initial, title, lockType, editContext, onSave, onClose }: Acc
               <span className="block text-xs text-gray-500 dark:text-gray-400">
                 For places we don't price ourselves — a third-party hotel, or guests with
                 their own arrangement. The amount is entered on each booking instead.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+            <input type="checkbox" checked={hideEmpty} onChange={e => setHideEmpty(e.target.checked)} className="rounded mt-0.5" />
+            <span>
+              Planning: hide the rooms nobody is in
+              <span className="block text-xs text-gray-500 dark:text-gray-400">
+                For a large place where rooms are just a way of holding several stays at
+                once. The planning then shows only the occupied ones plus one free row,
+                so you can add as many as you need without filling the board with empty
+                lines. Leave off for houses and bungalows — their rooms are real and keep
+                a fixed position.
               </span>
             </span>
           </label>
@@ -736,7 +752,7 @@ export default function AccommodationsTab() {
       {/* ── Modals ───────────────────────────────────────────────────────── */}
       {showForm && (
         <AccForm
-          initial={{ name: '', is_active: true, type: 'house', cost_per_night: '', external_billing: false }}
+          initial={{ name: '', is_active: true, type: 'house', cost_per_night: '', external_billing: false, hide_empty_rooms: false }}
           title="New accommodation"
           onSave={handleCreate}
           onClose={() => setShowForm(false)}
@@ -753,6 +769,7 @@ export default function AccommodationsTab() {
             // where the column doesn't exist yet — after it, NOT NULL DEFAULT false.
             // Without it the checkbox starts uncontrolled and React complains.
             external_billing: editing.external_billing ?? false,
+            hide_empty_rooms: editing.hide_empty_rooms ?? false,
           }}
           title={`Edit ${editing.name}`}
           lockType

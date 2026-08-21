@@ -13,6 +13,13 @@ export interface Accommodation {
   // case by case (San Martinho, the "No accommodation" row). Exempt from the
   // "no sell price" badge — that is the whole point of the flag.
   external_billing: boolean
+  /** Planning draws only the spots in use over the displayed season, plus one
+   *  free row — instead of every spot, always. For a large third-party place
+   *  whose "spots" are a convenience of our data entry rather than real rooms
+   *  (San Martinho). Houses and bungalows leave this false: their rooms are real
+   *  and keep a fixed position. Optional: rows read before the column existed
+   *  come back undefined, which reads as false. */
+  hide_empty_rooms?: boolean
 }
 
 export interface Room {

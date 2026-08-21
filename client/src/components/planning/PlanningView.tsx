@@ -432,6 +432,36 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     return resolvedBookings.filter(b => ids.includes(b.id))
   }
 
+  /** Which spots of an accommodation get a planning row.
+   *
+   *  Normally all of them: a house has the rooms it has, and they keep a fixed
+   *  place so a booking never jumps from one line to another.
+   *
+   *  When the accommodation is flagged `hide_empty_rooms` — a large third-party
+   *  place whose "spots" are a convenience of our data entry, not real rooms —
+   *  only the spots used somewhere in the displayed season are drawn, plus the
+   *  first free one so there is always a row to drop a booking onto. San Martinho
+   *  can then hold as many spots as needed without adding empty rows month after
+   *  month.
+   *
+   *  The window is the whole SEASON, not the visible days: scrolling sideways
+   *  must not reshuffle the rows under the cursor. */
+  function visibleRoomsFor(acc: Accommodation): Room[] {
+    const all = rooms.filter(r => r.accommodation_id === acc.id)
+    if (!acc.hide_empty_rooms) return all
+
+    const fromISO = toISODate(seasonStart)
+    const toISO   = toISODate(seasonEnd)
+    // Cancelled bookings count as "used": they are still drawn (greyed), and a
+    // row that vanishes under a visible bar would be worse than an extra line.
+    const used = all.filter(r =>
+      getBookingsForRoom(r.id).some(b => b.check_in <= toISO && b.check_out >= fromISO))
+
+    const usedIds = new Set(used.map(r => r.id))
+    const firstFree = all.find(r => !usedIds.has(r.id))
+    return firstFree ? [...used, firstFree] : used
+  }
+
   async function validateDrafts() {
     const bookingUpdates: { id: string; check_in: string; check_out: string }[] = []
     const roomUpdates:    { booking_id: string; from: string; to: string }[] = []
@@ -853,7 +883,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                       </div>
                       {/* Accommodation rows */}
                       {typeAccs.map((acc) => {
-                        const accRooms = rooms.filter(r => r.accommodation_id === acc.id)
+                        const accRooms = visibleRoomsFor(acc)
                         const unavailableDays = unavailableByAccommodation.get(acc.id)
                         return (
                           <div key={acc.id}>
