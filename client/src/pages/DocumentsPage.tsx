@@ -12,7 +12,7 @@ import type { TravelGuideSection } from '../data/travelGuide'
 import { printVisaLetter } from '../utils/printVisaLetter'
 import { printBookingSummary } from '../utils/printBookingSummary'
 import { printTravelGuide, printWelcomeGuide } from '../utils/printTravelGuide'
-import { emailVisaLetter, emailBookingConfirmation, emailTravelGuide, emailWelcomeGuide, emailClientAccount } from '../utils/emailTemplates'
+import { emailVisaLetter, emailBookingConfirmation, emailTravelGuide, emailWelcomeGuide, emailClientAccount, emailUpdateForm } from '../utils/emailTemplates'
 import type { Lang } from '../utils/printBookingSummary'
 import type { Booking } from '../types/database'
 import { supabase } from '../lib/supabase'
@@ -83,6 +83,7 @@ const DOC_TYPES: { type: EmailLogType; label: string }[] = [
   { type: 'travel_guide',         label: 'Travel Guide' },
   { type: 'welcome_guide',        label: 'Welcome Guide' },
   { type: 'client_account',       label: 'Client Account' },
+  { type: 'update_form',          label: 'Update Form' },
 ]
 
 function cellKey(bookingId: string, type: EmailLogType): string {
@@ -93,6 +94,11 @@ function cellKey(bookingId: string, type: EmailLogType): string {
 // other small pure helper on this page (bookingLabel, clientEmail, ...).
 function generateClientToken(): string {
   return `client_${Math.random().toString(36).slice(2, 12)}`
+}
+
+// Same prefix EnquiryPanel.createFormLink already uses for a booking_form link.
+function generateBookingFormToken(): string {
+  return `booking_form_${Math.random().toString(36).slice(2, 12)}`
 }
 
 function shareUrl(token: string): string {
@@ -423,7 +429,8 @@ export default function DocumentsPage() {
   // shortcut BookingsPage uses — agencyMarker falls straight through to agency_id.
   const agencyLookup = { agencies, bookings: allBookings, agencyBillingLines: [] }
   const { data: sharedLinksData, refresh: refreshSharedLinks } = useTable<SharedLink>('shared_links')
-  const clientLinks = sharedLinksData.filter(l => l.type === 'client')
+  const clientLinks     = sharedLinksData.filter(l => l.type === 'client')
+  const updateFormLinks = sharedLinksData.filter(l => l.type === 'booking_form' && !!l.params?.target_booking_id)
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null)
 
   const [tab, setTab] = useState<Tab>('overview')
@@ -519,6 +526,15 @@ export default function DocumentsPage() {
     if (!Number.isNaN(num) && !clientLinkByBookingNumber.has(num)) clientLinkByBookingNumber.set(num, link)
   }
 
+  // One update-form link per booking id (target_booking_id, not booking_number
+  // — the form targets a specific existing row, same key SubmissionsPage will
+  // read it back with).
+  const updateFormLinkByBookingId = new Map<string, SharedLink>()
+  for (const link of updateFormLinks) {
+    const id = link.params?.target_booking_id
+    if (id && !updateFormLinkByBookingId.has(id)) updateFormLinkByBookingId.set(id, link)
+  }
+
   async function createClientLink(booking: Booking) {
     const clientName = booking.client ? `${booking.client.first_name} ${booking.client.last_name}` : `#${booking.booking_number}`
     const { error } = await supabase.from('shared_links').insert([{
@@ -534,13 +550,39 @@ export default function DocumentsPage() {
     refreshSharedLinks()
   }
 
-  async function reactivateClientLink(link: SharedLink) {
+  // Same shape as EnquiryPanel.createFormLink, just snapshotted from the
+  // booking's own client instead of an enquiry — target_booking_id is what
+  // lets BookingFormPage (via App.tsx) and SubmissionsPage recognise this as
+  // an update to an existing booking rather than a fresh one.
+  async function createUpdateFormLink(booking: Booking) {
+    const client = booking.client
+    const clientName = client ? `${client.first_name} ${client.last_name}` : `#${booking.booking_number}`
+    const { error } = await supabase.from('shared_links').insert([{
+      token: generateBookingFormToken(),
+      type: 'booking_form' as const,
+      label: `Update form – ${clientName}`,
+      params: {
+        target_booking_id: booking.id,
+        name: clientName,
+        email: client?.email ?? '',
+        phone: client?.phone ?? '',
+        language: 'en',
+      },
+      created_at: todayISO(),
+      expires_at: null,
+      is_active: true,
+    }])
+    if (error) { alert(`Failed to create link: ${error.message}`); return }
+    refreshSharedLinks()
+  }
+
+  async function reactivateLink(link: SharedLink) {
     const { error } = await supabase.from('shared_links').update({ is_active: true }).eq('id', link.id)
     if (error) { alert(`Failed to reactivate link: ${error.message}`); return }
     refreshSharedLinks()
   }
 
-  function copyClientLink(link: SharedLink) {
+  function copyLink(link: SharedLink) {
     navigator.clipboard.writeText(shareUrl(link.token)).catch(() => {})
     setCopiedLinkId(link.id)
     setTimeout(() => setCopiedLinkId(null), 2000)
@@ -580,6 +622,14 @@ export default function DocumentsPage() {
         return {
           subject: `Your BKC account — Booking #${booking.booking_number}`,
           html: emailClientAccount(booking, lang, shareUrl(link.token)),
+        }
+      }
+      case 'update_form': {
+        const link = updateFormLinkByBookingId.get(booking.id)
+        if (!link) return null
+        return {
+          subject: `Complete your booking #${booking.booking_number} — BKC`,
+          html: emailUpdateForm(booking, lang, shareUrl(link.token)),
         }
       }
     }
@@ -751,7 +801,7 @@ export default function DocumentsPage() {
           <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 rounded-lg p-4 text-sm text-indigo-800 dark:text-indigo-400">
             One row per booking, one column per document. Check cells to select them, then send or mark as sent.
             Confirmation, Travel Guide and Welcome Guide go out in the language below — the Visa Letter is always Portuguese.
-            The <strong>Client Account</strong> column creates the client's personal booking link the first time — once it exists, 👁 opens it and ⧉ copies it, and its checkbox sends/resends it like any other document.
+            The <strong>Client Account</strong> and <strong>Update Form</strong> columns create their link the first time — once it exists, 👁 opens it and ⧉ copies it, and its checkbox sends/resends it like any other document. Update Form lets the client fill in what's still missing (exact dates, passport numbers…) themselves — review the answer in 📥 Requests → Submissions before it lands on the booking.
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -822,7 +872,7 @@ export default function DocumentsPage() {
                             return (
                               <td key={dt.type} className="text-center p-2">
                                 <button
-                                  onClick={() => reactivateClientLink(link)}
+                                  onClick={() => reactivateLink(link)}
                                   title="Link is deactivated"
                                   className="text-xs px-2 py-1 rounded border border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 whitespace-nowrap">
                                   ⚠ Reactivate
@@ -835,7 +885,45 @@ export default function DocumentsPage() {
                               <div className="flex items-center justify-center gap-1.5">
                                 <StatusBox log={log} checked={selectedCells.has(key)} onToggle={() => toggleCell(key)} />
                                 <button onClick={() => window.open(shareUrl(link.token), '_blank')} title="Open" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">👁</button>
-                                <button onClick={() => copyClientLink(link)} title="Copy link" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                                <button onClick={() => copyLink(link)} title="Copy link" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                                  {copiedLinkId === link.id ? '✓' : '⧉'}
+                                </button>
+                              </div>
+                            </td>
+                          )
+                        }
+
+                        if (dt.type === 'update_form') {
+                          const link = updateFormLinkByBookingId.get(b.id)
+                          if (!link) {
+                            return (
+                              <td key={dt.type} className="text-center p-2">
+                                <button
+                                  onClick={() => createUpdateFormLink(b)}
+                                  className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 whitespace-nowrap">
+                                  + Create
+                                </button>
+                              </td>
+                            )
+                          }
+                          if (!link.is_active) {
+                            return (
+                              <td key={dt.type} className="text-center p-2">
+                                <button
+                                  onClick={() => reactivateLink(link)}
+                                  title="Link is deactivated"
+                                  className="text-xs px-2 py-1 rounded border border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 whitespace-nowrap">
+                                  ⚠ Reactivate
+                                </button>
+                              </td>
+                            )
+                          }
+                          return (
+                            <td key={dt.type} className="p-2">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <StatusBox log={log} checked={selectedCells.has(key)} onToggle={() => toggleCell(key)} />
+                                <button onClick={() => window.open(shareUrl(link.token), '_blank')} title="Open" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">👁</button>
+                                <button onClick={() => copyLink(link)} title="Copy link" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
                                   {copiedLinkId === link.id ? '✓' : '⧉'}
                                 </button>
                               </div>

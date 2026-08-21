@@ -210,9 +210,15 @@ function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: Travele
  *  enquiries. `enquiryId` itself still rides along in the payload so the
  *  submission comes back attached, instead of being matched afterwards on a
  *  name and an email that may both have changed. All absent when someone
- *  finds the form on their own. */
+ *  finds the form on their own.
+ *
+ *  `targetBookingId` is the same idea for a link generated from an EXISTING
+ *  booking instead of an enquiry (Documents → Overview → Update Form) —
+ *  mutually exclusive with `enquiryId`. Review then updates that booking
+ *  instead of creating a new one. */
 interface BookingFormPageProps {
   enquiryId?: string
+  targetBookingId?: string
   prefillName?: string
   prefillEmail?: string
   prefillPhone?: string
@@ -223,7 +229,7 @@ function isLang(v: string | undefined): v is Lang {
   return v === 'fr' || v === 'en' || v === 'es'
 }
 
-export default function BookingFormPage({ enquiryId, prefillName, prefillEmail, prefillPhone, prefillLang }: BookingFormPageProps = {}) {
+export default function BookingFormPage({ enquiryId, targetBookingId, prefillName, prefillEmail, prefillPhone, prefillLang }: BookingFormPageProps = {}) {
   const [lang, setLang] = useState<Lang>(() => isLang(prefillLang) ? prefillLang : detectLang())
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(1)
@@ -312,6 +318,7 @@ export default function BookingFormPage({ enquiryId, prefillName, prefillEmail, 
     const payload: BookingFormPayload = {
       language: lang,
       ...(enquiryId ? { enquiry_id: enquiryId } : {}),
+      ...(targetBookingId ? { target_booking_id: targetBookingId } : {}),
       reference_name: d.reference_name.trim(),
       email: d.email.trim(),
       phone: d.phone.trim(),

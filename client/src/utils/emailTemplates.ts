@@ -436,3 +436,55 @@ export function emailClientAccount(booking: Booking, lang: Lang, url: string): s
 
   return emailWrapper(`${t.title} — #${String(booking.booking_number).padStart(3, '0')}`, body)
 }
+
+// ── Update Form link ─────────────────────────────────────────────────────────
+
+const UPDATE_FORM_T: Record<Lang, { title: string; intro: string; button: string }> = {
+  fr: {
+    title: 'Complétez votre réservation',
+    intro: 'Il nous manque encore quelques informations pour votre séjour — dates de voyage exactes, numéros de passeport, contact d\'urgence. Vous pouvez les ajouter directement via ce lien.',
+    button: 'Compléter ma réservation',
+  },
+  en: {
+    title: 'Complete your booking',
+    intro: 'We still need a few details for your stay — exact travel dates, passport numbers, emergency contact. You can add them directly through this link.',
+    button: 'Complete my booking',
+  },
+  es: {
+    title: 'Complete su reserva',
+    intro: 'Todavía necesitamos algunos datos para su estancia — fechas de viaje exactas, números de pasaporte, contacto de emergencia. Puede añadirlos directamente a través de este enlace.',
+    button: 'Completar mi reserva',
+  },
+}
+
+export function emailUpdateForm(booking: Booking, lang: Lang, url: string): string {
+  const t = UPDATE_FORM_T[lang]
+  const client = booking.client
+  const clientName = client ? `${client.first_name} ${client.last_name}` : '—'
+
+  const body = `
+    <!-- Header -->
+    <div style="background:${TEAL};padding:24px 28px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td valign="middle">
+            <div style="font-size:20px;font-weight:bold;color:#fff;margin-bottom:4px;">${t.title}</div>
+            <div style="font-size:13px;color:#ccfbf1;">${clientName} — Booking #${String(booking.booking_number).padStart(3, '0')}</div>
+          </td>
+          <td align="right" valign="middle">
+            <img src="${LOGO_URL}" alt="BKC" height="50" style="display:block;" />
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Content -->
+    <div style="padding:24px 28px;">
+      <p style="font-size:13px;color:#6b7280;margin:0 0 24px;">${t.intro}</p>
+      <div style="text-align:center;">
+        <a href="${url}" style="display:inline-block;background:${TEAL};color:#fff;text-decoration:none;font-size:14px;font-weight:bold;padding:12px 28px;border-radius:6px;">${t.button}</a>
+      </div>
+    </div>`
+
+  return emailWrapper(`${t.title} — #${String(booking.booking_number).padStart(3, '0')}`, body)
+}

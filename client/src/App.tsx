@@ -142,6 +142,7 @@ function App() {
       // a link generated from an enquiry — see EnquiryPanel.createFormLink.
       sharedLink.type === 'booking_form'      ? <BookingFormPage
                                                     enquiryId={sharedLink.params?.enquiry_id}
+                                                    targetBookingId={sharedLink.params?.target_booking_id}
                                                     prefillName={sharedLink.params?.name}
                                                     prefillEmail={sharedLink.params?.email}
                                                     prefillPhone={sharedLink.params?.phone}

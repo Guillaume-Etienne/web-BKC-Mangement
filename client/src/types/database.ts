@@ -454,6 +454,10 @@ export interface BookingFormPayload {
   // submission then comes back already attached, with nothing to match by hand.
   // Optional — the full form is also reachable on its own.
   enquiry_id?: string
+  // Set when the link was generated from an EXISTING booking (Documents →
+  // Overview → Update Form) instead of an enquiry — mutually exclusive with
+  // enquiry_id. Review then updates that booking instead of creating a new one.
+  target_booking_id?: string
   // Group
   reference_name: string
   email: string
@@ -681,7 +685,7 @@ export interface PalmeirasEntry {
 // and booking_rooms / booking_room_prices. Margin auto-calculated.
 
 // Email logs — transactional emails sent to clients
-export type EmailLogType   = 'booking_confirmation' | 'visa_letter' | 'travel_guide' | 'welcome_guide' | 'client_account'
+export type EmailLogType   = 'booking_confirmation' | 'visa_letter' | 'travel_guide' | 'welcome_guide' | 'client_account' | 'update_form'
 export type EmailLogStatus = 'pending' | 'sent' | 'delivered' | 'opened' | 'failed'
 
 export interface EmailLog {
