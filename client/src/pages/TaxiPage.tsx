@@ -56,7 +56,9 @@ export default function TaxiPage() {
   }
 
   async function updateTrip(trip: TaxiTrip): Promise<void> {
-    const { id, ...fields } = trip
+    // share_price_eur is a GENERATED column (redacted mirror for shared links) —
+    // Postgres rejects any write to it, even the same value round-tripped from select('*').
+    const { id, share_price_eur: _share_price_eur, ...fields } = trip as TaxiTrip & { share_price_eur?: number | null }
     const { error } = await supabase.from('taxi_trips').update(fields).eq('id', id)
     if (error) { alert('Error: ' + error.message); return }
     refreshTrips()

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useTable } from '../hooks/useSupabase'
 import { useClients } from '../hooks/useClients'
 import { useBookings, useBookingParticipants } from '../hooks/useBookings'
 import { useLessons } from '../hooks/useLessons'
-import type { Client, Booking, KiteLevel } from '../types/database'
+import type { Client, Booking, KiteLevel, Season } from '../types/database'
 import { fmtDate } from '../utils/dates'
 import { clientParticipantIds, cumulativeHoursBefore } from '../components/accounting/utils'
 
@@ -54,6 +55,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
   const { data: bookings } = useBookings()
   const { data: bookingParticipants } = useBookingParticipants()
   const { data: lessons } = useLessons()
+  const { data: seasons } = useTable<Season>('seasons', { order: 'start_date', ascending: false })
 
   /** Lifetime hours, private and group separately — never reset per stay or
    *  season (decision gui, 2026-08-16), the same rule the tiered pricing uses
@@ -70,6 +72,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterLevel, setFilterLevel] = useState<'' | KiteLevel>('')
   const [filterNationality, setFilterNationality] = useState('')
+  const [filterSeasonId, setFilterSeasonId] = useState('')
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [mobileView, setMobileView] = useState<'list' | 'cards'>(() => {
     const stored = localStorage.getItem(MOBILE_VIEW_KEY)
@@ -88,6 +91,12 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
 
   const nationalities = [...new Set(clients.map(c => c.nationality).filter(Boolean) as string[])].sort()
 
+  const filterSeason = seasons.find(s => s.id === filterSeasonId)
+  // A booking belongs to the season containing its check_in — same attribution
+  // rule as filterDataToSeason (components/accounting/seasonFilter.ts).
+  const clientHasBookingInSeason = (clientId: string, season: Season) =>
+    bookings.some(b => b.client_id === clientId && b.check_in >= season.start_date && b.check_in <= season.end_date)
+
   const filteredClients = clients.filter(c => {
     const matchesSearch =
       `${c.first_name} ${c.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -95,7 +104,8 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
       (c.phone?.includes(searchTerm))
     const matchesLevel = !filterLevel || c.kite_level === filterLevel
     const matchesNationality = !filterNationality || c.nationality === filterNationality
-    return matchesSearch && matchesLevel && matchesNationality
+    const matchesSeason = !filterSeason || clientHasBookingInSeason(c.id, filterSeason)
+    return matchesSearch && matchesLevel && matchesNationality && matchesSeason
   })
 
   const getClientBookings = (clientId: string): Booking[] =>
@@ -177,10 +187,11 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
     refreshClients()
   }
 
-  const hasFilters = !!filterLevel || !!filterNationality
+  const hasFilters = !!filterLevel || !!filterNationality || !!filterSeasonId
   const clearFilters = () => {
     setFilterLevel('')
     setFilterNationality('')
+    setFilterSeasonId('')
   }
 
   if (loading) {
@@ -223,13 +234,13 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
         </div>
 
         {/* Search + Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 mb-6">
           <input
             type="text"
             placeholder="Search by name, email or phone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <select
             value={filterLevel}
@@ -253,6 +264,16 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
+          <select
+            value={filterSeasonId}
+            onChange={(e) => setFilterSeasonId(e.target.value)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900"
+          >
+            <option value="">All seasons</option>
+            {seasons.map(s => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
           {hasFilters && (
             <button
               onClick={clearFilters}
@@ -263,10 +284,10 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
           )}
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className={`grid grid-cols-1 gap-6 ${selectedClient ? 'xl:grid-cols-3' : ''}`}>
 
           {/* Client list */}
-          <div className="xl:col-span-2">
+          <div className={selectedClient ? 'xl:col-span-2' : ''}>
 
             {/* Desktop Table */}
             <div className="hidden md:block bg-white dark:bg-gray-900 rounded-lg shadow overflow-x-auto">
