@@ -63,7 +63,13 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
   const isNew = !enquiry
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm(f => ({ ...f, [k]: v }))
 
-  useEffect(() => { setForm(toForm(enquiry)); setNewNote('') }, [enquiry])
+  // No effect syncing form to the `enquiry` prop: the parent already remounts
+  // this component (key={current?.id ?? 'new'}) when switching to a different
+  // enquiry, so useState's lazy initializer handles that. Reacting to prop
+  // *reference* changes here was actively harmful — realtime refetches the
+  // whole `enquiries` table on any change (including addNote()'s own touch of
+  // last_contact_at), which hands down a new object for the SAME enquiry and
+  // was silently wiping whatever gui had just typed but not yet saved.
 
   useEffect(() => {
     if (!enquiry) { setNotes([]); return }

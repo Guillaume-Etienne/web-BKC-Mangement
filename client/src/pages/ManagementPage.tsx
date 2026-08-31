@@ -160,9 +160,13 @@ export default function ManagementPage() {
   useEffect(() => {
     if (taxiDefaultsData.length > 0) {
       setTaxiPricingDefaults(taxiDefaultsData[0])
-      setTaxiPricingForm(taxiDefaultsData[0])
+      // Not while editing: a background refetch (realtime fires on ANY change to
+      // this table, including from another admin or another tab) would otherwise
+      // silently overwrite whatever gui is mid-typing here. See EnquiryPanel for
+      // the same bug caught live.
+      setTaxiPricingForm(f => (taxiPricingEditing ? f : taxiDefaultsData[0]))
     }
-  }, [taxiDefaultsData])
+  }, [taxiDefaultsData]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Shared links (Supabase) ───────────────────────────────────────────────
   const { data: sharedLinksData, refresh: refreshSharedLinks } = useTable<SharedLink>('shared_links')
