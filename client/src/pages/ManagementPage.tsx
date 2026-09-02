@@ -11,6 +11,7 @@ import SeasonsTab from '../components/management/SeasonsTab'
 import SourcesTab from '../components/management/SourcesTab'
 import DatabaseTab from '../components/management/DatabaseTab'
 import AgenciesTab from '../components/management/AgenciesTab'
+import TransferReferencePricesTab from '../components/management/TransferReferencePricesTab'
 import { todayISO, addDaysISO, fmtDate } from '../utils/dates'
 
 const KITE_LEVEL_LABELS: Record<KiteLevel, string> = {
@@ -98,6 +99,7 @@ function getBaseUrl() {
 
 export default function ManagementPage() {
   const [tab, setTab] = useState<'instructors' | 'houses' | 'pricing' | 'seasons' | 'sources' | 'agencies' | 'links' | 'bookguest' | 'database'>('instructors')
+  const [pricingSubTab, setPricingSubTab] = useState<'rates' | 'reference'>('rates')
 
   // ── Bookings & Guests tab ─────────────────────────────────────────────────
   const { data: allBookings } = useBookings()
@@ -553,7 +555,23 @@ export default function ManagementPage() {
 
         {/* ── Pricing Tab ───────────────────────────────────────────────────── */}
         {tab === 'pricing' && (
-          <div className="space-y-8">
+          <div className="space-y-6">
+            <div className="flex gap-4 border-b border-gray-200 dark:border-gray-800">
+              {([['rates', 'Rates'], ['reference', 'Reference info']] as const).map(([key, label]) => (
+                <button key={key} onClick={() => setPricingSubTab(key)}
+                  className={`pb-2 px-1 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                    pricingSubTab === key
+                      ? 'border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {pricingSubTab === 'reference' && <TransferReferencePricesTab />}
+
+            {pricingSubTab === 'rates' && (
+            <div className="space-y-8">
             {/* Generic categories: lesson, activity, rental */}
             {(['lesson', 'rental', 'meal', 'center_access', 'activity'] as const).map((category) => {
               const categoryPrices = priceItems.filter(p => p.category === category)
@@ -674,7 +692,11 @@ export default function ManagementPage() {
                       threshold above it. Add-only for now (deactivate/remove
                       later if gui asks once he's tried it). */}
                   {category === 'lesson' && (
-                    <div className="mt-4 space-y-4">
+                    <details className="mt-4">
+                      <summary className="cursor-pointer text-sm font-semibold text-gray-700 dark:text-gray-300 select-none">
+                        🎚️ Volume tiers
+                      </summary>
+                      <div className="mt-4 space-y-4">
                       {(['lesson_private', 'lesson_group'] as const).map(billableType => {
                         const tiersForType = priceTiers
                           .filter(t => t.billable_type === billableType)
@@ -720,7 +742,8 @@ export default function ManagementPage() {
                           </div>
                         )
                       })}
-                    </div>
+                      </div>
+                    </details>
                   )}
                 </div>
               )
@@ -832,6 +855,8 @@ export default function ManagementPage() {
                 )}
               </div>
             </div>
+            </div>
+            )}
           </div>
         )}
 

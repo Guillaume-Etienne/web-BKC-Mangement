@@ -292,6 +292,25 @@ export interface PriceTier {
   price_per_hour: number
 }
 
+/** Purely informational reference prices (transfers, taxis...) shown to answer client
+ *  questions — not wired into any billing calculation. `section` groups rows into
+ *  editable blocks; renaming a section renames it for every row sharing that name. */
+export interface TransferReferencePrice {
+  id: string
+  section: string
+  section_order: number
+  collapsible: boolean
+  row_order: number
+  from_label: string | null
+  to_label: string | null
+  price: number | null
+  currency: 'MZN' | 'EUR' | 'USD' | null
+  detail: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
 /** Every post the app bills automatically. One rate row per value (unique index),
  *  so adding a billable post later is one enum value, not one more column. */
 export type BillableType =
