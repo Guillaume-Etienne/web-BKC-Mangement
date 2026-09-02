@@ -99,7 +99,7 @@ function getBaseUrl() {
 
 export default function ManagementPage() {
   const [tab, setTab] = useState<'instructors' | 'houses' | 'pricing' | 'seasons' | 'sources' | 'agencies' | 'links' | 'bookguest' | 'database'>('instructors')
-  const [pricingSubTab, setPricingSubTab] = useState<'rates' | 'reference'>('rates')
+  const [pricingSubTab, setPricingSubTab] = useState<'rates' | 'reference' | 'kruger'>('rates')
 
   // ── Bookings & Guests tab ─────────────────────────────────────────────────
   const { data: allBookings } = useBookings()
@@ -557,7 +557,7 @@ export default function ManagementPage() {
         {tab === 'pricing' && (
           <div className="space-y-6">
             <div className="flex gap-4 border-b border-gray-200 dark:border-gray-800">
-              {([['rates', 'Rates'], ['reference', 'Reference info']] as const).map(([key, label]) => (
+              {([['rates', 'Rates'], ['reference', 'Reference info'], ['kruger', 'Kruger & Eswatini']] as const).map(([key, label]) => (
                 <button key={key} onClick={() => setPricingSubTab(key)}
                   className={`pb-2 px-1 text-sm font-medium border-b-2 -mb-px transition-colors ${
                     pricingSubTab === key
@@ -568,7 +568,8 @@ export default function ManagementPage() {
               ))}
             </div>
 
-            {pricingSubTab === 'reference' && <TransferReferencePricesTab />}
+            {pricingSubTab === 'reference' && <TransferReferencePricesTab page="transfers" />}
+            {pricingSubTab === 'kruger' && <TransferReferencePricesTab page="kruger" />}
 
             {pricingSubTab === 'rates' && (
             <div className="space-y-8">

@@ -292,19 +292,25 @@ export interface PriceTier {
   price_per_hour: number
 }
 
-/** Purely informational reference prices (transfers, taxis...) shown to answer client
- *  questions — not wired into any billing calculation. `section` groups rows into
- *  editable blocks; renaming a section renames it for every row sharing that name. */
+/** Purely informational reference prices (transfers, taxis, Kruger/Eswatini tours...)
+ *  shown to answer client questions — not wired into any billing calculation.
+ *  `page` is the top-level sub-tab (Options → Prices → Reference info / Kruger &
+ *  Eswatini); `section` then groups rows within a page into editable blocks —
+ *  renaming a section renames it for every row sharing that name. No currency
+ *  picker: three fixed, independently nullable price columns instead — a row
+ *  fills whichever currency it actually has. */
 export interface TransferReferencePrice {
   id: string
+  page: 'transfers' | 'kruger'
   section: string
   section_order: number
   collapsible: boolean
   row_order: number
   from_label: string | null
   to_label: string | null
-  price: number | null
-  currency: 'MZN' | 'EUR' | 'USD' | null
+  price_mzn: number | null
+  price_eur: number | null
+  price_usd: number | null
   detail: string | null
   notes: string | null
   created_at: string
