@@ -17,16 +17,26 @@ import type { TransferReferencePrice } from '../../types/database'
  *  info vs Kruger & Eswatini — two separate sub-tabs, same underlying table). No
  *  currency picker: the 'transfers' page edits price_mzn + price_eur, the 'kruger'
  *  page (all-USD tiered pricing) edits price_usd alone — gui's call on 2026-09-02,
- *  after the source data turned out to never mix currencies within a page. */
+ *  after the source data turned out to never mix currencies within a page.
+ *
+ *  RowFields/SectionTable/SectionTitleInput are module-scope, not nested inside
+ *  the default export, on purpose (same reasoning as SourceForm in SourcesTab.tsx):
+ *  a component defined inside another component's body gets a fresh function
+ *  identity every render, so React treats it as a different component type each
+ *  time and remounts its whole subtree — which kicked every input out on its first
+ *  keystroke and dropped the still-in-flight blur/save (caught live by gui,
+ *  2026-09-02, on the Price EUR field, but it was every field in every row). */
 
 type PriceField = 'price_mzn' | 'price_eur' | 'price_usd'
 
-const PAGE_CONFIG: Record<TransferReferencePrice['page'], {
+type PageConfig = {
   title: string
   description: string
   priceFields: { field: PriceField; label: string }[]
   newSectionPlaceholder: string
-}> = {
+}
+
+const PAGE_CONFIG: Record<TransferReferencePrice['page'], PageConfig> = {
   transfers: {
     title: '📋 Reference prices',
     description: 'Informational only — for answering client questions about transfer and taxi prices. Not used by any pricing calculation elsewhere in the app. Every field here is editable.',
@@ -48,6 +58,91 @@ function sortRows(rows: TransferReferencePrice[]) {
 }
 
 const inputCls = 'w-full text-sm border border-gray-300 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200'
+
+type RowCallbacks = {
+  onFocusRow: (id: string) => void
+  onChangeField: (id: string, patch: Partial<TransferReferencePrice>) => void
+  onBlurField: (row: TransferReferencePrice, patch: Partial<TransferReferencePrice>) => void
+  onDeleteRow: (row: TransferReferencePrice) => void
+}
+
+function RowFields({ row, priceFields, cb }: { row: TransferReferencePrice; priceFields: PageConfig['priceFields']; cb: RowCallbacks }) {
+  return (
+    <tr className="border-b border-gray-100 dark:border-gray-800">
+      <td className="px-2 py-1.5">
+        <input className={inputCls} value={row.from_label ?? ''} placeholder="From"
+          onFocus={() => cb.onFocusRow(row.id)}
+          onChange={e => cb.onChangeField(row.id, { from_label: e.target.value })}
+          onBlur={e => cb.onBlurField(row, { from_label: e.target.value.trim() || null })} />
+      </td>
+      <td className="px-2 py-1.5">
+        <input className={inputCls} value={row.to_label ?? ''} placeholder="To"
+          onFocus={() => cb.onFocusRow(row.id)}
+          onChange={e => cb.onChangeField(row.id, { to_label: e.target.value })}
+          onBlur={e => cb.onBlurField(row, { to_label: e.target.value.trim() || null })} />
+      </td>
+      {priceFields.map(({ field }) => (
+        <td key={field} className="px-2 py-1.5">
+          <input type="number" step="any" className={`${inputCls} w-24`} value={row[field] ?? ''} placeholder="—"
+            onFocus={() => cb.onFocusRow(row.id)}
+            onChange={e => cb.onChangeField(row.id, { [field]: e.target.value === '' ? null : parseFloat(e.target.value) })}
+            onBlur={e => cb.onBlurField(row, { [field]: e.target.value === '' ? null : parseFloat(e.target.value) })} />
+        </td>
+      ))}
+      <td className="px-2 py-1.5">
+        <input className={inputCls} value={row.detail ?? ''} placeholder="Distance / duration"
+          onFocus={() => cb.onFocusRow(row.id)}
+          onChange={e => cb.onChangeField(row.id, { detail: e.target.value })}
+          onBlur={e => cb.onBlurField(row, { detail: e.target.value.trim() || null })} />
+      </td>
+      <td className="px-2 py-1.5">
+        <input className={inputCls} value={row.notes ?? ''} placeholder="Notes"
+          onFocus={() => cb.onFocusRow(row.id)}
+          onChange={e => cb.onChangeField(row.id, { notes: e.target.value })}
+          onBlur={e => cb.onBlurField(row, { notes: e.target.value.trim() || null })} />
+      </td>
+      <td className="px-2 py-1.5 text-right">
+        <button onClick={() => cb.onDeleteRow(row)} title="Delete row"
+          className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-400">🗑️</button>
+      </td>
+    </tr>
+  )
+}
+
+function SectionTable({ s, priceFields, cb, onAddRow }: {
+  s: Section
+  priceFields: PageConfig['priceFields']
+  cb: RowCallbacks
+  onAddRow: (s: Section) => void
+}) {
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-x-auto">
+      <table className="w-full min-w-[760px]">
+        <thead className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-800">
+          <tr>
+            <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">From</th>
+            <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">To</th>
+            {priceFields.map(({ field, label }) => (
+              <th key={field} className="px-2 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">{label}</th>
+            ))}
+            <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">Distance / duration</th>
+            <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">Notes</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {s.rows.map(row => <RowFields key={row.id} row={row} priceFields={priceFields} cb={cb} />)}
+        </tbody>
+      </table>
+      <div className="p-2 border-t border-gray-200 dark:border-gray-800">
+        <button onClick={() => onAddRow(s)}
+          className="px-3 py-1 text-sm rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">
+          + Add row
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export default function TransferReferencePricesTab({ page }: { page: TransferReferencePrice['page'] }) {
   const config = PAGE_CONFIG[page]
@@ -134,95 +229,11 @@ export default function TransferReferencePricesTab({ page }: { page: TransferRef
   const primary = sections.find(s => !s.collapsible)
   const rest = sections.filter(s => s.collapsible)
 
-  function SectionEditableTitle({ s }: { s: Section }) {
-    const [value, setValue] = useState(s.name)
-    useEffect(() => setValue(s.name), [s.name])
-    return (
-      <div className="flex items-center gap-3 mb-2">
-        <input value={value} onChange={e => setValue(e.target.value)}
-          onBlur={() => renameSection(s.name, value)}
-          className="text-sm font-semibold text-gray-700 dark:text-gray-300 bg-transparent border-b border-dashed border-gray-300 dark:border-gray-700 focus:border-blue-500 outline-none px-0.5" />
-        {s.collapsible && (
-          <button onClick={() => deleteSection(s.name)}
-            className="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-400">
-            Delete section
-          </button>
-        )}
-      </div>
-    )
-  }
-
-  function RowFields({ row }: { row: TransferReferencePrice }) {
-    return (
-      <tr className="border-b border-gray-100 dark:border-gray-800">
-        <td className="px-2 py-1.5">
-          <input className={inputCls} value={row.from_label ?? ''} placeholder="From"
-            onFocus={() => setEditingRowId(row.id)}
-            onChange={e => updateLocal(row.id, { from_label: e.target.value })}
-            onBlur={e => saveField(row, { from_label: e.target.value.trim() || null })} />
-        </td>
-        <td className="px-2 py-1.5">
-          <input className={inputCls} value={row.to_label ?? ''} placeholder="To"
-            onFocus={() => setEditingRowId(row.id)}
-            onChange={e => updateLocal(row.id, { to_label: e.target.value })}
-            onBlur={e => saveField(row, { to_label: e.target.value.trim() || null })} />
-        </td>
-        {config.priceFields.map(({ field }) => (
-          <td key={field} className="px-2 py-1.5">
-            <input type="number" step="any" className={`${inputCls} w-24`} value={row[field] ?? ''} placeholder="—"
-              onFocus={() => setEditingRowId(row.id)}
-              onChange={e => updateLocal(row.id, { [field]: e.target.value === '' ? null : parseFloat(e.target.value) })}
-              onBlur={e => saveField(row, { [field]: e.target.value === '' ? null : parseFloat(e.target.value) })} />
-          </td>
-        ))}
-        <td className="px-2 py-1.5">
-          <input className={inputCls} value={row.detail ?? ''} placeholder="Distance / duration"
-            onFocus={() => setEditingRowId(row.id)}
-            onChange={e => updateLocal(row.id, { detail: e.target.value })}
-            onBlur={e => saveField(row, { detail: e.target.value.trim() || null })} />
-        </td>
-        <td className="px-2 py-1.5">
-          <input className={inputCls} value={row.notes ?? ''} placeholder="Notes"
-            onFocus={() => setEditingRowId(row.id)}
-            onChange={e => updateLocal(row.id, { notes: e.target.value })}
-            onBlur={e => saveField(row, { notes: e.target.value.trim() || null })} />
-        </td>
-        <td className="px-2 py-1.5 text-right">
-          <button onClick={() => deleteRow(row)} title="Delete row"
-            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-400">🗑️</button>
-        </td>
-      </tr>
-    )
-  }
-
-  function SectionTable({ s }: { s: Section }) {
-    return (
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-x-auto">
-        <table className="w-full min-w-[760px]">
-          <thead className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-800">
-            <tr>
-              <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">From</th>
-              <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">To</th>
-              {config.priceFields.map(({ field, label }) => (
-                <th key={field} className="px-2 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">{label}</th>
-              ))}
-              <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">Distance / duration</th>
-              <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">Notes</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {s.rows.map(row => <RowFields key={row.id} row={row} />)}
-          </tbody>
-        </table>
-        <div className="p-2 border-t border-gray-200 dark:border-gray-800">
-          <button onClick={() => addRow(s)}
-            className="px-3 py-1 text-sm rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">
-            + Add row
-          </button>
-        </div>
-      </div>
-    )
+  const rowCb: RowCallbacks = {
+    onFocusRow: setEditingRowId,
+    onChangeField: updateLocal,
+    onBlurField: saveField,
+    onDeleteRow: deleteRow,
   }
 
   return (
@@ -234,8 +245,10 @@ export default function TransferReferencePricesTab({ page }: { page: TransferRef
 
       {primary && (
         <div>
-          <SectionEditableTitle s={primary} />
-          <SectionTable s={primary} />
+          <div className="flex items-center gap-3 mb-2">
+            <SectionTitleInput s={primary} onRename={renameSection} />
+          </div>
+          <SectionTable s={primary} priceFields={config.priceFields} cb={rowCb} onAddRow={addRow} />
         </div>
       )}
 
@@ -245,8 +258,14 @@ export default function TransferReferencePricesTab({ page }: { page: TransferRef
             {s.name}
           </summary>
           <div className="mt-3">
-            <SectionEditableTitle s={s} />
-            <SectionTable s={s} />
+            <div className="flex items-center gap-3 mb-2">
+              <SectionTitleInput s={s} onRename={renameSection} />
+              <button onClick={() => deleteSection(s.name)}
+                className="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-400">
+                Delete section
+              </button>
+            </div>
+            <SectionTable s={s} priceFields={config.priceFields} cb={rowCb} onAddRow={addRow} />
           </div>
         </details>
       ))}
@@ -264,5 +283,15 @@ export default function TransferReferencePricesTab({ page }: { page: TransferRef
         </button>
       </div>
     </div>
+  )
+}
+
+function SectionTitleInput({ s, onRename }: { s: Section; onRename: (oldName: string, newName: string) => void }) {
+  const [value, setValue] = useState(s.name)
+  useEffect(() => setValue(s.name), [s.name])
+  return (
+    <input value={value} onChange={e => setValue(e.target.value)}
+      onBlur={() => onRename(s.name, value)}
+      className="text-sm font-semibold text-gray-700 dark:text-gray-300 bg-transparent border-b border-dashed border-gray-300 dark:border-gray-700 focus:border-blue-500 outline-none px-0.5" />
   )
 }
