@@ -28,43 +28,58 @@
 --
 -- section_order 0 / collapsible false: this is the whole tab's content, so it's the
 -- one open section, same convention as "Main routes" on the transfers page.
+--
+-- ⚠️ UPGRADE-SAFE ON PURPOSE: gui already ran the first version of this file on TEST,
+-- back when it seeded these 23 rows as a collapsible section (section_order 5) of
+-- the transfers page rather than their own page. 2026-09-02_transfer_reference_prices.sql
+-- (run first) already detects that and moves those rows to page='kruger' + the current
+-- section_order/collapsible + backfills price_usd — so the INSERT below just checks
+-- whether page='kruger' rows already exist and skips itself on TEST, same pattern as
+-- the transfers seed.
 
-INSERT INTO transfer_reference_prices
-  (page, section, section_order, collapsible, row_order, from_label, to_label, price_usd, detail, notes)
-VALUES
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 0,  'Kruger Park (solo day trip)', '1 person', 390, '1 day, per person', NULL),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 1,  'Maputo Special Reserve (day trip)', NULL, 370, '1 day, per person', NULL),
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM transfer_reference_prices WHERE page = 'kruger') THEN
 
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 2,  'Kruger Park — 2-day package', '2 persons',   250, 'per person', NULL),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 3,  'Kruger Park — 2-day package', '3 persons',   225, 'per person', NULL),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 4,  'Kruger Park — 2-day package', '4 persons',   195, 'per person', NULL),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 5,  'Kruger Park — 2-day package', '5+ persons',  188, 'per person', NULL),
+    INSERT INTO transfer_reference_prices
+      (page, section, section_order, collapsible, row_order, from_label, to_label, price_usd, detail, notes)
+    VALUES
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 0,  'Kruger Park (solo day trip)', '1 person', 390, '1 day, per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 1,  'Maputo Special Reserve (day trip)', NULL, 370, '1 day, per person', NULL),
 
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 6,  'Kruger Park — 3-day package', '2-3 persons', 725, 'per person', NULL),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 7,  'Kruger Park — 3-day package', '4+ persons',  685, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 2,  'Kruger Park — 2-day package', '2 persons',   250, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 3,  'Kruger Park — 2-day package', '3 persons',   225, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 4,  'Kruger Park — 2-day package', '4 persons',   195, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 5,  'Kruger Park — 2-day package', '5+ persons',  188, 'per person', NULL),
 
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 8,  'Blyde River Canyon (special, 1 day)', '2-3 persons', 495, 'per person',
-    'Labelled "Special River Canyon" in the source'),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 9,  'Blyde River Canyon (special, 1 day)', '4+ persons',  455, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 6,  'Kruger Park — 3-day package', '2-3 persons', 725, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 7,  'Kruger Park — 3-day package', '4+ persons',  685, 'per person', NULL),
 
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 10, 'Kruger + Blyde River Canyon — 3-day package', '2-3 persons', 725, 'per person', NULL),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 11, 'Kruger + Blyde River Canyon — 3-day package', '4+ persons',  685, 'per person', NULL),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 12, 'Kruger + Blyde River Canyon — 4-day package', '2-3 persons', 945, 'per person', NULL),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 13, 'Kruger + Blyde River Canyon — 4-day package', '4+ persons',  895, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 8,  'Blyde River Canyon (special, 1 day)', '2-3 persons', 495, 'per person',
+        'Labelled "Special River Canyon" in the source'),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 9,  'Blyde River Canyon (special, 1 day)', '4+ persons',  455, 'per person', NULL),
 
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 14, 'Eswatini/Kruger — 3-day package (2 Kruger + 1 Eswatini)', '2-3 persons', 785, 'per person', NULL),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 15, 'Eswatini/Kruger — 3-day package (2 Kruger + 1 Eswatini)', '4+ persons',  695, 'per person', NULL),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 16, 'Eswatini/Kruger — 3-day package (1 Kruger + 2 Eswatini)', '2-3 persons', 785, 'per person', NULL),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 17, 'Eswatini/Kruger — 3-day package (1 Kruger + 2 Eswatini)', '4+ persons',  695, 'per person', NULL),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 18, 'Eswatini/Kruger — 4-day package (2 Kruger + 2 Eswatini)', '2-3 persons', 985, 'per person', NULL),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 19, 'Eswatini/Kruger — 4-day package (2 Kruger + 2 Eswatini)', '4+ persons',  895, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 10, 'Kruger + Blyde River Canyon — 3-day package', '2-3 persons', 725, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 11, 'Kruger + Blyde River Canyon — 3-day package', '4+ persons',  685, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 12, 'Kruger + Blyde River Canyon — 4-day package', '2-3 persons', 945, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 13, 'Kruger + Blyde River Canyon — 4-day package', '4+ persons',  895, 'per person', NULL),
 
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 20, 'What''s included (multi-day packages)', NULL, NULL, NULL,
-    'Park entrance, accommodation, and meals — lunch & dinner day 1, breakfast & lunch on the final day (all 3 meals on the middle day if a 3-day package).'),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 21, 'Lodge', NULL, NULL, NULL,
-    'In Marloth Park, a protected area just outside the Kruger gate — closer wildlife viewing than the rest camps inside the park. https://www.crocodilekruger.co.za/'),
-  ('kruger', 'Kruger Park & Eswatini tours', 0, false, 22, 'Booking terms', NULL, NULL, NULL,
-    '30% deposit to confirm. +5% surcharge if paid by PayPal. Remaining 70% payable in Metical (Mozambican bank account or the Maputo office), PayPal, or cash on the day. Full payment required if booking within 24h of the tour.');
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 14, 'Eswatini/Kruger — 3-day package (2 Kruger + 1 Eswatini)', '2-3 persons', 785, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 15, 'Eswatini/Kruger — 3-day package (2 Kruger + 1 Eswatini)', '4+ persons',  695, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 16, 'Eswatini/Kruger — 3-day package (1 Kruger + 2 Eswatini)', '2-3 persons', 785, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 17, 'Eswatini/Kruger — 3-day package (1 Kruger + 2 Eswatini)', '4+ persons',  695, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 18, 'Eswatini/Kruger — 4-day package (2 Kruger + 2 Eswatini)', '2-3 persons', 985, 'per person', NULL),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 19, 'Eswatini/Kruger — 4-day package (2 Kruger + 2 Eswatini)', '4+ persons',  895, 'per person', NULL),
+
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 20, 'What''s included (multi-day packages)', NULL, NULL, NULL,
+        'Park entrance, accommodation, and meals — lunch & dinner day 1, breakfast & lunch on the final day (all 3 meals on the middle day if a 3-day package).'),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 21, 'Lodge', NULL, NULL, NULL,
+        'In Marloth Park, a protected area just outside the Kruger gate — closer wildlife viewing than the rest camps inside the park. https://www.crocodilekruger.co.za/'),
+      ('kruger', 'Kruger Park & Eswatini tours', 0, false, 22, 'Booking terms', NULL, NULL, NULL,
+        '30% deposit to confirm. +5% surcharge if paid by PayPal. Remaining 70% payable in Metical (Mozambican bank account or the Maputo office), PayPal, or cash on the day. Full payment required if booking within 24h of the tour.');
+
+  END IF;
+END $$;
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- VÉRIFICATION
@@ -72,5 +87,6 @@ VALUES
 -- Table admin-only (RLS déjà posée par 2026-09-02_transfer_reference_prices.sql) —
 -- un curl anon ne prouve rien ici, à vérifier en service_role ou depuis l'app connectée :
 --   SELECT count(*) FROM transfer_reference_prices WHERE page = 'kruger';
---   → doit renvoyer 23.
+--   → doit renvoyer 23, aussi bien sur une base fraîche (PROD) que sur TEST (déplacées
+--   par la migration précédente, pas réinsérées).
 -- ════════════════════════════════════════════════════════════════════════════
