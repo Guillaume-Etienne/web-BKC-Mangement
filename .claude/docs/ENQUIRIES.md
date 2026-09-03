@@ -307,8 +307,16 @@ qui refuse de supprimer une origine utilisée).
    **demandes reçues ET clients venus** — les deux, jamais une seule. Sélecteur de saison.
    L'origine d'une résa se résout en 4 temps (`bookings.source_id`, la demande, le formulaire,
    le vieux texte) : aucun historique réécrit. L'écran a immédiatement montré que **5 clients
-   sur 8 étaient sans origine**, faute d'être posée dans le wizard — corrigé. ⬜ Reste la
-   **clôture de saison** (« 14 demandes sans suite — clôturer »).
+   sur 8 étaient sans origine**, faute d'être posée dans le wizard — corrigé.
+   ✅ **Clôture de saison — livrée le 2026-09-03** (`utils/seasonClose.ts`, 8 tests) : un bandeau
+   sur la liste de travail propose de clôturer les demandes **sans avenir**, avec deux motifs
+   distincts — le mois d'arrivée est passé (le silence n'y change rien : même une conversation
+   récente est finie si le mois est passé), ou pas de dates **et** 60 jours de silence. Quelqu'un
+   qui annonce « décembre prochain » puis se tait n'est pas mort, il est en avance : jamais
+   proposé. **Les noms et les motifs s'affichent AVANT le bouton** — « gui décide, pas un
+   compteur » — et le mois est écrit en clair (« Jan 2026 »), donc un mois mal saisi saute aux
+   yeux au lieu d'être clôturé en silence. Rien n'est supprimé : statut `lost` + `lost_reason`,
+   réouvrable une par une depuis l'archive.
 
 ## Restes à trancher
 

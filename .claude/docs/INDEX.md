@@ -11,7 +11,7 @@
 | Ajouter un **champ à une page partagée** | `taxi-and-shares.md` § RUNBOOK — Ajouter un champ |
 | Ajouter/modifier une **policy anon** (sans fuiter de données) | `security-rls.md` § Checklist |
 | Ajouter un **enum** (valeur) en base | migration `ALTER TYPE … ADD VALUE IF NOT EXISTS` (seule, hors txn) + `schema.sql` |
-| Ajouter une **colonne** | migration + `schema.sql` + type TS + **`mock.ts`** (sinon build strict casse) + form admin |
+| Ajouter une **colonne** | migration + `schema.sql` + type TS + **`mock.ts`** *si le champ TS est obligatoire* (le fichier n'est **importé nulle part** mais reste type-checké : un champ optionnel ne le casse pas) + form admin. ⚠️ Vérifier aussi si la table est en **GRANT par colonne** pour `anon` (`bookings`, `clients`, `taxi_trips`…) : si oui, la colonne est invisible en anon par défaut — c'est voulu, ne l'accorder que sur décision |
 | Créer une **migration** | `supabase/migrations/AAAA-MM-JJ_nom.sql`, idempotent, appliquer **TEST puis PROD** |
 | Manipuler une **date calendaire** (jour, mois) | `client/src/utils/dates.ts` — **jamais** `.toISOString()`, voir ⚠️ ci-dessous |
 | **Écrire en base** depuis un écran | vérifier l'erreur, toujours — voir ⚠️ ci-dessous |
@@ -23,6 +23,7 @@
 | **Savoir d'où viennent les clients** | Requests → Archive → « Where they came from » (`utils/attribution.ts`) |
 | **Ajouter une source à la frise** du dossier | `utils/dossier.ts` : un `for` de plus dans `buildDossier` + un test. Ne jamais **copier** la donnée |
 | **Savoir ce que la demande annonçait et que la résa ne montre pas** | `utils/intentGap.ts` — affiché dans le panneau d’origine du wizard. **Pose une question, ne remplit rien** |
+| **Clôturer les demandes sans suite** | Requests → liste de travail, bandeau « X enquiries with no future » (`utils/seasonClose.ts`) |
 | Distinguer « **table pas encore migrée** » d'une vraie panne | `utils/supabaseErrors.ts` — ⚠️ le code est **`PGRST205`**, pas `42P01` |
 
 > ⚠️ Toujours `npm run build` avant push (Vercel = TS strict : unused/locals, types incomplets dans `mock.ts`).

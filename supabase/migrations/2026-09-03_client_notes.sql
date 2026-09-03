@@ -71,6 +71,11 @@ REVOKE ALL ON client_notes FROM anon;
 -- UPDATE séparé, après coup, et signale simplement « booking saved, but the
 -- source was not recorded » si la colonne manque. La réservation existe, le
 -- libellé reste dans `bookings.referral_source`. Rien à séquencer.
+-- ✅ Rien à faire côté RLS : `bookings` est en **GRANT par colonne** pour anon
+-- (`REVOKE SELECT ON bookings FROM anon` + liste explicite, Lot B du 2026-07-04).
+-- Une colonne ajoutée n'est donc PAS lisible par un porteur de lien tant qu'on
+-- ne l'accorde pas — et on ne l'accorde pas : d'où viennent les clients ne
+-- regarde ni un chauffeur, ni un prestataire, ni le client lui-même.
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS source_id UUID REFERENCES enquiry_sources(id);
 
 -- Reprise de l'historique. Deux sources, dans l'ordre où on leur fait confiance :
@@ -127,7 +132,11 @@ SELECT c.id, COALESCE(c.created_at, now()), btrim(c.notes)
       WHERE n.client_id = c.id AND n.body = btrim(c.notes)
    );
 
-UPDATE clients SET notes = NULL WHERE notes IS NOT NULL AND btrim(notes) <> '';
+-- `btrim(notes) <> ''` n'est PAS la condition ici, contrairement à l'INSERT
+-- au-dessus : une note qui ne contient que des espaces n'a rien à copier, mais
+-- si on la laissait, l'onglet Info afficherait éternellement un bloc « Note (old
+-- format) » vide — une chaîne d'espaces est « truthy » en JavaScript.
+UPDATE clients SET notes = NULL WHERE notes IS NOT NULL;
 
 COMMIT;
 

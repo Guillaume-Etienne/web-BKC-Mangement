@@ -15,13 +15,15 @@
 | 2 | **Pousser** les commits (Claude ne pousse jamais) | — |
 | 3 | **Relancer le serveur MCP** (process `tsx` démarré en début de session) pour voir les nouveaux outils | Non |
 | 4 | Regarder **Requests → Archive → « Where they came from »** et décider si la question « comment nous avez-vous connus » doit devenir obligatoire quelque part | Non |
+| 5 | **Trancher deux vraies données que les nouveaux écrans ont sorties** : la résa **#025 (Babeth) sans aucune chambre**, et la demande **Bruno annoncée en « Jan 2026 »** (vraie demande périmée, ou janvier prochain mal saisi ?) | Non |
 
 ### 2. Ce qui a été livré (tout est commité, rien n'est poussé)
 
 `7172256` A — conversion sans perte · `5c3691e` B — le dossier client + ⌘K ·
 `6778461` C — « Waiting on you » · `3714ec9` D — un seul vocabulaire ·
 `f3938d0` fix PGRST205 · `ce33f7a` E — la statistique d'origine ·
-F — le doublon `clients.notes` fermé · G — l écart d intention sur la résa
+F — le doublon `clients.notes` fermé · G — l’écart d’intention sur la résa ·
+H — la clôture de saison · + la doc de Documents → Overview, qui n’existait pas
 *(la liste se prolonge si la session a continué — `git log --oneline origin/master..HEAD`)*
 
 ### 3. Les 6 bugs / trous trouvés en chemin (tous corrigés)
@@ -252,6 +254,27 @@ précisément ce qu'on ne va pas chercher.
 - **L'écart se recalcule à la frappe** : l'alerte s'éteint quand gui remplit l'étape 3.
 - Trouvé en PROD dès l'ouverture : **la résa #025 (Babeth) n'a aucune chambre** alors que la
   demande portait sur l'hébergement.
+
+### ✅ H. La clôture de saison — livrée le 2026-09-03
+
+Sans elle, la liste de travail (et donc « Waiting on you ») **ne pouvait que grossir** : une
+demande de février qui n'a jamais répondu gardait son compteur de silence et réapparaissait
+indéfiniment, jusqu'à ce que la liste soit assez longue pour ne plus être lue. Une liste qu'on
+ne vide jamais cesse d'être une liste de travail.
+
+`utils/seasonClose.ts` (8 tests) + `SeasonClosePanel` sur la liste de travail. **Deux motifs
+distincts**, jamais mélangés : le mois d'arrivée est **passé** (le silence n'entre pas en compte
+— une conversation d'il y a trois jours ne change rien si le mois est fini), ou **pas de dates
+et 60 jours** de silence. Quelqu'un qui dit « décembre prochain » puis se tait est **en avance,
+pas mort** : jamais proposé.
+- **Les noms et les motifs avant le bouton** — c'est la décision de gui, pas celle d'un
+  compteur ; l'un d'eux mérite peut-être un coup de fil, et le seul moyen de le savoir est de
+  lire la liste.
+- **Un seul UPDATE** : clôturer la moitié d'une saison puis s'arrêter laisserait gui sans savoir
+  quelle moitié.
+- Le mois est écrit en clair (« Jan 2026 ») : **un mois mal saisi saute aux yeux** au lieu
+  d'être clôturé en silence. Cas réel trouvé en PROD : Bruno, « Jan 2026 » — soit une vraie
+  demande périmée, soit un janvier prochain mal saisi. **À regarder.**
 
 ⬜ **Reste de D, volontairement non fait** : **pré-remplir les participants** à la conversion
 depuis `party_size` + `wants_*`. Motif : `ENQUIRIES.md` tranche explicitement que la conversion

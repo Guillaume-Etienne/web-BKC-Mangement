@@ -193,8 +193,21 @@
 ### `DocumentsPage`
 - **Route :** `'documents'`
 - **Hooks :** useBookings, useBookingRooms, useBookingParticipants, useRooms, useAccommodations, useDocumentSections('travel_guide') + ('welcome_guide')
-- **State :** `tab: 'visa'|'summary'|'guide'|'welcome'|'templates'`, `guideSections`/`welcomeSections` (copies de travail nullables, init depuis DB), `templatesDoc: 'travel'|'welcome'`, `emailLogs`, `logsRefresh`, `sending: EmailLogType|null`
+- **State :** `tab: 'overview'|'visa'|'summary'|'guide'|'welcome'|'templates'`, `guideSections`/`welcomeSections` (copies de travail nullables, init depuis DB), `templatesDoc: 'travel'|'welcome'`, `emailLogs`, `logsRefresh`, `sending: EmailLogType|null`, + le state propre à Overview (`overviewSearch`, `overviewLang`, `selectedCells`, `overviewLogs`, `bulkBusy`)
 - **Onglets :**
+  - `'overview'` ⭐ **(onglet par défaut, et le vrai plan de travail — absent de cette doc jusqu'au 2026-09-03)** :
+    **une ligne par réservation active, une colonne par document** (`DOC_TYPES` : Confirmation,
+    Visa Letter, Travel Guide, Welcome Guide, **Client Account**, **Update Form**). On coche des
+    cellules puis on **envoie en lot** ou on **marque comme envoyé** (`bulkBusy` porte la
+    progression). L'état de chaque cellule vient du **dernier `email_log`** de ce couple
+    (booking, type) — `overviewLogs` est trié du plus récent, le premier vu gagne.
+    - `client_account` / `update_form` **créent leur lien à la première utilisation** (👁 ouvre,
+      ⧉ copie) ; un lien désactivé propose « ⚠ Reactivate ».
+    - **« ⚠ no email on file »** sous le nom quand le client n'a pas d'adresse — l'envoi en lot
+      ne peut rien pour lui, et le dire dans la grille évite un échec silencieux.
+    - Langue FR/EN/ES pour Confirmation / Travel / Welcome ; **la lettre de visa est toujours en
+      portugais** (c'est l'administration qui la lit).
+    - Ne liste que `activeBookings` : pour une résa passée, passer par les onglets dédiés.
   - `'visa'` → lettre visa (portugais) : sélecteur booking, aperçu dates/guests, Generate PDF + Send email
   - `'summary'` → confirmation réservation : booking, langue (FR/EN/ES), Generate PDF + Send email. **Aucun montant estimé** (retiré le 2026-08-02, demande gui) : le document ne mentionne que `amount_paid`, pas de total ni de solde — c'étaient des estimations qui bougeaient encore et qu'un client lit comme un devis. Le retrait a supprimé avec elles l'input « Estimated total » et un `useEffect` de 11 requêtes parallèles.
   - `'guide'` → guide voyage (avant le séjour) : toggles sections + édition, SaveBar, envoi standalone (PDF + email)

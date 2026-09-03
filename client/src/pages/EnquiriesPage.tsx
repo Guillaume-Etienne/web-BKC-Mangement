@@ -4,6 +4,7 @@ import type { Booking, Enquiry, EnquiryNote, EnquirySource, EnquiryStatus, Seaso
 import type { AttributionSubmission } from '../utils/attribution'
 import EnquiryPanel from '../components/enquiries/EnquiryPanel'
 import AttributionPanel from '../components/enquiries/AttributionPanel'
+import SeasonClosePanel from '../components/enquiries/SeasonClosePanel'
 import {
   STATUS_META, STATUS_ORDER, silenceDays, silenceTone, fmtArrivalMonth,
   isSettled, isQualified, monthBand, groupByArrivalMonth, matchesSearch, SILENCE_WARN_DAYS,
@@ -191,6 +192,10 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
             ))}
           </div>
         </div>
+
+        {/* Only on the working list: it is that list this empties. Offering it
+            on the archive would be proposing to close what is already closed. */}
+        {!showSettled && <SeasonClosePanel enquiries={enquiries} onClosed={refresh} />}
 
         {/* On the archive only — this is the end-of-season reading, and it would
             be noise above the list of people still waiting for an answer. */}

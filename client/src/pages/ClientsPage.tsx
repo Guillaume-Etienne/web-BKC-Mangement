@@ -539,7 +539,7 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                         dated feed. Shown rather than hidden: it is real text gui
                         wrote, and it must not vanish from the screen before it
                         has landed in the Timeline. */}
-                    {selectedClient.notes && (
+                    {selectedClient.notes?.trim() && (
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Note (old format)</p>
                         <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{selectedClient.notes}</p>
