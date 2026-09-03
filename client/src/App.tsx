@@ -10,6 +10,8 @@ import { computePendingActions } from './components/pending/pendingActions'
 import type { PendingAction, Page } from './components/pending/pendingActions'
 import type { Booking, Payment, Enquiry } from './types/database'
 import { isSettled, isQualified, silenceDays, SILENCE_WARN_DAYS } from './utils/enquiries'
+import { computeFollowUps } from './utils/followUps'
+import type { FollowUp } from './utils/followUps'
 
 // Everything past the first screen is fetched when it is actually opened.
 // Before this, one bundle held the whole app: a guest opening a taxi or client
@@ -73,6 +75,7 @@ function App() {
     shareToken ? undefined : null
   )
   const [pendingActions, setPendingActions] = useState<PendingAction[]>([])
+  const [followUps, setFollowUps] = useState<FollowUp[]>([])
 
   // ⌘K / Ctrl-K opens the palette from anywhere. Bound on the window rather
   // than on a field so it works while a list is scrolled or a drawer is open.
@@ -103,14 +106,14 @@ function App() {
     if (!session) return
     Promise.all([
       supabase.from('bookings').select('*, client:clients(first_name, last_name)'),
-      supabase.from('payments').select('id, booking_id, is_verified, is_discount'),
+      supabase.from('payments').select('id, booking_id, date, is_verified, is_discount'),
       supabase.from('taxi_trips').select('booking_id'),
       supabase.from('form_submissions').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       // Whole rows rather than counts: "unqualified" and "silent" are decided in
       // one place, utils/enquiries.ts, and duplicating either as a SQL filter
       // here would let the Home page and the Requests table disagree.
-      supabase.from('enquiries').select('status, party_size, arrival_month, wants_lessons, wants_rental, wants_accommodation, last_contact_at, crm_error'),
-      supabase.from('email_logs').select('booking_id, type, status'),
+      supabase.from('enquiries').select('id, name, status, party_size, arrival_month, wants_lessons, wants_rental, wants_accommodation, last_contact_at, crm_error'),
+      supabase.from('email_logs').select('booking_id, type, status, sent_at, created_at'),
     ]).then(([{ data: bookings }, { data: payments }, { data: taxis }, { count: pendingSubs }, { data: enquiries }, { data: emailLogs }]) => {
       const bkgs = (bookings ?? []) as Booking[]
       const pmts = (payments ?? []) as Payment[]
@@ -125,6 +128,17 @@ function App() {
         silentEnquiriesCount: open.filter(e => silenceDays(e.last_contact_at) >= SILENCE_WARN_DAYS).length,
         crmFailedCount: enqs.filter(e => !!e.crm_error).length,
         emailLogs: (emailLogs ?? []) as { booking_id: string; type: string; status: string }[],
+      }))
+      // Same rows, second question: not "what falls due soon" but "who has been
+      // left hanging". Costs no extra query on purpose — a follow-up list that
+      // slowed the Home page down would be turned off within a week.
+      setFollowUps(computeFollowUps({
+        enquiries: enqs,
+        bookings: bkgs,
+        touch: {
+          payments: (payments ?? []) as { booking_id: string; date: string }[],
+          emails: (emailLogs ?? []) as { booking_id: string; sent_at?: string | null; created_at?: string | null }[],
+        },
       }))
     })
   }, [session])
@@ -201,7 +215,17 @@ function App() {
       <main className="w-full">
         <ChunkBoundary>
           <Suspense fallback={<PageLoading />}>
-            {currentPage === 'home'       && <HomePage onNavigate={setCurrentPage} pendingActions={pendingActions} />}
+            {currentPage === 'home'       && (
+              <HomePage
+                onNavigate={setCurrentPage}
+                pendingActions={pendingActions}
+                followUps={followUps}
+                onOpenFollowUp={(f) => {
+                  if (f.kind === 'enquiry') { setPendingEnquiryId(f.targetId); setCurrentPage('requests') }
+                  else { setPendingEditBookingId(f.targetId); setCurrentPage('bookings') }
+                }}
+              />
+            )}
             {currentPage === 'planning'   && <PlanningView onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
             {currentPage === 'bookings'   && <BookingsPage initialEditBookingId={pendingEditBookingId} onEditOpened={() => setPendingEditBookingId(null)} />}
             {currentPage === 'clients'    && <ClientsPage onNavigate={setCurrentPage} initialClientId={pendingClientId} onClientOpened={() => setPendingClientId(null)} />}

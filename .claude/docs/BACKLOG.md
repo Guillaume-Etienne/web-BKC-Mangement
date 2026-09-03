@@ -66,11 +66,30 @@ qui sait dire « qui attend quoi » (Enquiries) **jette la personne dès qu'elle
 détail de planning, ça noierait le fil) ; onglet Documents séparé (les envois sont dans la
 frise, un onglet de plus pour trois lignes serait un endroit de plus où chercher).
 
-### ⬜ C. Une seule liste de travail « qui attend quoi » — pas commencé
-La colonne **Silence** n'existe que pour les prospects : une résa provisoire sans nouvelles
-depuis trois semaines n'apparaît nulle part (les Pending actions ne parlent que d'échéances).
-Fondre demandes **+ résas provisoires** dans une liste triée par silence ; une gagnée change de
-colonne au lieu de disparaître.
+### ✅ C. « Waiting on you » — LIVRÉ le 2026-09-03 (aucune migration, aucune requête en plus)
+
+Le trou : la colonne **Silence** n'existait que pour les prospects. Le jour où quelqu'un devenait
+une résa, il quittait cette liste — et une **résa provisoire sans nouvelles depuis trois semaines
+n'apparaissait nulle part**. Les Pending actions ne l'attrapent pas non plus : elles parlent en
+**échéances** (check-in dans N jours, visa dans N jours), jamais en **silence**.
+
+- **`utils/followUps.ts`** (pur, 15 tests) : demandes ouvertes **+ résas provisoires** dans une
+  seule liste, triée urgent d'abord puis par attente la plus longue.
+- **Deux règles pour que la liste reste lisible** : une demande **jamais qualifiée** y est dès le
+  premier jour (quelqu'un attend une réponse) ; tout le reste attend un vrai silence de 7 jours
+  (`SILENCE_WARN_DAYS`) — une liste qui affiche quelqu'un contacté hier, gui arrête de l'ouvrir.
+- **Le silence d'une résa** = jours depuis le dernier signe de vie réel : création, paiement
+  enregistré, document envoyé. ⚠️ **Les dates futures sont ignorées** — un séjour en novembre
+  n'est pas une nouvelle en septembre, et le compter ferait taire précisément le dossier à
+  relancer.
+- **Cas à part** : un séjour **terminé** dont la résa est restée `provisional` est signalé en
+  urgent, silencieux ou pas — l'argent n'a jamais été soldé.
+- **Chaque ligne porte « ce qu'ils veulent »** (🪁 cours · 🎿 loc · 🛏 hébergement, ou les
+  compteurs de la résa) : c'est l'autre moitié de la phrase de gui.
+- Affiché sur la **Home**, sous les Pending actions, calculé dans `App.tsx` **sur les lignes
+  déjà chargées** pour les pending actions (3 colonnes ajoutées aux `select`, zéro requête de
+  plus). Un clic ouvre la demande ou la résa.
+- **Côté MCP** : `get_pending_actions` renvoie désormais aussi `waiting_on_you`.
 
 ### ⬜ D. Un seul vocabulaire — pas commencé
 - « Ce qu'ils veulent » s'écrit en **3 vocabulaires** : `enquiry.wants_*` (3 booléens de groupe),

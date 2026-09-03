@@ -1,4 +1,5 @@
 import type { PendingAction, Page } from '../components/pending/pendingActions'
+import type { FollowUp } from '../utils/followUps'
 
 const PRIORITY_STYLES: Record<string, { bg: string; border: string; dot: string; label: string }> = {
   urgent:  { bg: 'bg-red-50 dark:bg-red-950/40',    border: 'border-red-200 dark:border-red-900',    dot: 'bg-red-500',    label: 'Urgent' },
@@ -9,6 +10,10 @@ const PRIORITY_STYLES: Record<string, { bg: string; border: string; dot: string;
 interface HomePageProps {
   onNavigate: (page: Page) => void
   pendingActions?: PendingAction[]
+  /** Who has been waiting, longest first — see utils/followUps.ts. */
+  followUps?: FollowUp[]
+  /** Opens the person's file / the booking, rather than dropping gui on a list. */
+  onOpenFollowUp?: (f: FollowUp) => void
 }
 
 interface Shortcut {
@@ -27,7 +32,7 @@ const SHORTCUTS: Shortcut[] = [
   { page: 'activities', icon: '🏕️', label: 'Activities', description: 'External providers' },
 ]
 
-export default function HomePage({ onNavigate, pendingActions = [] }: HomePageProps) {
+export default function HomePage({ onNavigate, pendingActions = [], followUps = [], onOpenFollowUp }: HomePageProps) {
   const urgentCount = pendingActions.filter(a => a.priority === 'urgent').length
 
   return (
@@ -79,6 +84,54 @@ export default function HomePage({ onNavigate, pendingActions = [] }: HomePagePr
                   </div>
                 )
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Waiting on you — silence, not deadlines.
+            The block above speaks in dates (check-in in N days, visa in N days);
+            this one answers the other question: who has been left hanging, and
+            what did they want? A prospect and a booking that never got
+            confirmed sit in the same list, because from the person's side there
+            is no difference — they are both waiting for gui. */}
+        {followUps.length > 0 && (
+          <div className="mb-10">
+            <div className="flex items-baseline gap-3 mb-1">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">Waiting on you</h2>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {followUps.length} {followUps.length > 1 ? 'people' : 'person'}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              Nobody has spoken to them in a while — enquiries and bookings that never got confirmed.
+            </p>
+            <div className="space-y-2">
+              {followUps.map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => onOpenFollowUp?.(f)}
+                  className={`w-full text-left flex items-center gap-3 px-3 md:px-4 py-2 md:py-3 rounded-lg border transition-colors ${
+                    f.tone === 'urgent'
+                      ? 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900 hover:bg-red-100 dark:hover:bg-red-900/40'
+                      : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  <span className="flex-shrink-0 text-base">{f.kind === 'enquiry' ? '📣' : '📋'}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
+                      {f.name}
+                      {f.when && <span className="ml-2 font-normal text-gray-500 dark:text-gray-400">{f.when}</span>}
+                    </span>
+                    <span className="block text-xs text-gray-600 dark:text-gray-400 truncate">{f.wants}</span>
+                    <span className="block text-xs text-gray-400 dark:text-gray-500 truncate">{f.reason}</span>
+                  </span>
+                  <span className={`flex-shrink-0 text-sm font-bold tabular-nums ${
+                    f.silenceDays >= 14 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
+                  }`}>
+                    {f.silenceDays}d
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
         )}

@@ -19,6 +19,7 @@
 | **Créer un client** depuis un chemin automatique | `utils/clientIdentity.ts` — réutiliser avant d'insérer (lien explicite, puis email exact, **jamais un nom**) |
 | **Voir tout ce qu'on sait d'une personne** | Clients → fiche → onglet **Timeline** (`utils/dossier.ts`) · MCP `get_client_dossier` |
 | **Retrouver quelqu'un sans savoir où il est** | **⌘K / Ctrl-K** dans l'app · MCP `search_everything` |
+| **Savoir qui attend une réponse** | Home → « Waiting on you » (`utils/followUps.ts`) · MCP `get_pending_actions` → `waiting_on_you` |
 | **Ajouter une source à la frise** du dossier | `utils/dossier.ts` : un `for` de plus dans `buildDossier` + un test. Ne jamais **copier** la donnée |
 
 > ⚠️ Toujours `npm run build` avant push (Vercel = TS strict : unused/locals, types incomplets dans `mock.ts`).

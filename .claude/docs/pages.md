@@ -109,9 +109,11 @@
 
 ### `HomePage`
 - **Route :** `'home'`
-- **Props :** `{ onNavigate; pendingActions?: PendingAction[] }`
-- **But :** Page d'accueil + liste d'actions en attente
-- **Pending actions :** liste color-codée (🔴 urgent / 🟡 week / 🟢 monitor), chaque item a un lien vers la page concernée. Calculé dans `App.tsx` au login via `computePendingActions()` (`pendingActions.ts`).
+- **Props :** `{ onNavigate; pendingActions?; followUps?; onOpenFollowUp? }`
+- **But :** Page d'accueil + **deux** listes de travail, qui répondent à deux questions différentes.
+- **Pending actions :** liste color-codée (🔴 urgent / 🟡 week / 🟢 monitor), chaque item a un lien vers la page concernée. Calculé dans `App.tsx` au login via `computePendingActions()` (`pendingActions.ts`). Parle en **échéances**.
+- **« Waiting on you » (2026-09-03) :** demandes ouvertes **+ résas provisoires** triées par **silence**, avec « ce qu'ils veulent » sur chaque ligne. Calculé par `computeFollowUps()` (`utils/followUps.ts`) dans le même `.then()` que les pending actions — **sur les mêmes lignes, zéro requête de plus**. Un clic ouvre la demande (Requests) ou la résa (wizard).
+- ⚠️ Les deux blocs sont complémentaires, pas redondants : **une échéance n'est pas un silence**. Le dossier qui s'est tu ne déclenche aucune règle d'échéance.
 
 ### `PlanningView` *(rendu comme page)*
 - **Route :** `'planning'`
