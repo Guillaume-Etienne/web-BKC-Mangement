@@ -51,6 +51,27 @@ useTable<T>(table: string, options?: {
 
 ---
 
+### `useClientDossier.ts` *(2026-09-03)*
+`useClientDossier(clientId: string | null, bookings: Booking[]): ClientDossier`
+
+Tout ce qui est jamais arrivé à une personne, **chargé seulement quand sa fiche est ouverte**
+(requêtes bornées `.in(bookingIds)` — Clients est un écran de liste, tout charger au montage
+ferait payer la liste entière pour la seule ligne cliquée).
+
+| Champ | Type | Notes |
+|---|---|---|
+| events | `DossierEvent[]` | assemblé par `utils/dossier.ts`, plus récent en premier |
+| payments | `Payment[]` | la **source de vérité** des paiements, jamais `bookings.amount_paid` |
+| bookings | `Booking[]` | ceux de ce client |
+| loading / error | | `error` liste ce qui a échoué au chargement — une frise à moitié vide se lit « il ne se passe plus rien » |
+| notesTableMissing | boolean | `client_notes` absente (42P01) = migration en attente, **pas** une panne |
+| addNote(body) | `Promise<string \| null>` | écrit une note datée ; renvoie le message d'erreur, ou `null` |
+
+⚠️ Dépend de `bookingKey` (les ids joints), **pas** du tableau `bookings` : celui-ci est
+recréé à chaque rendu du parent et re-déclencherait le fetch en boucle.
+
+---
+
 ### `useClients.ts`
 | Hook | Table | Order | Retourne |
 |------|-------|-------|---------|

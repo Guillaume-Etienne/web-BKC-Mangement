@@ -37,6 +37,9 @@ const ActivityProviderSharePage = lazy(() => import('./pages/ActivityProviderSha
 const BookingFormPage           = lazy(() => import('./pages/BookingFormPage'))
 const EnquiryFormPage           = lazy(() => import('./pages/EnquiryFormPage'))
 const RestaurantSharePage       = lazy(() => import('./pages/RestaurantSharePage'))
+// Not lazy: ⌘K must answer instantly, and a chunk fetched on first keystroke
+// would make the palette feel broken on a bad connection.
+import GlobalSearch from './components/common/GlobalSearch'
 import type { SharedLink } from './types/database'
 
 /** Shown while a page's chunk is on its way. Same look as the session check,
@@ -60,11 +63,29 @@ function App() {
   const [session,     setSession]     = useState<Session | null | undefined>(undefined)
   const [currentPage, setCurrentPage] = useState<Page>('home')
   const [pendingEditBookingId, setPendingEditBookingId] = useState<string | null>(null)
+  // Where ⌘K sends you: the page changes AND the row opens, otherwise the
+  // palette drops you on a list and the search has to be done twice.
+  const [pendingClientId, setPendingClientId] = useState<string | null>(null)
+  const [pendingEnquiryId, setPendingEnquiryId] = useState<string | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
   // undefined = still checking, null = not found / no token
   const [sharedLink, setSharedLink]   = useState<SharedLink | null | undefined>(
     shareToken ? undefined : null
   )
   const [pendingActions, setPendingActions] = useState<PendingAction[]>([])
+
+  // ⌘K / Ctrl-K opens the palette from anywhere. Bound on the window rather
+  // than on a field so it works while a list is scrolled or a drawer is open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setSearchOpen(o => !o)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   useEffect(() => {
     // Get initial session
@@ -183,17 +204,27 @@ function App() {
             {currentPage === 'home'       && <HomePage onNavigate={setCurrentPage} pendingActions={pendingActions} />}
             {currentPage === 'planning'   && <PlanningView onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
             {currentPage === 'bookings'   && <BookingsPage initialEditBookingId={pendingEditBookingId} onEditOpened={() => setPendingEditBookingId(null)} />}
-            {currentPage === 'clients'    && <ClientsPage onNavigate={setCurrentPage} />}
+            {currentPage === 'clients'    && <ClientsPage onNavigate={setCurrentPage} initialClientId={pendingClientId} onClientOpened={() => setPendingClientId(null)} />}
             {currentPage === 'management' && <ManagementPage />}
             {currentPage === 'equipment'  && <EquipmentPage />}
             {currentPage === 'taxis'      && <TaxiPage />}
             {currentPage === 'documents'  && <DocumentsPage />}
             {currentPage === 'accounting' && <AccountingPage onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
             {currentPage === 'activities' && <ActivitiesPage />}
-            {currentPage === 'requests'   && <RequestsPage />}
+            {currentPage === 'requests'   && <RequestsPage initialEnquiryId={pendingEnquiryId} onEnquiryOpened={() => setPendingEnquiryId(null)} />}
           </Suspense>
         </ChunkBoundary>
       </main>
+
+      <GlobalSearch
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onGo={(t) => {
+          if (t.kind === 'client')  { setPendingClientId(t.id);     setCurrentPage('clients') }
+          if (t.kind === 'booking') { setPendingEditBookingId(t.id); setCurrentPage('bookings') }
+          if (t.kind === 'enquiry') { setPendingEnquiryId(t.id);    setCurrentPage('requests') }
+        }}
+      />
     </div>
   )
 }

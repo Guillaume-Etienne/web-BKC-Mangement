@@ -102,6 +102,7 @@ export interface Booking {
   waiver_version: string | null              // version of the accepted waiver text
   referral_source: string | null             // "how did you hear about us"
   agency_id?: string | null                  // 2026-08-16, foundations only — see Agency below
+  created_at?: string                        // ISO ts — the column always existed; typed 2026-09-03 for the client dossier timeline
 }
 
 export interface BookingRoom {
@@ -797,6 +798,17 @@ export interface Enquiry {
 export interface EnquiryNote {
   id: string
   enquiry_id: string
+  created_at: string
+  body: string
+}
+
+// What gui writes about a PERSON, as opposed to EnquiryNote which is about a
+// conversation in progress. Not tied to a booking on purpose: a note belongs to
+// someone and must still be there next season. Both are read as one stream in
+// the client dossier (utils/dossier.ts) — see 2026-09-03_client_notes.sql.
+export interface ClientNote {
+  id: string
+  client_id: string
   created_at: string
   body: string
 }

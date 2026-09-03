@@ -120,6 +120,29 @@ en croyant agir sur le planning. À supprimer un jour, décision de gui.
 
 ## Clients
 
+### `ClientTimeline` — `clients/ClientTimeline.tsx` (2026-09-03)
+Le dossier d'une personne en une colonne, plus récent en haut.
+- **Props :** `{ events, loading, error, silence, onAddNote, notesTableMissing }`
+- **Champ de note en HAUT**, avant la frise : l'intérêt du dossier est que gui n'ait jamais à
+  se demander où va une phrase. ⌘/Ctrl + Entrée enregistre.
+- **Filtres** `Everything / 📝 Words / 🏠 Stays / 💰 Money / 📧 Documents`. « Words » regroupe
+  note + demande + soumission — les trois endroits où une phrase existe.
+- **Défaut = tout** : « je ne sais pas ce que je cherche » est le cas normal ici.
+- `tone: 'warn'` (paiement non vérifié, résa provisoire, transfert incomplet, email en échec)
+  → pastille ambre. Un dossier doit montrer ce qui n'est pas fini sans qu'on le demande.
+- **Ne masque jamais une erreur de chargement** : `error` est affiché en tête (cf. `useClientDossier`).
+
+### `GlobalSearch` — `common/GlobalSearch.tsx` (2026-09-03)
+La palette ⌘K / Ctrl-K, montée dans `App.tsx` (**pas** en `lazy` : une palette qui va chercher
+son chunk au premier caractère a l'air cassée).
+- **Props :** `{ open, onClose, onGo }` — `onGo({kind,id})` route vers Clients / Bookings /
+  Requests **et ouvre la ligne**, par les mêmes rails que `pendingEditBookingId`.
+- **Index chargé à chaque ouverture, jamais au démarrage** : quelques centaines de lignes à
+  cette échelle, et une palette périmée qui ne trouve pas la résa créée il y a 5 minutes est
+  pire qu'une attente de 200 ms.
+- Logique de classement et de correspondance : **`utils/globalSearch.ts`** (pur, testé).
+- ↑/↓/Entrée/Échap au clavier ; le survol déplace aussi le curseur.
+
 > `ImportCSVModal` + `utils/parseGoogleFormsCSV.ts` **supprimés le 2026-07-06** (remplacés
 > par le formulaire public `BookingFormPage`). La colonne `import_id` reste : réutilisée par
 > `SubmissionsPage` comme clé de dédup (id de la form_submission).

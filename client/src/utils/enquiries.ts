@@ -109,7 +109,9 @@ export function matchesSearch(e: Enquiry, notes: string[], query: string): boole
   return hay.includes(q)
 }
 
-function norm(s: string): string {
+/** Lower-cased and stripped of accents — so "fevrier" finds "février".
+ *  Exported so every search box in the app folds text the same way. */
+export function norm(s: string): string {
   // Escaped range rather than literal combining marks: those are invisible in an
   // editor and get mangled by the next tool that touches the file.
   return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')

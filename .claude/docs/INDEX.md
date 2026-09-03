@@ -17,6 +17,9 @@
 | **Écrire en base** depuis un écran | vérifier l'erreur, toujours — voir ⚠️ ci-dessous |
 | Ajouter une **page** | `App.tsx` : `lazy(() => import(...))` comme les autres (chargement à la demande) |
 | **Créer un client** depuis un chemin automatique | `utils/clientIdentity.ts` — réutiliser avant d'insérer (lien explicite, puis email exact, **jamais un nom**) |
+| **Voir tout ce qu'on sait d'une personne** | Clients → fiche → onglet **Timeline** (`utils/dossier.ts`) · MCP `get_client_dossier` |
+| **Retrouver quelqu'un sans savoir où il est** | **⌘K / Ctrl-K** dans l'app · MCP `search_everything` |
+| **Ajouter une source à la frise** du dossier | `utils/dossier.ts` : un `for` de plus dans `buildDossier` + un test. Ne jamais **copier** la donnée |
 
 > ⚠️ Toujours `npm run build` avant push (Vercel = TS strict : unused/locals, types incomplets dans `mock.ts`).
 >

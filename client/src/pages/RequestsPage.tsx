@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTable } from '../hooks/useSupabase'
 import type { Enquiry, FormSubmission } from '../types/database'
 import EnquiriesPage from './EnquiriesPage'
@@ -19,8 +19,19 @@ import { isQualified, isSettled } from '../utils/enquiries'
 
 type Tab = 'enquiries' | 'forms'
 
-export default function RequestsPage() {
+interface Props {
+  /** Set by the global search: open this enquiry straight away. */
+  initialEnquiryId?: string | null
+  onEnquiryOpened?: () => void
+}
+
+export default function RequestsPage({ initialEnquiryId, onEnquiryOpened }: Props) {
   const [tab, setTab] = useState<Tab>('enquiries')
+
+  // Arriving from ⌘K on the Booking forms tab would render the other screen and
+  // silently swallow the request.
+  useEffect(() => { if (initialEnquiryId) setTab('enquiries') }, [initialEnquiryId])
+
   const { data: enquiries } = useTable<Enquiry>('enquiries')
   const { data: submissions } = useTable<FormSubmission>('form_submissions')
 
@@ -66,7 +77,9 @@ export default function RequestsPage() {
           and squeezing them into a shared chrome would have been the merge we
           decided against. */}
       <div className="-mt-4">
-        {tab === 'enquiries' ? <EnquiriesPage /> : <SubmissionsPage />}
+        {tab === 'enquiries'
+          ? <EnquiriesPage initialEnquiryId={initialEnquiryId} onEnquiryOpened={onEnquiryOpened} />
+          : <SubmissionsPage />}
       </div>
     </div>
   )

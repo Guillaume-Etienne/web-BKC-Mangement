@@ -36,12 +36,35 @@ qui sait dire « qui attend quoi » (Enquiries) **jette la personne dès qu'elle
    ⚠️ **Le serveur MCP doit être relancé** pour que `origin_enquiry` apparaisse (tsx, process
    démarré au début de session).
 
-### ⬜ B. La fiche client devient le dossier — le gros morceau, pas commencé
-Onglets `Info · Timeline · Bookings · Money · Documents`. **Timeline v1 assemblée à la lecture**
-depuis les tables existantes (demandes, notes, soumissions, résas, paiements, `email_logs`,
-taxis, activités) : **aucune migration**. Puis une table `client_notes` unique (qui absorbe
-`enquiry_notes`) = **un seul endroit où noter**. Plus une **recherche globale ⌘K** sur noms,
-notes, messages, emails, n° de résa. C'est la réponse à « chercher dans plusieurs pages ».
+### ✅ B. La fiche client est devenue le dossier — LIVRÉ le 2026-09-03
+
+1. **Frise (`Timeline`), onglet par défaut du tiroir client.** Assemblée **à la lecture** par
+   `utils/dossier.ts` (pur, testé) depuis les tables existantes : demandes + message verbatim,
+   notes datées, soumissions de formulaire, résas, séjours, paiements, documents envoyés
+   (`email_logs`), transferts, activités. **Aucune donnée dupliquée** — une frise stockée serait
+   une deuxième copie de faits qui vivent ailleurs, et les copies divergent.
+   Chargement **à l'ouverture d'une fiche seulement** (`hooks/useClientDossier.ts`, requêtes
+   `.in(booking_ids)`) : Clients est un écran de liste, payer pour tout le monde au montage
+   annulerait le travail de démarrage du 31/07.
+2. **Un seul endroit où écrire** : champ de note en haut de la frise → table `client_notes`
+   (migration ci-dessus, **le code marche sans elle**). `enquiry_notes` reste où elle est ;
+   les deux se **lisent** comme un seul fil.
+3. **Recherche globale ⌘K / Ctrl-K** (`components/common/GlobalSearch.tsx` +
+   `utils/globalSearch.ts`, testé) : clients, résas, demandes, **et l'intérieur des messages et
+   des notes**. Insensible aux accents (« fevrier » trouve « février »), `#023` trouve la résa
+   23. Classement : nom d'abord, puis contact, puis texte libre. **Index chargé à la première
+   ouverture, jamais au démarrage.** Le résultat ouvre la fiche/la résa/la demande directement
+   (mêmes rails que `pendingEditBookingId`).
+4. **Côté MCP** : `get_client_dossier` (la frise complète + `silence_days` + l'argent réel) et
+   `search_everything`. C'est ce qui permet de demander « où en est Cindy ? » sans ouvrir l'app.
+5. 🔴 **Bug corrigé au passage** : l'onglet Bookings du tiroir client totalisait
+   `bookings.amount_paid` — un cache qui n'est **pas** la source de vérité. Il lit maintenant
+   `payments`, et **sépare l'argent non vérifié** au lieu de l'additionner au reste.
+
+⬜ **Restes de B, volontairement non faits** : fusionner `enquiry_notes` dans `client_notes`
+(chantier à part) ; faire figurer les cours et les locations dans la frise (aujourd'hui c'est du
+détail de planning, ça noierait le fil) ; onglet Documents séparé (les envois sont dans la
+frise, un onglet de plus pour trois lignes serait un endroit de plus où chercher).
 
 ### ⬜ C. Une seule liste de travail « qui attend quoi » — pas commencé
 La colonne **Silence** n'existe que pour les prospects : une résa provisoire sans nouvelles
@@ -140,6 +163,7 @@ accès à **tous** les noms de clients et dates (pas d'email/tel/passeport/argen
 
 | Migration | Contenu | TEST | PROD |
 |---|---|---|---|
+| **`2026-09-03_client_notes.sql`** | **⬜ À PASSER (TEST + PROD). Sans danger, aucun DROP** — table `client_notes` (`client_id` FK ON DELETE CASCADE, `created_at`, `body`), admin-only (`REVOKE ALL FROM anon`, policy `admin_all` seule). C'est **l'endroit unique où écrire sur quelqu'un**, par opposition à `enquiry_notes` qui parle d'une conversation en cours ; les deux se lisent comme un seul fil dans la frise du dossier client. ⚠️ **`enquiry_notes` n'est PAS migrée** : rien n'est copié, donc rien ne peut diverger — la fusion des deux tables est un chantier à part (elle touche l'écran de qualification, qui doit rester expédiable en 20 s). **Le code fonctionne sans cette migration** : le dossier détecte le `42P01`, affiche « notes not stored yet — migration pending » et désactive le champ ; le reste de la frise reste juste. Vérif en service_role (table admin-only, le curl anon ne prouve rien) : recette en bas du fichier — insert orphelin → **23503**, curl anon avec jeton valide → jamais de note. | ⬜ | ⬜ |
 | **`2026-09-02_transfer_reference_prices.sql`** | **⬜ À PASSER (TEST + PROD) EN PREMIER. Sans danger, upgrade-safe** — table `transfer_reference_prices` (admin-only, `REVOKE ALL FROM anon`) : la liste de prix indicative des transferts (Maputo/Bilene/Tofo/Vilankulo, taxi local, Chappa, avion, bateau Macaneta) pour le sous-onglet **Options → Prices → Reference info**, seedée à partir de `temp/Trip orga - contacts.xlsx` (1er onglet). Purement informatif, **aucun calcul de l'app ne lit cette table**. **Pas de colonne devise** (retiré le 2026-09-02, gui) : 3 colonnes prix fixes et nullables `price_mzn`/`price_eur`/`price_usd` — cette page ne renseigne que `price_mzn` (+ `price_eur` quand gui connaît le montant, l'excel source n'en donnait aucun) ; une colonne `page` (`'transfers'`/`'kruger'`) sépare aussi cette table en 2 sous-onglets, voir la migration `b` ci-dessous. ⚠️ **gui avait déjà lancé l'ancienne version (schéma `price`+`currency`, sans `page`) sur TEST avant ce redesign** — le fichier détecte maintenant tout seul lequel des deux cas il a en face (`information_schema.columns`) : `CREATE TABLE IF NOT EXISTS` + seed neufs sur une base vierge (PROD), `ALTER`/backfill/skip-reseed sur TEST. **Même fichier, même geste sur les deux bases.** Quelques lignes du fichier source étaient ambiguës (cellules fusionnées/décalées, un « 220 $ » pour Komatipoort, le bloc bateau/4x4 Macaneta) — gardées en note dans le champ `notes`, **à vérifier par gui** une fois visibles dans l'UI. | ⬜ | ⬜ |
 | **`2026-09-02b_kruger_reference_prices.sql`** | **⬜ À PASSER (TEST + PROD) JUSTE APRÈS la migration ci-dessus. Upgrade-safe aussi** — seed seul (aucun schéma), 23 lignes dans la même table `transfer_reference_prices` mais `page='kruger'` : sur TEST, la migration précédente a déjà déplacé les 23 lignes que gui y avait fait passer dans leur ancienne forme (section repliable `section_order=5`) vers `page='kruger'`/`section_order=0` — celle-ci trouve donc les lignes déjà là et **ne réinsère rien** ; sur PROD (base vierge), elle insère les 23 lignes normalement. **Même fichier, même geste sur les deux bases.** C'est **son propre sous-onglet Options → Prices → « Kruger & Eswatini »** (gui a demandé un onglet à part, 2026-09-02), pas une section repliable de Reference info. Forfaits Kruger 1j/2j/3j, combos Eswatini/Kruger, Blyde River Canyon, hébergement, conditions de dépôt/Paypal — tout en `price_usd` (page 100 % USD, pas de MZN/EUR ici). Seedé depuis `temp/kruger.xlsx`, dont l'onglet mélangeait ce catalogue de prix avec **un vrai historique de réservations (noms clients réels, n° de résa, paiements)** — **volontairement exclu** de ce fichier (gui, 2026-09-02) : hors sujet pour un outil de réponse aux clients, et ça expose des noms. Idem pour la note commission agence « 10 %/5 % STO », plus proche du chantier `agencies`/`agency_rate_items` que de ce tableau. | ⬜ | ⬜ |
 | **`2026-08-21_hide_empty_rooms.sql`** | **⬜ À PASSER (TEST + PROD). Sans danger** — ajoute `accommodations.hide_empty_rooms` (`BOOLEAN NOT NULL DEFAULT false`) : le planning n'affiche que les emplacements occupés **plus une ligne libre**, pour un hébergement dont les « emplacements » sont une commodité de saisie (San Martinho, passé à 6). Tant que la case n'est pas cochée, **le planning se comporte exactement comme avant**. Backfill `ILIKE '%martinho%'` : n'active que PROD, sans objet sur TEST (« Palmeiras Room (demo) »). ⚠️ **Un drapeau en base, pas un test sur le nom** dans le code. | ⬜ | ⬜ |

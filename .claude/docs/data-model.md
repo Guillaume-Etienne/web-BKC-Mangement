@@ -73,6 +73,21 @@
 | emergency_contact_email | string \| null |
 | emergency_contact_relation | string \| null |
 
+### `client_notes` → `ClientNote` *(2026-09-03, migration en attente)*
+| Field | Type |
+|-------|------|
+| id | string (UUID) |
+| client_id | string (FK → clients, ON DELETE CASCADE) |
+| created_at | string (ISO ts) |
+| body | string |
+> **Ce qu'on écrit sur QUELQU'UN**, par opposition à `enquiry_notes` (une conversation en
+> cours). Admin-only (`REVOKE ALL FROM anon`). **Pas de `booking_id`** : une note appartient à
+> la personne, la rattacher à un séjour la ferait disparaître la saison suivante. Pas d'auteur
+> (deux comptes admin), pas de suppression douce.
+> ⚠️ `enquiry_notes` **n'est pas migrée dedans** — rien n'est copié, donc rien ne diverge ; les
+> deux se **lisent** comme un seul fil dans `utils/dossier.ts`. Le code tourne sans la table
+> (`42P01` détecté → bandeau « migration pending », champ désactivé, reste de la frise juste).
+
 ### `booking_participants` → `BookingParticipant`
 | Field | Type | Notes |
 |-------|------|-------|

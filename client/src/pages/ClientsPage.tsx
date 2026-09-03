@@ -1,15 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useTable } from '../hooks/useSupabase'
 import { useClients } from '../hooks/useClients'
 import { useBookings, useBookingParticipants } from '../hooks/useBookings'
 import { useLessons } from '../hooks/useLessons'
+import { useClientDossier } from '../hooks/useClientDossier'
 import type { Client, Booking, KiteLevel, Season } from '../types/database'
 import { fmtDate } from '../utils/dates'
+import { daysSinceLastTouch, dossierMoney } from '../utils/dossier'
+import ClientTimeline from '../components/clients/ClientTimeline'
 import { clientParticipantIds, cumulativeHoursBefore } from '../components/accounting/utils'
 
 interface ClientsPageProps {
   onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients') => void
+  /** Set by ⌘K: open this person's file straight away. */
+  initialClientId?: string | null
+  onClientOpened?: () => void
 }
 
 const kiteLevelLabels: Record<KiteLevel, string> = {
@@ -50,7 +56,7 @@ const kiteLevelShort: Record<KiteLevel, string> = {
 
 const MOBILE_VIEW_KEY = 'clients_mobile_view'
 
-export default function ClientsPage({ onNavigate }: ClientsPageProps) {
+export default function ClientsPage({ onNavigate, initialClientId, onClientOpened }: ClientsPageProps) {
   const { data: clients, loading, error, refresh: refreshClients } = useClients()
   const { data: bookings } = useBookings()
   const { data: bookingParticipants } = useBookingParticipants()
@@ -83,7 +89,9 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
     setMobileView(mode)
     localStorage.setItem(MOBILE_VIEW_KEY, mode)
   }
-  const [detailTab, setDetailTab] = useState<'info' | 'bookings'>('info')
+  // Timeline first: the question this drawer has to answer is "where are we
+  // with this person?", and that is the only tab that answers it.
+  const [detailTab, setDetailTab] = useState<'timeline' | 'info' | 'bookings'>('timeline')
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState<Partial<Client>>({})
   const [saving, setSaving] = useState(false)
@@ -110,6 +118,21 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
 
   const getClientBookings = (clientId: string): Booking[] =>
     bookings.filter(b => b.client_id === clientId)
+
+  /** The selected person's whole file — fetched only when one is open. */
+  const dossier = useClientDossier(selectedClient?.id ?? null, bookings)
+  const money = dossierMoney(dossier.payments)
+
+  // Arriving from ⌘K: open the file as soon as the client list has loaded, then
+  // hand the request back so re-visiting the page later does not reopen it.
+  useEffect(() => {
+    if (!initialClientId) return
+    const target = clients.find(c => c.id === initialClientId)
+    if (!target) return
+    setSelectedClient(target)
+    setDetailTab('timeline')
+    onClientOpened?.()
+  }, [initialClientId, clients, onClientOpened])
 
   const openForm = (client?: Client) => {
     if (client) {
@@ -314,7 +337,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                       <tr
                         key={client.id}
                         className={`border-b hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${selectedClient?.id === client.id ? 'bg-blue-50 dark:bg-blue-950/40' : ''}`}
-                        onClick={() => { setSelectedClient(client); setDetailTab('info') }}
+                        onClick={() => { setSelectedClient(client); setDetailTab('timeline') }}
                       >
                         <td className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-200 whitespace-nowrap">
                           {client.first_name} {client.last_name}
@@ -370,7 +393,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                   return (
                     <button
                       key={client.id}
-                      onClick={() => { setSelectedClient(client); setDetailTab('info') }}
+                      onClick={() => { setSelectedClient(client); setDetailTab('timeline') }}
                       className={`w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800 ${selectedClient?.id === client.id ? 'bg-blue-50 dark:bg-blue-950/40' : ''}`}
                     >
                       <p className="flex-1 min-w-0 truncate text-sm">
@@ -402,7 +425,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                     <div
                       key={client.id}
                       className="bg-white dark:bg-gray-900 rounded-lg shadow p-4 cursor-pointer"
-                      onClick={() => { setSelectedClient(client); setDetailTab('info') }}
+                      onClick={() => { setSelectedClient(client); setDetailTab('timeline') }}
                     >
                       <div className="flex justify-between items-start mb-3">
                         <div>
@@ -452,7 +475,7 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
 
                 {/* Tabs */}
                 <div className="border-b flex">
-                  {(['info', 'bookings'] as const).map(tab => (
+                  {(['timeline', 'info', 'bookings'] as const).map(tab => (
                     <button
                       key={tab}
                       onClick={() => setDetailTab(tab)}
@@ -460,10 +483,22 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                         detailTab === tab ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
                       }`}
                     >
-                      {tab === 'info' ? 'Info' : 'Bookings'}
+                      {tab === 'timeline' ? 'Timeline' : tab === 'info' ? 'Info' : 'Bookings'}
                     </button>
                   ))}
                 </div>
+
+                {/* Timeline tab — the whole file in one column */}
+                {detailTab === 'timeline' && (
+                  <ClientTimeline
+                    events={dossier.events}
+                    loading={dossier.loading}
+                    error={dossier.error}
+                    silence={daysSinceLastTouch(dossier.events)}
+                    onAddNote={dossier.addNote}
+                    notesTableMissing={dossier.notesTableMissing}
+                  />
+                )}
 
                 {/* Info tab */}
                 {detailTab === 'info' && (
@@ -541,7 +576,6 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                               <div className="text-gray-600 dark:text-gray-400 space-y-0.5">
                                 <p>👕 {booking.num_lessons} lessons</p>
                                 <p>🏄 {booking.num_equipment_rentals} rentals</p>
-                                {booking.amount_paid > 0 && <p>💰 Paid: {booking.amount_paid}€</p>}
                               </div>
                             </div>
                           ))}
@@ -551,7 +585,15 @@ export default function ClientsPage({ onNavigate }: ClientsPageProps) {
                           <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
                             <p>👕 Lessons: {getClientBookings(selectedClient.id).reduce((s, b) => s + b.num_lessons, 0)}</p>
                             <p>🏄 Rentals: {getClientBookings(selectedClient.id).reduce((s, b) => s + b.num_equipment_rentals, 0)}</p>
-                            <p>💰 Amount paid: {getClientBookings(selectedClient.id).reduce((s, b) => s + b.amount_paid, 0)}€</p>
+                            {/* Read from `payments`, never from bookings.amount_paid — that
+                                column is a cache and has been wrong before. Unverified money
+                                is shown apart: counting it as received turns a transfer
+                                nobody checked into a settled balance. */}
+                            <p>💰 Paid: {money.paid}€{dossier.loading && ' …'}</p>
+                            {money.unverified > 0 && (
+                              <p className="text-amber-600 dark:text-amber-400">⚠️ To verify: {money.unverified}€</p>
+                            )}
+                            {money.discounts > 0 && <p>🏷️ Discounts: {money.discounts}€</p>}
                           </div>
                         </div>
                       </>

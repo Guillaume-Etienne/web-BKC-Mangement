@@ -841,9 +841,22 @@ CREATE TABLE enquiry_notes (
   body        TEXT NOT NULL
 );
 
+-- What is written about a PERSON, as opposed to enquiry_notes which is about a
+-- conversation in progress. Deliberately not tied to a booking: a note belongs
+-- to someone, and hanging it off a stay would hide it the following season.
+-- Read together with enquiry_notes in the client dossier (utils/dossier.ts).
+-- Added 2026-09-03 — migration 2026-09-03_client_notes.sql.
+CREATE TABLE client_notes (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id   UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  body        TEXT NOT NULL
+);
+
 CREATE INDEX idx_enquiries_status        ON enquiries(status);
 CREATE INDEX idx_enquiries_arrival_month ON enquiries(arrival_month);
 CREATE INDEX idx_enquiry_notes_enquiry   ON enquiry_notes(enquiry_id);
+CREATE INDEX idx_client_notes_client     ON client_notes(client_id, created_at DESC);
 
 -- The public form writes and never reads back. No anon SELECT policy at all, so
 -- RLS refuses reads by default; the column GRANT bounds what may be written.
@@ -854,6 +867,7 @@ GRANT  INSERT (name, email, phone, language, message, source_id, source_other)
 -- links and the sync columns. Those are qualification — gui's, not the visitor's.
 
 REVOKE ALL ON enquiry_notes FROM anon;   -- what gui thinks of a client
+REVOKE ALL ON client_notes  FROM anon;   -- idem
 
 
 -- ============================================================
@@ -882,7 +896,7 @@ BEGIN
     'expenses',
     'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries',
     'email_logs', 'document_templates',
-    'enquiry_sources', 'enquiries', 'enquiry_notes',
+    'enquiry_sources', 'enquiries', 'enquiry_notes', 'client_notes',
     'agencies', 'agency_rate_items', 'agency_billing_lines', 'agency_invoices',
     'price_tiers'
   ]) LOOP

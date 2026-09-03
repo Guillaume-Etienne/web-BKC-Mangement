@@ -149,10 +149,18 @@
 
 ### `ClientsPage`
 - **Route :** `'clients'`
-- **Props :** `{ onNavigate }`
-- **Hooks :** useClients, useBookings
-- **State :** `showImport`, `searchTerm`, `filterLevel`, `filterNationality`, `selectedClient`
-- **Features :** Recherche/filtres, tiroir détail (infos + historique bookings). (Import CSV supprimé 2026-07-06 — remplacé par le formulaire public.)
+- **Props :** `{ onNavigate, initialClientId?, onClientOpened? }` — les deux derniers sont la
+  cible de ⌘K : la fiche s'ouvre toute seule, puis la demande est rendue au parent.
+- **Hooks :** useClients, useBookings, useBookingParticipants, useLessons, **useClientDossier**
+- **State :** `searchTerm`, `filterLevel`, `filterNationality`, `filterSeasonId`, `selectedClient`, `detailTab`
+- **Features :** Recherche/filtres, **tiroir = le dossier de la personne**. (Import CSV supprimé 2026-07-06 — remplacé par le formulaire public.)
+- **Onglets du tiroir (2026-09-03) :** `Timeline` (défaut) · `Info` · `Bookings`
+  - **`Timeline`** → `components/clients/ClientTimeline` : tout ce qui est arrivé à cette
+    personne dans une seule colonne (demande + message d'origine, notes datées des **deux**
+    tables, soumissions, résas, séjours, paiements, documents envoyés, transferts, activités),
+    plus le **champ de note unique** en haut et un « Last activity X days ago ».
+  - ⚠️ **`Bookings` lit `payments`**, plus `bookings.amount_paid` (cache non fiable), et
+    **affiche l'argent non vérifié à part** au lieu de l'additionner.
 
 ### `TaxiPage`
 - **Route :** `'taxis'`

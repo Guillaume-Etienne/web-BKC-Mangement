@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTable } from '../hooks/useSupabase'
 import type { Enquiry, EnquiryNote, EnquirySource, EnquiryStatus } from '../types/database'
 import EnquiryPanel from '../components/enquiries/EnquiryPanel'
@@ -25,7 +25,13 @@ const WANTS = [
 
 type Chip = 'chase' | 'new' | 'nodate'
 
-export default function EnquiriesPage() {
+interface Props {
+  /** Set by the global search: open this enquiry's panel straight away. */
+  initialEnquiryId?: string | null
+  onEnquiryOpened?: () => void
+}
+
+export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Props) {
   const { data: enquiries, refresh } = useTable<Enquiry>('enquiries', { order: 'last_contact_at' })
   const { data: sources } = useTable<EnquirySource>('enquiry_sources', { order: 'sort_order' })
   // Loaded whole so the search box can look inside the conversation. Fine at a
@@ -68,6 +74,18 @@ export default function EnquiriesPage() {
   const toChase = working.filter(e => silenceDays(e.last_contact_at) >= SILENCE_WARN_DAYS).length
 
   const current = selected ? enquiries.find(e => e.id === selected) ?? null : null
+
+  // Arriving from ⌘K. A won or lost enquiry lives in the archived list, so the
+  // scope has to follow — otherwise the panel opens over a list that does not
+  // contain it, and closing it lands gui nowhere.
+  useEffect(() => {
+    if (!initialEnquiryId) return
+    const target = enquiries.find(e => e.id === initialEnquiryId)
+    if (!target) return
+    setShowSettled(isSettled(target.status))
+    setSelected(target.id)
+    onEnquiryOpened?.()
+  }, [initialEnquiryId, enquiries, onEnquiryOpened])
   const nowMonth = thisMonthISO()
 
   function toggle<T>(set: Set<T>, v: T, apply: (s: Set<T>) => void) {
