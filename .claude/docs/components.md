@@ -132,6 +132,19 @@ Le dossier d'une personne en une colonne, plus récent en haut.
   → pastille ambre. Un dossier doit montrer ce qui n'est pas fini sans qu'on le demande.
 - **Ne masque jamais une erreur de chargement** : `error` est affiché en tête (cf. `useClientDossier`).
 
+---
+
+## Enquiries
+
+### `EnquiryOriginPanel` — `enquiries/EnquiryOriginPanel.tsx` (2026-09-03)
+D’où vient une résa, relu **sur** la résa (étape 1 du wizard).
+- **Props :** `{ enquiry, gaps? }` — message d’origine, qualification, notes datées, en **lecture
+  seule** (les notes restent sur la demande, jamais recopiées).
+- **`gaps`** = ce que la demande annonçait et que la résa ne montre pas (`utils/intentGap.ts`),
+  affiché **hors du repli** : une intention perdue est ce qu’on ne va pas chercher. Calculé sur
+  l’état **vivant** du wizard, donc l’alerte s’éteint quand gui remplit l’étape 3.
+- ⚠️ **Ça pose une question, ça ne remplit rien** — un flag inventé arrive jusqu’à la compta.
+
 ### `AttributionPanel` — `enquiries/AttributionPanel.tsx` (2026-09-03)
 « Where they came from », sur la **vue Archive** de Requests → Enquiries.
 - **Props :** `{ data, seasons }` — `data` = `{ enquiries, bookings, submissions, sources }`

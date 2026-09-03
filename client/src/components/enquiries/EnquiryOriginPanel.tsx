@@ -14,9 +14,14 @@ import { fmtArrivalMonth } from '../../utils/enquiries'
  *  onto the booking: two copies of the same sentence is how they start to
  *  disagree. A single place to write, later, is a separate job. */
 
-interface Props { enquiry: Enquiry }
+interface Props {
+  enquiry: Enquiry
+  /** What the enquiry announced that the booking does not show — see
+   *  utils/intentGap.ts. Raised as a question, never filled in automatically. */
+  gaps?: string[]
+}
 
-export default function EnquiryOriginPanel({ enquiry }: Props) {
+export default function EnquiryOriginPanel({ enquiry, gaps = [] }: Props) {
   const [notes, setNotes] = useState<EnquiryNote[] | null>(null)
   const [notesError, setNotesError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
@@ -65,6 +70,26 @@ export default function EnquiryOriginPanel({ enquiry }: Props) {
         </span>
         <span className="text-violet-500 dark:text-violet-400 text-xs shrink-0 mt-0.5">{open ? '▲ hide' : '▼ read'}</span>
       </button>
+
+      {/* Outside the fold: an intention that got lost between the conversation
+          and the booking is precisely what nobody goes looking for. Nothing is
+          filled in from it — the guest may have changed their mind, and an
+          invented flag reaches the accounts looking like a real one. */}
+      {gaps.length > 0 && (
+        <div className="rounded border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-2">
+          <p className="text-xs font-semibold text-amber-900 dark:text-amber-300">
+            They {gaps.length > 1 ? 'mentioned things' : 'mentioned something'} this booking does not show
+          </p>
+          <ul className="mt-1 space-y-0.5">
+            {gaps.map(g => (
+              <li key={g} className="text-xs text-amber-800 dark:text-amber-400">• {g}</li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-amber-700 dark:text-amber-500 mt-1">
+            Nothing was changed — check whether it still stands.
+          </p>
+        </div>
+      )}
 
       {open && (
         <div className="space-y-2 pt-1 border-t border-violet-200 dark:border-violet-900">

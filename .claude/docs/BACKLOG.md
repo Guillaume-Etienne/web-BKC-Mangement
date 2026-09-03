@@ -21,10 +21,10 @@
 `7172256` A — conversion sans perte · `5c3691e` B — le dossier client + ⌘K ·
 `6778461` C — « Waiting on you » · `3714ec9` D — un seul vocabulaire ·
 `f3938d0` fix PGRST205 · `ce33f7a` E — la statistique d'origine ·
-F — le doublon `clients.notes` fermé
+F — le doublon `clients.notes` fermé · G — l écart d intention sur la résa
 *(la liste se prolonge si la session a continué — `git log --oneline origin/master..HEAD`)*
 
-### 3. Les 5 bugs trouvés en chemin (tous corrigés)
+### 3. Les 6 bugs / trous trouvés en chemin (tous corrigés)
 
 1. **La fiche client totalisait `bookings.amount_paid`** — un cache qui n'est pas la source de
    vérité. Lit `payments` maintenant, et sépare l'argent non vérifié.
@@ -36,6 +36,9 @@ F — le doublon `clients.notes` fermé
 4. **5 clients sur 8 sans origine** : le wizard ne posait jamais la question. Ajoutée.
 5. **Deux endroits pour noter sur un client** (`clients.notes` en bloc + la frise datée) —
    c'est-à-dire le doublon que ce chantier était censé supprimer. Fermé, voir § Parcours F.
+6. 🔎 **Pas un bug de code, une vraie donnée à regarder : la résa #025 (Babeth) n'a aucune
+   chambre** alors que la demande portait sur l'hébergement. Trouvé par l'écart d'intention
+   (§ Parcours G) dès sa mise en service. **À vérifier avec gui.**
 
 ### 4. Décisions prises seul, à confirmer ou renverser
 
@@ -230,6 +233,25 @@ ce travail visait à supprimer.
 - ⚠️ **⌘K indexe désormais `client_notes`** (app **et** MCP `search_everything`) : sans ça, la
   migration aurait discrètement coûté une recherche. Une table absente n'empêche pas la palette
   de s'ouvrir. En PROD la note d'E. BOUTEILLER (« contacté via Whatsapp aussi ») est le cas réel.
+
+### ✅ G. « Ce qu'ils veulent » — le dernier constat de l'audit, fermé le 2026-09-03
+
+Trois vocabulaires non réconciliés (`enquiry.wants_*` en booléens de groupe, 6 flags par
+personne sur les participants, `bookings.num_*` en cache). Une intention pouvait être captée au
+premier échange puis **ne jamais exister sur la résa**, sans que rien ne compare.
+
+**`utils/intentGap.ts`** (pur, 8 tests) compare la demande à l'état **vivant du wizard** et
+affiche l'écart dans le panneau d'origine, **hors du repli** — une intention perdue est
+précisément ce qu'on ne va pas chercher.
+- ⚠️ **Ça pose une question, ça ne remplit rien.** Transformer « ils ont parlé de cours » en flag
+  inventerait un fait : le client a pu changer d'avis, ou gui a pu dire non. Même raison que
+  pour les participants (`ENQUIRIES.md`) : un chiffre inventé arrive jusqu'à la compta où plus
+  personne ne le distingue d'un vrai.
+- **Seuls les manques sont signalés.** Une résa qui a **plus** que la demande, c'est le cas
+  normal et heureux : les gens ajoutent des choses une fois qu'ils vous parlent.
+- **L'écart se recalcule à la frappe** : l'alerte s'éteint quand gui remplit l'étape 3.
+- Trouvé en PROD dès l'ouverture : **la résa #025 (Babeth) n'a aucune chambre** alors que la
+  demande portait sur l'hébergement.
 
 ⬜ **Reste de D, volontairement non fait** : **pré-remplir les participants** à la conversion
 depuis `party_size` + `wants_*`. Motif : `ENQUIRIES.md` tranche explicitement que la conversion

@@ -13,6 +13,7 @@ import { getFullHouseRate, getBaseNightlyRate } from '../utils/roomPricing'
 import { getConfiguredRate, agencyMarker } from '../components/accounting/utils'
 import { todayISO, fmtDate } from '../utils/dates'
 import EnquiryOriginPanel from '../components/enquiries/EnquiryOriginPanel'
+import { intentGaps } from '../utils/intentGap'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -482,7 +483,20 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                   booking existed. Until now it was only reachable by hunting
                   through the archived enquiries, if gui remembered there was
                   one. */}
-              {originEnquiry && <EnquiryOriginPanel enquiry={originEnquiry} />}
+              {originEnquiry && (
+                <EnquiryOriginPanel
+                  enquiry={originEnquiry}
+                  // Computed from the live wizard state, not from the saved row:
+                  // the warning has to clear as gui fills step 3 in, or it would
+                  // still be shouting about a gap he has just closed.
+                  gaps={intentGaps(originEnquiry, {
+                    participantCount: d.participants.filter(p => p.first_name.trim()).length,
+                    wantsLessons: d.participants.some(p => p.wants_kite_lessons || p.wants_wing_lessons),
+                    wantsRental: d.participants.some(p => p.wants_kite_rental),
+                    hasAccommodation: d.room_ids.length > 0 || Object.keys(d.external_stays).length > 0,
+                  })}
+                />
+              )}
               <p className="text-sm text-gray-500 dark:text-gray-400">Who is booking? Select an existing client or create a new one.</p>
 
               {!creatingClient ? (
