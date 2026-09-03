@@ -1,5 +1,53 @@
 # BACKLOG — reste à faire (source de vérité unique)
 
+---
+
+## ⏸️ REPRISE — session du 2026-09-03 (gui absent). À LIRE EN PREMIER
+
+> Tenu à jour au fil de la session, pour survivre à une déconnexion.
+> Le détail de chaque chantier est plus bas, § 🧭 Parcours.
+
+### 1. Ce que gui doit faire, dans cet ordre
+
+| # | Quoi | Bloquant ? |
+|---|---|---|
+| 1 | **Passer `supabase/migrations/2026-09-03_client_notes.sql`** sur **TEST puis PROD**. Elle porte **trois** choses : `client_notes`, `bookings.source_id` (+ reprise d'historique), et la reprise de `clients.notes` dans `client_notes`. Recettes de vérification en bas du fichier. | Non — **le code tourne sans**, aucun séquencement à respecter avec le push |
+| 2 | **Pousser** les commits (Claude ne pousse jamais) | — |
+| 3 | **Relancer le serveur MCP** (process `tsx` démarré en début de session) pour voir les nouveaux outils | Non |
+| 4 | Regarder **Requests → Archive → « Where they came from »** et décider si la question « comment nous avez-vous connus » doit devenir obligatoire quelque part | Non |
+
+### 2. Ce qui a été livré (tout est commité, rien n'est poussé)
+
+`7172256` A — conversion sans perte · `5c3691e` B — le dossier client + ⌘K ·
+`6778461` C — « Waiting on you » · `3714ec9` D — un seul vocabulaire ·
+`f3938d0` fix PGRST205 · `ce33f7a` E — la statistique d'origine
+*(la liste se prolonge en bas de ce bloc si la session a continué)*
+
+### 3. Les 5 bugs trouvés en chemin (tous corrigés)
+
+1. **La fiche client totalisait `bookings.amount_paid`** — un cache qui n'est pas la source de
+   vérité. Lit `payments` maintenant, et sépare l'argent non vérifié.
+2. **Le transfert du client n'arrivait jamais sur le trajet taxi** : le visiteur donne une
+   date/heure de prise en charge distincte du vol, le trajet était créé au check-in à l'heure du
+   vol. La bonne réponse ne vivait que dans une phrase des notes.
+3. **PostgREST répond `PGRST205`, pas `42P01`** pour une table absente → la détection
+   « migration pas encore passée » ne se déclenchait jamais (`utils/supabaseErrors.ts`).
+4. **5 clients sur 8 sans origine** : le wizard ne posait jamais la question. Ajoutée.
+5. **Deux endroits pour noter sur un client** (`clients.notes` en bloc + la frise datée) —
+   c'est-à-dire le doublon que ce chantier était censé supprimer. Fermé, voir § Parcours F.
+
+### 4. Décisions prises seul, à confirmer ou renverser
+
+- **Ne PAS pré-remplir les participants** à la conversion d'une demande (`party_size: 3`
+  fabriquerait trois personnes sans nom que la compta compterait pour vraies). `ENQUIRIES.md`
+  le tranchait déjà ; je m'y suis tenu.
+- **Ne rien recopier** d'une demande vers sa réservation : le lien est lu, pas dupliqué.
+- **`enquiry_notes` n'est pas fusionnée** dans `client_notes` : ça toucherait l'écran de
+  qualification, qui doit rester expédiable en 20 s. Les deux se **lisent** comme un seul fil.
+- **La stat d'origine ne compte que les demandes tranchées** pour le taux de transformation.
+
+---
+
 > **La** liste canonique des tâches restantes. Mise à jour à chaque session (ajouter/rayer ici,
 > pas dans la mémoire). Chaque entrée dit : quoi, pourquoi, et comment s'y prendre.
 > Rappels transverses : migrations = **TEST + PROD dans la foulée, une seule tâche** ;
