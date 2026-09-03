@@ -89,7 +89,12 @@
 - **But :** Formulaire public d'inscription client (remplace l'import CSV). Le client crée une demande de réservation lui-même.
 - **Langues :** trilingue **FR/EN/ES** — sélecteur de drapeaux en haut, défaut = langue navigateur (`detectLang()`). Tous les textes dans `data/formI18n.ts` (`tr.key[lang]`), waiver dans `data/waiver.ts`.
 - **Wizard 5 étapes** (barre de progression avec kite 🪁, transitions CSS) :
-  1. 👤 **Group** — nom référent, email, téléphone, "how did you hear about us"
+  1. 👤 **Group** — nom référent, email, téléphone, **"how did you hear about us" = la liste
+     déroulante `enquiry_sources`** (2026-09-03), la même que le formulaire de demande, + « Autre »
+     et sa ligne libre. Lue en anon par le jeton de partage (`share_type() IS NOT NULL`, aucune
+     policy à ajouter). **Pas posée du tout** quand le visiteur vient d'un lien personnalisé
+     (`enquiryId`) : sa demande porte déjà la réponse. Le payload emporte le **libellé anglais**
+     (`referral_source`, via `utils/referral.ts`) **et** l'id (`referral_source_id`).
   2. ✈️ **Trip** — nb nuits Bilene ; bloc **Arrivée** (date+heure vol Maputo + toggle transfert→Bilene + date/heure prise en charge si Oui) ; bloc **Départ** (date+heure vol retour + toggle transfert→aéroport + date/heure dépose si Oui). Le transfert se pré-remplit depuis le vol mais reste éditable.
   3. 🧳 **Logistics** — bagages, bagages kite, lits doubles, lits simples, assurance voyage
   4. 🪂 **Crew** — liste **dynamique** de voyageurs (prénom/nom/passeport)
@@ -235,6 +240,12 @@
 - **But :** File de validation des soumissions du `BookingFormPage`.
 - **State :** `tab: 'pending'|'approved'|'rejected'` (défaut pending), `openId` (ligne dépliée).
 - **Détail (`SubmissionDetail`, module-scope) :** affiche tout le `payload` (trip + transferts taxi avec date/heure, logistics, crew, contact urgence, waiver). Champs date `check_in`/`check_out` Bilene **pré-remplis** (`country_entry_date` + `nights_bilene`) et **éditables** avant création.
+- **`bookings.notes` (2026-09-03) :** ne reçoit plus que « Single beds requested: N » — le seul
+  élément sans colonne. Le reste (origine du formulaire, transferts, attribution, message
+  d'origine) a un vrai foyer : voir `BACKLOG.md` § Parcours, D.2.
+- 🔴 **Trajets taxi (2026-09-03) :** créés à `payload.transfer_to_*` (date **et** heure données
+  par le visiteur), plus au check-in + heure de vol. La bonne réponse n'existait que dans une
+  phrase des notes.
 - ⚠️ **« Create booking » réutilise un client existant** (2026-09-03) au lieu d'en créer un
   systématiquement : `utils/clientIdentity.ts` — `enquiry.client_id` d'abord, puis **email
   exact**, jamais un nom. Les champs vides sont complétés (`blanksToFill`), rien n'est écrasé.

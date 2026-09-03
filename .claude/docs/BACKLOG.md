@@ -91,17 +91,43 @@ n'apparaissait nulle part**. Les Pending actions ne l'attrapent pas non plus : e
   plus). Un clic ouvre la demande ou la résa.
 - **Côté MCP** : `get_pending_actions` renvoie désormais aussi `waiting_on_you`.
 
-### ⬜ D. Un seul vocabulaire — pas commencé
-- « Ce qu'ils veulent » s'écrit en **3 vocabulaires** : `enquiry.wants_*` (3 booléens de groupe),
-  `booking_participants.*` (6 flags par personne), `bookings.num_*` (caches). À la conversion,
-  **proposer** les participants et leurs flags depuis la qualification — jamais en silence.
-- **Deux systèmes pour « comment nous avez-vous connus »** : liste trilingue `enquiry_sources`
-  côté demande, **texte libre** `bookings.referral_source` côté formulaire de résa
-  (`BookingFormPage.tsx`). Les stats d'origine sont coupées en deux et la question est posée
-  deux fois. → même liste déroulante des deux côtés.
-- **`bookings.notes` mélange l'humain et la machine** (« Created from public booking form.
-  Single beds requested: 2. Transfer to Bilene… »), et n'est **lisible qu'en rouvrant le
-  wizard** (ou au survol du planning). Sortir le bruit machine vers des champs / la timeline.
+### ✅ D. Un seul vocabulaire — LIVRÉ le 2026-09-03 (aucune migration)
+
+1. **Une seule source d'attribution.** Le formulaire de résa demandait « comment nous
+   avez-vous connus » en **texte libre** pendant que le formulaire de demande utilisait la
+   liste trilingue `enquiry_sources` : les stats d'origine étaient coupées en deux, en deux
+   langues. Le formulaire de résa affiche maintenant **la même liste déroulante** (lue en anon
+   par le jeton de partage, comme le formulaire de demande — `share_type() IS NOT NULL`, aucune
+   policy à changer) + « Autre » et sa ligne libre.
+   - `utils/referral.ts` (testé) résout la réponse vers le **libellé anglais canonique** :
+     l'accord entre deux réponses ne peut pas reposer sur la langue du visiteur.
+   - L'**id choisi voyage aussi** dans le payload (`referral_source_id`, jsonb → gratuit), pour
+     qu'une future colonne `bookings.source_id` se remplisse **exactement** au lieu d'un
+     rapprochement de chaînes.
+   - ⚠️ **La question n'est plus posée à qui vient d'une demande** (lien personnalisé) : la
+     réponse est déjà sur la demande, et demander deux fois invite deux réponses.
+2. **`bookings.notes` redevient le champ de gui.** Il recevait quatre lignes de bavardage
+   machine ; chacune a maintenant un vrai foyer, **sauf une** :
+   | Ligne supprimée | Où elle vit désormais |
+   |---|---|
+   | « Created from public booking form. » | la pastille 📣 et la frise du dossier |
+   | « Transfer to Bilene/airport: … » | **le trajet taxi lui-même** (voir 3) |
+   | « Heard about us: … » | `bookings.referral_source`, une vraie colonne |
+   | « Original message: "…" » | relu sur la demande (`EnquiryOriginPanel`) |
+   | « Single beds requested: N » | **reste** — aucune colonne nulle part |
+   Idem côté MCP : `create_booking_from_enquiry` n'écrit plus de résumé de qualification.
+3. 🔴 **Bug trouvé et corrigé au passage.** Le visiteur donne une date/heure de transfert
+   **distincte du vol** (`payload.transfer_to_*`) ; le trajet taxi était pourtant créé à la date
+   de **check-in**, à l'heure du **vol**. La bonne réponse n'existait que dans une phrase des
+   notes, que gui devait lire pour corriger la ligne à la main. Le trajet porte maintenant la
+   date et l'heure données (repli sur séjour/vol si le visiteur n'a rien mis).
+
+⬜ **Reste de D, volontairement non fait** : **pré-remplir les participants** à la conversion
+depuis `party_size` + `wants_*`. Motif : `ENQUIRIES.md` tranche explicitement que la conversion
+ne crée **ni chambre ni participant nommé**, et `party_size: 3` fabriquerait trois personnes
+sans nom que la compta compterait pour vraies. Depuis le chantier A, la qualification se **lit**
+sur la résa (panneau d'origine) — c'était l'essentiel de la perte. À rouvrir avec gui s'il veut
+un vrai « proposer, puis valider » dans le wizard.
 
 ---
 

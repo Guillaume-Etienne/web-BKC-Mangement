@@ -119,16 +119,21 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
     }
 
     // 2. Booking (provisional)
-    const noteBits: string[] = ['Created from public booking form.']
+    //
+    // `notes` is gui's own field. It used to be filled with four lines of
+    // machine chatter — "Created from public booking form.", the transfer
+    // date/time, "Heard about us: …", the whole original message — so finding
+    // his own sentence meant reading past the noise first. Each of those now
+    // has a real home, and only one bit is left with nowhere else to live:
+    //   • came from the form   → the 📣 marker and the client timeline
+    //   • transfer date/time   → the taxi trips created below, where it belongs
+    //   • heard about us       → bookings.referral_source, a real column
+    //   • original message     → read back from the enquiry (EnquiryOriginPanel)
+    //   • single beds          → no column anywhere, so it stays here
+    // The enquiry's dated notes are likewise never copied: two copies of the
+    // same sentence end up disagreeing.
+    const noteBits: string[] = []
     if (p.single_beds) noteBits.push(`Single beds requested: ${p.single_beds}.`)
-    if (p.taxi_arrival && p.transfer_to_bilene_date) noteBits.push(`Transfer to Bilene: ${p.transfer_to_bilene_date}${p.transfer_to_bilene_time ? ` ${p.transfer_to_bilene_time}` : ''}.`)
-    if (p.taxi_departure && p.transfer_to_airport_date) noteBits.push(`Transfer to airport: ${p.transfer_to_airport_date}${p.transfer_to_airport_time ? ` ${p.transfer_to_airport_time}` : ''}.`)
-    if (p.referral_source) noteBits.push(`Heard about us: ${p.referral_source}.`)
-    // Carry the enquiry's own message/context along, same as the MCP conversion path —
-    // only when the submission rode a personalised link (payload.enquiry_id).
-    // The dated notes are deliberately NOT copied here: they stay on the enquiry
-    // and are read back through enquiries.booking_id (see EnquiryOriginPanel).
-    if (linkedEnquiry?.message) noteBits.push(`Original message: "${linkedEnquiry.message}"`)
     // Activity counters derived from the per-traveler form flags (kept in sync on the participants below)
     const formTravelers = (p.travelers ?? []).filter(t => t.first_name.trim())
     const { data: booking, error: bErr } = await supabase.from('bookings').insert({
@@ -139,7 +144,7 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
       visa_entry_date: p.country_entry_date || null,
       visa_exit_date: p.country_exit_date || null,
       status: 'provisional',
-      notes: noteBits.join(' '),
+      notes: noteBits.join(' ') || null,
       arrival_time: p.arrival_time || null,
       departure_time: p.departure_time || null,
       luggage_count: p.luggage_count || 0,
@@ -201,15 +206,27 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
       price_driver_mzn:   smallTaxi ? pricingDefaults.default_driver_mzn : 0,
       margin_manager_mzn: smallTaxi ? pricingDefaults.default_manager_mzn : 0,
     }
+    // The guest is asked for a pickup date and time *distinct from the flight*
+    // (payload.transfer_to_*), and until now that answer only ever landed in the
+    // booking notes as a sentence — the trip itself was created on the check-in
+    // date at the flight time, so gui had to read the note and fix the row by
+    // hand. The answer now goes where it belongs; the stay dates and flight
+    // times remain the fallback when the guest left it empty.
     if (p.taxi_arrival) {
       const { error: taxiInErr } = await supabase.from('taxi_trips').insert({
-        ...taxiBase, date: checkIn, start_time: p.arrival_time || '00:00', type: 'aero-to-center',
+        ...taxiBase,
+        date: p.transfer_to_bilene_date || checkIn,
+        start_time: p.transfer_to_bilene_time || p.arrival_time || '00:00',
+        type: 'aero-to-center',
       })
       if (taxiInErr) setError(`Booking created, but the arrival transfer was not (${taxiInErr.message}). Add it in Taxis.`)
     }
     if (p.taxi_departure) {
       const { error: taxiOutErr } = await supabase.from('taxi_trips').insert({
-        ...taxiBase, date: checkOut, start_time: p.departure_time || '00:00', type: 'center-to-aero',
+        ...taxiBase,
+        date: p.transfer_to_airport_date || checkOut,
+        start_time: p.transfer_to_airport_time || p.departure_time || '00:00',
+        type: 'center-to-aero',
       })
       if (taxiOutErr) setError(`Booking created, but the departure transfer was not (${taxiOutErr.message}). Add it in Taxis.`)
     }

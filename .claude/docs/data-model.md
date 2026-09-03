@@ -526,7 +526,12 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 | reviewed_at | string \| null | |
 | created_booking_id | string \| null (FK → bookings) | set à l'approbation |
 
-**`BookingFormPayload`** (dans `payload`, type dans `types/database.ts`) — champs : `language`, `reference_name`, `email`, `phone`, `referral_source`, `country_entry_date`/`country_exit_date` (= dates pays → visa), `nights_bilene`, `arrival_time`/`departure_time` (heures de **vol**), `taxi_arrival`/`taxi_departure`, `transfer_to_bilene_date`/`_time` + `transfer_to_airport_date`/`_time` (date/heure de **transfert** distinctes du vol), `luggage_count`, `boardbag_count`, `double_beds`, `single_beds`, `has_travel_insurance`, `travelers: FormTraveler[]` (`{first_name,last_name,passport_number}`), `emergency_contact_*`, `waiver_accepted`, `waiver_version`.
+> ⚠️ **`referral_source` (2026-09-03)** — c'est désormais le **libellé anglais canonique** d'une
+> ligne `enquiry_sources` (résolu par `utils/referral.ts`), plus du texte libre en trois langues ;
+> « Autre » garde la ligne libre telle quelle. L'id voyage à côté dans `payload.referral_source_id`
+> pour qu'une future colonne `bookings.source_id` se remplisse exactement.
+
+**`BookingFormPayload`** (dans `payload`, type dans `types/database.ts`) — champs : `language`, `reference_name`, `email`, `phone`, `referral_source`, `referral_source_id?`, `country_entry_date`/`country_exit_date` (= dates pays → visa), `nights_bilene`, `arrival_time`/`departure_time` (heures de **vol**), `taxi_arrival`/`taxi_departure`, `transfer_to_bilene_date`/`_time` + `transfer_to_airport_date`/`_time` (date/heure de **transfert** distinctes du vol), `luggage_count`, `boardbag_count`, `double_beds`, `single_beds`, `has_travel_insurance`, `travelers: FormTraveler[]` (`{first_name,last_name,passport_number}`), `emergency_contact_*`, `waiver_accepted`, `waiver_version`.
 > Mapping form → booking : dates pays → `visa_entry/exit_date` ; `nights_bilene` → `check_in/out` Bilene (confirmés par l'admin) ; `double_beds` → `couples_count` ; transferts + `single_beds` → notes du booking. i18n des libellés : `data/formI18n.ts`. Waiver : `data/waiver.ts` (`WAIVER_VERSION`).
 
 ---

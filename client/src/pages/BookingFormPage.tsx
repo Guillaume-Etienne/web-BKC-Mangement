@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { tr, LANGS, detectLang } from '../data/formI18n'
 import { waiverText, WAIVER_VERSION } from '../data/waiver'
-import type { Lang, FormTraveler, BookingFormPayload, KiteLevel } from '../types/database'
+import type { Lang, FormTraveler, BookingFormPayload, EnquirySource, KiteLevel } from '../types/database'
 import type { FormI18nKey } from '../data/formI18n'
+import { referralLabel } from '../utils/referral'
 
 // ─── Public booking intake form (no auth) ─────────────────────────────────────
 // Reached via ?share=<token> on a shared_link of type 'booking_form'.
@@ -14,6 +15,9 @@ interface FormData {
   reference_name: string
   email: string
   phone: string
+  /** An enquiry_sources id, or the literal 'other'. */
+  referral_source_id: string
+  /** Only filled when the choice is 'other' — the free line. */
   referral_source: string
   country_entry_date: string
   country_exit_date: string
@@ -39,7 +43,7 @@ interface FormData {
 }
 
 const EMPTY_FORM: FormData = {
-  reference_name: '', email: '', phone: '', referral_source: '',
+  reference_name: '', email: '', phone: '', referral_source_id: '', referral_source: '',
   country_entry_date: '', country_exit_date: '', nights_bilene: 7,
   arrival_time: '', departure_time: '',
   taxi_arrival: true, taxi_departure: true,
@@ -248,6 +252,18 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
   const [honeypot, setHoneypot] = useState('')
   const mountedAt = useRef(Date.now())
 
+  // "How did you hear about us?" — the same list gui edits in Options → Sources,
+  // read through the share token like the enquiry form does. Never asked when
+  // the visitor arrived from an enquiry (the answer is already on it).
+  const [sources, setSources] = useState<EnquirySource[]>([])
+  useEffect(() => {
+    if (enquiryId) return
+    supabase.from('enquiry_sources').select('id, label, sort_order, is_active').order('sort_order')
+      .then(({ data }) => setSources((data ?? []) as EnquirySource[]))
+    // A failure here is not worth an error screen: "Other" plus the free line
+    // still carry the answer, same call as on the enquiry form.
+  }, [enquiryId])
+
   function update(patch: Partial<FormData>) { setD(prev => ({ ...prev, ...patch })) }
 
   // Toggling a transfer ON pre-fills its pickup date/time from the matching flight
@@ -322,7 +338,15 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
       reference_name: d.reference_name.trim(),
       email: d.email.trim(),
       phone: d.phone.trim(),
-      referral_source: d.referral_source.trim(),
+      // Both forms of the answer travel: the id, so a later migration can
+      // backfill a real foreign key without guessing, and the canonical English
+      // label, so everything that already reads `referral_source` (the booking
+      // column, the admin panel) keeps working and starts agreeing with the
+      // enquiry stats. 'other' carries the free line instead.
+      ...(d.referral_source_id && d.referral_source_id !== 'other'
+        ? { referral_source_id: d.referral_source_id }
+        : {}),
+      referral_source: referralLabel(d, sources),
       country_entry_date: d.country_entry_date,
       country_exit_date: d.country_exit_date,
       nights_bilene: d.nights_bilene,
@@ -465,9 +489,31 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                 <Field label={tr.f_phone[lang]}>
                   <input className={inputCls} placeholder={tr.ph_phone[lang]} value={d.phone} onChange={e => update({ phone: e.target.value })} />
                 </Field>
-                <Field label={tr.f_referral[lang]}>
-                  <input className={inputCls} placeholder={tr.ph_referral[lang]} value={d.referral_source} onChange={e => update({ referral_source: e.target.value })} />
-                </Field>
+                {/* Asked from the same curated list as the enquiry form — it is
+                    the same question, and two different answer sets made the
+                    attribution stats unusable. Not asked at all when the visitor
+                    came through a personalised link: their enquiry already
+                    carries the answer, and asking twice invites two answers. */}
+                {!enquiryId && (
+                  <Field label={tr.f_referral[lang]}>
+                    <select className={inputCls} value={d.referral_source_id}
+                      onChange={e => update({ referral_source_id: e.target.value, referral_source: '' })}>
+                      <option value="">{tr.opt_choose[lang]}</option>
+                      {sources.map(s => (
+                        <option key={s.id} value={s.id}>{s.label?.[lang] || s.label?.en || ''}</option>
+                      ))}
+                      {/* Always last, never removable — same reason as on the
+                          enquiry form: without it, someone who came through a
+                          friend is pushed into a box that does not fit, and the
+                          statistic looks clean while being wrong. */}
+                      <option value="other">{tr.opt_other[lang]}</option>
+                    </select>
+                    {d.referral_source_id === 'other' && (
+                      <input className={`${inputCls} mt-2`} placeholder={tr.ph_referral[lang]}
+                        value={d.referral_source} onChange={e => update({ referral_source: e.target.value })} />
+                    )}
+                  </Field>
+                )}
               </>
             )}
 

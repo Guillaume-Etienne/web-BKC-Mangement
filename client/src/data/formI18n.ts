@@ -44,6 +44,10 @@ export const tr = {
   ph_phone:           { fr: '+33 6 12 34 56 78', en: '+1 555 123 4567', es: '+34 612 34 56 78' },
   f_referral:         { fr: 'Comment nous avez-vous connu ?', en: 'How did you hear about us?', es: '¿Cómo nos conociste?' },
   ph_referral:        { fr: 'Instagram, un ami, Google…', en: 'Instagram, a friend, Google…', es: 'Instagram, un amigo, Google…' },
+  // Same wording as the enquiry form: it is the same question, and it must
+  // produce the same answers or the attribution stats stay split in two.
+  opt_choose:         { fr: 'Choisir…', en: 'Choose…', es: 'Elegir…' },
+  opt_other:          { fr: 'Autre', en: 'Other', es: 'Otro' },
 
   // ── Step 2 : Trip ─────────────────────────────────────────────────────────
   s2_title: { fr: 'Votre voyage ✈️', en: 'Your trip ✈️', es: 'Tu viaje ✈️' },

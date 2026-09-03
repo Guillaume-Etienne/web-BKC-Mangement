@@ -196,16 +196,11 @@ export function registerEnquiryTools(server: McpServer) {
         clientId = client.id
       }
 
-      const noteBits: string[] = [`Created from enquiry "${enquiry.name}".`]
-      if (enquiry.party_size) noteBits.push(`Party size: ${enquiry.party_size}.`)
-      const wants = [
-        enquiry.wants_lessons ? 'lessons' : null,
-        enquiry.wants_rental ? 'rental' : null,
-        enquiry.wants_accommodation ? 'accommodation' : null,
-      ].filter(Boolean)
-      if (wants.length) noteBits.push(`Interested in: ${wants.join(', ')}.`)
-      if (enquiry.budget_eur) noteBits.push(`Budget (whole party): €${enquiry.budget_eur}.`)
-      if (enquiry.message) noteBits.push(`Original message: "${enquiry.message}"`)
+      // `notes` is left alone: it is gui's own field, and copying the
+      // qualification and the original message into it made a second version of
+      // sentences that live on the enquiry. The link back (enquiries.booking_id,
+      // set below) is what carries them now — the booking screen shows them, and
+      // so does get_booking under `origin_enquiry`. One copy, one truth.
 
       const { data: booking, error: bErr } = await supabase.from('bookings').insert({
         client_id: clientId,
@@ -215,7 +210,7 @@ export function registerEnquiryTools(server: McpServer) {
         visa_entry_date: null,
         visa_exit_date: null,
         status: 'provisional',
-        notes: noteBits.join(' '),
+        notes: null,
         arrival_time: null, departure_time: null,
         luggage_count: 0, boardbag_count: 0,
         taxi_arrival: false, taxi_departure: false,

@@ -495,7 +495,15 @@ export interface BookingFormPayload {
   reference_name: string
   email: string
   phone: string
+  /** The answer to "how did you hear about us?", resolved to the canonical
+   *  English label of the chosen `enquiry_sources` row — or the free line when
+   *  the visitor picked "Other". Written to `bookings.referral_source`. */
   referral_source: string
+  /** The `enquiry_sources` id behind that label, when it was a listed choice.
+   *  Kept so a future `bookings.source_id` column can be backfilled exactly
+   *  rather than by matching strings. Absent for "Other" and for a visitor who
+   *  came from an enquiry (they were never asked twice). */
+  referral_source_id?: string
   // Trip — country entry/exit (for visa/accommodation letter) + Bilene nights
   country_entry_date: string   // ISO date — arrival in Maputo / country entry
   country_exit_date: string    // ISO date — return / country exit
