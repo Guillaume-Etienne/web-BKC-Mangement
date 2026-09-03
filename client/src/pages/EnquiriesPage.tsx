@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTable } from '../hooks/useSupabase'
-import type { Enquiry, EnquiryNote, EnquirySource, EnquiryStatus } from '../types/database'
+import type { Booking, Enquiry, EnquiryNote, EnquirySource, EnquiryStatus, Season } from '../types/database'
+import type { AttributionSubmission } from '../utils/attribution'
 import EnquiryPanel from '../components/enquiries/EnquiryPanel'
+import AttributionPanel from '../components/enquiries/AttributionPanel'
 import {
   STATUS_META, STATUS_ORDER, silenceDays, silenceTone, fmtArrivalMonth,
   isSettled, isQualified, monthBand, groupByArrivalMonth, matchesSearch, SILENCE_WARN_DAYS,
 } from '../utils/enquiries'
 import { thisMonthISO } from '../utils/dates'
+
+/** Just enough of a booking to say "somebody came, and from where". */
+type AttributionBooking = Pick<Booking, 'id' | 'status' | 'check_in' | 'referral_source' | 'source_id'>
+type AttributionSubmissionRow = AttributionSubmission
 
 /** Everything that happens before a booking exists.
  *
@@ -37,6 +43,15 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
   // Loaded whole so the search box can look inside the conversation. Fine at a
   // few dozen enquiries a season; if this ever grows, it moves server-side.
   const { data: allNotes } = useTable<EnquiryNote>('enquiry_notes')
+
+  // For the attribution panel on the archive view. Narrow selects: this is a
+  // counting job, not a data screen, and the page should not pay for columns it
+  // will never show.
+  const { data: statBookings } = useTable<AttributionBooking>('bookings',
+    { select: 'id, status, check_in, referral_source, source_id' })
+  const { data: statSubmissions } = useTable<AttributionSubmissionRow>('form_submissions',
+    { select: 'created_booking_id, payload' })
+  const { data: seasons } = useTable<Season>('seasons', { order: 'start_date', ascending: false })
 
   const [selected, setSelected] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -72,6 +87,11 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
   const working = useMemo(() => enquiries.filter(e => !isSettled(e.status)), [enquiries])
   const people = working.reduce((n, e) => n + (e.party_size ?? 0), 0)
   const toChase = working.filter(e => silenceDays(e.last_contact_at) >= SILENCE_WARN_DAYS).length
+
+  // Memoised so the panel does not recompute on every keystroke in the search box.
+  const attributionData = useMemo(
+    () => ({ enquiries, bookings: statBookings as Booking[], submissions: statSubmissions, sources }),
+    [enquiries, statBookings, statSubmissions, sources])
 
   const current = selected ? enquiries.find(e => e.id === selected) ?? null : null
 
@@ -171,6 +191,14 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
             ))}
           </div>
         </div>
+
+        {/* On the archive only — this is the end-of-season reading, and it would
+            be noise above the list of people still waiting for an answer. */}
+        {showSettled && (
+          <div className="mt-4">
+            <AttributionPanel data={attributionData} seasons={seasons} />
+          </div>
+        )}
 
         {/* ── The table ─────────────────────────────────────────────────────── */}
         <div className="mt-4 space-y-4">

@@ -155,6 +155,17 @@ describe('buildDossier', () => {
     expect(ev.amount).toBe(180)
   })
 
+  it("shows the booking's own notes — nothing else in the app displays them", () => {
+    const [, ev] = buildDossier({ ...EMPTY, bookings: [mkBooking({ notes: 'Wants the quiet room' })] })
+    expect(ev.kind).toBe('booking')
+    expect(ev.detail).toBe('provisional — Wants the quiet room')
+  })
+
+  it('says just the status when a booking has no notes', () => {
+    const [, ev] = buildDossier({ ...EMPTY, bookings: [mkBooking({ notes: null })] })
+    expect(ev.detail).toBe('provisional')
+  })
+
   it('merges both note tables into one stream of the same kind', () => {
     const events = buildDossier({
       ...EMPTY,

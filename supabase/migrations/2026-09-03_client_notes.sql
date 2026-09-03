@@ -1,4 +1,5 @@
--- 2026-09-03 — Le dossier client : un seul endroit où écrire.
+-- 2026-09-03 — Le dossier client : un seul endroit où écrire,
+--              + l'origine d'une réservation, pour que la statistique existe.
 --
 -- Le problème, dans les mots de gui : « ne plus savoir qui veut quoi quand le
 -- temps passe, et devoir chercher l'info dans plusieurs pages, si j'ai eu la
@@ -52,6 +53,51 @@ CREATE POLICY "admin_all" ON client_notes FOR ALL TO authenticated USING (true) 
 -- l'absence de policy anon suffirait — le REVOKE ferme la porte deux fois.
 REVOKE ALL ON client_notes FROM anon;
 
+
+-- ── 2. L'origine d'une réservation ──────────────────────────────────────────
+-- « Sa raison d'être, c'est la statistique » (gui, à propos de la liste des
+-- sources). L'écran qui la lit existe enfin (Requests → Archive → « Where they
+-- came from ») et il a immédiatement montré le trou : sur les 8 clients de la
+-- base, **5 étaient « Unknown »** — parce qu'une résa saisie à la main dans le
+-- wizard ne se voyait jamais poser la question. La colonne la range là où elle
+-- se compte, en pointant la MÊME liste que le formulaire public : sans elle, un
+-- « Instagram » tapé dans le wizard et un « Instagram » choisi sur le formulaire
+-- feraient deux lignes différentes dans le tableau.
+--
+-- NULL est un état normal : on ne connaît pas l'origine de tout le monde, et le
+-- tableau le dit à voix haute plutôt que de répartir les inconnus au hasard.
+--
+-- ⚠️ Le code ne casse PAS sans cette colonne : l'app écrit `source_id` par un
+-- UPDATE séparé, après coup, et signale simplement « booking saved, but the
+-- source was not recorded » si la colonne manque. La réservation existe, le
+-- libellé reste dans `bookings.referral_source`. Rien à séquencer.
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS source_id UUID REFERENCES enquiry_sources(id);
+
+-- Reprise de l'historique. Deux sources, dans l'ordre où on leur fait confiance :
+-- la demande d'où vient la résa (la réponse a été donnée en premier), puis le
+-- formulaire de réservation qui l'a créée.
+UPDATE bookings b
+   SET source_id = e.source_id
+  FROM enquiries e
+ WHERE e.booking_id = b.id
+   AND e.source_id IS NOT NULL
+   AND b.source_id IS NULL;
+
+-- Le garde-fou de format n'est pas décoratif : `payload` est un jsonb écrit par
+-- un visiteur, et un cast d'une valeur non-UUID ferait échouer toute la
+-- migration sur une ligne bancale.
+UPDATE bookings b
+   SET source_id = (fs.payload->>'referral_source_id')::uuid
+  FROM form_submissions fs
+ WHERE fs.created_booking_id = b.id
+   AND b.source_id IS NULL
+   AND fs.payload->>'referral_source_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+   AND EXISTS (SELECT 1 FROM enquiry_sources s WHERE s.id = (fs.payload->>'referral_source_id')::uuid);
+
+-- Pas d'index : quelques centaines de réservations, et l'écran qui les compte
+-- les charge toutes de toute façon. Ce serait de l'ornement, même argument que
+-- pour `enquiry_notes`.
+
 COMMIT;
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -66,4 +112,12 @@ COMMIT;
 --   curl "$SUPABASE_URL/rest/v1/client_notes?select=body" \
 --        -H "apikey: $ANON_KEY" -H "x-share-token: <un jeton valide>"
 --   -- attendu : [] ou une erreur de permission — jamais une note.
+--
+--   -- 3. La colonne d'origine existe et la reprise a mordu :
+--   SELECT s.label->>'en' AS source, count(*)
+--     FROM bookings b LEFT JOIN enquiry_sources s ON s.id = b.source_id
+--    GROUP BY 1 ORDER BY 2 DESC;
+--   -- attendu en PROD : au moins « Fun & Fly » et « Google search » renseignés
+--   -- (les résas issues d'une demande qualifiée), le reste en NULL — c'est
+--   -- normal, personne n'a jamais posé la question à ces gens-là.
 -- ════════════════════════════════════════════════════════════════════════════

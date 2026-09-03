@@ -132,6 +132,18 @@ Le dossier d'une personne en une colonne, plus récent en haut.
   → pastille ambre. Un dossier doit montrer ce qui n'est pas fini sans qu'on le demande.
 - **Ne masque jamais une erreur de chargement** : `error` est affiché en tête (cf. `useClientDossier`).
 
+### `AttributionPanel` — `enquiries/AttributionPanel.tsx` (2026-09-03)
+« Where they came from », sur la **vue Archive** de Requests → Enquiries.
+- **Props :** `{ data, seasons }` — `data` = `{ enquiries, bookings, submissions, sources }`
+- Calcul : **`utils/attribution.ts`** (pur, testé). Taux de transformation + un tableau
+  **deux colonnes par source : demandes reçues ET clients venus**. Jamais une seule des deux —
+  les demandes seules récompensent le canal le plus bruyant, les clients seuls cachent où on
+  les a trouvés.
+- **Le taux ne porte que sur les demandes tranchées** : une ouverte n'a pas échoué.
+- **`Unknown` est une ligne**, pas un oubli : une statistique qui jette ce qu'elle ne sait pas
+  ranger paraît nette et ment.
+- Sélecteur de saison : demandes par **mois d'arrivée**, résas par **check-in**.
+
 ### `GlobalSearch` — `common/GlobalSearch.tsx` (2026-09-03)
 La palette ⌘K / Ctrl-K, montée dans `App.tsx` (**pas** en `lazy` : une palette qui va chercher
 son chunk au premier caractère a l'air cassée).

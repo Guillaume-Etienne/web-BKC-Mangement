@@ -6,7 +6,8 @@ import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useTaxiDrivers, useTaxiTrips } from '../hooks/useTaxis'
 import { useAgencies } from '../hooks/useAgencies'
 import { useTable } from '../hooks/useSupabase'
-import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, TaxiTrip, Lesson, EquipmentRental, Payment, ExternalAccommodationBooking, Agency, Enquiry } from '../types/database'
+import { referralLabel } from '../utils/referral'
+import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, TaxiTrip, Lesson, EquipmentRental, Payment, ExternalAccommodationBooking, Agency, Enquiry, EnquirySource } from '../types/database'
 import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
 import { getFullHouseRate, getBaseNightlyRate } from '../utils/roomPricing'
 import { getConfiguredRate, agencyMarker } from '../components/accounting/utils'
@@ -34,6 +35,10 @@ interface WizardData {
   // Just tags the booking so Phase 3+ (consumption, client-side hiding) has
   // something to hang off. '' = direct booking, no agency.
   agency_id: string
+  /** An enquiry_sources id, or the literal 'other'. '' = never asked. */
+  source_id: string
+  /** The free line, only when the choice is 'other'. */
+  referral_source: string
   // Step 2 – Stay
   check_in: string
   check_out: string
@@ -72,7 +77,7 @@ const EMPTY_WIZARD: WizardData = {
   client_id: '',
   new_client_first_name: '', new_client_last_name: '', new_client_email: '',
   new_client_phone: '', new_client_nationality: '', new_client_kite_level: '',
-  agency_id: '',
+  agency_id: '', source_id: '', referral_source: '',
   check_in: '', check_out: '', visa_entry_date: '', visa_exit_date: '', room_ids: [], room_prices: {},
   external_stays: {}, status: 'provisional',
   participants: [], couples_count: 0, children_count: 0,
@@ -288,6 +293,8 @@ interface WizardProps {
   rooms: Room[]
   accommodations: Accommodation[]
   agencies: Agency[]
+  /** The "how did you hear about us" list, Options → Sources. */
+  sources: EnquirySource[]
   houseRentals: HouseRental[]
   roomRates: RoomRate[]
   drivers: TaxiDriver[]
@@ -304,7 +311,7 @@ interface WizardProps {
   onSave: (data: WizardData, isNew: boolean, editingId?: string | null) => void
 }
 
-function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, agencies, houseRentals, roomRates, drivers, bookings, bookingRooms, taxiTrips, editingBookingId, isEditing, originEnquiry, recordedPaid, onCancel, onSave }: WizardProps) {
+function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, agencies, sources, houseRentals, roomRates, drivers, bookings, bookingRooms, taxiTrips, editingBookingId, isEditing, originEnquiry, recordedPaid, onCancel, onSave }: WizardProps) {
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(isEditing ? 6 : 1)
   const [d, setD] = useState<WizardData>(initial)
@@ -552,6 +559,25 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                     className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">← Back to list</button>
                 </>
               )}
+
+              {/* The same question the two public forms ask, from the same list.
+                  It was missing here, and that gap was the whole reason the
+                  attribution table read "Unknown" for most guests: a booking
+                  typed straight into this wizard had no origin at all. */}
+              <Field label="How did you hear about us? (optional)"
+                hint="Same list as the public forms — Options → Sources. This is what the end-of-season attribution counts.">
+                <select value={d.source_id} onChange={e => update({ source_id: e.target.value, referral_source: '' })} className={inputCls}>
+                  <option value="">— not asked —</option>
+                  {sources.filter(s => s.is_active).map(s => (
+                    <option key={s.id} value={s.id}>{s.label?.en || s.label?.fr || ''}</option>
+                  ))}
+                  <option value="other">Other</option>
+                </select>
+                {d.source_id === 'other' && (
+                  <input className={`${inputCls} mt-2`} placeholder="In their words — a friend, a kite school…"
+                    value={d.referral_source} onChange={e => update({ referral_source: e.target.value })} />
+                )}
+              </Field>
 
               {agencies.length > 0 && (
                 <Field label="Referred by (optional)" hint="A partner agency (Fun&Fly & co.) — doesn't change billing yet, just tags the booking.">
@@ -1246,6 +1272,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   // Read only to show where a booking came from (enquiries.booking_id). Nothing
   // here writes to enquiries — the conversion already did that.
   const { data: enquiries } = useTable<Enquiry>('enquiries')
+  const { data: sources } = useTable<EnquirySource>('enquiry_sources', { order: 'sort_order' })
   const { data: roomRatesData } = useTable<RoomRate>('room_rates')
   const { data: externalStaysData, refresh: refreshExternalStays } =
     useTable<ExternalAccommodationBooking>('external_accommodation_bookings')
@@ -1397,6 +1424,9 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       couples_count: data.couples_count,
       children_count: data.children_count,
       amount_paid: data.amount_paid,
+      // The label, resolved to English like the public form does, so a source
+      // picked here and one picked there are the same answer in the stats.
+      referral_source: referralLabel({ sourceId: data.source_id, freeText: data.referral_source }, sources) || null,
       emergency_contact_name: null,
       emergency_contact_phone: null,
       emergency_contact_email: null,
@@ -1432,6 +1462,24 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       }
       bookingId = saved.id
     }
+
+    // Steps 2b and 4–7 each write a different table, and none of them used to
+    // be checked: a booking could come out of a "successful" save with no rooms,
+    // no frozen prices, or a payment that was never recorded. Failures are
+    // collected and shown together rather than swallowed.
+    const problems: string[] = []
+
+    // 2b. The chosen source id, in its own UPDATE — on purpose.
+    //     `bookings.source_id` arrives with the 2026-09-03 migration. Folding it
+    //     into the insert above would mean a database without that migration
+    //     could not create a booking at all: the front door, broken by a
+    //     statistic. Here the worst case is a line in the "not everything went
+    //     with it" summary, and the label is already saved either way.
+    const chosenSourceId = data.source_id && data.source_id !== 'other' ? data.source_id : null
+    const { error: sourceErr } = await supabase.from('bookings')
+      .update({ source_id: chosenSourceId }).eq('id', bookingId)
+    if (sourceErr) problems.push(`the "how did you hear about us" answer was not recorded (${sourceErr.message})`)
+
     // 3. Guests — delete all + re-insert to booking_participants
     const { error: delErr } = await supabase.from('booking_participants').delete().eq('booking_id', bookingId)
     if (delErr) console.error('booking_participants delete error:', delErr)
@@ -1475,12 +1523,6 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     } else {
       setBookingParticipants(prev => prev.filter(p => p.booking_id !== bookingId))
     }
-
-    // Steps 4–7 each write a different table, and none of them used to be
-    // checked: a booking could come out of a "successful" save with no rooms,
-    // no frozen prices, or a payment that was never recorded. Failures are
-    // collected and shown together rather than swallowed.
-    const problems: string[] = []
 
     // 4. Booking rooms (delete all + re-insert)
     //    Destructive on purpose: the old set goes before the new one lands, so a
@@ -1639,6 +1681,10 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       ...EMPTY_WIZARD,
       client_id: b.client_id,
       agency_id: b.agency_id ?? '',
+      // 'other' when a label was typed but no listed source was chosen — that is
+      // exactly what the free line means on the way back in.
+      source_id: b.source_id ?? (b.referral_source ? 'other' : ''),
+      referral_source: b.source_id ? '' : (b.referral_source ?? ''),
       check_in: b.check_in, check_out: b.check_out,
       visa_entry_date: b.visa_entry_date ?? '', visa_exit_date: b.visa_exit_date ?? '',
       room_ids: brs.map(r => r.room_id),
@@ -1860,6 +1906,10 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                         <span className="ml-1 cursor-help"
                           title={`From the enquiry of ${originOf(b.id)!.name} — open the booking to read it`}>📣</span>
                       )}
+                      {/* The note was readable nowhere without reopening the
+                          edit wizard on the booking. A marker plus the text on
+                          hover is enough to know there is something to read. */}
+                      {b.notes && <span className="ml-1 cursor-help" title={b.notes}>📝</span>}
                     </td>
                     <td className="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap font-mono text-xs">
                       {codes || '—'}
@@ -1902,6 +1952,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           <span className="ml-4 flex items-center gap-1"><span className="inline-block w-3 h-3 bg-blue-100 dark:bg-blue-900/30 border-l-2 border-blue-400 dark:border-blue-700 rounded-sm" /> Active now</span>
           <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-amber-100 dark:bg-amber-900/30 border-l-2 border-amber-400 dark:border-amber-700 rounded-sm" /> Incomplete</span>
           <span>📣 came from an enquiry</span>
+          <span>📝 has a note (hover to read)</span>
         </div>
 
         {/* Mobile cards */}
@@ -1919,7 +1970,11 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                     )}
                     {getClientName(b.client_id)}
                     {originOf(b.id) && <span className="ml-1" title="Came from an enquiry">📣</span>}
+                    {b.notes && <span className="ml-1" title={b.notes}>📝</span>}
                   </p>
+                  {b.notes && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-0.5 line-clamp-2">{b.notes}</p>
+                  )}
                   <p className="text-sm text-gray-500 dark:text-gray-400">{getRoomLabel(b.id)}</p>
                 </div>
                 <span className={`px-2 py-1 rounded text-xs font-semibold ${statusColor[b.status]}`}>
@@ -1952,6 +2007,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           rooms={rooms}
           accommodations={accommodations}
           agencies={agencies}
+          sources={sources}
           houseRentals={houseRentals}
           roomRates={roomRatesData}
           drivers={taxiDrivers}

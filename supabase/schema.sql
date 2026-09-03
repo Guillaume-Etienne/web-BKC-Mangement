@@ -140,7 +140,14 @@ CREATE TABLE bookings (
   has_travel_insurance      BOOLEAN NOT NULL DEFAULT false,
   waiver_accepted_at        TIMESTAMPTZ,  -- when client accepted the liability waiver
   waiver_version            TEXT,         -- version string of the accepted waiver text
-  referral_source           TEXT,         -- "how did you hear about us"
+  referral_source           TEXT,         -- "how did you hear about us" — the label, or a free line
+  -- The curated source behind that label, when it was a listed choice. NULL is a
+  -- normal state: nobody asked, or they answered "Other". Added 2026-09-03 so
+  -- the end-of-season attribution counts one answer per source instead of one
+  -- per spelling — migration 2026-09-03_client_notes.sql.
+  -- ⚠️ The foreign key is declared further down, with enquiry_sources: this file
+  -- is replayed top to bottom, and that table does not exist yet up here.
+  source_id                 UUID,
   agency_id                 UUID REFERENCES agencies(id) ON DELETE SET NULL,  -- 2026-08-16b, foundations only
   created_at                TIMESTAMPTZ DEFAULT now(),
   CONSTRAINT check_dates CHECK (check_out > check_in)
@@ -852,6 +859,11 @@ CREATE TABLE client_notes (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   body        TEXT NOT NULL
 );
+
+-- Declared here rather than on the table: `bookings` is created long before
+-- `enquiry_sources` exists in this file. Same shape as the 2026-09-03 migration.
+ALTER TABLE bookings
+  ADD CONSTRAINT bookings_source_id_fkey FOREIGN KEY (source_id) REFERENCES enquiry_sources(id);
 
 CREATE INDEX idx_enquiries_status        ON enquiries(status);
 CREATE INDEX idx_enquiries_arrival_month ON enquiries(arrival_month);

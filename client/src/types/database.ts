@@ -100,7 +100,12 @@ export interface Booking {
   has_travel_insurance: boolean
   waiver_accepted_at: string | null          // ISO timestamp when liability waiver accepted
   waiver_version: string | null              // version of the accepted waiver text
-  referral_source: string | null             // "how did you hear about us"
+  referral_source: string | null             // "how did you hear about us" — the label, or a free line
+  /** The `enquiry_sources` row behind that label, when it was a listed choice.
+   *  Null is a normal state: nobody asked, or they answered "Other". Written by
+   *  a separate, non-blocking UPDATE so the app keeps working on a database
+   *  where the 2026-09-03 migration has not been applied. */
+  source_id?: string | null
   agency_id?: string | null                  // 2026-08-16, foundations only — see Agency below
   created_at?: string                        // ISO ts — the column always existed; typed 2026-09-03 for the client dossier timeline
 }

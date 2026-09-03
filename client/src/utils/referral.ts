@@ -15,10 +15,10 @@ import type { EnquirySource } from '../types/database'
  *  backfilled exactly rather than by matching strings.
  */
 export function referralLabel(
-  choice: { referral_source_id: string; referral_source: string },
+  choice: { sourceId: string; freeText: string },
   sources: EnquirySource[]
 ): string {
-  const { referral_source_id: id, referral_source: free } = choice
+  const { sourceId: id, freeText: free } = choice
   // "Other" is the honest answer for someone who came through a friend. It is
   // kept as typed — that free line is also how gui learns which entry to add.
   if (id === 'other') return free.trim()

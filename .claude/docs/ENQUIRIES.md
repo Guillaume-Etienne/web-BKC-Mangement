@@ -302,7 +302,13 @@ qui refuse de supprimer une origine utilisée).
 3. Le formulaire léger hébergé + iframe + contrat avec le projet site web.
 4. Rattachement : lien personnalisé, puis rapprochement à l'arrivée.
 5. Webhook Zapier → HubSpot (+ Mailchimp si la case existe).
-6. Archivage / clôture de saison / statistiques d'origine.
+6. ✅ **Statistiques d'origine — livrées le 2026-09-03.** Requests → Archive → « Where they came
+   from » : taux de transformation (sur les demandes **tranchées** seulement) et, par source,
+   **demandes reçues ET clients venus** — les deux, jamais une seule. Sélecteur de saison.
+   L'origine d'une résa se résout en 4 temps (`bookings.source_id`, la demande, le formulaire,
+   le vieux texte) : aucun historique réécrit. L'écran a immédiatement montré que **5 clients
+   sur 8 étaient sans origine**, faute d'être posée dans le wizard — corrigé. ⬜ Reste la
+   **clôture de saison** (« 14 demandes sans suite — clôturer »).
 
 ## Restes à trancher
 

@@ -231,6 +231,16 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
       if (taxiOutErr) setError(`Booking created, but the departure transfer was not (${taxiOutErr.message}). Add it in Taxis.`)
     }
 
+    // 3.9 The source the visitor picked, in its own UPDATE — same reason as in
+    //     the wizard: `bookings.source_id` arrives with the 2026-09-03
+    //     migration, and a statistic must never be able to block an approval.
+    //     The label is already stored in `referral_source` either way.
+    if (p.referral_source_id) {
+      const { error: srcErr } = await supabase.from('bookings')
+        .update({ source_id: p.referral_source_id }).eq('id', booking.id)
+      if (srcErr) setError(`Booking created, but the "how did you hear about us" answer was not recorded (${srcErr.message}).`)
+    }
+
     // 4. Mark submission approved
     const { error: uErr } = await supabase.from('form_submissions')
       .update({ status: 'approved', reviewed_at: new Date().toISOString(), created_booking_id: booking.id })

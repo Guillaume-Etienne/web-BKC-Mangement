@@ -174,7 +174,12 @@ export function buildDossier(input: DossierInput): DossierEvent[] {
       kind: 'booking',
       icon: '📋',
       title: `Booking ${bookingLabel(b)} created`,
-      detail: b.status === 'cancelled' ? 'cancelled since' : b.status,
+      // `bookings.notes` is shown here because it is shown nowhere else: it has
+      // no column in the Bookings list and no read-only screen, so until now
+      // the only way to read what gui wrote on a booking was to reopen the
+      // edit wizard on it.
+      detail: [b.status === 'cancelled' ? 'cancelled since' : b.status, b.notes]
+        .filter(Boolean).join(' — '),
       bookingId: b.id,
       tone: b.status === 'provisional' ? 'warn' : 'normal',
     })

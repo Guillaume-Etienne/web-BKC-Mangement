@@ -140,6 +140,11 @@
 - **Hooks :** useClients, useBookings, useBookingRooms, **useBookingRoomPrices**, useBookingParticipants, useAccommodations, useRooms, **useTable<HouseRental>**, **useTaxiDrivers**
 - **State :** `showWizard`, `wizardStep (1-6)` (not 0-5), `wizardData`, `editingBooking`, `selectedBooking`
 - **Wizard steps (1-6):** 1. Client → 2. Stay → 3. Guests → 4. Transport → 5. KiteCenter → 6. Payment
+- **Étape 1 — « How did you hear about us? » (2026-09-03) :** même liste `enquiry_sources` que les
+  deux formulaires publics, + « Other » et sa ligne libre. Elle manquait, et c'était **la** raison
+  pour laquelle la statistique d'origine affichait « Unknown » pour la majorité des clients.
+  Écrit en deux temps : le libellé dans `referral_source` avec le reste, puis `source_id` par un
+  **UPDATE séparé** — une statistique ne doit jamais pouvoir empêcher une réservation d'exister.
 - **Origine (2026-09-03) :** la page lit `useTable<Enquiry>('enquiries')` en lecture seule.
   `originOf(bookingId)` = la demande dont la résa est issue (`enquiries.booking_id`) → pastille
   **📣** dans la liste (tableau desktop **et** cartes mobiles) et **`EnquiryOriginPanel`** en

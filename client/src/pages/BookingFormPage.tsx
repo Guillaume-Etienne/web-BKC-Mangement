@@ -346,7 +346,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
       ...(d.referral_source_id && d.referral_source_id !== 'other'
         ? { referral_source_id: d.referral_source_id }
         : {}),
-      referral_source: referralLabel(d, sources),
+      referral_source: referralLabel({ sourceId: d.referral_source_id, freeText: d.referral_source }, sources),
       country_entry_date: d.country_entry_date,
       country_exit_date: d.country_exit_date,
       nights_bilene: d.nights_bilene,

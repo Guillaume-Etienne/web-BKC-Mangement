@@ -140,7 +140,8 @@
 | has_travel_insurance | boolean | Assurance voyage (depuis form public) |
 | waiver_accepted_at | string \| null (ISO ts) | Acceptation décharge (form public) |
 | waiver_version | string \| null | Version du texte waiver acceptée |
-| referral_source | string \| null | "How did you hear about us" |
+| referral_source | string \| null | "How did you hear about us" — le **libellé**, ou la ligne libre |
+| source_id | string \| null | La ligne `enquiry_sources` derrière ce libellé (2026-09-03). NULL = jamais demandé, ou « Autre ». Écrit par un **UPDATE séparé** → le code marche sans la migration |
 > Participants dans `booking_participants` (requête séparée via `useBookingParticipants()`).
 > `has_travel_insurance`/`waiver_*`/`referral_source` ajoutés mai 2026 pour le formulaire public (voir § form_submissions).
 
