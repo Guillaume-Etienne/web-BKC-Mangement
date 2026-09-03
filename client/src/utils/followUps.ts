@@ -53,9 +53,9 @@ function wantsOfEnquiry(e: Enquiry): string {
 
 function wantsOfBooking(b: Booking): string {
   const bits = [
-    b.num_lessons > 0 && `🪁 ${b.num_lessons} lessons`,
+    b.num_lessons > 0 && `🪁 ${b.num_lessons} lesson${b.num_lessons > 1 ? 's' : ''}`,
     b.num_wing_lessons > 0 && `🪽 ${b.num_wing_lessons} wing`,
-    b.num_equipment_rentals > 0 && `🎿 ${b.num_equipment_rentals} rentals`,
+    b.num_equipment_rentals > 0 && `🎿 ${b.num_equipment_rentals} rental${b.num_equipment_rentals > 1 ? 's' : ''}`,
     b.num_center_access > 0 && `🎟 ${b.num_center_access} center access`,
   ].filter(Boolean)
   return bits.join(' · ') || 'stay only'

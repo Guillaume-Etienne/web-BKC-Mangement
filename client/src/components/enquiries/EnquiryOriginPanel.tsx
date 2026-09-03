@@ -43,7 +43,7 @@ export default function EnquiryOriginPanel({ enquiry }: Props) {
   ].filter(Boolean).join(' · ')
 
   const facts = [
-    enquiry.party_size ? `${enquiry.party_size} people` : null,
+    enquiry.party_size ? `${enquiry.party_size} ${enquiry.party_size > 1 ? 'people' : 'person'}` : null,
     enquiry.arrival_month ? fmtArrivalMonth(enquiry.arrival_month) : null,
     wants || null,
     enquiry.budget_eur ? `€${enquiry.budget_eur} budget` : null,

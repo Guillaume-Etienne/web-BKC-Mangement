@@ -5,6 +5,7 @@ import type {
   FormSubmission, Payment, TaxiTrip,
 } from '../types/database'
 import { buildDossier, type DossierEvent, type DossierInput } from '../utils/dossier'
+import { isMissingTable } from '../utils/supabaseErrors'
 
 /** Everything that ever happened to one person, fetched only when their file is
  *  opened.
@@ -33,9 +34,6 @@ export interface ClientDossier {
   addNote: (body: string) => Promise<string | null>
   refresh: () => void
 }
-
-/** PostgREST's code for "relation does not exist". */
-const UNDEFINED_TABLE = '42P01'
 
 const EMPTY_INPUT: DossierInput = {
   enquiries: [], enquiryNotes: [], submissions: [], bookings: [],
@@ -97,9 +95,9 @@ export function useClientDossier(clientId: string | null, bookings: Booking[]): 
         ids.length ? supabase.from('activity_bookings').select('*').in('booking_id', ids) : Promise.resolve({ data: [], error: null }),
       ])
 
-      // A missing client_notes table is a pending migration, not a fault: say
-      // that in its own words rather than pushing "42P01" at gui.
-      const notesMissing = clientNotesRes.error?.code === UNDEFINED_TABLE
+      // A missing client_notes table is a pending migration, not a fault: it
+      // is said in its own words rather than pushed at gui as an error code.
+      const notesMissing = isMissingTable(clientNotesRes.error)
       if (clientNotesRes.error && !notesMissing) problems.push(`client notes (${clientNotesRes.error.message})`)
       if (notesRes.error) problems.push(`notes (${notesRes.error.message})`)
       if (subsRes.error) problems.push(`booking forms (${subsRes.error.message})`)
@@ -150,7 +148,7 @@ export function useClientDossier(clientId: string | null, bookings: Booking[]): 
     const { data, error: err } = await supabase.from('client_notes')
       .insert({ client_id: clientId, body: text }).select().single()
     if (err) {
-      if (err.code === UNDEFINED_TABLE) {
+      if (isMissingTable(err)) {
         setNotesTableMissing(true)
         return 'Notes are not stored yet — the 2026-09-03 migration has not been applied to this database.'
       }

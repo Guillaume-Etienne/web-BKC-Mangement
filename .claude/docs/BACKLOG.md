@@ -61,6 +61,19 @@ qui sait dire « qui attend quoi » (Enquiries) **jette la personne dès qu'elle
    `bookings.amount_paid` — un cache qui n'est **pas** la source de vérité. Il lit maintenant
    `payments`, et **sépare l'argent non vérifié** au lieu de l'additionner au reste.
 
+**Vérifié au navigateur sur PROD le 2026-09-03** (lecture seule) : « Waiting on you » avec les
+6 vrais dossiers · frise de Michel Rulliat et de Loïc SENE (transferts, séjour, lettre de visa
+envoyée, résa créée, demande + message d'origine) · ⌘K sur « mozambique » → les 2 demandes dont
+**le message** contient le mot, Entrée ouvre la bonne fiche · pastilles 📣 sur les 4 résas issues
+d'une demande · panneau d'origine en tête du wizard.
+
+🔴 **Bug trouvé par ce test navigateur et corrigé** : PostgREST renvoie **`PGRST205`** (« Could
+not find the table … in the schema cache »), **pas `42P01`**, quand une table manque. La
+détection ne se déclenchait donc jamais : bandeau d'erreur rouge illisible **et champ de note
+resté actif** alors qu'il ne pouvait rien enregistrer. Règle centralisée et testée dans
+**`utils/supabaseErrors.ts`** — à réutiliser partout où « table pas encore migrée » doit se
+distinguer d'une vraie panne.
+
 ⬜ **Restes de B, volontairement non faits** : fusionner `enquiry_notes` dans `client_notes`
 (chantier à part) ; faire figurer les cours et les locations dans la frise (aujourd'hui c'est du
 détail de planning, ça noierait le fil) ; onglet Documents séparé (les envois sont dans la

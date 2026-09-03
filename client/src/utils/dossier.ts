@@ -109,7 +109,7 @@ export function buildDossier(input: DossierInput): DossierEvent[] {
       e.wants_accommodation && 'accommodation',
     ].filter(Boolean).join(' · ')
     const bits = [
-      e.party_size ? `${e.party_size} people` : null,
+      e.party_size ? `${e.party_size} ${e.party_size > 1 ? 'people' : 'person'}` : null,
       wants || null,
       e.budget_eur ? `€${e.budget_eur} budget` : null,
     ].filter(Boolean).join(' · ')

@@ -79,7 +79,10 @@ function App() {
 
   // ⌘K / Ctrl-K opens the palette from anywhere. Bound on the window rather
   // than on a field so it works while a list is scrolled or a drawer is open.
+  // Only while logged in: a guest on a share page has no palette, and stealing
+  // their browser shortcut to open nothing would be pure loss.
   useEffect(() => {
+    if (!session) return
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
@@ -88,7 +91,7 @@ function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [session])
 
   useEffect(() => {
     // Get initial session

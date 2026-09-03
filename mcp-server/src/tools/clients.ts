@@ -8,6 +8,7 @@ import type {
 import { clientParticipantIds, cumulativeHoursBefore } from '../../../client/src/components/accounting/utils.js'
 import { buildDossier, dossierMoney, daysSinceLastTouch } from '../../../client/src/utils/dossier.js'
 import { searchEverything, type SearchIndex } from '../../../client/src/utils/globalSearch.js'
+import { isMissingTable } from '../../../client/src/utils/supabaseErrors.js'
 import { jsonResult, errorResult } from '../result.js'
 
 export function registerClientTools(server: McpServer) {
@@ -130,10 +131,11 @@ export function registerClientTools(server: McpServer) {
         ids.length ? supabase.from('activity_bookings').select('*').in('booking_id', ids) : none,
       ])
 
-      // 42P01 = the client_notes migration has not been applied here yet. Not a
-      // failure: the rest of the file is still true, and saying so is better
-      // than an empty history that looks complete.
-      const notesTableMissing = (clientNotesRes.error as { code?: string } | null)?.code === '42P01'
+      // The client_notes migration has not been applied here yet. Not a failure:
+      // the rest of the file is still true, and saying so is better than an empty
+      // history that looks complete. (The code is PGRST205, not 42P01 — see
+      // utils/supabaseErrors.ts.)
+      const notesTableMissing = isMissingTable(clientNotesRes.error)
 
       const extraSubs = submissionIds.length
         ? ((await supabase.from('form_submissions').select('*').in('id', submissionIds)).data ?? [])
