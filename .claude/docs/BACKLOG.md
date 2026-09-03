@@ -7,6 +7,20 @@
 > Tenu à jour au fil de la session, pour survivre à une déconnexion.
 > Le détail de chaque chantier est plus bas, § 🧭 Parcours.
 
+### 0. 🔴 gui a poussé pendant la session — une régression était en PROD, elle est corrigée
+
+`git reflog show origin/master` → poussé jusqu'à **`c0bea7c`**. Ce commit contenait un
+`select('… , source_id')` sur `bookings` : **PostgREST rejette la requête entière quand une
+colonne nommée n'existe pas**, donc tant que la migration n'était pas passée, la colonne
+« Guests » de l'écran d'attribution tombait **à zéro partout, sans un seul message à l'écran**.
+Constaté en vrai dans le navigateur, corrigé (`isMissingColumn` + requête à part), revérifié :
+les chiffres sont revenus (5 / 1 / 1 / 1).
+
+**Leçon, valable au-delà de ce cas** : « le code marche sans la migration » ne se décrète pas,
+ça se vérifie — et une colonne pas encore migrée **ne doit jamais être nommée dans un `select`**
+que l'app doit survivre. `utils/supabaseErrors.ts` porte les deux détections
+(`isMissingTable` = PGRST205/42P01, `isMissingColumn` = 42703/PGRST204).
+
 ### 1. Ce que gui doit faire, dans cet ordre
 
 | # | Quoi | Bloquant ? |

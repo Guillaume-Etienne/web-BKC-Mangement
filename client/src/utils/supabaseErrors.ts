@@ -23,3 +23,17 @@ export function isMissingTable(error: MaybePostgrestError | null | undefined): b
   // Last resort: some proxies drop the code but keep the sentence.
   return /could not find the table/i.test(error.message ?? '')
 }
+
+/** Same idea, one level down: a column the migration has not added yet.
+ *
+ *  ⚠️ This one bites harder than a missing table, and it did on 2026-09-03 in
+ *  production. PostgREST rejects the WHOLE select when one named column does not
+ *  exist — so `select('id, status, source_id')` returns no rows at all, and a
+ *  screen that only counts things shows zeros without a single error on screen.
+ *  Never name a not-yet-migrated column in a select the app must survive
+ *  without: fetch it apart, and let that one query fail. */
+export function isMissingColumn(error: MaybePostgrestError | null | undefined): boolean {
+  if (!error) return false
+  if (error.code === 'PGRST204' || error.code === '42703') return true
+  return /column .* does not exist|could not find the .* column/i.test(error.message ?? '')
+}

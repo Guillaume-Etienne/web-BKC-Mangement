@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTable } from '../hooks/useSupabase'
+import { supabase } from '../lib/supabase'
+import { isMissingColumn } from '../utils/supabaseErrors'
 import type { Booking, Enquiry, EnquiryNote, EnquirySource, EnquiryStatus, Season } from '../types/database'
 import type { AttributionSubmission } from '../utils/attribution'
 import EnquiryPanel from '../components/enquiries/EnquiryPanel'
@@ -48,11 +50,38 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
   // For the attribution panel on the archive view. Narrow selects: this is a
   // counting job, not a data screen, and the page should not pay for columns it
   // will never show.
+  // ⚠️ `source_id` is NOT in this select. It arrives with the 2026-09-03
+  // migration, and PostgREST rejects the whole query when one named column is
+  // missing — which is exactly what happened in production: every 'Guests'
+  // count silently fell to zero. It is fetched apart below, where failing is
+  // harmless.
   const { data: statBookings } = useTable<AttributionBooking>('bookings',
-    { select: 'id, status, check_in, referral_source, source_id' })
+    { select: 'id, status, check_in, referral_source' })
   const { data: statSubmissions } = useTable<AttributionSubmissionRow>('form_submissions',
     { select: 'created_booking_id, payload' })
   const { data: seasons } = useTable<Season>('seasons', { order: 'start_date', ascending: false })
+
+  // The origins written on the bookings themselves. Its own query so a database
+  // without the column still counts guests — it just falls back to the enquiry,
+  // the form and the legacy text (utils/attribution.ts resolves four ways).
+  const [sourceByBooking, setSourceByBooking] = useState<Record<string, string | null>>({})
+  useEffect(() => {
+    let cancelled = false
+    supabase.from('bookings').select('id, source_id').then(({ data, error }) => {
+      if (cancelled) return
+      if (error) {
+        // A missing column is the pending migration, not a fault. Anything else
+        // is worth knowing about, and the console is where it belongs: the
+        // attribution table stays right either way.
+        if (!isMissingColumn(error)) console.error('Loading booking sources:', error.message)
+        return
+      }
+      setSourceByBooking(Object.fromEntries(
+        ((data ?? []) as { id: string; source_id: string | null }[]).map(b => [b.id, b.source_id])
+      ))
+    })
+    return () => { cancelled = true }
+  }, [])
 
   const [selected, setSelected] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -91,8 +120,13 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
 
   // Memoised so the panel does not recompute on every keystroke in the search box.
   const attributionData = useMemo(
-    () => ({ enquiries, bookings: statBookings as Booking[], submissions: statSubmissions, sources }),
-    [enquiries, statBookings, statSubmissions, sources])
+    () => ({
+      enquiries,
+      bookings: statBookings.map(b => ({ ...b, source_id: sourceByBooking[b.id] ?? null })) as Booking[],
+      submissions: statSubmissions,
+      sources,
+    }),
+    [enquiries, statBookings, statSubmissions, sources, sourceByBooking])
 
   const current = selected ? enquiries.find(e => e.id === selected) ?? null : null
 
