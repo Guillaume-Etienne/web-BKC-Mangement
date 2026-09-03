@@ -1202,6 +1202,9 @@ function getNights(b: Booking) {
 
 type FilterKey = 'all' | 'complete' | 'incomplete' | 'upcoming' | 'active' | 'confirmed' | 'provisional' | 'cancelled'
 
+type SortKey = 'booking_number' | 'client' | 'check_in' | 'status'
+type SortDir = 'asc' | 'desc'
+
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all',         label: 'All' },
   { key: 'complete',    label: '✅ Complete' },
@@ -1250,6 +1253,8 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
 
   const [wizard, setWizard] = useState<{ open: boolean; editing: Booking | null }>({ open: false, editing: null })
   const [filter, setFilter] = useState<FilterKey>('all')
+  const [nameSearch, setNameSearch] = useState('')
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'booking_number', dir: 'desc' })
   const [saving, setSaving] = useState(false)
 
   const getClientName = (id: string) => {
@@ -1657,7 +1662,25 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
 
   const today = todayISO()
 
-  const filteredBookings = bookings.filter(b => {
+  const nameQuery = nameSearch.trim().toLowerCase()
+  function matchesNameSearch(b: Booking): boolean {
+    if (!nameQuery) return true
+    const client = clients.find(c => c.id === b.client_id)
+    if (client) {
+      if (`${client.first_name} ${client.last_name}`.toLowerCase().includes(nameQuery)) return true
+      if (client.email?.toLowerCase().includes(nameQuery)) return true
+      if (client.passport_number?.toLowerCase().includes(nameQuery)) return true
+    }
+    return bookingParticipants.some(p =>
+      p.booking_id === b.id && (
+        `${p.first_name} ${p.last_name}`.toLowerCase().includes(nameQuery) ||
+        p.passport_number?.toLowerCase().includes(nameQuery)
+      )
+    )
+  }
+
+  const unsortedFilteredBookings = bookings.filter(b => {
+    if (!matchesNameSearch(b)) return false
     const hasRoom = bookingRooms.some(br => br.booking_id === b.id)
     const missing = getMissingFields(b, hasRoom, bookingParticipants)
     const isComplete = missing.length === 0
@@ -1674,6 +1697,31 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       default:            return true
     }
   })
+
+  function toggleSort(key: SortKey) {
+    setSort(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' })
+  }
+
+  const filteredBookings = [...unsortedFilteredBookings].sort((a, b) => {
+    let cmp = 0
+    switch (sort.key) {
+      case 'booking_number': cmp = a.booking_number - b.booking_number; break
+      case 'client':          cmp = getClientName(a.client_id).localeCompare(getClientName(b.client_id)); break
+      case 'check_in':        cmp = a.check_in.localeCompare(b.check_in); break
+      case 'status':          cmp = a.status.localeCompare(b.status); break
+    }
+    return sort.dir === 'asc' ? cmp : -cmp
+  })
+
+  function SortHeader({ sortKey, label, className }: { sortKey: SortKey; label: string; className?: string }) {
+    const active = sort.key === sortKey
+    return (
+      <th className={`px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-300 ${className ?? ''}`}
+        onClick={() => toggleSort(sortKey)}>
+        {label}{active && <span className="ml-1">{sort.dir === 'asc' ? '▲' : '▼'}</span>}
+      </th>
+    )
+  }
 
   if (loading) {
     return (
@@ -1709,6 +1757,21 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           </button>
         </div>
 
+        {/* Search by name */}
+        <div className="relative mb-4 max-w-xs">
+          <input
+            type="text"
+            value={nameSearch}
+            onChange={e => setNameSearch(e.target.value)}
+            placeholder="🔍 Search by name, email, passport…"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {nameSearch && (
+            <button type="button" onClick={() => setNameSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-sm">✕</button>
+          )}
+        </div>
+
         {/* Filter chips */}
         <div className="flex flex-wrap gap-2 mb-4">
           {FILTERS.map(f => (
@@ -1728,12 +1791,12 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-800 border-b">
               <tr>
-                <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400 w-12">#</th>
-                <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Client</th>
+                <SortHeader sortKey="booking_number" label="#" className="w-12" />
+                <SortHeader sortKey="client" label="Client" />
                 <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Stay</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Room</th>
-                <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Dates</th>
-                <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Status</th>
+                <SortHeader sortKey="check_in" label="Dates" />
+                <SortHeader sortKey="status" label="Status" />
                 <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">⚠</th>
                 <th className="px-3 py-2 w-16"></th>
               </tr>
@@ -1824,7 +1887,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
 
         {/* Mobile cards */}
         <div className="md:hidden space-y-4">
-          {bookings.map(b => (
+          {filteredBookings.map(b => (
             <div key={b.id} className="bg-white dark:bg-gray-900 rounded-lg shadow p-4" onClick={() => openEdit(b)}>
               <div className="flex justify-between items-start mb-2">
                 <div>
