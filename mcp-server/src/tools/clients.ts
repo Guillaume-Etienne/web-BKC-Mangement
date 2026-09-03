@@ -192,13 +192,16 @@ export function registerClientTools(server: McpServer) {
       },
     },
     async ({ query, limit }) => {
-      const [cl, bk, en, nt] = await Promise.all([
+      const [cl, bk, en, nt, cn] = await Promise.all([
         supabase.from('clients').select('id, first_name, last_name, email, phone, passport_number, notes'),
         supabase.from('bookings').select('id, booking_number, client_id, check_in, check_out, status, notes'),
         supabase.from('enquiries').select('id, name, email, phone, message, status, arrival_month'),
         supabase.from('enquiry_notes').select('enquiry_id, body'),
+        supabase.from('client_notes').select('client_id, body'),
       ])
-      const failed = [cl.error, bk.error, en.error, nt.error].filter(Boolean)
+      // A client_notes table that does not exist yet is a pending migration,
+      // not a reason to refuse the search.
+      const failed = [cl.error, bk.error, en.error, nt.error, isMissingTable(cn.error) ? null : cn.error].filter(Boolean)
       // Half an index answers "not found" for someone who is right there.
       if (failed.length) return errorResult(`Could not search: ${failed.map(f => f!.message).join(', ')}`)
 
@@ -206,11 +209,16 @@ export function registerClientTools(server: McpServer) {
       for (const n of (nt.data ?? []) as { enquiry_id: string; body: string }[]) {
         (notesByEnquiry[n.enquiry_id] ??= []).push(n.body)
       }
+      const notesByClient: Record<string, string[]> = {}
+      for (const n of (cn.data ?? []) as { client_id: string; body: string }[]) {
+        (notesByClient[n.client_id] ??= []).push(n.body)
+      }
       const index: SearchIndex = {
         clients: (cl.data ?? []) as SearchIndex['clients'],
         bookings: (bk.data ?? []) as SearchIndex['bookings'],
         enquiries: (en.data ?? []) as SearchIndex['enquiries'],
         notesByEnquiry,
+        notesByClient,
       }
       const hits = searchEverything(index, query, limit ?? 20)
       return jsonResult({ count: hits.length, hits })

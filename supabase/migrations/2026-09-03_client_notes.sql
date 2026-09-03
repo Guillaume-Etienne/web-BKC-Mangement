@@ -98,6 +98,37 @@ UPDATE bookings b
 -- les charge toutes de toute façon. Ce serait de l'ornement, même argument que
 -- pour `enquiry_notes`.
 
+
+-- ── 3. `clients.notes` déménage dans `client_notes` ─────────────────────────
+-- Sinon ce chantier aurait ajouté un doublon au lieu d'en retirer un : un bloc
+-- unique qu'on écrase dans l'onglet Info, ET un fil daté dans la frise. Deux
+-- endroits où écrire sur la même personne, c'est exactement le problème de
+-- départ.
+--
+-- La note existante devient la PREMIÈRE ligne du fil, datée de la création de
+-- la fiche — on ne sait pas quand elle a été écrite, mais on sait qu'elle est
+-- au moins aussi vieille que le client, et une date inventée d'aujourd'hui la
+-- ferait passer pour une nouvelle.
+--
+-- ⚠️ La colonne est **vidée**, pas supprimée : le contenu est recopié dans la
+-- même transaction (rien ne peut se perdre entre les deux), et la colonne reste
+-- là au cas où. Sans ce vidage, l'onglet Info et la frise afficheraient la même
+-- phrase deux fois après la migration.
+-- ⚠️ **Réversible** : `UPDATE clients c SET notes = n.body FROM client_notes n
+--    WHERE n.client_id = c.id;` remet tout comme avant.
+-- Idempotente : le NOT EXISTS empêche un second passage de dupliquer la note.
+INSERT INTO client_notes (client_id, created_at, body)
+SELECT c.id, COALESCE(c.created_at, now()), btrim(c.notes)
+  FROM clients c
+ WHERE c.notes IS NOT NULL
+   AND btrim(c.notes) <> ''
+   AND NOT EXISTS (
+     SELECT 1 FROM client_notes n
+      WHERE n.client_id = c.id AND n.body = btrim(c.notes)
+   );
+
+UPDATE clients SET notes = NULL WHERE notes IS NOT NULL AND btrim(notes) <> '';
+
 COMMIT;
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -120,4 +151,11 @@ COMMIT;
 --   -- attendu en PROD : au moins « Fun & Fly » et « Google search » renseignés
 --   -- (les résas issues d'une demande qualifiée), le reste en NULL — c'est
 --   -- normal, personne n'a jamais posé la question à ces gens-là.
+--
+--   -- 4. Aucune note de client n'est restée en arrière :
+--   SELECT count(*) FROM clients WHERE btrim(coalesce(notes,'')) <> '';
+--   -- attendu : 0
+--   SELECT c.first_name, c.last_name, n.body
+--     FROM client_notes n JOIN clients c ON c.id = n.client_id;
+--   -- attendu en PROD : au moins « contacté via Whatsapp aussi » (E. BOUTEILLER)
 -- ════════════════════════════════════════════════════════════════════════════

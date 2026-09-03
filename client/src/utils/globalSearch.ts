@@ -51,6 +51,8 @@ export interface SearchIndex {
   enquiries: SearchEnquiry[]
   /** enquiry id → its note bodies. */
   notesByEnquiry: Record<string, string[]>
+  /** client id → the dated notes written on their file. */
+  notesByClient?: Record<string, string[]>
 }
 
 export interface SearchHit {
@@ -67,7 +69,7 @@ export interface SearchHit {
 }
 
 export const EMPTY_INDEX: SearchIndex = {
-  clients: [], bookings: [], enquiries: [], notesByEnquiry: {},
+  clients: [], bookings: [], enquiries: [], notesByEnquiry: {}, notesByClient: {},
 }
 
 // Higher wins. The gaps are wide so a later tie-break never crosses a tier.
@@ -129,7 +131,9 @@ export function searchEverything(index: SearchIndex, query: string, limit = 20):
       why = c.email && norm(c.email).includes(q) ? c.email : 'contact details'
     }
     if (!score) {
-      const inNotes = bodyHit([c.notes], q)
+      // Both note homes: the old single block still on some rows, and the
+      // dated feed it moves into. A note must stay findable across that move.
+      const inNotes = bodyHit([c.notes, ...(index.notesByClient?.[c.id] ?? [])], q)
       if (inNotes) { score = BODY; why = inNotes }
     }
     if (score) {

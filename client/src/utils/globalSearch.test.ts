@@ -20,6 +20,7 @@ const index: SearchIndex = {
       message: 'Do you also rent out wing foil equipment?' },
   ],
   notesByEnquiry: { e1: ['Relancée le 20, attend le prix des cours'] },
+  notesByClient: { c1: ['Prefers the quiet room at the back'] },
 }
 
 describe('searchEverything', () => {
@@ -69,6 +70,24 @@ describe('searchEverything', () => {
     const chased = searchEverything(index, 'prix des cours')
     expect(chased[0].targetId).toBe('e1')
     expect(chased[0].why).toContain('prix des cours')
+  })
+
+  it('finds a client by a dated note on their file, not just the old blob', () => {
+    // The note moved from clients.notes to client_notes; it has to stay findable
+    // across that move, or the migration would quietly cost gui a search.
+    const hit = searchEverything(index, 'quiet room')[0]
+    expect(hit.targetId).toBe('c1')
+    expect(hit.why).toContain('quiet room')
+  })
+
+  it('still searches the old single-block note while it is there', () => {
+    expect(searchEverything(index, 'Laurent')[0].targetId).toBe('c2')
+  })
+
+  it('works on an index with no client notes at all (migration not applied)', () => {
+    const { notesByClient: _omitted, ...withoutClientNotes } = index
+    expect(searchEverything(withoutClientNotes, 'rulliat')[0].targetId).toBe('c1')
+    expect(searchEverything(withoutClientNotes, 'quiet room')).toEqual([])
   })
 
   it('shows the sentence that matched, not just the row', () => {

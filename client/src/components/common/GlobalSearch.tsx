@@ -4,6 +4,7 @@ import {
   searchEverything, EMPTY_INDEX,
   type SearchHit, type SearchIndex, type SearchKind,
 } from '../../utils/globalSearch'
+import { isMissingTable } from '../../utils/supabaseErrors'
 
 /** ⌘K / Ctrl-K: find a person anywhere, without knowing which screen they are on.
  *
@@ -47,14 +48,18 @@ export default function GlobalSearch({ open, onClose, onGo }: Props) {
     setError(null)
     const run = async () => {
       // Narrow selects: this is a lookup index, not a data screen.
-      const [cl, bk, en, nt] = await Promise.all([
+      const [cl, bk, en, nt, cn] = await Promise.all([
         supabase.from('clients').select('id, first_name, last_name, email, phone, passport_number, notes'),
         supabase.from('bookings').select('id, booking_number, client_id, check_in, check_out, status, notes'),
         supabase.from('enquiries').select('id, name, email, phone, message, status, arrival_month'),
         supabase.from('enquiry_notes').select('enquiry_id, body'),
+        supabase.from('client_notes').select('client_id, body'),
       ])
       if (cancelled) return
-      const failed = [cl.error, bk.error, en.error, nt.error].filter(Boolean)
+      // A `client_notes` that does not exist yet is a pending migration, not a
+      // fault — the palette must still open, and everything else stays findable.
+      const clientNotesMissing = isMissingTable(cn.error)
+      const failed = [cl.error, bk.error, en.error, nt.error, clientNotesMissing ? null : cn.error].filter(Boolean)
       // A search that silently indexes half the database answers "no results"
       // for someone who is right there. Say it instead.
       if (failed.length) setError(`Some records could not be searched: ${failed.map(f => f!.message).join(', ')}`)
@@ -62,11 +67,16 @@ export default function GlobalSearch({ open, onClose, onGo }: Props) {
       for (const n of (nt.data ?? []) as { enquiry_id: string; body: string }[]) {
         (notesByEnquiry[n.enquiry_id] ??= []).push(n.body)
       }
+      const notesByClient: Record<string, string[]> = {}
+      for (const n of (cn.data ?? []) as { client_id: string; body: string }[]) {
+        (notesByClient[n.client_id] ??= []).push(n.body)
+      }
       setIndex({
         clients: (cl.data ?? []) as SearchIndex['clients'],
         bookings: (bk.data ?? []) as SearchIndex['bookings'],
         enquiries: (en.data ?? []) as SearchIndex['enquiries'],
         notesByEnquiry,
+        notesByClient,
       })
       setLoading(false)
     }

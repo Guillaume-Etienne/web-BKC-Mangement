@@ -20,8 +20,9 @@
 
 `7172256` A — conversion sans perte · `5c3691e` B — le dossier client + ⌘K ·
 `6778461` C — « Waiting on you » · `3714ec9` D — un seul vocabulaire ·
-`f3938d0` fix PGRST205 · `ce33f7a` E — la statistique d'origine
-*(la liste se prolonge en bas de ce bloc si la session a continué)*
+`f3938d0` fix PGRST205 · `ce33f7a` E — la statistique d'origine ·
+F — le doublon `clients.notes` fermé
+*(la liste se prolonge si la session a continué — `git log --oneline origin/master..HEAD`)*
 
 ### 3. Les 5 bugs trouvés en chemin (tous corrigés)
 
@@ -209,6 +210,26 @@ sources, ses libellés trilingues et sa règle « on désactive, on ne supprime 
 **Aussi livré** : `bookings.notes` **était lisible nulle part** sans rouvrir le wizard (constat 4
 de l'audit). Il apparaît maintenant dans la frise du dossier et en 📝 dans la liste des résas
 (survol pour lire, texte complet sur les cartes mobiles).
+
+### ✅ F. Le doublon que ce chantier avait lui-même créé — fermé le 2026-09-03
+
+En posant la frise datée, j'avais laissé **deux endroits pour écrire sur un client** : le bloc
+`clients.notes` (qu'on écrase) dans l'onglet Info, et le fil daté. Exactement le défaut que tout
+ce travail visait à supprimer.
+
+- La migration **recopie** `clients.notes` dans `client_notes` — datée de la **création de la
+  fiche**, pas d'aujourd'hui : on ne sait pas quand la phrase a été écrite, mais la dater
+  d'aujourd'hui la ferait passer pour neuve — puis **vide la colonne** (dans la même
+  transaction, donc rien ne peut se perdre entre les deux). Sans ce vidage, la phrase
+  s'afficherait deux fois après la migration. **Réversible en une requête**, écrite dans le
+  fichier. La colonne n'est **pas supprimée**.
+- Le **champ Notes disparaît du formulaire client** : plus rien n'alimente le bloc.
+- L'onglet Info **affiche encore l'ancienne note tant qu'elle est là** (« Note (old format) » +
+  la mention que ça déménage) : c'est du texte que gui a écrit, il ne doit pas disparaître de
+  l'écran avant d'être arrivé dans la frise.
+- ⚠️ **⌘K indexe désormais `client_notes`** (app **et** MCP `search_everything`) : sans ça, la
+  migration aurait discrètement coûté une recherche. Une table absente n'empêche pas la palette
+  de s'ouvrir. En PROD la note d'E. BOUTEILLER (« contacté via Whatsapp aussi ») est le cas réel.
 
 ⬜ **Reste de D, volontairement non fait** : **pré-remplir les participants** à la conversion
 depuis `party_size` + `wants_*`. Motif : `ENQUIRIES.md` tranche explicitement que la conversion

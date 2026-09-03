@@ -62,7 +62,7 @@
 | last_name | string |
 | email | string \| null |
 | phone | string \| null |
-| notes | string \| null |
+| ~~notes~~ | string \| null — ⚠️ **vidée par la migration 2026-09-03**, les notes vivent dans `client_notes`. Colonne conservée, plus rien ne l'écrit |
 | nationality | string \| null |
 | passport_number | string \| null |
 | birth_date | string \| null (ISO date) |

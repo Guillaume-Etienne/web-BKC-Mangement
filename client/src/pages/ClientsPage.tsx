@@ -534,10 +534,20 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                         Counts every stay, never reset — this is what volume pricing tiers key off (Options → Pricing).
                       </p>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Notes</p>
-                      <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{selectedClient.notes || '–'}</p>
-                    </div>
+                    {/* Only while the old single-block note still holds something,
+                        i.e. before the 2026-09-03 migration moves it into the
+                        dated feed. Shown rather than hidden: it is real text gui
+                        wrote, and it must not vanish from the screen before it
+                        has landed in the Timeline. */}
+                    {selectedClient.notes && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Note (old format)</p>
+                        <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{selectedClient.notes}</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                          Moves into the Timeline with the 2026-09-03 migration. New notes are written there.
+                        </p>
+                      </div>
+                    )}
                     <div className="flex gap-2 mt-4">
                       <button
                         onClick={() => openForm(selectedClient)}
@@ -678,11 +688,10 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                       </select>
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
-                    <textarea value={formData.notes || ''} onChange={(e) => setFormData({ ...formData, notes: e.target.value || null })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} />
-                  </div>
+                  {/* No notes field here any more. It was a single block you
+                      overwrite, next to a dated feed on the same person — the
+                      exact duplication this whole piece of work was about
+                      removing. Notes are written in the Timeline, once. */}
                   {mutationError && (
                     <p className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded px-3 py-2">{mutationError}</p>
                   )}
