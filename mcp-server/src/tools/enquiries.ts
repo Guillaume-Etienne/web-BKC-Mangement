@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { supabase } from '../supabaseClient.js'
-import type { Enquiry, EnquiryNote, EnquiryStatus } from '../../../client/src/types/database.js'
+import type { Client, Enquiry, EnquiryNote, EnquiryStatus } from '../../../client/src/types/database.js'
 import { silenceDays, isQualified, isSettled, matchesSearch } from '../../../client/src/utils/enquiries.js'
 import { splitName } from '../../../client/src/utils/names.js'
+import { findExistingClient, blanksToFill, type ClientMatchReason } from '../../../client/src/utils/clientIdentity.js'
 import { activityCountColumns } from '../../../client/src/utils/bookingActivity.js'
 import { jsonResult, errorResult } from '../result.js'
 
@@ -143,7 +144,9 @@ export function registerEnquiryTools(server: McpServer) {
         'Convert an enquiry into a real client + provisional booking. Requires check-in/check-out ' +
         '(an enquiry only ever has an approximate arrival month, never real dates). Creates NO ' +
         "rooms and NO named participants — that stays a manual step in the app, same as the " +
-        "wizard's own flow. Marks the enquiry won and links it to the new client/booking.",
+        "wizard's own flow. Reuses the existing client when the enquiry is already linked to one " +
+        "or the email matches exactly (never on a name), rather than creating a duplicate; the " +
+        "result says which via `client_reused`. Marks the enquiry won and links it to the booking.",
       inputSchema: {
         enquiry_id: z.string().uuid(),
         check_in: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD'),
@@ -155,18 +158,43 @@ export function registerEnquiryTools(server: McpServer) {
       if (eFetchErr || !enquiryRow) return errorResult(`Enquiry not found: ${eFetchErr?.message ?? enquiry_id}`)
       const enquiry = enquiryRow as Enquiry
 
-      const { first, last } = splitName(enquiry.name)
-      const { data: client, error: cErr } = await supabase.from('clients').insert({
-        first_name: first || enquiry.name || 'Unknown',
-        last_name: last || '',
+      // Reuse an existing client before minting one — same rule as the app's
+      // own conversion path (utils/clientIdentity.ts): the enquiry's own
+      // client_id first, then an exact email, never a name. A duplicate row
+      // here splits a returning guest's history in two, silently.
+      const { data: clientRows, error: clFetchErr } = await supabase.from('clients').select('*')
+      if (clFetchErr) return errorResult(`Loading clients: ${clFetchErr.message}`)
+      const match = findExistingClient((clientRows ?? []) as Client[], {
+        linkedClientId: enquiry.client_id,
         email: enquiry.email,
-        phone: enquiry.phone,
-        notes: null, nationality: null, passport_number: null, birth_date: null, kite_level: null,
-        import_id: null,
-        emergency_contact_name: null, emergency_contact_phone: null,
-        emergency_contact_email: null, emergency_contact_relation: null,
-      }).select('id').single()
-      if (cErr || !client) return errorResult(`Creating client: ${cErr?.message}`)
+      })
+
+      const { first, last } = splitName(enquiry.name)
+      let clientId: string
+      let clientReused: ClientMatchReason | null = null
+      if (match) {
+        clientId = match.client.id
+        clientReused = match.reason
+        // Complete blanks only — never overwrite what gui typed by hand.
+        const patch = blanksToFill(match.client, { email: enquiry.email, phone: enquiry.phone })
+        if (Object.keys(patch).length > 0) {
+          const { error: fillErr } = await supabase.from('clients').update(patch).eq('id', clientId)
+          if (fillErr) return errorResult(`Filling in the existing client's blanks: ${fillErr.message}`)
+        }
+      } else {
+        const { data: client, error: cErr } = await supabase.from('clients').insert({
+          first_name: first || enquiry.name || 'Unknown',
+          last_name: last || '',
+          email: enquiry.email,
+          phone: enquiry.phone,
+          notes: null, nationality: null, passport_number: null, birth_date: null, kite_level: null,
+          import_id: null,
+          emergency_contact_name: null, emergency_contact_phone: null,
+          emergency_contact_email: null, emergency_contact_relation: null,
+        }).select('id').single()
+        if (cErr || !client) return errorResult(`Creating client: ${cErr?.message}`)
+        clientId = client.id
+      }
 
       const noteBits: string[] = [`Created from enquiry "${enquiry.name}".`]
       if (enquiry.party_size) noteBits.push(`Party size: ${enquiry.party_size}.`)
@@ -180,7 +208,7 @@ export function registerEnquiryTools(server: McpServer) {
       if (enquiry.message) noteBits.push(`Original message: "${enquiry.message}"`)
 
       const { data: booking, error: bErr } = await supabase.from('bookings').insert({
-        client_id: client.id,
+        client_id: clientId,
         check_in,
         check_out,
         ...activityCountColumns([]),
@@ -199,24 +227,27 @@ export function registerEnquiryTools(server: McpServer) {
         import_id: null,
         emergency_contact_name: null, emergency_contact_phone: null, emergency_contact_email: null,
       }).select('id, booking_number').single()
-      if (bErr || !booking) return errorResult(`Creating booking (client ${client.id} was created): ${bErr?.message}`)
+      if (bErr || !booking) return errorResult(`Creating booking (client ${clientId} was ${clientReused ? 'reused' : 'created'}): ${bErr?.message}`)
 
       const { error: wonErr } = await supabase.from('enquiries').update({
         status: 'won',
         booking_id: booking.id,
-        client_id: client.id,
+        client_id: clientId,
         last_contact_at: new Date().toISOString(),
       }).eq('id', enquiry_id)
       if (wonErr) {
         return jsonResult({
-          ok: true, client_id: client.id, booking_id: booking.id, booking_number: booking.booking_number,
+          ok: true, client_id: clientId, client_reused: clientReused, booking_id: booking.id, booking_number: booking.booking_number,
           warning: `Booking created, but the enquiry was NOT marked won: ${wonErr.message}`,
         })
       }
 
       return jsonResult({
         ok: true,
-        client_id: client.id,
+        client_id: clientId,
+        /** null = a new client row was created. 'linked'/'email' = an existing
+         *  one was reused, so the guest keeps a single history. */
+        client_reused: clientReused,
         booking_id: booking.id,
         booking_number: booking.booking_number,
         note: 'No room and no participant were assigned — finish this booking by hand in the app (rooms, planning, lessons).',

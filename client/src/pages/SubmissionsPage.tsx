@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useTable } from '../hooks/useSupabase'
 import { useBookings } from '../hooks/useBookings'
+import { useClients } from '../hooks/useClients'
 import { useTaxiTrips } from '../hooks/useTaxis'
-import type { Booking, Enquiry, FormSubmission, FormSubmissionStatus, Lang, TaxiPricingDefaults, TaxiTrip } from '../types/database'
+import type { Booking, Client, Enquiry, FormSubmission, FormSubmissionStatus, Lang, TaxiPricingDefaults, TaxiTrip } from '../types/database'
 import { activityCountColumns } from '../utils/bookingActivity'
+import { blanksToFill, findExistingClient } from '../utils/clientIdentity'
 import { addDaysISO as addDays, fmtDate } from '../utils/dates'
 import { findCandidateEnquiries, fmtArrivalMonth } from '../utils/enquiries'
 import { splitName } from '../utils/names'
@@ -27,13 +29,24 @@ const STATUS_BADGE: Record<FormSubmissionStatus, string> = {
 
 
 // ─── Detail / review panel (module scope = focus-safe inputs) ─────────────────
-interface DetailProps { s: FormSubmission; onDone: () => void; enquiries: Enquiry[]; bookings: Booking[]; taxiTrips: TaxiTrip[] }
-function SubmissionDetail({ s, onDone, enquiries, bookings, taxiTrips }: DetailProps) {
+interface DetailProps { s: FormSubmission; onDone: () => void; enquiries: Enquiry[]; bookings: Booking[]; clients: Client[]; taxiTrips: TaxiTrip[] }
+function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }: DetailProps) {
   const p = s.payload
   const targetBooking = p.target_booking_id ? bookings.find(b => b.id === p.target_booking_id) : null
   const candidates = useMemo(
     () => findCandidateEnquiries({ email: p.email, name: p.reference_name }, enquiries),
     [p.email, p.reference_name, enquiries])
+
+  /** The enquiry this submission came from, when it rode a personalised link. */
+  const linkedEnquiry = p.enquiry_id ? enquiries.find(e => e.id === p.enquiry_id) : undefined
+
+  /** Who this submission will be filed under — computed here rather than inside
+   *  the click handler so the panel can *say* it before gui presses the button.
+   *  Finding out afterwards that a second "Michel Rulliat" was created is how
+   *  the client list rots. */
+  const clientMatch = useMemo(
+    () => findExistingClient(clients, { linkedClientId: linkedEnquiry?.client_id, email: p.email }),
+    [clients, linkedEnquiry?.client_id, p.email])
   const [checkIn, setCheckIn] = useState(p.country_entry_date || '')
   const [checkOut, setCheckOut] = useState(
     p.country_entry_date ? addDays(p.country_entry_date, p.nights_bilene || 0) : ''
@@ -66,21 +79,44 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, taxiTrips }: DetailP
     setBusy(true)
     setError(null)
 
-    // 1. Client
+    // 1. Client — reuse before creating.
+    //    This used to insert unconditionally, even when the enquiry already
+    //    carried a client_id that gui had attached by hand. The second row
+    //    splits a returning guest's history in two and silently kills the
+    //    "already been here" signal. Matching rule (explicit link, then exact
+    //    email, never a name): utils/clientIdentity.ts.
     const { first, last } = splitName(p.reference_name)
-    const { data: client, error: cErr } = await supabase.from('clients').insert({
-      first_name: first || p.reference_name || 'Unknown',
-      last_name: last || '',
+    const contact = {
       email: p.email || null,
       phone: p.phone || null,
-      notes: null, nationality: null, passport_number: null, birth_date: null, kite_level: null,
-      import_id: s.id,
       emergency_contact_name: p.emergency_contact_name || null,
       emergency_contact_phone: p.emergency_contact_phone || null,
       emergency_contact_email: p.emergency_contact_email || null,
       emergency_contact_relation: p.emergency_contact_relation || null,
-    }).select('id').single()
-    if (cErr || !client) { setError('Client: ' + (cErr?.message ?? 'unknown')); setBusy(false); return }
+    }
+    let clientId: string
+    if (clientMatch) {
+      clientId = clientMatch.client.id
+      // Complete what the existing record leaves empty, overwrite nothing:
+      // a number gui fixed by hand outranks whatever the guest retyped today.
+      const patch = blanksToFill(clientMatch.client, contact)
+      if (Object.keys(patch).length > 0) {
+        const { error: fillErr } = await supabase.from('clients').update(patch).eq('id', clientId)
+        // Not fatal — the booking still belongs to the right person — but said
+        // out loud, so gui does not trust a phone number that was never saved.
+        if (fillErr) setError(`Client reused, but the missing contact details were not filled in: ${fillErr.message}`)
+      }
+    } else {
+      const { data: created, error: cErr } = await supabase.from('clients').insert({
+        first_name: first || p.reference_name || 'Unknown',
+        last_name: last || '',
+        ...contact,
+        notes: null, nationality: null, passport_number: null, birth_date: null, kite_level: null,
+        import_id: s.id,
+      }).select('id').single()
+      if (cErr || !created) { setError('Client: ' + (cErr?.message ?? 'unknown')); setBusy(false); return }
+      clientId = created.id
+    }
 
     // 2. Booking (provisional)
     const noteBits: string[] = ['Created from public booking form.']
@@ -90,12 +126,13 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, taxiTrips }: DetailP
     if (p.referral_source) noteBits.push(`Heard about us: ${p.referral_source}.`)
     // Carry the enquiry's own message/context along, same as the MCP conversion path —
     // only when the submission rode a personalised link (payload.enquiry_id).
-    const linkedEnquiry = p.enquiry_id ? enquiries.find(e => e.id === p.enquiry_id) : undefined
+    // The dated notes are deliberately NOT copied here: they stay on the enquiry
+    // and are read back through enquiries.booking_id (see EnquiryOriginPanel).
     if (linkedEnquiry?.message) noteBits.push(`Original message: "${linkedEnquiry.message}"`)
     // Activity counters derived from the per-traveler form flags (kept in sync on the participants below)
     const formTravelers = (p.travelers ?? []).filter(t => t.first_name.trim())
     const { data: booking, error: bErr } = await supabase.from('bookings').insert({
-      client_id: client.id,
+      client_id: clientId,
       check_in: checkIn,
       check_out: checkOut,
       ...activityCountColumns(formTravelers),
@@ -192,7 +229,7 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, taxiTrips }: DetailP
       const { error: eErr } = await supabase.from('enquiries').update({
         status: 'won',
         booking_id: booking.id,
-        client_id: client.id,
+        client_id: clientId,
         form_submission_id: s.id,
         last_contact_at: new Date().toISOString(),
       }).eq('id', enquiryId)
@@ -511,6 +548,24 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, taxiTrips }: DetailP
             </div>
           </div>
           {!datesValid && <p className="text-xs text-rose-500 dark:text-rose-400">Check-out must be after check-in.</p>}
+          {/* Said before the click, not after: which file this booking lands in
+              is the one thing that cannot be undone from this screen. */}
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {clientMatch ? (
+              <>
+                Files under the existing client{' '}
+                <strong className="text-gray-700 dark:text-gray-300">
+                  {clientMatch.client.first_name} {clientMatch.client.last_name}
+                </strong>{' '}
+                <span className="text-gray-400 dark:text-gray-500">
+                  ({clientMatch.reason === 'linked' ? 'linked to the enquiry' : 'same email'})
+                </span>{' '}
+                — missing contact details will be filled in, nothing overwritten.
+              </>
+            ) : (
+              <>Creates a <strong className="text-gray-700 dark:text-gray-300">new client</strong> — no existing record matches this email.</>
+            )}
+          </p>
           {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
           {confirmAction === 'reject' ? (
             <div className="flex items-center gap-3 pt-1">
@@ -579,6 +634,8 @@ export default function SubmissionsPage() {
   // Only read when a submission targets an existing booking (Update Form).
   const { data: bookings } = useBookings()
   const { data: taxiTrips } = useTaxiTrips()
+  // So approving can reuse an existing client instead of minting a duplicate.
+  const { data: clients } = useClients()
   const [tab, setTab] = useState<FormSubmissionStatus>('pending')
   const [openId, setOpenId] = useState<string | null>(null)
 
@@ -647,7 +704,7 @@ export default function SubmissionsPage() {
                     <span className="text-gray-300 dark:text-gray-500 text-sm">{open ? '▲' : '▼'}</span>
                   </div>
                 </button>
-                {open && <SubmissionDetail s={s} enquiries={enquiries} bookings={bookings} taxiTrips={taxiTrips} onDone={() => { setOpenId(null); refresh() }} />}
+                {open && <SubmissionDetail s={s} enquiries={enquiries} bookings={bookings} clients={clients} taxiTrips={taxiTrips} onDone={() => { setOpenId(null); refresh() }} />}
               </div>
             )
           })}

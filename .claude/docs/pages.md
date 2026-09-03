@@ -133,6 +133,11 @@
 - **Hooks :** useClients, useBookings, useBookingRooms, **useBookingRoomPrices**, useBookingParticipants, useAccommodations, useRooms, **useTable<HouseRental>**, **useTaxiDrivers**
 - **State :** `showWizard`, `wizardStep (1-6)` (not 0-5), `wizardData`, `editingBooking`, `selectedBooking`
 - **Wizard steps (1-6):** 1. Client → 2. Stay → 3. Guests → 4. Transport → 5. KiteCenter → 6. Payment
+- **Origine (2026-09-03) :** la page lit `useTable<Enquiry>('enquiries')` en lecture seule.
+  `originOf(bookingId)` = la demande dont la résa est issue (`enquiries.booking_id`) → pastille
+  **📣** dans la liste (tableau desktop **et** cartes mobiles) et **`EnquiryOriginPanel`** en
+  tête de l'étape 1 : message d'origine, qualification, notes datées. **Lecture seule** — les
+  notes restent sur la demande, elles ne sont jamais recopiées.
 - **Step 2 (Stay) :** Bandeau rouge si `check_in >= check_out` (Next désactivé). **Full house** = ligne de prix unique (défaut 100€, split 50/50 entre les 2 chambres en interne).
 - **Step 3 (Guests) :** Gère `booking_participants` — delete-all + re-insert au save. Auto-ajoute le client principal si aucun participant saisi (nouveaux bookings).
 - **Step 4 (Transport) :** Si taxi arrivée/départ coché → sélecteur **chauffeur optionnel** (`taxi_driver_id`). Pré-assigne le chauffeur + ses `default_*` aux trajets auto-créés. Nouveaux bookings uniquement.
@@ -220,6 +225,11 @@
 - **But :** File de validation des soumissions du `BookingFormPage`.
 - **State :** `tab: 'pending'|'approved'|'rejected'` (défaut pending), `openId` (ligne dépliée).
 - **Détail (`SubmissionDetail`, module-scope) :** affiche tout le `payload` (trip + transferts taxi avec date/heure, logistics, crew, contact urgence, waiver). Champs date `check_in`/`check_out` Bilene **pré-remplis** (`country_entry_date` + `nights_bilene`) et **éditables** avant création.
+- ⚠️ **« Create booking » réutilise un client existant** (2026-09-03) au lieu d'en créer un
+  systématiquement : `utils/clientIdentity.ts` — `enquiry.client_id` d'abord, puis **email
+  exact**, jamais un nom. Les champs vides sont complétés (`blanksToFill`), rien n'est écrasé.
+  Le panneau **annonce avant le clic** (« Files under the existing client … » / « Creates a new
+  client »).
 - **« Create booking » :** crée séquentiellement `clients` (nom splitté, email, phone, emergency_*, `import_id = submission.id`) → `bookings` (status `provisional`, `visa_entry/exit_date` = dates pays, `check_in/out` confirmés, taxis, `couples_count`=double_beds, `has_travel_insurance`, `waiver_accepted_at`/`waiver_version`, `referral_source`, transferts + lits simples dans les **notes**, `import_id`) → `booking_participants` (1/voyageur). Puis soumission → `approved` + `created_booking_id`. **Anti-doublon** : bouton désactivé si `created_booking_id` déjà set.
 - **« Reject » :** soumission → `rejected`.
 

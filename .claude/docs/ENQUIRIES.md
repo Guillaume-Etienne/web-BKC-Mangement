@@ -144,6 +144,14 @@ Deux chemins, dans cet ordre :
 
 La demande **survit** à la conversion : marquée gagnée, reliée à la réservation.
 
+> **2026-09-03 — le lien retour est enfin lu.** `enquiries.booking_id` existait depuis le 14/08
+> mais aucune page ne s'en servait : une fois gagnée, la demande quittait la liste de travail et
+> plus rien n'y menait. Désormais la résa affiche **📣** dans la liste et un
+> **`EnquiryOriginPanel`** en tête du wizard (message d'origine, qualification, notes datées) ;
+> `get_booking` (MCP) rend la même chose sous `origin_enquiry`. **Rien n'est recopié** : deux
+> copies de la même phrase finissent par se contredire. Et la conversion **réutilise le client**
+> au lieu d'en fabriquer un second (`utils/clientIdentity.ts`).
+
 ## Le contrat avec le projet « site web »
 
 Le formulaire actuel (4 champs, visible d'emblée) est bon **et ne doit pas grossir** : c'est

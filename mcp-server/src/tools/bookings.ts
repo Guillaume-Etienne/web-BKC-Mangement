@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { supabase } from '../supabaseClient.js'
 import { fetchAccountingBundle } from '../data/fetchAccountingBundle.js'
-import type { Booking, BookingStatus, Client, BookingParticipant, Room } from '../../../client/src/types/database.js'
+import type { Booking, BookingStatus, Client, BookingParticipant, Enquiry, EnquiryNote, Room } from '../../../client/src/types/database.js'
 import {
   computeBookingTotal, computeBookingPaid, computeBookingUnverifiedPaid, computeBookingDiscounts,
 } from '../../../client/src/components/accounting/utils.js'
@@ -64,7 +64,10 @@ export function registerBookingTools(server: McpServer) {
     'get_booking',
     {
       title: 'Get booking detail',
-      description: 'Full detail of one booking: client, participants, rooms, and a payment summary (billed/paid/due).',
+      description:
+        'Full detail of one booking: client, participants, rooms, a payment summary (billed/paid/due), ' +
+        'and — when the booking came from an enquiry — that enquiry with its original message and ' +
+        'dated notes, so the conversation that led to the booking is not lost once it is converted.',
       inputSchema: { booking_id: z.string().uuid() },
     },
     async ({ booking_id }) => {
@@ -85,6 +88,18 @@ export function registerBookingTools(server: McpServer) {
         rooms = (data ?? []) as Room[]
       }
 
+      // Where this booking came from. The link already existed in the database
+      // (enquiries.booking_id) but nothing ever read it back, so everything
+      // said before the booking existed was effectively lost on conversion.
+      const { data: originRows } = await supabase.from('enquiries').select('*').eq('booking_id', booking_id)
+      const origin = ((originRows ?? []) as Enquiry[])[0] ?? null
+      let originNotes: EnquiryNote[] = []
+      if (origin) {
+        const { data } = await supabase.from('enquiry_notes').select('*')
+          .eq('enquiry_id', origin.id).order('created_at', { ascending: true })
+        originNotes = (data ?? []) as EnquiryNote[]
+      }
+
       const bundle = await fetchAccountingBundle()
       const billed = computeBookingTotal(booking, bundle)
       const paid = computeBookingPaid(booking_id, bundle.payments)
@@ -97,6 +112,21 @@ export function registerBookingTools(server: McpServer) {
         participants: (participants ?? []) as BookingParticipant[],
         rooms: rooms.map(r => r.name),
         payment_summary: { billed, paid, unverified_paid: unverifiedPaid, discounts, due: billed - paid - discounts },
+        /** null when the booking was created straight from the wizard. */
+        origin_enquiry: origin && {
+          id: origin.id,
+          name: origin.name,
+          channel: origin.channel,
+          created_at: origin.created_at,
+          message: origin.message,
+          party_size: origin.party_size,
+          arrival_month: origin.arrival_month,
+          wants_lessons: origin.wants_lessons,
+          wants_rental: origin.wants_rental,
+          wants_accommodation: origin.wants_accommodation,
+          budget_eur: origin.budget_eur,
+          notes: originNotes,
+        },
       })
     }
   )

@@ -6,11 +6,12 @@ import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useTaxiDrivers, useTaxiTrips } from '../hooks/useTaxis'
 import { useAgencies } from '../hooks/useAgencies'
 import { useTable } from '../hooks/useSupabase'
-import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, TaxiTrip, Lesson, EquipmentRental, Payment, ExternalAccommodationBooking, Agency } from '../types/database'
+import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, TaxiTrip, Lesson, EquipmentRental, Payment, ExternalAccommodationBooking, Agency, Enquiry } from '../types/database'
 import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
 import { getFullHouseRate, getBaseNightlyRate } from '../utils/roomPricing'
 import { getConfiguredRate, agencyMarker } from '../components/accounting/utils'
 import { todayISO, fmtDate } from '../utils/dates'
+import EnquiryOriginPanel from '../components/enquiries/EnquiryOriginPanel'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -295,13 +296,15 @@ interface WizardProps {
   taxiTrips: TaxiTrip[]
   editingBookingId: string | null
   isEditing: boolean
+  /** The enquiry this booking was converted from, when there was one. */
+  originEnquiry: Enquiry | null
   /** Sum of non-discount payments already recorded — the accounting source of truth */
   recordedPaid: number
   onCancel: () => void
   onSave: (data: WizardData, isNew: boolean, editingId?: string | null) => void
 }
 
-function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, agencies, houseRentals, roomRates, drivers, bookings, bookingRooms, taxiTrips, editingBookingId, isEditing, recordedPaid, onCancel, onSave }: WizardProps) {
+function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, agencies, houseRentals, roomRates, drivers, bookings, bookingRooms, taxiTrips, editingBookingId, isEditing, originEnquiry, recordedPaid, onCancel, onSave }: WizardProps) {
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(isEditing ? 6 : 1)
   const [d, setD] = useState<WizardData>(initial)
@@ -468,6 +471,11 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
           {/* ── Step 1: Client ──────────────────────────────────────────── */}
           {step === 1 && (
             <div className="space-y-4">
+              {/* First thing on the first step: what was said before this
+                  booking existed. Until now it was only reachable by hunting
+                  through the archived enquiries, if gui remembered there was
+                  one. */}
+              {originEnquiry && <EnquiryOriginPanel enquiry={originEnquiry} />}
               <p className="text-sm text-gray-500 dark:text-gray-400">Who is booking? Select an existing client or create a new one.</p>
 
               {!creatingClient ? (
@@ -1235,6 +1243,9 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   // The list only ever marks whole bookings, so no invoice lines are needed:
   // agencyMarker falls straight through to the booking's own agency_id.
   const agencyLookup = { agencies, bookings, agencyBillingLines: [] }
+  // Read only to show where a booking came from (enquiries.booking_id). Nothing
+  // here writes to enquiries — the conversion already did that.
+  const { data: enquiries } = useTable<Enquiry>('enquiries')
   const { data: roomRatesData } = useTable<RoomRate>('room_rates')
   const { data: externalStaysData, refresh: refreshExternalStays } =
     useTable<ExternalAccommodationBooking>('external_accommodation_bookings')
@@ -1261,6 +1272,9 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     const c = clients.find(c => c.id === id)
     return c ? `${c.first_name} ${c.last_name}` : '?'
   }
+
+  /** The enquiry a booking was converted from, if any — the 📣 in the list. */
+  const originOf = (bookingId: string) => enquiries.find(e => e.booking_id === bookingId) ?? null
 
   const getRoomLabel = (bookingId: string) => {
     const brs = bookingRooms.filter(b => b.booking_id === bookingId)
@@ -1842,6 +1856,10 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                         </span>
                       )}
                       {getClientName(b.client_id)}
+                      {originOf(b.id) && (
+                        <span className="ml-1 cursor-help"
+                          title={`From the enquiry of ${originOf(b.id)!.name} — open the booking to read it`}>📣</span>
+                      )}
                     </td>
                     <td className="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap font-mono text-xs">
                       {codes || '—'}
@@ -1883,6 +1901,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           <span><b className="text-gray-500 dark:text-gray-400">G</b> guests · <b className="text-gray-500 dark:text-gray-400">N</b> nights · <b className="text-gray-500 dark:text-gray-400">LK</b> kite lessons · <b className="text-gray-500 dark:text-gray-400">LW</b> wing lessons · <b className="text-gray-500 dark:text-gray-400">R</b> rentals · <b className="text-gray-500 dark:text-gray-400">C</b> center access</span>
           <span className="ml-4 flex items-center gap-1"><span className="inline-block w-3 h-3 bg-blue-100 dark:bg-blue-900/30 border-l-2 border-blue-400 dark:border-blue-700 rounded-sm" /> Active now</span>
           <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-amber-100 dark:bg-amber-900/30 border-l-2 border-amber-400 dark:border-amber-700 rounded-sm" /> Incomplete</span>
+          <span>📣 came from an enquiry</span>
         </div>
 
         {/* Mobile cards */}
@@ -1899,6 +1918,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                       </span>
                     )}
                     {getClientName(b.client_id)}
+                    {originOf(b.id) && <span className="ml-1" title="Came from an enquiry">📣</span>}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{getRoomLabel(b.id)}</p>
                 </div>
@@ -1940,6 +1960,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           taxiTrips={taxiTrips}
           editingBookingId={wizard.editing?.id ?? null}
           isEditing={!!wizard.editing}
+          originEnquiry={wizard.editing ? (enquiries.find(e => e.booking_id === wizard.editing!.id) ?? null) : null}
           recordedPaid={paymentsData
             .filter(p => p.booking_id === wizard.editing?.id && !p.is_discount)
             .reduce((s, p) => s + p.amount, 0)}

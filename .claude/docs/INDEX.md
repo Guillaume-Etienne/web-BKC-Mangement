@@ -16,6 +16,7 @@
 | Manipuler une **date calendaire** (jour, mois) | `client/src/utils/dates.ts` — **jamais** `.toISOString()`, voir ⚠️ ci-dessous |
 | **Écrire en base** depuis un écran | vérifier l'erreur, toujours — voir ⚠️ ci-dessous |
 | Ajouter une **page** | `App.tsx` : `lazy(() => import(...))` comme les autres (chargement à la demande) |
+| **Créer un client** depuis un chemin automatique | `utils/clientIdentity.ts` — réutiliser avant d'insérer (lien explicite, puis email exact, **jamais un nom**) |
 
 > ⚠️ Toujours `npm run build` avant push (Vercel = TS strict : unused/locals, types incomplets dans `mock.ts`).
 >

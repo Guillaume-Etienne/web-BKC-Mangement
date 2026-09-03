@@ -8,6 +8,61 @@
 
 ---
 
+## 🧭 Parcours Clients / Bookings / Requests — audit du 2026-09-03, chantier A livré
+
+**La demande de gui** : « je ne sais plus qui veut quoi quand le temps passe, et je dois
+chercher dans plusieurs pages — si j'ai eu la bonne idée de le noter ». Diagnostic : l'app a des
+**objets** mais pas de **dossier**. Sept champs `notes` qui ne se parlent pas, et le seul écran
+qui sait dire « qui attend quoi » (Enquiries) **jette la personne dès qu'elle devient cliente**.
+
+### ✅ A. Conversion sans perte — LIVRÉ le 2026-09-03 (aucune migration)
+
+1. **Plus de client en double.** `SubmissionsPage` et le MCP `create_booking_from_enquiry`
+   inséraient un client **inconditionnellement**, même quand la demande portait déjà un
+   `client_id` posé à la main. Règle partagée : **`client/src/utils/clientIdentity.ts`** —
+   lien explicite d'abord, puis email exact, **jamais un nom** (ces chemins tournent sans gui
+   devant l'écran ; une fusion à l'aveugle mélange deux dossiers). Les champs vides du client
+   existant sont complétés, **rien n'est écrasé** (`blanksToFill`).
+   Le panneau de validation **dit avant le clic** sous quel client la résa va être classée ;
+   le MCP renvoie `client_reused: 'linked' | 'email' | null`.
+2. **Le lien retour est enfin lu.** `enquiries.booking_id` existait depuis le 14/08 mais
+   **aucune page ne le lisait** : `BookingsPage` et `ClientsPage` ne contenaient pas une
+   occurrence de « enquir ». Désormais : pastille **📣** dans la liste des résas (desktop **et**
+   cartes mobiles) et **`EnquiryOriginPanel`** en tête de l'étape 1 du wizard — message
+   d'origine, qualification, notes datées, en lecture seule. `get_booking` (MCP) rend le même
+   bloc sous `origin_enquiry`.
+   ⚠️ **Les notes ne sont PAS recopiées sur la résa** — deux copies de la même phrase finissent
+   par se contredire. Elles restent sur la demande et sont relues par le lien.
+   ⚠️ **Le serveur MCP doit être relancé** pour que `origin_enquiry` apparaisse (tsx, process
+   démarré au début de session).
+
+### ⬜ B. La fiche client devient le dossier — le gros morceau, pas commencé
+Onglets `Info · Timeline · Bookings · Money · Documents`. **Timeline v1 assemblée à la lecture**
+depuis les tables existantes (demandes, notes, soumissions, résas, paiements, `email_logs`,
+taxis, activités) : **aucune migration**. Puis une table `client_notes` unique (qui absorbe
+`enquiry_notes`) = **un seul endroit où noter**. Plus une **recherche globale ⌘K** sur noms,
+notes, messages, emails, n° de résa. C'est la réponse à « chercher dans plusieurs pages ».
+
+### ⬜ C. Une seule liste de travail « qui attend quoi » — pas commencé
+La colonne **Silence** n'existe que pour les prospects : une résa provisoire sans nouvelles
+depuis trois semaines n'apparaît nulle part (les Pending actions ne parlent que d'échéances).
+Fondre demandes **+ résas provisoires** dans une liste triée par silence ; une gagnée change de
+colonne au lieu de disparaître.
+
+### ⬜ D. Un seul vocabulaire — pas commencé
+- « Ce qu'ils veulent » s'écrit en **3 vocabulaires** : `enquiry.wants_*` (3 booléens de groupe),
+  `booking_participants.*` (6 flags par personne), `bookings.num_*` (caches). À la conversion,
+  **proposer** les participants et leurs flags depuis la qualification — jamais en silence.
+- **Deux systèmes pour « comment nous avez-vous connus »** : liste trilingue `enquiry_sources`
+  côté demande, **texte libre** `bookings.referral_source` côté formulaire de résa
+  (`BookingFormPage.tsx`). Les stats d'origine sont coupées en deux et la question est posée
+  deux fois. → même liste déroulante des deux côtés.
+- **`bookings.notes` mélange l'humain et la machine** (« Created from public booking form.
+  Single beds requested: 2. Transfer to Bilene… »), et n'est **lisible qu'en rouvrant le
+  wizard** (ou au survol du planning). Sortir le bruit machine vers des champs / la timeline.
+
+---
+
 ## 🔐 Audit sécu du 2026-08-21 (revue indépendante, agent Opus 5) — reste 1 point sur 3
 
 Contexte complet (ce qui est solide, ce qui ne l'est pas) : mémoire, section du jour.
