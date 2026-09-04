@@ -4,6 +4,9 @@ import type { Enquiry, EnquiryNote, EnquirySource, EnquiryStatus } from '../../t
 import { STATUS_META, STATUS_ORDER, fmtArrivalMonth } from '../../utils/enquiries'
 import MonthInput from '../common/MonthInput'
 import { todayISO, addDaysISO } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
+import type { Lang } from '../../types/database'
 
 /** Read the message, fill four fields, close. Twenty seconds.
  *
@@ -52,7 +55,20 @@ function toForm(e: Enquiry | null): FormState {
 const inputCls = 'w-full text-sm border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200'
 const labelCls = 'block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1'
 
+/** STATUS_META's pill/dot colours stay shared (EnquiriesPage, utils/enquiries.ts);
+ *  only the label shown here is translated, kept local to this panel. */
+function statusLabel(s: EnquiryStatus, lang: Lang): string {
+  return {
+    new:     i18n.enquiries.ep_status_new[lang],
+    talking: i18n.enquiries.ep_status_talking[lang],
+    waiting: i18n.enquiries.ep_status_waiting[lang],
+    won:     i18n.enquiries.ep_status_won[lang],
+    lost:    i18n.enquiries.ep_status_lost[lang],
+  }[s]
+}
+
 export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDeleted }: Props) {
+  const { lang } = useLanguage()
   const [form, setForm] = useState<FormState>(() => toForm(enquiry))
   const [notes, setNotes] = useState<EnquiryNote[]>([])
   const [newNote, setNewNote] = useState('')
@@ -206,10 +222,10 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 space-y-5">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-          {isNew ? 'New enquiry' : form.name || enquiry?.name}
+          {isNew ? i18n.enquiries.ep_new_enquiry[lang] : form.name || enquiry?.name}
           {!isNew && enquiry && (
             <span className="ml-2 text-xs font-normal text-gray-400 dark:text-gray-500">
-              {enquiry.channel === 'form' ? 'from the website' : 'added by hand'}
+              {enquiry.channel === 'form' ? i18n.enquiries.ep_from_website[lang] : i18n.enquiries.ep_added_by_hand[lang]}
             </span>
           )}
         </h2>
@@ -220,39 +236,39 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
         {/* ── Left: who, and what they wrote ─────────────────────────────── */}
         <div className="space-y-3">
           <div>
-            <label className={labelCls}>Name *</label>
+            <label className={labelCls}>{i18n.enquiries.ep_label_name[lang]}</label>
             <input value={form.name} onChange={e => set('name', e.target.value)} className={inputCls} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Email</label>
+              <label className={labelCls}>{i18n.common.label_email[lang]}</label>
               <input value={form.email} onChange={e => set('email', e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Phone</label>
+              <label className={labelCls}>{i18n.common.label_phone[lang]}</label>
               <input value={form.phone} onChange={e => set('phone', e.target.value)} className={inputCls} />
             </div>
           </div>
           <div>
             <label className={labelCls}>
-              {enquiry?.channel === 'form' ? 'What they wrote' : 'Message / context'}
+              {enquiry?.channel === 'form' ? i18n.enquiries.ep_label_what_they_wrote[lang] : i18n.enquiries.ep_label_message_context[lang]}
             </label>
             <textarea value={form.message} onChange={e => set('message', e.target.value)} rows={7}
-              placeholder={isNew ? 'Muller, 4 people, February, wants lessons…' : ''}
+              placeholder={isNew ? i18n.enquiries.ep_placeholder_message[lang] : ''}
               className={`${inputCls} font-normal leading-relaxed`} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Heard about us via</label>
+              <label className={labelCls}>{i18n.enquiries.ep_label_heard_via[lang]}</label>
               <select value={form.source_id} onChange={e => set('source_id', e.target.value)} className={inputCls}>
                 <option value="">—</option>
-                {sources.map(s => <option key={s.id} value={s.id}>{s.label?.en || '(unnamed)'}</option>)}
+                {sources.map(s => <option key={s.id} value={s.id}>{s.label?.en || i18n.enquiries.ep_unnamed[lang]}</option>)}
               </select>
             </div>
             <div>
-              <label className={labelCls}>…or, in their words</label>
+              <label className={labelCls}>{i18n.enquiries.ep_label_or_words[lang]}</label>
               <input value={form.source_other} onChange={e => set('source_other', e.target.value)}
-                placeholder="a friend who came in 2024" className={inputCls} />
+                placeholder={i18n.enquiries.ep_placeholder_source_other[lang]} className={inputCls} />
             </div>
           </div>
         </div>
@@ -261,12 +277,12 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>How many</label>
+              <label className={labelCls}>{i18n.enquiries.ep_label_how_many[lang]}</label>
               <input type="number" min="1" value={form.party_size}
                 onChange={e => set('party_size', e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>When</label>
+              <label className={labelCls}>{i18n.enquiries.ep_label_when[lang]}</label>
               {/* A month, never a day: "February" is what people say, and an
                   invented day reads like a commitment. */}
               <MonthInput value={form.arrival_month} allowEmpty
@@ -275,12 +291,12 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
           </div>
 
           <div>
-            <label className={labelCls}>Interested in</label>
+            <label className={labelCls}>{i18n.enquiries.ep_label_interested_in[lang]}</label>
             <div className="flex flex-wrap gap-3 text-sm text-gray-700 dark:text-gray-300">
               {([
-                ['wants_lessons', '🪁 Lessons'],
-                ['wants_rental', '🎿 Rental'],
-                ['wants_accommodation', '🛏 Accommodation'],
+                ['wants_lessons', i18n.enquiries.ep_check_lessons[lang]],
+                ['wants_rental', i18n.enquiries.ep_check_rental[lang]],
+                ['wants_accommodation', i18n.enquiries.ep_check_accommodation[lang]],
               ] as const).map(([key, label]) => (
                 <label key={key} className="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" checked={form[key]} onChange={e => set(key, e.target.checked)} />
@@ -291,13 +307,13 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
           </div>
 
           <div>
-            <label className={labelCls}>Budget — whole party, € (optional)</label>
+            <label className={labelCls}>{i18n.enquiries.ep_label_budget[lang]}</label>
             <input type="number" min="0" value={form.budget_eur}
               onChange={e => set('budget_eur', e.target.value)} className={`${inputCls} sm:w-40`} />
           </div>
 
           <div>
-            <label className={labelCls}>Status</label>
+            <label className={labelCls}>{i18n.common.label_status[lang]}</label>
             <div className="flex flex-wrap gap-1.5">
               {STATUS_ORDER.map(s => (
                 <button key={s} type="button" onClick={() => set('status', s)}
@@ -305,7 +321,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
                     form.status === s
                       ? `${STATUS_META[s].pill} border-transparent`
                       : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300'}`}>
-                  {STATUS_META[s].label}
+                  {statusLabel(s, lang)}
                 </button>
               ))}
             </div>
@@ -313,15 +329,15 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
 
           {form.status === 'lost' && (
             <div>
-              <label className={labelCls}>Why lost — one word</label>
+              <label className={labelCls}>{i18n.enquiries.ep_label_lost_reason[lang]}</label>
               <input value={form.lost_reason} onChange={e => set('lost_reason', e.target.value)}
-                placeholder="full · budget · no reply" className={inputCls} />
+                placeholder={i18n.enquiries.ep_placeholder_lost_reason[lang]} className={inputCls} />
             </div>
           )}
 
           {form.status === 'won' && (
             <p className="text-xs text-emerald-700 dark:text-emerald-400">
-              Won leaves the working list right away — find it again in the archive, in its colour.
+              {i18n.enquiries.ep_msg_won[lang]}
             </p>
           )}
         </div>
@@ -330,16 +346,16 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
       <div className="flex flex-wrap gap-2 items-center">
         <button onClick={save} disabled={!form.name.trim() || saving}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg font-semibold text-sm">
-          {saving ? 'Saving…' : isNew ? 'Create enquiry' : 'Save'}
+          {saving ? i18n.enquiries.ep_saving[lang] : isNew ? i18n.enquiries.ep_btn_create[lang] : i18n.common.btn_save[lang]}
         </button>
         <button onClick={onClose}
           className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg font-medium text-sm">
-          Cancel
+          {i18n.common.btn_cancel[lang]}
         </button>
         {!isNew && (
           <button onClick={remove}
             className="ml-auto px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded">
-            Delete
+            {i18n.common.btn_delete[lang]}
           </button>
         )}
       </div>
@@ -350,14 +366,14 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
         <p className="text-xs">
           {enquiry.crm_error ? (
             <span className="text-red-600 dark:text-red-400">
-              ⚠ Not added to Brevo — {enquiry.crm_error}
+              {i18n.enquiries.ep_brevo_error[lang].replace('{error}', enquiry.crm_error)}
             </span>
           ) : enquiry.crm_synced_at ? (
             <span className="text-gray-500 dark:text-gray-400">
-              ✅ In Brevo since {new Date(enquiry.crm_synced_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+              {i18n.enquiries.ep_brevo_synced[lang].replace('{date}', new Date(enquiry.crm_synced_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}
             </span>
           ) : (
-            <span className="text-gray-400 dark:text-gray-500">Brevo sync not configured</span>
+            <span className="text-gray-400 dark:text-gray-500">{i18n.enquiries.ep_brevo_not_configured[lang]}</span>
           )}
         </p>
       )}
@@ -365,7 +381,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
       {/* ── The bridge to a real booking ───────────────────────────────────── */}
       {!isNew && enquiry && (
         <div className="border-t border-gray-200 dark:border-gray-800 pt-4 space-y-2">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Full booking form</h3>
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{i18n.enquiries.ep_section_full_form[lang]}</h3>
           {formLink ? (
             <>
               <div className="flex gap-2">
@@ -373,29 +389,28 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
                   className={`${inputCls} font-mono text-xs`} />
                 <button type="button" onClick={() => navigator.clipboard?.writeText(formUrl(formLink.token))}
                   className="shrink-0 px-3 py-1.5 bg-gray-800 dark:bg-gray-700 text-white rounded text-sm font-medium">
-                  Copy
+                  {i18n.enquiries.ep_btn_copy[lang]}
                 </button>
                 <button type="button" onClick={refreshFormLink} disabled={saving}
-                  title="Same link, fresh name/email/phone/language snapshot from this enquiry"
+                  title={i18n.enquiries.ep_refresh_tooltip[lang]}
                   className="shrink-0 px-3 py-1.5 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-40 rounded text-sm font-medium">
-                  {refreshed ? '✅' : 'Refresh'}
+                  {refreshed ? '✅' : i18n.enquiries.ep_btn_refresh[lang]}
                 </button>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {enquiry.form_submission_id
-                  ? '✅ Filled in — the submission came back attached to this enquiry.'
-                  : 'Sent but not filled in yet. That is worth a nudge on its own.'}
+                  ? i18n.enquiries.ep_form_filled[lang]
+                  : i18n.enquiries.ep_form_not_filled[lang]}
               </p>
             </>
           ) : (
             <>
               <button type="button" onClick={createFormLink} disabled={saving}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-lg font-semibold text-sm">
-                Create a personalised link
+                {i18n.enquiries.ep_btn_create_link[lang]}
               </button>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                A link that carries this enquiry, so what comes back is attached by construction
-                rather than matched afterwards on a name that may have changed.
+                {i18n.enquiries.ep_create_link_desc[lang]}
               </p>
             </>
           )}
@@ -406,11 +421,11 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
       {!isNew && (
         <div className="border-t border-gray-200 dark:border-gray-800 pt-4 space-y-3">
           <div className="flex items-baseline justify-between">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Notes</h3>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{i18n.common.label_notes[lang]}</h3>
             {enquiry && (
               <span className="text-xs text-gray-400 dark:text-gray-500">
-                last exchange {new Date(enquiry.last_contact_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                {enquiry.arrival_month && ` · arriving ${fmtArrivalMonth(enquiry.arrival_month)}`}
+                {i18n.enquiries.ep_last_exchange[lang].replace('{date}', new Date(enquiry.last_contact_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}
+                {enquiry.arrival_month && i18n.enquiries.ep_arriving[lang].replace('{month}', fmtArrivalMonth(enquiry.arrival_month))}
               </span>
             )}
           </div>
@@ -418,15 +433,15 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
           <div className="flex gap-2">
             <input value={newNote} onChange={e => setNewNote(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') addNote() }}
-              placeholder="Called, they're waiting on flights…" className={inputCls} />
+              placeholder={i18n.enquiries.ep_note_placeholder[lang]} className={inputCls} />
             <button onClick={addNote} disabled={!newNote.trim() || saving}
               className="shrink-0 px-3 py-1.5 bg-gray-800 dark:bg-gray-700 disabled:opacity-40 text-white rounded text-sm font-medium">
-              Add
+              {i18n.common.btn_add[lang]}
             </button>
           </div>
 
           {notes.length === 0 ? (
-            <p className="text-xs text-gray-400 dark:text-gray-500 italic">No note yet.</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 italic">{i18n.enquiries.ep_no_notes[lang]}</p>
           ) : (
             <ul className="space-y-1.5">
               {notes.map(n => (

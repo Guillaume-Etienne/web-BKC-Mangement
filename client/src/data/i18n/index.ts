@@ -10,6 +10,7 @@ import { pagesI18n } from './pages'
 import { taxesI18n } from './taxes'
 import { activitiesI18n } from './activities'
 import { equipmentI18n } from './equipment'
+import { enquiriesI18n } from './enquiries'
 
 // ─── Aggregated i18n object ──────────────────────────────────────────────────
 export const i18n = {
@@ -23,6 +24,7 @@ export const i18n = {
   taxis: taxesI18n,
   activities: activitiesI18n,
   equipment: equipmentI18n,
+  enquiries: enquiriesI18n,
 }
 
 // ─── Type exports ────────────────────────────────────────────────────────────

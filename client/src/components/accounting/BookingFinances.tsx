@@ -11,14 +11,19 @@ import {
 } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
 import AgencyBillingPanel from './AgencyBillingPanel'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
+import type { Lang } from '../../types/database'
 
 interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
 
-const METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash_eur:        'Cash EUR',
-  cash_mzn:        'Cash MZN',
-  transfer:        'Transfer',
-  card_palmeiras:  'Card (Palmeiras)',
+function methodLabels(lang: Lang): Record<PaymentMethod, string> {
+  return {
+    cash_eur:       i18n.accounting.method_cash_eur[lang],
+    cash_mzn:       i18n.accounting.method_cash_mzn[lang],
+    transfer:       i18n.accounting.method_transfer[lang],
+    card_palmeiras: i18n.accounting.method_card_palmeiras[lang],
+  }
 }
 
 const METHOD_COLORS: Record<PaymentMethod, string> = {
@@ -39,6 +44,7 @@ interface EditRoomPriceFormProps {
   onCancel: () => void
 }
 function EditRoomPriceForm({ bookingId, roomId, currentPrice, currentNote, onSave, onCancel }: EditRoomPriceFormProps) {
+  const { lang } = useLanguage()
   const [price, setPrice] = useState(String(currentPrice))
   const [note, setNote] = useState(currentNote ?? '')
 
@@ -60,7 +66,7 @@ function EditRoomPriceForm({ bookingId, roomId, currentPrice, currentNote, onSav
         autoFocus
         className="w-20 px-2 py-0.5 border border-blue-300 dark:border-blue-800 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-400" />
       <span className="text-xs text-gray-400 dark:text-gray-400">€/n</span>
-      <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="Note"
+      <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder={i18n.accounting.bf_note_short[lang]}
         className="w-28 px-2 py-0.5 border border-gray-300 dark:border-gray-700 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
       <button type="submit" className="px-2 py-0.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">✓</button>
       <button type="button" onClick={onCancel} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-700">✕</button>
@@ -110,6 +116,7 @@ interface LessonPriceFormProps {
   onCancel: () => void
 }
 function LessonPriceForm({ currentRate, isCustom, listRate, onSave, onReset, onCancel }: LessonPriceFormProps) {
+  const { lang } = useLanguage()
   const [rate, setRate] = useState(String(currentRate))
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -123,21 +130,21 @@ function LessonPriceForm({ currentRate, isCustom, listRate, onSave, onReset, onC
     <form onSubmit={handleSubmit} className="mt-1 p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded space-y-1.5">
       <div className="flex items-end gap-2">
         <div>
-          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">Client price (€/h)</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">{i18n.accounting.bf_client_price_label[lang]}</label>
           <input type="number" min="0" step="0.5" value={rate} onChange={e => setRate(e.target.value)} autoFocus
             className="w-24 px-2 py-0.5 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
         </div>
-        <p className="text-xs text-gray-400 dark:text-gray-400 pb-1">Price list: {fmtEur(listRate)}/h</p>
+        <p className="text-xs text-gray-400 dark:text-gray-400 pb-1">{i18n.accounting.bf_price_list[lang].replace('{rate}', fmtEur(listRate))}</p>
       </div>
       <div className="flex gap-1">
         <button type="button" onClick={onCancel}
-          className="px-2 py-0.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">Cancel</button>
+          className="px-2 py-0.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">{i18n.common.btn_cancel[lang]}</button>
         {isCustom && (
           <button type="button" onClick={onReset}
-            className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-xs hover:bg-red-200 dark:hover:bg-red-800">Back to price list</button>
+            className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-xs hover:bg-red-200 dark:hover:bg-red-800">{i18n.accounting.bf_back_to_price_list[lang]}</button>
         )}
         <button type="submit"
-          className="flex-1 px-2 py-0.5 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700">Save</button>
+          className="flex-1 px-2 py-0.5 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700">{i18n.common.btn_save[lang]}</button>
       </div>
     </form>
   )
@@ -153,6 +160,7 @@ interface DiscountFormProps {
 }
 
 function DiscountForm({ bookingId, initial, onSave, onCancel }: DiscountFormProps) {
+  const { lang } = useLanguage()
   const [amount, setAmount] = useState(initial ? String(initial.amount) : '')
   const [notes,  setNotes]  = useState(initial?.notes ?? '')
   const [date,   setDate]   = useState(initial?.date ?? todayISO())
@@ -176,32 +184,32 @@ function DiscountForm({ bookingId, initial, onSave, onCancel }: DiscountFormProp
 
   return (
     <form onSubmit={handleSubmit} className="bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900 rounded-lg p-4 space-y-3">
-      <p className="text-sm font-semibold text-purple-800 dark:text-purple-400">{initial ? 'Edit discount' : 'Add discount'}</p>
+      <p className="text-sm font-semibold text-purple-800 dark:text-purple-400">{initial ? i18n.accounting.bf_edit_discount[lang] : i18n.accounting.bf_add_discount[lang]}</p>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Date</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.common.label_date[lang]}</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
             className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
         </div>
         <div>
-          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Amount (€)</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.bf_amount_eur[lang]}</label>
           <input type="number" min="0.01" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} autoFocus
             className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
         </div>
       </div>
       <div>
-        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Reason</label>
-        <input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Loyalty discount"
+        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.bf_reason[lang]}</label>
+        <input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder={i18n.accounting.bf_placeholder_discount_reason[lang]}
           className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
       </div>
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onCancel}
           className="flex-1 px-3 py-1.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
-          Cancel
+          {i18n.common.btn_cancel[lang]}
         </button>
         <button type="submit"
           className="flex-1 px-3 py-1.5 bg-purple-600 text-white rounded text-sm font-semibold hover:bg-purple-700">
-          {initial ? 'Update' : 'Save discount'}
+          {initial ? i18n.accounting.bf_update[lang] : i18n.accounting.bf_save_discount[lang]}
         </button>
       </div>
     </form>
@@ -219,6 +227,7 @@ interface PaymentFormProps {
 }
 
 function PaymentForm({ bookingId, initial, suggestedDeposit = 0, onSave, onCancel }: PaymentFormProps) {
+  const { lang } = useLanguage()
   const [amount,     setAmount]     = useState(initial ? String(initial.amount) : String(suggestedDeposit))
   const [method,     setMethod]     = useState<PaymentMethod>(initial?.method ?? 'transfer')
   const [isDeposit,  setIsDeposit]  = useState(initial?.is_deposit ?? false)
@@ -248,54 +257,54 @@ function PaymentForm({ bookingId, initial, suggestedDeposit = 0, onSave, onCance
   return (
     <form onSubmit={handleSubmit} className={`border rounded-lg p-4 space-y-3 ${isEdit ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900' : 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900'}`}>
       <p className={`text-sm font-semibold ${isEdit ? 'text-amber-800 dark:text-amber-400' : 'text-blue-800 dark:text-blue-400'}`}>
-        {isEdit ? 'Edit payment' : 'Add payment'}
+        {isEdit ? i18n.accounting.bf_edit_payment[lang] : i18n.accounting.bf_add_payment[lang]}
       </p>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Date</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.common.label_date[lang]}</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
             className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div>
-          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Amount (€)</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.bf_amount_eur[lang]}</label>
           <input type="number" min="0.01" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
             className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Method</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.bf_method[lang]}</label>
           <select value={method} onChange={e => setMethod(e.target.value as PaymentMethod)}
             className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-900">
-            {(Object.entries(METHOD_LABELS) as [PaymentMethod, string][]).map(([v, l]) => (
+            {(Object.entries(methodLabels(lang)) as [PaymentMethod, string][]).map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
             ))}
           </select>
         </div>
         <div>
-          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Notes</label>
-          <input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.common.label_notes[lang]}</label>
+          <input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder={i18n.common.msg_optional[lang]}
             className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
       </div>
       <div className="flex gap-4">
         <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
           <input type="checkbox" checked={isDeposit} onChange={e => setIsDeposit(e.target.checked)} className="rounded" />
-          Deposit
+          {i18n.accounting.bf_deposit[lang]}
         </label>
         <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
           <input type="checkbox" checked={isVerified} onChange={e => setIsVerified(e.target.checked)} className="rounded" />
-          Verified
+          {i18n.accounting.bf_verified[lang]}
         </label>
       </div>
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onCancel}
           className="flex-1 px-3 py-1.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
-          Cancel
+          {i18n.common.btn_cancel[lang]}
         </button>
         <button type="submit"
           className={`flex-1 px-3 py-1.5 text-white rounded text-sm font-semibold ${isEdit ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
-          {isEdit ? 'Update' : 'Save payment'}
+          {isEdit ? i18n.accounting.bf_update[lang] : i18n.accounting.bf_save_payment[lang]}
         </button>
       </div>
     </form>
@@ -311,6 +320,7 @@ interface DetailPanelProps {
 }
 
 function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
+  const { lang } = useLanguage()
   const [showAddPayment, setShowAddPayment] = useState(false)
   const [showAddDiscount, setShowAddDiscount] = useState(false)
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
@@ -367,18 +377,18 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
       {/* Header totals */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
-          <p className="text-xs text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1">Total</p>
+          <p className="text-xs text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1">{i18n.common.label_total[lang]}</p>
           <p className="text-xl font-bold text-gray-800 dark:text-gray-200">{fmtEur(total)}</p>
-          {nights > 0 && <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">{nights} nights</p>}
+          {nights > 0 && <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">{i18n.accounting.bf_nights[lang].replace('{count}', String(nights))}</p>}
         </div>
         <div className="bg-emerald-50 dark:bg-emerald-950/40 rounded-lg p-4 text-center">
-          <p className="text-xs text-emerald-500 dark:text-emerald-400 uppercase tracking-wide mb-1">Paid</p>
+          <p className="text-xs text-emerald-500 dark:text-emerald-400 uppercase tracking-wide mb-1">{i18n.accounting.label_paid[lang]}</p>
           <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">{fmtEur(paid)}</p>
-          {paid === 0 && <p className="text-xs text-amber-500 dark:text-amber-400 mt-1">Deposit suggested: {fmtEur(sugDeposit)}</p>}
+          {paid === 0 && <p className="text-xs text-amber-500 dark:text-amber-400 mt-1">{i18n.accounting.bf_deposit_suggested[lang].replace('{amount}', fmtEur(sugDeposit))}</p>}
         </div>
         <div className={`rounded-lg p-4 text-center ${due > 0 ? 'bg-amber-50 dark:bg-amber-950/40' : 'bg-emerald-50 dark:bg-emerald-950/40'}`}>
           <p className={`text-xs uppercase tracking-wide mb-1 ${due > 0 ? 'text-amber-500 dark:text-amber-400' : 'text-emerald-500 dark:text-emerald-400'}`}>
-            {due > 0 ? 'Outstanding' : 'Settled ✓'}
+            {due > 0 ? i18n.accounting.label_outstanding[lang] : i18n.accounting.bf_settled[lang]}
           </p>
           <p className={`text-xl font-bold ${due > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>{fmtEur(due)}</p>
         </div>
@@ -386,14 +396,14 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
 
       {/* Price breakdown */}
       <div>
-        <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">Price breakdown</p>
+        <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">{i18n.accounting.bf_price_breakdown[lang]}</p>
         <div className="space-y-2">
 
           {/* Accommodation */}
           {(bkRooms.length > 0 || extAccomm.length > 0) && (
             <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
               <div className="flex justify-between items-center px-4 py-2 bg-gray-50 dark:bg-gray-800">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🏠 Accommodation</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🏠 {i18n.accounting.rev_accommodation[lang]}</span>
                 <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{fmtEur(accommodationRev)}</span>
               </div>
               <div className="px-4 py-2 space-y-1">
@@ -413,7 +423,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                     return (
                       <div key={br.room_id} className="flex justify-between text-xs text-gray-400 dark:text-gray-400">
                         <span>{roomLabel} × {nights}N</span>
-                        <span className="italic">billed per stay ↓</span>
+                        <span className="italic">{i18n.accounting.bf_billed_per_stay[lang]}</span>
                       </div>
                     )
                   }
@@ -425,7 +435,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                           {snap?.override_note && <span className="ml-2 text-amber-500 dark:text-amber-400 italic">({snap.override_note})</span>}
                           {hasNoPrice && (
                             <span className="ml-2 text-red-400 dark:text-red-300 font-medium">
-                              {rate > 0 ? '⚠ base rate' : '⚠ no price'}
+                              {rate > 0 ? i18n.accounting.bf_warn_base_rate[lang] : i18n.accounting.bf_warn_no_price[lang]}
                             </span>
                           )}
                         </span>
@@ -458,17 +468,17 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                   return (
                     <div key={e.id} className="space-y-0.5">
                       <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                        <span>{acc?.name ?? 'External'} × {n}N — flat rate</span>
+                        <span>{acc?.name ?? i18n.accounting.label_external[lang]} × {n}N — {i18n.accounting.bf_flat_rate[lang]}</span>
                         <span>{fmtEur(revenue)}</span>
                       </div>
                       {cost > 0 && (
                         <>
                           <div className="flex justify-between text-xs text-gray-400 dark:text-gray-400 pl-4">
-                            <span>Cost</span>
+                            <span>{i18n.accounting.bf_cost[lang]}</span>
                             <span className="text-red-400 dark:text-red-300">−{fmtEur(cost)}</span>
                           </div>
                           <div className="flex justify-between text-xs font-medium pl-4">
-                            <span className="text-emerald-600 dark:text-emerald-400">Margin</span>
+                            <span className="text-emerald-600 dark:text-emerald-400">{i18n.accounting.bf_margin[lang]}</span>
                             <span className="text-emerald-600 dark:text-emerald-400">{fmtEur(revenue - cost)}</span>
                           </div>
                         </>
@@ -484,7 +494,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           {lessonsRev > 0 && (
             <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
               <div className="flex justify-between items-center px-4 py-2 bg-gray-50 dark:bg-gray-800">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🏄 Lessons</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🏄 {i18n.accounting.rev_lessons[lang]}</span>
                 <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{fmtEur(lessonsRev)}</span>
               </div>
               <div className="px-4 py-2 space-y-1">
@@ -504,9 +514,9 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                           {l.participant_ids.length > 0 && (
                             <span className="ml-1 text-blue-400 dark:text-blue-300">— {partNames(l.participant_ids)}</span>
                           )}
-                          {isCustom && <span className="ml-1 text-amber-500 dark:text-amber-400 italic">(custom price)</span>}
+                          {isCustom && <span className="ml-1 text-amber-500 dark:text-amber-400 italic">({i18n.accounting.bf_custom_price[lang]})</span>}
                           {rate === 0 && (
-                            <span className="ml-2 text-red-400 dark:text-red-300 font-medium">no price configured</span>
+                            <span className="ml-2 text-red-400 dark:text-red-300 font-medium">{i18n.accounting.bf_no_price_configured[lang]}</span>
                           )}
                         </span>
                         <div className="flex items-center gap-2">
@@ -536,7 +546,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           {rentalsRev > 0 && (
             <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
               <div className="flex justify-between items-center px-4 py-2 bg-gray-50 dark:bg-gray-800">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🎿 Equipment rentals</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🎿 {i18n.accounting.bf_equipment_rentals[lang]}</span>
                 <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{fmtEur(rentalsRev)}</span>
               </div>
               <div className="px-4 py-2 space-y-1">
@@ -577,7 +587,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           {taxiRev > 0 && (
             <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
               <div className="flex justify-between items-center px-4 py-2 bg-gray-50 dark:bg-gray-800">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🚕 Taxis</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🚕 {i18n.accounting.bf_taxis[lang]}</span>
                 <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{fmtEur(taxiRev)}</span>
               </div>
               <div className="px-4 py-2 space-y-1">
@@ -603,7 +613,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
             return (
               <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
                 <div className="flex justify-between items-center px-4 py-2 bg-gray-50 dark:bg-gray-800">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🍽️ Dining events</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🍽️ {i18n.accounting.bf_dining_events[lang]}</span>
                   <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{fmtEur(diningRev)}</span>
                 </div>
                 <div className="px-4 py-2 space-y-1">
@@ -617,7 +627,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                     return (
                       <div key={ev.id} className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
                         <span>
-                          {fmtDate(ev.date)} · {ev.name || '(unnamed)'} · {attending.length}p @ {fmtEur(ev.price_per_person)}
+                          {fmtDate(ev.date)} · {ev.name || i18n.accounting.bf_unnamed[lang]} · {attending.length}p @ {fmtEur(ev.price_per_person)}
                           <span className="ml-1 text-blue-400 dark:text-blue-300">— {attending.map(a => partName(a.person_id) ?? a.person_name).join(', ')}</span>
                         </span>
                         <span>{fmtEur(evTotal)}</span>
@@ -633,7 +643,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           {activityRev > 0 && (
             <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
               <div className="flex justify-between items-center px-4 py-2 bg-gray-50 dark:bg-gray-800">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🎯 Activities</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🎯 {i18n.accounting.rev_activities[lang]}</span>
                 <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{fmtEur(activityRev)}</span>
               </div>
               <div className="px-4 py-2 space-y-1">
@@ -656,12 +666,12 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           {centerAccessRev > 0 && (
             <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
               <div className="flex justify-between items-center px-4 py-2 bg-gray-50 dark:bg-gray-800">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🏖️ Center access</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🏖️ {i18n.accounting.rev_center_access[lang]}</span>
                 <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{fmtEur(centerAccessRev)}</span>
               </div>
               <div className="px-4 py-2">
                 <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                  <span>{b.num_center_access} person{b.num_center_access > 1 ? 's' : ''} × {nights}N @ {fmtEur(b.center_access_rate)}/day</span>
+                  <span>{b.num_center_access} {b.num_center_access > 1 ? i18n.accounting.bf_persons[lang] : i18n.accounting.bf_person[lang]} × {nights}N @ {fmtEur(b.center_access_rate)}/day</span>
                   <span>{fmtEur(centerAccessRev)}</span>
                 </div>
               </div>
@@ -670,12 +680,12 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
 
           {/* Total line */}
           <div className="flex justify-between items-center px-4 py-2 bg-gray-800 rounded-lg text-white text-sm font-bold">
-            <span>Total</span>
+            <span>{i18n.common.label_total[lang]}</span>
             <span>{fmtEur(total)}</span>
           </div>
           {discounts > 0 && (
             <div className="flex justify-between items-center px-4 py-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-purple-700 dark:text-purple-400 text-sm font-bold">
-              <span>Discounts</span>
+              <span>{i18n.accounting.bf_discount_badge[lang]}</span>
               <span>-{fmtEur(discounts)}</span>
             </div>
           )}
@@ -704,7 +714,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
             const rate = getLessonClientRate(l, data.priceItems, { tiers: data.priceTiers, allLessons: data.lessons, bookingParticipants: data.bookingParticipants })
             lines.push({
               date: l.date,
-              label: `${l.type} lesson ${l.duration_hours}h${instr ? ` (${instr.first_name})` : ''}`,
+              label: `${l.type} ${i18n.accounting.bf_word_lesson[lang]} ${l.duration_hours}h${instr ? ` (${instr.first_name})` : ''}`,
               amount: rate * l.duration_hours,
             })
           }
@@ -713,7 +723,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           for (const r of bkRentals) {
             if (r.participant_id !== part.id) continue
             const equip = data.equipment.find(e => e.id === r.equipment_id)
-            lines.push({ date: r.date, label: `${equip?.category ?? 'rental'} · ${r.slot}`, amount: r.price })
+            lines.push({ date: r.date, label: `${equip?.category ?? i18n.accounting.bf_word_rental[lang]} · ${r.slot}`, amount: r.price })
           }
 
           // Dining events where this participant attended
@@ -722,7 +732,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
             if (!att) continue
             const amount = att.price_override ?? ev.price_per_person
             if (amount === 0) continue
-            lines.push({ date: ev.date, label: ev.name || 'dining', amount })
+            lines.push({ date: ev.date, label: ev.name || i18n.accounting.bf_word_dining[lang], amount })
           }
 
           // Activities where this participant is listed
@@ -742,7 +752,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           <details className="group">
             <summary className="cursor-pointer select-none flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors py-2">
               <span className="transition-transform group-open:rotate-90">▶</span>
-              Per-guest breakdown
+              {i18n.accounting.bf_per_guest_breakdown[lang]}
             </summary>
             <div className="mt-2 space-y-3">
               {guestData.map(({ participant: p, lines, total }) => (
@@ -769,16 +779,16 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
       {/* Payments */}
       <div>
         <div className="flex justify-between items-center mb-3">
-          <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">Payments</p>
+          <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.bf_payments_header[lang]}</p>
           {!showAddPayment && !showAddDiscount && (
             <div className="flex gap-2">
               <button onClick={() => setShowAddDiscount(true)}
                 className="text-xs px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">
-                + Discount
+                {i18n.accounting.bf_plus_discount[lang]}
               </button>
               <button onClick={() => setShowAddPayment(true)}
                 className="text-xs px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
-                + Payment
+                {i18n.accounting.bf_plus_payment[lang]}
               </button>
             </div>
           )}
@@ -802,7 +812,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
         )}
 
         {bkPayments.length === 0 && !showAddPayment ? (
-          <p className="text-sm text-gray-400 dark:text-gray-400 italic">No payments recorded yet.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-400 italic">{i18n.accounting.bf_no_payments[lang]}</p>
         ) : (
           <div className="space-y-2 mt-2">
             {bkPayments.map(p => (
@@ -828,19 +838,19 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-gray-400 dark:text-gray-400 text-xs">{fmtDate(p.date)}</span>
                       {p.is_discount ? (
-                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">Discount</span>
+                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">{i18n.accounting.bf_discount_badge[lang]}</span>
                       ) : (
                         <span className={`px-2 py-0.5 rounded text-xs font-semibold ${METHOD_COLORS[p.method]}`}>
-                          {METHOD_LABELS[p.method]}
+                          {methodLabels(lang)[p.method]}
                         </span>
                       )}
                       {p.is_deposit && (
-                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">Deposit</span>
+                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">{i18n.accounting.bf_deposit[lang]}</span>
                       )}
                       {!p.is_discount && (
                         p.is_verified
-                          ? <span className="px-2 py-0.5 rounded text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">✓ Verified</span>
-                          : <span className="px-2 py-0.5 rounded text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">⚠ To verify</span>
+                          ? <span className="px-2 py-0.5 rounded text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">{i18n.accounting.bf_status_verified[lang]}</span>
+                          : <span className="px-2 py-0.5 rounded text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">{i18n.accounting.bf_status_to_verify[lang]}</span>
                       )}
                       {p.notes && <span className="text-gray-400 dark:text-gray-400 text-xs italic">{p.notes}</span>}
                     </div>
@@ -858,7 +868,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
               </div>
             ))}
             <div className="flex justify-between items-center px-4 py-2 border-t text-sm font-semibold">
-              <span className="text-gray-600 dark:text-gray-400">Total paid</span>
+              <span className="text-gray-600 dark:text-gray-400">{i18n.accounting.bf_total_paid[lang]}</span>
               <span className="text-emerald-700 dark:text-emerald-400">{fmtEur(paid)}</span>
             </div>
           </div>
@@ -871,6 +881,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
 // ── Main component ─────────────────────────────────────────────────────────
 
 export default function BookingFinances({ data, handlers }: Props) {
+  const { lang } = useLanguage()
   const { bookings, clients, payments } = data
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showCancelled, setShowCancelled] = useState(false)
@@ -897,9 +908,9 @@ export default function BookingFinances({ data, handlers }: Props) {
       {/* Totals bar */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Total billed',    value: activeRows.reduce((s, r) => s + r.total, 0), color: 'text-gray-800 dark:text-gray-200' },
-          { label: 'Total collected', value: activeRows.reduce((s, r) => s + r.paid, 0),  color: 'text-emerald-700 dark:text-emerald-400' },
-          { label: 'Total outstanding', value: activeRows.reduce((s, r) => s + r.due, 0), color: 'text-amber-700 dark:text-amber-400' },
+          { label: i18n.bookings.label_total_billed[lang],    value: activeRows.reduce((s, r) => s + r.total, 0), color: 'text-gray-800 dark:text-gray-200' },
+          { label: i18n.bookings.label_total_collected[lang], value: activeRows.reduce((s, r) => s + r.paid, 0),  color: 'text-emerald-700 dark:text-emerald-400' },
+          { label: i18n.bookings.label_total_outstanding[lang], value: activeRows.reduce((s, r) => s + r.due, 0), color: 'text-amber-700 dark:text-amber-400' },
         ].map(kpi => (
           <div key={kpi.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 py-4">
             <p className="text-xs text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1">{kpi.label}</p>
@@ -914,12 +925,12 @@ export default function BookingFinances({ data, handlers }: Props) {
           <thead className="bg-gray-50 dark:bg-gray-800 border-b">
             <tr>
               <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400 w-12">#</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Client</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Dates</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Total</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Paid</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Balance</th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-400">Status</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.bookings.col_client[lang]}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.bookings.col_dates[lang]}</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.common.label_total[lang]}</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.label_paid[lang]}</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.bf_balance[lang]}</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-400">{i18n.common.label_status[lang]}</th>
             </tr>
           </thead>
           <tbody>
@@ -961,7 +972,7 @@ export default function BookingFinances({ data, handlers }: Props) {
                         b.status === 'confirmed'   ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400' :
                         b.status === 'provisional' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400' :
                         'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-400'
-                      }`}>{b.status}</span>
+                      }`}>{b.status === 'confirmed' ? i18n.bookings.status_confirmed[lang] : b.status === 'provisional' ? i18n.bookings.status_provisional[lang] : i18n.bookings.status_cancelled[lang]}</span>
                     </td>
                   </tr>
                   {isExpanded && (
@@ -984,7 +995,7 @@ export default function BookingFinances({ data, handlers }: Props) {
           onClick={() => setShowCancelled(s => !s)}
           className="text-xs text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400"
         >
-          {showCancelled ? 'Hide cancelled bookings' : `Show cancelled bookings`}
+          {showCancelled ? i18n.accounting.bf_hide_cancelled[lang] : i18n.accounting.bf_show_cancelled[lang]}
         </button>
       </div>
 
@@ -993,19 +1004,19 @@ export default function BookingFinances({ data, handlers }: Props) {
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-amber-200 dark:border-amber-900 overflow-hidden">
           <div className="flex justify-between items-center px-5 py-3 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900">
             <div>
-              <p className="text-sm font-semibold text-amber-800 dark:text-amber-400">Unlinked taxi trips</p>
-              <p className="text-xs text-amber-600 dark:text-amber-400">Not attached to any booking</p>
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-400">{i18n.accounting.bf_unlinked_taxi_trips[lang]}</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">{i18n.accounting.bf_not_attached[lang]}</p>
             </div>
             <p className="text-sm font-bold text-amber-800 dark:text-amber-400">{fmtEur(standaloneRev)}</p>
           </div>
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-800 border-b">
               <tr>
-                <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400 text-xs">Date</th>
-                <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400 text-xs">Type</th>
-                <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400 text-xs">Persons</th>
-                <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400 text-xs">Notes</th>
-                <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400 text-xs">Amount</th>
+                <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400 text-xs">{i18n.common.label_date[lang]}</th>
+                <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400 text-xs">{i18n.accounting.bf_type[lang]}</th>
+                <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400 text-xs">{i18n.accounting.bf_persons_col[lang]}</th>
+                <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400 text-xs">{i18n.common.label_notes[lang]}</th>
+                <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400 text-xs">{i18n.common.label_amount[lang]}</th>
               </tr>
             </thead>
             <tbody>

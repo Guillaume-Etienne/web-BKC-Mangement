@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import type { DossierEvent, DossierEventKind } from '../../utils/dossier'
 import { fmtDate } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
+import type { Lang } from '../../types/database'
 
 /** The person's file, one column, newest first.
  *
@@ -22,18 +25,22 @@ interface Props {
   notesTableMissing: boolean
 }
 
-const FILTERS: { key: DossierEventKind | 'all'; label: string }[] = [
-  { key: 'all', label: 'Everything' },
-  { key: 'note', label: '📝 Words' },
-  { key: 'stay', label: '🏠 Stays' },
-  { key: 'payment', label: '💰 Money' },
-  { key: 'email', label: '📧 Documents' },
-]
+function getFilters(lang: Lang): { key: DossierEventKind | 'all'; label: string }[] {
+  return [
+    { key: 'all', label: i18n.clients.ct_filter_all[lang] },
+    { key: 'note', label: `📝 ${i18n.clients.ct_filter_words[lang]}` },
+    { key: 'stay', label: `🏠 ${i18n.clients.ct_filter_stays[lang]}` },
+    { key: 'payment', label: `💰 ${i18n.clients.ct_filter_money[lang]}` },
+    { key: 'email', label: `📧 ${i18n.clients.ct_filter_documents[lang]}` },
+  ]
+}
 
 /** "Words" groups the three places a sentence can be written or received. */
 const WORD_KINDS: DossierEventKind[] = ['note', 'enquiry', 'submission']
 
 export default function ClientTimeline({ events, loading, error, silence, onAddNote, notesTableMissing }: Props) {
+  const { lang } = useLanguage()
+  const FILTERS = getFilters(lang)
   const [filter, setFilter] = useState<DossierEventKind | 'all'>('all')
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
@@ -59,9 +66,11 @@ export default function ClientTimeline({ events, loading, error, silence, onAddN
     <div className="p-4 space-y-3 overflow-y-auto flex-1">
       {silence !== null && (
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Last activity{' '}
+          {i18n.clients.ct_last_activity[lang]}{' '}
           <span className={silence >= 14 ? 'font-semibold text-amber-600 dark:text-amber-400' : ''}>
-            {silence === 0 ? 'today' : `${silence} day${silence > 1 ? 's' : ''} ago`}
+            {silence === 0 ? i18n.clients.ct_today[lang] : (silence > 1
+              ? i18n.clients.ct_days_ago[lang].replace('{count}', String(silence))
+              : i18n.clients.ct_day_ago[lang].replace('{count}', String(silence)))}
           </span>
         </p>
       )}
@@ -75,22 +84,22 @@ export default function ClientTimeline({ events, loading, error, silence, onAddN
           onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) save() }}
           rows={draft ? 3 : 1}
           disabled={notesTableMissing}
-          placeholder={notesTableMissing ? 'Notes not available yet' : 'Write a note about this person…'}
+          placeholder={notesTableMissing ? i18n.clients.ct_notes_unavailable[lang] : i18n.clients.ct_note_placeholder[lang]}
           className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-400"
         />
         {draft.trim() && (
           <div className="flex items-center gap-2">
             <button onClick={save} disabled={saving}
               className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-semibold">
-              {saving ? 'Saving…' : 'Save note'}
+              {saving ? i18n.clients.ct_saving[lang] : i18n.clients.ct_save_note[lang]}
             </button>
             <span className="text-[11px] text-gray-400 dark:text-gray-500">⌘/Ctrl + Enter</span>
           </div>
         )}
         {notesTableMissing && (
           <p className="text-[11px] text-amber-700 dark:text-amber-400">
-            Notes on a client are not stored yet — the <span className="font-mono">2026-09-03_client_notes.sql</span>{' '}
-            migration has not been applied to this database. Everything below still reads correctly.
+            {i18n.clients.ct_notes_migration_pre[lang]} <span className="font-mono">2026-09-03_client_notes.sql</span>{' '}
+            {i18n.clients.ct_notes_migration_post[lang]}
           </p>
         )}
         {noteError && <p className="text-[11px] text-rose-600 dark:text-rose-400">{noteError}</p>}
@@ -117,12 +126,12 @@ export default function ClientTimeline({ events, loading, error, silence, onAddN
       )}
 
       {loading && events.length === 0 && (
-        <p className="text-sm text-gray-400 dark:text-gray-500 italic">Loading the file…</p>
+        <p className="text-sm text-gray-400 dark:text-gray-500 italic">{i18n.clients.ct_loading_file[lang]}</p>
       )}
 
       {!loading && shown.length === 0 && (
         <p className="text-sm text-gray-400 dark:text-gray-500">
-          {events.length === 0 ? 'Nothing recorded yet for this person.' : 'Nothing of that kind in this file.'}
+          {events.length === 0 ? i18n.clients.ct_empty_none[lang] : i18n.clients.ct_empty_filtered[lang]}
         </p>
       )}
 
