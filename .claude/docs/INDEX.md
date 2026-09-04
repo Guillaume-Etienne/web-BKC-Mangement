@@ -26,6 +26,7 @@
 | **Clôturer les demandes sans suite** | Requests → liste de travail, bandeau « X enquiries with no future » (`utils/seasonClose.ts`). ⚠️ Ferme au **mois écoulé**, volontairement **sans lire la table `seasons`** : attendre la fin de saison (15/03) laisserait un « novembre » mort quatre mois dans la liste |
 | **Voir qui dort dans une résa** (noms, niveau, passeport) | Bookings → cliquer le compteur **`4G`** de la colonne Stay (ou « 👥 4 pax » sur mobile) |
 | **Savoir s'il manque un passeport** (document de visa) | La pastille **⚠️** de la liste des résas — `utils/bookingCompleteness.ts`, testé. Le nom de la personne apparaît dans le dépliage |
+| **Ajouter un champ obligatoire au formulaire public** | `utils/bookingFormCompleteness.ts` — `missingOnStep()` **seulement**. Jamais une condition dans la page : c'est elle qui décide *et* du bouton *et* de ce que le visiteur lit |
 | Distinguer « **table / colonne pas encore migrée** » d'une vraie panne | `utils/supabaseErrors.ts` — `isMissingTable` (**`PGRST205`**, pas `42P01`) et `isMissingColumn` (`42703`). ⚠️ **Ne jamais nommer une colonne pas encore migrée dans un `select`** : PostgREST rejette la requête **entière** et l'écran affiche des zéros sans erreur (vécu en PROD le 2026-09-03) |
 
 > ⚠️ Toujours `npm run build` avant push (Vercel = TS strict : unused/locals, types incomplets dans `mock.ts`).
@@ -36,6 +37,16 @@
 > trajets taxi et des paiements, et décalé un mois comptable. Tout passe par
 > **`client/src/utils/dates.ts`** (`todayISO`, `toISODate`, `addDaysISO`, `thisMonthISO`,
 > `daysBetween`), testé dans `dates.test.ts`. Corrigé partout le 2026-07-31.
+>
+> ⚠️ **Sur une page publique, `localStorage` LANCE une exception** (navigateur intégré de
+> WhatsApp/Facebook sur Android, « bloquer toutes les données de site »). Il ne renvoie pas
+> `null`. Au **module scope** — c'était le cas dans `lib/supabase.ts` — le module n'est jamais
+> évalué et **toute l'app rend une page blanche**, sans rien dans l'UI. Tout accès sur le chemin
+> anon passe par un `try/catch`. Reste à traiter : `pages/taxiShareUI.tsx` (`usePref`).
+>
+> ⚠️ **Un bouton grisé sur un téléphone est indiscernable d'une page cassée.** Le formulaire
+> public ne désactive plus aucun bouton : il nomme ce qui manque (2026-09-04). Même piège
+> partout ailleurs où une étape se valide.
 >
 > ⚠️ **Une écriture Supabase dont on ne lit pas l'erreur ment à l'écran.** Le refus (RLS,
 > contrainte, réseau coupé) est silencieux : l'app affiche la réservation déplacée, le

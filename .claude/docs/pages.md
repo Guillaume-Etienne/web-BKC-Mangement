@@ -99,9 +99,21 @@
   3. 🧳 **Logistics** — bagages, bagages kite, lits doubles, lits simples, assurance voyage
   4. 🪂 **Crew** — liste **dynamique** de voyageurs (prénom/nom/passeport)
   5. 🧾 **Finish** — contact d'urgence + waiver déroulant + case obligatoire
-- **Validation par étape** (`canProceed`), submit désactivé tant que waiver non coché.
+- **Validation par étape — `utils/bookingFormCompleteness.ts` (testé)** : `missingOnStep()` rend
+  la **liste des réponses manquantes** (clé i18n + n° de voyageur), et `canLeaveStep()` n'est que
+  « cette liste est vide ». ⚠️ **Aucun bouton n'est désactivé** : appuyer sur Next/Submit sur une
+  étape incomplète **nomme** ce qui manque et **scrolle** dessus. Régression corrigée le
+  2026-09-04 (signalée par un client Android) : le bouton grisé + un message générique
+  *supprimé sur l'étape Crew* = un écran qui a l'air cassé. Le piège : un lien personnalisé
+  dont le libellé ne porte qu'un prénom pré-remplit `first_name` et laisse `last_name` (obligatoire)
+  vide — sur mobile les deux champs sont empilés, le vide ne se voit pas.
+- **Écran d'échec** : affiche le `message` Postgres sous le texte i18n. Un invité sur un lien
+  partagé n'a pas de console — c'est le seul canal de diagnostic.
 - **Submit :** `supabase.from('form_submissions').insert([...])` (status `pending`, `payload`=`BookingFormPayload` complet + colonnes dénormalisées `reference_name`/`email`/`num_travelers`/`arrival_date`). **PAS de `.select()`** (anon n'a pas de SELECT sur la table). Puis écran de fin 🎉.
-- **Anti-spam (2026-07-06)** : honeypot `website` hors écran (pas `display:none`, `tabIndex=-1`) + refus des submits **<3 s** après chargement (`mountedAt` ref). Les deux tombent **silencieusement** sur l'écran de succès — zéro insert, zéro email Resend, le bot n'apprend rien. Kill switch = désactiver le lien.
+- **Anti-spam (2026-07-06)** : honeypot `bkc_extra` hors écran (⚠️ **plus `website`** : l'autofill
+  Android et les gestionnaires de mots de passe remplissent ce nom-là, et un honeypot rempli
+  **simule un succès sans rien insérer** — la panne la plus invisible qui soit ; `data-lpignore` /
+  `data-1p-ignore` posés en plus) (pas `display:none`, `tabIndex=-1`) + refus des submits **<3 s** après chargement (`mountedAt` ref). Les deux tombent **silencieusement** sur l'écran de succès — zéro insert, zéro email Resend, le bot n'apprend rien. Kill switch = désactiver le lien.
 - **Composants module-scope** (focus-safe) : `Field`, `Counter`, `YesNo`, `TravelerCard`.
 
 ---
