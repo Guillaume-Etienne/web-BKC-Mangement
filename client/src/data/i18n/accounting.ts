@@ -50,4 +50,30 @@ export const accountingI18n = {
   hint_retained:  { fr: 'Retenu par l\'agence', en: 'Retained by the agency', es: 'Retenido por la agencia' },
   hint_center:    { fr: 'Ce qui arrive au centre', en: 'What reaches the centre', es: 'Lo que llega al centro' },
   hint_not_yet:   { fr: 'Net facturé, pas encore payé', en: 'Net billed, not yet paid', es: 'Facturado neto, aún no pagado' },
+
+  // Additional tabs
+  tab_unverified:  { fr: 'À vérifier',      en: 'To Verify',        es: 'Por verificar' },
+  tab_events:      { fr: 'Événements',      en: 'Events',           es: 'Eventos' },
+
+  // Status & action labels
+  status_already_paid: { fr: 'Déjà payé',   en: 'Already paid',     es: 'Ya pagado' },
+  status_collected:    { fr: 'Collecté',    en: 'Collected',        es: 'Cobrado' },
+  status_verified:     { fr: 'Vérifié',     en: 'Verified',         es: 'Verificado' },
+
+  // Actions
+  btn_add_payment:     { fr: 'Ajouter un paiement', en: 'Add payment', es: 'Añadir pago' },
+  btn_add_discount:    { fr: 'Ajouter une remise', en: 'Add discount', es: 'Añadir descuento' },
+  btn_add_expense:     { fr: 'Ajouter une dépense', en: 'Add expense', es: 'Añadir gasto' },
+
+  // Accommodation types
+  label_bungalows:     { fr: 'Bungalows', en: 'Bungalows', es: 'Bungalows' },
+  label_external:      { fr: 'Externes', en: 'External', es: 'Externos' },
+
+  // Collection status
+  status_here:         { fr: 'Actuellement ici', en: 'Currently here', es: 'Actualmente aquí' },
+  status_departed:     { fr: 'Parti(e)',        en: 'Departed',        es: 'Partió' },
+  status_upcoming:     { fr: 'À venir',         en: 'Upcoming',        es: 'Próximo' },
+  hint_collect_before: { fr: 'Collecter avant départ', en: 'Collect before checkout', es: 'Cobrar antes de salida' },
+  hint_to_chase:       { fr: 'À rattraper',    en: 'To chase',        es: 'Para perseguir' },
+  hint_not_yet_due:    { fr: 'Pas encore dû',  en: 'Not yet due',     es: 'Aún no vencido' },
 } satisfies Record<string, Tr>
