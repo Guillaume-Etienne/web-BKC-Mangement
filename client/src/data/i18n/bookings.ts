@@ -4,10 +4,11 @@ export const bookingsI18n = {
   page_title:     { fr: 'Réservations',   en: 'Bookings',     es: 'Reservas' },
 
   // Booking statuses
-  status_draft:   { fr: 'Brouillon',      en: 'Draft',        es: 'Borrador' },
-  status_confirmed: { fr: 'Confirmée',    en: 'Confirmed',    es: 'Confirmada' },
-  status_cancelled: { fr: 'Annulée',      en: 'Cancelled',    es: 'Cancelada' },
-  status_completed: { fr: 'Complétée',    en: 'Completed',    es: 'Completada' },
+  status_draft:       { fr: 'Brouillon',      en: 'Draft',        es: 'Borrador' },
+  status_provisional: { fr: 'Provisoire',     en: 'Provisional',  es: 'Provisional' },
+  status_confirmed:   { fr: 'Confirmée',      en: 'Confirmed',    es: 'Confirmada' },
+  status_cancelled:   { fr: 'Annulée',        en: 'Cancelled',    es: 'Cancelada' },
+  status_completed:   { fr: 'Complétée',      en: 'Completed',    es: 'Completada' },
 
   // Booking details
   label_reference: { fr: 'Référence',     en: 'Reference',    es: 'Referencia' },

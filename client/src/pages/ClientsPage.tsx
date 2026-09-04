@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useLanguage } from '../contexts/LanguageContext'
+import { i18n } from '../data/i18n'
 import { useTable } from '../hooks/useSupabase'
 import { useClients } from '../hooks/useClients'
 import { useBookings, useBookingParticipants } from '../hooks/useBookings'
 import { useLessons } from '../hooks/useLessons'
 import { useClientDossier } from '../hooks/useClientDossier'
-import type { Client, Booking, KiteLevel, Season } from '../types/database'
+import type { Client, Booking, KiteLevel, Season, Lang } from '../types/database'
 import { fmtDate } from '../utils/dates'
 import { daysSinceLastTouch, dossierMoney } from '../utils/dossier'
 import ClientTimeline from '../components/clients/ClientTimeline'
@@ -18,6 +20,8 @@ interface ClientsPageProps {
   onClientOpened?: () => void
 }
 
+// Note: kite level labels are technical names from database, kept as-is for now
+// (used in forms and displays where locale adaptation isn't critical yet)
 const kiteLevelLabels: Record<KiteLevel, string> = {
   'beg-total':      'Beg-Total',
   'beg-bodydrag':   'Beg-BodyDrag',
@@ -34,11 +38,11 @@ const kiteLevelColors: Record<KiteLevel, string> = {
   advanced:         'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400',
 }
 
-const bookingStatusLabel: Record<string, string> = {
-  confirmed: 'Confirmed',
-  provisional: 'Provisional',
-  cancelled: 'Cancelled',
-}
+const getBookingStatusLabels = (lang: Lang): Record<string, string> => ({
+  confirmed: i18n.bookings.status_confirmed[lang],
+  provisional: i18n.bookings.status_provisional[lang],
+  cancelled: i18n.bookings.status_cancelled[lang],
+})
 
 const bookingStatusColor: Record<string, string> = {
   confirmed: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400',
@@ -57,6 +61,8 @@ const kiteLevelShort: Record<KiteLevel, string> = {
 const MOBILE_VIEW_KEY = 'clients_mobile_view'
 
 export default function ClientsPage({ onNavigate, initialClientId, onClientOpened }: ClientsPageProps) {
+  const { lang } = useLanguage()
+  const bookingStatusLabel = getBookingStatusLabels(lang)
   const { data: clients, loading, error, refresh: refreshClients } = useClients()
   const { data: bookings } = useBookings()
   const { data: bookingParticipants } = useBookingParticipants()
