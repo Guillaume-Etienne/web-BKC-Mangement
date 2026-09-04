@@ -2,9 +2,42 @@
 
 ---
 
-## ⏸️ REPRISE — session du 2026-09-03 (gui absent). À LIRE EN PREMIER
+## ✅ 2026-09-04 — la reprise est soldée
 
-> Tenu à jour au fil de la session, pour survivre à une déconnexion.
+**La migration `2026-09-03_client_notes.sql` est passée sur TEST et sur PROD** (vérifié en curl
+anon : `client_notes` et `bookings.source_id` répondent `42501 permission denied` au lieu de
+`PGRST205` / `42703` — la table et la colonne existent, et anon n'y a aucun accès, c'est ce que
+la migration voulait). Tout est poussé. **Bruno était bien une faute de frappe** : la demande est
+en Jan **2027**.
+
+Il reste **deux choses à trancher**, aucune bloquante :
+- **résa #025 (ELISABETH BOUTEILLER) sans aucune chambre**, alors que la demande portait sur
+  l'hébergement ;
+- **5 résas sur 8 restent « Unknown »** dans « Where they came from ». La reprise d'historique a
+  rempli ce qu'elle pouvait ; le reste a été saisi à la main avant que la question existe et rien
+  ne peut le deviner. Question ouverte : rendre la question **obligatoire** dans le wizard ?
+
+### 2026-09-04 — Options allégé, la liste des invités a déménagé
+
+L'onglet **Options → « Bookings & Guests » est supprimé** et son seul apport propre (lire qui
+dort dans une résa) vit maintenant dans **Bookings** : le compteur `4G` de la colonne Stay est un
+bouton qui déplie la liste. La pastille **⚠️** signale en plus un **invité sans passeport** —
+c'est ce que le document de visa consomme, et le seul moyen de le repérer était de déplier les
+huit résas une par une. Règle sortie de la page dans **`utils/bookingCompleteness.ts`**, testée
+(elle décide aussi les filtres Complete/Incomplete). Détail : `pages.md` § BookingsPage.
+
+> ⚠️ **Une autre session Claude travaille en parallèle sur ce repo** : elle ajoute une bascule de
+> langue de l'interface admin (`client/src/contexts/`, `client/src/data/i18n/`,
+> `hooks/useAdminLang.ts`, + `App.tsx` et `Navigation.tsx` modifiés) — c'est pour ça que la
+> navbar est passée en français en cours de route. **Rien à voir avec les commits ci-dessus**,
+> qui ont été faits par chemins explicites.
+
+---
+
+## ⏸️ Le carnet de la session du 2026-09-03 (conservé pour le contexte)
+
+> Écrit au fil de la session pour survivre à une déconnexion. **Les points 1 « à faire » sont
+> faits** (voir juste au-dessus) ; le reste documente le pourquoi des chantiers A→H.
 > Le détail de chaque chantier est plus bas, § 🧭 Parcours.
 
 ### 0. 🔴 gui a poussé pendant la session — une régression était en PROD, elle est corrigée

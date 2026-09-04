@@ -150,6 +150,17 @@
   **📣** dans la liste (tableau desktop **et** cartes mobiles) et **`EnquiryOriginPanel`** en
   tête de l'étape 1 : message d'origine, qualification, notes datées. **Lecture seule** — les
   notes restent sur la demande, elles ne sont jamais recopiées.
+- **Dépliage des invités (2026-09-04) :** le compteur d'invités de la colonne « Stay » (`4G`) est
+  un **bouton** : il déplie sous la ligne la liste des `booking_participants` — prénom, niveau
+  kite, passeport (ou **« no passport number »** en ambre), note individuelle. **Un seul à la
+  fois** (`openGuestsId`). Répété sur les **cartes mobiles** (« 👥 4 pax ▼ »). Vient de l'onglet
+  Options → « Bookings & Guests », supprimé le même jour.
+- **⚠️ complétude — `utils/bookingCompleteness.ts` (testé) :** `getMissingFields` décide la
+  pastille ⚠️ **et** les filtres Complete/Incomplete. Champs : `room`, `participants`,
+  **`passports`**, `arrival_time`, `visa_dates`, `taxi_time`. La règle passeport ne se déclenche
+  que s'il y a au moins un invité (sinon `participants` dit déjà tout) et traite une **espace
+  comme vide**. Les cartes mobiles rendent la liste des manques en toutes lettres — elles
+  n'affichaient **aucun** ⚠️ avant le 2026-09-04.
 - **Step 2 (Stay) :** Bandeau rouge si `check_in >= check_out` (Next désactivé). **Full house** = ligne de prix unique (défaut 100€, split 50/50 entre les 2 chambres en interne).
 - **Step 3 (Guests) :** Gère `booking_participants` — delete-all + re-insert au save. Auto-ajoute le client principal si aucun participant saisi (nouveaux bookings).
 - **Step 4 (Transport) :** Si taxi arrivée/départ coché → sélecteur **chauffeur optionnel** (`taxi_driver_id`). Pré-assigne le chauffeur + ses `default_*` aux trajets auto-créés. Nouveaux bookings uniquement.
@@ -233,9 +244,17 @@
 
 ### `ManagementPage`
 - **Route :** `'management'`
-- **Hooks :** useInstructors, useLessons, useTable<PriceItem>, useTable<TaxiPricingDefaults>, useTable<SharedLink>, useBookings, useBookingParticipants
-- **State :** `tab: 'instructors'|'houses'|'pricing'|'links'|'bookguest'`
-- **Onglets :** Instructors CRUD, Houses, Pricing (items + taxi defaults), Shared links, Bookings & Guests
+- **Hooks :** useInstructors, useLessons, useTable<PriceItem>, useTable<TaxiPricingDefaults>,
+  useTable<SharedLink>, useBookings *(uniquement pour le formulaire de lien partagé, qui choisit
+  une résa par son numéro)*
+- **State :** `tab: 'instructors'|'houses'|'pricing'|'seasons'|'sources'|'agencies'|'links'|'database'`
+- **Onglets (8) :** Instructors CRUD, Accommodations, Pricing (rates / reference / kruger),
+  Seasons, Sources, Agencies, Shared links, Database
+- ⚠️ **L'onglet « Bookings & Guests » a été supprimé le 2026-09-04.** Sa recherche était plus
+  faible que celle de `BookingsPage` (qui cherche aussi l'email et les **passeports des
+  participants**) et ses 3 compteurs redisaient les filtres. La seule chose qu'il faisait seul —
+  **lire la liste des personnes** — a déménagé dans `BookingsPage`. Ne pas le recréer : ce serait
+  un endroit de plus où chercher la même information.
 - **Pricing — deux natures de lignes (2026-07-30)** : celles qui portent un `billable_type`
   **facturent** (badge « 🔒 bills … ») → nom, catégorie et lien verrouillés, suppression
   interdite, **seul le prix reste éditable** ; les autres sont un catalogue libre. Un poste

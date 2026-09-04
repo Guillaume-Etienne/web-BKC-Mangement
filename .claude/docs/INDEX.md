@@ -23,7 +23,9 @@
 | **Savoir d'où viennent les clients** | Requests → Archive → « Where they came from » (`utils/attribution.ts`) |
 | **Ajouter une source à la frise** du dossier | `utils/dossier.ts` : un `for` de plus dans `buildDossier` + un test. Ne jamais **copier** la donnée |
 | **Savoir ce que la demande annonçait et que la résa ne montre pas** | `utils/intentGap.ts` — affiché dans le panneau d’origine du wizard. **Pose une question, ne remplit rien** |
-| **Clôturer les demandes sans suite** | Requests → liste de travail, bandeau « X enquiries with no future » (`utils/seasonClose.ts`) |
+| **Clôturer les demandes sans suite** | Requests → liste de travail, bandeau « X enquiries with no future » (`utils/seasonClose.ts`). ⚠️ Ferme au **mois écoulé**, volontairement **sans lire la table `seasons`** : attendre la fin de saison (15/03) laisserait un « novembre » mort quatre mois dans la liste |
+| **Voir qui dort dans une résa** (noms, niveau, passeport) | Bookings → cliquer le compteur **`4G`** de la colonne Stay (ou « 👥 4 pax » sur mobile) |
+| **Savoir s'il manque un passeport** (document de visa) | La pastille **⚠️** de la liste des résas — `utils/bookingCompleteness.ts`, testé. Le nom de la personne apparaît dans le dépliage |
 | Distinguer « **table / colonne pas encore migrée** » d'une vraie panne | `utils/supabaseErrors.ts` — `isMissingTable` (**`PGRST205`**, pas `42P01`) et `isMissingColumn` (`42703`). ⚠️ **Ne jamais nommer une colonne pas encore migrée dans un `select`** : PostgREST rejette la requête **entière** et l'écran affiche des zéros sans erreur (vécu en PROD le 2026-09-03) |
 
 > ⚠️ Toujours `npm run build` avant push (Vercel = TS strict : unused/locals, types incomplets dans `mock.ts`).
