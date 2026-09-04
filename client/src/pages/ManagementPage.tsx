@@ -20,6 +20,30 @@ import { todayISO, addDaysISO, fmtDate } from '../utils/dates'
 const specialtyOptions = ['Beg-Total', 'Beg-BodyDrag', 'Beg-WaterStart', 'Intermediate', 'Advanced', 'Wave', 'Freestyle']
 const specialtyValues = ['beg-total', 'beg-bodydrag', 'beg-waterstart', 'intermediate', 'advanced', 'wave', 'freestyle']
 
+// ── Language Selector Component ────────────────────────────────────────────────
+function LanguageSelector() {
+  const { lang, setLang } = useLanguage()
+
+  return (
+    <div className="flex gap-3">
+      {LANGS.map(l => (
+        <button
+          key={l.code}
+          onClick={() => setLang(l.code)}
+          className={`px-6 py-3 rounded-lg font-medium transition-all ${
+            lang === l.code
+              ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-lg'
+              : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+          }`}
+        >
+          <span className="mr-2">{l.flag}</span>
+          {l.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 const priceCategoryLabels: Record<PriceCategory, string> = {
   'lesson': 'Lessons',
   'activity': 'Activities',
@@ -1028,6 +1052,26 @@ export default function ManagementPage() {
                   })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Language Tab ──────────────────────────────────────────────────────── */}
+        {tab === 'language' && (
+          <div className="max-w-2xl">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-6">
+                {i18n.management.section_language['en']}
+              </h2>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    {i18n.management.label_language['en']}
+                  </label>
+                  <LanguageSelector />
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

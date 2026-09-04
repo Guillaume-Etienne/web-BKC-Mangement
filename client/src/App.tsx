@@ -12,6 +12,7 @@ import type { Booking, Payment, Enquiry } from './types/database'
 import { isSettled, isQualified, silenceDays, SILENCE_WARN_DAYS } from './utils/enquiries'
 import { computeFollowUps } from './utils/followUps'
 import type { FollowUp } from './utils/followUps'
+import { LanguageProvider } from './contexts/LanguageContext'
 
 // Everything past the first screen is fetched when it is actually opened.
 // Before this, one bundle held the whole app: a guest opening a taxi or client
@@ -213,46 +214,48 @@ function App() {
 
   // Authenticated
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={pendingActions.filter(a => a.priority === 'urgent').length} submissionsCount={pendingActions.filter(a => a.id === 'pending-submissions' || a.id === 'unqualified-enquiries').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
-      <main className="w-full">
-        <ChunkBoundary>
-          <Suspense fallback={<PageLoading />}>
-            {currentPage === 'home'       && (
-              <HomePage
-                onNavigate={setCurrentPage}
-                pendingActions={pendingActions}
-                followUps={followUps}
-                onOpenFollowUp={(f) => {
-                  if (f.kind === 'enquiry') { setPendingEnquiryId(f.targetId); setCurrentPage('requests') }
-                  else { setPendingEditBookingId(f.targetId); setCurrentPage('bookings') }
-                }}
-              />
-            )}
-            {currentPage === 'planning'   && <PlanningView onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
-            {currentPage === 'bookings'   && <BookingsPage initialEditBookingId={pendingEditBookingId} onEditOpened={() => setPendingEditBookingId(null)} />}
-            {currentPage === 'clients'    && <ClientsPage onNavigate={setCurrentPage} initialClientId={pendingClientId} onClientOpened={() => setPendingClientId(null)} />}
-            {currentPage === 'management' && <ManagementPage />}
-            {currentPage === 'equipment'  && <EquipmentPage />}
-            {currentPage === 'taxis'      && <TaxiPage />}
-            {currentPage === 'documents'  && <DocumentsPage />}
-            {currentPage === 'accounting' && <AccountingPage onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
-            {currentPage === 'activities' && <ActivitiesPage />}
-            {currentPage === 'requests'   && <RequestsPage initialEnquiryId={pendingEnquiryId} onEnquiryOpened={() => setPendingEnquiryId(null)} />}
-          </Suspense>
-        </ChunkBoundary>
-      </main>
+    <LanguageProvider>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={pendingActions.filter(a => a.priority === 'urgent').length} submissionsCount={pendingActions.filter(a => a.id === 'pending-submissions' || a.id === 'unqualified-enquiries').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
+        <main className="w-full">
+          <ChunkBoundary>
+            <Suspense fallback={<PageLoading />}>
+              {currentPage === 'home'       && (
+                <HomePage
+                  onNavigate={setCurrentPage}
+                  pendingActions={pendingActions}
+                  followUps={followUps}
+                  onOpenFollowUp={(f) => {
+                    if (f.kind === 'enquiry') { setPendingEnquiryId(f.targetId); setCurrentPage('requests') }
+                    else { setPendingEditBookingId(f.targetId); setCurrentPage('bookings') }
+                  }}
+                />
+              )}
+              {currentPage === 'planning'   && <PlanningView onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
+              {currentPage === 'bookings'   && <BookingsPage initialEditBookingId={pendingEditBookingId} onEditOpened={() => setPendingEditBookingId(null)} />}
+              {currentPage === 'clients'    && <ClientsPage onNavigate={setCurrentPage} initialClientId={pendingClientId} onClientOpened={() => setPendingClientId(null)} />}
+              {currentPage === 'management' && <ManagementPage />}
+              {currentPage === 'equipment'  && <EquipmentPage />}
+              {currentPage === 'taxis'      && <TaxiPage />}
+              {currentPage === 'documents'  && <DocumentsPage />}
+              {currentPage === 'accounting' && <AccountingPage onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
+              {currentPage === 'activities' && <ActivitiesPage />}
+              {currentPage === 'requests'   && <RequestsPage initialEnquiryId={pendingEnquiryId} onEnquiryOpened={() => setPendingEnquiryId(null)} />}
+            </Suspense>
+          </ChunkBoundary>
+        </main>
 
-      <GlobalSearch
-        open={searchOpen}
-        onClose={() => setSearchOpen(false)}
-        onGo={(t) => {
-          if (t.kind === 'client')  { setPendingClientId(t.id);     setCurrentPage('clients') }
-          if (t.kind === 'booking') { setPendingEditBookingId(t.id); setCurrentPage('bookings') }
-          if (t.kind === 'enquiry') { setPendingEnquiryId(t.id);    setCurrentPage('requests') }
-        }}
-      />
-    </div>
+        <GlobalSearch
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          onGo={(t) => {
+            if (t.kind === 'client')  { setPendingClientId(t.id);     setCurrentPage('clients') }
+            if (t.kind === 'booking') { setPendingEditBookingId(t.id); setCurrentPage('bookings') }
+            if (t.kind === 'enquiry') { setPendingEnquiryId(t.id);    setCurrentPage('requests') }
+          }}
+        />
+      </div>
+    </LanguageProvider>
   )
 }
 

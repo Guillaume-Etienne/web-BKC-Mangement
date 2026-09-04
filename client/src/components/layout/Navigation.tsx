@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { currentEnv } from '../../lib/supabase'
 import { useTheme } from '../../hooks/useTheme'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 import type { Page } from '../pending/pendingActions'
 
 interface NavigationProps {
@@ -14,21 +16,22 @@ interface NavigationProps {
 export default function Navigation({ currentPage, onNavigate, onLogout, urgentCount = 0, submissionsCount = 0 }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
+  const { lang } = useLanguage()
 
   const navItems = [
-    { id: 'home',       label: 'Home',       icon: '🏠' },
-    { id: 'clients',    label: 'Clients',    icon: '👥' },
-    { id: 'planning',   label: 'Planning',   icon: '📅' },
-    { id: 'bookings',   label: 'Bookings',   icon: '📋' },
-    { id: 'accounting', label: 'Accounting', icon: '💰' },
-    { id: 'documents',  label: 'Documents',  icon: '📄' },
-    { id: 'management', label: 'Options',    icon: '⚙️' },
-    { id: 'equipment',  label: 'Equipment',  icon: '🎿' },
-    { id: 'taxis',      label: 'Taxis',      icon: '🚕' },
-    { id: 'activities', label: 'Activities', icon: '🏕️' },
+    { id: 'home',       label: i18n.nav.nav_home[lang],       icon: '🏠' },
+    { id: 'clients',    label: i18n.nav.nav_clients[lang],    icon: '👥' },
+    { id: 'planning',   label: i18n.nav.nav_planning[lang],   icon: '📅' },
+    { id: 'bookings',   label: i18n.nav.nav_bookings[lang],   icon: '📋' },
+    { id: 'accounting', label: i18n.nav.nav_accounting[lang], icon: '💰' },
+    { id: 'documents',  label: i18n.nav.nav_documents[lang],  icon: '📄' },
+    { id: 'management', label: i18n.nav.nav_options[lang],    icon: '⚙️' },
+    { id: 'equipment',  label: i18n.nav.nav_equipment[lang],  icon: '🎿' },
+    { id: 'taxis',      label: i18n.nav.nav_taxis[lang],      icon: '🚕' },
+    { id: 'activities', label: i18n.nav.nav_activities[lang], icon: '🏕️' },
     // One entry for everything that arrives from outside; the two objects keep
     // their own screens as tabs inside it (RequestsPage).
-    { id: 'requests',   label: 'Requests',   icon: '📥' },
+    { id: 'requests',   label: i18n.nav.nav_requests[lang],   icon: '📥' },
   ] as const
 
   const handleNavigate = (page: Page) => {
@@ -93,7 +96,7 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
             <button
               onClick={toggleTheme}
               className="hidden md:block p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-              title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              title={theme === 'dark' ? i18n.nav.tooltip_light_theme[lang] : i18n.nav.tooltip_dark_theme[lang]}
             >
               {theme === 'dark' ? '☀️' : '🌙'}
             </button>
@@ -102,9 +105,9 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
             <button
               onClick={onLogout}
               className="hidden md:block px-3 py-2 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-              title="Sign out"
+              title={i18n.nav.tooltip_logout[lang]}
             >
-              ⏻ Sign out
+              ⏻ {i18n.nav.btn_logout[lang]}
             </button>
 
             {/* Mobile menu button */}
@@ -146,14 +149,14 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
                   style={{ touchAction: 'manipulation' }}
                   className="w-full text-left px-4 py-2 rounded-lg font-medium text-gray-500 dark:text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
-                  {theme === 'dark' ? '☀️ Light theme' : '🌙 Dark theme'}
+                  {theme === 'dark' ? `☀️ ${i18n.nav.theme_light[lang]}` : `🌙 ${i18n.nav.theme_dark[lang]}`}
                 </button>
                 <button
                   onClick={() => { setMobileMenuOpen(false); onLogout() }}
                   style={{ touchAction: 'manipulation' }}
                   className="w-full text-left px-4 py-2 rounded-lg font-medium text-gray-500 dark:text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
-                  ⏻ Sign out
+                  ⏻ {i18n.nav.btn_logout[lang]}
                 </button>
               </div>
             </div>
