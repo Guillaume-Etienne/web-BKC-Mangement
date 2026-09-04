@@ -179,6 +179,13 @@ export const tr = {
     en: 'Please fill in the required fields on this step.',
     es: 'Completa los campos obligatorios de este paso.',
   },
+  // Followed by the list of the fields themselves — a hint that does not name
+  // them leaves a visitor tapping a dead button (Android report, 2026-09-04).
+  missing_heading: {
+    fr: 'Il manque encore :',
+    en: 'Still missing:',
+    es: 'Todavía falta:',
+  },
 } satisfies Record<string, Tr>
 
 export type FormI18nKey = keyof typeof tr

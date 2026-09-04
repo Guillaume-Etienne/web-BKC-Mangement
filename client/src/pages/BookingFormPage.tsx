@@ -5,55 +5,12 @@ import { waiverText, WAIVER_VERSION } from '../data/waiver'
 import type { Lang, FormTraveler, BookingFormPayload, EnquirySource, KiteLevel } from '../types/database'
 import type { FormI18nKey } from '../data/formI18n'
 import { referralLabel } from '../utils/referral'
+import { missingOnStep, EMPTY_FORM } from '../utils/bookingFormCompleteness'
+import type { FormData, MissingAnswer } from '../utils/bookingFormCompleteness'
 
 // ─── Public booking intake form (no auth) ─────────────────────────────────────
 // Reached via ?share=<token> on a shared_link of type 'booking_form'.
 // Writes a 'pending' row into form_submissions; an admin reviews it later.
-
-// ─── Module-scope form state shape (everything except travelers/language) ─────
-interface FormData {
-  reference_name: string
-  email: string
-  phone: string
-  /** An enquiry_sources id, or the literal 'other'. */
-  referral_source_id: string
-  /** Only filled when the choice is 'other' — the free line. */
-  referral_source: string
-  country_entry_date: string
-  country_exit_date: string
-  nights_bilene: number
-  arrival_time: string
-  departure_time: string
-  taxi_arrival: boolean
-  taxi_departure: boolean
-  transfer_to_bilene_date: string
-  transfer_to_bilene_time: string
-  transfer_to_airport_date: string
-  transfer_to_airport_time: string
-  luggage_count: number
-  boardbag_count: number
-  double_beds: number
-  single_beds: number
-  has_travel_insurance: boolean
-  emergency_contact_name: string
-  emergency_contact_phone: string
-  emergency_contact_email: string
-  emergency_contact_relation: string
-  waiver_accepted: boolean
-}
-
-const EMPTY_FORM: FormData = {
-  reference_name: '', email: '', phone: '', referral_source_id: '', referral_source: '',
-  country_entry_date: '', country_exit_date: '', nights_bilene: 7,
-  arrival_time: '', departure_time: '',
-  taxi_arrival: true, taxi_departure: true,
-  transfer_to_bilene_date: '', transfer_to_bilene_time: '',
-  transfer_to_airport_date: '', transfer_to_airport_time: '',
-  luggage_count: 1, boardbag_count: 1, double_beds: 0, single_beds: 1,
-  has_travel_insurance: false,
-  emergency_contact_name: '', emergency_contact_phone: '', emergency_contact_email: '', emergency_contact_relation: '',
-  waiver_accepted: false,
-}
 
 const STEPS: { icon: string; labelKey: 'step_group' | 'step_trip' | 'step_logistics' | 'step_crew' | 'step_finish' }[] = [
   { icon: '👤', labelKey: 'step_group' },
@@ -247,7 +204,13 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
   const [showWaiver, setShowWaiver] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
-  const [error, setError] = useState(false)
+  // The reason, not just "it failed": the visitor reads it out to gui over the
+  // phone, which is the only debugging channel a guest on a shared link has.
+  const [error, setError] = useState<string | null>(null)
+  // Turned on when a nav button is pressed on an unfinished step, so the list of
+  // what is missing gets the eye — and gets scrolled to, on a phone.
+  const [showMissing, setShowMissing] = useState(false)
+  const missingRef = useRef<HTMLDivElement | null>(null)
   // Anti-spam: honeypot (hidden field humans never see) + page-load timestamp
   const [honeypot, setHoneypot] = useState('')
   const mountedAt = useRef(Date.now())
@@ -308,29 +271,37 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
   function addTraveler() { setTravelers(prev => [...prev, { first_name: '', last_name: '', passport_number: '', does_kite: false }]) }
   function removeTraveler(i: number) { setTravelers(prev => prev.filter((_, idx) => idx !== i)) }
 
-  const canProceed: Record<number, boolean> = {
-    1: !!(d.reference_name.trim() && d.email.trim()),
-    2: !!(d.country_entry_date && d.country_exit_date && d.nights_bilene > 0),
-    3: true,
-    4: travelers.length > 0 && travelers.every(t => t.first_name.trim() && t.last_name.trim()),
-    5: !!(d.emergency_contact_name.trim() && d.emergency_contact_phone.trim() && d.waiver_accepted),
-  }
+  // One list decides both whether the step can be left and what the visitor is
+  // told is missing — see utils/bookingFormCompleteness.ts.
+  const missing: MissingAnswer[] = missingOnStep(step, d, travelers)
 
   function goTo(n: number) {
     setStep(n)
     setMaxReached(m => Math.max(m, n))
   }
-  function next() { if (canProceed[step]) goTo(Math.min(TOTAL, step + 1)) }
-  function back() { setStep(s => Math.max(1, s - 1)) }
+  /** Pressed on an unfinished step: show what is missing and scroll to it,
+   *  rather than doing nothing. */
+  function blockedByMissing(): boolean {
+    if (missing.length === 0) return false
+    setShowMissing(true)
+    missingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    return true
+  }
+  function next() {
+    if (blockedByMissing()) return
+    setShowMissing(false)
+    goTo(Math.min(TOTAL, step + 1))
+  }
+  function back() { setShowMissing(false); setStep(s => Math.max(1, s - 1)) }
 
   async function submit() {
-    if (!canProceed[5]) return
+    if (blockedByMissing()) return
     // Anti-spam (see BACKLOG): honeypot filled, or submitted <3s after page load
     // (impossible for a human on a 5-step wizard) → fake success, insert nothing.
     // Silent on purpose: don't teach bots what tripped them.
     if (honeypot.trim() || Date.now() - mountedAt.current < 3000) { setDone(true); return }
     setSubmitting(true)
-    setError(false)
+    setError(null)
     const payload: BookingFormPayload = {
       language: lang,
       ...(enquiryId ? { enquiry_id: enquiryId } : {}),
@@ -392,7 +363,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
       payload,
     }])
     setSubmitting(false)
-    if (insErr) { setError(true); return }
+    if (insErr) { setError(insErr.message || insErr.code || 'unknown'); return }
     setDone(true)
   }
 
@@ -435,7 +406,9 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
             into it; bots autofilling every field will trip it. Checked in submit(). */}
         <input
           type="text"
-          name="website"
+          name="bkc_extra"
+          data-lpignore="true"
+          data-1p-ignore=""
           value={honeypot}
           onChange={e => setHoneypot(e.target.value)}
           autoComplete="off"
@@ -684,12 +657,33 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                   </label>
                 </div>
 
-                {error && <p className="text-sm text-rose-600 dark:text-rose-400">{tr.error_msg[lang]}</p>}
+                {error && (
+                  <div className="text-sm text-rose-600 dark:text-rose-400 space-y-1">
+                    <p>{tr.error_msg[lang]}</p>
+                    <p className="text-[11px] font-mono opacity-70 break-all">{error}</p>
+                  </div>
+                )}
               </>
             )}
 
-            {!canProceed[step] && step !== 4 && (
-              <p className="text-xs text-amber-600 dark:text-amber-400">{tr.required_hint[lang]}</p>
+            {/* Step 4 used to be excluded here, which is exactly where a link
+                carrying a one-word name left the last name empty and the button
+                grey with nothing on screen saying why. */}
+            {missing.length > 0 && (
+              <div ref={missingRef}
+                className={`rounded-xl px-3 py-2.5 text-xs transition ${showMissing
+                  ? 'bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 dark:border-amber-600 text-amber-800 dark:text-amber-300'
+                  : 'text-amber-600 dark:text-amber-400'}`}>
+                <p className="font-semibold">{tr.missing_heading[lang]}</p>
+                <ul className="mt-1 space-y-0.5">
+                  {missing.map((m, i) => (
+                    <li key={i}>
+                      • {tr[m.key][lang]}
+                      {m.traveler !== undefined && ` — ${tr.traveler[lang]} ${m.traveler}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
 
@@ -699,14 +693,16 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
               className={`px-4 py-2 rounded-xl text-sm font-medium transition ${step === 1 ? 'text-gray-300 dark:text-gray-500 cursor-default' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
               ← {tr.back[lang]}
             </button>
+            {/* Neither nav button is ever disabled: a dead button on a phone
+                tells the visitor nothing. Pressing it says what is missing. */}
             {step < TOTAL ? (
-              <button type="button" onClick={next} disabled={!canProceed[step]}
-                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${canProceed[step] ? 'bg-sky-600 text-white hover:bg-sky-700' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-400 cursor-not-allowed'}`}>
+              <button type="button" onClick={next}
+                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${missing.length === 0 ? 'bg-sky-600 text-white hover:bg-sky-700' : 'bg-sky-600/40 text-white'}`}>
                 {tr.next[lang]} →
               </button>
             ) : (
-              <button type="button" onClick={submit} disabled={!canProceed[5] || submitting}
-                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${canProceed[5] && !submitting ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-400 cursor-not-allowed'}`}>
+              <button type="button" onClick={submit} disabled={submitting}
+                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${submitting ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-400' : missing.length === 0 ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-emerald-600/40 text-white'}`}>
                 {submitting ? tr.submitting[lang] : tr.submit[lang]}
               </button>
             )}

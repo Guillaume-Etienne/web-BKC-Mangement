@@ -14,8 +14,11 @@
     <meta name="googlebot" content="noindex, nofollow" />
     <script>
       // Applied before paint so the page never flashes the wrong theme.
+      // localStorage throws (not returns null) in an in-app browser or with site
+      // data blocked — see src/lib/supabase.ts. Worst case here: the system theme.
       (function () {
-        var stored = localStorage.getItem('bkc_theme')
+        var stored = null
+        try { stored = localStorage.getItem('bkc_theme') } catch (e) {}
         var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches
         if (dark) document.documentElement.classList.add('dark')
       })()

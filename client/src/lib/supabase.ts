@@ -7,14 +7,22 @@ const prodKey  = import.meta.env.VITE_SUPABASE_ANON_KEY  as string
 const testUrl  = import.meta.env.VITE_SUPABASE_TEST_URL  as string | undefined
 const testKey  = import.meta.env.VITE_SUPABASE_TEST_KEY  as string | undefined
 
-const wantTest  = localStorage.getItem('supabase_env') === 'test'
+// Read defensively: an in-app browser (a link opened from WhatsApp or Facebook
+// on Android) and a phone set to block all site data both make localStorage
+// THROW, not return null. Unguarded at module scope, that exception stops this
+// module from ever evaluating — and every page that imports it, the public
+// booking form included, renders a white screen with nothing in the UI to say why.
+function storedEnv(): string | null {
+  try { return localStorage.getItem('supabase_env') } catch { return null }
+}
+const wantTest  = storedEnv() === 'test'
 const canTest   = !!(testUrl && testKey)
 
 export const currentEnv: SupabaseEnv = wantTest && canTest ? 'test' : 'prod'
 export const testConfigured = canTest
 
 export function switchEnv(env: SupabaseEnv) {
-  localStorage.setItem('supabase_env', env)
+  try { localStorage.setItem('supabase_env', env) } catch { /* same reason as above */ }
   window.location.reload()
 }
 
