@@ -1,5 +1,7 @@
 import { Fragment, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useLanguage } from '../contexts/LanguageContext'
+import { i18n } from '../data/i18n'
 import { useClients } from '../hooks/useClients'
 import { useBookings, useBookingRooms, useBookingRoomPrices, useBookingParticipants } from '../hooks/useBookings'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
@@ -7,7 +9,7 @@ import { useTaxiDrivers, useTaxiTrips } from '../hooks/useTaxis'
 import { useAgencies } from '../hooks/useAgencies'
 import { useTable } from '../hooks/useSupabase'
 import { referralLabel } from '../utils/referral'
-import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, TaxiTrip, Lesson, EquipmentRental, Payment, ExternalAccommodationBooking, Agency, Enquiry, EnquirySource } from '../types/database'
+import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, TaxiTrip, Lesson, EquipmentRental, Payment, ExternalAccommodationBooking, Agency, Enquiry, EnquirySource, Lang } from '../types/database'
 import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
 import { getFullHouseRate, getBaseNightlyRate } from '../utils/roomPricing'
 import { getConfiguredRate, agencyMarker } from '../components/accounting/utils'
@@ -94,17 +96,20 @@ const EMPTY_WIZARD: WizardData = {
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
 
-const STEPS = [
-  { n: 1, icon: '👤', label: 'Client' },
-  { n: 2, icon: '🏠', label: 'Stay' },
-  { n: 3, icon: '👥', label: 'Guests' },
-  { n: 4, icon: '🚕', label: 'Transport' },
-  { n: 5, icon: '🏄', label: 'KiteCenter' },
-  { n: 6, icon: '💰', label: 'Payment' },
-]
+function getSteps(lang: Lang) {
+  return [
+    { n: 1, icon: '👤', label: i18n.bookings.step_client[lang] },
+    { n: 2, icon: '🏠', label: i18n.bookings.step_stay[lang] },
+    { n: 3, icon: '👥', label: i18n.bookings.step_guests[lang] },
+    { n: 4, icon: '🚕', label: i18n.bookings.step_transport[lang] },
+    { n: 5, icon: '🏄', label: i18n.bookings.step_kitecenter[lang] },
+    { n: 6, icon: '💰', label: i18n.bookings.step_payment[lang] },
+  ]
+}
 
-interface StepBarProps { current: number; onGoto: (n: number) => void; maxReached: number }
-function StepBar({ current, onGoto, maxReached }: StepBarProps) {
+interface StepBarProps { current: number; onGoto: (n: number) => void; maxReached: number; lang: Lang }
+function StepBar({ current, onGoto, maxReached, lang }: StepBarProps) {
+  const STEPS = getSteps(lang)
   return (
     <div className="flex items-center gap-1 overflow-x-auto pb-1">
       {STEPS.map((s, i) => {
@@ -311,9 +316,10 @@ interface WizardProps {
   recordedPaid: number
   onCancel: () => void
   onSave: (data: WizardData, isNew: boolean, editingId?: string | null) => void
+  lang: Lang
 }
 
-function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, agencies, sources, houseRentals, roomRates, drivers, bookings, bookingRooms, taxiTrips, editingBookingId, isEditing, originEnquiry, recordedPaid, onCancel, onSave }: WizardProps) {
+function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations, agencies, sources, houseRentals, roomRates, drivers, bookings, bookingRooms, taxiTrips, editingBookingId, isEditing, originEnquiry, recordedPaid, onCancel, onSave, lang }: WizardProps) {
   const [step, setStep] = useState(1)
   const [maxReached, setMaxReached] = useState(isEditing ? 6 : 1)
   const [d, setD] = useState<WizardData>(initial)
@@ -467,11 +473,11 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
         <div className="px-5 pt-5 pb-3 border-b">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">
-              {isEditing ? 'Edit booking' : 'New booking'}
+              {isEditing ? i18n.bookings.title_edit_booking[lang] : i18n.bookings.title_new_booking[lang]}
             </h2>
             <button onClick={onCancel} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-bold text-xl w-8 h-8 flex items-center justify-center">✕</button>
           </div>
-          <StepBar current={step} onGoto={goTo} maxReached={maxReached} />
+          <StepBar current={step} onGoto={goTo} maxReached={maxReached} lang={lang} />
         </div>
 
         {/* Step content */}
@@ -1191,19 +1197,19 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
           {step > 1 && (
             <button type="button" onClick={back}
               className="px-4 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium text-sm">
-              ← Back
+              ← {i18n.common.btn_back[lang]}
             </button>
           )}
           <div className="flex-1" />
           {step < 6 ? (
             <button type="button" onClick={next} disabled={!canProceed[step]}
               className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 dark:disabled:bg-gray-700 disabled:text-gray-400 dark:disabled:text-gray-500 text-white rounded-lg font-semibold text-sm transition-colors">
-              Next →
+              {i18n.common.btn_next[lang]} →
             </button>
           ) : (
             <button type="button" onClick={() => onSave(d, !isEditing, editingBookingId)}
               className="px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors">
-              ✓ Save booking
+              ✓ {i18n.bookings.btn_save_booking[lang]}
             </button>
           )}
         </div>
@@ -1214,8 +1220,12 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const statusLabel: Record<BookingStatus, string> = {
-  confirmed: 'Confirmed', provisional: 'Provisional', cancelled: 'Cancelled',
+function getStatusLabel(lang: Lang): Record<BookingStatus, string> {
+  return {
+    confirmed:   i18n.bookings.status_confirmed[lang],
+    provisional: i18n.bookings.status_provisional[lang],
+    cancelled:   i18n.bookings.status_cancelled[lang],
+  }
 }
 const statusColor: Record<BookingStatus, string> = {
   confirmed: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400',
@@ -1275,16 +1285,18 @@ type FilterKey = 'all' | 'complete' | 'incomplete' | 'upcoming' | 'active' | 'co
 type SortKey = 'booking_number' | 'client' | 'check_in' | 'status'
 type SortDir = 'asc' | 'desc'
 
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'all',         label: 'All' },
-  { key: 'complete',    label: '✅ Complete' },
-  { key: 'incomplete',  label: '⚠️ Incomplete' },
-  { key: 'upcoming',    label: '📅 Upcoming' },
-  { key: 'active',      label: '🏄 Active' },
-  { key: 'confirmed',   label: 'Confirmed' },
-  { key: 'provisional', label: 'Provisional' },
-  { key: 'cancelled',   label: 'Cancelled' },
-]
+function getFilters(lang: Lang): { key: FilterKey; label: string }[] {
+  return [
+    { key: 'all',         label: i18n.bookings.filter_all[lang] },
+    { key: 'complete',    label: `✅ ${i18n.bookings.filter_complete[lang]}` },
+    { key: 'incomplete',  label: `⚠️ ${i18n.bookings.filter_incomplete[lang]}` },
+    { key: 'upcoming',    label: `📅 ${i18n.bookings.filter_upcoming[lang]}` },
+    { key: 'active',      label: `🏄 ${i18n.bookings.filter_active[lang]}` },
+    { key: 'confirmed',   label: i18n.bookings.status_confirmed[lang] },
+    { key: 'provisional', label: i18n.bookings.status_provisional[lang] },
+    { key: 'cancelled',   label: i18n.bookings.status_cancelled[lang] },
+  ]
+}
 
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
@@ -1294,6 +1306,9 @@ interface BookingsPageProps {
 }
 
 export default function BookingsPage({ initialEditBookingId, onEditOpened }: BookingsPageProps = {}) {
+  const { lang } = useLanguage()
+  const FILTERS = getFilters(lang)
+  const statusLabel = getStatusLabel(lang)
   const { data: bookings, loading, error, refresh: refreshBookings } = useBookings()
   const { data: clients, loading: clientsLoading, refresh: refreshClients } = useClients()
   const { data: bookingRooms, refresh: refreshBookingRooms } = useBookingRooms()
@@ -1825,7 +1840,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <p className="text-gray-500 dark:text-gray-400">Loading bookings...</p>
+        <p className="text-gray-500 dark:text-gray-400">{i18n.bookings.msg_loading_bookings[lang]}</p>
       </div>
     )
   }
@@ -1834,7 +1849,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-6 max-w-md">
-          <p className="text-red-700 dark:text-red-400 font-semibold">Error loading bookings</p>
+          <p className="text-red-700 dark:text-red-400 font-semibold">{i18n.bookings.msg_error_loading[lang]}</p>
           <p className="text-red-600 dark:text-red-400 text-sm mt-1">{error}</p>
         </div>
       </div>
@@ -1847,12 +1862,12 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
 
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200">Bookings</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200">{i18n.bookings.page_title[lang]}</h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{filteredBookings.length} of {bookings.length} booking{bookings.length !== 1 ? 's' : ''}</p>
           </div>
           <button onClick={openNew}
             className="w-full md:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors">
-            + New booking
+            + {i18n.bookings.btn_new_booking[lang]}
           </button>
         </div>
 
@@ -1891,11 +1906,11 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
             <thead className="bg-gray-50 dark:bg-gray-800 border-b">
               <tr>
                 <SortHeader sortKey="booking_number" label="#" className="w-12" />
-                <SortHeader sortKey="client" label="Client" />
-                <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Stay</th>
-                <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Room</th>
-                <SortHeader sortKey="check_in" label="Dates" />
-                <SortHeader sortKey="status" label="Status" />
+                <SortHeader sortKey="client" label={i18n.bookings.col_client[lang]} />
+                <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">{i18n.bookings.col_stay[lang]}</th>
+                <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">{i18n.bookings.col_room[lang]}</th>
+                <SortHeader sortKey="check_in" label={i18n.bookings.col_dates[lang]} />
+                <SortHeader sortKey="status" label={i18n.common.label_status[lang]} />
                 <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">⚠</th>
                 <th className="px-3 py-2 w-16"></th>
               </tr>
@@ -1998,7 +2013,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                 )
               })}
               {filteredBookings.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-400 text-sm">No bookings match this filter.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-400 text-sm">{i18n.bookings.msg_no_match[lang]}</td></tr>
               )}
             </tbody>
           </table>
@@ -2069,9 +2084,9 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
               </div>
               <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                 <button onClick={() => openEdit(b)}
-                  className="flex-1 px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded font-medium text-sm hover:bg-blue-200 dark:hover:bg-blue-800">✏️ Edit</button>
+                  className="flex-1 px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded font-medium text-sm hover:bg-blue-200 dark:hover:bg-blue-800">✏️ {i18n.common.btn_edit[lang]}</button>
                 <button onClick={() => handleDelete(b.id)}
-                  className="flex-1 px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded font-medium text-sm hover:bg-red-200 dark:hover:bg-red-800">🗑️ Delete</button>
+                  className="flex-1 px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded font-medium text-sm hover:bg-red-200 dark:hover:bg-red-800">🗑️ {i18n.common.btn_delete[lang]}</button>
               </div>
             </div>
             )
@@ -2101,6 +2116,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           recordedPaid={paymentsData
             .filter(p => p.booking_id === wizard.editing?.id && !p.is_discount)
             .reduce((s, p) => s + p.amount, 0)}
+          lang={lang}
           onCancel={closeWizard}
           onSave={handleSave}
         />

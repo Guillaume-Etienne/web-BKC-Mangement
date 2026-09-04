@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { useLanguage } from '../contexts/LanguageContext'
+import { i18n } from '../data/i18n'
 import { useBookings, useBookingRooms, useBookingParticipants } from '../hooks/useBookings'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useAgencies } from '../hooks/useAgencies'
@@ -67,24 +69,28 @@ function filterByClientName(bookings: Booking[], search: string): Booking[] {
 
 // ── Email history display ──────────────────────────────────────────────────────
 
-const STATUS_CFG: Record<EmailLog['status'], { bg: string; text: string; label: string }> = {
-  pending:   { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-800 dark:text-yellow-400', label: 'Pending' },
-  sent:      { bg: 'bg-blue-100 dark:bg-blue-900/30',   text: 'text-blue-800 dark:text-blue-400',   label: 'Sent' },
-  delivered: { bg: 'bg-green-100 dark:bg-green-900/30',  text: 'text-green-800 dark:text-green-400',  label: 'Delivered ✓' },
-  opened:    { bg: 'bg-green-200 dark:bg-green-800',  text: 'text-green-900 dark:text-green-400',  label: 'Opened ✓✓' },
-  failed:    { bg: 'bg-red-100 dark:bg-red-900/30',    text: 'text-red-800 dark:text-red-400',    label: 'Failed ✗' },
+function getStatusCfg(lang: Lang): Record<EmailLog['status'], { bg: string; text: string; label: string }> {
+  return {
+    pending:   { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-800 dark:text-yellow-400', label: i18n.pages.email_status_pending[lang] },
+    sent:      { bg: 'bg-blue-100 dark:bg-blue-900/30',   text: 'text-blue-800 dark:text-blue-400',   label: i18n.pages.email_status_sent[lang] },
+    delivered: { bg: 'bg-green-100 dark:bg-green-900/30',  text: 'text-green-800 dark:text-green-400',  label: i18n.pages.email_status_delivered[lang] },
+    opened:    { bg: 'bg-green-200 dark:bg-green-800',  text: 'text-green-900 dark:text-green-400',  label: i18n.pages.email_status_opened[lang] },
+    failed:    { bg: 'bg-red-100 dark:bg-red-900/30',    text: 'text-red-800 dark:text-red-400',    label: i18n.pages.email_status_failed[lang] },
+  }
 }
 
 // ── Overview grid helpers ────────────────────────────────────────────────────
 
-const DOC_TYPES: { type: EmailLogType; label: string }[] = [
-  { type: 'booking_confirmation', label: 'Confirmation' },
-  { type: 'visa_letter',          label: 'Visa Letter' },
-  { type: 'travel_guide',         label: 'Travel Guide' },
-  { type: 'welcome_guide',        label: 'Welcome Guide' },
-  { type: 'client_account',       label: 'Client Account' },
-  { type: 'update_form',          label: 'Update Form' },
-]
+function getDocTypes(lang: Lang): { type: EmailLogType; label: string }[] {
+  return [
+    { type: 'booking_confirmation', label: i18n.pages.doc_type_confirmation[lang] },
+    { type: 'visa_letter',          label: i18n.pages.doc_type_visa_letter[lang] },
+    { type: 'travel_guide',         label: i18n.pages.doc_type_travel_guide[lang] },
+    { type: 'welcome_guide',        label: i18n.pages.doc_type_welcome_guide[lang] },
+    { type: 'client_account',       label: i18n.pages.doc_type_client_account[lang] },
+    { type: 'update_form',          label: i18n.pages.doc_type_update_form[lang] },
+  ]
+}
 
 function cellKey(bookingId: string, type: EmailLogType): string {
   return `${bookingId}:${type}`
@@ -121,19 +127,20 @@ function cellStatusClasses(log: EmailLog | undefined): string {
  *  said green, and the box stayed grey on screen. That is exactly how a document
  *  sent on 20/08 read as "never sent" for a whole day (see BACKLOG). The project
  *  has no `@tailwindcss/forms`, so nothing resets that appearance for us. */
-function StatusBox({ log, checked, onToggle }: {
+function StatusBox({ log, checked, onToggle, lang }: {
   log: EmailLog | undefined
   checked: boolean
   onToggle: () => void
+  lang: Lang
 }) {
   return (
     <span
-      title={cellTitle(log)}
+      title={cellTitle(log, lang)}
       className={`inline-flex items-center justify-center w-7 h-7 rounded border-2 ${cellStatusClasses(log)}`}
     >
       <input
         type="checkbox"
-        title={cellTitle(log)}
+        title={cellTitle(log, lang)}
         checked={checked}
         onChange={onToggle}
         className="w-4 h-4 cursor-pointer"
@@ -142,14 +149,15 @@ function StatusBox({ log, checked, onToggle }: {
   )
 }
 
-function cellTitle(log: EmailLog | undefined): string {
-  if (!log) return 'Never sent'
+function cellTitle(log: EmailLog | undefined, lang: Lang): string {
+  if (!log) return i18n.pages.email_status_never_sent[lang]
   const date = log.sent_at ? new Date(log.sent_at).toLocaleString('en-GB') : ''
-  return `${STATUS_CFG[log.status].label}${date ? ` — ${date}` : ''}`
+  return `${getStatusCfg(lang)[log.status].label}${date ? ` — ${date}` : ''}`
 }
 
-function EmailHistory({ logs }: { logs: EmailLog[] }) {
+function EmailHistory({ logs, lang }: { logs: EmailLog[]; lang: Lang }) {
   if (logs.length === 0) return null
+  const STATUS_CFG = getStatusCfg(lang)
   return (
     <div className="space-y-1.5 pt-1">
       {logs.slice(0, 3).map(log => {
@@ -309,13 +317,14 @@ function TravelGuideEditor({
 // ── Save / Cancel bar for template editors ─────────────────────────────────────
 
 function SaveBar({
-  dirty, saving, neverSaved, onSave, onCancel,
+  dirty, saving, neverSaved, onSave, onCancel, lang,
 }: {
   dirty: boolean
   saving: boolean
   neverSaved: boolean
   onSave: () => void
   onCancel: () => void
+  lang: Lang
 }) {
   return (
     <div className="flex items-center gap-3 flex-wrap pt-3 mt-3 border-t border-gray-100 dark:border-gray-800">
@@ -333,13 +342,13 @@ function SaveBar({
           onClick={onCancel}
           disabled={!dirty || saving}
           className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-40 transition-colors">
-          Cancel
+          {i18n.common.btn_cancel[lang]}
         </button>
         <button
           onClick={onSave}
           disabled={!dirty || saving}
           className="px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-40 transition-colors">
-          {saving ? '⏳ Saving…' : '💾 Save'}
+          {saving ? '⏳ Saving…' : `💾 ${i18n.common.btn_save[lang]}`}
         </button>
       </div>
     </div>
@@ -349,7 +358,7 @@ function SaveBar({
 // ── Send email row ─────────────────────────────────────────────────────────────
 
 function SendEmailRow({
-  label, emailValue, onEmailChange, onSend, sending, logs,
+  label, emailValue, onEmailChange, onSend, sending, logs, lang,
 }: {
   label: string
   emailValue: string
@@ -357,6 +366,7 @@ function SendEmailRow({
   onSend: () => void
   sending: boolean
   logs: EmailLog[]
+  lang: Lang
 }) {
   return (
     <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 space-y-3 bg-gray-50 dark:bg-gray-800">
@@ -377,7 +387,7 @@ function SendEmailRow({
           {sending ? '⏳ Sending…' : '📧 Send'}
         </button>
       </div>
-      <EmailHistory logs={logs} />
+      <EmailHistory logs={logs} lang={lang} />
     </div>
   )
 }
@@ -419,6 +429,11 @@ function BookingPicker({
 type Tab = 'overview' | 'visa' | 'summary' | 'guide' | 'welcome' | 'templates'
 
 export default function DocumentsPage() {
+  // Admin UI language (FR/EN/ES toggle in Options) — distinct from `lang` below,
+  // which picks the LANGUAGE OF THE DOCUMENT SENT TO THE GUEST and must stay
+  // independent of what the admin's own screen is displayed in.
+  const { lang: uiLang } = useLanguage()
+  const DOC_TYPES = getDocTypes(uiLang)
   const { data: allBookings, loading } = useBookings()
   const { data: bookingRooms } = useBookingRooms()
   const { data: bookingParticipants } = useBookingParticipants()
@@ -760,26 +775,26 @@ export default function DocumentsPage() {
   }
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'overview',  label: '📊 Overview' },
-    { id: 'visa',      label: '📋 Visa Letter' },
-    { id: 'summary',   label: '📄 Booking Summary' },
-    { id: 'guide',     label: '🌍 Travel Guide' },
-    { id: 'welcome',   label: '🏝️ Welcome Guide' },
-    { id: 'templates', label: '✏️ Templates' },
+    { id: 'overview',  label: `📊 ${i18n.pages.tab_overview[uiLang]}` },
+    { id: 'visa',      label: `📋 ${i18n.pages.tab_visa_letter[uiLang]}` },
+    { id: 'summary',   label: `📄 ${i18n.pages.tab_booking_summary[uiLang]}` },
+    { id: 'guide',     label: `🌍 ${i18n.pages.tab_travel_guide[uiLang]}` },
+    { id: 'welcome',   label: `🏝️ ${i18n.pages.tab_welcome_guide[uiLang]}` },
+    { id: 'templates', label: `✏️ ${i18n.pages.tab_templates[uiLang]}` },
   ]
 
   if (loading || !guideSections || !welcomeSections) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-6">📄 Documents</h1>
-        <p className="text-gray-500 dark:text-gray-400">Loading bookings…</p>
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-6">📄 {i18n.pages.page_documents[uiLang]}</h1>
+        <p className="text-gray-500 dark:text-gray-400">{i18n.common.msg_loading[uiLang]}</p>
       </div>
     )
   }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">📄 Documents</h1>
+      <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">📄 {i18n.pages.page_documents[uiLang]}</h1>
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-gray-200 dark:border-gray-800">
@@ -883,7 +898,7 @@ export default function DocumentsPage() {
                           return (
                             <td key={dt.type} className="p-2">
                               <div className="flex items-center justify-center gap-1.5">
-                                <StatusBox log={log} checked={selectedCells.has(key)} onToggle={() => toggleCell(key)} />
+                                <StatusBox log={log} checked={selectedCells.has(key)} onToggle={() => toggleCell(key)} lang={uiLang} />
                                 <button onClick={() => window.open(shareUrl(link.token), '_blank')} title="Open" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">👁</button>
                                 <button onClick={() => copyLink(link)} title="Copy link" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
                                   {copiedLinkId === link.id ? '✓' : '⧉'}
@@ -921,7 +936,7 @@ export default function DocumentsPage() {
                           return (
                             <td key={dt.type} className="p-2">
                               <div className="flex items-center justify-center gap-1.5">
-                                <StatusBox log={log} checked={selectedCells.has(key)} onToggle={() => toggleCell(key)} />
+                                <StatusBox log={log} checked={selectedCells.has(key)} onToggle={() => toggleCell(key)} lang={uiLang} />
                                 <button onClick={() => window.open(shareUrl(link.token), '_blank')} title="Open" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">👁</button>
                                 <button onClick={() => copyLink(link)} title="Copy link" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
                                   {copiedLinkId === link.id ? '✓' : '⧉'}
@@ -933,7 +948,7 @@ export default function DocumentsPage() {
 
                         return (
                           <td key={dt.type} className="text-center p-2">
-                            <StatusBox log={log} checked={selectedCells.has(key)} onToggle={() => toggleCell(key)} />
+                            <StatusBox log={log} checked={selectedCells.has(key)} onToggle={() => toggleCell(key)} lang={uiLang} />
                           </td>
                         )
                       })}
@@ -973,7 +988,7 @@ export default function DocumentsPage() {
           </div>
 
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-5 space-y-4">
-            <h2 className="font-semibold text-gray-700 dark:text-gray-300">Select booking</h2>
+            <h2 className="font-semibold text-gray-700 dark:text-gray-300">{i18n.pages.title_select_booking[uiLang]}</h2>
 
             {activeBookings.length === 0 ? (
               <p className="text-sm text-gray-400 dark:text-gray-400 italic">No active bookings found.</p>
@@ -1019,7 +1034,7 @@ export default function DocumentsPage() {
                 onClick={() => visaBooking && printVisaLetter(visaBooking, bookingParticipants.filter(p => p.booking_id === visaBooking.id))}
                 disabled={!visaBooking}
                 className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors">
-                🖨️ Generate PDF
+                🖨️ {i18n.pages.btn_generate_pdf[uiLang]}
               </button>
             </div>
             <p className="text-xs text-gray-400 dark:text-gray-400">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
@@ -1035,6 +1050,7 @@ export default function DocumentsPage() {
                 }}
                 sending={sending === 'visa_letter'}
                 logs={logsForType('visa_letter')}
+                lang={uiLang}
               />
             )}
           </div>
@@ -1093,7 +1109,7 @@ export default function DocumentsPage() {
                 onClick={() => summaryBooking && printBookingSummary(summaryBooking, summaryRooms, lang, activeSections, bookingParticipants)}
                 disabled={!summaryBooking}
                 className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors">
-                🖨️ Generate PDF
+                🖨️ {i18n.pages.btn_generate_pdf[uiLang]}
               </button>
             </div>
             <p className="text-xs text-gray-400 dark:text-gray-400">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
@@ -1109,6 +1125,7 @@ export default function DocumentsPage() {
                 }}
                 sending={sending === 'booking_confirmation'}
                 logs={logsForType('booking_confirmation')}
+                lang={uiLang}
               />
             )}
           </div>
@@ -1125,7 +1142,7 @@ export default function DocumentsPage() {
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-5">
             <TravelGuideEditor sections={guideSections} onChange={setGuideSections} />
             <SaveBar dirty={guideDirty} saving={guideDb.saving} neverSaved={guideDb.saved === null}
-              onSave={saveGuide} onCancel={cancelGuide} />
+              onSave={saveGuide} onCancel={cancelGuide} lang={uiLang} />
           </div>
 
           {activeBookings.length > 0 && (
@@ -1154,7 +1171,7 @@ export default function DocumentsPage() {
                   onClick={() => summaryBooking && printTravelGuide(summaryBooking, lang, activeSections)}
                   disabled={!summaryBooking}
                   className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors">
-                  🖨️ Generate PDF
+                  🖨️ {i18n.pages.btn_generate_pdf[uiLang]}
                 </button>
               </div>
               <p className="text-xs text-gray-400 dark:text-gray-400">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
@@ -1170,6 +1187,7 @@ export default function DocumentsPage() {
                   }}
                   sending={sending === 'travel_guide'}
                   logs={logsForType('travel_guide')}
+                  lang={uiLang}
                 />
               )}
             </div>
@@ -1187,7 +1205,7 @@ export default function DocumentsPage() {
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-5">
             <TravelGuideEditor sections={welcomeSections} onChange={setWelcomeSections} />
             <SaveBar dirty={welcomeDirty} saving={welcomeDb.saving} neverSaved={welcomeDb.saved === null}
-              onSave={saveWelcome} onCancel={cancelWelcome} />
+              onSave={saveWelcome} onCancel={cancelWelcome} lang={uiLang} />
           </div>
 
           {activeBookings.length > 0 && (
@@ -1216,7 +1234,7 @@ export default function DocumentsPage() {
                   onClick={() => summaryBooking && printWelcomeGuide(summaryBooking, lang, activeWelcomeSections)}
                   disabled={!summaryBooking}
                   className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors">
-                  🖨️ Generate PDF
+                  🖨️ {i18n.pages.btn_generate_pdf[uiLang]}
                 </button>
               </div>
               <p className="text-xs text-gray-400 dark:text-gray-400">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
@@ -1232,6 +1250,7 @@ export default function DocumentsPage() {
                   }}
                   sending={sending === 'welcome_guide'}
                   logs={logsForType('welcome_guide')}
+                  lang={uiLang}
                 />
               )}
             </div>
@@ -1266,13 +1285,13 @@ export default function DocumentsPage() {
               <>
                 <TemplatesEditor sections={guideSections} onChange={setGuideSections} />
                 <SaveBar dirty={guideDirty} saving={guideDb.saving} neverSaved={guideDb.saved === null}
-                  onSave={saveGuide} onCancel={cancelGuide} />
+                  onSave={saveGuide} onCancel={cancelGuide} lang={uiLang} />
               </>
             ) : (
               <>
                 <TemplatesEditor sections={welcomeSections} onChange={setWelcomeSections} />
                 <SaveBar dirty={welcomeDirty} saving={welcomeDb.saving} neverSaved={welcomeDb.saved === null}
-                  onSave={saveWelcome} onCancel={cancelWelcome} />
+                  onSave={saveWelcome} onCancel={cancelWelcome} lang={uiLang} />
               </>
             )}
           </div>
