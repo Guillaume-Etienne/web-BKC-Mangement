@@ -33,7 +33,8 @@ export interface FormData {
   boardbag_count: number
   double_beds: number
   single_beds: number
-  has_travel_insurance: boolean
+  /** undefined = not answered yet. A default of false would answer for them. */
+  has_travel_insurance?: boolean
   emergency_contact_name: string
   emergency_contact_phone: string
   emergency_contact_email: string
@@ -49,7 +50,6 @@ export const EMPTY_FORM: FormData = {
   transfer_to_bilene_date: '', transfer_to_bilene_time: '',
   transfer_to_airport_date: '', transfer_to_airport_time: '',
   luggage_count: 1, boardbag_count: 1, double_beds: 0, single_beds: 1,
-  has_travel_insurance: false,
   emergency_contact_name: '', emergency_contact_phone: '', emergency_contact_email: '', emergency_contact_relation: '',
   waiver_accepted: false,
 }

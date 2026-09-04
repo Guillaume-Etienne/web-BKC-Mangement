@@ -528,7 +528,7 @@ export interface BookingFormPayload {
   boardbag_count: number
   double_beds: number
   single_beds: number
-  has_travel_insurance: boolean
+  has_travel_insurance?: boolean   // undefined = the visitor never answered
   // Crew
   travelers: FormTraveler[]
   // Emergency contact

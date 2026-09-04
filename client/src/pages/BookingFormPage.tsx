@@ -59,16 +59,22 @@ function Counter({ value, onChange, min = 0 }: { value: number; onChange: (v: nu
   )
 }
 
-function YesNo({ value, onChange, lang }: { value: boolean; onChange: (v: boolean) => void; lang: Lang }) {
+/** `undefined` renders as NOBODY selected, and that is the point: the old version
+ *  took a plain boolean, so an unanswered "Practices kitesurfing?" showed No lit
+ *  up in blue. Anyone who scrolled past was filed as a non-kiter at a kite
+ *  centre, and the level question below never opened. */
+function YesNo({ value, onChange, lang }: { value: boolean | undefined; onChange: (v: boolean) => void; lang: Lang }) {
   const base = 'flex-1 px-4 py-3 sm:py-2.5 rounded-xl text-sm font-semibold border-2 transition'
+  const off = 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-sky-300 dark:hover:border-sky-800'
+  const on = 'bg-sky-600 text-white border-sky-600 dark:border-sky-500'
   return (
     <div className="flex gap-2">
       <button type="button" onClick={() => onChange(true)}
-        className={`${base} ${value ? 'bg-sky-600 text-white border-sky-600 dark:border-sky-500' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-sky-300 dark:hover:border-sky-800'}`}>
+        className={`${base} ${value === true ? on : off}`}>
         {tr.yes[lang]}
       </button>
       <button type="button" onClick={() => onChange(false)}
-        className={`${base} ${!value ? 'bg-sky-600 text-white border-sky-600 dark:border-sky-500' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-sky-300 dark:hover:border-sky-800'}`}>
+        className={`${base} ${value === false ? on : off}`}>
         {tr.no[lang]}
       </button>
     </div>
@@ -84,13 +90,24 @@ interface TravelerCardProps {
   onRemove: () => void
 }
 function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: TravelerCardProps) {
+  // Two presses to delete a person's details, and the armed state disarms itself:
+  // the old control was an 11px grey link in the corner, right where a thumb rests.
+  const [armed, setArmed] = useState(false)
+  useEffect(() => {
+    if (!armed) return
+    const t = setTimeout(() => setArmed(false), 4000)
+    return () => clearTimeout(t)
+  }, [armed])
   return (
     <div id={`bkc-traveler-${index}`} className="border border-gray-200 dark:border-gray-800 rounded-2xl p-3 sm:p-4 space-y-3 bg-white dark:bg-gray-900/70">
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-sky-700 dark:text-sky-400">{`🏄 ${tr.traveler[lang]} ${index + 1}`}</span>
         {canRemove && (
-          <button type="button" onClick={onRemove} className="text-xs text-gray-400 dark:text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 transition">
-            {tr.remove[lang]}
+          <button type="button" onClick={() => (armed ? onRemove() : setArmed(true))}
+            className={`text-xs px-3 py-2 -mr-2 -my-1 rounded-lg transition ${armed
+              ? 'bg-rose-600 text-white font-semibold'
+              : 'text-gray-400 dark:text-gray-400 hover:text-rose-600 dark:hover:text-rose-400'}`}>
+            {armed ? tr.remove_confirm[lang] : `🗑 ${tr.remove[lang]}`}
           </button>
         )}
       </div>
@@ -110,16 +127,19 @@ function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: Travele
       <div className="border-t border-gray-100 dark:border-gray-800 pt-3 space-y-3">
         <p className="text-xs font-bold text-gray-400 dark:text-gray-400 uppercase tracking-wide">{tr.kite_section[lang]}</p>
         <Field label={tr.kite_does_kite[lang]}>
-          <YesNo value={t.does_kite ?? false} onChange={v => onChange({ does_kite: v })} lang={lang} />
+          <YesNo value={t.does_kite} onChange={v => onChange({ does_kite: v })} lang={lang} />
         </Field>
         {t.does_kite && (
           <>
             <Field label={tr.kite_level_label[lang]}>
-              <div className="grid grid-cols-1 gap-1.5">
+              {/* Chips that wrap, not five full-width rows: at four kiting
+                  travellers the stack cost ~680px of scrolling on a phone, and
+                  beginner -> advanced reads better along a line than down one. */}
+              <div className="flex flex-wrap gap-1.5">
                 {KITE_LEVELS.map(lv => (
                   <button key={lv.value} type="button"
                     onClick={() => onChange({ kite_level: lv.value })}
-                    className={`px-3 py-2 rounded-lg text-sm text-left border-2 transition
+                    className={`px-3 py-2 rounded-lg text-sm border-2 transition
                       ${t.kite_level === lv.value
                         ? 'bg-sky-600 text-white border-sky-600 dark:border-sky-500'
                         : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-sky-300 dark:hover:border-sky-800'}`}>
@@ -129,11 +149,11 @@ function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: Travele
               </div>
             </Field>
             <Field label={tr.kite_brings_gear[lang]}>
-              <YesNo value={t.brings_own_gear ?? false} onChange={v => onChange({ brings_own_gear: v })} lang={lang} />
+              <YesNo value={t.brings_own_gear} onChange={v => onChange({ brings_own_gear: v })} lang={lang} />
             </Field>
             {t.brings_own_gear && (
               <Field label={tr.kite_needs_storage[lang]}>
-                <YesNo value={t.needs_storage ?? false} onChange={v => onChange({ needs_storage: v })} lang={lang} />
+                <YesNo value={t.needs_storage} onChange={v => onChange({ needs_storage: v })} lang={lang} />
               </Field>
             )}
             <div>
@@ -363,10 +383,11 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
         first_name: t.first_name.trim(),
         last_name: t.last_name.trim(),
         passport_number: t.passport_number.trim(),
-        does_kite: t.does_kite ?? false,
+        // Left undefined on purpose when unanswered — see YesNo.
+        does_kite: t.does_kite,
         kite_level: t.does_kite ? (t.kite_level ?? undefined) : undefined,
-        brings_own_gear: t.does_kite ? (t.brings_own_gear ?? false) : undefined,
-        needs_storage: (t.does_kite && t.brings_own_gear) ? (t.needs_storage ?? false) : undefined,
+        brings_own_gear: t.does_kite ? t.brings_own_gear : undefined,
+        needs_storage: (t.does_kite && t.brings_own_gear) ? t.needs_storage : undefined,
         wants_kite_lessons: t.does_kite ? (t.wants_kite_lessons ?? false) : undefined,
         wants_kite_rental: t.does_kite ? (t.wants_kite_rental ?? false) : undefined,
         wants_wing_lessons: t.does_kite ? (t.wants_wing_lessons ?? false) : undefined,
@@ -417,7 +438,10 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
   return (
     <div translate="no" className="notranslate min-h-screen bg-gradient-to-b from-sky-400 via-sky-200 dark:via-sky-800 to-amber-100 dark:to-amber-900/30 py-5 px-3 sm:py-6 sm:px-4">
       <style>{`@keyframes bkcfade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
-      <div className="max-w-xl mx-auto">
+      {/* Only step 2 widens: it holds two identical flight blocks that fit side
+          by side, while a three-field step at 896px would just have very wide
+          inputs. The transition keeps the change from snapping. */}
+      <div className={`mx-auto transition-[max-width] duration-300 ${step === 2 ? 'max-w-xl lg:max-w-4xl' : 'max-w-xl'}`}>
         {/* Header + language picker */}
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -427,8 +451,10 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
           <div className="flex gap-1">
             {LANGS.map(l => (
               <button key={l.code} type="button" onClick={() => setLang(l.code)} title={l.label}
-                className={`px-2.5 py-1.5 rounded-lg text-lg leading-none transition ${lang === l.code ? 'bg-white dark:bg-gray-900 shadow' : 'opacity-50 hover:opacity-100'}`}>
-                {l.flag}
+                className={`px-2.5 py-1.5 rounded-lg text-sm font-semibold tracking-wide leading-none transition ${lang === l.code
+                  ? 'bg-white dark:bg-gray-900 shadow text-sky-800 dark:text-sky-300'
+                  : 'text-sky-900/50 dark:text-sky-100/50 hover:text-sky-900 dark:hover:text-sky-100'}`}>
+                {l.code.toUpperCase()}
               </button>
             ))}
           </div>
@@ -492,6 +518,9 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
               )
             })}
           </div>
+          <p className="sm:hidden text-center text-[11px] font-medium text-gray-400 dark:text-gray-500 -mt-1 pb-1">
+            {`${tr.step_word[lang]} ${step}/${TOTAL} · ${tr[STEPS[step - 1].labelKey][lang]}`}
+          </p>
 
           <div key={step} className="px-4 sm:px-6 py-5 space-y-5" style={{ animation: 'bkcfade .35s ease' }}>
             {/* Step 1 — Group */}
@@ -550,6 +579,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                   <Counter value={d.nights_bilene} onChange={v => update({ nights_bilene: v })} min={1} />
                 </Field>
 
+                <div className="grid lg:grid-cols-2 gap-4 lg:gap-5">
                 {/* Arrival block */}
                 <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-3 sm:p-4 space-y-3 bg-white dark:bg-gray-900/70">
                   <h3 className="text-sm font-bold text-sky-700 dark:text-sky-400">{`✈️ ${tr.arrival_heading[lang]}`}</h3>
@@ -600,6 +630,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                       </Field>
                     </div>
                   )}
+                </div>
                 </div>
               </>
             )}

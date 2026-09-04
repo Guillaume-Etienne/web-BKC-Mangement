@@ -431,7 +431,7 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
         <h4 className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-400 mb-2">Logistics</h4>
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Bags / Kite bags</span><span className="font-medium">{p.luggage_count} / {p.boardbag_count}</span></div>
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Double beds / Single beds</span><span className="font-medium">{p.double_beds} / {p.single_beds}</span></div>
-        <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Travel insurance</span><span className="font-medium">{p.has_travel_insurance ? 'Yes' : 'No'}</span></div>
+        <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Travel insurance</span><span className="font-medium">{p.has_travel_insurance === undefined ? '— not answered —' : p.has_travel_insurance ? 'Yes' : 'No'}</span></div>
       </div>
 
       {/* Crew */}
@@ -452,9 +452,11 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
                   <span className="font-medium">{t.first_name} {t.last_name}</span>
                   <span className="text-gray-500 dark:text-gray-400">{t.passport_number || '— no passport —'}</span>
                 </div>
-                {t.does_kite
-                  ? <p className="text-xs text-sky-600 dark:text-sky-400">🪁 {kiteFlags || 'kiter'}</p>
-                  : <p className="text-xs text-gray-400 dark:text-gray-400">— no kite</p>
+                {t.does_kite === undefined
+                  ? <p className="text-xs text-amber-600 dark:text-amber-400">— kite question not answered —</p>
+                  : t.does_kite
+                    ? <p className="text-xs text-sky-600 dark:text-sky-400">🪁 {kiteFlags || 'kiter'}</p>
+                    : <p className="text-xs text-gray-400 dark:text-gray-400">— no kite</p>
                 }
               </div>
             )

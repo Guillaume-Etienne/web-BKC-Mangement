@@ -192,6 +192,10 @@ export const tr = {
     es: 'Cambiar a español',
   },
   lang_dismiss: { fr: 'Non merci', en: 'No thanks', es: 'No, gracias' },
+  // The step tabs hide their labels on a phone, so the counter carries the place.
+  step_word: { fr: 'Étape', en: 'Step', es: 'Paso' },
+  // The armed half of the two-press remove control.
+  remove_confirm: { fr: 'Confirmer ?', en: 'Sure?', es: '¿Seguro?' },
   // Followed by the list of the fields themselves — a hint that does not name
   // them leaves a visitor tapping a dead button (Android report, 2026-09-04).
   missing_heading: {
