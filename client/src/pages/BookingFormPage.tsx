@@ -85,7 +85,7 @@ interface TravelerCardProps {
 }
 function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: TravelerCardProps) {
   return (
-    <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-3 sm:p-4 space-y-3 bg-white dark:bg-gray-900/70">
+    <div id={`bkc-traveler-${index}`} className="border border-gray-200 dark:border-gray-800 rounded-2xl p-3 sm:p-4 space-y-3 bg-white dark:bg-gray-900/70">
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-sky-700 dark:text-sky-400">{`🏄 ${tr.traveler[lang]} ${index + 1}`}</span>
         {canRemove && (
@@ -208,6 +208,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
   const suggestedLang = detectLang()
   const [langOfferDismissed, setLangOfferDismissed] = useState(false)
   const showLangOffer = !langOfferDismissed && suggestedLang !== lang
+  const [justAddedTraveler, setJustAddedTraveler] = useState<number | null>(null)
   const [showWaiver, setShowWaiver] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
@@ -255,6 +256,16 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
     }))
   }
 
+  // Bring the card that was just added into view and put the cursor in it — see
+  // addTraveler. preventScroll because scrollIntoView is already doing the move.
+  useEffect(() => {
+    if (justAddedTraveler === null) return
+    const card = document.getElementById(`bkc-traveler-${justAddedTraveler}`)
+    card?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    card?.querySelector('input')?.focus({ preventScroll: true })
+    setJustAddedTraveler(null)
+  }, [justAddedTraveler])
+
   // When reaching the crew step, pre-fill traveler #1 from the reference name
   // (split on first space) so only the passport number is left to enter.
   // Only fills if still untouched — never clobbers a manual edit.
@@ -275,7 +286,10 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
   function updateTraveler(i: number, patch: Partial<FormTraveler>) {
     setTravelers(prev => prev.map((t, idx) => idx === i ? { ...t, ...patch } : t))
   }
-  function addTraveler() { setTravelers(prev => [...prev, { first_name: '', last_name: '', passport_number: '', does_kite: false }]) }
+  function addTraveler() {
+    setTravelers(prev => [...prev, { first_name: '', last_name: '', passport_number: '', does_kite: false }])
+    setJustAddedTraveler(travelers.length)
+  }
   function removeTraveler(i: number) { setTravelers(prev => prev.filter((_, idx) => idx !== i)) }
 
   // One list decides both whether the step can be left and what the visitor is
@@ -285,6 +299,10 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
   function goTo(n: number) {
     setStep(n)
     setMaxReached(m => Math.max(m, n))
+    // Instant, not smooth: the step that renders next is a different height,
+    // and Chrome cancels a smooth scroll when the document resizes under it —
+    // measured landing at 297px instead of 0. A screen change should jump anyway.
+    window.scrollTo({ top: 0, behavior: 'auto' })
   }
   /** Pressed on an unfinished step: show what is missing and scroll to it,
    *  rather than doing nothing. */
@@ -299,7 +317,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
     setShowMissing(false)
     goTo(Math.min(TOTAL, step + 1))
   }
-  function back() { setShowMissing(false); setStep(s => Math.max(1, s - 1)) }
+  function back() { setShowMissing(false); goTo(Math.max(1, step - 1)) }
 
   async function submit() {
     if (blockedByMissing()) return
@@ -699,11 +717,9 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
             {/* Step 4 used to be excluded here, which is exactly where a link
                 carrying a one-word name left the last name empty and the button
                 grey with nothing on screen saying why. */}
-            {missing.length > 0 && (
+            {showMissing && missing.length > 0 && (
               <div ref={missingRef}
-                className={`rounded-xl px-3 py-2.5 text-xs transition ${showMissing
-                  ? 'bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 dark:border-amber-600 text-amber-800 dark:text-amber-300'
-                  : 'text-amber-600 dark:text-amber-400'}`}>
+                className="rounded-xl px-3 py-2.5 text-xs bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 dark:border-amber-600 text-amber-800 dark:text-amber-300">
                 <p className="font-semibold">{tr.missing_heading[lang]}</p>
                 <ul className="mt-1 space-y-0.5">
                   {missing.map((m, i) => (
