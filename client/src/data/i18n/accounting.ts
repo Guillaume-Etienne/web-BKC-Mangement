@@ -11,10 +11,10 @@ export const accountingI18n = {
   rev_accommodation: { fr: 'Hébergement', en: 'Accommodation', es: 'Alojamiento' },
   rev_lessons:    { fr: 'Cours',         en: 'Lessons',       es: 'Clases' },
   rev_equipment:  { fr: 'Équipement',    en: 'Equipment',     es: 'Equipamiento' },
-  rev_taxi_margin: { fr: 'Marge taxi',   en: 'Taxi margin',   es: 'Margen taxi' },
+  rev_taxi_margin: { fr: 'Marge taxi',   en: 'Taxi margin',   es: 'Margen de taxi' },
   rev_activities: { fr: 'Activités',     en: 'Activities',    es: 'Actividades' },
   rev_events:     { fr: 'Événements',    en: 'Events',        es: 'Eventos' },
-  rev_center_access: { fr: 'Accès centre', en: 'Center access', es: 'Acceso centro' },
+  rev_center_access: { fr: 'Accès centre', en: 'Center access', es: 'Acceso al centro' },
   rev_agencies:   { fr: 'Agences',       en: 'Agencies',      es: 'Agencias' },
 
   // Billing & payment
@@ -34,7 +34,7 @@ export const accountingI18n = {
   tab_cashflow:   { fr: 'Trésorerie',      en: 'Cash Flow',    es: 'Flujo de Caja' },
   tab_instructors: { fr: 'Moniteurs',      en: 'Instructors',  es: 'Instructores' },
   tab_agencies:   { fr: 'Agences',         en: 'Agencies',     es: 'Agencias' },
-  tab_palmeiras:  { fr: 'Palmerias',       en: 'Palmeiras',    es: 'Palmeiras' },
+  tab_palmeiras:  { fr: 'Palmeiras',      en: 'Palmeiras',    es: 'Palmeiras' },
 
   // Season/Period selection
   label_season:   { fr: 'Saison',          en: 'Season',       es: 'Temporada' },
@@ -71,7 +71,7 @@ export const accountingI18n = {
 
   // Collection status
   status_here:         { fr: 'Actuellement ici', en: 'Currently here', es: 'Actualmente aquí' },
-  status_departed:     { fr: 'Parti(e)',        en: 'Departed',        es: 'Partió' },
+  status_departed:     { fr: 'Parti(e)',        en: 'Departed',        es: 'Partido/a' },
   status_upcoming:     { fr: 'À venir',         en: 'Upcoming',        es: 'Próximo' },
   hint_collect_before: { fr: 'Collecter avant départ', en: 'Collect before checkout', es: 'Cobrar antes de salida' },
   hint_to_chase:       { fr: 'À rattraper',    en: 'To chase',        es: 'Para perseguir' },
