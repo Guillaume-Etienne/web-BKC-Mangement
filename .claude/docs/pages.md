@@ -107,8 +107,19 @@
   *supprimé sur l'étape Crew* = un écran qui a l'air cassé. Le piège : un lien personnalisé
   dont le libellé ne porte qu'un prénom pré-remplit `first_name` et laisse `last_name` (obligatoire)
   vide — sur mobile les deux champs sont empilés, le vide ne se voit pas.
-- **Écran d'échec** : affiche le `message` Postgres sous le texte i18n. Un invité sur un lien
-  partagé n'a pas de console — c'est le seul canal de diagnostic.
+- **Écran d'échec** : phrase i18n actionnable + « vos réponses sont gardées » + le `message`
+  Postgres en petit dessous. Un invité sur un lien partagé n'a pas de console — cette dernière
+  ligne est le seul canal de diagnostic, il la lit au téléphone.
+- ⚠️ **Brouillon local à chaque frappe (2026-09-05)** — `utils/bookingFormDraft.ts`, testé.
+  Clé **par lien** (`enquiryId`/`targetBookingId`), restauré avant le premier rendu (étape,
+  langue, réponses, voyageurs), bandeau vert « we found your answers » + **Start over**, effacé
+  à l'envoi et au bout de **7 jours** (il contient des numéros de passeport). C'est ce qui rend
+  toutes les réparations gratuites : sans lui, « rouvrir la page » = 20 minutes de saisie perdues,
+  ce qui est ce qui a réellement arrêté le client d'Android.
+- ⚠️ **Rien ne peut laisser le bouton sur « Sending… »** : `submit()` est un `async` appelé depuis
+  un `onClick`, donc **une exception y partait dans le vide** — promesse rejetée, aucun boundary,
+  bouton figé sur un écran qui a l'air occupé. `try/catch/finally`, garde `sending` (ref) contre
+  le double tap qui insérerait deux fois, et **test `navigator.onLine` AVANT d'essayer** (`err_offline`).
 - **Submit :** `supabase.from('form_submissions').insert([...])` (status `pending`, `payload`=`BookingFormPayload` complet + colonnes dénormalisées `reference_name`/`email`/`num_travelers`/`arrival_date`). **PAS de `.select()`** (anon n'a pas de SELECT sur la table). Puis écran de fin 🎉.
 - **Anti-spam (2026-07-06)** : honeypot `bkc_extra` hors écran (⚠️ **plus `website`** : l'autofill
   Android et les gestionnaires de mots de passe remplissent ce nom-là, et un honeypot rempli

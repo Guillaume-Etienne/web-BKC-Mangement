@@ -27,6 +27,7 @@
 | **Voir qui dort dans une résa** (noms, niveau, passeport) | Bookings → cliquer le compteur **`4G`** de la colonne Stay (ou « 👥 4 pax » sur mobile) |
 | **Savoir s'il manque un passeport** (document de visa) | La pastille **⚠️** de la liste des résas — `utils/bookingCompleteness.ts`, testé. Le nom de la personne apparaît dans le dépliage |
 | **Ajouter un champ obligatoire au formulaire public** | `utils/bookingFormCompleteness.ts` — `missingOnStep()` **seulement**. Jamais une condition dans la page : c'est elle qui décide *et* du bouton *et* de ce que le visiteur lit |
+| **Une page publique plante chez un visiteur** | `utils/recoverableError.ts` classe la panne, `components/layout/RecoveryBoundary.tsx` la rattrape : **remontage silencieux** pour la famille DOM (traduction auto), sinon un écran qui dit **quoi faire**, en FR/EN/ES. Le formulaire, lui, ne perd rien : `utils/bookingFormDraft.ts` |
 | Distinguer « **table / colonne pas encore migrée** » d'une vraie panne | `utils/supabaseErrors.ts` — `isMissingTable` (**`PGRST205`**, pas `42P01`) et `isMissingColumn` (`42703`). ⚠️ **Ne jamais nommer une colonne pas encore migrée dans un `select`** : PostgREST rejette la requête **entière** et l'écran affiche des zéros sans erreur (vécu en PROD le 2026-09-03) |
 
 > ⚠️ Toujours `npm run build` avant push (Vercel = TS strict : unused/locals, types incomplets dans `mock.ts`).
@@ -41,8 +42,9 @@
 > ⚠️ **`translate="no"` sur le formulaire public : NE PAS L'ENLEVER.** Chrome Android traduit
 > tout seul une page dont la langue n'est pas celle du téléphone, Google Translate remplace les
 > nœuds texte de React, et le rendu suivant meurt sur *« Failed to execute `removeChild` on
-> `Node` »* — page morte, ChunkBoundary affiche le message DOM du navigateur. Vécu par un client
-> le 2026-09-04, à l'étape 5. La page a son propre sélecteur FR/EN/ES **et** propose elle-même la
+> `Node` »* — page morte. Vécu par un client le 2026-09-04, à l'étape 5 : il a lu ce message
+> **en français**, depuis un lien servi en anglais, ce qui est la signature de la traduction.
+> Depuis, `RecoveryBoundary` **remonte l'arbre une fois en silence** au lieu d'afficher ça. La page a son propre sélecteur FR/EN/ES **et** propose elle-même la
 > langue du navigateur : rien n'est perdu. Corollaire de code : **aucun nœud texte nu à côté d'un
 > autre enfant** dans du JSX re-rendu (`← {tr.back[lang]}` → une seule template string).
 >
@@ -50,7 +52,21 @@
 > WhatsApp/Facebook sur Android, « bloquer toutes les données de site »). Il ne renvoie pas
 > `null`. Au **module scope** — c'était le cas dans `lib/supabase.ts` — le module n'est jamais
 > évalué et **toute l'app rend une page blanche**, sans rien dans l'UI. Tout accès sur le chemin
-> anon passe par un `try/catch`. Reste à traiter : `pages/taxiShareUI.tsx` (`usePref`).
+> anon passe par **`utils/safeStorage.ts`** (`readLocal` / `writeLocal` / `removeLocal`) — plus
+> aucun accès nu ne subsiste dans `client/src`. Une préférence qu'on ne peut pas stocker n'est
+> pas une panne : c'est une préférence qui dure une visite.
+>
+> ⚠️ **Un écran d'erreur qui décrit la panne ne sert à personne.** Les visiteurs des pages
+> partagées ne sont pas informaticiens : ils lisent un message, et soit il contient le geste à
+> faire, soit ils abandonnent. Trois règles depuis le 2026-09-05 :
+> 1. **classer avant d'afficher** — `utils/recoverableError.ts`, testé. ⚠️ Matcher sur les **noms
+>    d'API** (`removeChild`, `NotFoundError`), **jamais sur la phrase anglaise** : les navigateurs
+>    **traduisent les messages de DOMException**, c'est pour ça que le client a lu du français ;
+> 2. **réparer ce qui se répare** — un remontage suffit quand un traducteur a réécrit le DOM ;
+>    une seule fois, sinon on boucle contre un traducteur toujours actif ;
+> 3. **ne jamais faire payer la réparation au visiteur** — le formulaire public écrit un brouillon
+>    sur l'appareil à chaque frappe (`utils/bookingFormDraft.ts`), donc remontage, « rouvrir la
+>    page » et rechargement du navigateur ne coûtent plus qu'un défilement.
 >
 > ⚠️ **Un bouton grisé sur un téléphone est indiscernable d'une page cassée.** Le formulaire
 > public ne désactive plus aucun bouton : il nomme ce qui manque (2026-09-04). Même piège

@@ -354,7 +354,7 @@ Utilisé dans ClientsPage, BookingsPage, ManagementPage :
 4. **`useEffect` sync** — quand les données du hook alimentent un state local mutable : `useEffect(() => setState(data), [data])`
 5. **`CELL_W = 32`** — px par colonne jour dans la grille planning (doit correspondre au Tailwind `w-8`)
 6. **Dates calendaires** — `client/src/utils/dates.ts`, jamais `.toISOString()` (décale d'un jour à l'est de Greenwich). Cf. INDEX.md.
-7. **Pages chargées à la demande** — `App.tsx` les déclare en `lazy(() => import(...))`, sous un `Suspense` + `ChunkBoundary`. Une nouvelle page suit le même moule.
+7. **Pages chargées à la demande** — `App.tsx` les déclare en `lazy(() => import(...))`, sous un `Suspense` + `RecoveryBoundary`. Une nouvelle page suit le même moule.
 8. **Contraste** — le texte doit tenir 4.5:1 (3:1 pour les icônes de contrôle). Sur fond sombre, `gray-500`/`600` échouent : `dark:text-gray-400` pour le texte secondaire, `dark:text-gray-500` pour les icônes. `body` porte une couleur par défaut qui suit le thème, donc un élément sans classe de couleur reste lisible.
 
 ---
