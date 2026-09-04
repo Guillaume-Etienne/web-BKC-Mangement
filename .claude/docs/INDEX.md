@@ -38,6 +38,14 @@
 > **`client/src/utils/dates.ts`** (`todayISO`, `toISODate`, `addDaysISO`, `thisMonthISO`,
 > `daysBetween`), testé dans `dates.test.ts`. Corrigé partout le 2026-07-31.
 >
+> ⚠️ **`translate="no"` sur le formulaire public : NE PAS L'ENLEVER.** Chrome Android traduit
+> tout seul une page dont la langue n'est pas celle du téléphone, Google Translate remplace les
+> nœuds texte de React, et le rendu suivant meurt sur *« Failed to execute `removeChild` on
+> `Node` »* — page morte, ChunkBoundary affiche le message DOM du navigateur. Vécu par un client
+> le 2026-09-04, à l'étape 5. La page a son propre sélecteur FR/EN/ES **et** propose elle-même la
+> langue du navigateur : rien n'est perdu. Corollaire de code : **aucun nœud texte nu à côté d'un
+> autre enfant** dans du JSX re-rendu (`← {tr.back[lang]}` → une seule template string).
+>
 > ⚠️ **Sur une page publique, `localStorage` LANCE une exception** (navigateur intégré de
 > WhatsApp/Facebook sur Android, « bloquer toutes les données de site »). Il ne renvoie pas
 > `null`. Au **module scope** — c'était le cas dans `lib/supabase.ts` — le module n'est jamais

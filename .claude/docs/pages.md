@@ -114,6 +114,11 @@
   Android et les gestionnaires de mots de passe remplissent ce nom-là, et un honeypot rempli
   **simule un succès sans rien insérer** — la panne la plus invisible qui soit ; `data-lpignore` /
   `data-1p-ignore` posés en plus) (pas `display:none`, `tabIndex=-1`) + refus des submits **<3 s** après chargement (`mountedAt` ref). Les deux tombent **silencieusement** sur l'écran de succès — zéro insert, zéro email Resend, le bot n'apprend rien. Kill switch = désactiver le lien.
+- ⚠️ **`translate="no"` sur les deux racines (2026-09-04) — porteur, pas cosmétique.** Voir
+  INDEX.md. En compensation la page **propose elle-même** la langue du navigateur (bannière
+  `showLangOffer`, écrite **dans la langue proposée**). ⚠️ Le lien personnalisé fige `language`
+  au moment de sa création (`params.language`) : un lien `en` envoyé à un francophone est ce qui
+  a déclenché la traduction automatique. **Choisir la langue à la création du lien.**
 - **Composants module-scope** (focus-safe) : `Field`, `Counter`, `YesNo`, `TravelerCard`.
 
 ---
