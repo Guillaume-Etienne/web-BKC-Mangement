@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useLanguage } from '../contexts/LanguageContext'
+import { i18n } from '../data/i18n'
 import { useBookings, useBookingRooms, useBookingRoomPrices, useBookingParticipants, usePayments } from '../hooks/useBookings'
 import { useClients } from '../hooks/useClients'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
@@ -29,26 +31,30 @@ import type {
   Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   TaxiPricingDefaults, TaxiManagerPayment,
   DiningEvent, BookingRoomPrice, RoomRate, PriceItem, Lesson,
-  AgencyBillingLine, AgencyInvoice, TaxiTrip,
+  AgencyBillingLine, AgencyInvoice, TaxiTrip, Lang,
 } from '../types/database'
 
 type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'agencies' | 'cashflow' | 'expenses' | 'events' | 'unverified'
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'dashboard',   label: 'Dashboard',   icon: '📊' },
-  { id: 'bookings',    label: 'Bookings',    icon: '📋' },
-  { id: 'instructors', label: 'Instructors', icon: '🏄' },
-  { id: 'houses',      label: 'Accommodations', icon: '🏠' },
-  { id: 'palmeiras',   label: 'Palmeiras',   icon: '🏨' },
-  { id: 'agencies',    label: 'Agencies',    icon: '🤝' },
-  { id: 'cashflow',    label: 'Cash Flow',   icon: '💸' },
-  { id: 'expenses',    label: 'Expenses',    icon: '🧾' },
-  { id: 'events',      label: 'Events',      icon: '🍽️' },
-  { id: 'unverified',  label: 'To Verify',   icon: '⚠️' },
-]
+function getTabs(lang: Lang): { id: Tab; label: string; icon: string }[] {
+  return [
+    { id: 'dashboard',   label: i18n.accounting.tab_dashboard[lang],   icon: '📊' },
+    { id: 'bookings',    label: i18n.accounting.tab_bookings[lang],    icon: '📋' },
+    { id: 'instructors', label: i18n.accounting.tab_instructors[lang], icon: '🏄' },
+    { id: 'houses',      label: i18n.accounting.tab_houses[lang],      icon: '🏠' },
+    { id: 'palmeiras',   label: i18n.accounting.tab_palmeiras[lang],   icon: '🏨' },
+    { id: 'agencies',    label: i18n.accounting.tab_agencies[lang],    icon: '🤝' },
+    { id: 'cashflow',    label: i18n.accounting.tab_cashflow[lang],    icon: '💸' },
+    { id: 'expenses',    label: i18n.accounting.tab_expenses[lang],    icon: '🧾' },
+    { id: 'events',      label: i18n.accounting.tab_events[lang],      icon: '🍽️' },
+    { id: 'unverified',  label: i18n.accounting.tab_unverified[lang],  icon: '⚠️' },
+  ]
+}
 
 export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id: string) => void }) {
   const [tab, setTab] = useState<Tab>('dashboard')
+  const { lang } = useLanguage()
+  const TABS = getTabs(lang)
 
   // ── Read-only data (Supabase hooks) ───────────────────────────────────────
   const { data: accommodations }           = useAccommodations()
