@@ -15,6 +15,8 @@ export const commonI18n = {
   btn_filter:     { fr: 'Filtrer',      en: 'Filter',      es: 'Filtrar' },
   btn_export:     { fr: 'Exporter',     en: 'Export',      es: 'Exportar' },
   btn_import:     { fr: 'Importer',     en: 'Import',      es: 'Importar' },
+  btn_copy:       { fr: 'Copier',       en: 'Copy',        es: 'Copiar' },
+  btn_move:       { fr: 'Déplacer',     en: 'Move',        es: 'Mover' },
 
   // Common labels
   label_name:     { fr: 'Nom',          en: 'Name',        es: 'Nombre' },

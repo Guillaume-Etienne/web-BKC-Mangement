@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase, currentEnv, testConfigured, switchEnv } from '../../lib/supabase'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 
 interface TableStat {
   table_name:  string
@@ -16,6 +18,7 @@ interface DbStats {
 }
 
 export default function DatabaseTab() {
+  const { lang } = useLanguage()
   const [stats,   setStats]   = useState<DbStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
@@ -39,11 +42,11 @@ export default function DatabaseTab() {
 
       {/* ── Env Switch ─────────────────────────────────────────────────────── */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Active Database</h2>
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">{i18n.management.title_active_database[lang]}</h2>
 
         {currentEnv === 'test' && (
           <div className="mb-4 px-4 py-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-lg text-amber-800 dark:text-amber-400 text-sm font-medium">
-            ⚠️ You are connected to the <strong>TEST database</strong>. All changes are isolated from production.
+            {i18n.management.msg_test_db_warning[lang]}
           </div>
         )}
 
@@ -57,8 +60,8 @@ export default function DatabaseTab() {
             }`}
           >
             <div className="text-2xl mb-1">🟢</div>
-            <div>Production</div>
-            {currentEnv === 'prod' && <div className="text-xs font-normal mt-1 text-green-600 dark:text-green-400">Currently active</div>}
+            <div>{i18n.management.label_production[lang]}</div>
+            {currentEnv === 'prod' && <div className="text-xs font-normal mt-1 text-green-600 dark:text-green-400">{i18n.management.label_currently_active[lang]}</div>}
           </button>
 
           <div className="text-gray-400 dark:text-gray-400 font-bold text-xl">⇄</div>
@@ -80,11 +83,11 @@ export default function DatabaseTab() {
             }`}
           >
             <div className="text-2xl mb-1">🧪</div>
-            <div>Test</div>
+            <div>{i18n.management.label_test[lang]}</div>
             {currentEnv === 'test'
-              ? <div className="text-xs font-normal mt-1 text-amber-600 dark:text-amber-400">Currently active</div>
+              ? <div className="text-xs font-normal mt-1 text-amber-600 dark:text-amber-400">{i18n.management.label_currently_active[lang]}</div>
               : !testConfigured
-                ? <div className="text-xs font-normal mt-1 text-gray-400 dark:text-gray-400">Not configured</div>
+                ? <div className="text-xs font-normal mt-1 text-gray-400 dark:text-gray-400">{i18n.management.label_not_configured[lang]}</div>
                 : null
             }
           </button>
@@ -101,11 +104,11 @@ export default function DatabaseTab() {
       <div className="bg-white dark:bg-gray-900 rounded-xl border shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-            Database Overview
+            {i18n.management.title_db_overview[lang]}
             <span className={`ml-2 text-xs font-normal px-2 py-0.5 rounded-full ${
               currentEnv === 'prod' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
             }`}>
-              {currentEnv === 'prod' ? 'Production' : 'Test'}
+              {currentEnv === 'prod' ? i18n.management.label_production[lang] : i18n.management.label_test[lang]}
             </span>
           </h2>
           <a
@@ -114,14 +117,14 @@ export default function DatabaseTab() {
             rel="noopener noreferrer"
             className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
           >
-            Open Supabase Dashboard ↗
+            {i18n.management.link_open_supabase[lang]}
           </a>
         </div>
 
-        {loading && <p className="text-sm text-gray-500 dark:text-gray-400">Loading stats…</p>}
+        {loading && <p className="text-sm text-gray-500 dark:text-gray-400">{i18n.management.msg_loading_stats[lang]}</p>}
         {error   && (
           <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 p-3 rounded">
-            Could not load stats: {error}
+            {i18n.management.msg_stats_load_failed[lang]} {error}
             <div className="mt-1 text-xs text-red-500 dark:text-red-400">Run the <code>get_db_stats()</code> SQL function in your Supabase project first.</div>
           </div>
         )}
@@ -132,15 +135,15 @@ export default function DatabaseTab() {
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">{stats.db_size}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total DB size</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{i18n.management.label_total_db_size[lang]}</div>
               </div>
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">{stats.tables.length}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Tables</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{i18n.management.label_tables[lang]}</div>
               </div>
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">{totalRows.toLocaleString()}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total rows</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{i18n.management.label_total_rows[lang]}</div>
               </div>
             </div>
 
@@ -149,11 +152,11 @@ export default function DatabaseTab() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    <th className="text-left py-2 pr-4 font-medium">Table</th>
-                    <th className="text-right py-2 px-4 font-medium">Rows</th>
-                    <th className="text-right py-2 px-4 font-medium">Table size</th>
-                    <th className="text-right py-2 px-4 font-medium">Indexes</th>
-                    <th className="text-right py-2 pl-4 font-medium">Total</th>
+                    <th className="text-left py-2 pr-4 font-medium">{i18n.management.col_table[lang]}</th>
+                    <th className="text-right py-2 px-4 font-medium">{i18n.management.col_rows[lang]}</th>
+                    <th className="text-right py-2 px-4 font-medium">{i18n.management.col_table_size[lang]}</th>
+                    <th className="text-right py-2 px-4 font-medium">{i18n.management.col_indexes[lang]}</th>
+                    <th className="text-right py-2 pl-4 font-medium">{i18n.management.col_total[lang]}</th>
                   </tr>
                 </thead>
                 <tbody>

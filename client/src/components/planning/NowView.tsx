@@ -4,6 +4,8 @@ import { useTable } from '../../hooks/useSupabase'
 import { supabase } from '../../lib/supabase'
 import { getConfiguredRate } from '../accounting/utils'
 import { todayISO, fmtDate } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -202,6 +204,7 @@ interface NowViewProps {
 type View = 'table' | 'cards'
 
 export default function NowView({ bookings, bookingParticipants, bookingRooms, rooms, accommodations, instructors }: NowViewProps) {
+  const { lang } = useLanguage()
   const today = todayISO()
 
   // ── Dining events from Supabase ───────────────────────────────────
@@ -299,7 +302,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
   }
 
   const deleteEvent = async (id: string) => {
-    if (!confirm('Delete this event?')) return
+    if (!confirm(i18n.planning.msg_confirm_delete_event[lang])) return
     const snapshot = events.find(e => e.id === id)
     setEvents(prev => prev.filter(e => e.id !== id))
     if (activeId === id) setActiveId(null)
@@ -389,7 +392,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
 
       {/* ── Instructor presence ── */}
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 px-4 py-3 flex flex-wrap items-center gap-3">
-        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide shrink-0">Present today:</span>
+        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide shrink-0">{i18n.planning.label_present_today[lang]}</span>
         {instructors.map(i => (
           <button
             key={i.id} onClick={() => togglePresence(i.id)}
@@ -407,9 +410,9 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
       {/* ── Empty state ── */}
       {!activeEvent ? (
         <div className="bg-white dark:bg-gray-900 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-800 p-12 text-center">
-          <p className="text-gray-400 dark:text-gray-400 mb-4">No event selected</p>
+          <p className="text-gray-400 dark:text-gray-400 mb-4">{i18n.planning.msg_no_event_selected[lang]}</p>
           <button onClick={createEvent} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
-            + New Event
+            {i18n.planning.btn_new_event[lang]}
           </button>
         </div>
       ) : (
@@ -429,10 +432,10 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
                     onClick={() => saveEvent(activeEvent.id)}
                     className="px-4 py-1.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded shadow-sm animate-pulse"
                   >
-                    💾 Save
+                    💾 {i18n.common.btn_save[lang]}
                   </button>
                 )}
-                <button onClick={() => duplicateEvent(activeEvent)} className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">⧉ Duplicate</button>
+                <button onClick={() => duplicateEvent(activeEvent)} className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">{i18n.planning.btn_duplicate[lang]}</button>
                 <button onClick={() => deleteEvent(activeEvent.id)} className="px-3 py-1.5 text-sm border border-red-200 dark:border-red-900 rounded hover:bg-red-50 dark:hover:bg-red-950/40 text-red-500 dark:text-red-400">🗑</button>
                 <button onClick={() => setActiveId(null)} className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">✕</button>
               </div>
@@ -477,9 +480,9 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{attending}</span>
                 <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {attending === 1 ? 'person' : 'people'} attending
+                  {attending === 1 ? i18n.planning.label_person_attending[lang] : i18n.planning.label_people_attending[lang]}
                   {activeEvent.attendees.length > attending && (
-                    <span className="ml-1 text-gray-400 dark:text-gray-400">/ {activeEvent.attendees.length} total</span>
+                    <span className="ml-1 text-gray-400 dark:text-gray-400">{i18n.planning.label_of_total[lang].replace('{count}', String(activeEvent.attendees.length))}</span>
                   )}
                 </span>
               </div>
@@ -526,7 +529,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
                   <tbody>
                     {instrAttendees.length > 0 && (
                       <tr><td colSpan={99} className="pt-2 pb-1 px-3">
-                        <span className="text-xs font-semibold text-gray-400 dark:text-gray-400 uppercase tracking-wide">Instructors</span>
+                        <span className="text-xs font-semibold text-gray-400 dark:text-gray-400 uppercase tracking-wide">{i18n.planning.label_instructors[lang]}</span>
                       </td></tr>
                     )}
                     {instrAttendees.map(a => (
@@ -534,7 +537,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
                     ))}
                     {guests.length > 0 && (
                       <tr><td colSpan={99} className="pt-3 pb-1 px-3">
-                        <span className="text-xs font-semibold text-gray-400 dark:text-gray-400 uppercase tracking-wide">Guests</span>
+                        <span className="text-xs font-semibold text-gray-400 dark:text-gray-400 uppercase tracking-wide">{i18n.planning.label_guests[lang]}</span>
                       </td></tr>
                     )}
                     {guests.map(a => (
@@ -546,7 +549,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
             ) : (
               <div className="space-y-2">
                 {instrAttendees.length > 0 && <>
-                  <SectionLabel label="Instructors" count={instrAttendees.length} />
+                  <SectionLabel label={i18n.planning.label_instructors[lang]} count={instrAttendees.length} />
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {instrAttendees.map(a => (
                       <AttendeeCard key={a.id} a={a} isMenu={isMenu} eventPrice={eventPrice} onUpdate={updateAttendee} onRemove={removeAttendee} />
@@ -554,7 +557,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
                   </div>
                 </>}
                 {guests.length > 0 && <>
-                  <SectionLabel label="Guests" count={guests.length} />
+                  <SectionLabel label={i18n.planning.label_guests[lang]} count={guests.length} />
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {guests.map(a => (
                       <AttendeeCard key={a.id} a={a} isMenu={isMenu} eventPrice={eventPrice} onUpdate={updateAttendee} onRemove={removeAttendee} />
@@ -583,7 +586,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
       {/* New event button (when one is already open) */}
       {activeEvent && (
         <button onClick={createEvent} className="w-full py-2 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg text-gray-400 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-800 hover:text-blue-500 dark:hover:text-blue-400 text-sm transition-colors">
-          + New Event
+          {i18n.planning.btn_new_event[lang]}
         </button>
       )}
 
@@ -591,7 +594,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
       <div>
         <button onClick={() => setShowHistory(h => !h)} className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 py-1">
           <span className={`transition-transform inline-block ${showHistory ? 'rotate-90' : ''}`}>▶</span>
-          History ({events.length} events)
+          {i18n.planning.label_history_events[lang].replace('{count}', String(events.length))}
         </button>
         {showHistory && (
           <div className="mt-2 space-y-1">

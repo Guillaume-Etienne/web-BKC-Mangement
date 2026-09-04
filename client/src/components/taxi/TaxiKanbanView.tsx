@@ -2,11 +2,16 @@ import { useState } from 'react'
 import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef, BookingParticipant } from '../../types/database'
 import { computeTaxiMarginEur } from '../accounting/utils'
 import { todayISO, fmtDate } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
+import type { Lang } from '../../types/database'
 
-const STATUS_CONFIG: Record<TaxiTripStatus, { label: string; card: string; badge: string }> = {
-  confirmed:    { label: 'Confirmed',     card: 'from-slate-50 dark:from-slate-800 to-gray-50 dark:to-gray-800 border-gray-200 dark:border-gray-800',     badge: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' },
-  needs_details:{ label: 'Needs details', card: 'from-red-50 dark:from-red-950/40 to-red-50 dark:to-red-950/40 border-red-300 dark:border-red-800',         badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' },
-  done:         { label: 'Done',          card: 'from-green-50 dark:from-green-950/40 to-emerald-50 dark:to-emerald-950/40 border-green-300 dark:border-green-800',  badge: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' },
+function statusConfig(lang: Lang): Record<TaxiTripStatus, { label: string; card: string; badge: string }> {
+  return {
+    confirmed:    { label: i18n.taxis.status_confirmed_trip[lang], card: 'from-slate-50 dark:from-slate-800 to-gray-50 dark:to-gray-800 border-gray-200 dark:border-gray-800',     badge: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' },
+    needs_details:{ label: i18n.taxis.status_needs_details[lang],  card: 'from-red-50 dark:from-red-950/40 to-red-50 dark:to-red-950/40 border-red-300 dark:border-red-800',         badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' },
+    done:         { label: i18n.taxis.status_done[lang],           card: 'from-green-50 dark:from-green-950/40 to-emerald-50 dark:to-emerald-950/40 border-green-300 dark:border-green-800',  badge: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' },
+  }
 }
 
 function guestName(bookingId: string | null, bookings: BookingRef[]): string {
@@ -105,6 +110,8 @@ interface TaxiKanbanViewProps {
 }
 
 export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookings, bookingParticipants, onAddTrip, onUpdateTrip, onDeleteTrip }: TaxiKanbanViewProps) {
+  const { lang } = useLanguage()
+  const STATUS_CONFIG = statusConfig(lang)
   const [editTrip, setEditTrip]         = useState<TaxiTrip | null>(null)
   const [draggedTrip, setDraggedTrip]   = useState<{ id: string; fromDriverId: string | null } | null>(null)
   const [dropTarget, setDropTarget]     = useState<string | null>(null)
@@ -114,9 +121,9 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
 
   function getTripsForDriver(driverId: string | 'unassigned'): TaxiTrip[] {
     if (driverId === 'unassigned') {
-      return trips.filter(t => t.taxi_driver_id === null).sort((a, b) => `${fmtDate(a.date)}${a.start_time}`.localeCompare(`${fmtDate(b.date)}${b.start_time}`))
+      return trips.filter(t => t.taxi_driver_id === null).sort((a, b) => `${a.date}${a.start_time}`.localeCompare(`${b.date}${b.start_time}`))
     }
-    return trips.filter(t => t.taxi_driver_id === driverId).sort((a, b) => `${fmtDate(a.date)}${a.start_time}`.localeCompare(`${fmtDate(b.date)}${b.start_time}`))
+    return trips.filter(t => t.taxi_driver_id === driverId).sort((a, b) => `${a.date}${a.start_time}`.localeCompare(`${b.date}${b.start_time}`))
   }
 
   function openEdit(trip: TaxiTrip) {
@@ -136,7 +143,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
   }
 
   async function deleteTrip(id: string) {
-    if (confirm('Delete this trip?')) {
+    if (confirm(i18n.taxis.msg_confirm_delete_trip[lang])) {
       await onDeleteTrip(id)
       if (editTrip?.id === id) setEditTrip(null)
     }
@@ -211,7 +218,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
               }`}>
                 <div className="flex justify-between items-center">
                   <span>
-                    {isUnassigned ? '📋 Unassigned' : `🚕 ${driver?.name}`}
+                    {isUnassigned ? `📋 ${i18n.taxis.label_unassigned[lang]}` : `🚕 ${driver?.name}`}
                   </span>
                   <span className="text-sm font-normal text-gray-600 dark:text-gray-400">
                     {columnTrips.length} trip{columnTrips.length !== 1 ? 's' : ''}
@@ -233,7 +240,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                 onDrop={(e) => handleDrop(e, isUnassigned ? null : colId)}
               >
                 {columnTrips.length === 0 ? (
-                  <p className="text-gray-400 dark:text-gray-400 text-sm text-center py-4 italic">No trips</p>
+                  <p className="text-gray-400 dark:text-gray-400 text-sm text-center py-4 italic">{i18n.taxis.msg_no_trips[lang]}</p>
                 ) : (
                   columnTrips.map(trip => {
                     const isDragging = draggedTrip?.id === trip.id
@@ -290,19 +297,19 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                         {/* Finance */}
                         <div className="text-xs font-medium space-y-0.5 bg-white dark:bg-gray-900 rounded p-2">
                           <div className="flex justify-between text-blue-900 dark:text-blue-400 font-bold">
-                            <span>Client</span>
+                            <span>{i18n.taxis.label_client[lang]}</span>
                             <span>{trip.price_eur}€</span>
                           </div>
                           <div className="flex justify-between text-amber-900 dark:text-amber-400 border-t pt-1">
-                            <span>Driver</span>
+                            <span>{i18n.taxis.label_driver[lang]}</span>
                             <span>{trip.price_driver_mzn.toLocaleString()} MZN</span>
                           </div>
                           <div className="flex justify-between text-purple-800 dark:text-purple-400">
-                            <span>Manager</span>
+                            <span>{i18n.taxis.label_manager[lang]}</span>
                             <span>{trip.margin_manager_mzn.toLocaleString()} MZN</span>
                           </div>
                           <div className="flex justify-between text-emerald-800 dark:text-emerald-400 border-t pt-1 font-bold">
-                            <span>Centre</span>
+                            <span>{i18n.taxis.label_centre[lang]}</span>
                             <span>{computeTaxiMarginEur(trip, pricingDefaults.eur_mzn_rate)}€</span>
                           </div>
                         </div>
@@ -322,7 +329,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                   onClick={() => addNewTrip(isUnassigned ? null : colId)}
                   className="w-full mt-2 py-2 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded text-gray-500 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-700 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors text-sm font-medium"
                 >
-                  + Add trip
+                  + {i18n.taxis.btn_add_trip[lang]}
                 </button>
               </div>
             </div>
@@ -335,7 +342,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex justify-between items-center p-4 border-b sticky top-0">
-              <h3 className="font-bold text-lg text-gray-800 dark:text-gray-200">Edit taxi trip</h3>
+              <h3 className="font-bold text-lg text-gray-800 dark:text-gray-200">{i18n.taxis.title_edit_taxi_trip[lang]}</h3>
               <button onClick={() => setEditTrip(null)} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold text-xl">✕</button>
             </div>
 
@@ -366,7 +373,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Status</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_status[lang]}</label>
                 <div className="flex gap-2">
                   {(Object.entries(STATUS_CONFIG) as [TaxiTripStatus, typeof STATUS_CONFIG[TaxiTripStatus]][]).map(([val, cfg]) => (
                     <button key={val} type="button"
@@ -484,15 +491,15 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
               <div className="flex gap-2 pt-4 border-t">
                 <button type="button" onClick={() => deleteTrip(editTrip.id)}
                   className="px-4 py-2 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded font-medium text-sm">
-                  🗑️ Delete
+                  🗑️ {i18n.common.btn_delete[lang]}
                 </button>
                 <button type="button" onClick={() => setEditTrip(null)}
                   className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">
-                  Cancel
+                  {i18n.common.btn_cancel[lang]}
                 </button>
                 <button type="submit"
                   className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm">
-                  Save
+                  {i18n.common.btn_save[lang]}
                 </button>
               </div>
             </form>

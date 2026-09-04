@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { TaxiTrip, TaxiManagerPayment } from '../../types/database'
 import { todayISO, fmtDate } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 
 // ── Dual-currency helpers (MZN first, € translation beside) ──────────────────
 const mznToEur = (mzn: number, rate: number) => Math.round(mzn / (rate || 1))
@@ -89,6 +91,7 @@ interface AddPaymentFormProps {
 }
 
 function AddPaymentForm({ onAdd }: AddPaymentFormProps) {
+  const { lang } = useLanguage()
   const today = todayISO()
   const [date,   setDate]   = useState(today)
   const [amount, setAmount] = useState('')
@@ -106,9 +109,9 @@ function AddPaymentForm({ onAdd }: AddPaymentFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 space-y-3">
-      <h3 className="font-semibold text-gray-800 dark:text-gray-200">Add Payment</h3>
+      <h3 className="font-semibold text-gray-800 dark:text-gray-200">{i18n.taxis.btn_add_payment[lang]}</h3>
       <div>
-        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date</label>
+        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_date[lang]}</label>
         <input type="date" value={date} required
           onChange={e => setDate(e.target.value)}
           className="w-full text-sm border rounded px-2 py-1.5" />
@@ -120,14 +123,14 @@ function AddPaymentForm({ onAdd }: AddPaymentFormProps) {
           className="w-full text-sm border rounded px-2 py-1.5" />
       </div>
       <div>
-        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
+        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_notes[lang]}</label>
         <input type="text" value={notes} placeholder="Optional"
           onChange={e => setNotes(e.target.value)}
           className="w-full text-sm border rounded px-2 py-1.5" />
       </div>
       <button type="submit"
         className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold text-sm">
-        + Add
+        + {i18n.common.btn_add[lang]}
       </button>
     </form>
   )
@@ -143,6 +146,7 @@ interface TaxiFinanceTabProps {
 }
 
 export default function TaxiFinanceTab({ trips, payments, eurMznRate, onAddPayment, onDeletePayment }: TaxiFinanceTabProps) {
+  const { lang } = useLanguage()
   const totalEarned = trips.reduce((s, t) => s + t.margin_manager_mzn, 0)
   const totalPaid   = payments.reduce((s, p) => s + p.amount_mzn, 0)
   const balance     = totalEarned - totalPaid  // >0 = we owe manager, <0 = manager overpaid
@@ -153,12 +157,12 @@ export default function TaxiFinanceTab({ trips, payments, eurMznRate, onAddPayme
                   'text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-800'
 
   const balanceLabel =
-    balance > 0 ? '🟠 We owe the manager' :
-    balance < 0 ? '🟢 Manager overpaid (credit)' :
-                  '⚪ Balanced'
+    balance > 0 ? i18n.taxis.label_balance_owe[lang] :
+    balance < 0 ? i18n.taxis.label_balance_credit[lang] :
+                  i18n.taxis.label_balanced[lang]
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this payment?')) return
+    if (!confirm(i18n.taxis.msg_confirm_delete_payment[lang])) return
     await onDeletePayment(id)
   }
 
@@ -166,7 +170,7 @@ export default function TaxiFinanceTab({ trips, payments, eurMznRate, onAddPayme
     <div className="space-y-6">
       {/* Financial Summary */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">Financial Summary</h2>
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">{i18n.taxis.title_financial_summary[lang]}</h2>
         <SummaryTable trips={trips} rate={eurMznRate} />
       </div>
 
@@ -174,14 +178,14 @@ export default function TaxiFinanceTab({ trips, payments, eurMznRate, onAddPayme
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Balance card */}
         <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 space-y-3">
-          <h3 className="font-semibold text-gray-800 dark:text-gray-200">Manager Balance</h3>
+          <h3 className="font-semibold text-gray-800 dark:text-gray-200">{i18n.taxis.section_manager_balance[lang]}</h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between items-center py-1 border-b">
-              <span className="text-gray-600 dark:text-gray-400">Total earned ({trips.length} trip{trips.length !== 1 ? 's' : ''})</span>
+              <span className="text-gray-600 dark:text-gray-400">{i18n.taxis.label_total_earned[lang]} ({trips.length} trip{trips.length !== 1 ? 's' : ''})</span>
               <MznWithEur mzn={totalEarned} rate={eurMznRate} className="font-bold text-purple-900 dark:text-purple-400 text-right" />
             </div>
             <div className="flex justify-between items-center py-1 border-b">
-              <span className="text-gray-600 dark:text-gray-400">Total paid (advances)</span>
+              <span className="text-gray-600 dark:text-gray-400">{i18n.taxis.label_total_paid[lang]}</span>
               <MznWithEur mzn={totalPaid} rate={eurMznRate} className="font-bold text-blue-900 dark:text-blue-400 text-right" />
             </div>
             <div className={`flex justify-between items-center p-3 rounded border font-bold ${balanceColor}`}>
@@ -203,21 +207,21 @@ export default function TaxiFinanceTab({ trips, payments, eurMznRate, onAddPayme
 
       {/* Payment History */}
       <div>
-        <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">Payment History</h3>
+        <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">{i18n.taxis.section_payment_history[lang]}</h3>
         <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 dark:bg-gray-800 border-b text-xs">
-                <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400">Date</th>
+                <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.common.label_date[lang]}</th>
                 <th className="px-3 py-2 text-right font-semibold text-blue-700 dark:text-blue-400">Amount MZN</th>
-                <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400">Notes</th>
+                <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.common.label_notes[lang]}</th>
                 <th className="px-3 py-2 text-center font-semibold text-gray-600 dark:text-gray-400">🗑</th>
               </tr>
             </thead>
             <tbody>
               {payments.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-400 dark:text-gray-400 italic">No payments recorded</td>
+                  <td colSpan={4} className="px-4 py-8 text-center text-gray-400 dark:text-gray-400 italic">{i18n.taxis.msg_no_payments[lang]}</td>
                 </tr>
               ) : payments.map(p => (
                 <tr key={p.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">

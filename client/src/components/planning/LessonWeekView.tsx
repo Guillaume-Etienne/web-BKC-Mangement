@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import type { Lesson, DayActivity, DaySlot, LessonType, RentalType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine } from '../../types/database'
+import type { Lesson, DayActivity, DaySlot, LessonType, RentalType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine, Lang } from '../../types/database'
 import { rentalBillable } from '../../types/database'
 import { currentInstructorRate, reFreezeInstructorRate, resolveLessonRate, agencyMarker } from '../accounting/utils'
 import { toISODate as dateToISO } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -10,16 +12,20 @@ type Slot = DaySlot
 
 const SLOTS: Slot[] = ['morning', 'afternoon', 'evening']
 
-const SLOT_CONFIG: Record<Slot, { label: string; icon: string; defaultTime: string }> = {
-  morning:   { label: 'Morning',   icon: '🌅', defaultTime: '09:00' },
-  afternoon: { label: 'Afternoon', icon: '☀️', defaultTime: '14:00' },
-  evening:   { label: 'Evening',   icon: '🌙', defaultTime: '19:00' },
+function slotConfig(lang: Lang): Record<Slot, { label: string; icon: string; defaultTime: string }> {
+  return {
+    morning:   { label: i18n.planning.slot_morning[lang],   icon: '🌅', defaultTime: '09:00' },
+    afternoon: { label: i18n.planning.slot_afternoon[lang], icon: '☀️', defaultTime: '14:00' },
+    evening:   { label: i18n.planning.slot_evening[lang],   icon: '🌙', defaultTime: '19:00' },
+  }
 }
 
-const LESSON_TYPE_CFG: Record<LessonType, { label: string; icon: string; card: string; badge: string; dot: string }> = {
-  private:    { label: 'Private', icon: '🧑‍🏫', card: 'bg-purple-50 dark:bg-purple-950/40 border-purple-300 dark:border-purple-800 text-purple-900 dark:text-purple-400', badge: 'bg-purple-500 text-white', dot: 'bg-purple-500' },
-  group:      { label: 'Group',   icon: '👥', card: 'bg-green-50 dark:bg-green-950/40  border-green-300 dark:border-green-800  text-green-900 dark:text-green-400',  badge: 'bg-green-500  text-white', dot: 'bg-green-500'  },
-  supervision:{ label: 'Superv.', icon: '🎓', card: 'bg-blue-50 dark:bg-blue-950/40   border-blue-300 dark:border-blue-800   text-blue-900 dark:text-blue-400',   badge: 'bg-blue-500   text-white', dot: 'bg-blue-500'   },
+function lessonTypeCfg(lang: Lang): Record<LessonType, { label: string; icon: string; card: string; badge: string; dot: string }> {
+  return {
+    private:    { label: i18n.planning.lesson_type_private[lang],     icon: '🧑‍🏫', card: 'bg-purple-50 dark:bg-purple-950/40 border-purple-300 dark:border-purple-800 text-purple-900 dark:text-purple-400', badge: 'bg-purple-500 text-white', dot: 'bg-purple-500' },
+    group:      { label: i18n.planning.lesson_type_group[lang],       icon: '👥', card: 'bg-green-50 dark:bg-green-950/40  border-green-300 dark:border-green-800  text-green-900 dark:text-green-400',  badge: 'bg-green-500  text-white', dot: 'bg-green-500'  },
+    supervision:{ label: i18n.planning.lesson_type_supervision[lang], icon: '🎓', card: 'bg-blue-50 dark:bg-blue-950/40   border-blue-300 dark:border-blue-800   text-blue-900 dark:text-blue-400',   badge: 'bg-blue-500   text-white', dot: 'bg-blue-500'   },
+  }
 }
 
 const DAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -141,6 +147,9 @@ export default function LessonWeekView({
   onAddActivity, onDeleteActivity,
   onAddRental, onUpdateRental, onDeleteRental,
 }: LessonWeekViewProps) {
+  const { lang } = useLanguage()
+  const SLOT_CONFIG = slotConfig(lang)
+  const LESSON_TYPE_CFG = lessonTypeCfg(lang)
   const today = dateToISO(new Date())
 
   // ── Inline add form ────────────────────────────────────────────────────────
@@ -263,7 +272,7 @@ export default function LessonWeekView({
     if (candidates.length === 0) {
       return (
         <p className="text-xs text-gray-400 dark:text-gray-400 italic px-0.5">
-          No guests checked in that day.
+          {i18n.planning.msg_no_guests_checked_in[lang]}
         </p>
       )
     }
@@ -325,7 +334,7 @@ export default function LessonWeekView({
   }
 
   function deleteRental(id: string) {
-    if (confirm('Delete this rental?')) {
+    if (confirm(i18n.planning.msg_confirm_delete_rental[lang])) {
       if (editRental?.id === id) setEditRental(null)
       onDeleteRental(id)
     }
@@ -438,7 +447,7 @@ export default function LessonWeekView({
   }
 
   function deleteLesson(id: string) {
-    if (confirm('Delete this lesson?')) {
+    if (confirm(i18n.planning.msg_confirm_delete_lesson[lang])) {
       onDeleteLesson(id)
       if (editLesson?.id === id) setEditLesson(null)
     }
@@ -492,14 +501,14 @@ export default function LessonWeekView({
       {/* Clipboard banner */}
       {clipboard && (
         <div className="mb-4 flex items-center gap-3 px-4 py-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-lg text-sm">
-          <span>📋 Lesson copied:</span>
+          <span>📋 {i18n.planning.msg_lesson_copied[lang]}</span>
           <span className="font-semibold">
             {bookingParticipants.find(p => p.id === clipboard.participant_ids[0])?.first_name}{' '}
             {bookingParticipants.find(p => p.id === clipboard.participant_ids[0])?.last_name}
             {clipboard.participant_ids.length > 1 && ` +${clipboard.participant_ids.length - 1}`}
             {' · '}{LESSON_TYPE_CFG[clipboard.type].label}{' · '}{clipboard.start_time}
           </span>
-          <span className="text-gray-500 dark:text-gray-400 text-xs">→ Click "Paste" in a slot</span>
+          <span className="text-gray-500 dark:text-gray-400 text-xs">{i18n.planning.hint_click_paste[lang]}</span>
           <button
             onClick={() => setClipboard(null)}
             className="ml-auto text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold"
@@ -712,7 +721,7 @@ export default function LessonWeekView({
                               })}
                               <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 px-0.5">
                                 <input type="checkbox" checked={showAllGuests} onChange={e => setShowAllGuests(e.target.checked)} />
-                                Show all guests
+                                {i18n.planning.label_show_all_guests[lang]}
                               </label>
                               {/* Type buttons */}
                               <div className="grid grid-cols-3 gap-1">
@@ -769,9 +778,9 @@ export default function LessonWeekView({
                                   onChange={e => setAddForm(f => f && { ...f, rental_slot: e.target.value as 'morning' | 'afternoon' | 'full_day' })}
                                   className="flex-1 text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 >
-                                  <option value="morning">Morning</option>
-                                  <option value="afternoon">Afternoon</option>
-                                  <option value="full_day">Full day</option>
+                                  <option value="morning">{i18n.planning.slot_morning[lang]}</option>
+                                  <option value="afternoon">{i18n.planning.slot_afternoon[lang]}</option>
+                                  <option value="full_day">{i18n.planning.slot_full_day[lang]}</option>
                                 </select>
                                 <input
                                   type="number"
@@ -836,7 +845,7 @@ export default function LessonWeekView({
                               })}
                               <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 px-0.5">
                                 <input type="checkbox" checked={showAllGuests} onChange={e => setShowAllGuests(e.target.checked)} />
-                                Show all guests
+                                {i18n.planning.label_show_all_guests[lang]}
                               </label>
                               <select
                                 value={addForm?.instructor_id}
@@ -922,7 +931,7 @@ export default function LessonWeekView({
                             <button
                               onClick={() => setAddForm(null)}
                               className="flex-1 text-sm md:text-xs py-2 md:py-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium"
-                            >Cancel</button>
+                            >{i18n.common.btn_cancel[lang]}</button>
                             <button
                               onClick={submitAdd}
                               disabled={
@@ -931,7 +940,7 @@ export default function LessonWeekView({
                                 (addForm?.kind === 'rental' && !addForm?.rental_participant_id)
                               }
                               className="flex-1 text-sm md:text-xs py-2 md:py-1 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium disabled:opacity-40"
-                            >Add</button>
+                            >{i18n.common.btn_add[lang]}</button>
                           </div>
                         </div>
                       ) : (
@@ -940,20 +949,20 @@ export default function LessonWeekView({
                           <button
                             onClick={() => openAdd(iso, slot, 'lesson')}
                             className="text-sm md:text-xs text-gray-400 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-800 transition-colors"
-                          >+ Lesson</button>
+                          >{i18n.planning.btn_add_lesson[lang]}</button>
                           <button
                             onClick={() => openAdd(iso, slot, 'activity')}
                             className="text-sm md:text-xs text-gray-400 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-700 hover:border-orange-300 dark:hover:border-orange-800 transition-colors"
-                          >+ Activity</button>
+                          >{i18n.planning.btn_add_activity[lang]}</button>
                           <button
                             onClick={() => openAdd(iso, slot, 'rental')}
                             className="text-sm md:text-xs text-gray-400 dark:text-gray-400 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-700 hover:border-amber-400 dark:hover:border-amber-700 transition-colors"
-                          >+ Rental</button>
+                          >{i18n.planning.btn_add_rental[lang]}</button>
                           {clipboard && (
                             <button
                               onClick={() => pasteLesson(iso, slot)}
                               className="text-sm md:text-xs text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-amber-300 dark:border-amber-800 transition-colors font-medium"
-                            >📋 Paste</button>
+                            >{i18n.planning.btn_paste[lang]}</button>
                           )}
                         </div>
                       )}
@@ -1002,12 +1011,12 @@ export default function LessonWeekView({
           </span>
         ))}
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-sm bg-orange-400" /> Activity
+          <span className="w-2.5 h-2.5 rounded-sm bg-orange-400" /> {i18n.planning.legend_activity[lang]}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" /> Rental
+          <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" /> {i18n.planning.legend_rental[lang]}
         </span>
-        <span className="text-gray-400 dark:text-gray-400 ml-2">· ↔ to move · ⎘ to copy</span>
+        <span className="text-gray-400 dark:text-gray-400 ml-2">{i18n.planning.legend_move_copy_hint[lang]}</span>
       </div>
 
       {/* Edit modal */}
@@ -1015,7 +1024,7 @@ export default function LessonWeekView({
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md">
             <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="font-bold text-gray-800 dark:text-gray-200">Edit lesson</h3>
+              <h3 className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_edit_lesson[lang]}</h3>
               <button onClick={() => setEditLesson(null)} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold">✕</button>
             </div>
             <form onSubmit={submitEdit} className="p-4 space-y-3">
@@ -1146,20 +1155,20 @@ export default function LessonWeekView({
                   onClick={() => deleteLesson(editLesson.id)}
                   className="px-3 py-2 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded font-medium text-sm"
                 >
-                  Delete
+                  {i18n.common.btn_delete[lang]}
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditLesson(null)}
                   className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm"
                 >
-                  Cancel
+                  {i18n.common.btn_cancel[lang]}
                 </button>
                 <button
                   type="submit"
                   className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm"
                 >
-                  Save
+                  {i18n.common.btn_save[lang]}
                 </button>
               </div>
             </form>
@@ -1172,7 +1181,7 @@ export default function LessonWeekView({
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditRental(null)}>
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b">
-              <h3 className="font-bold text-gray-800 dark:text-gray-200">Edit rental</h3>
+              <h3 className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_edit_rental[lang]}</h3>
               <button onClick={() => setEditRental(null)} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">✕</button>
             </div>
             <form onSubmit={submitEditRental} className="p-4 space-y-3">
@@ -1224,9 +1233,9 @@ export default function LessonWeekView({
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Slot</label>
                   <select value={editRentalSlot} onChange={e => setEditRentalSlot(e.target.value as 'morning' | 'afternoon' | 'full_day')}
                     className="w-full text-sm border rounded px-2 py-1.5">
-                    <option value="morning">Morning</option>
-                    <option value="afternoon">Afternoon</option>
-                    <option value="full_day">Full day</option>
+                    <option value="morning">{i18n.planning.slot_morning[lang]}</option>
+                    <option value="afternoon">{i18n.planning.slot_afternoon[lang]}</option>
+                    <option value="full_day">{i18n.planning.slot_full_day[lang]}</option>
                   </select>
                 </div>
                 <div className="w-24">
@@ -1244,11 +1253,11 @@ export default function LessonWeekView({
               </div>
               <div className="flex gap-2 pt-2 border-t">
                 <button type="button" onClick={() => deleteRental(editRental.id)}
-                  className="px-3 py-2 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded font-medium text-sm">Delete</button>
+                  className="px-3 py-2 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded font-medium text-sm">{i18n.common.btn_delete[lang]}</button>
                 <button type="button" onClick={() => setEditRental(null)}
-                  className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">Cancel</button>
+                  className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">{i18n.common.btn_cancel[lang]}</button>
                 <button type="submit"
-                  className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm">Save</button>
+                  className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm">{i18n.common.btn_save[lang]}</button>
               </div>
             </form>
           </div>
@@ -1266,7 +1275,7 @@ export default function LessonWeekView({
               <button
                 onClick={() => { copyLesson(actionSheetItem.item); setActionSheetItem(null) }}
                 className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-base font-medium text-gray-800 dark:text-gray-200"
-              >⎘ Copy</button>
+              >⎘ {i18n.common.btn_copy[lang]}</button>
             )}
             <button
               onClick={() => {
@@ -1275,7 +1284,7 @@ export default function LessonWeekView({
                 setActionSheetItem(null)
               }}
               className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-base font-medium text-gray-800 dark:text-gray-200"
-            >↔ Move</button>
+            >↔ {i18n.common.btn_move[lang]}</button>
             <button
               onClick={() => {
                 if (actionSheetItem.kind === 'lesson') openEdit(actionSheetItem.item)
@@ -1283,7 +1292,7 @@ export default function LessonWeekView({
                 setActionSheetItem(null)
               }}
               className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-base font-medium text-gray-800 dark:text-gray-200"
-            >✏️ Edit</button>
+            >✏️ {i18n.common.btn_edit[lang]}</button>
             <button
               onClick={() => {
                 if (actionSheetItem.kind === 'lesson') deleteLesson(actionSheetItem.item.id)
@@ -1291,11 +1300,11 @@ export default function LessonWeekView({
                 setActionSheetItem(null)
               }}
               className="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-base font-medium text-red-600 dark:text-red-400"
-            >✕ Delete</button>
+            >✕ {i18n.common.btn_delete[lang]}</button>
             <button
               onClick={() => setActionSheetItem(null)}
               className="w-full text-center px-4 py-3 mt-1 border-t text-gray-500 dark:text-gray-400 font-medium"
-            >Cancel</button>
+            >{i18n.common.btn_cancel[lang]}</button>
           </div>
         </div>
       )}
@@ -1305,7 +1314,7 @@ export default function LessonWeekView({
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setMoveItem(null)}>
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b">
-              <h3 className="font-bold text-gray-800 dark:text-gray-200">Move {moveItem.kind}</h3>
+              <h3 className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_move[lang]} {moveItem.kind}</h3>
               <button onClick={() => setMoveItem(null)} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">✕</button>
             </div>
             <div className="p-4 space-y-3">
@@ -1350,7 +1359,7 @@ export default function LessonWeekView({
                             : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-emerald-300 dark:hover:border-emerald-800'
                         }`}
                       >
-                        {slot === 'morning' ? 'Morning' : slot === 'afternoon' ? 'Afternoon' : 'Full day'}
+                        {slot === 'morning' ? i18n.planning.slot_morning[lang] : slot === 'afternoon' ? i18n.planning.slot_afternoon[lang] : i18n.planning.slot_full_day[lang]}
                       </button>
                     ))}
                   </div>
@@ -1358,9 +1367,9 @@ export default function LessonWeekView({
               </div>
               <div className="flex gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setMoveItem(null)}
-                  className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">Cancel</button>
+                  className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">{i18n.common.btn_cancel[lang]}</button>
                 <button type="button" onClick={submitMove}
-                  className="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-medium text-sm">Move</button>
+                  className="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-medium text-sm">{i18n.common.btn_move[lang]}</button>
               </div>
             </div>
           </div>

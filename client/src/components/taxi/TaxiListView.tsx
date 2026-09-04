@@ -2,11 +2,16 @@ import { useState, useRef } from 'react'
 import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef, BookingParticipant } from '../../types/database'
 import { computeTaxiMarginEur } from '../accounting/utils'
 import { todayISO, fmtDate } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
+import type { Lang } from '../../types/database'
 
-const STATUS_CONFIG: Record<TaxiTripStatus, { label: string; row: string; badge: string }> = {
-  confirmed:    { label: 'Confirmed',     row: '',            badge: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' },
-  needs_details:{ label: 'Needs details', row: 'bg-red-50 dark:bg-red-950/40',   badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' },
-  done:         { label: 'Done',          row: 'bg-green-50 dark:bg-green-950/40', badge: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' },
+function statusConfig(lang: Lang): Record<TaxiTripStatus, { label: string; row: string; badge: string }> {
+  return {
+    confirmed:    { label: i18n.taxis.status_confirmed_trip[lang], row: '',            badge: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' },
+    needs_details:{ label: i18n.taxis.status_needs_details[lang],  row: 'bg-red-50 dark:bg-red-950/40',   badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' },
+    done:         { label: i18n.taxis.status_done[lang],           row: 'bg-green-50 dark:bg-green-950/40', badge: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' },
+  }
 }
 
 function guestName(bookingId: string | null, bookings: BookingRef[]): string {
@@ -107,6 +112,8 @@ interface EditModalProps {
 }
 
 function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaults, onChange, onSave, onDelete, onClose }: EditModalProps) {
+  const { lang } = useLanguage()
+  const STATUS_CONFIG = statusConfig(lang)
   function handleSave() {
     onSave()
   }
@@ -115,7 +122,7 @@ function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaul
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex justify-between items-center p-4 border-b">
-          <h3 className="font-bold text-lg text-gray-800 dark:text-gray-200">Edit taxi trip</h3>
+          <h3 className="font-bold text-lg text-gray-800 dark:text-gray-200">{i18n.taxis.title_edit_taxi_trip[lang]}</h3>
           <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold text-xl">✕</button>
         </div>
 
@@ -146,7 +153,7 @@ function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaul
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Status</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_status[lang]}</label>
             <div className="flex gap-2">
               {(Object.entries(STATUS_CONFIG) as [TaxiTripStatus, typeof STATUS_CONFIG[TaxiTripStatus]][]).map(([val, cfg]) => (
                 <button key={val} type="button"
@@ -266,15 +273,15 @@ function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaul
         <div className="flex gap-2 p-4 border-t">
           <button onClick={onDelete}
             className="px-4 py-2 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded font-medium text-sm">
-            🗑️ Delete
+            🗑️ {i18n.common.btn_delete[lang]}
           </button>
           <button onClick={onClose}
             className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">
-            Cancel
+            {i18n.common.btn_cancel[lang]}
           </button>
           <button onClick={handleSave}
             className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm">
-            Save
+            {i18n.common.btn_save[lang]}
           </button>
         </div>
       </div>
@@ -296,6 +303,8 @@ interface TaxiListViewProps {
 }
 
 export default function TaxiListView({ trips, drivers, bookings, bookingParticipants, pricingDefaults, onAddTrip, onUpdateTrip, onDeleteTrip }: TaxiListViewProps) {
+  const { lang } = useLanguage()
+  const STATUS_CONFIG = statusConfig(lang)
   const [sortBy, setSortBy]             = useState<'date' | 'driver' | 'type'>('date')
   const [filterDriver, setFilterDriver] = useState<string>('all')
   const [editTrip, setEditTrip]         = useState<TaxiTrip | null>(null)
@@ -304,7 +313,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
   const sortedTrips = [...trips]
     .filter(t => filterDriver === 'all' || t.taxi_driver_id === filterDriver || (filterDriver === 'unassigned' && !t.taxi_driver_id))
     .sort((a, b) => {
-      if (sortBy === 'date')   return `${fmtDate(a.date)}${a.start_time}`.localeCompare(`${fmtDate(b.date)}${b.start_time}`)
+      if (sortBy === 'date')   return `${a.date}${a.start_time}`.localeCompare(`${b.date}${b.start_time}`)
       if (sortBy === 'driver') {
         const dA = a.taxi_driver_id ? drivers.find(d => d.id === a.taxi_driver_id)?.name ?? 'zzz' : 'zzz'
         const dB = b.taxi_driver_id ? drivers.find(d => d.id === b.taxi_driver_id)?.name ?? 'zzz' : 'zzz'
@@ -359,7 +368,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
 
   async function handleDelete() {
     if (!editTrip) return
-    if (confirm('Delete this trip?')) {
+    if (confirm(i18n.taxis.msg_confirm_delete_trip[lang])) {
       await onDeleteTrip(editTrip.id)
       setEditTrip(null)
     }
@@ -373,31 +382,31 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
       {/* Controls */}
       <div className="flex flex-col md:flex-row gap-4 mb-6 items-start md:items-center">
         <div className="flex gap-2 items-center">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Sort:</label>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{i18n.taxis.label_sort[lang]}</label>
           <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}
             className="text-sm border rounded px-3 py-1.5 bg-white dark:bg-gray-900">
             <option value="date">Date/Time</option>
-            <option value="driver">Driver</option>
+            <option value="driver">{i18n.taxis.label_driver[lang]}</option>
             <option value="type">Type</option>
           </select>
         </div>
         <div className="flex gap-2 items-center">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</label>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{i18n.taxis.label_filter[lang]}</label>
           <select value={filterDriver} onChange={e => setFilterDriver(e.target.value)}
             className="text-sm border rounded px-3 py-1.5 bg-white dark:bg-gray-900">
-            <option value="all">All</option>
-            <option value="unassigned">Unassigned</option>
+            <option value="all">{i18n.taxis.label_all[lang]}</option>
+            <option value="unassigned">{i18n.taxis.label_unassigned[lang]}</option>
             {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
         <div className="ml-auto flex gap-2">
           <button onClick={scrollToToday}
             className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 font-semibold text-sm border border-gray-300 dark:border-gray-700">
-            📅 Today
+            📅 {i18n.taxis.btn_today[lang]}
           </button>
           <button onClick={addNewTrip}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm">
-            + Add trip
+            + {i18n.taxis.btn_add_trip[lang]}
           </button>
         </div>
       </div>
@@ -408,11 +417,11 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
           <table className="w-full text-sm">
             <thead className="bg-gray-100 dark:bg-gray-800 border-b sticky top-0">
               <tr>
-                <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Date</th>
+                <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">{i18n.common.label_date[lang]}</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Time</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">Type</th>
-                <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">Notes</th>
-                <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">Driver</th>
+                <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">{i18n.common.label_notes[lang]}</th>
+                <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">{i18n.taxis.label_driver[lang]}</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Guest</th>
                 <th className="px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Pers</th>
                 <th className="px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Bag</th>
@@ -421,14 +430,14 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                 <th className="px-3 py-2 text-right font-semibold text-amber-700 dark:text-amber-400 whitespace-nowrap">Driver MZN</th>
                 <th className="px-3 py-2 text-right font-semibold text-purple-700 dark:text-purple-400 whitespace-nowrap">Mgr MZN</th>
                 <th className="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">Centre €</th>
-                <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">Status</th>
+                <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">{i18n.common.label_status[lang]}</th>
                 <th className="px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">✏️</th>
               </tr>
             </thead>
             <tbody>
               {sortedTrips.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400 italic">No trips</td>
+                  <td colSpan={15} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400 italic">{i18n.taxis.msg_no_trips[lang]}</td>
                 </tr>
               ) : sortedTrips.map(trip => {
                 const driver = drivers.find(d => d.id === trip.taxi_driver_id)
@@ -444,7 +453,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                       )}
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 max-w-[140px] truncate">{trip.notes ?? <span className="italic text-gray-300 dark:text-gray-500">—</span>}</td>
-                    <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-700 dark:text-gray-300">{driver?.name ?? <span className="text-red-400 dark:text-red-300 italic">Unassigned</span>}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-700 dark:text-gray-300">{driver?.name ?? <span className="text-red-400 dark:text-red-300 italic">{i18n.taxis.label_unassigned[lang]}</span>}</td>
                     <td className="px-3 py-2 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap">{guestName(trip.booking_id, bookings)}</td>
                     <td className="px-3 py-2 text-center text-gray-800 dark:text-gray-200">{trip.nb_persons}</td>
                     <td className="px-3 py-2 text-center text-gray-800 dark:text-gray-200">{trip.nb_luggage}</td>

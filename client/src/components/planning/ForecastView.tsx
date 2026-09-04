@@ -2,6 +2,8 @@ import { useState, useRef } from 'react'
 import type { Lesson, LessonType, EquipmentRental, Instructor, Client, Equipment, Booking, Agency, AgencyBillingLine } from '../../types/database'
 import { currentInstructorRate, reFreezeInstructorRate, agencyMarker } from '../accounting/utils'
 import { toISODate as dateToISO, addDays } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -58,6 +60,7 @@ interface AddLessonModalProps {
 }
 
 function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot, clients, instructors, onConfirm, onClose }: AddLessonModalProps) {
+  const { lang } = useLanguage()
   const [type, setType]           = useState<LessonType>('private')
   const [clientIds, setClientIds] = useState<string[]>([clients[0]?.id ?? ''])
   const [instrId, setInstrId]     = useState(instructorId)
@@ -92,15 +95,15 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-sm">
         <div className="flex justify-between items-center p-4 border-b">
-          <h3 className="font-bold text-gray-800 dark:text-gray-200">New lesson</h3>
+          <h3 className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_new_lesson[lang]}</h3>
           <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold text-lg">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Type</label>
             <select value={type} onChange={e => setType(e.target.value as LessonType)} className="w-full text-sm border rounded px-2 py-1.5">
-              <option value="private">Private</option>
-              <option value="group">Group</option>
+              <option value="private">{i18n.planning.lesson_type_private[lang]}</option>
+              <option value="group">{i18n.planning.lesson_type_group[lang]}</option>
               <option value="supervision">Supervision</option>
             </select>
           </div>
@@ -139,7 +142,7 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Start</label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.planning.label_start[lang]}</label>
               <select value={startSlot} onChange={e => setStartSlot(+e.target.value)} className="w-full text-sm border rounded px-2 py-1.5">
                 {Array.from({ length: totalSlots }, (_, i) => (
                   <option key={i} value={i}>{slotToTime(i, startHour)}</option>
@@ -160,9 +163,9 @@ function AddLessonModal({ date, startHour, totalSlots, instructorId, initialSlot
           </div>
           <div className="flex gap-2 pt-2 border-t">
             <button type="button" onClick={onClose}
-              className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">Cancel</button>
+              className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">{i18n.common.btn_cancel[lang]}</button>
             <button type="submit"
-              className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm">Add</button>
+              className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm">{i18n.common.btn_add[lang]}</button>
           </div>
         </form>
       </div>
@@ -184,6 +187,7 @@ interface EditLessonModalProps {
 }
 
 function EditLessonModal({ lesson, startHour, totalSlots, clients, instructors, onSave, onDelete, onClose }: EditLessonModalProps) {
+  const { lang } = useLanguage()
   const [type, setType]           = useState<LessonType>(lesson.type)
   const [clientIds, setClientIds] = useState<string[]>(lesson.participant_ids)
   const [instrId, setInstrId]     = useState(lesson.instructor_id)
@@ -205,15 +209,15 @@ function EditLessonModal({ lesson, startHour, totalSlots, clients, instructors, 
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-sm">
         <div className="flex justify-between items-center p-4 border-b">
-          <h3 className="font-bold text-gray-800 dark:text-gray-200">Edit lesson</h3>
+          <h3 className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_edit_lesson[lang]}</h3>
           <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold text-lg">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Type</label>
             <select value={type} onChange={e => setType(e.target.value as LessonType)} className="w-full text-sm border rounded px-2 py-1.5">
-              <option value="private">Private</option>
-              <option value="group">Group</option>
+              <option value="private">{i18n.planning.lesson_type_private[lang]}</option>
+              <option value="group">{i18n.planning.lesson_type_group[lang]}</option>
               <option value="supervision">Supervision</option>
             </select>
           </div>
@@ -252,7 +256,7 @@ function EditLessonModal({ lesson, startHour, totalSlots, clients, instructors, 
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Start</label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.planning.label_start[lang]}</label>
               <select value={startSlot} onChange={e => setStartSlot(+e.target.value)} className="w-full text-sm border rounded px-2 py-1.5">
                 {Array.from({ length: totalSlots }, (_, i) => (
                   <option key={i} value={i}>{slotToTime(i, startHour)}</option>
@@ -273,12 +277,12 @@ function EditLessonModal({ lesson, startHour, totalSlots, clients, instructors, 
           </div>
           <div className="flex gap-2 pt-2 border-t">
             <button type="button"
-              onClick={() => { if (confirm('Delete this lesson?')) { onDelete(lesson.id); onClose() } }}
-              className="px-3 py-2 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded font-medium text-sm">Delete</button>
+              onClick={() => { if (confirm(i18n.planning.msg_confirm_delete_lesson[lang])) { onDelete(lesson.id); onClose() } }}
+              className="px-3 py-2 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded font-medium text-sm">{i18n.common.btn_delete[lang]}</button>
             <button type="button" onClick={onClose}
-              className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">Cancel</button>
+              className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">{i18n.common.btn_cancel[lang]}</button>
             <button type="submit"
-              className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm">Save</button>
+              className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm">{i18n.common.btn_save[lang]}</button>
           </div>
         </form>
       </div>
@@ -298,6 +302,7 @@ interface RentalsPanelProps {
 }
 
 function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: RentalsPanelProps) {
+  const { lang } = useLanguage()
   const [showForm, setShowForm] = useState(false)
   const [clientId, setClientId] = useState(clients[0]?.id ?? '')
   const [equipType, setEquipType] = useState('kite')
@@ -308,9 +313,9 @@ function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: Re
   const DEFAULT_PRICES: Record<string, number> = { kite: 40, board: 20, full: 55, surfboard: 25, foilboard: 35, free: 0 }
 
   const groups: { key: 'morning' | 'afternoon' | 'full_day'; label: string }[] = [
-    { key: 'morning', label: 'Morning' },
-    { key: 'afternoon', label: 'Afternoon' },
-    { key: 'full_day', label: 'Full day' },
+    { key: 'morning', label: i18n.planning.slot_morning[lang] },
+    { key: 'afternoon', label: i18n.planning.slot_afternoon[lang] },
+    { key: 'full_day', label: i18n.planning.slot_full_day[lang] },
   ]
 
   function submitRental(e: React.FormEvent) {
@@ -332,11 +337,11 @@ function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: Re
   return (
     <div className="w-52 shrink-0 flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">📦 Rentals</h3>
+        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">📦 {i18n.planning.section_rentals[lang]}</h3>
         <button
           onClick={() => setShowForm(v => !v)}
           className="text-xs px-2 py-0.5 rounded border border-dashed border-amber-400 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
-        >+ Add</button>
+        >+ {i18n.common.btn_add[lang]}</button>
       </div>
 
       {showForm && (
@@ -363,9 +368,9 @@ function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: Re
           <div className="flex gap-1">
             <select value={slot} onChange={e => setSlot(e.target.value as typeof slot)}
               className="flex-1 text-xs border rounded px-1 py-1">
-              <option value="morning">Morning</option>
-              <option value="afternoon">Afternoon</option>
-              <option value="full_day">Full day</option>
+              <option value="morning">{i18n.planning.slot_morning[lang]}</option>
+              <option value="afternoon">{i18n.planning.slot_afternoon[lang]}</option>
+              <option value="full_day">{i18n.planning.slot_full_day[lang]}</option>
             </select>
             <input type="number" value={price} onChange={e => setPrice(+e.target.value)}
               className="w-14 text-xs border rounded px-1 py-1 text-right" min={0} />
@@ -373,9 +378,9 @@ function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: Re
           </div>
           <div className="flex gap-1">
             <button type="button" onClick={() => setShowForm(false)}
-              className="flex-1 text-xs py-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">Cancel</button>
+              className="flex-1 text-xs py-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">{i18n.common.btn_cancel[lang]}</button>
             <button type="submit"
-              className="flex-1 text-xs py-1 bg-amber-500 hover:bg-amber-600 text-white rounded font-medium">Add</button>
+              className="flex-1 text-xs py-1 bg-amber-500 hover:bg-amber-600 text-white rounded font-medium">{i18n.common.btn_add[lang]}</button>
           </div>
         </form>
       )}
@@ -411,7 +416,7 @@ function RentalsPanel({ rentals, clients, equipment, onDelete, onAdd, date }: Re
       })}
 
       {rentals.length === 0 && !showForm && (
-        <p className="text-xs text-gray-400 dark:text-gray-400 italic">No rentals planned</p>
+        <p className="text-xs text-gray-400 dark:text-gray-400 italic">{i18n.planning.msg_no_rentals_planned[lang]}</p>
       )}
     </div>
   )
@@ -436,6 +441,7 @@ interface ForecastViewProps {
 }
 
 export default function ForecastView({ lessons, instructors, clients, equipment, rentals, bookings, agencies, agencyBillingLines, onAddLesson, onUpdateLesson, onDeleteLesson, onAddRental, onDeleteRental }: ForecastViewProps) {
+  const { lang } = useLanguage()
   const today = new Date()
 
   const [selectedDate, setSelectedDate]   = useState<Date>(() => addDays(today, 1))
@@ -554,13 +560,13 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
             className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold">→</button>
           <button onClick={() => setSelectedDate(addDays(today, 1))}
             className="px-2.5 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-800">
-            Tomorrow
+            {i18n.planning.btn_tomorrow[lang]}
           </button>
         </div>
 
         {/* Start hour */}
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Start:</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">{i18n.planning.label_start[lang]}</span>
           <select
             value={startHour}
             onChange={e => setStartHour(+e.target.value)}
@@ -577,12 +583,12 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
         <div className="flex items-center gap-2 ml-auto">
           <button onClick={copyDay}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300">
-            ⎘ Copy day
+            {i18n.planning.btn_copy_day[lang]}
           </button>
           {dayClipboard && dayClipboard.length > 0 && (
             <button onClick={pasteDay}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-800 text-sm font-medium text-amber-800 dark:text-amber-400">
-              📋 Paste ({dayClipboard.length} lessons)
+              {i18n.planning.btn_paste_n_lessons[lang].replace('{count}', String(dayClipboard.length))}
             </button>
           )}
         </div>

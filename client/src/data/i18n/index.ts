@@ -12,6 +12,7 @@ import { activitiesI18n } from './activities'
 import { equipmentI18n } from './equipment'
 import { enquiriesI18n } from './enquiries'
 import { followupsI18n } from './followups'
+import { planningI18n } from './planning'
 
 // ─── Aggregated i18n object ──────────────────────────────────────────────────
 export const i18n = {
@@ -27,6 +28,7 @@ export const i18n = {
   equipment: equipmentI18n,
   enquiries: enquiriesI18n,
   followups: followupsI18n,
+  planning: planningI18n,
 }
 
 // ─── Type exports ────────────────────────────────────────────────────────────

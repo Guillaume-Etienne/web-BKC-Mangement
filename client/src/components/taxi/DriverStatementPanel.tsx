@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { TaxiDriver, TaxiTrip, SharedLink } from '../../types/database'
 import { todayISO, fmtDate } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 
 const TRIP_TYPE_LABELS: Record<string, string> = {
   'aero-to-center':  'Airport → Center',
@@ -10,12 +12,6 @@ const TRIP_TYPE_LABELS: Record<string, string> = {
   'center-to-town':  'Center → Town',
   'town-to-center':  'Town → Center',
   'other':           'Other',
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  confirmed:     'Confirmed',
-  needs_details: 'Details needed',
-  done:          'Done',
 }
 
 interface Props {
@@ -30,8 +26,14 @@ interface Props {
 // ── Trip table ────────────────────────────────────────────────────────────────
 
 function TripTable({ trips, showStatus }: { trips: TaxiTrip[]; showStatus?: boolean }) {
+  const { lang } = useLanguage()
+  const STATUS_LABELS: Record<string, string> = {
+    confirmed:     i18n.taxis.status_confirmed_trip[lang],
+    needs_details: i18n.taxis.status_needs_details[lang],
+    done:          i18n.taxis.status_done[lang],
+  }
   if (trips.length === 0) {
-    return <p className="text-sm text-gray-400 dark:text-gray-400 italic py-2">No trips.</p>
+    return <p className="text-sm text-gray-400 dark:text-gray-400 italic py-2">{i18n.taxis.msg_no_trips[lang]}</p>
   }
   const total = trips.reduce((s, t) => s + t.price_driver_mzn, 0)
   return (
@@ -39,13 +41,13 @@ function TripTable({ trips, showStatus }: { trips: TaxiTrip[]; showStatus?: bool
       <table className="w-full text-xs">
         <thead>
           <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-left">
-            <th className="px-3 py-2 font-medium">Date</th>
+            <th className="px-3 py-2 font-medium">{i18n.common.label_date[lang]}</th>
             <th className="px-3 py-2 font-medium">Time</th>
             <th className="px-3 py-2 font-medium">Route</th>
             <th className="px-3 py-2 font-medium text-center">Pax</th>
             <th className="px-3 py-2 font-medium text-center">Bags</th>
             <th className="px-3 py-2 font-medium text-center">Boards</th>
-            {showStatus && <th className="px-3 py-2 font-medium">Status</th>}
+            {showStatus && <th className="px-3 py-2 font-medium">{i18n.common.label_status[lang]}</th>}
             <th className="px-3 py-2 font-medium text-right">Driver (MZN)</th>
           </tr>
         </thead>
@@ -76,7 +78,7 @@ function TripTable({ trips, showStatus }: { trips: TaxiTrip[]; showStatus?: bool
         <tfoot>
           <tr className="bg-gray-100 dark:bg-gray-800 border-t-2 border-gray-300 dark:border-gray-700">
             <td colSpan={showStatus ? 7 : 6} className="px-3 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">
-              Total
+              {i18n.common.label_total[lang]}
             </td>
             <td className="px-3 py-2 text-right font-bold text-amber-900 dark:text-amber-400">
               {total.toLocaleString()} MZN
@@ -94,6 +96,7 @@ function ShareLinkSection({ driverLink, onGenerateLink }: {
   driverLink:     SharedLink | null
   onGenerateLink: () => Promise<void>
 }) {
+  const { lang } = useLanguage()
   const [generating, setGenerating] = useState(false)
   const [copied,     setCopied]     = useState(false)
 
@@ -117,13 +120,13 @@ function ShareLinkSection({ driverLink, onGenerateLink }: {
   if (!shareUrl) {
     return (
       <div className="flex items-center gap-3">
-        <p className="text-sm text-gray-400 dark:text-gray-400 italic flex-1">No shareable link yet</p>
+        <p className="text-sm text-gray-400 dark:text-gray-400 italic flex-1">{i18n.taxis.msg_no_share_link[lang]}</p>
         <button
           onClick={handleGenerate}
           disabled={generating}
           className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
         >
-          {generating ? 'Generating…' : 'Generate link'}
+          {generating ? i18n.taxis.msg_generating[lang] : i18n.taxis.btn_generate_link[lang]}
         </button>
       </div>
     )
@@ -143,7 +146,7 @@ function ShareLinkSection({ driverLink, onGenerateLink }: {
           copied ? 'bg-green-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
         }`}
       >
-        {copied ? '✓ Copied' : 'Copy'}
+        {copied ? i18n.taxis.msg_copied[lang] : i18n.taxis.btn_copy_link[lang]}
       </button>
       <a
         href={shareUrl}
@@ -151,7 +154,7 @@ function ShareLinkSection({ driverLink, onGenerateLink }: {
         rel="noopener noreferrer"
         className="px-4 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
       >
-        Open
+        {i18n.taxis.btn_open_link[lang]}
       </a>
     </div>
   )
@@ -160,6 +163,7 @@ function ShareLinkSection({ driverLink, onGenerateLink }: {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function DriverStatementPanel({ driver, trips, driverLink, onGenerateLink, onEdit, onDelete }: Props) {
+  const { lang } = useLanguage()
   const today    = todayISO()
   const past     = trips.filter(t => t.date <  today).sort((a, b) => b.date.localeCompare(a.date))
   const upcoming = trips.filter(t => t.date >= today).sort((a, b) => a.date.localeCompare(b.date))
@@ -183,7 +187,7 @@ export default function DriverStatementPanel({ driver, trips, driverLink, onGene
         <div className="flex gap-2">
           <button onClick={onEdit}
             className="px-3 py-1.5 bg-blue-500 hover:bg-blue-400 text-white rounded-lg text-sm font-medium transition-colors">
-            ✏️ Edit
+            ✏️ {i18n.common.btn_edit[lang]}
           </button>
           <button onClick={onDelete}
             className="px-3 py-1.5 bg-red-500 hover:bg-red-400 text-white rounded-lg text-sm font-medium transition-colors">
@@ -196,24 +200,24 @@ export default function DriverStatementPanel({ driver, trips, driverLink, onGene
 
         {/* Shareable link */}
         <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg px-4 py-3 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Driver share link</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{i18n.taxis.label_driver_share_link[lang]}</p>
           <ShareLinkSection driverLink={driverLink} onGenerateLink={onGenerateLink} />
         </div>
 
         {/* KPI summary */}
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 rounded-lg px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">Completed</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">{i18n.taxis.label_completed[lang]}</p>
             <p className="text-2xl font-bold text-green-800 dark:text-green-400 mt-1">{earnedMzn.toLocaleString()}</p>
             <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">{past.length} trip{past.length !== 1 ? 's' : ''} · MZN</p>
           </div>
           <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">Upcoming</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">{i18n.taxis.label_upcoming[lang]}</p>
             <p className="text-2xl font-bold text-blue-800 dark:text-blue-400 mt-1">{upcomingMzn.toLocaleString()}</p>
             <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">{upcoming.length} trip{upcoming.length !== 1 ? 's' : ''} · MZN</p>
           </div>
           <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Total</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{i18n.common.label_total[lang]}</p>
             <p className="text-2xl font-bold text-gray-800 dark:text-gray-200 mt-1">{totalMzn.toLocaleString()}</p>
             <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">{trips.length} trip{trips.length !== 1 ? 's' : ''} · MZN</p>
           </div>
@@ -221,7 +225,7 @@ export default function DriverStatementPanel({ driver, trips, driverLink, onGene
 
         {/* Upcoming trips */}
         <div>
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Upcoming trips ({upcoming.length})</h4>
+          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{i18n.taxis.label_upcoming_trips[lang]} ({upcoming.length})</h4>
           <div className="rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
             <TripTable trips={upcoming} showStatus />
           </div>
@@ -229,7 +233,7 @@ export default function DriverStatementPanel({ driver, trips, driverLink, onGene
 
         {/* Completed trips */}
         <div>
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Completed trips ({past.length})</h4>
+          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{i18n.taxis.label_completed_trips[lang]} ({past.length})</h4>
           <div className="rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
             <TripTable trips={past} />
           </div>
