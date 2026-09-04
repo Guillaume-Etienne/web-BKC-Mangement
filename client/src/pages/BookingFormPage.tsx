@@ -111,7 +111,7 @@ function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: Travele
           </button>
         )}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="bkc-row grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label={tr.f_first_name[lang]} required>
           <input className={inputCls} value={t.first_name} onChange={e => onChange({ first_name: e.target.value })} />
         </Field>
@@ -437,7 +437,11 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
   // below offers it, so nothing is lost by opting out.
   return (
     <div translate="no" className="notranslate min-h-screen bg-gradient-to-b from-sky-400 via-sky-200 dark:via-sky-800 to-amber-100 dark:to-amber-900/30 py-5 px-3 sm:py-6 sm:px-4">
-      <style>{`@keyframes bkcfade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <style>{`@keyframes bkcfade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        @media(min-width:640px){
+          .bkc-row{grid-template-rows:auto auto auto;row-gap:0}
+          .bkc-row>*{grid-row:span 3;display:grid;grid-template-rows:subgrid;row-gap:0}
+        }`}</style>
       {/* Only step 2 widens: it holds two identical flight blocks that fit side
           by side, while a three-field step at 896px would just have very wide
           inputs. The transition keeps the change from snapping. */}
@@ -450,7 +454,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
           </div>
           <div className="flex gap-1">
             {LANGS.map(l => (
-              <button key={l.code} type="button" onClick={() => setLang(l.code)} title={l.label}
+              <button key={l.code} type="button" onClick={() => { setLang(l.code); setLangOfferDismissed(true) }} title={l.label}
                 className={`px-2.5 py-1.5 rounded-lg text-sm font-semibold tracking-wide leading-none transition ${lang === l.code
                   ? 'bg-white dark:bg-gray-900 shadow text-sky-800 dark:text-sky-300'
                   : 'text-sky-900/50 dark:text-sky-100/50 hover:text-sky-900 dark:hover:text-sky-100'}`}>
@@ -579,11 +583,11 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                   <Counter value={d.nights_bilene} onChange={v => update({ nights_bilene: v })} min={1} />
                 </Field>
 
-                <div className="grid lg:grid-cols-2 gap-4 lg:gap-5">
+                <div className="grid lg:grid-cols-2 gap-4 lg:gap-5 lg:items-stretch">
                 {/* Arrival block */}
                 <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-3 sm:p-4 space-y-3 bg-white dark:bg-gray-900/70">
                   <h3 className="text-sm font-bold text-sky-700 dark:text-sky-400">{`✈️ ${tr.arrival_heading[lang]}`}</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bkc-row grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field label={tr.f_country_entry[lang]} required>
                       <input type="date" className={inputCls} value={d.country_entry_date} onChange={e => update({ country_entry_date: e.target.value })} />
                     </Field>
@@ -595,7 +599,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                     <YesNo value={d.taxi_arrival} onChange={toggleArrivalTransfer} lang={lang} />
                   </Field>
                   {d.taxi_arrival && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-3 border-l-2 border-sky-200 dark:border-sky-900">
+                    <div className="bkc-row grid grid-cols-1 sm:grid-cols-2 gap-3 pl-3 border-l-2 border-sky-200 dark:border-sky-900">
                       <Field label={tr.f_transfer_pickup_date[lang]} hint={tr.transfer_hint[lang]}>
                         <input type="date" className={inputCls} value={d.transfer_to_bilene_date} onChange={e => update({ transfer_to_bilene_date: e.target.value })} />
                       </Field>
@@ -609,7 +613,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                 {/* Departure block */}
                 <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-3 sm:p-4 space-y-3 bg-white dark:bg-gray-900/70">
                   <h3 className="text-sm font-bold text-sky-700 dark:text-sky-400">{`🛬 ${tr.departure_heading[lang]}`}</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bkc-row grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field label={tr.f_country_exit[lang]} required>
                       <input type="date" className={inputCls} value={d.country_exit_date} onChange={e => update({ country_exit_date: e.target.value })} />
                     </Field>
@@ -621,7 +625,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                     <YesNo value={d.taxi_departure} onChange={toggleDepartureTransfer} lang={lang} />
                   </Field>
                   {d.taxi_departure && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-3 border-l-2 border-sky-200 dark:border-sky-900">
+                    <div className="bkc-row grid grid-cols-1 sm:grid-cols-2 gap-3 pl-3 border-l-2 border-sky-200 dark:border-sky-900">
                       <Field label={tr.f_transfer_drop_date[lang]} hint={tr.transfer_hint[lang]}>
                         <input type="date" className={inputCls} value={d.transfer_to_airport_date} onChange={e => update({ transfer_to_airport_date: e.target.value })} />
                       </Field>
@@ -702,7 +706,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                   <Field label={tr.f_ec_name[lang]} required>
                     <input className={inputCls} value={d.emergency_contact_name} onChange={e => update({ emergency_contact_name: e.target.value })} />
                   </Field>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bkc-row grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label={tr.f_ec_phone[lang]} required>
                       <input className={inputCls} value={d.emergency_contact_phone} onChange={e => update({ emergency_contact_phone: e.target.value })} />
                     </Field>
