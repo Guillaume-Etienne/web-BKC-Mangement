@@ -1,25 +1,31 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useLanguage } from '../contexts/LanguageContext'
+import { i18n } from '../data/i18n'
 import { useActivityProviders, useActivityBookings, useActivityPayments } from '../hooks/useActivities'
 import { useBookingParticipants } from '../hooks/useBookings'
 import { useTable } from '../hooks/useSupabase'
 import type {
   ActivityProvider, ActivityBooking, ActivityPayment,
   ActivityProviderType, ActivityPaymentFlow, ActivityPaymentDirection,
-  SharedLink, BookingRef,
+  SharedLink, BookingRef, Lang,
 } from '../types/database'
 import { todayISO, addDaysISO, fmtDate } from '../utils/dates'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const TYPE_LABELS: Record<ActivityProviderType, string> = {
-  activity: 'Activity',
-  safari:   'Safari',
+function getTypeLabels(lang: Lang): Record<ActivityProviderType, string> {
+  return {
+    activity: i18n.activities.type_activity_provider[lang],
+    safari:   i18n.activities.type_safari[lang],
+  }
 }
 
-const FLOW_LABELS: Record<ActivityPaymentFlow, string> = {
-  we_pay_provider:  'We pay provider',
-  provider_pays_us: 'Provider pays us',
+function getFlowLabels(lang: Lang): Record<ActivityPaymentFlow, string> {
+  return {
+    we_pay_provider:  i18n.activities.flow_we_pay[lang],
+    provider_pays_us: i18n.activities.flow_provider_pays[lang],
+  }
 }
 
 const today = () => todayISO()
@@ -32,6 +38,8 @@ interface ProviderFormProps {
   onCancel: () => void
 }
 function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
+  const { lang } = useLanguage()
+  const TYPE_LABELS = getTypeLabels(lang)
   const [name,        setName]        = useState(initial?.name        ?? '')
   const [type,        setType]        = useState<ActivityProviderType>(initial?.type ?? 'activity')
   const [phone,       setPhone]       = useState(initial?.phone       ?? '')
@@ -58,7 +66,7 @@ function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Name *</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_name[lang]} *</label>
           <input required value={name} onChange={e => setName(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
@@ -72,12 +80,12 @@ function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_phone[lang]}</label>
           <input value={phone} onChange={e => setPhone(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_email[lang]}</label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
@@ -87,7 +95,7 @@ function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div className="col-span-2">
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_notes[lang]}</label>
           <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
@@ -106,9 +114,9 @@ function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
       </div>
       <div className="flex gap-3 pt-2 border-t">
         <button type="button" onClick={onCancel}
-          className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium">Cancel</button>
+          className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium">{i18n.common.btn_cancel[lang]}</button>
         <button type="submit"
-          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Save</button>
+          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">{i18n.common.btn_save[lang]}</button>
       </div>
     </form>
   )
@@ -123,6 +131,8 @@ interface BookingFormProps {
   onCancel:      () => void
 }
 function BookingForm({ initial, providers, bookingRefs, allParticipants, onSave, onCancel }: BookingFormProps) {
+  const { lang } = useLanguage()
+  const FLOW_LABELS = getFlowLabels(lang)
   const [providerId,   setProviderId]   = useState(initial?.provider_id   ?? providers[0]?.id ?? '')
   const [bookingId,    setBookingId]    = useState(initial?.booking_id    ?? '')
   const [date,         setDate]         = useState(initial?.date          ?? today())
@@ -250,9 +260,9 @@ function BookingForm({ initial, providers, bookingRefs, allParticipants, onSave,
       </div>
       <div className="flex gap-3 pt-2 border-t">
         <button type="button" onClick={onCancel}
-          className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium">Cancel</button>
+          className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium">{i18n.common.btn_cancel[lang]}</button>
         <button type="submit"
-          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Save</button>
+          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">{i18n.common.btn_save[lang]}</button>
       </div>
     </form>
   )
@@ -264,6 +274,7 @@ interface PaymentFormProps {
   onCancel:   () => void
 }
 function PaymentForm({ providerId, onSave, onCancel }: PaymentFormProps) {
+  const { lang } = useLanguage()
   const [date,      setDate]      = useState(today())
   const [amount,    setAmount]    = useState('')
   const [direction, setDirection] = useState<ActivityPaymentDirection>('to_provider')
@@ -279,10 +290,10 @@ function PaymentForm({ providerId, onSave, onCancel }: PaymentFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg p-4 space-y-3">
-      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Add payment</h4>
+      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{i18n.activities.btn_add_payment[lang]}</h4>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_date[lang]}</label>
           <input type="date" required value={date} onChange={e => setDate(e.target.value)}
             className="w-full text-sm border rounded px-2 py-1.5" />
         </div>
@@ -295,8 +306,8 @@ function PaymentForm({ providerId, onSave, onCancel }: PaymentFormProps) {
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Direction</label>
           <select value={direction} onChange={e => setDirection(e.target.value as ActivityPaymentDirection)}
             className="w-full text-sm border rounded px-2 py-1.5">
-            <option value="to_provider">We paid them</option>
-            <option value="from_provider">They paid us</option>
+            <option value="to_provider">{i18n.activities.direction_to_provider[lang]}</option>
+            <option value="from_provider">{i18n.activities.direction_from_provider[lang]}</option>
           </select>
         </div>
         <div>
@@ -307,9 +318,9 @@ function PaymentForm({ providerId, onSave, onCancel }: PaymentFormProps) {
       </div>
       <div className="flex gap-2">
         <button type="button" onClick={onCancel}
-          className="flex-1 px-3 py-1.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-800">Cancel</button>
+          className="flex-1 px-3 py-1.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-800">{i18n.common.btn_cancel[lang]}</button>
         <button type="submit"
-          className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">+ Add</button>
+          className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">+ {i18n.common.btn_add[lang]}</button>
       </div>
     </form>
   )
@@ -383,6 +394,8 @@ function ProviderPanel({
   onAddBooking, onEditBooking, onDeleteBooking,
   onAddPayment, onDeletePayment,
 }: ProviderPanelProps) {
+  const { lang } = useLanguage()
+  const TYPE_LABELS = getTypeLabels(lang)
   const [showBookingForm, setShowBookingForm] = useState(false)
   const [editingBooking,  setEditingBooking]  = useState<ActivityBooking | null>(null)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
@@ -417,7 +430,7 @@ function ProviderPanel({
         </div>
         <div className="flex gap-2">
           <button onClick={onEdit}
-            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-sm font-medium">✏️ Edit</button>
+            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-sm font-medium">✏️ {i18n.common.btn_edit[lang]}</button>
           <button onClick={onDelete}
             className="px-3 py-1.5 bg-red-500 hover:bg-red-400 text-white rounded-lg text-sm font-medium">🗑️</button>
         </div>
@@ -459,17 +472,17 @@ function ProviderPanel({
         {/* Bookings */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Activity bookings ({bookings.length})</h4>
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{i18n.activities.section_bookings[lang]} ({bookings.length})</h4>
             {!showBookingForm && !editingBooking && (
               <button onClick={() => setShowBookingForm(true)}
-                className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700">+ Add booking</button>
+                className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700">+ {i18n.activities.btn_add_booking[lang]}</button>
             )}
           </div>
 
           {(showBookingForm || editingBooking) && (
             <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg p-4 mb-3">
               <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                {editingBooking ? 'Edit booking' : 'New booking'}
+                {editingBooking ? i18n.activities.modal_edit_booking[lang] : i18n.activities.modal_new_booking[lang]}
               </h4>
               <BookingForm
                 initial={editingBooking ?? undefined}
@@ -538,10 +551,10 @@ function ProviderPanel({
         {/* Payments */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Payments ({payments.length})</h4>
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{i18n.activities.section_payments[lang]} ({payments.length})</h4>
             {!showPaymentForm && (
               <button onClick={() => setShowPaymentForm(true)}
-                className="px-3 py-1.5 bg-gray-600 text-white rounded-lg text-xs font-medium hover:bg-gray-700">+ Add payment</button>
+                className="px-3 py-1.5 bg-gray-600 text-white rounded-lg text-xs font-medium hover:bg-gray-700">+ {i18n.activities.btn_add_payment[lang]}</button>
             )}
           </div>
 
@@ -572,7 +585,7 @@ function ProviderPanel({
                       <td className="px-3 py-2">
                         <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
                           p.direction === 'to_provider' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                        }`}>{p.direction === 'to_provider' ? 'We paid them' : 'They paid us'}</span>
+                        }`}>{p.direction === 'to_provider' ? i18n.activities.direction_to_provider[lang] : i18n.activities.direction_from_provider[lang]}</span>
                       </td>
                       <td className="px-3 py-2 text-right font-semibold text-gray-800 dark:text-gray-200">{p.amount}€</td>
                       <td className="px-3 py-2 text-gray-400 dark:text-gray-400 italic">{p.notes ?? ''}</td>
@@ -595,6 +608,8 @@ function ProviderPanel({
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function ActivitiesPage() {
+  const { lang } = useLanguage()
+  const TYPE_LABELS = getTypeLabels(lang)
   const { data: providers,  refresh: refreshProviders  } = useActivityProviders()
   const { data: bookings,   refresh: refreshBookings   } = useActivityBookings()
   const { data: payments,   refresh: refreshPayments   } = useActivityPayments()
@@ -727,7 +742,7 @@ export default function ActivitiesPage() {
           {(['providers', 'bookings'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 font-medium transition-colors ${tab === t ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
-              {t === 'providers' ? '🏕️ Providers' : '📋 All Bookings'}
+              {t === 'providers' ? `🏕️ ${i18n.activities.section_providers[lang]}` : `📋 ${i18n.activities.tab_all_bookings[lang]}`}
             </button>
           ))}
         </div>
@@ -736,10 +751,10 @@ export default function ActivitiesPage() {
         {tab === 'providers' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Providers</h2>
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{i18n.activities.section_providers[lang]}</h2>
               <button onClick={() => { setEditingProvider(null); setShowProviderForm(true) }}
                 className="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold text-sm">
-                + New provider
+                + {i18n.activities.btn_add_provider[lang]}
               </button>
             </div>
 
@@ -747,7 +762,7 @@ export default function ActivitiesPage() {
             {showProviderForm && (
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
                 <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-4">
-                  {editingProvider ? 'Edit provider' : 'New provider'}
+                  {editingProvider ? i18n.activities.modal_edit_provider[lang] : i18n.activities.modal_new_provider[lang]}
                 </h3>
                 <ProviderForm
                   initial={editingProvider ?? undefined}
@@ -815,7 +830,7 @@ export default function ActivitiesPage() {
         {tab === 'bookings' && (
           <div className="space-y-4">
             <div className="flex items-center gap-4">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 flex-1">All Bookings</h2>
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 flex-1">{i18n.activities.tab_all_bookings[lang]}</h2>
               <select value={filterProvider} onChange={e => setFilterProvider(e.target.value)}
                 className="text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="all">All providers</option>
@@ -825,7 +840,7 @@ export default function ActivitiesPage() {
 
             {editingBookingAll && (
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-                <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-4">Edit booking</h3>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-4">{i18n.activities.modal_edit_booking[lang]}</h3>
                 <BookingForm
                   initial={editingBookingAll}
                   providers={providers}

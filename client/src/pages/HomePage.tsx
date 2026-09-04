@@ -1,10 +1,15 @@
+import { useLanguage } from '../contexts/LanguageContext'
+import { i18n } from '../data/i18n'
 import type { PendingAction, Page } from '../components/pending/pendingActions'
 import type { FollowUp } from '../utils/followUps'
+import type { Lang } from '../types/database'
 
-const PRIORITY_STYLES: Record<string, { bg: string; border: string; dot: string; label: string }> = {
-  urgent:  { bg: 'bg-red-50 dark:bg-red-950/40',    border: 'border-red-200 dark:border-red-900',    dot: 'bg-red-500',    label: 'Urgent' },
-  week:    { bg: 'bg-amber-50 dark:bg-amber-950/40',  border: 'border-amber-200 dark:border-amber-900',  dot: 'bg-amber-400',  label: 'This week' },
-  monitor: { bg: 'bg-green-50 dark:bg-green-950/40',  border: 'border-green-200 dark:border-green-900',  dot: 'bg-green-500',  label: 'Monitor' },
+function getPriorityStyles(lang: Lang): Record<string, { bg: string; border: string; dot: string; label: string }> {
+  return {
+    urgent:  { bg: 'bg-red-50 dark:bg-red-950/40',    border: 'border-red-200 dark:border-red-900',    dot: 'bg-red-500',    label: i18n.pages.status_urgent[lang] },
+    week:    { bg: 'bg-amber-50 dark:bg-amber-950/40',  border: 'border-amber-200 dark:border-amber-900',  dot: 'bg-amber-400',  label: i18n.common.period_week[lang] },
+    monitor: { bg: 'bg-green-50 dark:bg-green-950/40',  border: 'border-green-200 dark:border-green-900',  dot: 'bg-green-500',  label: i18n.pages.priority_monitor[lang] },
+  }
 }
 
 interface HomePageProps {
@@ -23,16 +28,21 @@ interface Shortcut {
   description: string
 }
 
-const SHORTCUTS: Shortcut[] = [
-  { page: 'planning',   icon: '📅',  label: 'Planning',   description: 'Booking plan' },
-  { page: 'bookings',   icon: '📋',  label: 'Bookings',   description: 'Manage bookings' },
-  { page: 'accounting', icon: '💰',  label: 'Accounting', description: 'Revenue & payments' },
-  { page: 'equipment',  icon: '🎿',  label: 'Equipment',  description: 'Gear & rentals' },
-  { page: 'taxis',      icon: '🚕',  label: 'Taxis',      description: 'Transfers & drivers' },
-  { page: 'activities', icon: '🏕️', label: 'Activities', description: 'External providers' },
-]
+function getShortcuts(lang: Lang): Shortcut[] {
+  return [
+    { page: 'planning',   icon: '📅',  label: i18n.nav.nav_planning[lang],   description: 'Booking plan' },
+    { page: 'bookings',   icon: '📋',  label: i18n.nav.nav_bookings[lang],   description: 'Manage bookings' },
+    { page: 'accounting', icon: '💰',  label: i18n.nav.nav_accounting[lang], description: 'Revenue & payments' },
+    { page: 'equipment',  icon: '🎿',  label: i18n.nav.nav_equipment[lang],  description: 'Gear & rentals' },
+    { page: 'taxis',      icon: '🚕',  label: i18n.nav.nav_taxis[lang],      description: 'Transfers & drivers' },
+    { page: 'activities', icon: '🏕️', label: i18n.nav.nav_activities[lang], description: 'External providers' },
+  ]
+}
 
 export default function HomePage({ onNavigate, pendingActions = [], followUps = [], onOpenFollowUp }: HomePageProps) {
+  const { lang } = useLanguage()
+  const PRIORITY_STYLES = getPriorityStyles(lang)
+  const SHORTCUTS = getShortcuts(lang)
   const urgentCount = pendingActions.filter(a => a.priority === 'urgent').length
 
   return (
@@ -52,10 +62,10 @@ export default function HomePage({ onNavigate, pendingActions = [], followUps = 
         {pendingActions.length > 0 && (
           <div className="mb-10">
             <div className="flex items-center gap-3 mb-4">
-              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">Pending actions</h2>
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">{i18n.pages.section_pending[lang]}</h2>
               {urgentCount > 0 && (
                 <span className="bg-red-500 text-white text-sm font-bold rounded-full px-2 py-0.5">
-                  {urgentCount} urgent
+                  {urgentCount} {i18n.pages.status_urgent[lang]}
                 </span>
               )}
             </div>
@@ -97,7 +107,7 @@ export default function HomePage({ onNavigate, pendingActions = [], followUps = 
         {followUps.length > 0 && (
           <div className="mb-10">
             <div className="flex items-baseline gap-3 mb-1">
-              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">Waiting on you</h2>
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">{i18n.pages.section_follow[lang]}</h2>
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 {followUps.length} {followUps.length > 1 ? 'people' : 'person'}
               </span>

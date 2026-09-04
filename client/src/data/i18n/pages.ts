@@ -26,6 +26,9 @@ export const pagesI18n = {
   status_normal:   { fr: 'Normal',          en: 'Normal',        es: 'Normal' },
   status_low:      { fr: 'Bas',             en: 'Low',           es: 'Bajo' },
 
+  // HomePage pending-action priority chips (urgent | week | monitor)
+  priority_monitor: { fr: 'À surveiller',   en: 'Monitor',       es: 'Vigilar' },
+
   // Generic page messages
   msg_no_data:     { fr: 'Aucune donnée',   en: 'No data',       es: 'Sin datos' },
   msg_loading:     { fr: 'Chargement…',     en: 'Loading…',      es: 'Cargando…' },

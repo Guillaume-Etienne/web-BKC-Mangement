@@ -17,6 +17,12 @@ export const taxesI18n = {
   label_driver:    { fr: 'Chauffeur',       en: 'Driver',        es: 'Conductor' },
   label_balance:   { fr: 'Solde',           en: 'Balance',       es: 'Saldo' },
   label_trips:     { fr: 'Trajets',         en: 'Trips',         es: 'Viajes' },
+  label_no_vehicle: { fr: 'Aucun véhicule', en: 'No vehicle',    es: 'Sin vehículo' },
+  modal_new_driver: { fr: 'Nouveau chauffeur', en: 'New driver', es: 'Nuevo conductor' },
+  modal_edit_driver: { fr: 'Modifier le chauffeur', en: 'Edit driver', es: 'Editar conductor' },
+  section_trips:   { fr: 'Trajets taxi',    en: 'Taxi trips',    es: 'Viajes de taxi' },
+  view_list:       { fr: 'Liste',           en: 'List',          es: 'Lista' },
+  view_kanban:     { fr: 'Kanban',          en: 'Kanban',        es: 'Kanban' },
 
   // Trip details
   label_pickup:    { fr: 'Prise en charge', en: 'Pickup',        es: 'Recogida' },

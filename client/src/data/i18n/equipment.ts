@@ -29,4 +29,35 @@ export const equipmentI18n = {
   status_available: { fr: 'Disponible',     en: 'Available',     es: 'Disponible' },
   status_rented:   { fr: 'Loué',            en: 'Rented',        es: 'Alquilado' },
   status_maintenance: { fr: 'Maintenance',  en: 'Maintenance',   es: 'Mantenimiento' },
+
+  // Tabs (EquipmentPage: inventory / rentals / revenue — matches the real code's tabs)
+  tab_inventory:   { fr: 'Inventaire',      en: 'Inventory',     es: 'Inventario' },
+  tab_revenue:     { fr: 'CA',              en: 'Revenue',       es: 'Ingresos' },
+
+  // Equipment categories (EquipmentCategory: kite | board | surfboard | foilboard)
+  category_kite:   { fr: 'Kite',            en: 'Kite',          es: 'Kite' },
+  category_board:  { fr: 'Planche',         en: 'Board',         es: 'Tabla' },
+  category_surfboard: { fr: 'Surfboard',    en: 'Surfboard',     es: 'Tabla de surf' },
+  category_foilboard: { fr: 'Foilboard',    en: 'Foilboard',     es: 'Tabla de foil' },
+  label_all_categories: { fr: 'Toutes catégories', en: 'All categories', es: 'Todas las categorías' },
+
+  // Equipment conditions (EquipmentCondition: new | good | fair | damaged | retired)
+  condition_new:   { fr: 'Neuf',            en: 'New',           es: 'Nuevo' },
+  condition_damaged: { fr: 'Endommagé',     en: 'Damaged',       es: 'Dañado' },
+  condition_retired: { fr: 'Retiré',        en: 'Retired',       es: 'Retirado' },
+
+  // Rental slots (RentalSlot: morning | afternoon | full_day)
+  slot_morning:    { fr: 'Matin',           en: 'Morning',       es: 'Mañana' },
+  slot_afternoon:  { fr: 'Aprem',           en: 'Afternoon',     es: 'Tarde' },
+  slot_full_day:   { fr: 'Journée',         en: 'Full day',      es: 'Día completo' },
+
+  // Buttons / modals
+  btn_archive:     { fr: 'Archiver',        en: 'Archive',       es: 'Archivar' },
+  modal_new_equipment: { fr: 'Ajouter un équipement', en: 'Add equipment', es: 'Añadir equipo' },
+  modal_edit_equipment: { fr: "Modifier l'équipement", en: 'Edit equipment', es: 'Editar equipo' },
+  label_uses:      { fr: 'Sorties',         en: 'Uses',          es: 'Usos' },
+  label_use_hours: { fr: "Heures d'utilisation", en: 'Usage hours', es: 'Horas de uso' },
+  label_brand:     { fr: 'Marque',          en: 'Brand',         es: 'Marca' },
+  label_active:    { fr: 'Actif',           en: 'Active',        es: 'Activo' },
+  label_condition: { fr: 'État',            en: 'Condition',     es: 'Estado' },
 } satisfies Record<string, Tr>

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useLanguage } from '../contexts/LanguageContext'
+import { i18n } from '../data/i18n'
 import { useEquipment, useEquipmentRentals } from '../hooks/useEquipment'
 import { useLessons } from '../hooks/useLessons'
 import { useInstructors } from '../hooks/useInstructors'
@@ -7,7 +9,7 @@ import { useTable } from '../hooks/useSupabase'
 import { getLessonClientRate, getInstructorRate } from '../components/accounting/utils'
 import type {
   Equipment, EquipmentRental, EquipmentCategory, EquipmentCondition, Lesson, RentalSlot,
-  Instructor, PriceItem, LessonRateOverride, EquipmentPricingDefaults,
+  Instructor, PriceItem, LessonRateOverride, EquipmentPricingDefaults, Lang,
 } from '../types/database'
 import { todayISO } from '../utils/dates'
 
@@ -104,16 +106,23 @@ function getConditionColor(condition: EquipmentCondition): string {
   }
 }
 
-function getConditionLabel(condition: EquipmentCondition): string {
+function getConditionLabel(condition: EquipmentCondition, lang: Lang): string {
   const labels: Record<EquipmentCondition, string> = {
-    new: 'Neuf', good: 'Bon', fair: 'Correct', damaged: 'Endommagé', retired: 'Retiré'
+    new:     i18n.equipment.condition_new[lang],
+    good:    i18n.equipment.condition_good[lang],
+    fair:    i18n.equipment.condition_fair[lang],
+    damaged: i18n.equipment.condition_damaged[lang],
+    retired: i18n.equipment.condition_retired[lang],
   }
   return labels[condition]
 }
 
-function getCategoryLabel(category: EquipmentCategory): string {
+function getCategoryLabel(category: EquipmentCategory, lang: Lang): string {
   const labels: Record<EquipmentCategory, string> = {
-    kite: 'Kite', board: 'Planche', surfboard: 'Surfboard', foilboard: 'Foilboard'
+    kite:      i18n.equipment.category_kite[lang],
+    board:     i18n.equipment.category_board[lang],
+    surfboard: i18n.equipment.category_surfboard[lang],
+    foilboard: i18n.equipment.category_foilboard[lang],
   }
   return labels[category]
 }
@@ -129,6 +138,7 @@ interface EditModalState {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function EquipmentPage() {
+  const { lang } = useLanguage()
   const { data: equipment, refresh: refreshEquipment } = useEquipment()
   const { data: rentals, refresh: refreshRentals } = useEquipmentRentals()
   const { data: lessons } = useLessons()
@@ -313,7 +323,7 @@ export default function EquipmentPage() {
   return (
     <div className="p-4 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">🎿 Matériel</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">🎿 {i18n.equipment.page_title[lang]}</h1>
       </div>
 
       {/* Tabs */}
@@ -326,7 +336,7 @@ export default function EquipmentPage() {
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
           }`}
         >
-          📦 Inventaire
+          📦 {i18n.equipment.tab_inventory[lang]}
         </button>
         <button
           onClick={() => setActiveTab('rentals')}
@@ -336,7 +346,7 @@ export default function EquipmentPage() {
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
           }`}
         >
-          📋 Locations
+          📋 {i18n.equipment.section_rentals[lang]}
         </button>
         <button
           onClick={() => setActiveTab('revenue')}
@@ -346,7 +356,7 @@ export default function EquipmentPage() {
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
           }`}
         >
-          💰 CA
+          💰 {i18n.equipment.tab_revenue[lang]}
         </button>
       </div>
 
@@ -361,17 +371,17 @@ export default function EquipmentPage() {
                 onChange={e => setCategoryFilter(e.target.value as EquipmentCategory | 'all')}
                 className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm"
               >
-                <option value="all">Toutes catégories</option>
-                <option value="kite">Kites</option>
-                <option value="board">Planches</option>
-                <option value="surfboard">Surfboards</option>
-                <option value="foilboard">Foilboards</option>
+                <option value="all">{i18n.equipment.label_all_categories[lang]}</option>
+                <option value="kite">{i18n.equipment.category_kite[lang]}</option>
+                <option value="board">{i18n.equipment.category_board[lang]}</option>
+                <option value="surfboard">{i18n.equipment.category_surfboard[lang]}</option>
+                <option value="foilboard">{i18n.equipment.category_foilboard[lang]}</option>
               </select>
               <button
                 onClick={() => openEditModal()}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm"
               >
-                + Ajouter
+                + {i18n.common.btn_add[lang]}
               </button>
             </div>
 
@@ -382,10 +392,10 @@ export default function EquipmentPage() {
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Nom</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Catégorie</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Taille</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">État</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.label_condition[lang]}</th>
                     <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">Sorties</th>
                     <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">≈ Heures</th>
-                    <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">Actif</th>
+                    <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.label_active[lang]}</th>
                     <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Actions</th>
                   </tr>
                 </thead>
@@ -397,11 +407,11 @@ export default function EquipmentPage() {
                       className="hover:bg-gray-50 dark:hover:bg-gray-800/60 cursor-pointer"
                     >
                       <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{eq.name}</td>
-                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{getCategoryLabel(eq.category)}</td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{getCategoryLabel(eq.category, lang)}</td>
                       <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{eq.size || '—'}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getConditionColor(eq.condition)}`}>
-                          {getConditionLabel(eq.condition)}
+                          {getConditionLabel(eq.condition, lang)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">{getUseCount(eq, rentals, lessons)}</td>
@@ -414,7 +424,7 @@ export default function EquipmentPage() {
                           onClick={e => { e.stopPropagation(); openEditModal(eq) }}
                           className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-xs mr-2"
                         >
-                          Éditer
+                          {i18n.common.btn_edit[lang]}
                         </button>
                       </td>
                     </tr>
@@ -434,11 +444,11 @@ export default function EquipmentPage() {
                   <div className="flex justify-between items-start gap-2 mb-1">
                     <p className="font-bold text-gray-900 dark:text-gray-100">{eq.name}</p>
                     <span className={`shrink-0 inline-block px-2 py-1 rounded text-xs font-medium ${getConditionColor(eq.condition)}`}>
-                      {getConditionLabel(eq.condition)}
+                      {getConditionLabel(eq.condition, lang)}
                     </span>
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    {getCategoryLabel(eq.category)}{eq.size ? ` · ${eq.size}` : ''}
+                    {getCategoryLabel(eq.category, lang)}{eq.size ? ` · ${eq.size}` : ''}
                     {!eq.is_active && <span className="text-gray-400 dark:text-gray-500"> · inactif</span>}
                   </p>
                   <div className="flex items-center justify-between">
@@ -449,7 +459,7 @@ export default function EquipmentPage() {
                       onClick={e => { e.stopPropagation(); openEditModal(eq) }}
                       className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded font-medium text-sm hover:bg-blue-200 dark:hover:bg-blue-800"
                     >
-                      Éditer
+                      {i18n.common.btn_edit[lang]}
                     </button>
                   </div>
                 </div>
@@ -464,9 +474,9 @@ export default function EquipmentPage() {
                 <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 text-white px-4 py-4">
                   <h3 className="font-bold text-lg">{selectedEquipment.name}</h3>
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-sm text-blue-100 dark:text-blue-300">{getCategoryLabel(selectedEquipment.category)}</span>
+                    <span className="text-sm text-blue-100 dark:text-blue-300">{getCategoryLabel(selectedEquipment.category, lang)}</span>
                     <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getConditionColor(selectedEquipment.condition)}`}>
-                      {getConditionLabel(selectedEquipment.condition)}
+                      {getConditionLabel(selectedEquipment.condition, lang)}
                     </span>
                   </div>
                 </div>
@@ -475,18 +485,18 @@ export default function EquipmentPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg p-3">
                       <p className="text-2xl font-bold text-blue-900 dark:text-blue-200">{getUseCount(selectedEquipment, rentals, lessons)}</p>
-                      <p className="text-xs text-blue-700 dark:text-blue-400">Sorties</p>
+                      <p className="text-xs text-blue-700 dark:text-blue-400">{i18n.equipment.label_uses[lang]}</p>
                     </div>
                     <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg p-3">
                       <p className="text-2xl font-bold text-blue-900 dark:text-blue-200">≈{getUseHours(selectedEquipment, rentals, lessons)}h</p>
-                      <p className="text-xs text-blue-700 dark:text-blue-400">Heures d'utilisation</p>
+                      <p className="text-xs text-blue-700 dark:text-blue-400">{i18n.equipment.label_use_hours[lang]}</p>
                     </div>
                   </div>
 
                   <div className="space-y-2 text-sm">
                     {selectedEquipment.brand && (
                       <div>
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Marque</p>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{i18n.equipment.label_brand[lang]}</p>
                         <p className="text-gray-900 dark:text-gray-100">{selectedEquipment.brand}</p>
                       </div>
                     )}
@@ -504,7 +514,7 @@ export default function EquipmentPage() {
                     )}
                     {selectedEquipment.notes && (
                       <div>
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Notes</p>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{i18n.common.label_notes[lang]}</p>
                         <p className="text-gray-900 dark:text-gray-100">{selectedEquipment.notes}</p>
                       </div>
                     )}
@@ -531,13 +541,13 @@ export default function EquipmentPage() {
                       onClick={() => openEditModal(selectedEquipment)}
                       className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm"
                     >
-                      Éditer
+                      {i18n.common.btn_edit[lang]}
                     </button>
                     <button
                       onClick={() => archiveEquipment(selectedEquipment)}
                       className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded font-medium text-sm"
                     >
-                      Archiver
+                      {i18n.equipment.btn_archive[lang]}
                     </button>
                   </div>
                 </div>
@@ -570,17 +580,17 @@ export default function EquipmentPage() {
                 onChange={e => setRentalCategoryFilter(e.target.value as EquipmentCategory | 'all')}
                 className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm"
               >
-                <option value="all">Toutes catégories</option>
-                <option value="kite">Kites</option>
-                <option value="board">Planches</option>
-                <option value="surfboard">Surfboards</option>
-                <option value="foilboard">Foilboards</option>
+                <option value="all">{i18n.equipment.label_all_categories[lang]}</option>
+                <option value="kite">{i18n.equipment.category_kite[lang]}</option>
+                <option value="board">{i18n.equipment.category_board[lang]}</option>
+                <option value="surfboard">{i18n.equipment.category_surfboard[lang]}</option>
+                <option value="foilboard">{i18n.equipment.category_foilboard[lang]}</option>
               </select>
               <button
                 onClick={addRental}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm"
               >
-                + Ajouter
+                + {i18n.common.btn_add[lang]}
               </button>
             </div>
           </div>
@@ -591,15 +601,15 @@ export default function EquipmentPage() {
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{totalRevenue}€</p>
             </div>
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Locations Matin</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.equipment.section_rentals[lang]} {i18n.equipment.slot_morning[lang]}</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{morningRentals}</p>
             </div>
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Locations Aprem</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.equipment.section_rentals[lang]} {i18n.equipment.slot_afternoon[lang]}</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{afternoonRentals}</p>
             </div>
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Locations Journée</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.equipment.section_rentals[lang]} {i18n.equipment.slot_full_day[lang]}</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{fullDayRentals}</p>
             </div>
           </div>
@@ -613,7 +623,7 @@ export default function EquipmentPage() {
                   <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Équipement</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Booking</th>
                   <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">Prix</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Notes</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">{i18n.common.label_notes[lang]}</th>
                   <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">Action</th>
                 </tr>
               </thead>
@@ -634,9 +644,9 @@ export default function EquipmentPage() {
                         onChange={e => updateRentalField(rental.id, 'slot', e.target.value)}
                         className="text-sm border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1"
                       >
-                        <option value="morning">Matin</option>
-                        <option value="afternoon">Aprem</option>
-                        <option value="full_day">Journée</option>
+                        <option value="morning">{i18n.equipment.slot_morning[lang]}</option>
+                        <option value="afternoon">{i18n.equipment.slot_afternoon[lang]}</option>
+                        <option value="full_day">{i18n.equipment.slot_full_day[lang]}</option>
                       </select>
                     </td>
                     <td className="px-4 py-3">
@@ -758,14 +768,14 @@ export default function EquipmentPage() {
                   disabled={!pricingDirty || pricingSaving}
                   className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-40"
                 >
-                  Annuler
+                  {i18n.common.btn_cancel[lang]}
                 </button>
                 <button
                   onClick={savePricingDefaults}
                   disabled={!pricingDirty || pricingSaving}
                   className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-40"
                 >
-                  {pricingSaving ? 'Enregistrement…' : '💾 Save'}
+                  {pricingSaving ? 'Enregistrement…' : `💾 ${i18n.common.btn_save[lang]}`}
                 </button>
               </div>
             </div>
@@ -808,7 +818,7 @@ export default function EquipmentPage() {
                       <div key={r.eq.id} className="grid grid-cols-[1fr_2fr_auto] sm:grid-cols-[160px_1fr_90px] items-center gap-3">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                           {r.eq.name}
-                          <span className="block text-xs font-normal text-gray-400 dark:text-gray-400">{getCategoryLabel(r.eq.category)}</span>
+                          <span className="block text-xs font-normal text-gray-400 dark:text-gray-400">{getCategoryLabel(r.eq.category, lang)}</span>
                         </div>
                         <div
                           className="relative h-5 bg-gray-100 dark:bg-gray-800 rounded overflow-hidden"
@@ -828,7 +838,7 @@ export default function EquipmentPage() {
                 {revenueByCategory.filter(c => c.count > 0).map(c => (
                   <div key={c.cat} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
                     <div className="text-lg">{{ kite: '🪁', board: '🏄', surfboard: '🌊', foilboard: '🦈' }[c.cat]}</div>
-                    <div className="font-bold text-sm text-gray-900 dark:text-gray-100 mt-1">{getCategoryLabel(c.cat)}</div>
+                    <div className="font-bold text-sm text-gray-900 dark:text-gray-100 mt-1">{getCategoryLabel(c.cat, lang)}</div>
                     <div className="text-xs text-gray-400 dark:text-gray-400 mb-2">{c.count} pièce{c.count > 1 ? 's' : ''} active{c.count > 1 ? 's' : ''} · {c.sorties} sorties</div>
                     <div className="text-xl font-extrabold text-gray-900 dark:text-gray-100">{Math.round(c.real + c.est)}€</div>
                     <div className="text-xs text-gray-400 dark:text-gray-400 mb-2">CA total estimé</div>
@@ -854,7 +864,7 @@ export default function EquipmentPage() {
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md">
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-800">
               <h3 className="font-bold text-gray-800 dark:text-gray-100">
-                {editModal.equipment ? 'Modifier l\'équipement' : 'Ajouter un équipement'}
+                {editModal.equipment ? i18n.equipment.modal_edit_equipment[lang] : i18n.equipment.modal_new_equipment[lang]}
               </h3>
               <button
                 onClick={() => setEditModal({ open: false, equipment: null, formData: {} })}
@@ -863,7 +873,7 @@ export default function EquipmentPage() {
             </div>
             <div className="p-4 space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nom *</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_name[lang]} *</label>
                 <input
                   type="text"
                   value={editModal.formData.name || ''}
@@ -880,30 +890,30 @@ export default function EquipmentPage() {
                     onChange={e => setEditModal(prev => ({ ...prev, formData: { ...prev.formData, category: e.target.value as EquipmentCategory } }))}
                     className="w-full text-sm border dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1.5"
                   >
-                    <option value="kite">Kite</option>
-                    <option value="board">Planche</option>
-                    <option value="surfboard">Surfboard</option>
-                    <option value="foilboard">Foilboard</option>
+                    <option value="kite">{i18n.equipment.category_kite[lang]}</option>
+                    <option value="board">{i18n.equipment.category_board[lang]}</option>
+                    <option value="surfboard">{i18n.equipment.category_surfboard[lang]}</option>
+                    <option value="foilboard">{i18n.equipment.category_foilboard[lang]}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">État *</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.equipment.label_condition[lang]} *</label>
                   <select
                     value={editModal.formData.condition || 'new'}
                     onChange={e => setEditModal(prev => ({ ...prev, formData: { ...prev.formData, condition: e.target.value as EquipmentCondition } }))}
                     className="w-full text-sm border dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1.5"
                   >
-                    <option value="new">Neuf</option>
-                    <option value="good">Bon</option>
-                    <option value="fair">Correct</option>
-                    <option value="damaged">Endommagé</option>
-                    <option value="retired">Retiré</option>
+                    <option value="new">{i18n.equipment.condition_new[lang]}</option>
+                    <option value="good">{i18n.equipment.condition_good[lang]}</option>
+                    <option value="fair">{i18n.equipment.condition_fair[lang]}</option>
+                    <option value="damaged">{i18n.equipment.condition_damaged[lang]}</option>
+                    <option value="retired">{i18n.equipment.condition_retired[lang]}</option>
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Marque</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.equipment.label_brand[lang]}</label>
                   <input
                     type="text"
                     value={editModal.formData.brand || ''}
@@ -931,7 +941,7 @@ export default function EquipmentPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_notes[lang]}</label>
                 <input
                   type="text"
                   value={editModal.formData.notes || ''}
@@ -947,21 +957,21 @@ export default function EquipmentPage() {
                   id="is_active"
                   className="rounded dark:bg-gray-800 dark:border-gray-600"
                 />
-                <label htmlFor="is_active" className="text-sm font-medium text-gray-600 dark:text-gray-400">Actif</label>
+                <label htmlFor="is_active" className="text-sm font-medium text-gray-600 dark:text-gray-400">{i18n.equipment.label_active[lang]}</label>
               </div>
               <div className="flex gap-2 pt-2 border-t dark:border-gray-800">
                 <button
                   onClick={() => setEditModal({ open: false, equipment: null, formData: {} })}
                   className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded font-medium text-sm"
                 >
-                  Annuler
+                  {i18n.common.btn_cancel[lang]}
                 </button>
                 <button
                   onClick={saveEquipment}
                   disabled={saving}
                   className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm disabled:opacity-60"
                 >
-                  {saving ? 'Enregistrement…' : 'Enregistrer'}
+                  {saving ? 'Enregistrement…' : i18n.common.btn_save[lang]}
                 </button>
               </div>
             </div>

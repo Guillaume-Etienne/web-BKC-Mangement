@@ -3,6 +3,8 @@ import TaxiKanbanView from '../components/taxi/TaxiKanbanView'
 import TaxiListView from '../components/taxi/TaxiListView'
 import TaxiFinanceTab from '../components/taxi/TaxiFinanceTab'
 import DriverStatementPanel from '../components/taxi/DriverStatementPanel'
+import { useLanguage } from '../contexts/LanguageContext'
+import { i18n } from '../data/i18n'
 import { useTaxiDrivers, useTaxiTrips } from '../hooks/useTaxis'
 import { useBookingParticipants } from '../hooks/useBookings'
 import { useTable } from '../hooks/useSupabase'
@@ -13,6 +15,7 @@ import { todayISO, addDaysISO } from '../utils/dates'
 import { FALLBACK_TAXI_PRICING as FALLBACK_PRICING } from '../utils/taxiPricing'
 
 export default function TaxiPage() {
+  const { lang } = useLanguage()
   const { data: trips, loading: tripsLoading, error: tripsError, refresh: refreshTrips } = useTaxiTrips()
   const { data: drivers, loading: driversLoading, error: driversError, refresh: refreshDrivers } = useTaxiDrivers()
   const { data: bookings } = useTable<BookingRef>('bookings', {
@@ -160,13 +163,13 @@ export default function TaxiPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-full mx-auto px-4 py-8">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200">🚕 Taxi Management</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200">🚕 {i18n.taxis.page_title[lang]}</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">Plan trips and manage drivers</p>
         </div>
 
         {error && (
           <div className="mt-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 rounded-lg px-4 py-3 text-sm">
-            Loading error: {error}
+            {i18n.common.msg_error[lang]}: {error}
           </div>
         )}
 
@@ -175,7 +178,7 @@ export default function TaxiPage() {
           {(['planning', 'finance', 'drivers'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 font-medium transition-colors ${tab === t ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
-              {t === 'planning' ? '📅 Trip Planning' : t === 'finance' ? '💰 Finance' : '👤 Drivers'}
+              {t === 'planning' ? `📅 ${i18n.taxis.section_planning[lang]}` : t === 'finance' ? `💰 ${i18n.taxis.section_finance[lang]}` : `👤 ${i18n.taxis.section_drivers[lang]}`}
             </button>
           ))}
         </div>
@@ -184,19 +187,19 @@ export default function TaxiPage() {
         {tab === 'planning' && (
           <>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Taxi Trips</h2>
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">{i18n.taxis.section_trips[lang]}</h2>
               <div className="flex gap-2 bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
                 {(['list', 'kanban'] as const).map(v => (
                   <button key={v} onClick={() => setPlanningView(v)}
                     className={`px-4 py-2 rounded font-medium text-sm transition-colors ${planningView === v ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
-                    {v === 'list' ? '📋 Liste' : '🗂️ Kanban'}
+                    {v === 'list' ? `📋 ${i18n.taxis.view_list[lang]}` : `🗂️ ${i18n.taxis.view_kanban[lang]}`}
                   </button>
                 ))}
               </div>
             </div>
 
             {loading && trips.length === 0 ? (
-              <div className="text-center py-16 text-gray-400 dark:text-gray-400">Loading…</div>
+              <div className="text-center py-16 text-gray-400 dark:text-gray-400">{i18n.common.msg_loading[lang]}</div>
             ) : planningView === 'list' ? (
               <TaxiListView
                 trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings} bookingParticipants={bookingParticipants}
@@ -230,15 +233,15 @@ export default function TaxiPage() {
         {tab === 'drivers' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Drivers</h2>
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{i18n.taxis.section_drivers[lang]}</h2>
               <button onClick={() => openDriverForm()}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors">
-                + New driver
+                + {i18n.taxis.btn_add_driver[lang]}
               </button>
             </div>
 
             {driversLoading ? (
-              <div className="text-center py-16 text-gray-400 dark:text-gray-400">Loading…</div>
+              <div className="text-center py-16 text-gray-400 dark:text-gray-400">{i18n.common.msg_loading[lang]}</div>
             ) : (
               <>
                 {/* Driver selector cards */}
@@ -258,7 +261,7 @@ export default function TaxiPage() {
                         }`}
                       >
                         <p className={`font-bold text-base ${isViewing ? 'text-white' : 'text-gray-800 dark:text-gray-200'}`}>{driver.name}</p>
-                        <p className={`text-xs mt-0.5 truncate ${isViewing ? 'text-blue-200 dark:text-blue-300' : 'text-gray-400 dark:text-gray-400'}`}>{driver.vehicle ?? 'No vehicle'}</p>
+                        <p className={`text-xs mt-0.5 truncate ${isViewing ? 'text-blue-200 dark:text-blue-300' : 'text-gray-400 dark:text-gray-400'}`}>{driver.vehicle ?? i18n.taxis.label_no_vehicle[lang]}</p>
                         <div className="mt-2 flex items-center gap-2">
                           <span className={`text-xs px-1.5 py-0.5 rounded ${isViewing ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
                             {driverTrips.length} trip{driverTrips.length !== 1 ? 's' : ''}
@@ -301,7 +304,7 @@ export default function TaxiPage() {
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-md w-full">
             <div className="flex justify-between items-center p-6 border-b">
               <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">
-                {selectedDriver ? 'Edit driver' : 'New driver'}
+                {selectedDriver ? i18n.taxis.modal_edit_driver[lang] : i18n.taxis.modal_new_driver[lang]}
               </h2>
               <button onClick={closeDriverForm} className="text-2xl text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">✕</button>
             </div>
@@ -374,10 +377,10 @@ export default function TaxiPage() {
               </div>
               <div className="flex gap-3 pt-4 border-t">
                 <button type="button" onClick={closeDriverForm}
-                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium">Cancel</button>
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium">{i18n.common.btn_cancel[lang]}</button>
                 <button type="submit" disabled={saving}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-60">
-                  {saving ? 'Saving…' : 'Save'}
+                  {saving ? 'Saving…' : i18n.common.btn_save[lang]}
                 </button>
               </div>
             </form>
