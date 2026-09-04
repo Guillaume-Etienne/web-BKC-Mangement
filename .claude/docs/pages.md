@@ -124,6 +124,12 @@
   tout client qui faisait défiler sans lire était classé non-kiteur — dans un centre de kite — et la
   question du niveau ne s'ouvrait jamais. Le payload porte l'`undefined` jusqu'à Submissions, qui
   affiche « not answered » au lieu de « no ». Les transferts taxi gardent leur `Yes` **volontaire**.
+- ⚠️ **Deux `Field` côte à côte = classe `bkc-row` sur le conteneur** (règle CSS dans le `<style>`
+  de la page, ≥640 px). `Field` empile label/input/hint : sans subgrid partagé, dès qu'un libellé
+  passe à deux lignes ou qu'un seul des deux porte un `hint`, les champs ne sont plus à la même
+  hauteur et toute la carte de droite glisse sous celle de gauche. Vérifié dans les 3 langues.
+  Corollaire de rédaction : **ce que porte le bloc ne va pas dans le libellé** (« (Maputo) » est
+  dans le titre du bloc, pas dans « Arrival flight — date »).
 - **Largeur variable (2026-09-04)** : seule l'étape 2 passe en `lg:max-w-4xl` avec Arrivée/Départ
   côte à côte (mesuré : 1055 px, un seul écran desktop). Les autres restent en `max-w-xl`.
 - **Composants module-scope** (focus-safe) : `Field`, `Counter`, `YesNo`, `TravelerCard`.
