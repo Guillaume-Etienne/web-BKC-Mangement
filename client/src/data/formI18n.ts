@@ -198,6 +198,28 @@ export const tr = {
   remove_confirm: { fr: 'Confirmer ?', en: 'Sure?', es: '¿Seguro?' },
   // Followed by the list of the fields themselves — a hint that does not name
   // them leaves a visitor tapping a dead button (Android report, 2026-09-04).
+  // ── The form kept your answers ────────────────────────────────────────────
+  // Every keystroke is written to this device (utils/bookingFormDraft), so a
+  // crash, a reload, a phone call in the middle of step 4 all cost a scroll
+  // instead of twenty minutes of re-typing.
+  draft_kept: {
+    fr: 'Nous avons retrouvé vos réponses, vous pouvez continuer.',
+    en: 'We found your answers again — carry on where you left off.',
+    es: 'Hemos recuperado tus respuestas, puedes continuar.',
+  },
+  draft_restart: { fr: 'Tout recommencer', en: 'Start over', es: 'Empezar de nuevo' },
+  // Said BEFORE trying, when the phone itself reports no connection: sending
+  // would fail on a beach in Bilene and the visitor would read a browser error.
+  err_offline: {
+    fr: "Vous semblez hors connexion. Rien n'est perdu : vos réponses sont gardées sur cet appareil. Reconnectez-vous, puis renvoyez.",
+    en: 'You appear to be offline. Nothing is lost — your answers are kept on this device. Reconnect, then send again.',
+    es: 'Parece que no tienes conexión. No se pierde nada: tus respuestas quedan guardadas en este dispositivo. Reconéctate y vuelve a enviar.',
+  },
+  err_saved: {
+    fr: 'Vos réponses sont gardées sur cet appareil, vous pouvez réessayer.',
+    en: 'Your answers are kept on this device — you can try again.',
+    es: 'Tus respuestas quedan guardadas en este dispositivo, puedes reintentar.',
+  },
   missing_heading: {
     fr: 'Il manque encore :',
     en: 'Still missing:',

@@ -7,6 +7,7 @@ import type { FormI18nKey } from '../data/formI18n'
 import { referralLabel } from '../utils/referral'
 import { missingOnStep, EMPTY_FORM } from '../utils/bookingFormCompleteness'
 import type { FormData, MissingAnswer } from '../utils/bookingFormCompleteness'
+import { draftKey, loadDraft, saveDraft, clearDraft, isWorthKeeping } from '../utils/bookingFormDraft'
 
 // ─── Public booking intake form (no auth) ─────────────────────────────────────
 // Reached via ?share=<token> on a shared_link of type 'booking_form'.
@@ -213,16 +214,32 @@ function isLang(v: string | undefined): v is Lang {
 }
 
 export default function BookingFormPage({ enquiryId, targetBookingId, prefillName, prefillEmail, prefillPhone, prefillLang }: BookingFormPageProps = {}) {
-  const [lang, setLang] = useState<Lang>(() => isLang(prefillLang) ? prefillLang : detectLang())
-  const [step, setStep] = useState(1)
-  const [maxReached, setMaxReached] = useState(1)
-  const [d, setD] = useState<FormData>(() => ({
+  // What this device still holds from an earlier visit, read once before the
+  // first paint. One key per link, so a personalised link and the open form do
+  // not overwrite each other. See the autosave effect for why it exists.
+  const DKEY = draftKey(enquiryId || targetBookingId)
+  const [draft] = useState(() => loadDraft(DKEY))
+  const [draftNotice, setDraftNotice] = useState(draft !== null)
+
+  const [lang, setLang] = useState<Lang>(() => {
+    const saved = draft?.lang
+    if (isLang(saved)) return saved
+    return isLang(prefillLang) ? prefillLang : detectLang()
+  })
+  const [step, setStep] = useState(draft?.step ?? 1)
+  const [maxReached, setMaxReached] = useState(draft?.step ?? 1)
+  // EMPTY_FORM first: a draft written by an older version of the form is missing
+  // whatever has been added since, and a missing field must read as empty rather
+  // than as undefined halfway down a render.
+  const [d, setD] = useState<FormData>(() => draft ? { ...EMPTY_FORM, ...draft.d } : ({
     ...EMPTY_FORM,
     reference_name: prefillName || '',
     email: prefillEmail || '',
     phone: prefillPhone || '',
   }))
-  const [travelers, setTravelers] = useState<FormTraveler[]>([{ first_name: '', last_name: '', passport_number: '' }])
+  const [travelers, setTravelers] = useState<FormTraveler[]>(
+    () => draft && draft.travelers.length > 0 ? draft.travelers : [{ first_name: '', last_name: '', passport_number: '' }]
+  )
   // Chrome would have offered to translate; that is off because it breaks React
   // (see the render). So make the offer ourselves, in the language offered.
   const suggestedLang = detectLang()
@@ -232,9 +249,14 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
   const [showWaiver, setShowWaiver] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
-  // The reason, not just "it failed": the visitor reads it out to gui over the
-  // phone, which is the only debugging channel a guest on a shared link has.
-  const [error, setError] = useState<string | null>(null)
+  // Two halves: the sentence the visitor is meant to act on, and the browser's
+  // own reason underneath — they read that one out to gui over the phone, which
+  // is the only debugging channel a guest on a shared link has.
+  const [error, setError] = useState<{ msg: FormI18nKey; detail?: string } | null>(null)
+  // A second tap while the first insert is in flight would file the booking
+  // twice. The button is already disabled, but on a phone a double tap lands
+  // before React has re-rendered it.
+  const sending = useRef(false)
   // Turned on when a nav button is pressed on an unfinished step, so the list of
   // what is missing gets the eye — and gets scrolled to, on a phone.
   const [showMissing, setShowMissing] = useState(false)
@@ -254,6 +276,19 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
     // A failure here is not worth an error screen: "Other" plus the free line
     // still carry the answer, same call as on the enquiry form.
   }, [enquiryId])
+
+  // Autosave, on this device and nowhere else. The visitor is on a phone, five
+  // screens deep, and every remedy we have for a crash — the boundary's silent
+  // remount, "reopen the page", a browser that reloads the tab on its own —
+  // used to throw away everything they had typed. That is what actually stopped
+  // the Android client of 2026-09-04; the DOM error was only how it started.
+  // Debounced so it is not one write per keystroke, and dropped the moment the
+  // form is sent: there are passport numbers in it.
+  useEffect(() => {
+    if (done || !isWorthKeeping(d, travelers)) return
+    const t = setTimeout(() => saveDraft(DKEY, { step, lang, d, travelers }), 400)
+    return () => clearTimeout(t)
+  }, [DKEY, done, step, lang, d, travelers])
 
   function update(patch: Partial<FormData>) { setD(prev => ({ ...prev, ...patch })) }
 
@@ -341,10 +376,16 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
 
   async function submit() {
     if (blockedByMissing()) return
+    if (sending.current) return
     // Anti-spam (see BACKLOG): honeypot filled, or submitted <3s after page load
     // (impossible for a human on a 5-step wizard) → fake success, insert nothing.
     // Silent on purpose: don't teach bots what tripped them.
     if (honeypot.trim() || Date.now() - mountedAt.current < 3000) { setDone(true); return }
+    // Said before trying rather than after failing. A phone that already knows
+    // it has no signal — which happens in Bilene — can be told so in its own
+    // language, instead of being handed "TypeError: Failed to fetch".
+    if (navigator.onLine === false) { setError({ msg: 'err_offline' }); return }
+    sending.current = true
     setSubmitting(true)
     setError(null)
     const payload: BookingFormPayload = {
@@ -399,17 +440,31 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
       waiver_accepted: d.waiver_accepted,
       waiver_version: WAIVER_VERSION,
     }
-    const { error: insErr } = await supabase.from('form_submissions').insert([{
-      status: 'pending',
-      language: lang,
-      reference_name: payload.reference_name,
-      email: payload.email,
-      num_travelers: travelers.length,
-      arrival_date: payload.country_entry_date || null,
-      payload,
-    }])
-    setSubmitting(false)
-    if (insErr) { setError(insErr.message || insErr.code || 'unknown'); return }
+    // supabase-js usually hands a network failure back in its error slot, but
+    // not always — and an exception here rejected submit()'s promise straight
+    // out of an onClick, where nothing catches it: the button stayed on
+    // "Sending…" for good, on a screen that looked busy and was not.
+    let failure = null
+    try {
+      const { error: insErr } = await supabase.from('form_submissions').insert([{
+        status: 'pending',
+        language: lang,
+        reference_name: payload.reference_name,
+        email: payload.email,
+        num_travelers: travelers.length,
+        arrival_date: payload.country_entry_date || null,
+        payload,
+      }])
+      if (insErr) failure = insErr.message || insErr.code || 'unknown'
+    } catch (e) {
+      failure = e instanceof Error ? e.message : String(e)
+    } finally {
+      sending.current = false
+      setSubmitting(false)
+    }
+    if (failure) { setError({ msg: 'error_msg', detail: failure }); return }
+    // Sent: the draft has done its job, and it holds passport numbers.
+    clearDraft(DKEY)
     setDone(true)
   }
 
@@ -476,6 +531,25 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
             <button type="button" onClick={() => setLangOfferDismissed(true)}
               className="px-2 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:underline">
               {tr.lang_dismiss[suggestedLang]}
+            </button>
+          </div>
+        )}
+
+        {/* Said out loud, because a form that is already half full is alarming
+            rather than reassuring when nothing explains why — and because
+            "Start over" has to be within reach of someone who wanted a blank
+            one. */}
+        {draftNotice && (
+          <div className="mb-4 rounded-2xl bg-emerald-50/95 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="text-sm text-emerald-900 dark:text-emerald-200">{`💾 ${tr.draft_kept[lang]}`}</span>
+            <button type="button"
+              onClick={() => { clearDraft(DKEY); window.location.reload() }}
+              className="px-2 py-1.5 text-sm text-emerald-700 dark:text-emerald-300 hover:underline">
+              {tr.draft_restart[lang]}
+            </button>
+            <button type="button" onClick={() => setDraftNotice(false)}
+              className="ml-auto text-emerald-600/60 dark:text-emerald-400/60 hover:text-emerald-800 dark:hover:text-emerald-200 px-1 leading-none text-lg">
+              ×
             </button>
           </div>
         )}
@@ -742,8 +816,13 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
 
                 {error && (
                   <div className="text-sm text-rose-600 dark:text-rose-400 space-y-1">
-                    <p>{tr.error_msg[lang]}</p>
-                    <p className="text-[11px] font-mono opacity-70 break-all">{error}</p>
+                    <p>{tr[error.msg][lang]}</p>
+                    {/* The offline sentence already says it; saying it twice
+                        reads as panic. */}
+                    {error.msg !== 'err_offline' && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{tr.err_saved[lang]}</p>
+                    )}
+                    {error.detail && <p className="text-[11px] font-mono opacity-70 break-all">{error.detail}</p>}
                   </div>
                 )}
               </>
