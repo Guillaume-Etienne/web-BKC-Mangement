@@ -83,7 +83,7 @@ export const tr = {
     es: 'Para preparar el transporte y tu alojamiento.',
   },
   f_luggage:   { fr: 'Bagages standards', en: 'Standard bags', es: 'Maletas estándar' },
-  f_boardbags: { fr: 'Bagages de kitesurf', en: 'Kite bags', es: 'Bolsas de kite' },
+  f_boardbags: { fr: 'Bagages de kitesurf (boardbag)', en: 'Kite bags (boardbag)', es: 'Bolsas de kite (boardbag)' },
   f_double_beds: { fr: 'Lits doubles', en: 'Double beds', es: 'Camas dobles' },
   f_single_beds: { fr: 'Lits simples', en: 'Single beds', es: 'Camas individuales' },
   beds_hint: {
