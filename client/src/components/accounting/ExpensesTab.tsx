@@ -4,6 +4,8 @@ import type { Expense } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
 import MonthInput from '../common/MonthInput'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 
 const DEFAULT_CATEGORIES: string[] = ['Equipment', 'Maintenance', 'Transport', 'Staff', 'Admin', 'Other']
 
@@ -27,6 +29,7 @@ interface AddFormProps {
   onCancel: () => void
 }
 function AddExpenseForm({ categories, onAdd, onCancel }: AddFormProps) {
+  const { lang } = useLanguage()
   const [date,        setDate]        = useState(todayISO())
   const [category,   setCategory]    = useState(categories[0] ?? 'Other')
   const [amount,     setAmount]      = useState('')
@@ -40,29 +43,29 @@ function AddExpenseForm({ categories, onAdd, onCancel }: AddFormProps) {
 
   return (
     <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-xl p-5 space-y-4">
-      <p className="font-semibold text-blue-800 dark:text-blue-400">New expense</p>
+      <p className="font-semibold text-blue-800 dark:text-blue-400">{i18n.accounting.ex_new_expense[lang]}</p>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Date</label>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.common.label_date[lang]}</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Category</label>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.ex_category[lang]}</label>
           <select value={category} onChange={e => setCategory(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Amount (€)</label>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.bf_amount_eur[lang]}</label>
           <input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
             placeholder="0.00"
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
       </div>
       <div>
-        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Description</label>
+        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.palm_description_col[lang]}</label>
         <input type="text" value={description} onChange={e => setDescription(e.target.value)}
           placeholder="What was this expense for?"
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
@@ -70,11 +73,11 @@ function AddExpenseForm({ categories, onAdd, onCancel }: AddFormProps) {
       <div className="flex gap-2 justify-end">
         <button onClick={onCancel}
           className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-          Cancel
+          {i18n.common.btn_cancel[lang]}
         </button>
         <button onClick={submit}
           className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
-          Add expense
+          {i18n.accounting.ex_add_expense[lang]}
         </button>
       </div>
     </div>
@@ -84,6 +87,7 @@ function AddExpenseForm({ categories, onAdd, onCancel }: AddFormProps) {
 // ── Add category form (module-scope) ─────────────────────────────────────────
 interface AddCatProps { onAdd: (name: string) => void; onCancel: () => void }
 function AddCategoryForm({ onAdd, onCancel }: AddCatProps) {
+  const { lang } = useLanguage()
   const [name, setName] = useState('')
   return (
     <div className="flex items-center gap-2">
@@ -92,7 +96,7 @@ function AddCategoryForm({ onAdd, onCancel }: AddCatProps) {
         className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-44" />
       <button onClick={() => { if (name.trim()) { onAdd(name.trim()); } }}
         className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-        Add
+        {i18n.common.btn_add[lang]}
       </button>
       <button onClick={onCancel} className="text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400 text-lg leading-none">×</button>
     </div>
@@ -101,6 +105,7 @@ function AddCategoryForm({ onAdd, onCancel }: AddCatProps) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ExpensesTab({ data, handlers }: Props) {
+  const { lang } = useLanguage()
   const { expenses, seasons } = data
   const currentSeason = seasons[seasons.length - 1]
 
@@ -205,7 +210,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
               className={`px-4 py-1.5 rounded text-sm font-medium transition-colors capitalize ${
                 view === v ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}>
-              {v === 'list' ? '📋 List' : '📊 Summary'}
+              {v === 'list' ? i18n.accounting.ex_list_view[lang] : i18n.accounting.ex_summary_view[lang]}
             </button>
           ))}
         </div>
@@ -228,7 +233,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
             ? <AddCategoryForm onAdd={addCategory} onCancel={() => setShowAddCat(false)} />
             : <button onClick={() => setShowAddCat(true)}
                 className="text-xs px-2 py-1 border border-dashed border-gray-300 dark:border-gray-700 rounded-full text-gray-400 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-700 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
-                + category
+                {i18n.accounting.ex_category_short[lang]}
               </button>
           }
         </div>
@@ -239,7 +244,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
 
         {/* Category breakdown bar */}
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
-          <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">All-time breakdown</p>
+          <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.ex_all_time_breakdown[lang]}</p>
           {Object.entries(allByCat).sort((a, b) => b[1] - a[1]).map(([cat, val]) => (
             <div key={cat} className="flex items-center gap-3">
               <button onClick={() => setFilterCat(filterCat === cat ? 'all' : cat)}
@@ -266,17 +271,17 @@ export default function ExpensesTab({ data, handlers }: Props) {
           <MonthInput value={filterMonth} onChange={setFilterMonth} allowEmpty />
           <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-            <option value="all">All categories</option>
+            <option value="all">{i18n.accounting.ex_all_categories[lang]}</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           {(filterCat !== 'all' || filterMonth || search) && (
             <button onClick={() => { setFilterCat('all'); setFilterMonth(''); setSearch('') }}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Clear</button>
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline">{i18n.accounting.ex_clear[lang]}</button>
           )}
           <div className="ml-auto">
             <button onClick={() => setShowAddForm(v => !v)}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-              + Add expense
+              {i18n.accounting.ex_add_expense[lang]}
             </button>
           </div>
         </div>
@@ -288,16 +293,16 @@ export default function ExpensesTab({ data, handlers }: Props) {
           <table className="w-full text-sm min-w-[540px]">
             <thead className="bg-gray-50 dark:bg-gray-800 border-b">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Date</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Category</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Description</th>
-                <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Amount</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.common.label_date[lang]}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.ex_category[lang]}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.palm_description_col[lang]}</th>
+                <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">{i18n.common.label_amount[lang]}</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-gray-400 text-sm">No expenses match the current filters.</td></tr>
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-gray-400 text-sm">{i18n.accounting.ex_no_expenses_match[lang]}</td></tr>
               )}
               {filtered.map(e => (
                 <tr key={e.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -320,7 +325,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
             {filtered.length > 0 && (
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t font-semibold">
                 <tr>
-                  <td colSpan={3} className="px-4 py-3 text-gray-600 dark:text-gray-400">{filtered.length} expense{filtered.length !== 1 ? 's' : ''}</td>
+                  <td colSpan={3} className="px-4 py-3 text-gray-600 dark:text-gray-400">{i18n.accounting.ex_expense_count[lang].replace('{count}', String(filtered.length)).replace('{s}', filtered.length !== 1 ? 's' : '')}</td>
                   <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">− {fmtEur(listTotal)}</td>
                   <td />
                 </tr>
@@ -337,9 +342,9 @@ export default function ExpensesTab({ data, handlers }: Props) {
         <div className="flex flex-wrap gap-2 items-center">
           <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
             {([
-              { id: 'all',    label: 'All time' },
-              { id: 'season', label: `Season ${currentSeason?.label ?? ''}` },
-              { id: 'custom', label: 'Custom' },
+              { id: 'all',    label: i18n.common.period_all_time[lang] },
+              { id: 'season', label: i18n.accounting.palm_season_label[lang].replace('{label}', currentSeason?.label ?? '') },
+              { id: 'custom', label: i18n.accounting.palm_custom[lang] },
             ] as { id: SummaryPeriod; label: string }[]).map(opt => (
               <button key={opt.id} onClick={() => setSumPeriod(opt.id)}
                 className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
@@ -368,7 +373,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
             </div>
           ))}
           <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Total</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{i18n.common.label_total[lang]}</p>
             <p className="text-xl font-bold text-red-700 dark:text-red-400">− {fmtEur(summaryMatrix.grandTotal)}</p>
           </div>
         </div>
@@ -379,14 +384,14 @@ export default function ExpensesTab({ data, handlers }: Props) {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap">Month</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap">{i18n.accounting.label_month[lang]}</th>
                   {summaryMatrix.cats.map(cat => (
                     <th key={cat} className="px-4 py-3 text-right font-semibold whitespace-nowrap"
                       style={{ color: colorOf(cat) }}>
                       {cat}
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Total</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.common.label_total[lang]}</th>
                 </tr>
               </thead>
               <tbody>
@@ -410,7 +415,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t font-semibold">
                 <tr>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">Total</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{i18n.common.label_total[lang]}</td>
                   {summaryMatrix.cats.map(cat => (
                     <td key={cat} className="px-4 py-3 text-right" style={{ color: colorOf(cat) }}>
                       − {fmtEur(summaryMatrix.catTotals[cat] ?? 0)}

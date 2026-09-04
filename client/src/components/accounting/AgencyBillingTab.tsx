@@ -3,6 +3,8 @@ import type { SharedAccountingData } from './types'
 import { buildAgencyInvoiceRows, computeAgencyTotals, fmtEur } from './utils'
 import { filterDataToSeason } from './seasonFilter'
 import { fmtDate } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 
 // Read-only screen: it reports, it never stamps. The invoice — number, agency
 // ref, stamps, printable document — is handled from the booking it belongs to.
@@ -15,6 +17,7 @@ interface Props { data: SharedAccountingData }
 type Period = 'all' | 'season'
 
 export default function AgencyBillingTab({ data }: Props) {
+  const { lang } = useLanguage()
   const [period, setPeriod]     = useState<Period>('all')
   const [agencyId, setAgencyId] = useState<string>('')
 
@@ -43,8 +46,8 @@ export default function AgencyBillingTab({ data }: Props) {
       <div className="flex flex-wrap gap-2 items-center">
         <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
           {([
-            { id: 'all',    label: 'All time' },
-            { id: 'season', label: `Season ${currentSeason?.label ?? ''}` },
+            { id: 'all',    label: i18n.common.period_all_time[lang] },
+            { id: 'season', label: i18n.accounting.palm_season_label[lang].replace('{label}', currentSeason?.label ?? '') },
           ] as { id: Period; label: string }[]).map(opt => (
             <button key={opt.id} onClick={() => setPeriod(opt.id)}
               disabled={opt.id === 'season' && !currentSeason}
@@ -57,7 +60,7 @@ export default function AgencyBillingTab({ data }: Props) {
         </div>
         <select value={agencyId} onChange={e => setAgencyId(e.target.value)}
           className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-300">
-          <option value="">All agencies</option>
+          <option value="">{i18n.accounting.abt_all_agencies[lang]}</option>
           {pickable.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
       </div>
@@ -65,10 +68,10 @@ export default function AgencyBillingTab({ data }: Props) {
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Gross billed', value: totals.gross,       hint: 'at the agency’s own rates', color: 'text-gray-800 dark:text-gray-200' },
-          { label: 'Commission',   value: -totals.commission, hint: 'retained by the agency',    color: 'text-purple-700 dark:text-purple-400' },
-          { label: 'Net for us',   value: totals.net,         hint: 'what reaches the centre',   color: 'text-emerald-700 dark:text-emerald-400' },
-          { label: 'Still owed',   value: totals.outstanding, hint: 'net billed, not yet paid',  color: totals.outstanding > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400' },
+          { label: i18n.accounting.label_gross_billed[lang], value: totals.gross,       hint: i18n.accounting.hint_retained[lang], color: 'text-gray-800 dark:text-gray-200' },
+          { label: i18n.accounting.label_commission[lang],   value: -totals.commission, hint: i18n.accounting.hint_retained[lang],    color: 'text-purple-700 dark:text-purple-400' },
+          { label: i18n.accounting.abt_net_for_us[lang],   value: totals.net,         hint: i18n.accounting.hint_center[lang],   color: 'text-emerald-700 dark:text-emerald-400' },
+          { label: i18n.accounting.abt_still_owed[lang],   value: totals.outstanding, hint: i18n.accounting.hint_not_yet[lang],  color: totals.outstanding > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400' },
         ].map(kpi => (
           <div key={kpi.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 py-4">
             <p className="text-xs text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1">{kpi.label}</p>

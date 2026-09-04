@@ -2,6 +2,9 @@ import { useState } from 'react'
 import type { BookingStatus, Client } from '../../types/database'
 import { fmtEur } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
+import type { Tr } from '../../data/i18n/types'
 
 // Row shape produced by AccountingDashboard's bookingFinances (booking + finance fields)
 export interface UnpaidRow {
@@ -25,10 +28,10 @@ interface Props {
 
 type GroupKey = 'here' | 'departed' | 'upcoming'
 
-const GROUPS: { key: GroupKey; label: string; hint: string; dot: string }[] = [
-  { key: 'here',     label: 'Currently here', hint: 'collect before checkout', dot: 'bg-red-500' },
-  { key: 'departed', label: 'Departed',       hint: 'to chase',                dot: 'bg-amber-500' },
-  { key: 'upcoming', label: 'Upcoming',       hint: 'not due yet',             dot: 'bg-blue-400' },
+const GROUPS: { key: GroupKey; label: Tr; hint: Tr; dot: string }[] = [
+  { key: 'here',     label: i18n.accounting.cm_group_here,     hint: i18n.accounting.cm_hint_here,     dot: 'bg-red-500' },
+  { key: 'departed', label: i18n.accounting.cm_group_departed, hint: i18n.accounting.cm_hint_departed, dot: 'bg-amber-500' },
+  { key: 'upcoming', label: i18n.accounting.cm_group_upcoming, hint: i18n.accounting.cm_hint_upcoming, dot: 'bg-blue-400' },
 ]
 
 const STATUS_COLORS: Record<BookingStatus, string> = {
@@ -38,6 +41,7 @@ const STATUS_COLORS: Record<BookingStatus, string> = {
 }
 
 export default function CollectionsModal({ rows, clients, onClose, onOpenBooking }: Props) {
+  const { lang } = useLanguage()
   const today = todayISO()
 
   const groups: Record<GroupKey, UnpaidRow[]> = {
@@ -65,9 +69,9 @@ export default function CollectionsModal({ rows, clients, onClose, onOpenBooking
       >
         <div className="flex justify-between items-center p-4 border-b">
           <div>
-            <h3 className="font-bold text-gray-800 dark:text-gray-200">Outstanding collections</h3>
+            <h3 className="font-bold text-gray-800 dark:text-gray-200">{i18n.accounting.cm_title[lang]}</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {fmtEur(grandTotal)} to collect across {rows.length} booking{rows.length !== 1 ? 's' : ''}
+              {i18n.accounting.cm_to_collect_across[lang].replace('{amount}', fmtEur(grandTotal)).replace('{count}', String(rows.length)).replace('{s}', rows.length !== 1 ? 's' : '')}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-xl font-bold">✕</button>
@@ -85,15 +89,15 @@ export default function CollectionsModal({ rows, clients, onClose, onOpenBooking
                 >
                   <span className="text-gray-400 dark:text-gray-400 text-xs w-3">{open[g.key] ? '▾' : '▸'}</span>
                   <span className={`w-2 h-2 rounded-full ${g.dot}`} />
-                  <span className="font-semibold text-sm text-gray-800 dark:text-gray-200">{g.label}</span>
-                  <span className="text-xs text-gray-400 dark:text-gray-400">— {g.hint}</span>
-                  <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">{list.length} booking{list.length !== 1 ? 's' : ''}</span>
+                  <span className="font-semibold text-sm text-gray-800 dark:text-gray-200">{g.label[lang]}</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-400">— {g.hint[lang]}</span>
+                  <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">{i18n.accounting.cm_booking_count[lang].replace('{count}', String(list.length))}</span>
                   <span className="font-bold text-sm text-amber-700 dark:text-amber-400 w-20 text-right">{fmtEur(subtotal)}</span>
                 </button>
 
                 {open[g.key] && (
                   list.length === 0 ? (
-                    <p className="px-4 py-3 text-sm text-gray-400 dark:text-gray-400">Nothing to collect here 🎉</p>
+                    <p className="px-4 py-3 text-sm text-gray-400 dark:text-gray-400">{i18n.accounting.cm_nothing_to_collect[lang]}</p>
                   ) : (
                     <ul className="divide-y divide-gray-100 dark:divide-gray-800">
                       {list.map(r => {
@@ -118,7 +122,7 @@ export default function CollectionsModal({ rows, clients, onClose, onOpenBooking
                               </div>
                               <div className="text-right shrink-0">
                                 <p className="text-sm font-bold text-amber-700 dark:text-amber-400">{fmtEur(r.due)}</p>
-                                <p className="text-xs text-gray-400 dark:text-gray-400">{fmtEur(r.paid)} / {fmtEur(r.total)} paid</p>
+                                <p className="text-xs text-gray-400 dark:text-gray-400">{i18n.accounting.cm_paid_of_total[lang].replace('{paid}', fmtEur(r.paid)).replace('{total}', fmtEur(r.total))}</p>
                               </div>
                             </button>
                           </li>

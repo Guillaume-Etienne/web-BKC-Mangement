@@ -5,6 +5,9 @@ import { filterDataToSeason } from './seasonFilter'
 import { computeSeasonTotals, fmtEur } from './utils'
 import type { SeasonTotals } from './utils'
 import { fmtDate } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
+import type { Tr } from '../../data/i18n/types'
 
 /** Season against season, one column each.
  *
@@ -15,7 +18,7 @@ import { fmtDate } from '../../utils/dates'
 interface Props { data: SharedAccountingData; seasons: Season[] }
 
 interface Line {
-  label: string
+  label: Tr
   pick: (t: SeasonTotals) => number
   /** A cost: bigger is worse, so the delta colours flip. */
   cost?: boolean
@@ -23,31 +26,32 @@ interface Line {
 }
 
 const REVENUE: Line[] = [
-  { label: 'Accommodation', pick: t => t.accomRev },
-  { label: 'Lessons',       pick: t => t.lessonsRev },
-  { label: 'Equipment',     pick: t => t.rentalsRev },
-  { label: 'Taxi margin',   pick: t => t.taxiMargin },
-  { label: 'Activities',    pick: t => t.activitiesRev },
-  { label: 'Events',        pick: t => t.eventsRev },
-  { label: 'Center access', pick: t => t.centerAccessRev },
-  { label: 'Total revenue', pick: t => t.totalRevenue, strong: true },
+  { label: i18n.accounting.rev_accommodation, pick: t => t.accomRev },
+  { label: i18n.accounting.rev_lessons,       pick: t => t.lessonsRev },
+  { label: i18n.accounting.rev_equipment,     pick: t => t.rentalsRev },
+  { label: i18n.accounting.rev_taxi_margin,   pick: t => t.taxiMargin },
+  { label: i18n.accounting.rev_activities,    pick: t => t.activitiesRev },
+  { label: i18n.accounting.rev_events,        pick: t => t.eventsRev },
+  { label: i18n.accounting.rev_center_access, pick: t => t.centerAccessRev },
+  { label: i18n.accounting.dash_total_revenue, pick: t => t.totalRevenue, strong: true },
 ]
 
 const COSTS: Line[] = [
-  { label: 'Instructors',       pick: t => t.instructorCosts,  cost: true },
-  { label: 'Houses',            pick: t => t.houseRentalCosts, cost: true },
-  { label: 'Bungalow owners',   pick: t => t.bungalowCosts,    cost: true },
-  { label: 'External stays',    pick: t => t.externalStayCosts, cost: true },
-  { label: 'Activity providers', pick: t => t.activityCosts,   cost: true },
-  { label: 'Expenses',          pick: t => t.totalExpenses,    cost: true },
+  { label: i18n.accounting.sc_instructors,          pick: t => t.instructorCosts,  cost: true },
+  { label: i18n.accounting.tab_houses,              pick: t => t.houseRentalCosts, cost: true },
+  { label: i18n.accounting.dash_bungalow_owners,    pick: t => t.bungalowCosts,    cost: true },
+  { label: i18n.accounting.dash_external_stays,     pick: t => t.externalStayCosts, cost: true },
+  { label: i18n.accounting.dash_activity_providers, pick: t => t.activityCosts,   cost: true },
+  { label: i18n.accounting.dash_expenses,           pick: t => t.totalExpenses,    cost: true },
 ]
 
 const BOTTOM: Line[] = [
-  { label: 'Palmeiras net', pick: t => t.palmeirasNet },
-  { label: 'Net result',    pick: t => t.netResult, strong: true },
+  { label: i18n.accounting.dash_palmeiras_net, pick: t => t.palmeirasNet },
+  { label: i18n.accounting.sc_net_result,      pick: t => t.netResult, strong: true },
 ]
 
 export default function SeasonComparison({ data, seasons }: Props) {
+  const { lang } = useLanguage()
   const columns = useMemo(
     () => seasons.map(s => ({ season: s, totals: computeSeasonTotals(filterDataToSeason(data, s)) })),
     [data, seasons],
@@ -56,14 +60,14 @@ export default function SeasonComparison({ data, seasons }: Props) {
   if (seasons.length === 0) {
     return (
       <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-        No season configured yet — add one in Options → Seasons to compare periods.
+        {i18n.accounting.sc_no_season_yet[lang]}
       </p>
     )
   }
   if (seasons.length === 1) {
     return (
       <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-        Only “{seasons[0].label}” is configured, so there is nothing to compare it with yet.
+        {i18n.accounting.sc_only_one_season[lang].replace('{label}', seasons[0].label)}
       </p>
     )
   }
@@ -94,9 +98,9 @@ export default function SeasonComparison({ data, seasons }: Props) {
       {lines.map(line => {
         const d = delta(line)
         return (
-          <tr key={line.label} className="border-b border-gray-100 dark:border-gray-800">
+          <tr key={line.label.en} className="border-b border-gray-100 dark:border-gray-800">
             <td className={`px-4 py-2 ${line.strong ? 'font-bold text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400'}`}>
-              {line.label}
+              {line.label[lang]}
             </td>
             {columns.map(c => (
               <td key={c.season.id}
@@ -117,7 +121,7 @@ export default function SeasonComparison({ data, seasons }: Props) {
         <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-800">
             <tr>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Figure</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.sc_figure_col[lang]}</th>
               {columns.map(c => (
                 <th key={c.season.id} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
                   {c.season.label}
@@ -130,15 +134,15 @@ export default function SeasonComparison({ data, seasons }: Props) {
                   title={`${last.season.label} compared with ${prev.season.label}`}>
                 Δ
                 <span className="block text-[11px] font-normal text-gray-400 dark:text-gray-500">
-                  vs {prev.season.label}
+                  {i18n.accounting.sc_vs[lang].replace('{label}', prev.season.label)}
                 </span>
               </th>
             </tr>
           </thead>
           <tbody>
-            <Section title="Revenue" lines={REVENUE} />
-            <Section title="Costs"   lines={COSTS} />
-            <Section title="Result"  lines={BOTTOM} />
+            <Section title={i18n.accounting.section_revenue[lang]} lines={REVENUE} />
+            <Section title={i18n.accounting.sc_costs_header[lang]}   lines={COSTS} />
+            <Section title={i18n.accounting.sc_result_header[lang]}  lines={BOTTOM} />
           </tbody>
         </table>
       </div>

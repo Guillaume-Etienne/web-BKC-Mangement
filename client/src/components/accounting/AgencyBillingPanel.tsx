@@ -7,6 +7,8 @@ import {
 } from './utils'
 import { printAgencyInvoice } from '../../utils/printAgencyInvoice'
 import { fmtDateShort, todayISO } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 
 /** One thing the centre delivered, which is billed either to the guest or to the
  *  agency that sent them. The four sources (lessons, rentals, transfers, rooms)
@@ -34,6 +36,7 @@ interface Props {
 }
 
 export default function AgencyBillingPanel({ booking: b, data, handlers }: Props) {
+  const { lang } = useLanguage()
   const [adding, setAdding] = useState(false)
 
   // Untagged booking → nothing to bill an agency for. The tag is set in the
@@ -67,7 +70,7 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
 
   const lineLabel = (l: AgencyBillingLine) => {
     const item = data.agencyRateItems.find(r => r.id === l.agency_rate_item_id)
-    return item?.label ?? l.notes ?? 'Custom line'
+    return item?.label ?? l.notes ?? i18n.accounting.abp_custom_line[lang]
   }
 
   // ── Every billable service on this booking, in one list ───────────────────
@@ -259,13 +262,13 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
                   className={`px-2 py-0.5 rounded text-xs font-medium ${invoice.invoiced_at
                     ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
-                  {invoice.invoiced_at ? `✓ Sent ${stampDate(invoice.invoiced_at)}` : 'Mark sent'}
+                  {invoice.invoiced_at ? `✓ Sent ${stampDate(invoice.invoiced_at)}` : i18n.accounting.abp_mark_sent[lang]}
                 </button>
                 <button onClick={() => toggleInvoiceStamp('paid_at')}
                   className={`px-2 py-0.5 rounded text-xs font-medium ${invoice.paid_at
                     ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
-                  {invoice.paid_at ? `✓ Paid ${stampDate(invoice.paid_at)}` : 'Mark paid'}
+                  {invoice.paid_at ? `✓ Paid ${stampDate(invoice.paid_at)}` : i18n.accounting.abp_mark_paid[lang]}
                 </button>
                 <span className="text-xs text-gray-400 dark:text-gray-500">
                   {invoicedLines.length} of {lines.length} line{lines.length > 1 ? 's' : ''} on it
@@ -330,7 +333,7 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
                       + add to invoice {invoice.invoice_number}
                     </button>
                   ) : (
-                    <span className="text-xs text-gray-400 dark:text-gray-500 italic">not invoiced yet</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500 italic">{i18n.accounting.abp_not_invoiced_yet[lang]}</span>
                   )}
                   {l.notes && <span className="text-xs text-gray-400 dark:text-gray-500 italic">{l.notes}</span>}
                   <button onClick={() => removeLine(l)}
@@ -348,7 +351,7 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
       ) : (
         <button onClick={() => setAdding(true)}
           className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium">
-          + Add billing line
+          {i18n.accounting.abp_add_billing_line[lang]}
         </button>
       )}
 
@@ -401,6 +404,7 @@ interface AddLineFormProps {
 }
 
 function AddLineForm({ rateItems, participants, onAdd, onCancel }: AddLineFormProps) {
+  const { lang } = useLanguage()
   const [itemId, setItemId] = useState('')
   const [partId, setPartId] = useState('')
   const [price,  setPrice]  = useState('')
@@ -464,9 +468,9 @@ function AddLineForm({ rateItems, participants, onAdd, onCancel }: AddLineFormPr
         className="w-full px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-200" />
       <div className="flex gap-2">
         <button type="button" onClick={onCancel}
-          className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium">Cancel</button>
+          className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium">{i18n.common.btn_cancel[lang]}</button>
         <button type="submit"
-          className="px-3 py-1 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700">Add line</button>
+          className="px-3 py-1 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700">{i18n.accounting.abp_add_line_btn[lang]}</button>
       </div>
     </form>
   )

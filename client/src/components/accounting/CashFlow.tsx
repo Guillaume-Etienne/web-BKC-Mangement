@@ -3,6 +3,8 @@ import type { SharedAccountingData } from './types'
 import { fmtEur, fmtMonth } from './utils'
 import { buildCashFlowRows, filterRowsByPeriod, sumCashFlowRows, runningBalances } from './cashFlowUtils'
 import MonthInput from '../common/MonthInput'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 
 interface Props { data: SharedAccountingData }
 
@@ -10,6 +12,7 @@ type PeriodMode  = 'month' | 'season' | 'custom'
 type ChartType   = 'bars' | 'diverging' | 'line'
 
 export default function CashFlow({ data }: Props) {
+  const { lang } = useLanguage()
   const { seasons } = data
 
   const currentSeason = seasons[seasons.length - 1]
@@ -46,9 +49,9 @@ export default function CashFlow({ data }: Props) {
       <div className="flex flex-wrap gap-2 items-center">
         <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
           {([
-            { id: 'month',  label: 'All time' },
-            { id: 'season', label: `Season ${currentSeason?.label ?? ''}` },
-            { id: 'custom', label: 'Custom' },
+            { id: 'month',  label: i18n.common.period_all_time[lang] },
+            { id: 'season', label: i18n.accounting.palm_season_label[lang].replace('{label}', currentSeason?.label ?? '') },
+            { id: 'custom', label: i18n.accounting.palm_custom[lang] },
           ] as { id: PeriodMode; label: string }[]).map(opt => (
             <button key={opt.id} onClick={() => setMode(opt.id)}
               className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
@@ -71,12 +74,12 @@ export default function CashFlow({ data }: Props) {
       {/* KPI bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Billed',      value: totals.billed,    color: 'text-gray-700 dark:text-gray-300',    note: 'Revenue generated' },
-          { label: 'Collected',   value: totals.collected, color: 'text-emerald-700 dark:text-emerald-400', note: 'Cash received',
-            warn: totals.unverified > 0 ? `⚠ ${fmtEur(totals.unverified)} still to verify` : null },
+          { label: i18n.accounting.cf_billed[lang],      value: totals.billed,    color: 'text-gray-700 dark:text-gray-300',    note: i18n.accounting.hint_billed[lang] },
+          { label: i18n.accounting.label_collected[lang],   value: totals.collected, color: 'text-emerald-700 dark:text-emerald-400', note: i18n.accounting.hint_collected[lang],
+            warn: totals.unverified > 0 ? i18n.accounting.dash_still_to_verify[lang].replace('{amount}', fmtEur(totals.unverified)) : null },
           // Must list every outflow `net` subtracts, or this card and the table disagree.
-          { label: 'Total out',   value: -(totals.expenses + totals.rent + totals.instrPaid + totals.taxiOut + totals.providersOut), color: 'text-red-700 dark:text-red-400', note: 'Expenses + rent + instructors + taxi + providers' },
-          { label: 'Net cash',    value: totals.net,       color: totals.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400', note: 'Collected + Palmeiras + agencies − all outflows' },
+          { label: i18n.accounting.cf_total_out[lang],   value: -(totals.expenses + totals.rent + totals.instrPaid + totals.taxiOut + totals.providersOut), color: 'text-red-700 dark:text-red-400', note: i18n.accounting.cf_note_total_out[lang] },
+          { label: i18n.accounting.hint_net_cash[lang],    value: totals.net,       color: totals.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400', note: i18n.accounting.cf_note_net_cash[lang] },
         ].map(k => (
           <div key={k.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 py-4">
             <p className="text-xs text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1">{k.label}</p>
@@ -91,7 +94,7 @@ export default function CashFlow({ data }: Props) {
       {filtered.length > 1 && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">Monthly net cash</p>
+            <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.cf_monthly_net_cash[lang]}</p>
             <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
               {([
                 { id: 'bars',      label: '▮▮▮' },
@@ -219,27 +222,27 @@ export default function CashFlow({ data }: Props) {
         <table className="w-full text-sm min-w-[980px]">
           <thead className="bg-gray-50 dark:bg-gray-800 border-b">
             <tr>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Month</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-500 dark:text-gray-400">Billed</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Collected</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.label_month[lang]}</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.cf_billed[lang]}</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.label_collected[lang]}</th>
               <th className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400"
                   title="Reversals owed to us + free income − free expenses. Rent is the next column.">
-                Palmeiras net
+                {i18n.accounting.dash_palmeiras_net[lang]}
               </th>
               <th className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400"
                   title="Cash received from partner agencies this month, net of their commission — booked on the date the invoice was settled, not the date it was sent.">
-                Agencies
+                {i18n.accounting.rev_agencies[lang]}
               </th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Expenses</th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Rent</th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Instructors</th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">Taxi out</th>
+              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">{i18n.accounting.dash_expenses[lang]}</th>
+              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">{i18n.accounting.palm_rent[lang]}</th>
+              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">{i18n.accounting.cf_instructors_col[lang]}</th>
+              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">{i18n.accounting.cf_taxi_out_col[lang]}</th>
               <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400"
                   title="Activity providers settled this month: cash paid to them minus cash they paid us.">
-                Providers
+                {i18n.accounting.cf_providers_col[lang]}
               </th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Net cash</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-400 dark:text-gray-400">Running</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.hint_net_cash[lang]}</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-400 dark:text-gray-400">{i18n.accounting.cf_running_col[lang]}</th>
             </tr>
           </thead>
           <tbody>
@@ -291,7 +294,7 @@ export default function CashFlow({ data }: Props) {
           </tbody>
           <tfoot className="bg-gray-50 dark:bg-gray-800 border-t">
             <tr className="font-semibold">
-              <td className="px-4 py-3 text-gray-700 dark:text-gray-300">Total</td>
+              <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{i18n.common.label_total[lang]}</td>
               <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-400">{fmtEur(totals.billed)}</td>
               <td className="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">+ {fmtEur(totals.collected)}</td>
               <td className={`px-4 py-3 text-right ${totals.palmIn < 0 ? 'text-red-500 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
