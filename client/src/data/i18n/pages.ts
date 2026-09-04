@@ -59,4 +59,30 @@ export const pagesI18n = {
   msg_no_data:     { fr: 'Aucune donnée',   en: 'No data',       es: 'Sin datos' },
   msg_loading:     { fr: 'Chargement…',     en: 'Loading…',      es: 'Cargando…' },
   msg_error_load:  { fr: 'Erreur au chargement', en: 'Error loading', es: 'Error al cargar' },
+
+  // pendingActions.ts — HomePage alert messages. `{count}` / `{days}` are
+  // replaced at runtime; singular/plural are separate keys because "enquiry"
+  // → "enquiries" (and its FR/ES equivalents) isn't a trailing-s suffix.
+  msg_unverified_payment:    { fr: '{count} paiement non vérifié',   en: '{count} unverified payment',   es: '{count} pago no verificado' },
+  msg_unverified_payments:   { fr: '{count} paiements non vérifiés', en: '{count} unverified payments',  es: '{count} pagos no verificados' },
+  msg_provisional_urgent:    { fr: 'Réservation provisoire — arrivée dans {days} jour(s)', en: 'Provisional booking — check-in in {days} day(s)', es: 'Reserva provisional — llegada en {days} día(s)' },
+  msg_provisional_week:      { fr: 'Réservation provisoire — arrivée dans {days} jours',   en: 'Provisional booking — check-in in {days} days',   es: 'Reserva provisional — llegada en {days} días' },
+  msg_visa_urgent:           { fr: 'Entrée visa dans {days} jour(s) — vérifier la lettre de visa', en: 'Visa entry in {days} day(s) — check visa letter', es: 'Entrada de visado en {days} día(s) — revisar la carta de visado' },
+  msg_visa_week:             { fr: 'Entrée visa dans {days} jours — préparer la lettre de visa',   en: 'Visa entry in {days} days — prepare visa letter', es: 'Entrada de visado en {days} días — preparar la carta de visado' },
+  msg_no_payment_urgent:     { fr: "Aucun paiement enregistré — arrivée demain ou aujourd'hui", en: 'No payment recorded — check-in tomorrow or today', es: 'Sin pago registrado — llegada mañana o hoy' },
+  msg_no_payment_week:       { fr: 'Aucun paiement enregistré — arrivée dans {days} jours',     en: 'No payment recorded — check-in in {days} days',    es: 'Sin pago registrado — llegada en {days} días' },
+  msg_new_enquiry:           { fr: '{count} nouvelle enquête à lire',   en: '{count} new enquiry to read',    es: '{count} nueva consulta para leer' },
+  msg_new_enquiries:         { fr: '{count} nouvelles enquêtes à lire', en: '{count} new enquiries to read',  es: '{count} nuevas consultas para leer' },
+  msg_new_booking_form:      { fr: '{count} nouveau formulaire de réservation à examiner',   en: '{count} new booking form to review',   es: '{count} nuevo formulario de reserva para revisar' },
+  msg_new_booking_forms:     { fr: '{count} nouveaux formulaires de réservation à examiner', en: '{count} new booking forms to review',  es: '{count} nuevos formularios de reserva para revisar' },
+  msg_silent_enquiry:        { fr: '{count} enquête en attente de votre réponse depuis une semaine ou plus',   en: '{count} enquiry waiting on you for a week or more',   es: '{count} consulta esperando su respuesta desde hace una semana o más' },
+  msg_silent_enquiries:      { fr: '{count} enquêtes en attente de votre réponse depuis une semaine ou plus',  en: '{count} enquiries waiting on you for a week or more', es: '{count} consultas esperando su respuesta desde hace una semana o más' },
+  msg_crm_failed_enquiry:    { fr: '{count} enquête non ajoutée à Brevo',   en: '{count} enquiry not added to Brevo',   es: '{count} consulta no añadida a Brevo' },
+  msg_crm_failed_enquiries:  { fr: '{count} enquêtes non ajoutées à Brevo', en: '{count} enquiries not added to Brevo', es: '{count} consultas no añadidas a Brevo' },
+  msg_confirmation_missing:  { fr: 'Réservation confirmée — email de confirmation non envoyé', en: 'Booking confirmed — confirmation email not sent', es: 'Reserva confirmada — email de confirmación no enviado' },
+  msg_travel_guide_urgent:   { fr: 'Guide de voyage non envoyé — arrivée très proche',       en: 'Travel guide not sent — check-in very soon',       es: 'Guía de viaje no enviada — llegada muy próxima' },
+  msg_travel_guide_week:     { fr: 'Guide de voyage non envoyé — arrivée sous une semaine',  en: 'Travel guide not sent — check-in within a week',   es: 'Guía de viaje no enviada — llegada dentro de una semana' },
+  msg_welcome_guide:         { fr: 'Guide de bienvenue non envoyé — client sur place',       en: 'Welcome guide not sent — guest is on-site',        es: 'Guía de bienvenida no enviada — huésped en el lugar' },
+  msg_unlinked_taxi_trip:    { fr: '{count} trajet taxi non lié à une réservation',    en: '{count} taxi trip not linked to any booking',   es: '{count} viaje en taxi no vinculado a ninguna reserva' },
+  msg_unlinked_taxi_trips:   { fr: '{count} trajets taxi non liés à une réservation',  en: '{count} taxi trips not linked to any booking',  es: '{count} viajes en taxi no vinculados a ninguna reserva' },
 } satisfies Record<string, Tr>

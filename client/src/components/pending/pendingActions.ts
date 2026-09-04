@@ -1,4 +1,5 @@
-import type { Booking, Payment } from '../../types/database'
+import type { Booking, Payment, Lang } from '../../types/database'
+import { i18n } from '../../data/i18n'
 
 export type ActionPriority = 'urgent' | 'week' | 'monitor'
 
@@ -53,7 +54,13 @@ function bookingLabel(b: Booking): string {
   return ref + name
 }
 
-export function computePendingActions(data: PendingActionsData): PendingAction[] {
+export function computePendingActions(data: PendingActionsData, lang: Lang = 'en'): PendingAction[] {
+  const t = i18n.pages
+  const routeLabelAccounting = i18n.nav.nav_accounting[lang]
+  const routeLabelBookings   = i18n.nav.nav_bookings[lang]
+  const routeLabelDocuments  = i18n.nav.nav_documents[lang]
+  const routeLabelRequests   = i18n.nav.nav_requests[lang]
+  const routeLabelTaxis      = i18n.nav.nav_taxis[lang]
   const actions: PendingAction[] = []
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -88,10 +95,10 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
     actions.push({
       id: `unverified-${bookingId}`,
       priority: 'urgent',
-      message: `${count} unverified payment${count > 1 ? 's' : ''}`,
+      message: (count > 1 ? t.msg_unverified_payments[lang] : t.msg_unverified_payment[lang]).replace('{count}', String(count)),
       bookingRef: b ? bookingLabel(b) : undefined,
       route: 'accounting',
-      routeLabel: 'Accounting',
+      routeLabel: routeLabelAccounting,
     })
   }
 
@@ -103,10 +110,10 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
         actions.push({
           id: `provisional-urgent-${b.id}`,
           priority: 'urgent',
-          message: `Provisional booking — check-in in ${Math.round((checkIn.getTime() - today.getTime()) / 86400000)} day(s)`,
+          message: t.msg_provisional_urgent[lang].replace('{days}', String(Math.round((checkIn.getTime() - today.getTime()) / 86400000))),
           bookingRef: bookingLabel(b),
           route: 'bookings',
-          routeLabel: 'Bookings',
+          routeLabel: routeLabelBookings,
         })
       }
     }
@@ -121,10 +128,10 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
         actions.push({
           id: `visa-${b.id}`,
           priority: 'urgent',
-          message: `Visa entry in ${daysLeft} day(s) — check visa letter`,
+          message: t.msg_visa_urgent[lang].replace('{days}', String(daysLeft)),
           bookingRef: bookingLabel(b),
           route: 'documents',
-          routeLabel: 'Documents',
+          routeLabel: routeLabelDocuments,
         })
       }
     }
@@ -139,10 +146,10 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
         actions.push({
           id: `no-payment-urgent-${b.id}`,
           priority: 'urgent',
-          message: 'No payment recorded — check-in tomorrow or today',
+          message: t.msg_no_payment_urgent[lang],
           bookingRef: bookingLabel(b),
           route: 'accounting',
-          routeLabel: 'Accounting',
+          routeLabel: routeLabelAccounting,
         })
       }
     }
@@ -156,10 +163,10 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
         actions.push({
           id: `provisional-week-${b.id}`,
           priority: 'week',
-          message: `Provisional booking — check-in in ${Math.round((checkIn.getTime() - today.getTime()) / 86400000)} days`,
+          message: t.msg_provisional_week[lang].replace('{days}', String(Math.round((checkIn.getTime() - today.getTime()) / 86400000))),
           bookingRef: bookingLabel(b),
           route: 'bookings',
-          routeLabel: 'Bookings',
+          routeLabel: routeLabelBookings,
         })
       }
     }
@@ -173,10 +180,10 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
         actions.push({
           id: `no-payment-week-${b.id}`,
           priority: 'week',
-          message: `No payment recorded — check-in in ${Math.round((checkIn.getTime() - today.getTime()) / 86400000)} days`,
+          message: t.msg_no_payment_week[lang].replace('{days}', String(Math.round((checkIn.getTime() - today.getTime()) / 86400000))),
           bookingRef: bookingLabel(b),
           route: 'accounting',
-          routeLabel: 'Accounting',
+          routeLabel: routeLabelAccounting,
         })
       }
     }
@@ -191,10 +198,10 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
         actions.push({
           id: `visa-week-${b.id}`,
           priority: 'week',
-          message: `Visa entry in ${daysLeft} days — prepare visa letter`,
+          message: t.msg_visa_week[lang].replace('{days}', String(daysLeft)),
           bookingRef: bookingLabel(b),
           route: 'documents',
-          routeLabel: 'Documents',
+          routeLabel: routeLabelDocuments,
         })
       }
     }
@@ -208,20 +215,21 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
     actions.push({
       id: 'unqualified-enquiries',
       priority: 'urgent',
-      message: `${n} new enquir${n > 1 ? 'ies' : 'y'} to read`,
+      message: (n > 1 ? t.msg_new_enquiries[lang] : t.msg_new_enquiry[lang]).replace('{count}', String(n)),
       route: 'requests',
-      routeLabel: 'Requests',
+      routeLabel: routeLabelRequests,
     })
   }
 
   // ── 🟡 New public booking-form submissions to review ───────────────────────
   if (data.pendingFormSubmissionsCount > 0) {
+    const n = data.pendingFormSubmissionsCount
     actions.push({
       id: 'pending-submissions',
       priority: 'week',
-      message: `${data.pendingFormSubmissionsCount} new booking form${data.pendingFormSubmissionsCount > 1 ? 's' : ''} to review`,
+      message: (n > 1 ? t.msg_new_booking_forms[lang] : t.msg_new_booking_form[lang]).replace('{count}', String(n)),
       route: 'requests',
-      routeLabel: 'Requests',
+      routeLabel: routeLabelRequests,
     })
   }
 
@@ -231,9 +239,9 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
     actions.push({
       id: 'silent-enquiries',
       priority: 'week',
-      message: `${n} enquir${n > 1 ? 'ies' : 'y'} waiting on you for a week or more`,
+      message: (n > 1 ? t.msg_silent_enquiries[lang] : t.msg_silent_enquiry[lang]).replace('{count}', String(n)),
       route: 'requests',
-      routeLabel: 'Requests',
+      routeLabel: routeLabelRequests,
     })
   }
 
@@ -245,9 +253,9 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
     actions.push({
       id: 'crm-failed',
       priority: 'monitor',
-      message: `${n} enquir${n > 1 ? 'ies' : 'y'} not added to Brevo`,
+      message: (n > 1 ? t.msg_crm_failed_enquiries[lang] : t.msg_crm_failed_enquiry[lang]).replace('{count}', String(n)),
       route: 'requests',
-      routeLabel: 'Requests',
+      routeLabel: routeLabelRequests,
     })
   }
 
@@ -257,10 +265,10 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
       actions.push({
         id: `confirmation-missing-${b.id}`,
         priority: 'week',
-        message: 'Booking confirmed — confirmation email not sent',
+        message: t.msg_confirmation_missing[lang],
         bookingRef: bookingLabel(b),
         route: 'documents',
-        routeLabel: 'Documents',
+        routeLabel: routeLabelDocuments,
       })
     }
   }
@@ -273,19 +281,19 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
         actions.push({
           id: `travel-guide-urgent-${b.id}`,
           priority: 'urgent',
-          message: 'Travel guide not sent — check-in very soon',
+          message: t.msg_travel_guide_urgent[lang],
           bookingRef: bookingLabel(b),
           route: 'documents',
-          routeLabel: 'Documents',
+          routeLabel: routeLabelDocuments,
         })
       } else if (checkIn <= j7) {
         actions.push({
           id: `travel-guide-week-${b.id}`,
           priority: 'week',
-          message: 'Travel guide not sent — check-in within a week',
+          message: t.msg_travel_guide_week[lang],
           bookingRef: bookingLabel(b),
           route: 'documents',
-          routeLabel: 'Documents',
+          routeLabel: routeLabelDocuments,
         })
       }
     }
@@ -302,10 +310,10 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
         actions.push({
           id: `welcome-guide-${b.id}`,
           priority: 'urgent',
-          message: 'Welcome guide not sent — guest is on-site',
+          message: t.msg_welcome_guide[lang],
           bookingRef: bookingLabel(b),
           route: 'documents',
-          routeLabel: 'Documents',
+          routeLabel: routeLabelDocuments,
         })
       }
     }
@@ -313,12 +321,13 @@ export function computePendingActions(data: PendingActionsData): PendingAction[]
 
   // ── 🟢 Unlinked taxi trips ─────────────────────────────────────────────────
   if (data.taxiTripUnlinkedCount > 0) {
+    const n = data.taxiTripUnlinkedCount
     actions.push({
       id: 'unlinked-taxis',
       priority: 'monitor',
-      message: `${data.taxiTripUnlinkedCount} taxi trip${data.taxiTripUnlinkedCount > 1 ? 's' : ''} not linked to any booking`,
+      message: (n > 1 ? t.msg_unlinked_taxi_trips[lang] : t.msg_unlinked_taxi_trip[lang]).replace('{count}', String(n)),
       route: 'taxis',
-      routeLabel: 'Taxis',
+      routeLabel: routeLabelTaxis,
     })
   }
 

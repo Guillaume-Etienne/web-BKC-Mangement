@@ -13,6 +13,7 @@ import { isSettled, isQualified, silenceDays, SILENCE_WARN_DAYS } from './utils/
 import { computeFollowUps } from './utils/followUps'
 import type { FollowUp } from './utils/followUps'
 import { LanguageProvider } from './contexts/LanguageContext'
+import { useAdminLang } from './hooks/useAdminLang'
 
 // Everything past the first screen is fetched when it is actually opened.
 // Before this, one bundle held the whole app: a guest opening a taxi or client
@@ -63,6 +64,11 @@ const shareToken = new URLSearchParams(window.location.search).get('share')
 // ────────────────────────────────────────────────────────────────────────────
 
 function App() {
+  // Owned here, not inside LanguageProvider: computePendingActions (below)
+  // bakes the messages' language in at compute time, before the provider
+  // even mounts, so it needs the same value the provider hands down — one
+  // state, passed both ways, rather than two independent copies drifting.
+  const { lang, setLang } = useAdminLang()
   const [session,     setSession]     = useState<Session | null | undefined>(undefined)
   const [currentPage, setCurrentPage] = useState<Page>('home')
   const [pendingEditBookingId, setPendingEditBookingId] = useState<string | null>(null)
@@ -132,7 +138,7 @@ function App() {
         silentEnquiriesCount: open.filter(e => silenceDays(e.last_contact_at) >= SILENCE_WARN_DAYS).length,
         crmFailedCount: enqs.filter(e => !!e.crm_error).length,
         emailLogs: (emailLogs ?? []) as { booking_id: string; type: string; status: string }[],
-      }))
+      }, lang))
       // Same rows, second question: not "what falls due soon" but "who has been
       // left hanging". Costs no extra query on purpose — a follow-up list that
       // slowed the Home page down would be turned off within a week.
@@ -145,7 +151,7 @@ function App() {
         },
       }))
     })
-  }, [session])
+  }, [session, lang])
 
   useEffect(() => { refreshPendingActions() }, [refreshPendingActions])
 
@@ -214,7 +220,7 @@ function App() {
 
   // Authenticated
   return (
-    <LanguageProvider>
+    <LanguageProvider lang={lang} setLang={setLang}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={pendingActions.filter(a => a.priority === 'urgent').length} submissionsCount={pendingActions.filter(a => a.id === 'pending-submissions' || a.id === 'unqualified-enquiries').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
         <main className="w-full">

@@ -10,8 +10,20 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined)
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const { lang, setLang } = useAdminLang()
+interface LanguageProviderProps {
+  children: ReactNode
+  /** Controlled mode: pass the value down from a parent that already needs it
+   *  itself (e.g. App.tsx, which computes pendingActions' messages before this
+   *  provider even mounts). Omit to keep the old uncontrolled behaviour, where
+   *  the provider owns the localStorage-backed state on its own. */
+  lang?: Lang
+  setLang?: (lang: Lang) => void
+}
+
+export function LanguageProvider({ children, lang: controlledLang, setLang: controlledSetLang }: LanguageProviderProps) {
+  const own = useAdminLang()
+  const lang = controlledLang ?? own.lang
+  const setLang = controlledSetLang ?? own.setLang
 
   return (
     <LanguageContext.Provider value={{ lang, setLang }}>
