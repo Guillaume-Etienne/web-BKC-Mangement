@@ -3,9 +3,11 @@ import { supabase } from '../lib/supabase'
 import { useInstructors } from '../hooks/useInstructors'
 import { useLessons } from '../hooks/useLessons'
 import { useTable } from '../hooks/useSupabase'
-import { useBookings, useBookingParticipants } from '../hooks/useBookings'
+import { useBookings } from '../hooks/useBookings'
 import { usePriceTiers } from '../hooks/usePriceTiers'
-import type { Instructor, Lesson, BillableType, PriceItem, PriceTier, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults, TaxiDriver, BookingStatus, KiteLevel } from '../types/database'
+import { useLanguage } from '../contexts/LanguageContext'
+import { i18n, LANGS } from '../data/i18n'
+import type { Instructor, Lesson, BillableType, PriceItem, PriceTier, PriceCategory, SharedLink, SharedLinkType, TaxiPricingDefaults, TaxiDriver } from '../types/database'
 import AccommodationsTab from '../components/management/AccommodationsTab'
 import SeasonsTab from '../components/management/SeasonsTab'
 import SourcesTab from '../components/management/SourcesTab'
@@ -14,25 +16,6 @@ import AgenciesTab from '../components/management/AgenciesTab'
 import TransferReferencePricesTab from '../components/management/TransferReferencePricesTab'
 import { todayISO, addDaysISO, fmtDate } from '../utils/dates'
 
-const KITE_LEVEL_LABELS: Record<KiteLevel, string> = {
-  'beg-total':      'Beg-Total',
-  'beg-bodydrag':   'Beg-BodyDrag',
-  'beg-waterstart': 'Beg-WaterStart',
-  'intermediate':   'Intermediate',
-  'advanced':       'Advanced',
-}
-const KITE_LEVEL_COLORS: Record<KiteLevel, string> = {
-  'beg-total':      'bg-lime-100 dark:bg-lime-900/30 text-lime-800 dark:text-lime-400',
-  'beg-bodydrag':   'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
-  'beg-waterstart': 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400',
-  'intermediate':   'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400',
-  'advanced':       'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400',
-}
-const STATUS_COLORS: Record<BookingStatus, string> = {
-  confirmed:   'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
-  provisional: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
-  cancelled:   'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
-}
 
 const specialtyOptions = ['Beg-Total', 'Beg-BodyDrag', 'Beg-WaterStart', 'Intermediate', 'Advanced', 'Wave', 'Freestyle']
 const specialtyValues = ['beg-total', 'beg-bodydrag', 'beg-waterstart', 'intermediate', 'advanced', 'wave', 'freestyle']
@@ -98,16 +81,11 @@ function getBaseUrl() {
 }
 
 export default function ManagementPage() {
-  const [tab, setTab] = useState<'instructors' | 'houses' | 'pricing' | 'seasons' | 'sources' | 'agencies' | 'links' | 'bookguest' | 'database'>('instructors')
+  const [tab, setTab] = useState<'instructors' | 'houses' | 'pricing' | 'seasons' | 'sources' | 'agencies' | 'links' | 'language' | 'database'>('instructors')
   const [pricingSubTab, setPricingSubTab] = useState<'rates' | 'reference' | 'kruger'>('rates')
 
-  // ── Bookings & Guests tab ─────────────────────────────────────────────────
+  // Only for the shared-link form, which picks a booking by its number.
   const { data: allBookings } = useBookings()
-  const { data: allParticipants } = useBookingParticipants()
-  const [bgSearch, setBgSearch] = useState('')
-  const [bgTimeFilter, setBgTimeFilter] = useState<'all' | 'active' | 'upcoming' | 'past'>('all')
-  const [bgStatusFilter, setBgStatusFilter] = useState<'' | BookingStatus>('')
-  const [bgOpenId, setBgOpenId] = useState<string | null>(null)
 
   // ── Instructors (Supabase) ─────────────────────────────────────────────────
   const { data: instructorsData, refresh: refreshInstructors } = useInstructors()
@@ -377,7 +355,7 @@ export default function ManagementPage() {
 
         {/* Tabs */}
         <div className="flex gap-1 md:gap-4 mt-4 md:mt-8 mb-4 md:mb-8 border-b overflow-x-auto">
-          {(['instructors', 'houses', 'pricing', 'seasons', 'sources', 'agencies', 'links', 'bookguest', 'database'] as const).map(t => (
+          {(['instructors', 'houses', 'pricing', 'seasons', 'sources', 'agencies', 'links', 'language', 'database'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`shrink-0 whitespace-nowrap px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium capitalize transition-colors ${
                 tab === t ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
@@ -389,8 +367,8 @@ export default function ManagementPage() {
                 : t === 'sources'  ? '📣 Sources'
                 : t === 'agencies' ? '🤝 Agencies'
                 : t === 'links'    ? <>🔗 <span className="hidden sm:inline">Shared </span>Links</>
-                : t === 'database' ? '🗄️ Database'
-                : <>👥 Bookings<span className="hidden sm:inline"> & Guests</span></>}
+                : t === 'language' ? '🌐 Language'
+                : '🗄️ Database'}
             </button>
           ))}
         </div>
@@ -862,133 +840,6 @@ export default function ManagementPage() {
         )}
 
         {/* ── Shared Links Tab ──────────────────────────────────────────────── */}
-        {/* ── Bookings & Guests Tab ─────────────────────────────────────── */}
-        {tab === 'bookguest' && (() => {
-          const today = todayISO()
-          const activeNow   = allBookings.filter(b => b.check_in <= today && b.check_out >= today && b.status !== 'cancelled').length
-          const upcomingCnt = allBookings.filter(b => b.check_in > today && b.status !== 'cancelled').length
-          const confirmedCnt = allBookings.filter(b => b.status === 'confirmed').length
-
-          const filtered = allBookings
-            .filter(b => {
-              if (bgTimeFilter === 'active')   return b.check_in <= today && b.check_out >= today
-              if (bgTimeFilter === 'upcoming') return b.check_in > today
-              if (bgTimeFilter === 'past')     return b.check_out < today
-              return true
-            })
-            .filter(b => !bgStatusFilter || b.status === bgStatusFilter)
-            .filter(b => {
-              if (!bgSearch) return true
-              const s = bgSearch.toLowerCase()
-              const name = `${b.client?.first_name ?? ''} ${b.client?.last_name ?? ''}`.toLowerCase()
-              return name.includes(s) || String(b.booking_number).padStart(3, '0').includes(bgSearch) || `#${b.booking_number}`.includes(bgSearch)
-            })
-
-          return (
-            <div>
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{activeNow}</div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Active now</div>
-                </div>
-                <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4 text-center">
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">{upcomingCnt}</div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Upcoming</div>
-                </div>
-                <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4 text-center">
-                  <div className="text-2xl font-bold text-gray-700 dark:text-gray-300">{confirmedCnt}</div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Confirmed total</div>
-                </div>
-              </div>
-
-              {/* Filters */}
-              <div className="flex flex-wrap gap-3 mb-4 items-center">
-                <input
-                  type="text"
-                  value={bgSearch}
-                  onChange={e => setBgSearch(e.target.value)}
-                  placeholder="Search name or #booking…"
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-56"
-                />
-                <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                  {(['all', 'active', 'upcoming', 'past'] as const).map(f => (
-                    <button key={f} onClick={() => setBgTimeFilter(f)}
-                      className={`px-3 py-1 rounded text-sm font-medium transition-colors ${bgTimeFilter === f ? 'bg-white dark:bg-gray-900 shadow text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
-                      {f === 'all' ? 'All' : f === 'active' ? 'Active' : f === 'upcoming' ? 'Upcoming' : 'Past'}
-                    </button>
-                  ))}
-                </div>
-                <select value={bgStatusFilter} onChange={e => setBgStatusFilter(e.target.value as '' | BookingStatus)}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">All statuses</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="provisional">Provisional</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-                <span className="text-sm text-gray-400 dark:text-gray-400 ml-auto">{filtered.length} booking{filtered.length !== 1 ? 's' : ''}</span>
-              </div>
-
-              {/* List */}
-              {filtered.length === 0 ? (
-                <p className="text-gray-500 dark:text-gray-400 text-sm">No bookings match these filters.</p>
-              ) : (
-                <div className="space-y-2">
-                  {filtered.map(b => {
-                    const guests = allParticipants.filter(p => p.booking_id === b.id)
-                    const isOpen = bgOpenId === b.id
-                    return (
-                      <div key={b.id} className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden">
-                        <button
-                          className="w-full text-left px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                          onClick={() => setBgOpenId(isOpen ? null : b.id)}
-                        >
-                          <span className="font-mono text-sm font-bold text-blue-600 dark:text-blue-400">#{String(b.booking_number).padStart(3, '0')}</span>
-                          <span className="font-medium text-gray-800 dark:text-gray-200">{b.client?.first_name} {b.client?.last_name}</span>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">{fmtDate(b.check_in)} → {fmtDate(b.check_out)}</span>
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[b.status]}`}>{b.status}</span>
-                          <span className="text-sm text-gray-400 dark:text-gray-400 ml-auto flex items-center gap-1">
-                            {guests.length} guest{guests.length !== 1 ? 's' : ''}
-                            <span className="text-xs">{isOpen ? '▲' : '▼'}</span>
-                          </span>
-                        </button>
-                        {isOpen && (
-                          <div className="border-t px-4 py-3 bg-gray-50 dark:bg-gray-800">
-                            {guests.length === 0 ? (
-                              <p className="text-sm text-gray-400 dark:text-gray-400">No guests listed.</p>
-                            ) : (
-                              <div className="space-y-1.5">
-                                {guests.map(p => (
-                                  <div key={p.id} className="flex flex-wrap items-center gap-2">
-                                    <span className="text-sm text-gray-800 dark:text-gray-200">{p.first_name} {p.last_name ?? ''}</span>
-                                    {p.kite_level && (
-                                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${KITE_LEVEL_COLORS[p.kite_level]}`}>
-                                        {KITE_LEVEL_LABELS[p.kite_level]}
-                                      </span>
-                                    )}
-                                    {p.passport_number && <span className="text-xs text-gray-400 dark:text-gray-400">{p.passport_number}</span>}
-                                    {p.notes && <span className="text-xs text-gray-400 dark:text-gray-400 italic">{p.notes}</span>}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            <div className="mt-3 pt-2 border-t flex gap-4 text-xs text-gray-500 dark:text-gray-400">
-                              {b.num_lessons > 0 && <span>🏄 {b.num_lessons} lesson{b.num_lessons !== 1 ? 's' : ''}</span>}
-                              {b.num_equipment_rentals > 0 && <span>🪁 {b.num_equipment_rentals} rental{b.num_equipment_rentals !== 1 ? 's' : ''}</span>}
-                              {b.num_wing_lessons > 0 && <span>🪽 {b.num_wing_lessons} wing</span>}
-                              {b.num_center_access > 0 && <span>🏖 {b.num_center_access} center access</span>}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )
-        })()}
-
         {tab === 'links' && (
           <div>
             <div className="flex items-center justify-between mb-6">

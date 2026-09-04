@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useClients } from '../hooks/useClients'
 import { useBookings, useBookingRooms, useBookingRoomPrices, useBookingParticipants } from '../hooks/useBookings'
@@ -12,6 +12,7 @@ import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActi
 import { getFullHouseRate, getBaseNightlyRate } from '../utils/roomPricing'
 import { getConfiguredRate, agencyMarker } from '../components/accounting/utils'
 import { todayISO, fmtDate } from '../utils/dates'
+import { getMissingFields, MISSING_LABELS } from '../utils/bookingCompleteness'
 import EnquiryOriginPanel from '../components/enquiries/EnquiryOriginPanel'
 import { intentGaps } from '../utils/intentGap'
 
@@ -274,7 +275,7 @@ function ParticipantRow({ p, clients, onChange, onRemove }: ParticipantRowProps)
           <button key={lvl} type="button"
             onClick={() => onChange({ kite_level: p.kite_level === lvl ? '' : lvl })}
             className={levelBtnCls(lvl)}>
-            {lvl === 'beg-total' ? 'Beg-Total' : lvl === 'beg-bodydrag' ? 'Beg-BodyDrag' : lvl === 'beg-waterstart' ? 'Beg-WaterStart' : lvl === 'intermediate' ? 'Intermediate' : 'Advanced'}
+            {KITE_LEVEL_LABELS[lvl]}
           </button>
         ))}
         <div className="flex-1" />
@@ -1222,25 +1223,46 @@ const statusColor: Record<BookingStatus, string> = {
   cancelled: 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400',
 }
 
-type MissingField = 'room' | 'participants' | 'arrival_time' | 'visa_dates' | 'taxi_time'
-
-function getMissingFields(b: Booking, hasRoom: boolean, bParticipants: BookingParticipant[]): MissingField[] {
-  if (b.status === 'cancelled') return []
-  const missing: MissingField[] = []
-  if (!hasRoom) missing.push('room')
-  if (!bParticipants.some(p => p.booking_id === b.id)) missing.push('participants')
-  if (!b.arrival_time) missing.push('arrival_time')
-  if (!b.visa_entry_date || !b.visa_exit_date) missing.push('visa_dates')
-  if ((b.taxi_arrival && !b.arrival_time) || (b.taxi_departure && !b.departure_time)) missing.push('taxi_time')
-  return missing
+const KITE_LEVEL_LABELS: Record<KiteLevel, string> = {
+  'beg-total':      'Beg-Total',
+  'beg-bodydrag':   'Beg-BodyDrag',
+  'beg-waterstart': 'Beg-WaterStart',
+  'intermediate':   'Intermediate',
+  'advanced':       'Advanced',
 }
 
-const MISSING_LABELS: Record<MissingField, string> = {
-  room: 'No room',
-  participants: 'No guests',
-  arrival_time: 'No arrival time',
-  visa_dates: 'Visa dates missing',
-  taxi_time: 'Taxi time missing',
+/** Who is actually staying, unfolded under the booking row.
+ *
+ *  This is what Options → "Bookings & Guests" was for, and the only thing it
+ *  did that this page could not. Reading a guest list used to mean either that
+ *  tab or reopening the six-step wizard — so the list moved here, next to the
+ *  ⚠️ that says something about those guests is missing.
+ *
+ *  Module scope: a component redefined on every render is remounted on every
+ *  render. Read-only, so nothing to lose yet, but the rule is the rule. */
+function GuestList({ guests }: { guests: BookingParticipant[] }) {
+  if (guests.length === 0) {
+    return <p className="text-xs text-gray-400 dark:text-gray-500 italic">No guests listed — the visa document needs them.</p>
+  }
+  return (
+    <ul className="space-y-1.5">
+      {guests.map(p => (
+        <li key={p.id} className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-gray-800 dark:text-gray-200">{p.first_name} {p.last_name ?? ''}</span>
+          {p.kite_level && (
+            <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400">
+              {KITE_LEVEL_LABELS[p.kite_level]}
+            </span>
+          )}
+          {p.passport_number?.trim()
+            ? <span className="text-xs font-mono text-gray-500 dark:text-gray-400">{p.passport_number}</span>
+            // Named, not counted: the ⚠️ says a passport is missing, this says whose.
+            : <span className="text-xs text-amber-600 dark:text-amber-400">no passport number</span>}
+          {p.notes && <span className="text-xs text-gray-400 dark:text-gray-500 italic">{p.notes}</span>}
+        </li>
+      ))}
+    </ul>
+  )
 }
 
 function getNights(b: Booking) {
@@ -1307,6 +1329,9 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   const [filter, setFilter] = useState<FilterKey>('all')
   const [nameSearch, setNameSearch] = useState('')
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'booking_number', dir: 'desc' })
+  /** Which booking has its guest list unfolded. One at a time: the point is to
+   *  answer "who is in #023", not to turn the list into a wall of names. */
+  const [openGuestsId, setOpenGuestsId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   const getClientName = (id: string) => {
@@ -1885,8 +1910,9 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                 const isActive = b.check_in <= today && b.check_out > today
 
                 // Compact info codes
+                const guests = bookingParticipants.filter(p => p.booking_id === b.id)
+                const guestsOpen = openGuestsId === b.id
                 const codes = [
-                  bookingParticipants.filter(p => p.booking_id === b.id).length > 0 && `${bookingParticipants.filter(p => p.booking_id === b.id).length}G`,
                   nights > 0 && `${nights}N`,
                   b.num_lessons > 0 && `${b.num_lessons}LK`,
                   b.num_equipment_rentals > 0 && `${b.num_equipment_rentals}R`,
@@ -1903,7 +1929,8 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                       : ''
 
                 return (
-                  <tr key={b.id}
+                  <Fragment key={b.id}>
+                  <tr
                     className={`border-b hover:brightness-95 cursor-pointer transition-colors ${rowBg}`}
                     onClick={() => openEdit(b)}>
                     <td className="px-3 py-2 font-mono text-gray-400 dark:text-gray-400 whitespace-nowrap">
@@ -1925,8 +1952,18 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                           hover is enough to know there is something to read. */}
                       {b.notes && <span className="ml-1 cursor-help" title={b.notes}>📝</span>}
                     </td>
-                    <td className="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap font-mono text-xs">
-                      {codes || '—'}
+                    <td className="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap font-mono text-xs"
+                      onClick={e => e.stopPropagation()}>
+                      {/* The guest count is the handle: clicking it unfolds who
+                          they are, instead of reopening the whole wizard. */}
+                      <button type="button"
+                        onClick={() => setOpenGuestsId(guestsOpen ? null : b.id)}
+                        title={guestsOpen ? 'Hide the guests' : 'Show the guests'}
+                        className={`mr-1 px-1 rounded font-mono hover:bg-gray-200 dark:hover:bg-gray-700 ${
+                          guestsOpen ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : ''}`}>
+                        {guests.length}G {guestsOpen ? '▲' : '▼'}
+                      </button>
+                      {codes}
                     </td>
                     <td className="px-3 py-2 text-gray-600 dark:text-gray-400 whitespace-nowrap">
                       {getRoomLabel(b.id)}
@@ -1950,6 +1987,14 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                       <button onClick={() => handleDelete(b.id)} className="text-gray-400 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400">🗑️</button>
                     </td>
                   </tr>
+                  {guestsOpen && (
+                    <tr className="border-b bg-gray-50 dark:bg-gray-800">
+                      <td colSpan={8} className="px-6 py-3">
+                        <GuestList guests={guests} />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 )
               })}
               {filteredBookings.length === 0 && (
@@ -1962,7 +2007,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
         {/* Legend */}
         <div className="hidden md:flex items-center gap-4 mt-2 text-xs text-gray-400 dark:text-gray-400">
           <span>Stay codes:</span>
-          <span><b className="text-gray-500 dark:text-gray-400">G</b> guests · <b className="text-gray-500 dark:text-gray-400">N</b> nights · <b className="text-gray-500 dark:text-gray-400">LK</b> kite lessons · <b className="text-gray-500 dark:text-gray-400">LW</b> wing lessons · <b className="text-gray-500 dark:text-gray-400">R</b> rentals · <b className="text-gray-500 dark:text-gray-400">C</b> center access</span>
+          <span><b className="text-gray-500 dark:text-gray-400">G</b> guests (click to see who) · <b className="text-gray-500 dark:text-gray-400">N</b> nights · <b className="text-gray-500 dark:text-gray-400">LK</b> kite lessons · <b className="text-gray-500 dark:text-gray-400">LW</b> wing lessons · <b className="text-gray-500 dark:text-gray-400">R</b> rentals · <b className="text-gray-500 dark:text-gray-400">C</b> center access</span>
           <span className="ml-4 flex items-center gap-1"><span className="inline-block w-3 h-3 bg-blue-100 dark:bg-blue-900/30 border-l-2 border-blue-400 dark:border-blue-700 rounded-sm" /> Active now</span>
           <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-amber-100 dark:bg-amber-900/30 border-l-2 border-amber-400 dark:border-amber-700 rounded-sm" /> Incomplete</span>
           <span>📣 came from an enquiry</span>
@@ -1971,7 +2016,11 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
 
         {/* Mobile cards */}
         <div className="md:hidden space-y-4">
-          {filteredBookings.map(b => (
+          {filteredBookings.map(b => {
+            const guests = bookingParticipants.filter(p => p.booking_id === b.id)
+            const guestsOpen = openGuestsId === b.id
+            const missing = getMissingFields(b, bookingRooms.some(br => br.booking_id === b.id), bookingParticipants)
+            return (
             <div key={b.id} className="bg-white dark:bg-gray-900 rounded-lg shadow p-4" onClick={() => openEdit(b)}>
               <div className="flex justify-between items-start mb-2">
                 <div>
@@ -1997,9 +2046,26 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1 mb-3">
                 <p>📅 {fmtDate(b.check_in)} → {fmtDate(b.check_out)}</p>
-                <p>👥 {bookingParticipants.filter(p => p.booking_id === b.id).length} pax · 📚 {b.num_lessons} lessons
+                <p onClick={e => e.stopPropagation()}>
+                  <button type="button" onClick={() => setOpenGuestsId(guestsOpen ? null : b.id)}
+                    className="underline decoration-dotted underline-offset-2">
+                    👥 {guests.length} pax {guestsOpen ? '▲' : '▼'}
+                  </button>
+                  {' '}· 📚 {b.num_lessons} lessons
                   {(b.taxi_arrival || b.taxi_departure) && ` · 🚕`}
                 </p>
+                {guestsOpen && (
+                  <div className="pt-1 pb-1" onClick={e => e.stopPropagation()}>
+                    <GuestList guests={guests} />
+                  </div>
+                )}
+                {/* The ⚠️ existed only in the desktop table, so a passport missing
+                    on a phone said nothing at all. */}
+                {missing.length > 0 && b.status !== 'cancelled' && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    ⚠️ {missing.map(m => MISSING_LABELS[m]).join(' · ')}
+                  </p>
+                )}
               </div>
               <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                 <button onClick={() => openEdit(b)}
@@ -2008,7 +2074,8 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                   className="flex-1 px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded font-medium text-sm hover:bg-red-200 dark:hover:bg-red-800">🗑️ Delete</button>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
