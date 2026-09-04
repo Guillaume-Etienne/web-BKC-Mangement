@@ -179,6 +179,19 @@ export const tr = {
     en: 'Please fill in the required fields on this step.',
     es: 'Completa los campos obligatorios de este paso.',
   },
+  // Shown in the language being OFFERED, never in the one on screen: it has to be
+  // readable by someone who does not read the current one.
+  lang_suggest: {
+    fr: 'Ce formulaire existe en français.',
+    en: 'This form is available in English.',
+    es: 'Este formulario está disponible en español.',
+  },
+  lang_switch: {
+    fr: 'Passer en français',
+    en: 'Switch to English',
+    es: 'Cambiar a español',
+  },
+  lang_dismiss: { fr: 'Non merci', en: 'No thanks', es: 'No, gracias' },
   // Followed by the list of the fields themselves — a hint that does not name
   // them leaves a visitor tapping a dead button (Android report, 2026-09-04).
   missing_heading: {

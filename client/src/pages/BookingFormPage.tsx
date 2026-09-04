@@ -31,13 +31,15 @@ const KITE_LEVELS: { value: KiteLevel; labelKey: FormI18nKey }[] = [
 ]
 
 // ─── Reusable controls (module scope = focus-safe) ────────────────────────────
-const inputCls = 'w-full px-3 py-2.5 border border-gray-300 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:border-sky-600 transition'
+// text-base below sm: 14px is uncomfortable to type into on a phone, and under
+// 16px iOS zooms the whole page on focus. py-3 gives the tap target real height.
+const inputCls = 'w-full px-3 py-3 sm:py-2.5 border border-gray-300 dark:border-gray-700 rounded-xl text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:border-sky-600 transition'
 
 function Field({ label, children, hint, required }: { label: string; children: React.ReactNode; hint?: string; required?: boolean }) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-        {label}{required && <span className="text-rose-500 dark:text-rose-400"> *</span>}
+        <span>{label}</span>{required && <span className="text-rose-500 dark:text-rose-400"> *</span>}
       </label>
       {children}
       {hint && <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">{hint}</p>}
@@ -58,7 +60,7 @@ function Counter({ value, onChange, min = 0 }: { value: number; onChange: (v: nu
 }
 
 function YesNo({ value, onChange, lang }: { value: boolean; onChange: (v: boolean) => void; lang: Lang }) {
-  const base = 'flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold border-2 transition'
+  const base = 'flex-1 px-4 py-3 sm:py-2.5 rounded-xl text-sm font-semibold border-2 transition'
   return (
     <div className="flex gap-2">
       <button type="button" onClick={() => onChange(true)}
@@ -83,9 +85,9 @@ interface TravelerCardProps {
 }
 function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: TravelerCardProps) {
   return (
-    <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-4 space-y-3 bg-white dark:bg-gray-900/70">
+    <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-3 sm:p-4 space-y-3 bg-white dark:bg-gray-900/70">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-sky-700 dark:text-sky-400">🏄 {tr.traveler[lang]} {index + 1}</span>
+        <span className="text-sm font-semibold text-sky-700 dark:text-sky-400">{`🏄 ${tr.traveler[lang]} ${index + 1}`}</span>
         {canRemove && (
           <button type="button" onClick={onRemove} className="text-xs text-gray-400 dark:text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 transition">
             {tr.remove[lang]}
@@ -137,22 +139,22 @@ function TravelerCard({ index, t, lang, canRemove, onChange, onRemove }: Travele
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{tr.kite_interests[lang]}</p>
               <div className="space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2.5 cursor-pointer py-1">
                   <input type="checkbox" checked={t.wants_kite_lessons ?? false}
                     onChange={e => onChange({ wants_kite_lessons: e.target.checked })}
-                    className="w-4 h-4 accent-sky-600" />
+                    className="w-5 h-5 accent-sky-600 shrink-0" />
                   <span className="text-sm text-gray-700 dark:text-gray-300">{tr.kite_lessons[lang]}</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2.5 cursor-pointer py-1">
                   <input type="checkbox" checked={t.wants_kite_rental ?? false}
                     onChange={e => onChange({ wants_kite_rental: e.target.checked })}
-                    className="w-4 h-4 accent-sky-600" />
+                    className="w-5 h-5 accent-sky-600 shrink-0" />
                   <span className="text-sm text-gray-700 dark:text-gray-300">{tr.kite_rental[lang]}</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2.5 cursor-pointer py-1">
                   <input type="checkbox" checked={t.wants_wing_lessons ?? false}
                     onChange={e => onChange({ wants_wing_lessons: e.target.checked })}
-                    className="w-4 h-4 accent-sky-600" />
+                    className="w-5 h-5 accent-sky-600 shrink-0" />
                   <span className="text-sm text-gray-700 dark:text-gray-300">{tr.wing_lessons[lang]}</span>
                 </label>
               </div>
@@ -201,6 +203,11 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
     phone: prefillPhone || '',
   }))
   const [travelers, setTravelers] = useState<FormTraveler[]>([{ first_name: '', last_name: '', passport_number: '' }])
+  // Chrome would have offered to translate; that is off because it breaks React
+  // (see the render). So make the offer ourselves, in the language offered.
+  const suggestedLang = detectLang()
+  const [langOfferDismissed, setLangOfferDismissed] = useState(false)
+  const showLangOffer = !langOfferDismissed && suggestedLang !== lang
   const [showWaiver, setShowWaiver] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
@@ -372,7 +379,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
   // ── Success screen ──
   if (done) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-sky-400 via-sky-200 dark:via-sky-800 to-amber-100 dark:to-amber-900/30 flex items-center justify-center p-4">
+      <div translate="no" className="notranslate min-h-screen bg-gradient-to-b from-sky-400 via-sky-200 dark:via-sky-800 to-amber-100 dark:to-amber-900/30 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-xl max-w-md w-full p-8 text-center space-y-4">
           <div className="text-6xl">🎉</div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">{tr.success_title[lang]}</h1>
@@ -382,8 +389,15 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
     )
   }
 
+  // WARNING: translate="no" is load-bearing, not a preference. Chrome on Android
+  // offers to translate a page whose language is not the phone's, and Google
+  // Translate swaps React's text nodes for its own. React then removes a node
+  // that is no longer where it left it, and the page dies on "Failed to execute
+  // 'removeChild' on 'Node'" — which is what a client hit on the last step, caught
+  // by ChunkBoundary. The form carries its own FR/EN/ES switch and the banner
+  // below offers it, so nothing is lost by opting out.
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-400 via-sky-200 dark:via-sky-800 to-amber-100 dark:to-amber-900/30 py-6 px-4">
+    <div translate="no" className="notranslate min-h-screen bg-gradient-to-b from-sky-400 via-sky-200 dark:via-sky-800 to-amber-100 dark:to-amber-900/30 py-5 px-3 sm:py-6 sm:px-4">
       <style>{`@keyframes bkcfade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
       <div className="max-w-xl mx-auto">
         {/* Header + language picker */}
@@ -395,12 +409,28 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
           <div className="flex gap-1">
             {LANGS.map(l => (
               <button key={l.code} type="button" onClick={() => setLang(l.code)} title={l.label}
-                className={`px-2 py-1 rounded-lg text-sm transition ${lang === l.code ? 'bg-white dark:bg-gray-900 shadow' : 'opacity-60 hover:opacity-100'}`}>
+                className={`px-2.5 py-1.5 rounded-lg text-lg leading-none transition ${lang === l.code ? 'bg-white dark:bg-gray-900 shadow' : 'opacity-50 hover:opacity-100'}`}>
                 {l.flag}
               </button>
             ))}
           </div>
         </div>
+
+        {/* The offer Chrome used to make, written in the language being offered. */}
+        {showLangOffer && (
+          <div className="mb-4 rounded-2xl bg-white/90 dark:bg-gray-900/90 shadow px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="text-sm text-gray-700 dark:text-gray-300">{tr.lang_suggest[suggestedLang]}</span>
+            <button type="button"
+              onClick={() => { setLang(suggestedLang); setLangOfferDismissed(true) }}
+              className="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 transition">
+              {tr.lang_switch[suggestedLang]}
+            </button>
+            <button type="button" onClick={() => setLangOfferDismissed(true)}
+              className="px-2 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:underline">
+              {tr.lang_dismiss[suggestedLang]}
+            </button>
+          </div>
+        )}
 
         {/* Honeypot — moved off-screen (not display:none), humans never see or tab
             into it; bots autofilling every field will trip it. Checked in submit(). */}
@@ -429,23 +459,23 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
         {/* Card */}
         <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-xl overflow-hidden">
           {/* Step tabs */}
-          <div className="flex items-center justify-between px-5 pt-4 pb-2 gap-1">
+          <div className="flex items-center justify-between px-3 sm:px-5 pt-4 pb-2 gap-0.5 sm:gap-1">
             {STEPS.map((s, i) => {
               const n = i + 1
               const active = n === step
               const reachable = n <= maxReached
               return (
                 <button key={n} type="button" onClick={() => reachable && goTo(n)}
-                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[11px] font-medium transition
+                  className={`flex flex-col items-center gap-0.5 px-1 sm:px-2 py-1 rounded-lg text-[11px] font-medium transition
                     ${active ? 'text-sky-700 dark:text-sky-400' : reachable ? 'text-gray-500 dark:text-gray-400 hover:text-sky-600 dark:hover:text-sky-400' : 'text-gray-300 dark:text-gray-500 cursor-default'}`}>
-                  <span className="text-lg">{n < step ? '✅' : s.icon}</span>
+                  <span className={`text-lg leading-none w-9 h-9 rounded-full flex items-center justify-center transition ${active ? 'bg-sky-100 dark:bg-sky-900/40 ring-2 ring-sky-500 dark:ring-sky-400' : ''}`}>{n < step ? '✅' : s.icon}</span>
                   <span className="hidden sm:block">{tr[s.labelKey][lang]}</span>
                 </button>
               )
             })}
           </div>
 
-          <div key={step} className="px-6 py-5 space-y-5" style={{ animation: 'bkcfade .35s ease' }}>
+          <div key={step} className="px-4 sm:px-6 py-5 space-y-5" style={{ animation: 'bkcfade .35s ease' }}>
             {/* Step 1 — Group */}
             {step === 1 && (
               <>
@@ -503,8 +533,8 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                 </Field>
 
                 {/* Arrival block */}
-                <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-4 space-y-3 bg-white dark:bg-gray-900/70">
-                  <h3 className="text-sm font-bold text-sky-700 dark:text-sky-400">✈️ {tr.arrival_heading[lang]}</h3>
+                <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-3 sm:p-4 space-y-3 bg-white dark:bg-gray-900/70">
+                  <h3 className="text-sm font-bold text-sky-700 dark:text-sky-400">{`✈️ ${tr.arrival_heading[lang]}`}</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field label={tr.f_country_entry[lang]} required>
                       <input type="date" className={inputCls} value={d.country_entry_date} onChange={e => update({ country_entry_date: e.target.value })} />
@@ -529,8 +559,8 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                 </div>
 
                 {/* Departure block */}
-                <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-4 space-y-3 bg-white dark:bg-gray-900/70">
-                  <h3 className="text-sm font-bold text-sky-700 dark:text-sky-400">🛬 {tr.departure_heading[lang]}</h3>
+                <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-3 sm:p-4 space-y-3 bg-white dark:bg-gray-900/70">
+                  <h3 className="text-sm font-bold text-sky-700 dark:text-sky-400">{`🛬 ${tr.departure_heading[lang]}`}</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field label={tr.f_country_exit[lang]} required>
                       <input type="date" className={inputCls} value={d.country_exit_date} onChange={e => update({ country_exit_date: e.target.value })} />
@@ -637,7 +667,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                 </div>
 
                 {/* Waiver */}
-                <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-4 bg-gray-50 dark:bg-gray-800/60 space-y-3">
+                <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-3 sm:p-4 bg-gray-50 dark:bg-gray-800/60 space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.waiver_heading[lang]}</h3>
                     <button type="button" onClick={() => setShowWaiver(s => !s)} className="text-xs font-medium text-sky-600 dark:text-sky-400 hover:underline">
@@ -645,14 +675,14 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                     </button>
                   </div>
                   {showWaiver && (
-                    <div className="max-h-56 overflow-y-auto text-[11px] leading-relaxed text-gray-600 dark:text-gray-400 space-y-2 pr-1">
+                    <div className="max-h-56 overflow-y-auto text-xs sm:text-[11px] leading-relaxed text-gray-600 dark:text-gray-400 space-y-2 pr-1">
                       <p className="font-semibold">{waiverText[lang].title}</p>
                       {waiverText[lang].paragraphs.map((p, i) => <p key={i}>{p}</p>)}
                     </div>
                   )}
                   <label className="flex items-start gap-2 cursor-pointer">
                     <input type="checkbox" checked={d.waiver_accepted} onChange={e => update({ waiver_accepted: e.target.checked })}
-                      className="mt-0.5 w-4 h-4 accent-sky-600 shrink-0" />
+                      className="mt-0.5 w-5 h-5 accent-sky-600 shrink-0" />
                     <span className="text-xs text-gray-700 dark:text-gray-300">{tr.waiver_checkbox[lang]}</span>
                   </label>
                 </div>
@@ -678,8 +708,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                 <ul className="mt-1 space-y-0.5">
                   {missing.map((m, i) => (
                     <li key={i}>
-                      • {tr[m.key][lang]}
-                      {m.traveler !== undefined && ` — ${tr.traveler[lang]} ${m.traveler}`}
+                      {`• ${tr[m.key][lang]}${m.traveler !== undefined ? ` — ${tr.traveler[lang]} ${m.traveler}` : ''}`}
                     </li>
                   ))}
                 </ul>
@@ -688,21 +717,21 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
           </div>
 
           {/* Footer nav */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
             <button type="button" onClick={back} disabled={step === 1}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition ${step === 1 ? 'text-gray-300 dark:text-gray-500 cursor-default' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
-              ← {tr.back[lang]}
+              className={`px-4 py-3 rounded-xl text-sm font-medium transition ${step === 1 ? 'text-gray-300 dark:text-gray-500 cursor-default' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+              {`← ${tr.back[lang]}`}
             </button>
             {/* Neither nav button is ever disabled: a dead button on a phone
                 tells the visitor nothing. Pressing it says what is missing. */}
             {step < TOTAL ? (
               <button type="button" onClick={next}
-                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${missing.length === 0 ? 'bg-sky-600 text-white hover:bg-sky-700' : 'bg-sky-600/40 text-white'}`}>
-                {tr.next[lang]} →
+                className={`px-6 py-3 rounded-xl text-sm font-semibold transition ${missing.length === 0 ? 'bg-sky-600 text-white hover:bg-sky-700' : 'bg-sky-600/40 text-white'}`}>
+                {`${tr.next[lang]} →`}
               </button>
             ) : (
               <button type="button" onClick={submit} disabled={submitting}
-                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${submitting ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-400' : missing.length === 0 ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-emerald-600/40 text-white'}`}>
+                className={`px-6 py-3 rounded-xl text-sm font-semibold transition ${submitting ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-400' : missing.length === 0 ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-emerald-600/40 text-white'}`}>
                 {submitting ? tr.submitting[lang] : tr.submit[lang]}
               </button>
             )}
