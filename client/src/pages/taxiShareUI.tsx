@@ -1,11 +1,16 @@
 import { useState } from 'react'
+import { readLocal, writeLocal } from '../utils/safeStorage'
 
 // Small UI bits shared by the public taxi share pages (driver + manager).
 
 /** A preference persisted in localStorage (language, view mode, date format…). */
 export function usePref<T extends string>(key: string, fallback: T): [T, (v: T) => void] {
-  const [val, setVal] = useState<T>(() => (localStorage.getItem(key) as T) ?? fallback)
-  const set = (v: T) => { localStorage.setItem(key, v); setVal(v) }
+  // Through safeStorage, not localStorage: this runs on the FIRST render of a
+  // page anonymous guests open, and a browser that blocks site data throws here
+  // rather than returning null — a white screen with nothing on it. A
+  // preference that cannot be stored simply lasts one visit.
+  const [val, setVal] = useState<T>(() => (readLocal(key) as T) ?? fallback)
+  const set = (v: T) => { writeLocal(key, v); setVal(v) }
   return [val, set]
 }
 

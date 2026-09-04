@@ -9,6 +9,7 @@ import { useLessons } from '../hooks/useLessons'
 import { useClientDossier } from '../hooks/useClientDossier'
 import type { Client, Booking, KiteLevel, Season, Lang } from '../types/database'
 import { fmtDate } from '../utils/dates'
+import { readLocal, writeLocal } from '../utils/safeStorage'
 import { daysSinceLastTouch, dossierMoney } from '../utils/dossier'
 import ClientTimeline from '../components/clients/ClientTimeline'
 import { clientParticipantIds, cumulativeHoursBefore } from '../components/accounting/utils'
@@ -87,13 +88,13 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
   const [filterSeasonId, setFilterSeasonId] = useState('')
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [mobileView, setMobileView] = useState<'list' | 'cards'>(() => {
-    const stored = localStorage.getItem(MOBILE_VIEW_KEY)
+    const stored = readLocal(MOBILE_VIEW_KEY)
     if (stored === 'list' || stored === 'cards') return stored
     return typeof window !== 'undefined' && window.innerWidth < 768 ? 'list' : 'cards'
   })
   const setMobileViewPersisted = (mode: 'list' | 'cards') => {
     setMobileView(mode)
-    localStorage.setItem(MOBILE_VIEW_KEY, mode)
+    writeLocal(MOBILE_VIEW_KEY, mode)
   }
   // Timeline first: the question this drawer has to answer is "where are we
   // with this person?", and that is the only tab that answers it.

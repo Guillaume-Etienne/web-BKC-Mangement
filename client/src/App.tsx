@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import Navigation from './components/layout/Navigation'
-import ChunkBoundary from './components/layout/ChunkBoundary'
+import RecoveryBoundary from './components/layout/RecoveryBoundary'
 import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
 import { computePendingActions } from './components/pending/pendingActions'
@@ -198,9 +198,9 @@ function App() {
       null
     // An unknown type falls through to the normal app, exactly as before.
     if (sharePage) return (
-      <ChunkBoundary>
+      <RecoveryBoundary>
         <Suspense fallback={<PageLoading />}>{sharePage}</Suspense>
-      </ChunkBoundary>
+      </RecoveryBoundary>
     )
   }
 
@@ -224,7 +224,7 @@ function App() {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={pendingActions.filter(a => a.priority === 'urgent').length} submissionsCount={pendingActions.filter(a => a.id === 'pending-submissions' || a.id === 'unqualified-enquiries').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
         <main className="w-full">
-          <ChunkBoundary>
+          <RecoveryBoundary>
             <Suspense fallback={<PageLoading />}>
               {currentPage === 'home'       && (
                 <HomePage
@@ -248,7 +248,7 @@ function App() {
               {currentPage === 'activities' && <ActivitiesPage />}
               {currentPage === 'requests'   && <RequestsPage initialEnquiryId={pendingEnquiryId} onEnquiryOpened={() => setPendingEnquiryId(null)} />}
             </Suspense>
-          </ChunkBoundary>
+          </RecoveryBoundary>
         </main>
 
         <GlobalSearch

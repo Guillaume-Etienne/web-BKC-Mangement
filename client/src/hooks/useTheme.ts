@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { writeLocal } from '../utils/safeStorage'
 
 const STORAGE_KEY = 'bkc_theme'
 type Theme = 'light' | 'dark'
@@ -17,7 +18,7 @@ export function useTheme() {
   function toggleTheme() {
     setTheme(t => {
       const next = t === 'dark' ? 'light' : 'dark'
-      localStorage.setItem(STORAGE_KEY, next)
+      writeLocal(STORAGE_KEY, next)
       return next
     })
   }
