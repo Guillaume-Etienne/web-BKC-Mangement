@@ -32,6 +32,31 @@ huit résas une par une. Règle sortie de la page dans **`utils/bookingCompleten
 > navbar est passée en français en cours de route. **Rien à voir avec les commits ci-dessus**,
 > qui ont été faits par chemins explicites.
 
+### ✅ 2026-09-04 — i18n Admin : Phase 1 livrée (FR/EN/ES, localStorage, toggle)
+
+**Phase 1 complète** — 10 pages admin migrées, ~350 clés FR/EN/ES traduites.
+
+**Commits:**
+- `0332984` — feat(i18n): implement modular i18n system (structure + LanguageContext + hooks)
+- `d06414a` — fix(i18n): apply Sonnet audit corrections (4 bugs FR/ES grammar & typos)
+- `e16ac8a` — feat(i18n): migrate TaxiPage, ActivitiesPage, EquipmentPage, HomePage to i18n
+- `079c17a` — feat(i18n): migrate BookingsPage, RequestsPage, DocumentsPage to i18n
+
+**Pages migrées :**  
+Navigation, AccountingPage, ClientsPage, TaxiPage, ActivitiesPage, EquipmentPage, HomePage, BookingsPage, RequestsPage, DocumentsPage.
+
+**Architecture :**  
+11 i18n modules (types, navigation, common, accounting, bookings, clients, management, pages, taxis, activities, equipment). LanguageContext.tsx + useAdminLang hook (localStorage "admin_lang"). Language toggle 🇫🇷🇬🇧🇪🇸 en Options → Management. Type-safe pattern avec `satisfies Record<string, Tr>`.
+
+**Reste à faire:**
+- **Phase 2** — Pages partagées (TaxiSharePage, DriverSharePage, TaxiManagerSharePage, ActivityProviderSharePage, ClientSharePage)
+- **Phase 3** — Emails transactionnels (notify-submission Edge Function)
+
+**Statut :**
+- ✅ Build passe (`npm run build` = 6.66s)
+- ✅ All commits staged (not pushed — gui pushes himself)
+- **En attente gui** : review + push
+
 ---
 
 ## ⏸️ Le carnet de la session du 2026-09-03 (conservé pour le contexte)
