@@ -17,6 +17,13 @@ export const bookingsI18n = {
   label_departure: { fr: 'Départ',        en: 'Departure',    es: 'Partida' },
   label_accommodation: { fr: 'Hébergement', en: 'Accommodation', es: 'Alojamiento' },
   label_guests_count: { fr: 'Nombre de clients', en: 'Number of guests', es: 'Número de huéspedes' },
+  label_check_in:  { fr: 'Arrivée', en: 'Check-in', es: 'Entrada' },
+  label_check_out: { fr: 'Départ',  en: 'Check-out', es: 'Salida' },
+  label_rooms:     { fr: 'Chambre(s)', en: 'Room(s)', es: 'Habitación(es)' },
+  label_lessons:   { fr: 'Cours',    en: 'Lessons',  es: 'Clases' },
+  label_rentals:   { fr: 'Locations', en: 'Rentals', es: 'Alquileres' },
+  label_wing:      { fr: 'Wing',     en: 'Wing',     es: 'Wing' },
+  label_center_access: { fr: 'Accès au centre', en: 'Center access', es: 'Acceso al centro' },
 
   // Wizard
   btn_new_booking: { fr: 'Nouvelle réservation', en: 'New booking', es: 'Nueva reserva' },

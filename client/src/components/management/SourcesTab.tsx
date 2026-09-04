@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTable } from '../../hooks/useSupabase'
 import type { EnquirySource } from '../../types/database'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 
 /** The "how did you hear about us?" choices on the public enquiry form.
  *
@@ -31,6 +33,7 @@ function SourceForm({ initial, onSave, onCancel, saving }: {
   onCancel: () => void
   saving: boolean
 }) {
+  const { lang } = useLanguage()
   const [form, setForm] = useState<FormState>(initial)
   // English is the fallback the form falls back to, so it is the one that must exist.
   const canSave = !!form.en.trim() && !saving
@@ -80,11 +83,11 @@ function SourceForm({ initial, onSave, onCancel, saving }: {
       <div className="flex gap-2">
         <button type="submit" disabled={!canSave}
           className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded font-semibold text-sm">
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? i18n.pages.btn_saving[lang] : i18n.common.btn_save[lang]}
         </button>
         <button type="button" onClick={onCancel}
           className="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded font-medium text-sm">
-          Cancel
+          {i18n.common.btn_cancel[lang]}
         </button>
       </div>
     </form>
@@ -92,6 +95,7 @@ function SourceForm({ initial, onSave, onCancel, saving }: {
 }
 
 export default function SourcesTab() {
+  const { lang } = useLanguage()
   const { data: sources, refresh } = useTable<EnquirySource>('enquiry_sources', { order: 'sort_order' })
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<EnquirySource | null>(null)
@@ -139,7 +143,7 @@ export default function SourcesTab() {
             {s.label?.en || '(no English label)'}
             {!s.is_active && (
               <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                Retired
+                {i18n.management.label_retired[lang]}
               </span>
             )}
           </p>
@@ -150,11 +154,11 @@ export default function SourcesTab() {
         <div className="flex gap-2 shrink-0">
           <button onClick={() => { setEditing(s); setAdding(false) }}
             className="px-3 py-1.5 text-sm rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">
-            Edit
+            {i18n.common.btn_edit[lang]}
           </button>
           <button onClick={() => toggleActive(s)}
             className="px-3 py-1.5 text-sm rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">
-            {s.is_active ? 'Retire' : 'Restore'}
+            {s.is_active ? i18n.management.btn_retire[lang] : i18n.management.btn_restore[lang]}
           </button>
         </div>
       </div>
@@ -165,7 +169,7 @@ export default function SourcesTab() {
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Enquiry sources</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">{i18n.management.title_enquiry_sources[lang]}</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             The choices behind “How did you hear about us?” on the public form. They are what the
             end-of-season attribution is counted from, so they are <strong>retired, never deleted</strong> —
@@ -175,7 +179,7 @@ export default function SourcesTab() {
         {!adding && !editing && (
           <button onClick={() => setAdding(true)}
             className="shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm">
-            + New source
+            + {i18n.management.btn_add_source[lang]}
           </button>
         )}
       </div>
@@ -193,7 +197,7 @@ export default function SourcesTab() {
 
       {sources.length === 0 && !adding && (
         <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-          No source yet — the form would only offer “Other”.
+          {i18n.management.msg_no_sources[lang]}
         </p>
       )}
 
@@ -215,7 +219,7 @@ export default function SourcesTab() {
       {retired.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-            Retired ({retired.length}) — hidden from the form, kept for past statistics
+            {i18n.management.label_retired_count[lang].replace('{count}', String(retired.length))}
           </p>
           {retired.map(s => <Row key={s.id} s={s} />)}
         </div>

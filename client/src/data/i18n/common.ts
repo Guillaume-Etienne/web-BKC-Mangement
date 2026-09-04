@@ -29,6 +29,8 @@ export const commonI18n = {
   label_total:    { fr: 'Total',        en: 'Total',       es: 'Total' },
   label_yes:      { fr: 'Oui',          en: 'Yes',         es: 'Sí' },
   label_no:       { fr: 'Non',          en: 'No',          es: 'No' },
+  label_active:   { fr: 'Actif',        en: 'Active',      es: 'Activo' },
+  label_inactive: { fr: 'Inactif',      en: 'Inactive',    es: 'Inactivo' },
 
   // Messages
   msg_loading:    { fr: 'Chargement…',  en: 'Loading…',    es: 'Cargando…' },

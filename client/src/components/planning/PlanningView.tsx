@@ -1,10 +1,12 @@
 import { useState, useCallback, useRef, useMemo, useEffect, type JSX } from 'react'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 import PlanningRow from './PlanningRow'
 import TotalsRow from './TotalsRow'
 import LessonWeekView from './LessonWeekView'
 import NowView from './NowView'
 import ForecastView from './ForecastView'
-import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental, PriceItem, BookingParticipant, Room, Accommodation, AccommodationType, Season } from '../../types/database'
+import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental, PriceItem, BookingParticipant, Room, Accommodation, AccommodationType, Season, Lang } from '../../types/database'
 import { seasonWindowAt, seasonOffsetBounds, monthColumns } from '../../utils/seasonWindow'
 import { toISODate, fromISODate } from '../../utils/dates'
 import { useBookingDrag, CELL_W, type DragMode } from '../../hooks/useBookingDrag'
@@ -21,7 +23,12 @@ import { supabase } from '../../lib/supabase'
 
 // ── Booking quick view modal ───────────────────────────────────────────────────
 
-const STATUS_LABEL: Record<string, string> = { confirmed: 'Confirmed', provisional: 'Provisional', cancelled: 'Cancelled' }
+function statusLabel(lang: Lang, status: string): string {
+  if (status === 'confirmed')   return i18n.bookings.status_confirmed[lang]
+  if (status === 'provisional') return i18n.bookings.status_provisional[lang]
+  if (status === 'cancelled')   return i18n.bookings.status_cancelled[lang]
+  return status
+}
 const STATUS_COLOR: Record<string, string> = { confirmed: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400', provisional: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400', cancelled: 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400' }
 
 interface BookingQuickViewProps {
@@ -35,6 +42,8 @@ interface BookingQuickViewProps {
 }
 
 function BookingQuickView({ booking, rooms, accommodations, bookingRooms, participants, onClose, onEdit }: BookingQuickViewProps) {
+  const { lang } = useLanguage()
+  const t = i18n.bookings
   const clientName = booking.client ? `${booking.client.first_name} ${booking.client.last_name}` : '?'
   const roomLabels = bookingRooms
     .filter(br => br.booking_id === booking.id)
@@ -45,17 +54,17 @@ function BookingQuickView({ booking, rooms, accommodations, bookingRooms, partic
     })
 
   const rows: [string, string][] = [
-    ['Check-in',  booking.check_in],
-    ['Check-out', booking.check_out],
-    ['Status',    STATUS_LABEL[booking.status] ?? booking.status],
-    ['Room(s)',   roomLabels.join(', ') || '—'],
-    ['Guests',    participants.length > 0 ? participants.map(p => `${p.first_name}${p.last_name ? ` ${p.last_name}` : ''}`).join(', ') : '—'],
-    ['Lessons',   String(booking.num_lessons)],
-    ['Rentals',   String(booking.num_equipment_rentals)],
-    ['Wing',      String(booking.num_wing_lessons)],
-    ['Center access', String(booking.num_center_access)],
+    [t.label_check_in[lang],  booking.check_in],
+    [t.label_check_out[lang], booking.check_out],
+    [i18n.common.label_status[lang], statusLabel(lang, booking.status)],
+    [t.label_rooms[lang],     roomLabels.join(', ') || '—'],
+    [i18n.bookings.label_guests_count[lang], participants.length > 0 ? participants.map(p => `${p.first_name}${p.last_name ? ` ${p.last_name}` : ''}`).join(', ') : '—'],
+    [t.label_lessons[lang],   String(booking.num_lessons)],
+    [t.label_rentals[lang],   String(booking.num_equipment_rentals)],
+    [t.label_wing[lang],      String(booking.num_wing_lessons)],
+    [t.label_center_access[lang], String(booking.num_center_access)],
   ]
-  if (booking.notes) rows.push(['Notes', booking.notes])
+  if (booking.notes) rows.push([i18n.common.label_notes[lang], booking.notes])
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={onClose}>
@@ -66,7 +75,7 @@ function BookingQuickView({ booking, rooms, accommodations, bookingRooms, partic
               #{String(booking.booking_number).padStart(3, '0')} — {clientName}
             </span>
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[booking.status]}`}>
-              {STATUS_LABEL[booking.status]}
+              {statusLabel(lang, booking.status)}
             </span>
           </div>
           <button onClick={onClose} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 text-xl leading-none">✕</button>
@@ -84,7 +93,7 @@ function BookingQuickView({ booking, rooms, accommodations, bookingRooms, partic
             onClick={onEdit}
             className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
           >
-            ✏️ Edit booking
+            ✏️ {i18n.bookings.title_edit_booking[lang]}
           </button>
         </div>
       </div>
@@ -113,6 +122,7 @@ interface ValidateModalProps {
   onCancel: () => void
 }
 function ValidateModal({ draftMoves, bookings, rooms, accommodations, onConfirm, onCancel }: ValidateModalProps): JSX.Element {
+  const { lang } = useLanguage()
   const [saving, setSaving] = useState(false)
 
   function roomLabel(roomId: string): string {
@@ -142,7 +152,9 @@ function ValidateModal({ draftMoves, bookings, rooms, accommodations, onConfirm,
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-xl max-h-[80vh] flex flex-col">
         <div className="flex justify-between items-center p-4 border-b">
-          <h3 className="font-bold text-gray-800 dark:text-gray-200">Confirm {draftMoves.size} pending move{draftMoves.size > 1 ? 's' : ''}</h3>
+          <h3 className="font-bold text-gray-800 dark:text-gray-200">
+            {(draftMoves.size > 1 ? i18n.pages.title_confirm_moves[lang] : i18n.pages.title_confirm_move[lang]).replace('{count}', String(draftMoves.size))}
+          </h3>
           <button onClick={onCancel} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-xl font-bold">✕</button>
         </div>
         <div className="overflow-y-auto flex-1 p-4 space-y-3">
@@ -172,11 +184,11 @@ function ValidateModal({ draftMoves, bookings, rooms, accommodations, onConfirm,
         <div className="flex gap-3 p-4 border-t">
           <button onClick={onCancel}
             className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm">
-            Cancel
+            {i18n.common.btn_cancel[lang]}
           </button>
           <button onClick={handleConfirm} disabled={saving}
             className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm disabled:opacity-60">
-            {saving ? 'Saving…' : '✓ Confirm & Save'}
+            {saving ? i18n.pages.btn_saving[lang] : `✓ ${i18n.pages.btn_confirm_save[lang]}`}
           </button>
         </div>
       </div>
@@ -206,6 +218,7 @@ function getMondayOfWeek(date: Date): Date {
 }
 
 export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: string) => void } = {}) {
+  const { lang } = useLanguage()
   const { data: accommodations } = useAccommodations()
   const { data: rooms } = useRooms()
   const { data: houseRentals } = useTable<HouseRental>('house_rentals')
@@ -538,7 +551,8 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
 
   function handleTabChange(newTab: typeof planningTab) {
     if (draftMoves.size > 0 && newTab !== planningTab) {
-      if (!confirm(`You have ${draftMoves.size} unsaved move${draftMoves.size > 1 ? 's' : ''}. Leave without saving?`)) return
+      const msg = (draftMoves.size > 1 ? i18n.pages.confirm_unsaved_moves[lang] : i18n.pages.confirm_unsaved_move[lang]).replace('{count}', String(draftMoves.size))
+      if (!confirm(msg)) return
       setDraftMoves(new Map())
     }
     setPlanningTab(newTab)
@@ -727,10 +741,10 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
         {/* Page header */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 md:gap-4 mb-3 md:mb-8">
           <h1 className="text-lg md:text-3xl font-bold text-gray-800 dark:text-gray-200">
-            {planningTab === 'accommodations' ? 'Accommodation Planning'
-              : planningTab === 'lessons' ? 'Daily Planning'
-              : planningTab === 'forecast' ? 'Forecast'
-              : 'Now'}
+            {planningTab === 'accommodations' ? i18n.pages.planning_title_accommodations[lang]
+              : planningTab === 'lessons' ? i18n.pages.planning_title_daily[lang]
+              : planningTab === 'forecast' ? i18n.pages.planning_title_forecast[lang]
+              : i18n.pages.planning_title_now[lang]}
           </h1>
 
           {planningTab === 'accommodations' && (
@@ -740,7 +754,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                 <button onClick={() => changeSeason(-1)} disabled={seasonOffset <= seasonBounds.min}
                   className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-30 disabled:hover:bg-transparent text-xs md:text-sm text-blue-700 dark:text-blue-400">←</button>
                 <span className="text-xs md:text-sm font-bold text-blue-800 dark:text-blue-400 min-w-[46px] md:min-w-[90px] text-center"
-                  title={season.configured ? undefined : 'No season configured — Options → Seasons'}>
+                  title={season.configured ? undefined : i18n.pages.label_no_season_configured[lang]}>
                   <span className="md:hidden">{season.shortLabel}</span>
                   <span className="hidden md:inline">{season.label}{season.configured ? '' : ' *'}</span>
                 </span>
@@ -756,7 +770,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                 </span>
                 <button onClick={nextMonth} disabled={navMonthIdx === monthGroups.length - 1} className="px-2 py-1 md:px-3 md:py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 text-xs md:text-sm">→</button>
               </div>
-              <button onClick={goToNow} className="px-2 py-1 md:px-3 md:py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm font-medium">Now</button>
+              <button onClick={goToNow} className="px-2 py-1 md:px-3 md:py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm font-medium">{i18n.pages.btn_now[lang]}</button>
             </div>
           )}
         </div>
@@ -767,25 +781,25 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             onClick={() => handleTabChange('accommodations')}
             className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'accommodations' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
-            🏠 Accommodations
+            🏠 {i18n.pages.tab_planning_accommodations[lang]}
           </button>
           <button
             onClick={() => handleTabChange('lessons')}
             className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'lessons' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
-            🗓️ Daily
+            🗓️ {i18n.pages.tab_planning_daily[lang]}
           </button>
           <button
             onClick={() => handleTabChange('now')}
             className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'now' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
-            🍽️ Now
+            🍽️ {i18n.pages.tab_planning_now[lang]}
           </button>
           <button
             onClick={() => handleTabChange('forecast')}
             className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'forecast' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
-            📋 Forecast
+            📋 {i18n.pages.tab_planning_forecast[lang]}
           </button>
         </div>
 
@@ -796,16 +810,16 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             {draftMoves.size > 0 && (
               <div className="sticky top-0 z-30 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-lg px-4 py-3 mb-4 flex items-center justify-between shadow-sm">
                 <span className="text-amber-800 dark:text-amber-400 font-medium text-sm">
-                  ⚠️ {draftMoves.size} pending move{draftMoves.size > 1 ? 's' : ''} — not saved yet
+                  ⚠️ {(draftMoves.size > 1 ? i18n.pages.msg_pending_moves[lang] : i18n.pages.msg_pending_move[lang]).replace('{count}', String(draftMoves.size))}
                 </span>
                 <div className="flex gap-2">
                   <button onClick={() => setShowValidateModal(true)}
                     className="px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold text-sm">
-                    ✓ Validate changes
+                    ✓ {i18n.pages.btn_validate_changes[lang]}
                   </button>
                   <button onClick={() => setDraftMoves(new Map())}
                     className="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm">
-                    ↺ Reset to saved
+                    ↺ {i18n.pages.btn_reset_to_saved[lang]}
                   </button>
                 </div>
               </div>
@@ -813,10 +827,10 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
 
             {/* Legend */}
             <div className="flex flex-wrap gap-3 md:gap-4 mb-3 md:mb-4 text-xs md:text-sm text-gray-700 dark:text-gray-300">
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> Confirmed</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-400 inline-block" /> Provisional</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-300 dark:bg-gray-600 inline-block" /> Cancelled</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 inline-block" /> Not rented</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> {i18n.bookings.status_confirmed[lang]}</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-400 inline-block" /> {i18n.bookings.status_provisional[lang]}</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-300 dark:bg-gray-600 inline-block" /> {i18n.bookings.status_cancelled[lang]}</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 inline-block" /> {i18n.pages.legend_not_rented[lang]}</span>
             </div>
 
             {/* Grid */}
@@ -843,7 +857,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
               {/* Header row 2: day numbers */}
               <div className="flex min-w-max border-b border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
                 <div className="sticky left-0 z-20 shrink-0 w-20 px-2 py-1 text-xs font-semibold border-r border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800">
-                  Where
+                  {i18n.pages.label_where[lang]}
                 </div>
                 <div className="flex">
                   {Array.from({ length: totalDays }, (_, i) => {
@@ -871,7 +885,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                 {(['house', 'bungalow', 'other'] as AccommodationType[]).map(type => {
                   const typeAccs = activeAccommodations.filter(a => a.type === type)
                   if (typeAccs.length === 0) return null
-                  const typeLabel = type === 'house' ? 'Houses' : type === 'bungalow' ? 'Bungalows' : 'Other'
+                  const typeLabel = type === 'house' ? i18n.pages.type_houses[lang] : type === 'bungalow' ? i18n.pages.type_bungalows[lang] : i18n.pages.type_other[lang]
                   return (
                     <div key={type}>
                       {/* Type separator */}
@@ -948,18 +962,18 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                 <div className="flex items-center gap-2">
                   <button onClick={prevWeek} className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">←</button>
                   <span className="text-base font-semibold min-w-[220px] text-center text-gray-800 dark:text-gray-200">
-                    Week of {weekLabel}
+                    {i18n.pages.label_week_of[lang]} {weekLabel}
                   </span>
                   <button onClick={nextWeek} className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">→</button>
                   <button onClick={goToToday} className="px-3 py-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-800">
-                    Today
+                    {i18n.common.period_today[lang]}
                   </button>
                   <input
                     type="date"
                     onChange={e => goToDate(e.target.value)}
                     defaultValue=""
                     className="px-2 py-1.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-300"
-                    title="Jump to date"
+                    title={i18n.pages.label_jump_to_date[lang]}
                   />
                 </div>
               ) : (
@@ -970,19 +984,19 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                   </span>
                   <button onClick={nextDay} className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">→</button>
                   <button onClick={goToTodayDay} className="px-3 py-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-800">
-                    Today
+                    {i18n.common.period_today[lang]}
                   </button>
                   <input
                     type="date"
                     onChange={e => goToDate(e.target.value)}
                     defaultValue=""
                     className="px-2 py-1.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-300"
-                    title="Jump to date"
+                    title={i18n.pages.label_jump_to_date[lang]}
                   />
                 </div>
               )}
               <div className="flex gap-2">
-                {([[1, '1'], [3, '3'], [7, 'Week']] as const).map(([n, label]) => (
+                {([[1, '1'], [3, '3'], [7, i18n.pages.btn_week[lang]]] as const).map(([n, label]) => (
                   <button
                     key={n}
                     onClick={() => setDayCount(n)}

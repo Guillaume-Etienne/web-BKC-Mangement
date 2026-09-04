@@ -10,6 +10,45 @@ export const pagesI18n = {
   page_planning:   { fr: 'Planning',        en: 'Planning',      es: 'Planificación' },
   btn_drag_note:   { fr: 'Glisser pour déplacer', en: 'Drag to move', es: 'Arrastra para mover' },
 
+  // PlanningView — page header (title changes with the active tab)
+  planning_title_accommodations: { fr: 'Planning des hébergements', en: 'Accommodation Planning', es: 'Planificación de alojamientos' },
+  planning_title_daily:          { fr: 'Planning quotidien', en: 'Daily Planning', es: 'Planificación diaria' },
+  planning_title_forecast:       { fr: 'Prévisions', en: 'Forecast', es: 'Previsión' },
+  planning_title_now:            { fr: 'Maintenant', en: 'Now', es: 'Ahora' },
+
+  // PlanningView — tabs
+  tab_planning_accommodations: { fr: 'Hébergements', en: 'Accommodations', es: 'Alojamientos' },
+  tab_planning_daily:          { fr: 'Quotidien',    en: 'Daily',          es: 'Diario' },
+  tab_planning_now:            { fr: 'Maintenant',   en: 'Now',            es: 'Ahora' },
+  tab_planning_forecast:       { fr: 'Prévisions',   en: 'Forecast',       es: 'Previsión' },
+
+  // PlanningView — misc chrome
+  btn_now:          { fr: 'Maintenant', en: 'Now', es: 'Ahora' },
+  btn_week:         { fr: 'Semaine',    en: 'Week', es: 'Semana' },
+  label_week_of:    { fr: 'Semaine du', en: 'Week of', es: 'Semana del' },
+  label_jump_to_date: { fr: 'Aller à la date', en: 'Jump to date', es: 'Ir a la fecha' },
+  label_no_season_configured: { fr: 'Aucune saison configurée — Options → Saisons', en: 'No season configured — Options → Seasons', es: 'Ninguna temporada configurada — Opciones → Temporadas' },
+  label_where:      { fr: 'Où',        en: 'Where', es: 'Dónde' },
+  type_houses:      { fr: 'Maisons',   en: 'Houses', es: 'Casas' },
+  type_bungalows:   { fr: 'Bungalows', en: 'Bungalows', es: 'Bungalós' },
+  type_other:       { fr: 'Autre',     en: 'Other', es: 'Otro' },
+  type_house:       { fr: 'Maison',    en: 'House', es: 'Casa' },
+  type_bungalow:    { fr: 'Bungalow',  en: 'Bungalow', es: 'Bungaló' },
+  legend_not_rented: { fr: 'Non loué', en: 'Not rented', es: 'No alquilado' },
+
+  // PlanningView — draft moves banner & confirm/validate modal (singular/plural
+  // pairs, same {count} convention as the pendingActions messages below)
+  msg_pending_move:      { fr: '{count} déplacement en attente — non enregistré', en: '{count} pending move — not saved yet', es: '{count} movimiento pendiente — no guardado' },
+  msg_pending_moves:     { fr: '{count} déplacements en attente — non enregistrés', en: '{count} pending moves — not saved yet', es: '{count} movimientos pendientes — no guardados' },
+  btn_validate_changes:  { fr: 'Valider les changements', en: 'Validate changes', es: 'Validar cambios' },
+  btn_reset_to_saved:    { fr: 'Revenir à l\'enregistré', en: 'Reset to saved', es: 'Restablecer lo guardado' },
+  confirm_unsaved_move:  { fr: 'Vous avez {count} déplacement non enregistré. Quitter sans enregistrer ?', en: 'You have {count} unsaved move. Leave without saving?', es: 'Tiene {count} movimiento sin guardar. ¿Salir sin guardar?' },
+  confirm_unsaved_moves: { fr: 'Vous avez {count} déplacements non enregistrés. Quitter sans enregistrer ?', en: 'You have {count} unsaved moves. Leave without saving?', es: 'Tiene {count} movimientos sin guardar. ¿Salir sin guardar?' },
+  title_confirm_move:    { fr: 'Confirmer {count} déplacement en attente', en: 'Confirm {count} pending move', es: 'Confirmar {count} movimiento pendiente' },
+  title_confirm_moves:   { fr: 'Confirmer {count} déplacements en attente', en: 'Confirm {count} pending moves', es: 'Confirmar {count} movimientos pendientes' },
+  btn_saving:            { fr: 'Enregistrement…', en: 'Saving…', es: 'Guardando…' },
+  btn_confirm_save:      { fr: 'Confirmer et enregistrer', en: 'Confirm & Save', es: 'Confirmar y guardar' },
+
   // RequestsPage (Enquiries)
   page_requests:   { fr: 'Demandes',        en: 'Requests',      es: 'Solicitudes' },
   desc_requests:   { fr: 'Tout ce qui arrive de l\'extérieur — un premier message, ou un formulaire de réservation complet.', en: 'Everything that came in from outside — a first message, or a full booking form.', es: 'Todo lo que llega desde fuera — un primer mensaje, o un formulario de reserva completo.' },

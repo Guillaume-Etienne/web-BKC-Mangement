@@ -4,6 +4,8 @@ import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
 import { useTable } from '../../hooks/useSupabase'
 import type { Accommodation, Room, RoomRate, HouseRental } from '../../types/database'
 import { todayISO, fmtDate } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 
 // ── House form (module scope) ─────────────────────────────────────────────────
 interface HouseFormProps {
@@ -13,6 +15,7 @@ interface HouseFormProps {
   onClose: () => void
 }
 function HouseForm({ initial, title, onSave, onClose }: HouseFormProps) {
+  const { lang } = useLanguage()
   const [name, setName]         = useState(initial.name)
   const [active, setActive]     = useState(initial.is_active)
   const [saving, setSaving]     = useState(false)
@@ -41,14 +44,14 @@ function HouseForm({ initial, title, onSave, onClose }: HouseFormProps) {
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
             <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="rounded" />
-            Active (available for bookings)
+            {i18n.management.hint_active_bookable[lang]}
           </label>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm">Cancel</button>
+              className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm">{i18n.common.btn_cancel[lang]}</button>
             <button type="submit" disabled={saving}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm disabled:opacity-60">
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? i18n.pages.btn_saving[lang] : i18n.common.btn_save[lang]}
             </button>
           </div>
         </form>
@@ -63,6 +66,7 @@ interface RentalFormProps {
   onAdd: (r: Omit<HouseRental, 'id'>) => Promise<void>
 }
 function RentalForm({ accommodationId, onAdd }: RentalFormProps) {
+  const { lang } = useLanguage()
   const today = todayISO()
   const [startDate, setStartDate] = useState(today)
   const [endDate,   setEndDate]   = useState(today)
@@ -119,7 +123,7 @@ function RentalForm({ accommodationId, onAdd }: RentalFormProps) {
       </div>
       <button type="submit" disabled={saving}
         className="w-full px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium text-sm disabled:opacity-60">
-        {saving ? 'Saving…' : '+ Add period'}
+        {saving ? i18n.pages.btn_saving[lang] : i18n.management.btn_add_period[lang]}
       </button>
     </form>
   )
@@ -133,6 +137,7 @@ interface RatesFormProps {
   onSaved: () => void
 }
 function RatesForm({ house, rooms, rates, onSaved }: RatesFormProps) {
+  const { lang } = useLanguage()
   const roomF = rooms.find(r => r.name === 'F')
   const roomB = rooms.find(r => r.name === 'B')
 
@@ -203,7 +208,7 @@ function RatesForm({ house, rooms, rates, onSaved }: RatesFormProps) {
       </div>
       <button type="submit" disabled={saving}
         className="px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium text-sm disabled:opacity-60">
-        {saving ? 'Saving…' : 'Save rates'}
+        {saving ? i18n.pages.btn_saving[lang] : i18n.management.btn_save_rates[lang]}
       </button>
     </form>
   )
@@ -211,6 +216,7 @@ function RatesForm({ house, rooms, rates, onSaved }: RatesFormProps) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function HousesTab() {
+  const { lang } = useLanguage()
   const { data: accommodationsData, refresh: refreshAccommodations } = useAccommodations()
   const { data: roomsData,          refresh: refreshRooms }          = useRooms()
   const { data: roomRatesData,      refresh: refreshRates }          = useTable<RoomRate>('room_rates')
@@ -319,17 +325,17 @@ export default function HousesTab() {
       {/* ── Left: house list ─────────────────────────────────────────────── */}
       <div className="xl:col-span-1">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Houses</h2>
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{i18n.management.tab_houses[lang]}</h2>
           <button onClick={() => setShowHouseForm(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm">
-            + New house
+            + {i18n.management.btn_add_house[lang]}
           </button>
         </div>
 
         {houses.length === 0 ? (
           <div className="text-center py-12 text-gray-400 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
             <p className="text-4xl mb-2">🏠</p>
-            <p className="text-sm">No houses yet</p>
+            <p className="text-sm">{i18n.management.msg_no_houses[lang]}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -356,7 +362,7 @@ export default function HousesTab() {
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${house.is_active ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
-                        {house.is_active ? 'Active' : 'Inactive'}
+                        {house.is_active ? i18n.common.label_active[lang] : i18n.common.label_inactive[lang]}
                       </span>
                       <div className="flex gap-1 mt-1" onClick={e => e.stopPropagation()}>
                         <button onClick={() => setEditingHouse(house)}
@@ -377,7 +383,7 @@ export default function HousesTab() {
       <div className="xl:col-span-2">
         {!selected ? (
           <div className="flex items-center justify-center h-64 text-gray-400 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
-            <p className="text-sm">Select a house to view details</p>
+            <p className="text-sm">{i18n.management.msg_select_house[lang]}</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -397,7 +403,7 @@ export default function HousesTab() {
 
             {/* Rates */}
             <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
-              <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Nightly Rates</h4>
+              <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">{i18n.management.label_nightly_rates[lang]}</h4>
               <RatesForm
                 house={selected}
                 rooms={selRooms}
@@ -408,7 +414,7 @@ export default function HousesTab() {
 
             {/* Rental periods */}
             <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
-              <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Rental Periods</h4>
+              <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">{i18n.management.label_rental_periods[lang]}</h4>
 
               {houseRentalPeriods(selected.id).length === 0 ? (
                 <p className="text-sm text-gray-400 dark:text-gray-400 italic mb-3">No rental periods yet — house is unavailable for bookings.</p>
@@ -443,7 +449,7 @@ export default function HousesTab() {
       {showHouseForm && (
         <HouseForm
           initial={{ name: '', is_active: true }}
-          title="New house"
+          title={i18n.management.title_new_house[lang]}
           onSave={handleCreateHouse}
           onClose={() => setShowHouseForm(false)}
         />
@@ -451,7 +457,7 @@ export default function HousesTab() {
       {editingHouse && (
         <HouseForm
           initial={{ name: editingHouse.name, is_active: editingHouse.is_active }}
-          title="Edit house"
+          title={i18n.management.title_edit_house[lang]}
           onSave={handleEditHouse}
           onClose={() => setEditingHouse(null)}
         />

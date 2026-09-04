@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAgencies, useAgencyRateItems } from '../../hooks/useAgencies'
 import type { Agency, AgencyRateItem, AgencyRateCategory } from '../../types/database'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 
 const CATEGORY_META: Record<AgencyRateCategory, { icon: string; label: string }> = {
   lesson:        { icon: '🪁', label: 'Lesson' },
@@ -25,6 +27,7 @@ interface AgencyFormProps {
   onClose: () => void
 }
 function AgencyForm({ initial, title, onSave, onClose }: AgencyFormProps) {
+  const { lang } = useLanguage()
   const [name,       setName]       = useState(initial.name)
   const [commission, setCommission] = useState(initial.commission_percent)
   const [shortCode,  setShortCode]  = useState(initial.short_code)
@@ -90,14 +93,14 @@ function AgencyForm({ initial, title, onSave, onClose }: AgencyFormProps) {
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
             <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="rounded" />
-            Active
+            {i18n.common.label_active[lang]}
           </label>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm">Cancel</button>
+              className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm">{i18n.common.btn_cancel[lang]}</button>
             <button type="submit" disabled={saving}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm disabled:opacity-60">
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? i18n.pages.btn_saving[lang] : i18n.common.btn_save[lang]}
             </button>
           </div>
         </form>
@@ -112,6 +115,7 @@ interface RateItemAddFormProps {
   onAdd: (item: Omit<AgencyRateItem, 'id'>) => Promise<void>
 }
 function RateItemAddForm({ agencyId, onAdd }: RateItemAddFormProps) {
+  const { lang } = useLanguage()
   const [category, setCategory] = useState<AgencyRateCategory>('lesson')
   const [label,     setLabel]   = useState('')
   const [hours,     setHours]   = useState('')
@@ -173,7 +177,7 @@ function RateItemAddForm({ agencyId, onAdd }: RateItemAddFormProps) {
       </div>
       <button type="submit" disabled={saving || label.trim() === ''}
         className="w-full px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium text-sm disabled:opacity-60">
-        {saving ? 'Saving…' : '+ Add rate item'}
+        {saving ? i18n.pages.btn_saving[lang] : i18n.management.btn_add_rate_item[lang]}
       </button>
     </form>
   )
@@ -188,10 +192,11 @@ interface RateItemsListProps {
   onEdit: (item: AgencyRateItem, patch: Pick<AgencyRateItem, 'label' | 'unit_hours' | 'price'>) => void
 }
 function RateItemsList({ items, onToggleActive, onEdit }: RateItemsListProps) {
+  const { lang } = useLanguage()
   const [editingId, setEditingId] = useState<string | null>(null)
 
   if (items.length === 0) {
-    return <p className="text-sm text-gray-400 dark:text-gray-400 italic">No rate items yet.</p>
+    return <p className="text-sm text-gray-400 dark:text-gray-400 italic">{i18n.management.msg_no_rate_items[lang]}</p>
   }
   return (
     <div className="space-y-2">
@@ -225,7 +230,7 @@ function RateItemsList({ items, onToggleActive, onEdit }: RateItemsListProps) {
                 </button>
                 <button onClick={() => onToggleActive(item)}
                   className="text-xs px-2 py-1 rounded font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
-                  {item.is_active ? 'Deactivate' : 'Reactivate'}
+                  {item.is_active ? i18n.management.btn_deactivate[lang] : i18n.management.btn_reactivate[lang]}
                 </button>
               </div>
             </div>
@@ -250,6 +255,7 @@ interface RateItemEditFormProps {
   onCancel: () => void
 }
 function RateItemEditForm({ item, onSave, onCancel }: RateItemEditFormProps) {
+  const { lang } = useLanguage()
   const [label, setLabel] = useState(item.label)
   const [hours, setHours] = useState(item.unit_hours != null ? String(item.unit_hours) : '')
   const [price, setPrice] = useState(String(item.price))
@@ -287,9 +293,9 @@ function RateItemEditForm({ item, onSave, onCancel }: RateItemEditFormProps) {
         </label>
         <div className="ml-auto flex gap-1">
           <button type="button" onClick={onCancel}
-            className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium">Cancel</button>
+            className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium">{i18n.common.btn_cancel[lang]}</button>
           <button type="submit"
-            className="text-xs px-2 py-1 rounded bg-blue-600 text-white font-medium hover:bg-blue-700">Save</button>
+            className="text-xs px-2 py-1 rounded bg-blue-600 text-white font-medium hover:bg-blue-700">{i18n.common.btn_save[lang]}</button>
         </div>
       </div>
       {item.category === 'lesson' && (
@@ -303,6 +309,7 @@ function RateItemEditForm({ item, onSave, onCancel }: RateItemEditFormProps) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AgenciesTab() {
+  const { lang } = useLanguage()
   const { data: agenciesData,   refresh: refreshAgencies }   = useAgencies()
   const { data: rateItemsData,  refresh: refreshRateItems }  = useAgencyRateItems()
 
@@ -383,17 +390,17 @@ export default function AgenciesTab() {
       {/* ── Left: agency list ────────────────────────────────────────────── */}
       <div className="xl:col-span-1">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Agencies</h2>
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{i18n.management.tab_agencies[lang]}</h2>
           <button onClick={() => setShowForm(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm">
-            + New
+            + {i18n.common.btn_add[lang]}
           </button>
         </div>
 
         {agencies.length === 0 ? (
           <div className="text-center py-12 text-gray-400 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
             <p className="text-4xl mb-2">🤝</p>
-            <p className="text-sm">No agencies yet</p>
+            <p className="text-sm">{i18n.management.msg_no_agencies[lang]}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -413,13 +420,13 @@ export default function AgenciesTab() {
                         )}
                       </p>
                       <div className="mt-1 flex gap-3 text-xs text-gray-500 dark:text-gray-400">
-                        <span>{agency.commission_percent}% commission</span>
-                        <span>{items.length} rate item{items.length === 1 ? '' : 's'}</span>
+                        <span>{i18n.management.label_commission_pct[lang].replace('{pct}', String(agency.commission_percent))}</span>
+                        <span>{(items.length === 1 ? i18n.management.label_rate_item_count[lang] : i18n.management.label_rate_item_count_pl[lang]).replace('{count}', String(items.length))}</span>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${agency.is_active ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
-                        {agency.is_active ? 'Active' : 'Inactive'}
+                        {agency.is_active ? i18n.common.label_active[lang] : i18n.common.label_inactive[lang]}
                       </span>
                       <div className="flex gap-1 mt-1" onClick={e => e.stopPropagation()}>
                         <button onClick={() => setEditing(agency)}
@@ -440,7 +447,7 @@ export default function AgenciesTab() {
       <div className="xl:col-span-2">
         {!selected ? (
           <div className="flex items-center justify-center h-64 text-gray-400 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
-            <p className="text-sm">Select an agency to view its rate card</p>
+            <p className="text-sm">{i18n.management.msg_select_agency[lang]}</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -448,7 +455,7 @@ export default function AgenciesTab() {
               <div>
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">🤝 {selected.name}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                  {selected.commission_percent}% commission retained on the total billed
+                  {i18n.management.label_commission_retained[lang].replace('{pct}', String(selected.commission_percent))}
                 </p>
                 {selected.notes && (
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 italic">{selected.notes}</p>
@@ -458,7 +465,7 @@ export default function AgenciesTab() {
             </div>
 
             <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 space-y-4">
-              <h4 className="font-semibold text-gray-700 dark:text-gray-300">Rate card</h4>
+              <h4 className="font-semibold text-gray-700 dark:text-gray-300">{i18n.management.label_rate_card[lang]}</h4>
               <RateItemsList items={agencyRateItems(selected.id)} onToggleActive={handleToggleActive} onEdit={handleEditRateItem} />
               <RateItemAddForm agencyId={selected.id} onAdd={handleAddRateItem} />
             </div>
@@ -470,7 +477,7 @@ export default function AgenciesTab() {
       {showForm && (
         <AgencyForm
           initial={{ name: '', commission_percent: '', short_code: '', notes: '', is_active: true }}
-          title="New agency"
+          title={i18n.management.title_new_agency[lang]}
           onSave={handleCreate}
           onClose={() => setShowForm(false)}
         />
@@ -484,7 +491,7 @@ export default function AgenciesTab() {
             notes: editing.notes ?? '',
             is_active: editing.is_active,
           }}
-          title={`Edit ${editing.name}`}
+          title={`${i18n.common.btn_edit[lang]} ${editing.name}`}
           onSave={handleEdit}
           onClose={() => setEditing(null)}
         />

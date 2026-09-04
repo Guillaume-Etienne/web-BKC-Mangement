@@ -2,13 +2,17 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
 import { useTable } from '../../hooks/useSupabase'
-import type { Accommodation, AccommodationType, Room, RoomRate, HouseRental } from '../../types/database'
+import type { Accommodation, AccommodationType, Room, RoomRate, HouseRental, Lang } from '../../types/database'
 import { todayISO, fmtDate } from '../../utils/dates'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { i18n } from '../../data/i18n'
 
-const TYPE_META: Record<AccommodationType, { icon: string; label: string; plural: string }> = {
-  house:    { icon: '🏠', label: 'House',    plural: 'Houses' },
-  bungalow: { icon: '🏡', label: 'Bungalow', plural: 'Bungalows' },
-  other:    { icon: '🏨', label: 'Other',    plural: 'Other' },
+function typeMeta(lang: Lang): Record<AccommodationType, { icon: string; label: string; plural: string }> {
+  return {
+    house:    { icon: '🏠', label: i18n.pages.type_house[lang],    plural: i18n.pages.type_houses[lang] },
+    bungalow: { icon: '🏡', label: i18n.pages.type_bungalow[lang], plural: i18n.pages.type_bungalows[lang] },
+    other:    { icon: '🏨', label: i18n.pages.type_other[lang],    plural: i18n.pages.type_other[lang] },
+  }
 }
 
 // ── Accommodation form (module scope) ────────────────────────────────────────
@@ -38,6 +42,8 @@ interface AccFormProps {
   onClose: () => void
 }
 function AccForm({ initial, title, lockType, editContext, onSave, onClose }: AccFormProps) {
+  const { lang } = useLanguage()
+  const TM = typeMeta(lang)
   const [name,    setName]    = useState(initial.name)
   const [active,  setActive]  = useState(initial.is_active)
   const [type,    setType]    = useState(initial.type)
@@ -89,7 +95,7 @@ function AccForm({ initial, title, lockType, editContext, onSave, onClose }: Acc
                     className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
                       type === t ? 'border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-400' : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
                     }`}>
-                    {TYPE_META[t].icon} {TYPE_META[t].label}
+                    {TM[t].icon} {TM[t].label}
                   </button>
                 ))}
               </div>
@@ -162,14 +168,14 @@ function AccForm({ initial, title, lockType, editContext, onSave, onClose }: Acc
           )}
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
             <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="rounded" />
-            Active (available for bookings)
+            {i18n.management.hint_active_bookable[lang]}
           </label>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm">Cancel</button>
+              className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm">{i18n.common.btn_cancel[lang]}</button>
             <button type="submit" disabled={saving}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm disabled:opacity-60">
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? i18n.pages.btn_saving[lang] : i18n.common.btn_save[lang]}
             </button>
           </div>
         </form>
@@ -184,6 +190,7 @@ interface RentalFormProps {
   onAdd: (r: Omit<HouseRental, 'id'>) => Promise<void>
 }
 function RentalForm({ accommodationId, onAdd }: RentalFormProps) {
+  const { lang } = useLanguage()
   const today = todayISO()
   const [startDate, setStartDate] = useState(today)
   const [endDate,   setEndDate]   = useState(today)
@@ -240,7 +247,7 @@ function RentalForm({ accommodationId, onAdd }: RentalFormProps) {
       </div>
       <button type="submit" disabled={saving}
         className="w-full px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium text-sm disabled:opacity-60">
-        {saving ? 'Saving…' : '+ Add period'}
+        {saving ? i18n.pages.btn_saving[lang] : i18n.management.btn_add_period[lang]}
       </button>
     </form>
   )
@@ -426,6 +433,7 @@ interface RatesFormProps {
   onSaved: () => void
 }
 function RatesForm({ accommodation, rooms, rates, onSaved }: RatesFormProps) {
+  const { lang } = useLanguage()
   const [values, setValues] = useState(() => initialRateValues(accommodation, rooms, rates))
   const [saving, setSaving] = useState(false)
 
@@ -449,7 +457,7 @@ function RatesForm({ accommodation, rooms, rates, onSaved }: RatesFormProps) {
         onChange={(k, v) => setValues(p => ({ ...p, [k]: v }))} />
       <button type="submit" disabled={saving}
         className="px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium text-sm disabled:opacity-60">
-        {saving ? 'Saving…' : 'Save rates'}
+        {saving ? i18n.pages.btn_saving[lang] : i18n.management.btn_save_rates[lang]}
       </button>
     </form>
   )
@@ -457,6 +465,8 @@ function RatesForm({ accommodation, rooms, rates, onSaved }: RatesFormProps) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AccommodationsTab() {
+  const { lang } = useLanguage()
+  const TM = typeMeta(lang)
   const { data: accommodationsData, refresh: refreshAccommodations } = useAccommodations()
   const { data: roomsData,          refresh: refreshRooms }          = useRooms()
   const { data: roomRatesData,      refresh: refreshRates }          = useTable<RoomRate>('room_rates')
@@ -590,24 +600,24 @@ export default function AccommodationsTab() {
       {/* ── Left: accommodation list ─────────────────────────────────────── */}
       <div className="xl:col-span-1">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Accommodations</h2>
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{i18n.management.section_accommodations[lang]}</h2>
           <button onClick={() => setShowForm(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm">
-            + New
+            + {i18n.common.btn_add[lang]}
           </button>
         </div>
 
         {accommodations.length === 0 ? (
           <div className="text-center py-12 text-gray-400 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
             <p className="text-4xl mb-2">🏠</p>
-            <p className="text-sm">No accommodations yet</p>
+            <p className="text-sm">{i18n.management.msg_no_accommodations[lang]}</p>
           </div>
         ) : (
           <div className="space-y-5">
             {grouped.map(({ type, items }) => (
               <div key={type}>
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                  {TYPE_META[type].icon} {TYPE_META[type].plural} ({items.length})
+                  {TM[type].icon} {TM[type].plural} ({items.length})
                 </p>
                 {items.length === 0 ? (
                   <p className="text-xs text-gray-400 dark:text-gray-400 italic ml-1">None</p>
@@ -622,7 +632,7 @@ export default function AccommodationsTab() {
                           className={`bg-white dark:bg-gray-900 rounded-lg border-2 p-3 cursor-pointer transition-all ${isSelected ? 'border-blue-500 dark:border-blue-600 shadow-md' : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'}`}>
                           <div className="flex items-start justify-between">
                             <div>
-                              <p className="font-bold text-gray-800 dark:text-gray-200 text-sm">{TYPE_META[acc.type].icon} {acc.name}</p>
+                              <p className="font-bold text-gray-800 dark:text-gray-200 text-sm">{TM[acc.type].icon} {acc.name}</p>
                               <div className="mt-1 flex gap-3 text-xs text-gray-500 dark:text-gray-400">
                                 {acc.external_billing ? (
                                   <span className="text-blue-600 dark:text-blue-400">
@@ -654,7 +664,7 @@ export default function AccommodationsTab() {
                             </div>
                             <div className="flex flex-col items-end gap-1">
                               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${acc.is_active ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
-                                {acc.is_active ? 'Active' : 'Inactive'}
+                                {acc.is_active ? i18n.common.label_active[lang] : i18n.common.label_inactive[lang]}
                               </span>
                               <div className="flex gap-1 mt-1" onClick={e => e.stopPropagation()}>
                                 <button onClick={() => setEditing(acc)}
@@ -679,16 +689,16 @@ export default function AccommodationsTab() {
       <div className="xl:col-span-2">
         {!selected ? (
           <div className="flex items-center justify-center h-64 text-gray-400 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
-            <p className="text-sm">Select an accommodation to view details</p>
+            <p className="text-sm">{i18n.management.msg_select_accommodation[lang]}</p>
           </div>
         ) : (
           <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{TYPE_META[selected.type].icon} {selected.name}</h3>
+                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{TM[selected.type].icon} {selected.name}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                  {TYPE_META[selected.type].label} — Rooms: {selRooms.map(r => r.name).join(', ') || 'none'}
+                  {TM[selected.type].label} — Rooms: {selRooms.map(r => r.name).join(', ') || 'none'}
                   {selected.cost_per_night != null && (
                     <span className="ml-2 text-amber-600 dark:text-amber-400 font-medium">Cost: {selected.cost_per_night}€/night</span>
                   )}
@@ -700,7 +710,7 @@ export default function AccommodationsTab() {
             {/* Rates — a place billed per stay has no grid to show */}
             <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
               <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                {selected.external_billing ? 'Pricing' : selected.type === 'bungalow' ? 'Sell Rate' : 'Nightly Rates'}
+                {selected.external_billing ? i18n.management.label_pricing[lang] : selected.type === 'bungalow' ? i18n.management.label_sell_rate[lang] : i18n.management.label_nightly_rates[lang]}
               </h4>
               {selected.external_billing ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -720,7 +730,7 @@ export default function AccommodationsTab() {
             {/* Rental periods — houses only */}
             {selected.type === 'house' && (
               <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
-                <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Rental Periods</h4>
+                <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">{i18n.management.label_rental_periods[lang]}</h4>
 
                 {accRentals(selected.id).length === 0 ? (
                   <p className="text-sm text-gray-400 dark:text-gray-400 italic mb-3">No rental periods yet — house is unavailable for bookings.</p>
@@ -753,7 +763,7 @@ export default function AccommodationsTab() {
       {showForm && (
         <AccForm
           initial={{ name: '', is_active: true, type: 'house', cost_per_night: '', external_billing: false, hide_empty_rooms: false }}
-          title="New accommodation"
+          title={i18n.management.title_new_accommodation[lang]}
           onSave={handleCreate}
           onClose={() => setShowForm(false)}
         />
@@ -771,7 +781,7 @@ export default function AccommodationsTab() {
             external_billing: editing.external_billing ?? false,
             hide_empty_rooms: editing.hide_empty_rooms ?? false,
           }}
-          title={`Edit ${editing.name}`}
+          title={`${i18n.common.btn_edit[lang]} ${editing.name}`}
           lockType
           editContext={{
             accommodation: editing,
