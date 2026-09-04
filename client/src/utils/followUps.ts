@@ -14,9 +14,10 @@
  *   • everything else needs a real silence (SILENCE_WARN_DAYS) before it counts.
  *     A list that shows someone contacted yesterday is a list gui stops opening.
  */
-import type { Booking, Enquiry } from '../types/database'
+import type { Booking, Enquiry, Lang } from '../types/database'
 import { SILENCE_WARN_DAYS, isQualified, isSettled, silenceDays, fmtArrivalMonth } from './enquiries'
 import { toISODate } from './dates'
+import { i18n } from '../data/i18n'
 
 export interface FollowUp {
   id: string
@@ -41,29 +42,31 @@ export interface TouchInput {
   emails: { booking_id: string; sent_at?: string | null; created_at?: string | null }[]
 }
 
-function wantsOfEnquiry(e: Enquiry): string {
+function wantsOfEnquiry(e: Enquiry, lang: Lang): string {
+  const t = i18n.followups
   const bits = [
-    e.wants_lessons && '🪁 lessons',
-    e.wants_rental && '🎿 rental',
-    e.wants_accommodation && '🛏 accommodation',
+    e.wants_lessons && t.fu_want_lessons[lang],
+    e.wants_rental && t.fu_want_rental[lang],
+    e.wants_accommodation && t.fu_want_accommodation[lang],
   ].filter(Boolean)
-  const size = e.party_size ? `${e.party_size} pax` : null
-  return [size, bits.join(' · ') || null].filter(Boolean).join(' · ') || 'not qualified yet'
+  const size = e.party_size ? t.fu_party_size[lang].replace('{n}', String(e.party_size)) : null
+  return [size, bits.join(' · ') || null].filter(Boolean).join(' · ') || t.fu_not_qualified_yet[lang]
 }
 
-function wantsOfBooking(b: Booking): string {
+function wantsOfBooking(b: Booking, lang: Lang): string {
+  const t = i18n.followups
   const bits = [
-    b.num_lessons > 0 && `🪁 ${b.num_lessons} lesson${b.num_lessons > 1 ? 's' : ''}`,
-    b.num_wing_lessons > 0 && `🪽 ${b.num_wing_lessons} wing`,
-    b.num_equipment_rentals > 0 && `🎿 ${b.num_equipment_rentals} rental${b.num_equipment_rentals > 1 ? 's' : ''}`,
-    b.num_center_access > 0 && `🎟 ${b.num_center_access} center access`,
+    b.num_lessons > 0 && (b.num_lessons > 1 ? t.fu_lesson_many[lang] : t.fu_lesson_one[lang]).replace('{n}', String(b.num_lessons)),
+    b.num_wing_lessons > 0 && t.fu_wing[lang].replace('{n}', String(b.num_wing_lessons)),
+    b.num_equipment_rentals > 0 && (b.num_equipment_rentals > 1 ? t.fu_rental_many[lang] : t.fu_rental_one[lang]).replace('{n}', String(b.num_equipment_rentals)),
+    b.num_center_access > 0 && t.fu_center_access[lang].replace('{n}', String(b.num_center_access)),
   ].filter(Boolean)
-  return bits.join(' · ') || 'stay only'
+  return bits.join(' · ') || t.fu_stay_only[lang]
 }
 
-function clientName(b: Booking): string {
+function clientName(b: Booking, lang: Lang): string {
   const c = b.client
-  return c ? `${c.first_name} ${c.last_name}`.trim() : `Booking #${String(b.booking_number).padStart(3, '0')}`
+  return c ? `${c.first_name} ${c.last_name}`.trim() : i18n.followups.fu_booking_ref[lang].replace('{n}', String(b.booking_number).padStart(3, '0'))
 }
 
 function daysBetween(fromISO: string, now: Date): number {
@@ -100,7 +103,8 @@ export interface FollowUpInput {
 }
 
 /** Who is waiting on gui today, worst first. */
-export function computeFollowUps(input: FollowUpInput, now: Date = new Date()): FollowUp[] {
+export function computeFollowUps(input: FollowUpInput, now: Date = new Date(), lang: Lang = 'en'): FollowUp[] {
+  const t = i18n.followups
   const out: FollowUp[] = []
   const today = toISODate(now)
 
@@ -116,10 +120,10 @@ export function computeFollowUps(input: FollowUpInput, now: Date = new Date()): 
       kind: 'enquiry',
       targetId: e.id,
       name: e.name,
-      wants: wantsOfEnquiry(e),
+      wants: wantsOfEnquiry(e, lang),
       when: e.arrival_month ? fmtArrivalMonth(e.arrival_month) : null,
       silenceDays: silence,
-      reason: unqualified ? 'never read — nobody has answered them' : `no news for ${silence} days`,
+      reason: unqualified ? t.fu_reason_never_read[lang] : t.fu_reason_no_news[lang].replace('{days}', String(silence)),
       tone: unqualified ? 'urgent' : 'normal',
     })
   }
@@ -139,13 +143,13 @@ export function computeFollowUps(input: FollowUpInput, now: Date = new Date()): 
       id: `booking:${b.id}`,
       kind: 'booking',
       targetId: b.id,
-      name: clientName(b),
-      wants: wantsOfBooking(b),
+      name: clientName(b, lang),
+      wants: wantsOfBooking(b, lang),
       when: `${b.check_in} → ${b.check_out}`,
       silenceDays: silence,
       reason: stayIsOver
-        ? 'the stay is over and the booking is still provisional'
-        : `still provisional · nothing for ${silence} days`,
+        ? t.fu_reason_stay_over[lang]
+        : t.fu_reason_still_provisional[lang].replace('{days}', String(silence)),
       tone: stayIsOver ? 'urgent' : 'normal',
     })
   }

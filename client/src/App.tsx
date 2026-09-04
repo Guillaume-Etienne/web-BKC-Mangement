@@ -149,7 +149,7 @@ function App() {
           payments: (payments ?? []) as { booking_id: string; date: string }[],
           emails: (emailLogs ?? []) as { booking_id: string; sent_at?: string | null; created_at?: string | null }[],
         },
-      }))
+      }, new Date(), lang))
     })
   }, [session, lang])
 
