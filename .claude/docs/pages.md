@@ -119,6 +119,13 @@
   `showLangOffer`, écrite **dans la langue proposée**). ⚠️ Le lien personnalisé fige `language`
   au moment de sa création (`params.language`) : un lien `en` envoyé à un francophone est ce qui
   a déclenché la traduction automatique. **Choisir la langue à la création du lien.**
+- ⚠️ **`YesNo` prend `boolean | undefined`, et `undefined` = AUCUN bouton allumé.** Ne jamais
+  repasser un `?? false` : un « Practices kitesurfing? » non répondu affichait **No en bleu**, donc
+  tout client qui faisait défiler sans lire était classé non-kiteur — dans un centre de kite — et la
+  question du niveau ne s'ouvrait jamais. Le payload porte l'`undefined` jusqu'à Submissions, qui
+  affiche « not answered » au lieu de « no ». Les transferts taxi gardent leur `Yes` **volontaire**.
+- **Largeur variable (2026-09-04)** : seule l'étape 2 passe en `lg:max-w-4xl` avec Arrivée/Départ
+  côte à côte (mesuré : 1055 px, un seul écran desktop). Les autres restent en `max-w-xl`.
 - **Composants module-scope** (focus-safe) : `Field`, `Counter`, `YesNo`, `TravelerCard`.
 
 ---
