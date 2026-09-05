@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { depositState, stayState } from './documentsOverview'
+import { depositState, askedState, stayState } from './documentsOverview'
 import type { Payment } from '../types/database'
 
 function pay(patch: Partial<Payment> = {}): Payment {
@@ -44,6 +44,39 @@ describe('depositState', () => {
   it('adds the balance to the deposit in what it reports as received', () => {
     const s = depositState('b1', [pay({ amount: 120, is_deposit: true }), pay({ amount: 380 })])
     expect(s).toEqual({ tone: 'paid', received: 500, flagged: 120 })
+  })
+})
+
+describe('askedState', () => {
+  const today = '2026-09-05'
+
+  it('is blank until someone clicks', () => {
+    expect(askedState(null, 'none', today)).toEqual({ tone: 'none', days: 0 })
+    expect(askedState(undefined, 'none', today).tone).toBe('none')
+  })
+
+  it('reads a full timestamp, not just a date', () => {
+    expect(askedState('2026-09-01T14:32:07.123Z', 'none', today).days).toBe(4)
+  })
+
+  // The whole point of the marker: two weeks asked, still nothing in.
+  it('turns stale after a fortnight with no deposit', () => {
+    expect(askedState('2026-08-22', 'none', today).tone).toBe('stale')
+    expect(askedState('2026-08-23', 'none', today).tone).toBe('asked')
+  })
+
+  it('never goes stale once the deposit is in', () => {
+    expect(askedState('2026-01-01', 'paid', today).tone).toBe('asked')
+  })
+
+  // Money arrived but nobody ticked the Deposit box: that is not proof it was
+  // paid, so the chase must keep showing.
+  it('still chases when the money is there but unflagged', () => {
+    expect(askedState('2026-08-01', 'unflagged', today).tone).toBe('stale')
+  })
+
+  it('never reports a negative age for a marker dated ahead', () => {
+    expect(askedState('2026-09-30', 'none', today).days).toBe(0)
   })
 })
 

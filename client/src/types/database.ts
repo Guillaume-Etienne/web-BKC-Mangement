@@ -106,6 +106,14 @@ export interface Booking {
    *  a separate, non-blocking UPDATE so the app keeps working on a database
    *  where the 2026-09-03 migration has not been applied. */
   source_id?: string | null
+  /** When the deposit was *asked* for. A manual marker: one click in
+   *  Documents → Overview, nothing is sent — the request itself goes out by
+   *  WhatsApp, personal mail or face to face, and `payments.is_deposit` (money
+   *  in) was the only deposit trace the schema had.
+   *  Optional for the same reason as `source_id`: on a base without the column
+   *  the cell simply reads "not asked" and the click reports the missing
+   *  migration instead of breaking the page. */
+  deposit_requested_at?: string | null
   agency_id?: string | null                  // 2026-08-16, foundations only — see Agency below
   created_at?: string                        // ISO ts — the column always existed; typed 2026-09-03 for the client dossier timeline
 }

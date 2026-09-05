@@ -19,8 +19,8 @@ import type { Lang } from '../utils/printBookingSummary'
 import type { Booking } from '../types/database'
 import { supabase } from '../lib/supabase'
 import { fmtDate, fmtDateShort, todayISO, addDaysISO } from '../utils/dates'
-import { depositState, stayState } from '../utils/documentsOverview'
-import type { DepositState, StayState } from '../utils/documentsOverview'
+import { depositState, askedState, stayState } from '../utils/documentsOverview'
+import type { AskedState, DepositState, StayState } from '../utils/documentsOverview'
 
 // ── Guide sections — legacy localStorage fallback ──────────────────────────────
 // Sections now live in the document_templates table. This read-only fallback
@@ -174,6 +174,32 @@ function DepositCell({ state }: { state: DepositState }) {
     <span title={title} className={`inline-flex items-center justify-center min-w-[3.5rem] px-2 h-7 rounded border-2 text-xs font-semibold tabular-nums ${cls}`}>
       {tone === 'none' ? '—' : `${tone === 'unflagged' ? '⚠ ' : ''}${received} €`}
     </span>
+  )
+}
+
+/** The "Asked" cell — the one thing on this row the owner writes by hand.
+ *  Amber once the question has been open for a fortnight with no money in. */
+function AskedCell({ state, requestedAt, onToggle }: {
+  state: AskedState
+  requestedAt: string | null | undefined
+  onToggle: () => void
+}) {
+  const cls =
+    state.tone === 'stale' ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-400 dark:border-amber-700 text-amber-800 dark:text-amber-400'
+    : state.tone === 'asked' ? 'bg-green-100 dark:bg-green-900/30 border-green-400 dark:border-green-700 text-green-800 dark:text-green-400'
+    : 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 border-dashed hover:border-gray-400 dark:hover:border-gray-600'
+  const title =
+    state.tone === 'none'
+      ? 'Not asked yet — click to note that you asked for the deposit today'
+      : `Deposit asked on ${fmtDate(requestedAt?.slice(0, 10))}, ${state.days} day${state.days === 1 ? '' : 's'} ago${
+          state.tone === 'stale' ? ' — and nothing has come in' : ''}. Click to clear.`
+  return (
+    <button
+      onClick={onToggle}
+      title={title}
+      className={`inline-flex items-center justify-center min-w-[3.5rem] px-2 h-7 rounded border-2 text-xs font-semibold tabular-nums transition-colors ${cls}`}>
+      {state.tone === 'none' ? '—' : `${state.tone === 'stale' ? '⚠ ' : ''}${fmtDateShort(requestedAt?.slice(0, 10))}`}
+    </button>
   )
 }
 
@@ -477,7 +503,7 @@ export default function DocumentsPage() {
   // independent of what the admin's own screen is displayed in.
   const { lang: uiLang } = useLanguage()
   const DOC_TYPES = getDocTypes(uiLang)
-  const { data: allBookings, loading } = useBookings()
+  const { data: allBookings, loading, refresh: refreshBookings } = useBookings()
   const { data: bookingRooms } = useBookingRooms()
   const { data: bookingParticipants } = useBookingParticipants()
   const { data: rooms } = useRooms()
@@ -661,6 +687,24 @@ export default function DocumentsPage() {
       else next.add(key)
       return next
     })
+  }
+
+  /** The one hand-written fact on the row. Nothing is sent: the deposit is asked
+   *  for on WhatsApp or face to face, so the app can only record that it was.
+   *  A second click clears it — a marker nobody can undo would be worse than no
+   *  marker at all. */
+  async function toggleDepositAsked(b: Booking) {
+    const next = b.deposit_requested_at ? null : new Date().toISOString()
+    const { error } = await supabase.from('bookings').update({ deposit_requested_at: next }).eq('id', b.id)
+    if (error) {
+      // The column may simply not be there: the page is built to work without it.
+      alert(`Could not save: ${error.message}${
+        /deposit_requested_at/.test(error.message)
+          ? '\n\nThis needs migration 2026-09-05b_deposit_requested.sql.'
+          : ''}`)
+      return
+    }
+    refreshBookings()
   }
 
   /** Cells of a column that actually have a checkbox. The two link columns draw
@@ -906,8 +950,10 @@ export default function DocumentsPage() {
           <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 rounded-lg p-4 text-sm text-indigo-800 dark:text-indigo-400">
             One row per booking, one column per document. Check cells to select them, then send or mark as sent —
             or click a column header to take the whole column at once.
-            <strong>Deposit</strong> shows the money received: green once a payment is ticked “Deposit”, amber when
-            money arrived but no payment is flagged (tick it in Accounting → Bookings), grey when nothing came in.
+            <strong>Asked</strong> is yours to click — one click notes that you asked for the deposit today, nothing is
+            sent; it turns amber after two weeks with no money in. <strong>Deposit</strong> shows the money received:
+            green once a payment is ticked “Deposit”, amber when money arrived but no payment is flagged (tick it in
+            Accounting → Bookings), grey when nothing came in.
             Confirmation, Travel Guide and Welcome Guide go out in the language below — the Visa Letter is always Portuguese.
             The <strong>Client Account</strong> and <strong>Update Form</strong> columns create their link the first time — once it exists, 👁 opens it and ⧉ copies it, and its checkbox sends/resends it like any other document. Update Form lets the client fill in what's still missing (exact dates, passport numbers…) themselves — review the answer in 📥 Requests → Submissions before it lands on the booking.
           </div>
@@ -960,6 +1006,10 @@ export default function DocumentsPage() {
                   <tr>
                     <th className="sticky left-0 top-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 text-left px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Booking</th>
                     <th className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-2 py-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Arrival</th>
+                    <th className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-2 py-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap"
+                        title="Did you ask for the deposit? Click a cell to note it — nothing is sent.">
+                      Asked
+                    </th>
                     <th className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-r border-gray-200 dark:border-gray-800 px-2 py-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap"
                         title="Money received on the booking. Green once a payment is ticked “Deposit” in Accounting → Bookings.">
                       Deposit
@@ -1003,9 +1053,23 @@ export default function DocumentsPage() {
                       <td className="text-center px-2 py-2">
                         <ArrivalCell state={stayState(b.check_in, b.check_out, today)} />
                       </td>
-                      <td className="text-center px-2 py-2 border-r border-gray-100 dark:border-gray-800">
-                        <DepositCell state={depositState(b.id, payments)} />
-                      </td>
+                      {(() => {
+                        const deposit = depositState(b.id, payments)
+                        return (
+                          <>
+                            <td className="text-center px-2 py-2">
+                              <AskedCell
+                                state={askedState(b.deposit_requested_at, deposit.tone, today)}
+                                requestedAt={b.deposit_requested_at}
+                                onToggle={() => toggleDepositAsked(b)}
+                              />
+                            </td>
+                            <td className="text-center px-2 py-2 border-r border-gray-100 dark:border-gray-800">
+                              <DepositCell state={deposit} />
+                            </td>
+                          </>
+                        )
+                      })()}
                       {DOC_TYPES.map(dt => {
                         const key = cellKey(b.id, dt.type)
                         const log = latestLogByKey.get(key)

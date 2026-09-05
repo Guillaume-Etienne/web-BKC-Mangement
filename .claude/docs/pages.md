@@ -280,6 +280,15 @@
       portugais** (c'est l'administration qui la lit).
     - **Colonne `Arrival`** (`stayState`) : `here now` / `tomorrow` / `in N d` / `done`. Ambre à
       une semaine ou moins — une case vide n'est en retard que par rapport à une arrivée.
+    - **Colonne `Asked`** (`askedState`) : le seul fait de la ligne que gui **écrit**. Un clic pose
+      `bookings.deposit_requested_at = now()`, un second l'efface. **Rien n'est envoyé** : la
+      demande part par WhatsApp, mail perso ou de vive voix — aucun canal que l'app contrôle ne la
+      porte, et une colonne qui prétendrait le contraire mentirait. Horodatage et pas booléen : la
+      case passe à l'**ambre au bout de 14 jours** sans argent reçu (`DEPOSIT_CHASE_DAYS`), et
+      c'est là tout l'intérêt du marqueur — « demandé » seul a l'air fait, « pas payé » seul a
+      l'air pas encore traité, seul le couple dit qu'une relance traîne depuis trois semaines.
+      Migration `2026-09-05b_deposit_requested.sql` — **le code tourne sans** (`select('*')`, donc
+      colonne absente = champ absent : la case lit « pas demandé » et le clic nomme le fichier).
     - **Colonne `Deposit`** (`depositState`, `client/src/utils/documentsOverview.ts`) : lecture
       seule, calculée depuis `payments`. Vert = un paiement coché `is_deposit` ; **ambre = de
       l'argent est arrivé mais aucun paiement n'est coché Deposit** (la case s'oublie — l'app ne

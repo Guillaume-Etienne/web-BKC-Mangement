@@ -47,6 +47,34 @@ export function depositState(bookingId: string, payments: Payment[]): DepositSta
   }
 }
 
+export type AskedTone = 'none' | 'asked' | 'stale'
+
+export interface AskedState {
+  tone: AskedTone
+  days: number   // days since the deposit was asked for; 0 when it never was
+}
+
+/** How long a deposit has been asked for without arriving.
+ *
+ *  `bookings.deposit_requested_at` is a manual marker — one click, nothing is
+ *  sent — because the request itself goes out by WhatsApp, by a personal mail or
+ *  face to face, and no channel the app controls carries it.
+ *
+ *  `stale` is the reason the marker is worth more than a tick: two weeks with
+ *  the question asked and no money is the thing that quietly slips, and neither
+ *  cell says it on its own — "asked" alone looks done, "not paid" alone looks
+ *  like nobody has got to it yet. */
+export const DEPOSIT_CHASE_DAYS = 14
+
+export function askedState(
+  requestedAt: string | null | undefined, deposit: DepositTone, today: ISODate,
+): AskedState {
+  if (!requestedAt) return { tone: 'none', days: 0 }
+  const days = Math.max(0, daysBetween(requestedAt.slice(0, 10), today))
+  const stale = deposit !== 'paid' && days >= DEPOSIT_CHASE_DAYS
+  return { tone: stale ? 'stale' : 'asked', days }
+}
+
 export type StayTone = 'here' | 'soon' | 'later' | 'past'
 
 export interface StayState {
