@@ -1,7 +1,8 @@
 import type { AgencyInvoiceDoc } from '../components/accounting/utils'
 
 /** The invoice Fun & Fly expects, reproduced from the template gui has been
- *  filling by hand (`temp/Factu BKC 2025 FFLY Famille Brunet.xlsx`).
+ *  filling by hand (`temp/Factu BKC 2025 FFLY Famille Brunet.xlsx`, chez gui —
+ *  `temp/` n'est plus dans le dépôt, il porte des données clients).
  *
  *  In French (gui's call): the agency is French, and the template is French.
  *

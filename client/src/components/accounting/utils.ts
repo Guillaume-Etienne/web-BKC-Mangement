@@ -747,7 +747,8 @@ export function suggestDeposit(total: number): number {
 // ── The agency invoice as a document (2026-08-19) ────────────────────────────
 //
 // Shaped after the real template Fun & Fly expects
-// (`temp/Factu BKC 2025 FFLY Famille Brunet.xlsx`). Kept pure and here rather than
+// (`temp/Factu BKC 2025 FFLY Famille Brunet.xlsx`, chez gui — `temp/` n'est plus
+// dans le dépôt, il porte des données clients). Kept pure and here rather than
 // in the printer so the labels and the arithmetic are tested: this is the piece
 // that goes out to a partner with money on it.
 

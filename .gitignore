@@ -1,0 +1,18 @@
+# Données de travail réelles — noms de clients, factures, passeports, signatures.
+# Rien de ce dossier ne doit repartir sur GitHub. Il reste sur le disque de gui.
+temp/
+
+# État local de la CLI Supabase (lien vers le projet de la machine)
+supabase/.temp/
+
+# Crash dumps de Git Bash sous Windows
+*.stackdump
+
+# Environnement
+.env
+.env.local
+.env.*.local
+
+# Divers
+node_modules
+.DS_Store
