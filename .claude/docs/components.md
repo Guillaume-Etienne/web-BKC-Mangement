@@ -326,8 +326,9 @@ visa) : **rien n'est envoyé**, gui relit avant d'expédier.
 - Gestion des maisons, bungalows et « autres » + chambres (add/rename/delete)
 - Tarifs par chambre (`room_rates`), drapeau `hide_empty_rooms`, toggle active
 
-⚠️ `management/HousesTab.tsx` est son **ancêtre mort** : plus importé nulle part depuis `fc1ba6b`,
-mais toujours dans le repo (et migré en i18n par erreur le 2026-09-04). À supprimer.
+ℹ️ Son ancêtre `management/HousesTab.tsx` (mort depuis `fc1ba6b`, migré en i18n par erreur le
+2026-09-04) a été **supprimé le 2026-09-05**, avec ses 6 clés `*_house` de `i18n/management.ts`.
+Ne pas le recréer : c'est `AccommodationsTab` qui gère maisons, bungalows **et** « autres ».
 
 ---
 

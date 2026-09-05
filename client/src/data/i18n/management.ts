@@ -22,7 +22,6 @@ export const managementI18n = {
 
   // Tabs
   tab_info:       { fr: 'Informations',   en: 'Info',         es: 'Información' },
-  tab_houses:     { fr: 'Maisons',        en: 'Houses',       es: 'Casas' },
   tab_pricing:    { fr: 'Tarification',   en: 'Pricing',      es: 'Tarifas' },
   tab_sources:    { fr: 'Sources',        en: 'Sources',      es: 'Fuentes' },
   tab_agencies:   { fr: 'Agences',        en: 'Agencies',     es: 'Agencias' },
@@ -31,16 +30,11 @@ export const managementI18n = {
   tab_database:   { fr: 'Base de données', en: 'Database',    es: 'Base de datos' },
 
   // Accommodation management
-  btn_add_house:  { fr: 'Ajouter une maison', en: 'Add house', es: 'Añadir casa' },
   btn_add_room:   { fr: 'Ajouter une chambre', en: 'Add room', es: 'Añadir habitación' },
   label_house_name: { fr: 'Nom de la maison', en: 'House name', es: 'Nombre de la casa' },
   label_rooms:    { fr: 'Chambres',       en: 'Rooms',        es: 'Habitaciones' },
-  title_new_house:  { fr: 'Nouvelle maison', en: 'New house', es: 'Nueva casa' },
-  title_edit_house: { fr: 'Modifier la maison', en: 'Edit house', es: 'Editar casa' },
   label_nightly_rates:  { fr: 'Tarifs par nuit', en: 'Nightly Rates', es: 'Tarifas por noche' },
   label_rental_periods: { fr: 'Périodes de location', en: 'Rental Periods', es: 'Períodos de alquiler' },
-  msg_no_houses:    { fr: 'Aucune maison pour le moment', en: 'No houses yet', es: 'Aún no hay casas' },
-  msg_select_house: { fr: 'Sélectionnez une maison pour voir les détails', en: 'Select a house to view details', es: 'Seleccione una casa para ver los detalles' },
   hint_active_bookable: { fr: 'Actif (disponible pour réservation)', en: 'Active (available for bookings)', es: 'Activo (disponible para reservas)' },
   title_new_accommodation:  { fr: 'Nouvel hébergement', en: 'New accommodation', es: 'Nuevo alojamiento' },
   msg_no_accommodations:    { fr: 'Aucun hébergement pour le moment', en: 'No accommodations yet', es: 'Aún no hay alojamientos' },
