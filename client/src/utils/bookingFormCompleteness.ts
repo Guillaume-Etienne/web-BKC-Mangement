@@ -23,8 +23,12 @@ export interface FormData {
   nights_bilene: number
   arrival_time: string
   departure_time: string
-  taxi_arrival: boolean
-  taxi_departure: boolean
+  /** undefined = not answered yet. These two used to default to `true`, so the
+   *  form arrived with "Yes" already lit on both transfers: the visitor read an
+   *  answer they had never given, and a booking that needed no transfer only
+   *  got one if they noticed and un-clicked it. Now they have to say. */
+  taxi_arrival?: boolean
+  taxi_departure?: boolean
   transfer_to_bilene_date: string
   transfer_to_bilene_time: string
   transfer_to_airport_date: string
@@ -46,7 +50,6 @@ export const EMPTY_FORM: FormData = {
   reference_name: '', email: '', phone: '', referral_source_id: '', referral_source: '',
   country_entry_date: '', country_exit_date: '', nights_bilene: 7,
   arrival_time: '', departure_time: '',
-  taxi_arrival: true, taxi_departure: true,
   transfer_to_bilene_date: '', transfer_to_bilene_time: '',
   transfer_to_airport_date: '', transfer_to_airport_time: '',
   luggage_count: 1, boardbag_count: 1, double_beds: 0, single_beds: 1,
@@ -73,6 +76,12 @@ export function missingOnStep(step: number, d: FormData, travelers: FormTraveler
     if (!(d.nights_bilene > 0)) missing.push({ key: 'f_nights' })
     if (!d.country_entry_date) missing.push({ key: 'f_country_entry' })
     if (!d.country_exit_date) missing.push({ key: 'f_country_exit' })
+    // Required rather than defaulted: a transfer is a driver, a car and a price.
+    // Guessing "yes" for someone who never answered puts a taxi on their trip;
+    // guessing "no" leaves them standing at Maputo airport. Neither is ours to
+    // guess, so the step does not pass until they have said.
+    if (d.taxi_arrival === undefined) missing.push({ key: 'f_taxi_arrival' })
+    if (d.taxi_departure === undefined) missing.push({ key: 'f_taxi_departure' })
   }
   if (step === 4) {
     // A crew with nobody in it cannot be described field by field.

@@ -88,7 +88,7 @@
 - **Accès :** `?share=<booking_form_token>` (un seul lien public permanent, créé dans Management → Links)
 - **But :** Formulaire public d'inscription client (remplace l'import CSV). Le client crée une demande de réservation lui-même.
 - **Langues :** trilingue **FR/EN/ES** — sélecteur de drapeaux en haut, défaut = langue navigateur (`detectLang()`). Tous les textes dans `data/formI18n.ts` (`tr.key[lang]`), waiver dans `data/waiver.ts`.
-- **Wizard 5 étapes** (barre de progression avec kite 🪁, transitions CSS) :
+- **Wizard 5 étapes** (barre de progression avec kite 🪂, transitions CSS) :
   1. 👤 **Group** — nom référent, email, téléphone, **"how did you hear about us" = la liste
      déroulante `enquiry_sources`** (2026-09-03), la même que le formulaire de demande, + « Autre »
      et sa ligne libre. Lue en anon par le jeton de partage (`share_type() IS NOT NULL`, aucune
@@ -96,6 +96,13 @@
      (`enquiryId`) : sa demande porte déjà la réponse. Le payload emporte le **libellé anglais**
      (`referral_source`, via `utils/referral.ts`) **et** l'id (`referral_source_id`).
   2. ✈️ **Trip** — nb nuits Bilene ; bloc **Arrivée** (date+heure vol Maputo + toggle transfert→Bilene + date/heure prise en charge si Oui) ; bloc **Départ** (date+heure vol retour + toggle transfert→aéroport + date/heure dépose si Oui). Le transfert se pré-remplit depuis le vol mais reste éditable.
+     > ⚠️ **Les deux transferts sont `boolean | undefined`, et `undefined` = aucun bouton allumé**
+     > (2026-09-05). `EMPTY_FORM` les mettait à `true` : le visiteur lisait **Oui déjà coché** sur
+     > les deux, c'est-à-dire une réponse qu'il n'avait jamais donnée — et un séjour sans transfert
+     > n'en sortait sans que si quelqu'un pensait à décocher. Ne jamais remettre de défaut :
+     > un transfert, c'est un chauffeur, une voiture et un prix ; deviner « oui » ajoute un taxi,
+     > deviner « non » laisse quelqu'un à l'aéroport de Maputo. Les deux sont désormais
+     > **obligatoires** dans `missingOnStep(2)`. Même piège que `has_travel_insurance` et `YesNo`.
   3. 🧳 **Logistics** — bagages, bagages kite, lits doubles, lits simples, assurance voyage
   4. 🪂 **Crew** — liste **dynamique** de voyageurs (prénom/nom/passeport)
   5. 🧾 **Finish** — contact d'urgence + waiver déroulant + case obligatoire

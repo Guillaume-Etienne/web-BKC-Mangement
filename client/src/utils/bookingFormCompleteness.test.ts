@@ -27,6 +27,24 @@ describe('missingOnStep', () => {
     expect(keys).toContain('f_country_exit')
   })
 
+  // Both transfers used to arrive with "Yes" already lit. The visitor read back
+  // an answer they had never given, and a trip that needed no taxi got one
+  // unless they noticed and un-clicked it.
+  it('makes the visitor answer both transfer questions', () => {
+    const keys = missingOnStep(2, mkForm(), []).map(m => m.key)
+    expect(keys).toContain('f_taxi_arrival')
+    expect(keys).toContain('f_taxi_departure')
+  })
+
+  it('accepts "no transfer" as an answer, not as a blank', () => {
+    const d = mkForm({
+      country_entry_date: '2027-01-10', country_exit_date: '2027-01-20',
+      taxi_arrival: false, taxi_departure: false,
+    })
+    expect(missingOnStep(2, d, [])).toEqual([])
+    expect(canLeaveStep(2, d, [])).toBe(true)
+  })
+
   it('flags a night count brought down to zero', () => {
     const keys = missingOnStep(2, mkForm({ nights_bilene: 0 }), []).map(m => m.key)
     expect(keys).toContain('f_nights')

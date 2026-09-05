@@ -415,8 +415,9 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
       nights_bilene: d.nights_bilene,
       arrival_time: d.arrival_time,
       departure_time: d.departure_time,
-      taxi_arrival: d.taxi_arrival,
-      taxi_departure: d.taxi_departure,
+      // Booleans by the time we get here: step 2 does not pass unanswered.
+      taxi_arrival: !!d.taxi_arrival,
+      taxi_departure: !!d.taxi_departure,
       transfer_to_bilene_date: d.taxi_arrival ? d.transfer_to_bilene_date : '',
       transfer_to_bilene_time: d.taxi_arrival ? d.transfer_to_bilene_time : '',
       transfer_to_airport_date: d.taxi_departure ? d.transfer_to_airport_date : '',
@@ -593,7 +594,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
           <div className="absolute top-3 left-0 right-0 h-1.5 bg-white dark:bg-gray-900/50 rounded-full" />
           <div className="absolute top-3 left-0 h-1.5 bg-sky-600 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
           <div className="absolute top-0 transition-all duration-500" style={{ left: `calc(${pct}% - 12px)` }}>
-            <span className="text-xl">🪁</span>
+            <span className="text-xl">🪂</span>
           </div>
         </div>
 
@@ -688,7 +689,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                       <input type="time" className={inputCls} value={d.arrival_time} onChange={e => update({ arrival_time: e.target.value })} />
                     </Field>
                   </div>
-                  <Field label={tr.f_taxi_arrival[lang]}>
+                  <Field label={tr.f_taxi_arrival[lang]} required>
                     <YesNo value={d.taxi_arrival} onChange={toggleArrivalTransfer} lang={lang} />
                   </Field>
                   {d.taxi_arrival && (
@@ -714,7 +715,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                       <input type="time" className={inputCls} value={d.departure_time} onChange={e => update({ departure_time: e.target.value })} />
                     </Field>
                   </div>
-                  <Field label={tr.f_taxi_departure[lang]}>
+                  <Field label={tr.f_taxi_departure[lang]} required>
                     <YesNo value={d.taxi_departure} onChange={toggleDepartureTransfer} lang={lang} />
                   </Field>
                   {d.taxi_departure && (
