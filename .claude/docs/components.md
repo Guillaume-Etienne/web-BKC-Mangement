@@ -321,10 +321,13 @@ visa) : **rien n'est envoyé**, gui relit avant d'expédier.
 
 ## Management
 
-### `HousesTab` (management) — `management/HousesTab.tsx`
-**Props :** `{ accommodations, rooms, ... }`
-- Gestion des maisons et bungalows
-- Add/edit/toggle active
+### `AccommodationsTab` — `management/AccommodationsTab.tsx`
+**Props :** aucune (lit ses hooks elle-même)
+- Gestion des maisons, bungalows et « autres » + chambres (add/rename/delete)
+- Tarifs par chambre (`room_rates`), drapeau `hide_empty_rooms`, toggle active
+
+⚠️ `management/HousesTab.tsx` est son **ancêtre mort** : plus importé nulle part depuis `fc1ba6b`,
+mais toujours dans le repo (et migré en i18n par erreur le 2026-09-04). À supprimer.
 
 ---
 
@@ -389,7 +392,7 @@ App
     │   ├── ExpensesTab
     │   ├── EventsTab
     │   └── UnverifiedPayments
-    ├── ManagementPage → HousesTab (management)
+    ├── ManagementPage → AccommodationsTab
     ├── ActivitiesPage            (onglets providers + bookings)
     ├── ForecastSharePage         (public)
     ├── TaxiSharePage             (public)

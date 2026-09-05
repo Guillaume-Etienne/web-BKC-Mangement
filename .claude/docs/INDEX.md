@@ -1,7 +1,8 @@
 # Index rapide — où chercher quoi ?
 
 > 📋 **Reste à faire / tâches en cours** → **`BACKLOG.md`** (source de vérité unique, à jour).
-> 🗄️ Chantiers clos & audits historiques → `.claude/archive/memory/`.
+> 🗄️ Chantiers clos & audits historiques → `.claude/archive/memory/`
+> (le backlog fermé de 2026 : `backlog_closed_2026.md`).
 > 🌱 Seed de démo base TEST → `supabase/seed/README.md` (jamais en PROD).
 
 ## 🔧 Runbooks — « comment faire X » (étapes prêtes à suivre)
@@ -32,56 +33,55 @@
 | **Un piège anti-spam a-t-il mangé une vraie résa ?** | Non depuis le 2026-09-05 : `utils/bookingFormSpam.ts` n'abandonne que si le piège ET l'absence de contenu humain sont réunis, sinon la soumission est **marquée** (`payload.spam_trap`, pastille **⚠ check**). Voir `pages.md` § BookingFormPage |
 | Distinguer « **table / colonne pas encore migrée** » d'une vraie panne | `utils/supabaseErrors.ts` — `isMissingTable` (**`PGRST205`**, pas `42P01`) et `isMissingColumn` (`42703`). ⚠️ **Ne jamais nommer une colonne pas encore migrée dans un `select`** : PostgREST rejette la requête **entière** et l'écran affiche des zéros sans erreur (vécu en PROD le 2026-09-03) |
 
-> ⚠️ Toujours `npm run build` avant push (Vercel = TS strict : unused/locals, types incomplets dans `mock.ts`).
->
-> ⚠️ **Dates : jamais `new Date().toISOString().slice(0, 10)`.** Ça convertit en UTC
-> d'abord, donc au Mozambique (UTC+2) ça renvoie **la veille** entre minuit et 2h — et
-> toute la journée pour une `Date` calée à minuit local. Ça a mal daté des locations, des
-> trajets taxi et des paiements, et décalé un mois comptable. Tout passe par
-> **`client/src/utils/dates.ts`** (`todayISO`, `toISODate`, `addDaysISO`, `thisMonthISO`,
-> `daysBetween`), testé dans `dates.test.ts`. Corrigé partout le 2026-07-31.
->
-> ⚠️ **`translate="no"` sur le formulaire public : NE PAS L'ENLEVER.** Chrome Android traduit
-> tout seul une page dont la langue n'est pas celle du téléphone, Google Translate remplace les
-> nœuds texte de React, et le rendu suivant meurt sur *« Failed to execute `removeChild` on
-> `Node` »* — page morte. Vécu par un client le 2026-09-04, à l'étape 5 : il a lu ce message
-> **en français**, depuis un lien servi en anglais, ce qui est la signature de la traduction.
-> Depuis, `RecoveryBoundary` **remonte l'arbre une fois en silence** au lieu d'afficher ça. La page a son propre sélecteur FR/EN/ES **et** propose elle-même la
-> langue du navigateur : rien n'est perdu. Corollaire de code : **aucun nœud texte nu à côté d'un
-> autre enfant** dans du JSX re-rendu (`← {tr.back[lang]}` → une seule template string).
->
-> ⚠️ **Sur une page publique, `localStorage` LANCE une exception** (navigateur intégré de
-> WhatsApp/Facebook sur Android, « bloquer toutes les données de site »). Il ne renvoie pas
-> `null`. Au **module scope** — c'était le cas dans `lib/supabase.ts` — le module n'est jamais
-> évalué et **toute l'app rend une page blanche**, sans rien dans l'UI. Tout accès sur le chemin
-> anon passe par **`utils/safeStorage.ts`** (`readLocal` / `writeLocal` / `removeLocal`) — plus
-> aucun accès nu ne subsiste dans `client/src`. Une préférence qu'on ne peut pas stocker n'est
-> pas une panne : c'est une préférence qui dure une visite.
->
-> ⚠️ **Un écran d'erreur qui décrit la panne ne sert à personne.** Les visiteurs des pages
-> partagées ne sont pas informaticiens : ils lisent un message, et soit il contient le geste à
-> faire, soit ils abandonnent. Trois règles depuis le 2026-09-05 :
-> 1. **classer avant d'afficher** — `utils/recoverableError.ts`, testé. ⚠️ Matcher sur les **noms
->    d'API** (`removeChild`, `NotFoundError`), **jamais sur la phrase anglaise** : les navigateurs
->    **traduisent les messages de DOMException**, c'est pour ça que le client a lu du français ;
-> 2. **réparer ce qui se répare** — un remontage suffit quand un traducteur a réécrit le DOM ;
->    une seule fois, sinon on boucle contre un traducteur toujours actif ;
-> 3. **ne jamais faire payer la réparation au visiteur** — le formulaire public écrit un brouillon
->    sur l'appareil à chaque frappe (`utils/bookingFormDraft.ts`), donc remontage, « rouvrir la
->    page » et rechargement du navigateur ne coûtent plus qu'un défilement.
->
-> ⚠️ **Un bouton grisé sur un téléphone est indiscernable d'une page cassée.** Le formulaire
-> public ne désactive plus aucun bouton : il nomme ce qui manque (2026-09-04). Même piège
-> partout ailleurs où une étape se valide.
->
-> ⚠️ **Une écriture Supabase dont on ne lit pas l'erreur ment à l'écran.** Le refus (RLS,
-> contrainte, réseau coupé) est silencieux : l'app affiche la réservation déplacée, le
-> paiement encaissé, le tarif enregistré — et la base n'a rien. Corrigé partout le
-> 2026-07-31. Pattern selon l'écran :
-> - état local optimiste → **`components/accounting/persist.ts`** (snapshot avant,
->   restauration + alerte si ça échoue ; testé dans `persist.test.ts`)
-> - écriture suivie d'un `refresh()` → lire `{ error }` et le dire (cf. `ActivitiesPage`)
-> - séquence d'écritures (wizard résa) → collecter les échecs et les afficher ensemble
+## ⚠️ Pièges qui ont déjà coûté cher
+
+**Build.** Toujours `npm run build` avant push — Vercel est en TS strict (`tsc -b`, plus strict que
+`tsc --noEmit`) : unused/locals, types incomplets dans `mock.ts`.
+
+**Dates.** Jamais `new Date().toISOString().slice(0, 10)` sur un **jour calendaire** : conversion
+UTC d'abord, donc au Mozambique (UTC+2) ça renvoie **la veille** entre minuit et 2 h — et toute la
+journée pour une `Date` calée à minuit local. A mal daté locations, trajets taxi et paiements, et
+décalé un mois comptable. Tout passe par **`utils/dates.ts`** (`todayISO`, `toISODate`,
+`addDaysISO`, `thisMonthISO`, `daysBetween`), testé. Corrigé partout le 2026-07-31.
+*(Un `updated_at` / `sent_at` est un horodatage, pas un jour : `toISOString()` y est correct.)*
+
+**`translate="no"` sur le formulaire public : NE PAS L'ENLEVER.** Chrome Android traduit tout seul
+une page dont la langue n'est pas celle du téléphone, Google Translate remplace les nœuds texte de
+React, et le rendu suivant meurt sur *« Failed to execute `removeChild` on `Node` »* — page morte.
+Vécu par un client le 2026-09-04. Corollaire de code : **aucun nœud texte nu à côté d'un autre
+enfant** dans du JSX re-rendu (`← {tr.back[lang]}` → une seule template string).
+
+**`localStorage` LANCE une exception sur une page publique** (navigateur intégré WhatsApp/Facebook
+Android, « bloquer toutes les données de site »). Il ne renvoie pas `null`. Au **module scope** —
+c'était le cas dans `lib/supabase.ts` — le module n'est jamais évalué et **toute l'app rend une
+page blanche**, sans rien dans l'UI. Tout accès sur le chemin anon passe par
+**`utils/safeStorage.ts`** (`readLocal` / `writeLocal` / `removeLocal`) ; plus aucun accès nu dans
+`client/src`.
+
+**Un écran d'erreur qui décrit la panne ne sert à personne.** Les visiteurs des pages partagées
+lisent un message : soit il contient le geste à faire, soit ils abandonnent. Trois règles
+(2026-09-05) :
+1. **classer avant d'afficher** — `utils/recoverableError.ts`, testé. Matcher sur les **noms d'API**
+   (`removeChild`, `NotFoundError`), **jamais sur la phrase anglaise** : les navigateurs traduisent
+   les messages de `DOMException` ;
+2. **réparer ce qui se répare** — `RecoveryBoundary` remonte l'arbre **une fois, en silence** quand
+   un traducteur a réécrit le DOM (une seule fois, sinon on boucle contre un traducteur toujours
+   actif) ;
+3. **ne jamais faire payer la réparation au visiteur** — le formulaire public écrit un brouillon sur
+   l'appareil à chaque frappe (`utils/bookingFormDraft.ts`), donc remontage, « rouvrir la page » et
+   rechargement ne coûtent plus qu'un défilement.
+
+**Un bouton grisé sur un téléphone est indiscernable d'une page cassée.** Le formulaire public ne
+désactive plus aucun bouton : il nomme ce qui manque (2026-09-04). Même piège partout où une étape
+se valide.
+
+**Une écriture Supabase dont on ne lit pas l'erreur ment à l'écran.** Le refus (RLS, contrainte,
+réseau coupé) est silencieux : l'app affiche la résa déplacée, le paiement encaissé, le tarif
+enregistré — et la base n'a rien. Corrigé partout le 2026-07-31. Pattern selon l'écran :
+- état local optimiste → **`components/accounting/persist.ts`** (snapshot avant, restauration +
+  alerte si ça échoue ; testé dans `persist.test.ts`)
+- écriture suivie d'un `refresh()` → lire `{ error }` et le dire (cf. `ActivitiesPage`)
+- séquence d'écritures (wizard résa) → collecter les échecs et les afficher ensemble
 
 ## Par sujet
 
