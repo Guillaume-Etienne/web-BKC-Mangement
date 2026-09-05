@@ -539,6 +539,11 @@ export interface BookingFormPayload {
   // Waiver
   waiver_accepted: boolean
   waiver_version: string
+  /** Set when an anti-spam tripwire fired on a submission that nonetheless
+   *  looked like a real person's work, so it was filed rather than dropped
+   *  (utils/bookingFormSpam). A flag for gui to judge in Requests →
+   *  Submissions, never a reason to have discarded anything. */
+  spam_trap?: 'honeypot' | 'too_fast'
 }
 
 export interface FormSubmission {

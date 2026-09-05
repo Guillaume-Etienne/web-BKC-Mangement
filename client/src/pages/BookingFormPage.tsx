@@ -8,6 +8,8 @@ import { referralLabel } from '../utils/referral'
 import { missingOnStep, EMPTY_FORM } from '../utils/bookingFormCompleteness'
 import type { FormData, MissingAnswer } from '../utils/bookingFormCompleteness'
 import { draftKey, loadDraft, saveDraft, clearDraft, isWorthKeeping } from '../utils/bookingFormDraft'
+import { decideSubmission } from '../utils/bookingFormSpam'
+import { reportClientError } from '../utils/reportClientError'
 
 // ─── Public booking intake form (no auth) ─────────────────────────────────────
 // Reached via ?share=<token> on a shared_link of type 'booking_form'.
@@ -377,10 +379,14 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
   async function submit() {
     if (blockedByMissing()) return
     if (sending.current) return
-    // Anti-spam (see BACKLOG): honeypot filled, or submitted <3s after page load
-    // (impossible for a human on a 5-step wizard) → fake success, insert nothing.
-    // Silent on purpose: don't teach bots what tripped them.
-    if (honeypot.trim() || Date.now() - mountedAt.current < 3000) { setDone(true); return }
+    // Anti-spam (see utils/bookingFormSpam). A tripwire alone no longer throws
+    // the answers away: it has to fire on a form that also holds nothing a
+    // human would have typed. Otherwise the submission is filed and flagged,
+    // and gui sees the flag — because a password manager filling `bkc_extra`,
+    // or a restored draft sent two seconds after mount, used to be answered
+    // with the 🎉 screen while nothing reached the database at all.
+    const { trap, drop } = decideSubmission(honeypot, Date.now() - mountedAt.current, isWorthKeeping(d, travelers))
+    if (drop) { setDone(true); return }
     // Said before trying rather than after failing. A phone that already knows
     // it has no signal — which happens in Bilene — can be told so in its own
     // language, instead of being handed "TypeError: Failed to fetch".
@@ -439,6 +445,9 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
       emergency_contact_relation: d.emergency_contact_relation.trim(),
       waiver_accepted: d.waiver_accepted,
       waiver_version: WAIVER_VERSION,
+      // Only present when a tripwire fired on an otherwise human-looking form.
+      // It is a flag for gui to judge, not a verdict: see bookingFormSpam.
+      ...(trap ? { spam_trap: trap } : {}),
     }
     // supabase-js usually hands a network failure back in its error slot, but
     // not always — and an exception here rejected submit()'s promise straight
@@ -462,7 +471,13 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
       sending.current = false
       setSubmitting(false)
     }
-    if (failure) { setError({ msg: 'error_msg', detail: failure }); return }
+    if (failure) {
+      // The visitor reads the grey line out over the phone if they think to
+      // call. This is so gui knows even when they don't.
+      reportClientError(failure, 'form-submit')
+      setError({ msg: 'error_msg', detail: failure })
+      return
+    }
     // Sent: the draft has done its job, and it holds passport numbers.
     clearDraft(DKEY)
     setDone(true)
@@ -555,12 +570,16 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
         )}
 
         {/* Honeypot — moved off-screen (not display:none), humans never see or tab
-            into it; bots autofilling every field will trip it. Checked in submit(). */}
+            into it; bots autofilling every field will trip it. Weighed in
+            submit(), where tripping it is a flag and not a verdict: password
+            managers ignore the attributes below more often than they admit. */}
         <input
           type="text"
           name="bkc_extra"
           data-lpignore="true"
           data-1p-ignore=""
+          data-form-type="other"
+          data-bwignore="true"
           value={honeypot}
           onChange={e => setHoneypot(e.target.value)}
           autoComplete="off"

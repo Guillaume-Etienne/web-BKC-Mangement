@@ -729,6 +729,18 @@ export default function SubmissionsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    {/* A tripwire fired but the form looked like real work, so
+                        it was filed instead of silently dropped. Check it, then
+                        approve or reject as usual. See utils/bookingFormSpam. */}
+                    {s.payload.spam_trap && (
+                      <span
+                        title={s.payload.spam_trap === 'honeypot'
+                          ? 'Hidden anti-spam field was filled — most often a password manager, sometimes a bot.'
+                          : 'Sent less than 3 seconds after the page opened — most often a returning visitor whose saved answers were restored.'}
+                        className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                        ⚠ check
+                      </span>
+                    )}
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[s.status]}`}>{s.status}</span>
                     <span className="text-gray-300 dark:text-gray-500 text-sm">{open ? '▲' : '▼'}</span>
                   </div>

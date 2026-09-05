@@ -121,10 +121,22 @@
   bouton figé sur un écran qui a l'air occupé. `try/catch/finally`, garde `sending` (ref) contre
   le double tap qui insérerait deux fois, et **test `navigator.onLine` AVANT d'essayer** (`err_offline`).
 - **Submit :** `supabase.from('form_submissions').insert([...])` (status `pending`, `payload`=`BookingFormPayload` complet + colonnes dénormalisées `reference_name`/`email`/`num_travelers`/`arrival_date`). **PAS de `.select()`** (anon n'a pas de SELECT sur la table). Puis écran de fin 🎉.
-- **Anti-spam (2026-07-06)** : honeypot `bkc_extra` hors écran (⚠️ **plus `website`** : l'autofill
-  Android et les gestionnaires de mots de passe remplissent ce nom-là, et un honeypot rempli
-  **simule un succès sans rien insérer** — la panne la plus invisible qui soit ; `data-lpignore` /
-  `data-1p-ignore` posés en plus) (pas `display:none`, `tabIndex=-1`) + refus des submits **<3 s** après chargement (`mountedAt` ref). Les deux tombent **silencieusement** sur l'écran de succès — zéro insert, zéro email Resend, le bot n'apprend rien. Kill switch = désactiver le lien.
+- ⚠️ **Anti-spam : un piège ne décide JAMAIS seul** (`utils/bookingFormSpam.ts`, testé — refonte du
+  2026-09-05). Les deux pièges sont toujours là — honeypot `bkc_extra` hors écran (⚠️ **surtout pas
+  `website`** : l'autofill Android et les gestionnaires de mots de passe remplissent ce nom-là ;
+  `data-lpignore` / `data-1p-ignore` / `data-form-type` / `data-bwignore` en plus, pas
+  `display:none`, `tabIndex=-1`) et le refus des submits **< `MIN_FILL_MS`** après chargement
+  (`mountedAt` ref). Mais **tomber dans un piège ne jette plus la saisie** : `decideSubmission()`
+  n'abandonne (écran de succès, zéro insert, silencieux — le bot n'apprend rien) que si le
+  formulaire ne contient en plus **rien qu'un humain aurait tapé** (`isWorthKeeping`). Sinon la
+  soumission est **enregistrée ET marquée** (`payload.spam_trap`), pastille ambre **⚠ check** dans
+  Requests → Submissions. Deux vrais clients tombaient dedans : un gestionnaire de mots de passe
+  qui remplit tout, et — depuis le brouillon — **un visiteur restauré à l'étape 5 qui appuie sur
+  Send en deux secondes**. Les deux recevaient le 🎉 pendant que rien n'était inséré : invisible
+  des deux côtés. Une ligne de spam se supprime en un clic ; une résa perdue coûte un client.
+  Kill switch = désactiver le lien.
+- **Submit :** un échec est en plus **remonté à gui** via `utils/reportClientError.ts`
+  (source `form-submit`) — le visiteur n'appelle pas toujours.
 - ⚠️ **`translate="no"` sur les deux racines (2026-09-04) — porteur, pas cosmétique.** Voir
   INDEX.md. En compensation la page **propose elle-même** la langue du navigateur (bannière
   `showLangOffer`, écrite **dans la langue proposée**). ⚠️ Le lien personnalisé fige `language`
