@@ -20,7 +20,7 @@ export const enquiriesI18n = {
   ep_label_how_many:     { fr: 'Combien', en: 'How many', es: 'Cuántos' },
   ep_label_when:         { fr: 'Quand', en: 'When', es: 'Cuándo' },
   ep_label_interested_in: { fr: 'Intéressé(s) par', en: 'Interested in', es: 'Interesado en' },
-  ep_check_lessons:      { fr: '🪁 Cours', en: '🪁 Lessons', es: '🪁 Clases' },
+  ep_check_lessons:      { fr: '🪂 Cours', en: '🪂 Lessons', es: '🪂 Clases' },
   ep_check_rental:       { fr: '🎿 Location', en: '🎿 Rental', es: '🎿 Alquiler' },
   ep_check_accommodation: { fr: '🛏 Hébergement', en: '🛏 Accommodation', es: '🛏 Alojamiento' },
   ep_label_budget:       { fr: 'Budget — groupe entier, € (optionnel)', en: 'Budget — whole party, € (optional)', es: 'Presupuesto — grupo completo, € (opcional)' },

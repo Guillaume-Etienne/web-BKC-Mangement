@@ -96,7 +96,7 @@ Une ligne par demande, informations toujours à la même place :
 
 | Qui | Quand | Ce qu'ils veulent | Budget | Statut | Silence |
 |---|---|---|---|---|---|
-| **Famille Muller** · 4 pers | ▓▓▓░░ *fév.* | 🪁 cours · 🎿 loc | 1 500 € | En discussion | **9 j** |
+| **Famille Muller** · 4 pers | ▓▓▓░░ *fév.* | 🪂 cours · 🎿 loc | 1 500 € | En discussion | **9 j** |
 
 - **« Quand » est une mini-frise**, pas une date : en balayant la colonne on voit la saison se
   remplir et les mois creux. Une date écrite ne dira jamais ça.

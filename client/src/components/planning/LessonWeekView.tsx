@@ -39,9 +39,9 @@ const DURATION_OPTIONS = [0.5, 1, 1.5, 2, 2.5, 3]
 type RentalKind = RentalType | 'free'
 
 const RENTAL_TYPES: { key: RentalKind; label: string; icon: string; sub?: string }[] = [
-  { key: 'kite',      label: 'Kite',            icon: '🪁' },
+  { key: 'kite',      label: 'Kite',            icon: '🪂' },
   { key: 'board',     label: 'Board',           icon: '🏄' },
-  { key: 'full',      label: 'Full',            icon: '🪁🏄', sub: 'Kite + Board' },
+  { key: 'full',      label: 'Full',            icon: '🪂🏄', sub: 'Kite + Board' },
   { key: 'surfboard', label: 'Surfboard',       icon: '🌊' },
   { key: 'foilboard', label: 'Foilboard',       icon: '⬆️' },
   { key: 'free',      label: 'Other',           icon: '📦' },
@@ -753,9 +753,9 @@ export default function LessonWeekView({
                                   onChange={e => setAddForm(f => f && { ...f, rental_kite_id: e.target.value || null })}
                                   className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 >
-                                  <option value="">🪁 Kite — not specified</option>
+                                  <option value="">🪂 Kite — not specified</option>
                                   {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
-                                    <option key={e.id} value={e.id}>🪁 {e.name}</option>
+                                    <option key={e.id} value={e.id}>🪂 {e.name}</option>
                                   ))}
                                 </select>
                               )}
@@ -892,7 +892,7 @@ export default function LessonWeekView({
                                 >
                                   <option value="">No kite</option>
                                   {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
-                                    <option key={e.id} value={e.id}>🪁 {e.name}</option>
+                                    <option key={e.id} value={e.id}>🪂 {e.name}</option>
                                   ))}
                                 </select>
                                 <select
@@ -1132,7 +1132,7 @@ export default function LessonWeekView({
                 >
                   <option value="">None</option>
                   {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
-                    <option key={e.id} value={e.id}>🪁 {e.name}</option>
+                    <option key={e.id} value={e.id}>🪂 {e.name}</option>
                   ))}
                 </select>
               </div>
@@ -1212,9 +1212,9 @@ export default function LessonWeekView({
               {(editRentalType === 'kite' || editRentalType === 'full') && (
                 <select value={editRentalKiteId ?? ''} onChange={e => setEditRentalKiteId(e.target.value || null)}
                   className="w-full text-sm border rounded px-2 py-1.5">
-                  <option value="">🪁 Kite — not specified</option>
+                  <option value="">🪂 Kite — not specified</option>
                   {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
-                    <option key={e.id} value={e.id}>🪁 {e.name}</option>
+                    <option key={e.id} value={e.id}>🪂 {e.name}</option>
                   ))}
                 </select>
               )}

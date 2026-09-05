@@ -73,7 +73,7 @@ function ackHtml(lang: Lang, name: string): string {
   return `<!DOCTYPE html><html><body style="margin:0;background:#f0f9ff;font-family:Segoe UI,Arial,sans-serif;color:#0f172a">
     <div style="max-width:560px;margin:0 auto;padding:32px 24px">
       <div style="background:#ffffff;border-radius:16px;padding:32px;box-shadow:0 2px 12px rgba(2,132,199,.08)">
-        <div style="font-size:28px">🌊🪁</div>
+        <div style="font-size:28px">🌊🪂</div>
         <h1 style="font-size:20px;margin:16px 0 8px">${esc(t(ACK.heading))}</h1>
         <p style="margin:0 0 8px;color:#334155">${esc(name) ? `${esc(name)},` : ''}</p>
         <p style="margin:0 0 24px;line-height:1.6;color:#334155">${esc(t(ACK.body))}</p>

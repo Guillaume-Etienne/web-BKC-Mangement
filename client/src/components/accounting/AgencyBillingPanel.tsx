@@ -77,7 +77,7 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
   const services: ServiceRow[] = [
     ...data.lessons.filter(l => l.booking_id === b.id).map(l => ({
       key: `lesson:${l.id}`,
-      icon: '🪁',
+      icon: '🪂',
       label: `${l.type} ${l.duration_hours}h`,
       detail: `${fmtDateShort(l.date)} · ${l.participant_ids.map(partName).filter(Boolean).join(', ') || '—'}`,
       clientAmount: getLessonClientRate(l, data.priceItems, {

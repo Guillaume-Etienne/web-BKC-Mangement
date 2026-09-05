@@ -18,9 +18,9 @@ const LESSON_CFG: Record<LessonType, { bg: string; border: string; text: string;
 }
 
 const RENTAL_TYPE_LABELS: Record<string, { icon: string; label: string }> = {
-  kite:      { icon: '🪁', label: 'Kite' },
+  kite:      { icon: '🪂', label: 'Kite' },
   board:     { icon: '🏄', label: 'Board' },
-  full:      { icon: '🪁🏄', label: 'Full' },
+  full:      { icon: '🪂🏄', label: 'Full' },
   surfboard: { icon: '🌊', label: 'Surfboard' },
   foilboard: { icon: '⬆️', label: 'Foilboard' },
   free:      { icon: '📦', label: 'Other' },

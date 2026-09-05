@@ -1019,7 +1019,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                       <label className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 shrink-0">
                         <input type="checkbox" checked={p.does_kite}
                           onChange={e => updateParticipant(i, { does_kite: e.target.checked })} />
-                        🪁 Kites
+                        🪂 Kites
                       </label>
                     </div>
                     {p.does_kite && (

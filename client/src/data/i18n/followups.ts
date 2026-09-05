@@ -2,15 +2,15 @@ import type { Tr } from './types'
 
 export const followupsI18n = {
   // computeFollowUps — wantsOfEnquiry
-  fu_want_lessons:       { fr: '🪁 cours',       en: '🪁 lessons',       es: '🪁 clases' },
+  fu_want_lessons:       { fr: '🪂 cours',       en: '🪂 lessons',       es: '🪂 clases' },
   fu_want_rental:        { fr: '🎿 location',    en: '🎿 rental',        es: '🎿 alquiler' },
   fu_want_accommodation: { fr: '🛏 hébergement', en: '🛏 accommodation', es: '🛏 alojamiento' },
   fu_party_size:         { fr: '{n} pax',        en: '{n} pax',          es: '{n} pax' },
   fu_not_qualified_yet:  { fr: 'pas encore qualifiée', en: 'not qualified yet', es: 'aún sin calificar' },
 
   // computeFollowUps — wantsOfBooking
-  fu_lesson_one:    { fr: '🪁 {n} cours',        en: '🪁 {n} lesson',        es: '🪁 {n} clase' },
-  fu_lesson_many:   { fr: '🪁 {n} cours',        en: '🪁 {n} lessons',       es: '🪁 {n} clases' },
+  fu_lesson_one:    { fr: '🪂 {n} cours',        en: '🪂 {n} lesson',        es: '🪂 {n} clase' },
+  fu_lesson_many:   { fr: '🪂 {n} cours',        en: '🪂 {n} lessons',       es: '🪂 {n} clases' },
   fu_wing:          { fr: '🪽 {n} wing',         en: '🪽 {n} wing',          es: '🪽 {n} wing' },
   fu_rental_one:    { fr: '🎿 {n} location',     en: '🎿 {n} rental',        es: '🎿 {n} alquiler' },
   fu_rental_many:   { fr: '🎿 {n} locations',    en: '🎿 {n} rentals',       es: '🎿 {n} alquileres' },

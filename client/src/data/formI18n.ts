@@ -15,7 +15,7 @@ export const LANGS: { code: Lang; flag: string; label: string }[] = [
 export const tr = {
   // ── Header ──────────────────────────────────────────────────────────────
   brand:        { fr: 'Bilene Kite Center', en: 'Bilene Kite Center', es: 'Bilene Kite Center' },
-  header_title: { fr: 'Préparons votre séjour 🪁', en: "Let's set up your trip 🪁", es: 'Preparemos tu viaje 🪁' },
+  header_title: { fr: 'Préparons votre séjour 🪂', en: "Let's set up your trip 🪂", es: 'Preparemos tu viaje 🪂' },
   header_sub:   {
     fr: 'Quelques questions rapides et le vent fait le reste.',
     en: 'A few quick questions and the wind does the rest.',
@@ -117,7 +117,7 @@ export const tr = {
   remove:          { fr: 'Retirer', en: 'Remove', es: 'Quitar' },
 
   // ── Step 4 : Kite activity (per traveler) ─────────────────────────────────
-  kite_section:          { fr: 'Activité kite 🪁', en: 'Kite activity 🪁', es: 'Actividad kite 🪁' },
+  kite_section:          { fr: 'Activité kite 🪂', en: 'Kite activity 🪂', es: 'Actividad kite 🪂' },
   kite_does_kite:        { fr: 'Pratique le kitesurf ?', en: 'Practices kitesurfing?', es: '¿Practica el kitesurf?' },
   kite_level_label:      { fr: 'Niveau', en: 'Level', es: 'Nivel' },
   kite_brings_gear:      { fr: 'Amène son propre matériel ?', en: 'Bringing own gear?', es: '¿Trae su propio material?' },

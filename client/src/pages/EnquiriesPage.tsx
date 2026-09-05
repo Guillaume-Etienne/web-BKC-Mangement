@@ -27,7 +27,7 @@ type AttributionSubmissionRow = AttributionSubmission
  *  Silence, which says who to chase today. */
 
 const WANTS = [
-  { key: 'wants_lessons', icon: '🪁' },
+  { key: 'wants_lessons', icon: '🪂' },
   { key: 'wants_rental', icon: '🎿' },
   { key: 'wants_accommodation', icon: '🛏' },
 ] as const

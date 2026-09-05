@@ -837,7 +837,7 @@ export default function EquipmentPage() {
               <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
                 {revenueByCategory.filter(c => c.count > 0).map(c => (
                   <div key={c.cat} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-                    <div className="text-lg">{{ kite: '🪁', board: '🏄', surfboard: '🌊', foilboard: '🦈' }[c.cat]}</div>
+                    <div className="text-lg">{{ kite: '🪂', board: '🏄', surfboard: '🌊', foilboard: '🦈' }[c.cat]}</div>
                     <div className="font-bold text-sm text-gray-900 dark:text-gray-100 mt-1">{getCategoryLabel(c.cat, lang)}</div>
                     <div className="text-xs text-gray-400 dark:text-gray-400 mb-2">{c.count} pièce{c.count > 1 ? 's' : ''} active{c.count > 1 ? 's' : ''} · {c.sorties} sorties</div>
                     <div className="text-xl font-extrabold text-gray-900 dark:text-gray-100">{Math.round(c.real + c.est)}€</div>

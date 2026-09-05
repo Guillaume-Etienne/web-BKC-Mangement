@@ -11,9 +11,9 @@ type Tr = { fr: string; en: string; es: string }
 
 export const etr = {
   title: {
-    fr: 'Parlez-nous de votre projet 🪁',
-    en: 'Tell us about your trip 🪁',
-    es: 'Cuéntanos tu proyecto 🪁',
+    fr: 'Parlez-nous de votre projet 🪂',
+    en: 'Tell us about your trip 🪂',
+    es: 'Cuéntanos tu proyecto 🪂',
   } as Tr,
   intro: {
     fr: 'Quelques mots suffisent — on vous répond vite.',

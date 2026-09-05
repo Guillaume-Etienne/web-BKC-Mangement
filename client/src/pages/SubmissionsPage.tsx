@@ -455,7 +455,7 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
                 {t.does_kite === undefined
                   ? <p className="text-xs text-amber-600 dark:text-amber-400">— kite question not answered —</p>
                   : t.does_kite
-                    ? <p className="text-xs text-sky-600 dark:text-sky-400">🪁 {kiteFlags || 'kiter'}</p>
+                    ? <p className="text-xs text-sky-600 dark:text-sky-400">🪂 {kiteFlags || 'kiter'}</p>
                     : <p className="text-xs text-gray-400 dark:text-gray-400">— no kite</p>
                 }
               </div>

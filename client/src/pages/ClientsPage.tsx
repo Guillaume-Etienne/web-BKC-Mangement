@@ -535,7 +535,7 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                     <div>
                       <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Lifetime kite hours</p>
                       <p className="text-gray-800 dark:text-gray-200">
-                        🪁 Private: {lifetimeHours(selectedClient.id).private}h · Group: {lifetimeHours(selectedClient.id).group}h
+                        🪂 Private: {lifetimeHours(selectedClient.id).private}h · Group: {lifetimeHours(selectedClient.id).group}h
                       </p>
                       <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">
                         Counts every stay, never reset — this is what volume pricing tiers key off (Options → Pricing).

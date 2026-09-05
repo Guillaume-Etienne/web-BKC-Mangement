@@ -6,7 +6,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 
 const CATEGORY_META: Record<AgencyRateCategory, { icon: string; label: string }> = {
-  lesson:        { icon: '🪁', label: 'Lesson' },
+  lesson:        { icon: '🪂', label: 'Lesson' },
   rental:        { icon: '🎿', label: 'Rental' },
   transfer:      { icon: '🚕', label: 'Transfer' },
   accommodation: { icon: '🏠', label: 'Accommodation' },
