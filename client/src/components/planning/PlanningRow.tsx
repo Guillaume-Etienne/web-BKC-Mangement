@@ -26,10 +26,14 @@ interface PlanningRowProps {
   dragState: DragState | null
   onPointerDown: (e: React.PointerEvent, bookingId: string, roomId: string, mode: DragMode) => void
   unavailableDays?: Set<number>
+  /** False for the "no room" rows: their bars are dragged OUT to be assigned,
+   *  but the row itself must never be a landing spot — the drag hook picks its
+   *  target by scanning `data-room-id`, so we simply don't emit one. */
+  dropTarget?: boolean
 }
 
-export default function PlanningRow({ roomId, label, totalDays, seasonStart, bookings, bookingParticipants, agencies, dragState, onPointerDown, unavailableDays }: PlanningRowProps) {
-  const isDropTarget = dragState && dragState.targetRoomId === roomId && dragState.roomId !== roomId
+export default function PlanningRow({ roomId, label, totalDays, seasonStart, bookings, bookingParticipants, agencies, dragState, onPointerDown, unavailableDays, dropTarget = true }: PlanningRowProps) {
+  const isDropTarget = dropTarget && dragState && dragState.targetRoomId === roomId && dragState.roomId !== roomId
 
   function dateToIdx(dateStr: string): number {
     const [y, m, d] = dateStr.split('-').map(Number)
@@ -63,7 +67,7 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
   return (
     <div
       className={`flex min-w-max border-b border-gray-200 dark:border-gray-800 ${isDropTarget ? 'bg-blue-100 dark:bg-blue-900/30' : ''}`}
-      data-room-id={roomId}
+      data-room-id={dropTarget ? roomId : undefined}
     >
       {/* Label */}
       <div className="sticky left-0 z-10 shrink-0 w-20 px-2 py-2 text-xs font-medium bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-800 flex items-center truncate">

@@ -36,6 +36,12 @@ export const pagesI18n = {
   type_bungalow:    { fr: 'Bungalow',  en: 'Bungalow', es: 'Bungaló' },
   legend_not_rented: { fr: 'Non loué', en: 'Not rented', es: 'No alquilado' },
 
+  // PlanningView — the "no room" section. Short label: the sticky first column
+  // is 80px wide, the same box that holds "Tot Guest".
+  unassigned_label:   { fr: 'Sans log.', en: 'No room', es: 'Sin aloj.' },
+  unassigned_title:   { fr: 'Réservations sans hébergement attribué — glissez une barre sur une chambre pour l\'attribuer', en: 'Bookings with no accommodation assigned — drag a bar onto a room to assign it', es: 'Reservas sin alojamiento asignado — arrastre una barra a una habitación para asignarla' },
+  legend_unassigned:  { fr: 'Sans hébergement', en: 'No accommodation', es: 'Sin alojamiento' },
+
   // PlanningView — draft moves banner & confirm/validate modal (singular/plural
   // pairs, same {count} convention as the pendingActions messages below)
   msg_pending_move:      { fr: '{count} déplacement en attente — non enregistré', en: '{count} pending move — not saved yet', es: '{count} movimiento pendiente — no guardado' },

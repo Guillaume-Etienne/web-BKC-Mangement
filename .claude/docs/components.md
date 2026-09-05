@@ -24,10 +24,10 @@
 - Grille planning horizontale Sep→Mar
 - 4 sub-tabs : planning (grille), lessons (LessonWeekView), now (NowView), forecast (ForecastView)
 - Gère : sélecteur d'année, drag state (`useBookingDrag`), mutations Supabase
-- Rend : PlanningRow × N, TotalsRow × 3, composant sub-tab
+- Rend : UnassignedRow (si besoin), PlanningRow × N, TotalsRow × 3, composant sub-tab
 
 ### `PlanningRow` — `planning/PlanningRow.tsx`
-**Props :** `{ roomId, label, totalDays, seasonStart, bookings, bookingParticipants: BookingParticipant[], dragState, onPointerDown, unavailableDays?: Set<number> }`
+**Props :** `{ roomId, label, totalDays, seasonStart, bookings, bookingParticipants: BookingParticipant[], dragState, onPointerDown, unavailableDays?: Set<number>, dropTarget?: boolean }`
 - Une ligne grille pour une chambre (label + colonnes jour + barres booking)
 - `CELL_W = 32px` par jour. Highlighting weekend. Poignées drag sur les bords.
 - `unavailableDays` (optional): Set de day-of-season indices pour highlighting unavailable periods
@@ -47,6 +47,25 @@ en croyant agir sur le planning. À supprimer un jour, décision de gui.
 **Props :** `{ label, totalDays, seasonStart, bookings, bookingParticipants: BookingParticipant[], type: 'lessons'|'equipment'|'guests' }`
 - Ligne résumé avec comptes journaliers
 - Emerald si > 0, gray si 0. Highlighting weekend.
+
+### `UnassignedRow` — `planning/UnassignedRow.tsx` *(2026-09-05)*
+**Props :** `{ label, title, totalDays, seasonStart, bookings, open, onToggle }`
+**Exporte aussi `UNASSIGNED_ROOM_ID = '__unassigned__'`.**
+- En-tête dépliable de la section « sans hébergement », **en haut de la grille**, masquée
+  quand toutes les résas de la saison ont une chambre.
+- **Pliée**, elle garde ses colonnes jour : un compte ambre par jour, même forme que
+  `TotalsRow` (bornes `check_in → check_out` incluses).
+- **Dépliée**, `PlanningView` rend un `PlanningRow` par résa avec `roomId={UNASSIGNED_ROOM_ID}`
+  et `dropTarget={false}` — ces lignes sont **source de drag, jamais cible** : `useBookingDrag`
+  choisit sa cible en scannant `data-room-id`, qu'on n'émet pas ici. Ce pseudo-id ne peut donc
+  jamais atteindre la base.
+- **Glisser une barre sur une chambre = attribuer** : le brouillon porte un `roomSwap` dont le
+  `from` est `UNASSIGNED_ROOM_ID`, que `validateDrafts` traduit en **INSERT** `booking_rooms`
+  (les autres swaps restent des UPDATE). Aucun `booking_room_prices` n'est écrit : la résa n'en
+  avait pas, `getRoomNightlyRate()` retombe sur le tarif de base — ce qu'elle facturait déjà.
+- Pourquoi ça existe : **seule `BookingsPage` écrit `booking_rooms`**. Toute résa née du
+  formulaire public arrive sans chambre et n'avait donc aucune ligne où s'accrocher — invisible
+  au planning, sans la moindre erreur.
 
 ### `LessonWeekView` — `planning/LessonWeekView.tsx`
 *(Props : données des hooks + callbacks mutations + `bookingParticipants: BookingParticipant[]` + `clients: Client[]`)*

@@ -3,6 +3,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import PlanningRow from './PlanningRow'
 import TotalsRow from './TotalsRow'
+import UnassignedRow, { UNASSIGNED_ROOM_ID } from './UnassignedRow'
 import LessonWeekView from './LessonWeekView'
 import NowView from './NowView'
 import ForecastView from './ForecastView'
@@ -126,6 +127,9 @@ function ValidateModal({ draftMoves, bookings, rooms, accommodations, onConfirm,
   const [saving, setSaving] = useState(false)
 
   function roomLabel(roomId: string): string {
+    // A swap out of the pseudo-room is an assignment, not a move: it has to read
+    // as one here, or the modal would announce saving a room called "?".
+    if (roomId === UNASSIGNED_ROOM_ID) return i18n.pages.legend_unassigned[lang]
     const room = rooms.find(r => r.id === roomId)
     if (!room) return '?'
     const acc = accommodations.find(a => a.id === room.accommodation_id)
@@ -349,8 +353,8 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       return d ? { ...b, check_in: d.checkIn, check_out: d.checkOut } : b
     }), [bookings, draftMoves])
 
-  const resolvedBookingRooms = useMemo(() =>
-    bookingRooms
+  const resolvedBookingRooms = useMemo(() => {
+    const saved = bookingRooms
       .filter(br => {
         const d = draftMoves.get(br.booking_id)
         return !d || !d.roomRemovals.includes(br.room_id)
@@ -360,7 +364,35 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
         if (!d) return br
         const swap = d.roomSwaps.find(s => s.from === br.room_id)
         return swap ? { ...br, room_id: swap.to } : br
-      }), [bookingRooms, draftMoves])
+      })
+
+    // A booking dragged out of the "no room" row has no saved row to rewrite —
+    // the draft is an INSERT. Adding it here is what makes the bar land in the
+    // target room instead of vanishing until the changes are validated.
+    const assigned: BookingRoom[] = []
+    for (const [bookingId, draft] of draftMoves) {
+      for (const swap of draft.roomSwaps) {
+        if (swap.from === UNASSIGNED_ROOM_ID) assigned.push({ booking_id: bookingId, room_id: swap.to })
+      }
+    }
+    return [...saved, ...assigned]
+  }, [bookingRooms, draftMoves])
+
+  /** Bookings with no room at all, clipped to the displayed season — the state
+   *  every booking born in the public form starts in (BookingsPage is the only
+   *  screen that writes `booking_rooms`). Without a row of their own they were
+   *  simply absent from the grid: no bar, no warning, nothing to notice. */
+  const unassignedBookings = useMemo(() => {
+    const assignedIds = new Set(resolvedBookingRooms.map(br => br.booking_id))
+    const fromISO = toISODate(seasonStart)
+    const toISO   = toISODate(seasonEnd)
+    return resolvedBookings.filter(b =>
+      b.status !== 'cancelled' &&
+      !assignedIds.has(b.id) &&
+      b.check_in <= toISO && b.check_out >= fromISO)
+  }, [resolvedBookings, resolvedBookingRooms, seasonStart, seasonEnd])
+
+  const [unassignedOpen, setUnassignedOpen] = useState(false)
 
   // ── Tabs / lesson view ───────────────────────────────────────────
   const [planningTab, setPlanningTab] = useState<'accommodations' | 'lessons' | 'now' | 'forecast'>('accommodations')
@@ -479,6 +511,11 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     const bookingUpdates: { id: string; check_in: string; check_out: string }[] = []
     const roomUpdates:    { booking_id: string; from: string; to: string }[] = []
     const roomDeletions:  { booking_id: string; room_id: string }[] = []
+    // Assignments out of the "no room" row: there is no saved row to move, so
+    // these are inserts. No booking_room_prices row is written — the booking
+    // never had one — and getRoomNightlyRate() falls back to the room's base
+    // rate, which is what an unpriced booking already bills at today.
+    const roomInserts:    { booking_id: string; room_id: string }[] = []
 
     for (const [bookingId, draft] of draftMoves) {
       const booking = bookings.find(b => b.id === bookingId)
@@ -486,7 +523,8 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
         bookingUpdates.push({ id: bookingId, check_in: draft.checkIn, check_out: draft.checkOut })
       }
       for (const swap of draft.roomSwaps) {
-        roomUpdates.push({ booking_id: bookingId, from: swap.from, to: swap.to })
+        if (swap.from === UNASSIGNED_ROOM_ID) roomInserts.push({ booking_id: bookingId, room_id: swap.to })
+        else roomUpdates.push({ booking_id: bookingId, from: swap.from, to: swap.to })
       }
       for (const rid of draft.roomRemovals) {
         roomDeletions.push({ booking_id: bookingId, room_id: rid })
@@ -511,6 +549,9 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       ...roomDeletions.map(d =>
         supabase.from('booking_rooms').delete().eq('booking_id', d.booking_id).eq('room_id', d.room_id)
       ),
+      ...(roomInserts.length > 0
+        ? [supabase.from('booking_rooms').insert(roomInserts)]
+        : []),
     ])
 
     // None of these used to be read. A refused move then looked exactly like a
@@ -539,10 +580,12 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       const deletionSet = new Set(roomDeletions.map(d => `${d.booking_id}:${d.room_id}`))
       const filtered = prev.filter(br => !deletionSet.has(`${br.booking_id}:${br.room_id}`))
       // Then apply swaps
-      return filtered.map(br => {
+      const swapped = filtered.map(br => {
         const upd = roomUpdates.find(u => u.booking_id === br.booking_id && u.from === br.room_id)
         return upd ? { ...br, room_id: upd.to } : br
       })
+      // Finally the newly assigned bookings, which had no row to rewrite
+      return [...swapped, ...roomInserts]
     })
 
     setDraftMoves(new Map())
@@ -590,9 +633,19 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       const booking = bookingsRef.current.find(b => b.id === bookingId)
       if (!booking) return prev
 
+      // Dragged twice in a row (Unassigned → A → B, or A → B → C): only the
+      // endpoints matter. Rewriting the first swap instead of piling a second
+      // one on top keeps validateDrafts to a single write per booking_rooms row
+      // — two parallel writes on the same row raced against each other.
+      const chained = existing?.roomSwaps.find(s => s.to === fromRoomId)
       const newSwap: RoomSwap = { from: fromRoomId, to: toRoomId }
       const roomSwaps = existing
-        ? existing.roomSwaps.filter(s => s.from !== fromRoomId).concat(newSwap)
+        ? chained
+          ? existing.roomSwaps
+              .filter(s => s !== chained)
+              // Back where it started: there is nothing left to save.
+              .concat(chained.from === toRoomId ? [] : [{ from: chained.from, to: toRoomId }])
+          : existing.roomSwaps.filter(s => s.from !== fromRoomId).concat(newSwap)
         : [newSwap]
       let roomRemovals = existing?.roomRemovals ?? []
 
@@ -828,6 +881,9 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-400 inline-block" /> {i18n.bookings.status_provisional[lang]}</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-300 dark:bg-gray-600 inline-block" /> {i18n.bookings.status_cancelled[lang]}</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 inline-block" /> {i18n.pages.legend_not_rented[lang]}</span>
+              {unassignedBookings.length > 0 && (
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-200 dark:bg-amber-900/60 border border-amber-300 dark:border-amber-800 inline-block" /> {i18n.pages.legend_unassigned[lang]}</span>
+              )}
             </div>
 
             {/* Grid */}
@@ -879,6 +935,37 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
 
               {/* Rows */}
               <div ref={gridRef}>
+                {/* No-room section, above the accommodations: what has no place
+                    to sleep is read before what already has one. It disappears
+                    entirely once every booking of the season is assigned. */}
+                {unassignedBookings.length > 0 && (
+                  <>
+                    <UnassignedRow
+                      label={i18n.pages.unassigned_label[lang]}
+                      title={i18n.pages.unassigned_title[lang]}
+                      totalDays={totalDays}
+                      seasonStart={seasonStart}
+                      bookings={unassignedBookings}
+                      open={unassignedOpen}
+                      onToggle={() => setUnassignedOpen(o => !o)}
+                    />
+                    {unassignedOpen && unassignedBookings.map(b => (
+                      <PlanningRow
+                        key={b.id}
+                        roomId={UNASSIGNED_ROOM_ID}
+                        dropTarget={false}
+                        label={`#${String(b.booking_number).padStart(3, '0')}`}
+                        totalDays={totalDays}
+                        seasonStart={seasonStart}
+                        bookings={[b]}
+                        bookingParticipants={bookingParticipants}
+                        agencies={agencies}
+                        dragState={dragState}
+                        onPointerDown={onPointerDown}
+                      />
+                    ))}
+                  </>
+                )}
                 {(['house', 'bungalow', 'other'] as AccommodationType[]).map(type => {
                   const typeAccs = activeAccommodations.filter(a => a.type === type)
                   if (typeAccs.length === 0) return null
