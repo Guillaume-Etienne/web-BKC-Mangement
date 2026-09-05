@@ -71,6 +71,19 @@ lisent un message : soit il contient le geste à faire, soit ils abandonnent. Tr
    l'appareil à chaque frappe (`utils/bookingFormDraft.ts`), donc remontage, « rouvrir la page » et
    rechargement ne coûtent plus qu'un défilement.
 
+**Une LECTURE ratée est encore plus muette qu'une écriture ratée.** `useTable` expose un `error`
+depuis toujours, et sur les 67 appels du repo **aucun** ne le lisait : une lecture refusée (RLS,
+table pas encore migrée, wifi coupé) rendait `[]` et l'écran affichait des chiffres sans rien dire.
+Depuis le 2026-09-05, **`useTable` se signale lui-même** au registre
+`contexts/DataErrorsContext.tsx`, et `components/layout/DataErrorBanner.tsx` — monté une seule fois
+dans `App.tsx` — les affiche. **Rien à faire dans une page** : une nouvelle lecture est couverte
+d'office. ⚠️ Le fournisseur n'enveloppe **que `<main>`** (app admin) : le bandeau nomme des tables
+et rend le message brut de Postgres, à ne montrer à aucun visiteur ; hors fournisseur le contexte
+est inerte, `useTable` fonctionne comme avant.
+> Mesuré au navigateur le 2026-09-05 en pointant une lecture de compta sur une table inexistante :
+> **les totaux affichés étaient identiques avec et sans la panne.** La lecture ratée ne se voyait
+> nulle part — c'est bien le bandeau, et rien d'autre, qui fait la différence.
+
 **Un bouton grisé sur un téléphone est indiscernable d'une page cassée.** Le formulaire public ne
 désactive plus aucun bouton : il nomme ce qui manque (2026-09-04). Même piège partout où une étape
 se valide.

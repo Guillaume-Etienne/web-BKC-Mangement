@@ -60,30 +60,6 @@ refermerait. **Ne pas le faire à moitié** : les quatre ou aucune.
   `dangerouslySetInnerHTML` dans le repo → surface XSS très faible. `Referrer-Policy: no-referrer`
   serait gratuit, vu que les tokens voyagent dans l'URL.
 
-### 🔇 Les LECTURES ratées, elles, sont encore muettes (audit du 2026-09-05)
-
-Le côté **écriture** est clos : les 153 écritures Supabase du client ont été passées en revue une
-par une, une seule ne lisait pas son erreur (`ActivitiesPage.generateProviderLink`, corrigée).
-`persist.ts` couvre même la promesse rejetée (hors-ligne, CORS), pas seulement le `{ error }`.
-
-Le côté **lecture** n'a pas le même filet. `useTable` **expose** bien un `error`, mais sur les
-**67 appels directs du repo, zéro ne le récupère** — tous font `const { data } = useTable(...)`.
-Une lecture refusée (RLS, table pas encore migrée, wifi coupé) rend donc `[]`, et l'écran affiche
-**zéro** au lieu de dire qu'il ne sait pas.
-
-Nuance qui évite de dramatiser : la donnée **principale** d'une page passe en général par un hook
-dédié (`useBookings`…) qui, lui, remonte `error`, et la page affiche un écran d'erreur — c'est le
-cas de BookingsPage. Ce sont les tables **secondaires** qui tombent en silence.
-
-⚠️ **Le pire cas est AccountingPage** : 15 `useTable`, aucun `error` récupéré, aucun écran
-d'erreur dans le fichier. Si `room_rates` ne se charge pas, la compta affiche 0 € de revenu
-chambres sans un mot. C'est le même mécanisme que le piège « colonne pas encore migrée » déjà
-décrit dans INDEX.md, mais il ne se limite pas aux migrations.
-
-**Piste** (pas encore tranchée) : plutôt que patcher 67 sites, faire remonter les erreurs dans un
-bandeau unique par page — un `useTables()` qui agrège, ou un contexte qui collecte les `error` de
-tous les `useTable` montés. À décider avant de coder.
-
 ### 📄 Documents / guides
 
 - ⬜ **Le Welcome Guide n'a jamais été sauvé** : **0 ligne `welcome_guide`** en PROD, il tourne sur

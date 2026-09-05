@@ -17,6 +17,7 @@ export const commonI18n = {
   btn_import:     { fr: 'Importer',     en: 'Import',      es: 'Importar' },
   btn_copy:       { fr: 'Copier',       en: 'Copy',        es: 'Copiar' },
   btn_move:       { fr: 'Déplacer',     en: 'Move',        es: 'Mover' },
+  btn_reload:     { fr: 'Recharger',    en: 'Reload',      es: 'Recargar' },
 
   // Common labels
   label_name:     { fr: 'Nom',          en: 'Name',        es: 'Nombre' },
@@ -43,6 +44,18 @@ export const commonI18n = {
   msg_confirm:    { fr: 'Êtes-vous sûr ?', en: 'Are you sure?', es: '¿Estás seguro?' },
   msg_required:   { fr: 'Requis',       en: 'Required',    es: 'Requerido' },
   msg_optional:   { fr: 'Optionnel',    en: 'Optional',    es: 'Opcional' },
+
+  // DataErrorBanner — une lecture a échoué, l'écran montre moins que la réalité
+  msg_incomplete_screen: {
+    fr: 'Cet écran est incomplet — des données n\'ont pas pu être lues.',
+    en: 'This screen is incomplete — some data could not be read.',
+    es: 'Esta pantalla está incompleta — no se pudieron leer algunos datos.',
+  },
+  msg_incomplete_hint: {
+    fr: 'Les totaux et les listes ci-dessous peuvent être faux. Ne vous y fiez pas tant que ce bandeau est là.',
+    en: 'Totals and lists below may be wrong. Do not rely on them while this banner is showing.',
+    es: 'Los totales y las listas de abajo pueden ser incorrectos. No confíe en ellos mientras aparezca este aviso.',
+  },
 
   // Time periods
   period_today:   { fr: 'Aujourd\'hui', en: 'Today',       es: 'Hoy' },

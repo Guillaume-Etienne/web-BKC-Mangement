@@ -13,6 +13,8 @@ import { isSettled, isQualified, silenceDays, SILENCE_WARN_DAYS } from './utils/
 import { computeFollowUps } from './utils/followUps'
 import type { FollowUp } from './utils/followUps'
 import { LanguageProvider } from './contexts/LanguageContext'
+import { DataErrorsProvider } from './contexts/DataErrorsContext'
+import DataErrorBanner from './components/layout/DataErrorBanner'
 import { useAdminLang } from './hooks/useAdminLang'
 
 // Everything past the first screen is fetched when it is actually opened.
@@ -223,7 +225,12 @@ function App() {
     <LanguageProvider lang={lang} setLang={setLang}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={pendingActions.filter(a => a.priority === 'urgent').length} submissionsCount={pendingActions.filter(a => a.id === 'pending-submissions' || a.id === 'unqualified-enquiries').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
+        {/* Le fournisseur n'enveloppe QUE l'app admin : le bandeau nomme des
+            tables et rend le message brut de Postgres. Les pages partagées, plus
+            haut dans ce fichier, gardent le contexte inerte par défaut. */}
+        <DataErrorsProvider>
         <main className="w-full">
+          <DataErrorBanner />
           <RecoveryBoundary>
             <Suspense fallback={<PageLoading />}>
               {currentPage === 'home'       && (
@@ -250,6 +257,7 @@ function App() {
             </Suspense>
           </RecoveryBoundary>
         </main>
+        </DataErrorsProvider>
 
         <GlobalSearch
           open={searchOpen}
