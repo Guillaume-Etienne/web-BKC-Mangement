@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { i18n } from '../data/i18n'
-import { useBookings, useBookingRooms, useBookingParticipants } from '../hooks/useBookings'
+import { useBookings, useBookingRooms, useBookingParticipants, usePayments } from '../hooks/useBookings'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
 import { useAgencies } from '../hooks/useAgencies'
 import { useDocumentSections } from '../hooks/useDocumentTemplates'
@@ -18,7 +18,9 @@ import { emailVisaLetter, emailBookingConfirmation, emailTravelGuide, emailWelco
 import type { Lang } from '../utils/printBookingSummary'
 import type { Booking } from '../types/database'
 import { supabase } from '../lib/supabase'
-import { fmtDate, todayISO, addDaysISO } from '../utils/dates'
+import { fmtDate, fmtDateShort, todayISO, addDaysISO } from '../utils/dates'
+import { depositState, stayState } from '../utils/documentsOverview'
+import type { DepositState, StayState } from '../utils/documentsOverview'
 
 // ── Guide sections — legacy localStorage fallback ──────────────────────────────
 // Sections now live in the document_templates table. This read-only fallback
@@ -51,6 +53,12 @@ function getRoomLabels(bookingId: string, bookingRooms: { booking_id: string; ro
 function bookingLabel(b: Booking): string {
   const name = b.client ? `${b.client.first_name} ${b.client.last_name}` : 'Unknown'
   return `#${String(b.booking_number).padStart(3, '0')} — ${name}  (${fmtDate(b.check_in)} → ${fmtDate(b.check_out)})`
+}
+
+/** Just the name. The Overview row splits what `bookingLabel` puts on one line;
+ *  the single-booking tabs below still use the full label in their <select>. */
+function clientName(b: Booking): string {
+  return b.client ? `${b.client.first_name} ${b.client.last_name}` : 'Unknown'
 }
 
 function clientEmail(b: Booking | undefined): string {
@@ -145,6 +153,41 @@ function StatusBox({ log, checked, onToggle, lang }: {
         onChange={onToggle}
         className="w-4 h-4 cursor-pointer"
       />
+    </span>
+  )
+}
+
+/** The Deposit cell. Read-only on purpose: it is not a document you send, it is
+ *  a fact about money, and the only place it can be changed is the payment
+ *  itself in Accounting → Bookings. */
+function DepositCell({ state }: { state: DepositState }) {
+  const { tone, received, flagged } = state
+  const cls =
+    tone === 'paid'      ? 'bg-green-100 dark:bg-green-900/30 border-green-400 dark:border-green-700 text-green-800 dark:text-green-400'
+    : tone === 'unflagged' ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-400 dark:border-amber-700 text-amber-800 dark:text-amber-400'
+    : 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500'
+  const title =
+    tone === 'paid'      ? `Deposit received: ${flagged} €${received > flagged ? ` (${received} € in total on this booking)` : ''}`
+    : tone === 'unflagged' ? `${received} € received, but no payment is ticked "Deposit". Tick it in Accounting → Bookings if this was the deposit.`
+    : 'Nothing received on this booking'
+  return (
+    <span title={title} className={`inline-flex items-center justify-center min-w-[3.5rem] px-2 h-7 rounded border-2 text-xs font-semibold tabular-nums ${cls}`}>
+      {tone === 'none' ? '—' : `${tone === 'unflagged' ? '⚠ ' : ''}${received} €`}
+    </span>
+  )
+}
+
+/** How far off the arrival is — the grid is a to-do list, and a blank cell only
+ *  becomes urgent next to a date. */
+function ArrivalCell({ state }: { state: StayState }) {
+  const cls =
+    state.tone === 'here' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'
+    : state.tone === 'soon' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400'
+    : state.tone === 'past' ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
+    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${cls}`}>
+      {state.label}
     </span>
   )
 }
@@ -440,6 +483,7 @@ export default function DocumentsPage() {
   const { data: rooms } = useRooms()
   const { data: accommodations } = useAccommodations()
   const { data: agencies } = useAgencies()
+  const { data: payments } = usePayments()
   // Overview list only ever marks whole bookings (no invoice lines here), same
   // shortcut BookingsPage uses — agencyMarker falls straight through to agency_id.
   const agencyLookup = { agencies, bookings: allBookings, agencyBillingLines: [] }
@@ -502,6 +546,9 @@ export default function DocumentsPage() {
   // Overview tab state — one grid, all bookings x all doc types
   const [overviewSearch,  setOverviewSearch]  = useState('')
   const [overviewLang,    setOverviewLang]    = useState<Lang>('en')
+  // Off by default: the grid is sorted by arrival, so with the whole history in
+  // it the page opened on 2025 and the people actually coming were at the bottom.
+  const [showPast,        setShowPast]        = useState(false)
   const [selectedCells,   setSelectedCells]   = useState<Set<string>>(new Set())
   const [overviewLogs,    setOverviewLogs]    = useState<EmailLog[]>([])
   const [overviewRefresh, setOverviewRefresh] = useState(0)
@@ -522,7 +569,11 @@ export default function DocumentsPage() {
   const activeWelcomeSections = (welcomeSections ?? []).filter(s => s.is_active)
 
   // Overview tab derived data
-  const overviewBookings = filterByClientName(activeBookings, overviewSearch)
+  const today = todayISO()
+  const searchedBookings = filterByClientName(activeBookings, overviewSearch)
+  const pastCount = searchedBookings.filter(b => b.check_out < today).length
+  const overviewBookings = searchedBookings
+    .filter(b => showPast || b.check_out >= today)
     .slice()
     .sort((a, b) => a.check_in.localeCompare(b.check_in))
 
@@ -608,6 +659,41 @@ export default function DocumentsPage() {
       const next = new Set(prev)
       if (next.has(key)) next.delete(key)
       else next.add(key)
+      return next
+    })
+  }
+
+  /** Cells of a column that actually have a checkbox. The two link columns draw
+   *  a "+ Create" or "⚠ Reactivate" button instead when there is no live link,
+   *  and selecting one of those would queue a send with nothing to send. */
+  function selectableInColumn(type: EmailLogType): string[] {
+    return overviewBookings
+      .filter(b => {
+        if (type === 'client_account') {
+          const l = clientLinkByBookingNumber.get(b.booking_number)
+          return !!l?.is_active
+        }
+        if (type === 'update_form') {
+          const l = updateFormLinkByBookingId.get(b.id)
+          return !!l?.is_active
+        }
+        return true
+      })
+      .map(b => cellKey(b.id, type))
+  }
+
+  /** Click the header: take the whole column, or drop it if it is already all in.
+   *  Only the rows on screen — what the search and the past filter left. */
+  function toggleColumn(type: EmailLogType) {
+    const keys = selectableInColumn(type)
+    if (keys.length === 0) return
+    setSelectedCells(prev => {
+      const next = new Set(prev)
+      const allIn = keys.every(k => next.has(k))
+      for (const k of keys) {
+        if (allIn) next.delete(k)
+        else next.add(k)
+      }
       return next
     })
   }
@@ -792,8 +878,12 @@ export default function DocumentsPage() {
     )
   }
 
+  // The Overview grid carries 9 columns and its French headers are long
+  // ("Formulaire de mise à jour" alone is ~170px): at max-w-6xl it scrolled
+  // sideways. The other tabs keep their own max-w-3xl body, so they stay
+  // centred and narrow inside this wider shell.
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-[1700px] mx-auto px-4 py-6 space-y-6">
       <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">📄 {i18n.pages.page_documents[uiLang]}</h1>
 
       {/* Tab bar */}
@@ -814,7 +904,10 @@ export default function DocumentsPage() {
       {tab === 'overview' && (
         <div className="space-y-5">
           <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 rounded-lg p-4 text-sm text-indigo-800 dark:text-indigo-400">
-            One row per booking, one column per document. Check cells to select them, then send or mark as sent.
+            One row per booking, one column per document. Check cells to select them, then send or mark as sent —
+            or click a column header to take the whole column at once.
+            <strong>Deposit</strong> shows the money received: green once a payment is ticked “Deposit”, amber when
+            money arrived but no payment is flagged (tick it in Accounting → Bookings), grey when nothing came in.
             Confirmation, Travel Guide and Welcome Guide go out in the language below — the Visa Letter is always Portuguese.
             The <strong>Client Account</strong> and <strong>Update Form</strong> columns create their link the first time — once it exists, 👁 opens it and ⧉ copies it, and its checkbox sends/resends it like any other document. Update Form lets the client fill in what's still missing (exact dates, passport numbers…) themselves — review the answer in 📥 Requests → Submissions before it lands on the booking.
           </div>
@@ -837,34 +930,81 @@ export default function DocumentsPage() {
                 </button>
               ))}
             </div>
+            {pastCount > 0 && (
+              <button
+                onClick={() => setShowPast(p => !p)}
+                className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors whitespace-nowrap ${
+                  showPast ? 'bg-gray-700 text-white border-gray-700 dark:border-gray-600' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}>
+                {showPast ? `Hide past stays (${pastCount})` : `Show past stays (${pastCount})`}
+              </button>
+            )}
           </div>
 
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-x-auto">
+          {/* Capped height so the sticky header and the sticky client column have
+              something to stick inside: `position: sticky` resolves against the
+              nearest scroll container, and a container with no height never
+              scrolls, so the header would never move. */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-auto max-h-[70vh]">
             {overviewBookings.length === 0 ? (
-              <p className="text-sm text-gray-400 dark:text-gray-400 italic p-5">No active bookings found.</p>
+              <p className="text-sm text-gray-400 dark:text-gray-400 italic p-5">
+                {showPast || pastCount === 0
+                  ? 'No active bookings found.'
+                  : 'Nothing upcoming — every booking that matches is a past stay.'}
+              </p>
             ) : (
               <table className="w-full text-sm">
+                {/* The bottom rule lives on each <th>, not on the <tr>: a row is not
+                    a sticky element, so its own border would scroll away. */}
                 <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-800">
-                    <th className="text-left px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Booking</th>
-                    {DOC_TYPES.map(dt => (
-                      <th key={dt.type} className="px-2 py-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{dt.label}</th>
-                    ))}
+                  <tr>
+                    <th className="sticky left-0 top-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 text-left px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Booking</th>
+                    <th className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-2 py-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Arrival</th>
+                    <th className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-r border-gray-200 dark:border-gray-800 px-2 py-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap"
+                        title="Money received on the booking. Green once a payment is ticked “Deposit” in Accounting → Bookings.">
+                      Deposit
+                    </th>
+                    {DOC_TYPES.map(dt => {
+                      const keys = selectableInColumn(dt.type)
+                      const allIn = keys.length > 0 && keys.every(k => selectedCells.has(k))
+                      return (
+                        <th key={dt.type} className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-2 py-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                          <button
+                            onClick={() => toggleColumn(dt.type)}
+                            disabled={keys.length === 0}
+                            title={keys.length === 0 ? 'Nothing selectable in this column' : allIn ? 'Unselect this whole column' : `Select this whole column (${keys.length})`}
+                            className="hover:text-gray-800 dark:hover:text-gray-200 disabled:cursor-default disabled:hover:text-gray-500 underline-offset-4 hover:underline">
+                            {dt.label}
+                          </button>
+                        </th>
+                      )
+                    })}
                   </tr>
                 </thead>
                 <tbody>
                   {overviewBookings.map(b => (
                     <tr key={b.id} className="border-b border-gray-100 dark:border-gray-800 last:border-0">
-                      <td className="px-4 py-2 whitespace-nowrap">
-                        <div className="font-medium text-gray-700 dark:text-gray-300">
+                      {/* Name on its own line, reference and dates below: the single
+                          nowrap line this used to be was the widest thing on the page. */}
+                      <td className="sticky left-0 z-10 bg-white dark:bg-gray-900 px-4 py-2">
+                        <div className="font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                           {agencyMarker({ booking_id: b.id }, agencyLookup) && (
                             <span className="mr-1 text-gray-500 dark:text-gray-400" title="Booking from a partner agency">
                               {agencyMarker({ booking_id: b.id }, agencyLookup)}
                             </span>
                           )}
-                          {bookingLabel(b)}
+                          {clientName(b)}
+                        </div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap tabular-nums">
+                          #{String(b.booking_number).padStart(3, '0')} · {fmtDateShort(b.check_in)} → {fmtDateShort(b.check_out)}
                         </div>
                         {!clientEmail(b) && <div className="text-xs text-red-500 dark:text-red-400">⚠ no email on file</div>}
+                      </td>
+                      <td className="text-center px-2 py-2">
+                        <ArrivalCell state={stayState(b.check_in, b.check_out, today)} />
+                      </td>
+                      <td className="text-center px-2 py-2 border-r border-gray-100 dark:border-gray-800">
+                        <DepositCell state={depositState(b.id, payments)} />
                       </td>
                       {DOC_TYPES.map(dt => {
                         const key = cellKey(b.id, dt.type)

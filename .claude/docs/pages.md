@@ -263,8 +263,8 @@
 
 ### `DocumentsPage`
 - **Route :** `'documents'`
-- **Hooks :** useBookings, useBookingRooms, useBookingParticipants, useRooms, useAccommodations, useDocumentSections('travel_guide') + ('welcome_guide')
-- **State :** `tab: 'overview'|'visa'|'summary'|'guide'|'welcome'|'templates'`, `guideSections`/`welcomeSections` (copies de travail nullables, init depuis DB), `templatesDoc: 'travel'|'welcome'`, `emailLogs`, `logsRefresh`, `sending: EmailLogType|null`, + le state propre à Overview (`overviewSearch`, `overviewLang`, `selectedCells`, `overviewLogs`, `bulkBusy`)
+- **Hooks :** useBookings, useBookingRooms, useBookingParticipants, useRooms, useAccommodations, useAgencies, **usePayments** *(colonne Deposit)*, useTable<SharedLink>, useDocumentSections('travel_guide') + ('welcome_guide')
+- **State :** `tab: 'overview'|'visa'|'summary'|'guide'|'welcome'|'templates'`, `guideSections`/`welcomeSections` (copies de travail nullables, init depuis DB), `templatesDoc: 'travel'|'welcome'`, `emailLogs`, `logsRefresh`, `sending: EmailLogType|null`, + le state propre à Overview (`overviewSearch`, `overviewLang`, `selectedCells`, `overviewLogs`, `bulkBusy`, `showPast`)
 - **Onglets :**
   - `'overview'` ⭐ **(onglet par défaut, et le vrai plan de travail — absent de cette doc jusqu'au 2026-09-03)** :
     **une ligne par réservation active, une colonne par document** (`DOC_TYPES` : Confirmation,
@@ -278,7 +278,28 @@
       ne peut rien pour lui, et le dire dans la grille évite un échec silencieux.
     - Langue FR/EN/ES pour Confirmation / Travel / Welcome ; **la lettre de visa est toujours en
       portugais** (c'est l'administration qui la lit).
-    - Ne liste que `activeBookings` : pour une résa passée, passer par les onglets dédiés.
+    - **Colonne `Arrival`** (`stayState`) : `here now` / `tomorrow` / `in N d` / `done`. Ambre à
+      une semaine ou moins — une case vide n'est en retard que par rapport à une arrivée.
+    - **Colonne `Deposit`** (`depositState`, `client/src/utils/documentsOverview.ts`) : lecture
+      seule, calculée depuis `payments`. Vert = un paiement coché `is_deposit` ; **ambre = de
+      l'argent est arrivé mais aucun paiement n'est coché Deposit** (la case s'oublie — l'app ne
+      décide pas à la place de gui, elle signale) ; gris = rien. Remises exclues, paiements
+      « à vérifier » comptés. ⚠️ **Rien en base n'enregistre que l'acompte a été *demandé*** —
+      seul `payments.is_deposit` existe. Se corrige dans Accounting → Bookings, pas ici.
+    - **Clic sur un en-tête de colonne** = sélectionner/désélectionner toute la colonne
+      (`toggleColumn`), limité aux lignes affichées et aux cellules réellement cochables :
+      `client_account`/`update_form` sans lien actif dessinent un bouton, pas une case.
+    - **Les séjours terminés sont masqués par défaut** (`showPast`, bascule « Show past stays
+      (n) ») : le tri est croissant sur `check_in`, donc avec tout l'historique la page s'ouvrait
+      sur 2025 et les prochains arrivants étaient tout en bas.
+    - En-tête et colonne client **collants** : le conteneur porte `max-h-[70vh] overflow-auto` —
+      `position: sticky` se résout contre le conteneur de défilement le plus proche, et un
+      conteneur sans hauteur ne défile jamais. La bordure basse est sur chaque `<th>`, pas sur
+      le `<tr>` (une ligne ne colle pas).
+    - Le shell de la page est en `max-w-[1700px]` (et non `max-w-6xl`) : 9 colonnes, et
+      « Formulaire de mise à jour » fait à lui seul ~170 px. Les autres onglets gardent leur
+      `max-w-3xl` interne.
+    - Ne liste que `activeBookings` : pour une résa annulée, passer par les onglets dédiés.
   - `'visa'` → lettre visa (portugais) : sélecteur booking, aperçu dates/guests, Generate PDF + Send email
   - `'summary'` → confirmation réservation : booking, langue (FR/EN/ES), Generate PDF + Send email. **Aucun montant estimé** (retiré le 2026-08-02, demande gui) : le document ne mentionne que `amount_paid`, pas de total ni de solde — c'étaient des estimations qui bougeaient encore et qu'un client lit comme un devis. Le retrait a supprimé avec elles l'input « Estimated total » et un `useEffect` de 11 requêtes parallèles.
   - `'guide'` → guide voyage (avant le séjour) : toggles sections + édition, SaveBar, envoi standalone (PDF + email)

@@ -168,6 +168,7 @@
 | Activities | `pages.md` → ActivitiesPage + `data-model.md` → Activities | modèle EUR bidirectionnel |
 | Equipment | `pages.md` → EquipmentPage | |
 | Documents | `pages.md` → DocumentsPage | PDF, email (Resend), templates guide |
+| L'acompte est-il payé ? | `pages.md` → DocumentsPage § colonne Deposit | rien n'enregistre la *demande*, seul `payments.is_deposit` existe |
 | Pending Actions | `data-model.md` → § Pending Actions | règles, badge nav, HomePage |
 | Email system | `data-model.md` → § Email Logs + `pages.md` → DocumentsPage | Resend, Edge Function, email_logs |
 | Accounting | `pages.md` → AccountingPage + `components.md` → Accounting | sharedData pattern |
