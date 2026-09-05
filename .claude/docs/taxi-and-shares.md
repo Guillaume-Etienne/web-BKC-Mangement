@@ -60,7 +60,7 @@ Tous ces points sont nécessaires (on a déjà oublié l'enum une fois → erreu
 ## 🔧 RUNBOOK — Ajouter un champ à une page partagée
 
 1. Colonne en base (migration + `schema.sql`) si nouveau champ.
-2. Type TS (+ `mock.ts` si l'entité y figure, sinon build TS strict casse).
+2. Type TS (+ `types/canary.ts` si l’entité y figure, sinon build TS strict casse).
 3. Form admin de l'entité (pour saisir la valeur).
 4. La page partagée + le dico `taxiShareI18n.ts` (clé PT/EN) si texte visible.
 5. ⚠️ Si la table est restreinte par colonne pour anon (`clients`, `booking_participants`) → ajouter la colonne au `GRANT SELECT (...)` ET au `.select()` de la page. Voir `security-rls.md`.

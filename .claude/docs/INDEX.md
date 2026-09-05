@@ -12,7 +12,7 @@
 | Ajouter un **champ à une page partagée** | `taxi-and-shares.md` § RUNBOOK — Ajouter un champ |
 | Ajouter/modifier une **policy anon** (sans fuiter de données) | `security-rls.md` § Checklist |
 | Ajouter un **enum** (valeur) en base | migration `ALTER TYPE … ADD VALUE IF NOT EXISTS` (seule, hors txn) + `schema.sql` |
-| Ajouter une **colonne** | migration + `schema.sql` + type TS + **`mock.ts`** *si le champ TS est obligatoire* (le fichier n'est **importé nulle part** mais reste type-checké : un champ optionnel ne le casse pas) + form admin. ⚠️ Vérifier aussi si la table est en **GRANT par colonne** pour `anon` (`bookings`, `clients`, `taxi_trips`…) : si oui, la colonne est invisible en anon par défaut — c'est voulu, ne l'accorder que sur décision |
+| Ajouter une **colonne** | migration + `schema.sql` + type TS + **`types/canary.ts`** *si le champ TS est obligatoire* (fichier importé nulle part mais type-checké : le `satisfies` casse le build, un champ optionnel ne le casse pas ; `accounting/utils.fixtures.ts` peut casser aussi) + form admin. ⚠️ Vérifier aussi si la table est en **GRANT par colonne** pour `anon` (`bookings`, `clients`, `taxi_trips`…) : si oui, la colonne est invisible en anon par défaut — c'est voulu, ne l'accorder que sur décision |
 | Créer une **migration** | `supabase/migrations/AAAA-MM-JJ_nom.sql`, idempotent, appliquer **TEST puis PROD** |
 | Manipuler une **date calendaire** (jour, mois) | `client/src/utils/dates.ts` — **jamais** `.toISOString()`, voir ⚠️ ci-dessous |
 | **Écrire en base** depuis un écran | vérifier l'erreur, toujours — voir ⚠️ ci-dessous |
@@ -36,7 +36,7 @@
 ## ⚠️ Pièges qui ont déjà coûté cher
 
 **Build.** Toujours `npm run build` avant push — Vercel est en TS strict (`tsc -b`, plus strict que
-`tsc --noEmit`) : unused/locals, types incomplets dans `mock.ts`.
+`tsc --noEmit`) : unused/locals, types incomplets dans `types/canary.ts`.
 
 **Dates.** Jamais `new Date().toISOString().slice(0, 10)` sur un **jour calendaire** : conversion
 UTC d'abord, donc au Mozambique (UTC+2) ça renvoie **la veille** entre minuit et 2 h — et toute la
