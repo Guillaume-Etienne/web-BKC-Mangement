@@ -535,7 +535,6 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
   function pasteDay() {
     if (!dayClipboard || dayClipboard.length === 0) return
     for (const l of dayClipboard) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id: _id, ...rest } = l
       onAddLesson({ ...rest, date: iso })
     }

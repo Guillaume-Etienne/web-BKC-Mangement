@@ -19,5 +19,18 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Le code écrit `const { id: _id, ...rest } = lesson` pour dire « tout
+      // sauf l'id ». Sans cette règle, ESLint réclame l'usage de `_id` et il
+      // fallait un `// eslint-disable-next-line` à chaque fois — six dans le
+      // repo avant ce réglage. Le `_` initial est la convention, ici elle est
+      // enfin déclarée.
+      '@typescript-eslint/no-unused-vars': ['error', {
+        varsIgnorePattern:          '^_',
+        argsIgnorePattern:          '^_',
+        caughtErrorsIgnorePattern:  '^_',
+        destructuredArrayIgnorePattern: '^_',
+      }],
+    },
   },
 ])

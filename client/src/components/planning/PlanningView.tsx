@@ -643,7 +643,6 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     const l = { ...lesson, id }
     setLessons(prev => [...prev, l])
     // Strip virtual/relation fields before sending to DB
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { instructor: _i, clients: _c, ...row } = l
     const { error } = await supabase.from('lessons').insert([row])
     if (error) {
@@ -655,7 +654,6 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
 
   const onUpdateLesson = useCallback(async (lesson: Lesson) => {
     setLessons(prev => prev.map(l => l.id === lesson.id ? lesson : l))
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, instructor: _i, clients: _c, ...fields } = lesson
     const { error } = await supabase.from('lessons').update(fields).eq('id', id)
     if (error) console.error('Lesson update error:', error.message)
@@ -709,7 +707,6 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
 
   const onUpdateRental = useCallback(async (rental: EquipmentRental) => {
     setRentals(prev => prev.map(r => r.id === rental.id ? rental : r))
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, ...fields } = rental
     const { error } = await supabase.from('equipment_rentals').update(fields).eq('id', id)
     if (error) console.error('Rental update error:', error.message)

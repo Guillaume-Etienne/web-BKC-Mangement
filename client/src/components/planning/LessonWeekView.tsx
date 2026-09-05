@@ -464,7 +464,6 @@ export default function LessonWeekView({
 
   function pasteLesson(date: string, slot: Slot) {
     if (!clipboard) return
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id: _id, ...rest } = clipboard
     onAddLesson({ ...rest, date, start_time: SLOT_CONFIG[slot].defaultTime })
   }

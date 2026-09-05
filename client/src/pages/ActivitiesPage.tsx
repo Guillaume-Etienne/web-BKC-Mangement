@@ -673,7 +673,7 @@ export default function ActivitiesPage() {
   }
 
   async function editBooking(b: ActivityBooking) {
-    const { id, created_at, ...fields } = b
+    const { id, created_at: _created_at, ...fields } = b
     const { error } = await supabase.from('activity_bookings').update(fields).eq('id', id)
     report('save the booking', error)
     refreshBookings()
@@ -707,13 +707,17 @@ export default function ActivitiesPage() {
     const existing = providerLinks.find(l => l.params?.provider_id === provider.id)
     if (existing) return
     const token = `activity_${crypto.randomUUID()}`
-    await supabase.from('shared_links').insert([{
+    // The only write on this page that used to skip `report`: a refused insert
+    // looked exactly like a success — the refresh simply showed no link, and
+    // clicking again did the same nothing.
+    const { error } = await supabase.from('shared_links').insert([{
       token, type: 'activity_provider',
       label:      `${TYPE_LABELS[provider.type]}: ${provider.name}`,
       params:     { provider_id: provider.id },
       created_at: todayISO(),
       expires_at: addDaysISO(todayISO(), 365), is_active: true,
     }])
+    if (!report('create the share link', error)) return
     refreshLinks()
   }
 
