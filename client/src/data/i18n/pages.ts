@@ -74,6 +74,14 @@ export const pagesI18n = {
   doc_type_client_account: { fr: 'Compte client',   en: 'Client Account',  es: 'Cuenta de cliente' },
   doc_type_update_form:    { fr: 'Formulaire de mise à jour', en: 'Update Form', es: 'Formulario de actualización' },
 
+  // DocumentsPage — Overview grid: the four columns that are not documents.
+  // Elles étaient en dur : à côté de « Lettre de visa » et « Compte client »
+  // traduits, un « Booking » anglais donnait une ligne d'en-tête bilingue.
+  col_booking:  { fr: 'Réservation', en: 'Booking',  es: 'Reserva' },
+  col_arrival:  { fr: 'Arrivée',     en: 'Arrival',  es: 'Llegada' },
+  col_asked:    { fr: 'Demandé',     en: 'Asked',    es: 'Pedido' },
+  col_deposit:  { fr: 'Acompte',     en: 'Deposit',  es: 'Depósito' },
+
   // DocumentsPage — email send status badges
   email_status_pending:   { fr: 'En attente',  en: 'Pending',     es: 'Pendiente' },
   email_status_sent:      { fr: 'Envoyé',      en: 'Sent',        es: 'Enviado' },

@@ -948,14 +948,11 @@ export default function DocumentsPage() {
       {tab === 'overview' && (
         <div className="space-y-5">
           <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 rounded-lg p-4 text-sm text-indigo-800 dark:text-indigo-400">
-            One row per booking, one column per document. Check cells to select them, then send or mark as sent —
-            or click a column header to take the whole column at once.
-            <strong>Asked</strong> is yours to click — one click notes that you asked for the deposit today, nothing is
-            sent; it turns amber after two weeks with no money in. <strong>Deposit</strong> shows the money received:
-            green once a payment is ticked “Deposit”, amber when money arrived but no payment is flagged (tick it in
-            Accounting → Bookings), grey when nothing came in.
-            Confirmation, Travel Guide and Welcome Guide go out in the language below — the Visa Letter is always Portuguese.
-            The <strong>Client Account</strong> and <strong>Update Form</strong> columns create their link the first time — once it exists, 👁 opens it and ⧉ copies it, and its checkbox sends/resends it like any other document. Update Form lets the client fill in what's still missing (exact dates, passport numbers…) themselves — review the answer in 📥 Requests → Submissions before it lands on the booking.
+            One row per booking, one column per document. Tick cells then send them, or click a column header to
+            take the whole column at once. <strong>Every cell explains itself on hover</strong> — that is where the
+            detail lives, next to the thing it describes, rather than in a paragraph nobody re-reads twice.
+            Confirmation, Travel Guide and Welcome Guide go out in the language selected below; the Visa Letter is
+            always Portuguese.
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -1004,15 +1001,15 @@ export default function DocumentsPage() {
                     a sticky element, so its own border would scroll away. */}
                 <thead>
                   <tr>
-                    <th className="sticky left-0 top-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 text-left px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Booking</th>
-                    <th className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-2 py-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Arrival</th>
+                    <th className="sticky left-0 top-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 text-left px-4 py-2 font-medium text-gray-500 dark:text-gray-400">{i18n.pages.col_booking[uiLang]}</th>
+                    <th className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-2 py-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{i18n.pages.col_arrival[uiLang]}</th>
                     <th className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-2 py-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap"
                         title="Did you ask for the deposit? Click a cell to note it — nothing is sent.">
-                      Asked
+                      {i18n.pages.col_asked[uiLang]}
                     </th>
                     <th className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-r border-gray-200 dark:border-gray-800 px-2 py-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap"
                         title="Money received on the booking. Green once a payment is ticked “Deposit” in Accounting → Bookings.">
-                      Deposit
+                      {i18n.pages.col_deposit[uiLang]}
                     </th>
                     {DOC_TYPES.map(dt => {
                       const keys = selectableInColumn(dt.type)
@@ -1081,6 +1078,7 @@ export default function DocumentsPage() {
                               <td key={dt.type} className="text-center p-2">
                                 <button
                                   onClick={() => createClientLink(b)}
+                                  title="No personal link yet — create the client account page. Once it exists, 👁 opens it, ⧉ copies it, and the checkbox sends it like any other document."
                                   className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 whitespace-nowrap">
                                   + Create
                                 </button>
@@ -1119,6 +1117,7 @@ export default function DocumentsPage() {
                               <td key={dt.type} className="text-center p-2">
                                 <button
                                   onClick={() => createUpdateFormLink(b)}
+                                  title="No update form yet — create the link that lets the client fill in what is still missing (exact dates, passport numbers…). Their answer lands in Requests → Submissions for review, not on the booking."
                                   className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 whitespace-nowrap">
                                   + Create
                                 </button>
