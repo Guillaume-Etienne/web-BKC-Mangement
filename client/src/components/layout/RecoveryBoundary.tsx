@@ -1,5 +1,6 @@
 import { Component, Fragment, type ReactNode } from 'react'
 import { classifyError, isSelfHealing, type ErrorKind } from '../../utils/recoverableError'
+import { reportClientError } from '../../utils/reportClientError'
 
 interface Props { children: ReactNode }
 interface State { error: Error | null; attempt: number }
@@ -105,13 +106,18 @@ export default class RecoveryBoundary extends Component<Props, State> {
   componentDidCatch(error: Error) {
     const kind = classifyError(error)
     console.error(`Page crashed (${kind}):`, error)
+    // Sent whether or not we repair it. A crash the visitor never saw is still
+    // worth knowing about: it is how we find out that page translation is
+    // costing us clients, instead of hearing about it once by telephone.
+    const willRecover = isSelfHealing(kind) && this.state.attempt < 1
+    reportClientError(error, 'boundary', willRecover)
     // One silent retry, and only for the family a fresh mount actually fixes.
     // A translator rewrites the DOM at a moment of its choosing; if that moment
     // fell in the middle of a React update, rebuilding from scratch is enough
     // and the visitor never learns anything happened. If it crashes a second
     // time the translator is still at work, and no number of retries will win —
     // that is when the screen below has something useful to say.
-    if (isSelfHealing(kind) && this.state.attempt < 1) {
+    if (willRecover) {
       this.setState(s => ({ error: null, attempt: s.attempt + 1 }))
     }
   }

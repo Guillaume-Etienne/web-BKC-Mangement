@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase, currentEnv, testConfigured, switchEnv } from '../../lib/supabase'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
+import ClientErrorsPanel from './ClientErrorsPanel'
 
 interface TableStat {
   table_name:  string
@@ -39,6 +40,9 @@ export default function DatabaseTab() {
 
   return (
     <div className="space-y-8">
+
+      {/* ── What broke on somebody else's phone ────────────────────────────── */}
+      <ClientErrorsPanel />
 
       {/* ── Env Switch ─────────────────────────────────────────────────────── */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border shadow-sm p-6">
