@@ -184,7 +184,7 @@ export default function ManagementPage() {
   const [collapsedLinkTypes, setCollapsedLinkTypes] = useState<Set<string>>(new Set())
   const toggleLinkType = (t: string) => setCollapsedLinkTypes(prev => {
     const next = new Set(prev)
-    next.has(t) ? next.delete(t) : next.add(t)
+    if (next.has(t)) next.delete(t); else next.add(t)
     return next
   })
 

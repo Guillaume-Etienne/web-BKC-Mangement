@@ -145,7 +145,7 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
 
   function toggle<T>(set: Set<T>, v: T, apply: (s: Set<T>) => void) {
     const next = new Set(set)
-    next.has(v) ? next.delete(v) : next.add(v)
+    if (next.has(v)) next.delete(v); else next.add(v)
     apply(next)
   }
 

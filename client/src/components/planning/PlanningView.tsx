@@ -591,7 +591,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       if (!booking) return prev
 
       const newSwap: RoomSwap = { from: fromRoomId, to: toRoomId }
-      let roomSwaps = existing
+      const roomSwaps = existing
         ? existing.roomSwaps.filter(s => s.from !== fromRoomId).concat(newSwap)
         : [newSwap]
       let roomRemovals = existing?.roomRemovals ?? []

@@ -140,7 +140,7 @@ export function useClientDossier(clientId: string | null, bookings: Booking[]): 
     return () => { cancelled = true }
     // `bookings` is intentionally absent: bookingKey carries the only part of
     // it this effect depends on.
-  }, [clientId, bookingKey, tick]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [clientId, bookingKey, tick])
 
   const addNote = useCallback(async (body: string): Promise<string | null> => {
     const text = body.trim()
