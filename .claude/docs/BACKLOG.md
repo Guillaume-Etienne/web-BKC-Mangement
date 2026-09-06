@@ -34,18 +34,20 @@ Options → Database → **Clear**. Rien en PROD.
 
 ## 🔴 Ouvert
 
-### 🗓️ Planning — ligne « No room » : livrée, **vérif à l'écran encore à faire**
+### 🗓️ Planning — ligne « No room » : ✅ livrée et vérifiée à l'écran (2026-09-06)
 
-Commit **`a5e9b8e` (non poussé)**. Les résas sans chambre n'apparaissaient nulle part dans le
-planning — 4 des 10 résas de PROD (#30 Lindquist, #29 Dubos, #23 Rulliat, #25 Bouteiller), parce
-que **seul `BookingsPage` écrit `booking_rooms`** : tout ce qui vient du formulaire public arrive
-sans chambre. Livré : `UnassignedRow.tsx`, `dropTarget?: boolean` sur `PlanningRow`, 5 edits dans
-`PlanningView.tsx`, 3 clés i18n, `components.md`. Build vert, 551 tests verts.
+Commits **`a5e9b8e` + `44cc10d`, poussés** (confirmé `origin/master`). Les résas sans chambre
+n'apparaissaient nulle part dans le planning — 4 des 10 résas de PROD (#30 Lindquist, #29 Dubos,
+#23 Rulliat, #25 Bouteiller), parce que **seul `BookingsPage` écrit `booking_rooms`** : tout ce qui
+vient du formulaire public arrive sans chambre. Livré : `UnassignedRow.tsx`, `dropTarget?: boolean`
+sur `PlanningRow`, 5 edits dans `PlanningView.tsx`, 3 clés i18n, `components.md`. Build vert, 551
+tests verts.
 
-⬜ **La vérif navigateur que gui a demandée n'a pas pu se faire** (Claude in Chrome était rattaché
-à l'autre session). À faire : `localhost:5173` → Planning — la section doit afficher **4 résas**,
-déplier, glisser une barre sur une chambre, contrôler la modale de validation. ⚠️ vérifier la
-navbar avant toute écriture (le port décide de la base).
+✅ **Vérif navigateur faite le 2026-09-06** (sur TEST, pour ne pas manipuler de vraies résas PROD
+par automatisation) : ligne dépliée, glisser-déposer une barre (« Sans hébergement » → chambre)
+déclenche bien le bandeau « 1 déplacement en attente » puis la modale « Confirmer 1 déplacement en
+attente » avec le résumé `#002 — Anna Schmidt : Sans hébergement → H1/B`. Annulé sans écrire (test
+en lecture, pas de changement réel). Comportement conforme à l'attendu.
 
 ℹ️ Deux points à juger à l'œil, une preview statique a été envoyée à gui : largeur du label dans
 la colonne de 80px, et contraste de l'ambre en mode sombre.
