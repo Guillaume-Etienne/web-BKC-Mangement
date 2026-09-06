@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { PalmeirasRent, PalmeirasReversal, PalmeirasEntry } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
@@ -171,7 +171,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
   const bungalowRows = useMemo(() => buildBungalowRows(data), [data])
 
   // ── Period filter ─────────────────────────────────────────────────────────
-  const inRange = (month: string) => {
+  const inRange = useCallback((month: string) => {
     if (period === 'single')  return month === singleMonth
     if (period === 'season' && currentSeason) {
       const from = currentSeason.start_date.slice(0, 7)
@@ -180,13 +180,12 @@ export default function PalmeirasTab({ data, handlers }: Props) {
     }
     if (period === 'custom' && customFrom && customTo) return month >= customFrom && month <= customTo
     return true
-  }
+  }, [period, currentSeason, customFrom, customTo, singleMonth])
 
-  const deps = [period, currentSeason, customFrom, customTo, singleMonth]
-  const filteredRents      = useMemo(() => palmeirasRents.filter(r => inRange(r.month)),      [palmeirasRents, ...deps])
-  const filteredReversals  = useMemo(() => palmeirasReversals.filter(r => inRange(r.month)),  [palmeirasReversals, ...deps])
-  const filteredEntries    = useMemo(() => palmeirasEntries.filter(e => inRange(e.month)),    [palmeirasEntries, ...deps])
-  const filteredBungalows  = useMemo(() => bungalowRows.filter(b => inRange(b.month)),       [bungalowRows, ...deps])
+  const filteredRents      = useMemo(() => palmeirasRents.filter(r => inRange(r.month)),      [palmeirasRents, inRange])
+  const filteredReversals  = useMemo(() => palmeirasReversals.filter(r => inRange(r.month)),  [palmeirasReversals, inRange])
+  const filteredEntries    = useMemo(() => palmeirasEntries.filter(e => inRange(e.month)),    [palmeirasEntries, inRange])
+  const filteredBungalows  = useMemo(() => bungalowRows.filter(b => inRange(b.month)),       [bungalowRows, inRange])
 
   // ── Totals ────────────────────────────────────────────────────────────────
   // Pure and unit-tested. Note that this `net` includes the bungalow margin,
