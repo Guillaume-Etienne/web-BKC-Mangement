@@ -30,9 +30,14 @@ interface PlanningRowProps {
    *  but the row itself must never be a landing spot — the drag hook picks its
    *  target by scanning `data-room-id`, so we simply don't emit one. */
   dropTarget?: boolean
+  /** The booking currently being dragged, whichever room it started in — used
+   *  only to paint a preview bar in the room the pointer is hovering over, so
+   *  a cross-row drag stays visible instead of vanishing between its source
+   *  row (unchanged until the move is confirmed) and wherever the cursor is. */
+  draggedBooking?: Booking | null
 }
 
-export default function PlanningRow({ roomId, label, totalDays, seasonStart, bookings, bookingParticipants, agencies, dragState, onPointerDown, unavailableDays, dropTarget = true }: PlanningRowProps) {
+export default function PlanningRow({ roomId, label, totalDays, seasonStart, bookings, bookingParticipants, agencies, dragState, onPointerDown, unavailableDays, dropTarget = true, draggedBooking }: PlanningRowProps) {
   const isDropTarget = dropTarget && dragState && dragState.targetRoomId === roomId && dragState.roomId !== roomId
 
   function dateToIdx(dateStr: string): number {
@@ -96,6 +101,10 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
         {/* Booking bars */}
         {segments.map((seg) => {
           const isDragging = dragState?.bookingId === seg.booking.id
+          // Once the pointer has left this row for another one, the bar
+          // sitting here is stale — it fades further so the eye follows the
+          // preview bar drawn in the row actually under the cursor instead.
+          const leavingRow = isDragging && dragState!.targetRoomId !== null && dragState!.targetRoomId !== roomId
           let startOffset = seg.startOffset
           let endOffset = seg.endOffset
 
@@ -117,7 +126,7 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
             <div
               key={seg.booking.id}
               className={`absolute top-0.5 h-6 rounded ${statusColors[seg.booking.status]} text-xs flex items-center overflow-hidden whitespace-nowrap ${
-                isDragging ? 'opacity-70 shadow-lg z-10' : ''
+                leavingRow ? 'opacity-30' : isDragging ? 'opacity-70 shadow-lg z-10' : ''
               }`}
               style={{ left: `${leftPx}px`, width: `${widthPx}px`, cursor: isDragging ? 'grabbing' : 'grab' }}
               title={seg.marker ? `${seg.marker} ${seg.label}` : seg.label}
@@ -140,6 +149,26 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
             </div>
           )
         })}
+        {/* Drop preview: while a bar is dragged over this (different) room,
+         *  show where it would land, so the drag stays visible the whole
+         *  time instead of only a highlighted row with nothing in it. */}
+        {isDropTarget && dragState && draggedBooking && dragState.mode === 'move' && (() => {
+          const startOffset = Math.max(0, dateToIdx(draggedBooking.check_in)) + dragState.dayDelta
+          const endOffset = Math.min(totalDays, dateToIdx(draggedBooking.check_out)) + dragState.dayDelta
+          const leftPx = startOffset * CELL_W + CELL_W / 2
+          const widthPx = Math.max((endOffset - startOffset) * CELL_W, 0)
+          const clientName = draggedBooking.client
+            ? `${draggedBooking.client.first_name} ${draggedBooking.client.last_name}`
+            : '?'
+          return (
+            <div
+              className="absolute top-0.5 h-6 rounded border-2 border-dashed border-blue-500 bg-blue-100/70 dark:bg-blue-900/50 text-blue-900 dark:text-blue-100 text-xs flex items-center px-1.5 overflow-hidden whitespace-nowrap pointer-events-none z-20"
+              style={{ left: `${leftPx}px`, width: `${widthPx}px` }}
+            >
+              <span className="truncate">{clientName}</span>
+            </div>
+          )
+        })()}
       </div>
     </div>
   )

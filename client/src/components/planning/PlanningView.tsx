@@ -783,6 +783,9 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   const { dragState, onPointerDown, onPointerMove, onPointerUp } = useBookingDrag({
     onBookingUpdate, onBookingMove, onBookingTap, gridRef,
   })
+  // Looked up once per render for the drop-preview bar every row can paint
+  // itself, rather than each row re-deriving it from the full booking list.
+  const draggedBooking = dragState ? bookings.find(b => b.id === dragState.bookingId) ?? null : null
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -996,6 +999,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                                 bookingParticipants={bookingParticipants}
                                 agencies={agencies}
                                 dragState={dragState}
+                                draggedBooking={draggedBooking}
                                 onPointerDown={onPointerDown}
                                 unavailableDays={unavailableDays}
                               />
