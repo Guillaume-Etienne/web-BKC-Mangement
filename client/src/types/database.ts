@@ -148,6 +148,24 @@ export interface AgencyRateItem {
   is_active: boolean           // deactivate, never delete — same rule as billable price_items
 }
 
+/** Display order and headings for a rate card, shared by Options → Agencies and
+ *  by a booking's billing panel. A real catalogue runs to 30+ rows (the Fun & Fly
+ *  2026-27 grid alone is 33): flat, it is a scroll hunt in both screens. */
+export const AGENCY_RATE_CATEGORIES: { key: AgencyRateCategory; icon: string; label: string }[] = [
+  { key: 'lesson',        icon: '🪂', label: 'Lessons' },
+  { key: 'transfer',      icon: '🚕', label: 'Transfers' },
+  { key: 'rental',        icon: '🎿', label: 'Rental & storage' },
+  { key: 'accommodation', icon: '🏠', label: 'Accommodation' },
+]
+
+/** Order inside a category: live rows first, then by label with numeric-aware
+ *  collation. Plain string order puts "10h" before "2h" — the packages would
+ *  read backwards on every rate card. */
+export function compareRateItems(a: AgencyRateItem, b: AgencyRateItem): number {
+  if (a.is_active !== b.is_active) return a.is_active ? -1 : 1
+  return a.label.localeCompare(b.label, undefined, { numeric: true })
+}
+
 /** One invoice line — not one per Lesson/EquipmentRental/TaxiTrip row. A 10x2h
  *  package stays a single 450€ line even once it becomes 10 separate lessons in
  *  the planning; those lessons reference this row's id to track hours done vs

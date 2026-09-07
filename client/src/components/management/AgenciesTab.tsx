@@ -2,15 +2,14 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAgencies, useAgencyRateItems } from '../../hooks/useAgencies'
 import type { Agency, AgencyRateItem, AgencyRateCategory } from '../../types/database'
+import { AGENCY_RATE_CATEGORIES, compareRateItems } from '../../types/database'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 
-const CATEGORY_META: Record<AgencyRateCategory, { icon: string; label: string }> = {
-  lesson:        { icon: '🪂', label: 'Lesson' },
-  rental:        { icon: '🎿', label: 'Rental' },
-  transfer:      { icon: '🚕', label: 'Transfer' },
-  accommodation: { icon: '🏠', label: 'Accommodation' },
-}
+/** The icon of one category — AGENCY_RATE_CATEGORIES is the single source, in
+ *  display order, shared with the booking's billing panel. */
+const categoryIcon = (c: AgencyRateCategory) =>
+  AGENCY_RATE_CATEGORIES.find(m => m.key === c)?.icon ?? ''
 
 // ── Agency form (module scope) ────────────────────────────────────────────────
 interface AgencyFormData {
@@ -147,8 +146,8 @@ function RateItemAddForm({ agencyId, onAdd }: RateItemAddFormProps) {
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Category</label>
           <select value={category} onChange={e => setCategory(e.target.value as AgencyRateCategory)}
             className="w-full text-sm border rounded px-2 py-1.5">
-            {(Object.keys(CATEGORY_META) as AgencyRateCategory[]).map(c => (
-              <option key={c} value={c}>{CATEGORY_META[c].icon} {CATEGORY_META[c].label}</option>
+            {AGENCY_RATE_CATEGORIES.map(c => (
+              <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
             ))}
           </select>
         </div>
@@ -198,9 +197,24 @@ function RateItemsList({ items, onToggleActive, onEdit }: RateItemsListProps) {
   if (items.length === 0) {
     return <p className="text-sm text-gray-400 dark:text-gray-400 italic">{i18n.management.msg_no_rate_items[lang]}</p>
   }
+  // Grouped, not flat: a rate card is a price grid, and reads like one. Empty
+  // categories are dropped rather than shown empty — an agency that sells no
+  // accommodation should not carry an "Accommodation" heading.
+  const groups = AGENCY_RATE_CATEGORIES
+    .map(c => ({ ...c, rows: items.filter(i => i.category === c.key).sort(compareRateItems) }))
+    .filter(g => g.rows.length > 0)
+
   return (
-    <div className="space-y-2">
-      {items.map(item => (
+    <div className="space-y-4">
+      {groups.map(group => (
+        <div key={group.key} className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            {group.icon} {group.label}
+            <span className="ml-1.5 font-normal normal-case tracking-normal text-gray-400 dark:text-gray-500">
+              ({group.rows.length})
+            </span>
+          </p>
+      {group.rows.map(item => (
         <div key={item.id}
           className={`rounded-lg border px-3 py-2 text-sm ${
             item.is_active
@@ -216,7 +230,7 @@ function RateItemsList({ items, onToggleActive, onEdit }: RateItemsListProps) {
           ) : (
             <div className="flex items-center justify-between">
               <div>
-                <span className="mr-1.5">{CATEGORY_META[item.category].icon}</span>
+                {/* No category icon here any more — the group heading carries it. */}
                 <span className="font-medium text-gray-800 dark:text-gray-200">{item.label}</span>
                 {item.unit_hours != null && (
                   <span className="ml-2 text-gray-500 dark:text-gray-400">({item.unit_hours}h)</span>
@@ -235,6 +249,8 @@ function RateItemsList({ items, onToggleActive, onEdit }: RateItemsListProps) {
               </div>
             </div>
           )}
+        </div>
+      ))}
         </div>
       ))}
     </div>
@@ -273,7 +289,7 @@ function RateItemEditForm({ item, onSave, onCancel }: RateItemEditFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
       <div className="flex items-center gap-2">
-        <span>{CATEGORY_META[item.category].icon}</span>
+        <span>{categoryIcon(item.category)}</span>
         <input type="text" value={label} required onChange={e => setLabel(e.target.value)}
           className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200" />
       </div>

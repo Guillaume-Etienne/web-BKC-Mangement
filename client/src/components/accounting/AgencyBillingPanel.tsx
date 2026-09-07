@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { Booking, AgencyBillingLine, AgencyRateItem } from '../../types/database'
+import { AGENCY_RATE_CATEGORIES, compareRateItems } from '../../types/database'
 import {
   computeAgencyTotals, agencyLineHoursUsed, getRoomNightlyRate, getLessonClientRate,
   countNights, fmtEur, nextInvoiceNumber, buildAgencyInvoiceDoc,
@@ -436,11 +437,22 @@ function AddLineForm({ rateItems, participants, onAdd, onCancel }: AddLineFormPr
           <select value={itemId} onChange={e => pickItem(e.target.value)}
             className="mt-0.5 w-full px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-200">
             <option value="">— custom line —</option>
-            {rateItems.map(r => (
-              <option key={r.id} value={r.id}>
-                {r.label} · {r.price} €{r.unit_hours != null ? ` · ${r.unit_hours}h` : ''}
-              </option>
-            ))}
+            {/* Grouped: a full rate card runs to 30+ rows, and picking one from a
+                flat list means scrolling past every other category. A service the
+                catalogue does not cover still goes in as a custom line above. */}
+            {AGENCY_RATE_CATEGORIES.map(cat => {
+              const rows = rateItems.filter(r => r.category === cat.key).sort(compareRateItems)
+              if (rows.length === 0) return null
+              return (
+                <optgroup key={cat.key} label={`${cat.icon} ${cat.label}`}>
+                  {rows.map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.label} · {r.price} €{r.unit_hours != null ? ` · ${r.unit_hours}h` : ''}
+                    </option>
+                  ))}
+                </optgroup>
+              )
+            })}
           </select>
         </label>
         <label className="text-xs text-gray-600 dark:text-gray-400">
