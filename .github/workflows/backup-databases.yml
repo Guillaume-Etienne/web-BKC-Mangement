@@ -53,9 +53,31 @@ jobs:
           gzip "$FILENAME"
           echo "BACKUP_FILE=${FILENAME}.gz" >> $GITHUB_ENV
 
+          # Retention tiers. Still one dump per day per database, exactly as
+          # before — what changes is how long it lives. 1st of the month: kept
+          # a year. Sunday: three months. Any other day: two weeks. No extra
+          # copies, just a longer life for the dumps worth keeping.
+          # NOTE: anything over 90 days only takes effect on a PRIVATE repo,
+          # and only once Settings > Actions > General > "Artifact and log
+          # retention" is raised. Otherwise GitHub clamps to the repo maximum
+          # with a warning — it degrades, it does not fail.
+          DOM=$(date +%d)
+          DOW=$(date +%u)
+          if   [ "$DOM" = "01" ]; then TIER=monthly; DAYS=365
+          elif [ "$DOW" = "7"  ]; then TIER=weekly;  DAYS=90
+          else                         TIER=daily;   DAYS=14
+          fi
+          echo "RETENTION_DAYS=$DAYS" >> $GITHUB_ENV
+          echo "TIER=$TIER" >> $GITHUB_ENV
+
+          # Real size in the job summary, so the storage budget is measured
+          # instead of guessed.
+          SIZE=$(du -h "${FILENAME}.gz" | cut -f1)
+          echo "**${{ matrix.env }}** - tier $TIER, size **$SIZE**, kept $DAYS days" >> $GITHUB_STEP_SUMMARY
+
       - name: Upload backup as artifact
         uses: actions/upload-artifact@v5
         with:
-          name: backup-${{ matrix.env }}-${{ github.run_id }}
+          name: backup-${{ matrix.env }}-${{ env.TIER }}-${{ github.run_id }}
           path: ${{ env.BACKUP_FILE }}
-          retention-days: 90
+          retention-days: ${{ env.RETENTION_DAYS }}
