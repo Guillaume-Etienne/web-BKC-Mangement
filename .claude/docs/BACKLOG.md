@@ -45,6 +45,47 @@ Options → Database → **Clear**. Rien en PROD.
 
 ## 🔴 Ouvert
 
+### 🔓 EN PAUSE (gui, 2026-09-07) — le dépôt GitHub est PUBLIC avec des données clients
+
+**Rien n'est résolu. Mis de côté par gui pour y revenir plus tard, pas clos.**
+
+`Guillaume-Etienne/web-BKC-Mangement` est public. `temp/` a été committé pendant des mois ;
+le `.gitignore` posé le 2026-09-05 (`d3d8ff8`) empêche la suite mais **ne retire rien de
+l'historique**. Re-vérifié le 2026-09-07, sans authentification :
+
+```
+HTTP 200  temp/TRAVELERS INFORMATION ENGLISH (Responses) - Form responses 1.csv
+```
+
+45 personnes : nom, dates et horaires de vol, contact d'urgence (nom, mobile, email, lien de
+parenté). Aucun secret n'a jamais été committé (vérifié) — c'est bien de la donnée client.
+
+**Le blocage de gui** : il déploie sur Vercel via une **organisation** GitHub (« sinon je ne les
+vois pas ») et craint de devoir passer au plan payant en passant le dépôt en privé.
+
+Ce qui est établi : Vercel Hobby déploie **sans problème un dépôt privé** — la confusion vient de
+GitHub Pages. Ce qui **n'est pas** établi : si Hobby accepte un dépôt privé **appartenant à une
+organisation**. Ne pas affirmer, c'est là-dessus que tout tient.
+
+**Prochaine action = une expérience, pas un avis.** Créer dans l'org un dépôt privé jetable
+(`vercel-privacy-test`, un `index.html`), tenter l'import sur le compte Vercel actuel, puis
+supprimer. Le dépôt principal n'est pas touché. Si ça déploie, passer BKC en privé règle tout
+d'un clic et c'est réversible.
+
+Piste probable pour le « sinon je ne les vois pas » : le **périmètre d'installation de l'app
+GitHub Vercel** (GitHub → Settings → Applications → Vercel → Configure), pas une limite de plan.
+Si c'était ça, l'organisation n'a peut-être plus de raison d'être.
+
+Portes de sortie si l'expérience échoue : transférer le dépôt au compte perso · déployer sans
+intégration Git (`vercel deploy --prebuilt --prod` depuis une Action, le build est statique) ·
+Cloudflare Pages / Netlify · en dernier recours `git filter-repo` en restant public.
+
+⚠️ **`filter-repo` seul ne suffit pas** : après un force-push les anciens commits restent
+atteignables sur GitHub **par leur SHA** jusqu'au ramasse-miettes — il faut un ticket au support.
+Et ça réécrit 329 des 343 commits, cassant les ~70 SHAs cités dans la doc. **Passer en privé est
+la seule action qui coupe l'accès immédiatement.**
+
+
 ### 🗓️ Planning — ligne « No room » : ✅ livrée et vérifiée à l'écran (2026-09-06)
 
 Commits **`a5e9b8e` + `44cc10d`, poussés** (confirmé `origin/master`). Les résas sans chambre
