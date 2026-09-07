@@ -6,7 +6,18 @@
 
 ## 🚨 Migrations SQL — registre
 
-**Aucune en attente au 2026-09-05.** Dernières vérifiées en curl anon réel :
+⬜ **`2026-09-07_equipment_category_bar.sql`** (TEST ⬜ / PROD ⬜) — ajoute `'bar'` à l'enum
+`equipment_category`. À passer **avant** la suivante.
+⬜ **`2026-09-07b_equipment_purchase_resale.sql`** (TEST ⬜ / PROD ⬜) — colonnes achat/revente sur
+`equipment` (prix, date, port, fournisseur, acheteur, payé le, liens vers `expenses`) **+ verrouille
+les nouvelles colonnes pour anon** (la table `equipment` était grande ouverte à tout token de
+partage depuis la Phase 2, jamais colonne-restreinte comme `equipment_rentals`/`lessons`/
+`taxi_trips` — ce fichier ferme ça en même temps). Vérif curl anon dans le fichier lui-même.
+Nouvel onglet « Achats & reventes » dans Equipment, catégorie Barre dans les 3 sélecteurs —
+le code tourne déjà contre ce schéma (`Equipment` TS a les nouveaux champs), donc tant que la
+migration n'est pas passée l'onglet affichera juste tout vide (pas d'erreur, `select('*')`).
+
+**Pour mémoire — déjà passées et vérifiées le 2026-09-05 (curl anon réel) :**
 `2026-09-05_client_errors.sql` (insert anon valide = 201, `kind` hors liste = `42501` sur les deux
 bases), `2026-09-05b_deposit_requested.sql` (`42501` et non `42703` = colonne présente, anon exclu)
 et `2026-09-03_client_notes.sql` (reconfirmée sur les deux bases).

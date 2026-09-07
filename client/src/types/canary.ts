@@ -124,6 +124,9 @@ export const _instructorPayment = {
 export const _equipment = {
   id: 'x', name: 'X', category: 'kite', brand: null, size: null, year: null,
   condition: 'good', notes: null, is_active: true,
+  purchase_price: null, purchase_date: null, shipping_cost: null, supplier: null,
+  purchase_comment: null, purchase_expense_id: null,
+  sold_price: null, sold_date: null, sold_to: null, sold_paid_date: null, sale_expense_id: null,
 } satisfies Equipment
 
 export const _equipmentRental = {

@@ -9,7 +9,7 @@ import { useTable } from '../hooks/useSupabase'
 import { getLessonClientRate, getInstructorRate } from '../components/accounting/utils'
 import type {
   Equipment, EquipmentRental, EquipmentCategory, EquipmentCondition, Lesson, RentalSlot,
-  Instructor, PriceItem, LessonRateOverride, EquipmentPricingDefaults, Lang,
+  Instructor, PriceItem, LessonRateOverride, EquipmentPricingDefaults, Expense, Lang,
 } from '../types/database'
 import { todayISO } from '../utils/dates'
 
@@ -27,7 +27,12 @@ const DEFAULT_EQUIPMENT_SHARE  = 0.35  // of the lesson's margin (client price �
 const DEFAULT_OTHER_GEAR_SHARE = 0.30  // of that share, reserved for untracked accessories
 const DEFAULT_KITE_BOARD_RATIO = 2     // kite weighs ~2× a board in the split
 
+// A lesson only carries two gear slots (kite_id, board_id) — surfboard/foilboard
+// piggyback on the board slot, but a bar has no slot at all: it stays out of the
+// per-lesson revenue estimate entirely (decision gui, 2026-09-07 — see
+// migration 2026-09-07_equipment_category_bar.sql).
 function lessonsFor(eq: Equipment, lessons: Lesson[]): Lesson[] {
+  if (eq.category === 'bar') return []
   const field = eq.category === 'kite' ? 'kite_id' : 'board_id'
   return lessons.filter(l => l[field] === eq.id)
 }
@@ -123,8 +128,13 @@ function getCategoryLabel(category: EquipmentCategory, lang: Lang): string {
     board:     i18n.equipment.category_board[lang],
     surfboard: i18n.equipment.category_surfboard[lang],
     foilboard: i18n.equipment.category_foilboard[lang],
+    bar:       i18n.equipment.category_bar[lang],
   }
   return labels[category]
+}
+
+const CATEGORY_ICON: Record<EquipmentCategory, string> = {
+  kite: '🪂', board: '🏄', surfboard: '🌊', foilboard: '🦈', bar: '🕹️',
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -148,8 +158,9 @@ export default function EquipmentPage() {
   const { data: pricingRows, refresh: refreshPricingDefaults } =
     useTable<EquipmentPricingDefaults>('equipment_pricing_defaults', { order: 'updated_at', ascending: false })
   const pricingDefaults = pricingRows[0] ?? null
+  const { data: expenses, refresh: refreshExpenses } = useTable<Expense>('expenses', { order: 'date', ascending: false })
 
-  const [activeTab, setActiveTab]           = useState<'inventory' | 'rentals' | 'revenue'>('inventory')
+  const [activeTab, setActiveTab]           = useState<'inventory' | 'rentals' | 'revenue' | 'assets'>('inventory')
 
   // ── Equipment pricing model (CA tab) — percent in the UI, fraction in the model ──
   const [equipmentSharePct, setEquipmentSharePct] = useState(DEFAULT_EQUIPMENT_SHARE * 100)
@@ -232,13 +243,18 @@ export default function EquipmentPage() {
   async function saveEquipment() {
     if (!editModal.formData.name) { alert('Le nom est requis'); return }
     setSaving(true)
+    // A piece with a resale date is no longer part of the active fleet — one
+    // action instead of a separate "now also archive it" step.
+    const formData = editModal.formData.sold_date
+      ? { ...editModal.formData, is_active: false }
+      : editModal.formData
     if (editModal.equipment) {
-      const { id, ...fields } = { ...editModal.equipment, ...editModal.formData }
+      const { id, ...fields } = { ...editModal.equipment, ...formData }
       const { error } = await supabase.from('equipment').update(fields).eq('id', id)
       if (error) { alert('Erreur : ' + error.message); setSaving(false); return }
-      if (selectedEquipment?.id === id) setSelectedEquipment({ ...selectedEquipment, ...editModal.formData } as Equipment)
+      if (selectedEquipment?.id === id) setSelectedEquipment({ ...selectedEquipment, ...formData } as Equipment)
     } else {
-      const { error } = await supabase.from('equipment').insert([editModal.formData])
+      const { error } = await supabase.from('equipment').insert([formData])
       if (error) { alert('Erreur : ' + error.message); setSaving(false); return }
     }
     setSaving(false)
@@ -251,6 +267,63 @@ export default function EquipmentPage() {
     if (error) { alert('Erreur : ' + error.message); return }
     refreshEquipment()
     setSelectedEquipment(null)
+  }
+
+  // ── Purchase / resale ↔ Expenses linking ───────────────────────────────────
+  // Deliberately one-shot buttons, never a silent sync: gui asked for a way to
+  // push a correction into the linked expense on demand, not a live mirror
+  // that could drift or fight a manual edit made from the Accounting tab.
+
+  async function createPurchaseExpense(eq: Equipment) {
+    if (eq.purchase_price == null) return
+    const { data, error } = await supabase.from('expenses').insert([{
+      date: eq.purchase_date || todayISO(),
+      category: 'Equipment',
+      amount: eq.purchase_price + (eq.shipping_cost ?? 0),
+      description: `Achat — ${eq.name}`,
+    }]).select().single()
+    if (error) { alert('Erreur : ' + error.message); return }
+    const { error: linkError } = await supabase.from('equipment').update({ purchase_expense_id: data.id }).eq('id', eq.id)
+    if (linkError) { alert('Erreur : ' + linkError.message); return }
+    refreshEquipment()
+    refreshExpenses()
+  }
+
+  async function updatePurchaseExpense(eq: Equipment) {
+    if (!eq.purchase_expense_id || eq.purchase_price == null) return
+    const { error } = await supabase.from('expenses').update({
+      date: eq.purchase_date || todayISO(),
+      amount: eq.purchase_price + (eq.shipping_cost ?? 0),
+      description: `Achat — ${eq.name}`,
+    }).eq('id', eq.purchase_expense_id)
+    if (error) { alert('Erreur : ' + error.message); return }
+    refreshExpenses()
+  }
+
+  async function createSaleExpense(eq: Equipment) {
+    if (eq.sold_price == null) return
+    const { data, error } = await supabase.from('expenses').insert([{
+      date: eq.sold_date || todayISO(),
+      category: 'Equipment',
+      amount: -eq.sold_price,
+      description: `Revente — ${eq.name}`,
+    }]).select().single()
+    if (error) { alert('Erreur : ' + error.message); return }
+    const { error: linkError } = await supabase.from('equipment').update({ sale_expense_id: data.id }).eq('id', eq.id)
+    if (linkError) { alert('Erreur : ' + linkError.message); return }
+    refreshEquipment()
+    refreshExpenses()
+  }
+
+  async function updateSaleExpense(eq: Equipment) {
+    if (!eq.sale_expense_id || eq.sold_price == null) return
+    const { error } = await supabase.from('expenses').update({
+      date: eq.sold_date || todayISO(),
+      amount: -eq.sold_price,
+      description: `Revente — ${eq.name}`,
+    }).eq('id', eq.sale_expense_id)
+    if (error) { alert('Erreur : ' + error.message); return }
+    refreshExpenses()
   }
 
   // ── Rentals handlers ───────────────────────────────────────────────────────
@@ -306,7 +379,7 @@ export default function EquipmentPage() {
   const revenueTotalHours = revenueRows.reduce((sum, r) => sum + r.hours, 0)
   const revenueMaxTotal   = revenueRows.reduce((max, r) => Math.max(max, r.total), 1)
 
-  const revenueCategories: EquipmentCategory[] = ['kite', 'board', 'surfboard', 'foilboard']
+  const revenueCategories: EquipmentCategory[] = ['kite', 'board', 'surfboard', 'foilboard', 'bar']
   const revenueByCategory = revenueCategories.map(cat => {
     const rows = revenueRows.filter(r => r.eq.category === cat)
     return {
@@ -317,6 +390,30 @@ export default function EquipmentPage() {
       est: rows.reduce((sum, r) => sum + r.est, 0),
     }
   })
+
+  // ── Assets tab (purchase / resale) ──────────────────────────────────────────
+
+  const assetRows = equipment
+    .filter(eq => eq.purchase_price != null || eq.sold_price != null)
+    .map(eq => ({
+      eq,
+      invested: (eq.purchase_price ?? 0) + (eq.shipping_cost ?? 0),
+      gainLoss: eq.sold_price != null ? eq.sold_price - (eq.purchase_price ?? 0) - (eq.shipping_cost ?? 0) : null,
+    }))
+    .sort((a, b) => (b.eq.purchase_date || '').localeCompare(a.eq.purchase_date || ''))
+
+  const totalInvested  = assetRows.reduce((sum, r) => sum + r.invested, 0)
+  const totalRecovered = assetRows.reduce((sum, r) => sum + (r.eq.sold_price ?? 0), 0)
+
+  function findExpense(id: string | null): Expense | null {
+    return id ? expenses.find(e => e.id === id) ?? null : null
+  }
+
+  function expenseLinkedText(exp: Expense): string {
+    return i18n.equipment.msg_expense_linked[lang]
+      .replace('{amount}', Math.round(exp.amount).toString())
+      .replace('{date}', formatDate(exp.date))
+  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -358,6 +455,16 @@ export default function EquipmentPage() {
         >
           💰 {i18n.equipment.tab_revenue[lang]}
         </button>
+        <button
+          onClick={() => setActiveTab('assets')}
+          className={`px-4 py-3 font-medium border-b-2 transition-colors ${
+            activeTab === 'assets'
+              ? 'border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+          }`}
+        >
+          🧾 {i18n.equipment.tab_assets[lang]}
+        </button>
       </div>
 
       {/* ─── INVENTORY TAB ─────────────────────────────────────────────────────── */}
@@ -376,6 +483,7 @@ export default function EquipmentPage() {
                 <option value="board">{i18n.equipment.category_board[lang]}</option>
                 <option value="surfboard">{i18n.equipment.category_surfboard[lang]}</option>
                 <option value="foilboard">{i18n.equipment.category_foilboard[lang]}</option>
+                <option value="bar">{i18n.equipment.category_bar[lang]}</option>
               </select>
               <button
                 onClick={() => openEditModal()}
@@ -585,6 +693,7 @@ export default function EquipmentPage() {
                 <option value="board">{i18n.equipment.category_board[lang]}</option>
                 <option value="surfboard">{i18n.equipment.category_surfboard[lang]}</option>
                 <option value="foilboard">{i18n.equipment.category_foilboard[lang]}</option>
+                <option value="bar">{i18n.equipment.category_bar[lang]}</option>
               </select>
               <button
                 onClick={addRental}
@@ -837,7 +946,7 @@ export default function EquipmentPage() {
               <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
                 {revenueByCategory.filter(c => c.count > 0).map(c => (
                   <div key={c.cat} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-                    <div className="text-lg">{{ kite: '🪂', board: '🏄', surfboard: '🌊', foilboard: '🦈' }[c.cat]}</div>
+                    <div className="text-lg">{CATEGORY_ICON[c.cat]}</div>
                     <div className="font-bold text-sm text-gray-900 dark:text-gray-100 mt-1">{getCategoryLabel(c.cat, lang)}</div>
                     <div className="text-xs text-gray-400 dark:text-gray-400 mb-2">{c.count} pièce{c.count > 1 ? 's' : ''} active{c.count > 1 ? 's' : ''} · {c.sorties} sorties</div>
                     <div className="text-xl font-extrabold text-gray-900 dark:text-gray-100">{Math.round(c.real + c.est)}€</div>
@@ -854,6 +963,130 @@ export default function EquipmentPage() {
                 ))}
               </div>
             </>
+          )}
+        </div>
+      )}
+
+      {/* ─── ASSETS TAB (purchase / resale) ────────────────────────────────────── */}
+      {activeTab === 'assets' && (
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.equipment.label_total_invested[lang]}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{Math.round(totalInvested)}€</p>
+            </div>
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.equipment.label_total_recovered[lang]}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{Math.round(totalRecovered)}€</p>
+            </div>
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.equipment.label_net[lang]}</p>
+              <p className={`text-2xl font-bold ${totalRecovered - totalInvested >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {Math.round(totalRecovered - totalInvested)}€
+              </p>
+            </div>
+          </div>
+
+          {assetRows.length === 0 ? (
+            <p className="text-sm text-gray-400 dark:text-gray-400 italic">{i18n.equipment.msg_no_asset_data[lang]}</p>
+          ) : (
+            <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Nom</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.section_purchase[lang]}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.section_resale[lang]}</th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.label_gain_loss[lang]}</th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                  {assetRows.map(({ eq, gainLoss }) => {
+                    const purchaseExpense = findExpense(eq.purchase_expense_id)
+                    const saleExpense     = findExpense(eq.sale_expense_id)
+                    return (
+                      <tr key={eq.id}>
+                        <td className="px-4 py-3 align-top">
+                          <p className="font-medium text-gray-900 dark:text-gray-100">{eq.name}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-400">{getCategoryLabel(eq.category, lang)}</p>
+                          {!eq.is_active && <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">{i18n.equipment.label_sold_badge[lang]}</span>}
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          {eq.purchase_price == null ? (
+                            <span className="text-xs text-gray-400 dark:text-gray-400 italic">{i18n.equipment.msg_no_purchase_price[lang]}</span>
+                          ) : (
+                            <div className="text-xs space-y-1">
+                              <p className="text-gray-900 dark:text-gray-100 font-medium">
+                                {eq.purchase_price}€{eq.shipping_cost ? ` + ${eq.shipping_cost}€ port` : ''}
+                                {eq.purchase_date ? ` · ${formatDate(eq.purchase_date)}` : ''}
+                              </p>
+                              {eq.supplier && <p className="text-gray-500 dark:text-gray-400">{eq.supplier}</p>}
+                              {purchaseExpense ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-green-700 dark:text-green-400">✓ {expenseLinkedText(purchaseExpense)}</span>
+                                  <button onClick={() => updatePurchaseExpense(eq)} className="text-blue-600 dark:text-blue-400 hover:underline">
+                                    ↻ {i18n.equipment.btn_update_expense[lang]}
+                                  </button>
+                                </div>
+                              ) : (
+                                <button onClick={() => createPurchaseExpense(eq)} className="text-blue-600 dark:text-blue-400 hover:underline">
+                                  {i18n.equipment.btn_create_expense[lang]}
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          {eq.sold_price == null ? (
+                            <span className="text-xs text-gray-400 dark:text-gray-400">{i18n.equipment.label_in_fleet[lang]}</span>
+                          ) : (
+                            <div className="text-xs space-y-1">
+                              <p className="text-gray-900 dark:text-gray-100 font-medium">
+                                {eq.sold_price}€{eq.sold_date ? ` · ${formatDate(eq.sold_date)}` : ''}
+                              </p>
+                              {eq.sold_to && <p className="text-gray-500 dark:text-gray-400">{i18n.equipment.label_sold_to[lang]} : {eq.sold_to}</p>}
+                              <p className={eq.sold_paid_date ? 'text-green-700 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}>
+                                {eq.sold_paid_date ? `${i18n.equipment.label_sold_paid_date[lang]} ${formatDate(eq.sold_paid_date)}` : i18n.equipment.label_unpaid[lang]}
+                              </p>
+                              {saleExpense ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-green-700 dark:text-green-400">✓ {expenseLinkedText(saleExpense)}</span>
+                                  <button onClick={() => updateSaleExpense(eq)} className="text-blue-600 dark:text-blue-400 hover:underline">
+                                    ↻ {i18n.equipment.btn_update_expense[lang]}
+                                  </button>
+                                </div>
+                              ) : (
+                                <button onClick={() => createSaleExpense(eq)} className="text-blue-600 dark:text-blue-400 hover:underline">
+                                  {i18n.equipment.btn_create_expense[lang]}
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right align-top">
+                          {gainLoss == null ? (
+                            <span className="text-xs text-gray-400 dark:text-gray-400">—</span>
+                          ) : (
+                            <span className={`font-bold ${gainLoss >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {gainLoss >= 0 ? '+' : ''}{Math.round(gainLoss)}€
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right align-top">
+                          <button
+                            onClick={() => { setSelectedEquipment(eq); setActiveTab('inventory'); openEditModal(eq) }}
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-xs"
+                          >
+                            {i18n.common.btn_edit[lang]}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -949,6 +1182,103 @@ export default function EquipmentPage() {
                   className="w-full text-sm border dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1.5"
                 />
               </div>
+              <div className="pt-2 border-t dark:border-gray-800">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">{i18n.equipment.section_purchase[lang]}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.equipment.label_purchase_price[lang]}</label>
+                    <input
+                      type="number"
+                      value={editModal.formData.purchase_price ?? ''}
+                      onChange={e => setEditModal(prev => ({ ...prev, formData: { ...prev.formData, purchase_price: e.target.value ? parseFloat(e.target.value) : null } }))}
+                      className="w-full text-sm border dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.equipment.label_purchase_date[lang]}</label>
+                    <input
+                      type="date"
+                      value={editModal.formData.purchase_date ?? ''}
+                      onChange={e => setEditModal(prev => ({ ...prev, formData: { ...prev.formData, purchase_date: e.target.value || null } }))}
+                      className="w-full text-sm border dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1.5"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.equipment.label_shipping_cost[lang]}</label>
+                    <input
+                      type="number"
+                      value={editModal.formData.shipping_cost ?? ''}
+                      onChange={e => setEditModal(prev => ({ ...prev, formData: { ...prev.formData, shipping_cost: e.target.value ? parseFloat(e.target.value) : null } }))}
+                      className="w-full text-sm border dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.equipment.label_supplier[lang]}</label>
+                    <input
+                      type="text"
+                      value={editModal.formData.supplier ?? ''}
+                      onChange={e => setEditModal(prev => ({ ...prev, formData: { ...prev.formData, supplier: e.target.value || null } }))}
+                      className="w-full text-sm border dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1.5"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.equipment.label_purchase_comment[lang]}</label>
+                  <input
+                    type="text"
+                    value={editModal.formData.purchase_comment ?? ''}
+                    onChange={e => setEditModal(prev => ({ ...prev, formData: { ...prev.formData, purchase_comment: e.target.value || null } }))}
+                    className="w-full text-sm border dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1.5"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 border-t dark:border-gray-800">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">{i18n.equipment.section_resale[lang]}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.equipment.label_sold_price[lang]}</label>
+                    <input
+                      type="number"
+                      value={editModal.formData.sold_price ?? ''}
+                      onChange={e => setEditModal(prev => ({ ...prev, formData: { ...prev.formData, sold_price: e.target.value ? parseFloat(e.target.value) : null } }))}
+                      className="w-full text-sm border dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.equipment.label_sold_date[lang]}</label>
+                    <input
+                      type="date"
+                      value={editModal.formData.sold_date ?? ''}
+                      onChange={e => setEditModal(prev => ({ ...prev, formData: { ...prev.formData, sold_date: e.target.value || null } }))}
+                      className="w-full text-sm border dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1.5"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.equipment.label_sold_to[lang]}</label>
+                    <input
+                      type="text"
+                      value={editModal.formData.sold_to ?? ''}
+                      onChange={e => setEditModal(prev => ({ ...prev, formData: { ...prev.formData, sold_to: e.target.value || null } }))}
+                      className="w-full text-sm border dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.equipment.label_sold_paid_date[lang]}</label>
+                    <input
+                      type="date"
+                      value={editModal.formData.sold_paid_date ?? ''}
+                      onChange={e => setEditModal(prev => ({ ...prev, formData: { ...prev.formData, sold_paid_date: e.target.value || null } }))}
+                      className="w-full text-sm border dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1.5"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"

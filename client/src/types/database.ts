@@ -569,7 +569,7 @@ export interface FormSubmission {
 }
 
 // Equipment
-export type EquipmentCategory = 'kite' | 'board' | 'surfboard' | 'foilboard'
+export type EquipmentCategory = 'kite' | 'board' | 'surfboard' | 'foilboard' | 'bar'
 export type EquipmentCondition = 'new' | 'good' | 'fair' | 'damaged' | 'retired'
 export type RentalSlot = 'morning' | 'afternoon' | 'full_day'
 
@@ -583,6 +583,19 @@ export interface Equipment {
   condition: EquipmentCondition
   notes: string | null
   is_active: boolean
+  // Purchase & resale — 2026-09-07, see migration 2026-09-07b. All nullable:
+  // the whole existing fleet predates these fields.
+  purchase_price: number | null
+  purchase_date: string | null
+  shipping_cost: number | null
+  supplier: string | null
+  purchase_comment: string | null
+  purchase_expense_id: string | null  // set only via the "Créer/Mettre à jour la dépense" button
+  sold_price: number | null
+  sold_date: string | null
+  sold_to: string | null
+  sold_paid_date: string | null       // NULL = vendu mais pas encore payé
+  sale_expense_id: string | null
 }
 
 export interface EquipmentRental {
