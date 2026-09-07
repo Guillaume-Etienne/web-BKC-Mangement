@@ -17,6 +17,13 @@ Nouvel onglet « Achats & reventes » dans Equipment, catégorie Barre dans les 
 le code tourne déjà contre ce schéma (`Equipment` TS a les nouveaux champs), donc tant que la
 migration n'est pas passée l'onglet affichera juste tout vide (pas d'erreur, `select('*')`).
 
+⬜ **`2026-09-07_ffly_rates_2026_27.sql`** (TEST ⬜ / PROD ⬜) — grille Fun & Fly 2026-27 dans
+`agency_rate_items` : cours kite à la nouvelle grille (240/600, 190/400), les 2h qui manquaient,
+transferts voiture/pick-up, gardiennage, cours kiteFoil et wing, 8 lignes de location et 6 lignes
+d'hébergement. **Données seulement, aucun DDL** — donc pas de curl anon à faire : la table est
+admin-only. Preuve = ouvrir **Options → 🤝 Agencies → Fun & Fly** et compter **33 lignes**, dont
+l'ancien transfert à 168 € désormais inactif. Détail et reste-à-faire : § 🤝 Agences.
+
 **Pour mémoire — déjà passées et vérifiées le 2026-09-05 (curl anon réel) :**
 `2026-09-05_client_errors.sql` (insert anon valide = 201, `kind` hors liste = `42501` sur les deux
 bases), `2026-09-05b_deposit_requested.sql` (`42501` et non `42703` = colonne présente, anon exclu)
@@ -149,6 +156,41 @@ refermerait. **Ne pas le faire à moitié** : les quatre ou aucune.
   redéploiement d'Edge Function. ⚠️ Ne pas confondre avec `notify-submission`, dont les textes sont
   **en dur dans l'Edge Function** — décision gui, demander avant de toucher.
 - ⬜ Redéployer `notify-submission` **seulement si** l'email admin semble pauvre (non bloquant).
+
+### 🤝 Agences — grille Fun & Fly 2026-27 (2026-09-07)
+
+La fiche de synthèse renvoyée à F&Fly (`temp/2026-27 grille de prix détaillée…xlsx`, gitignoré)
+a été confrontée au catalogue en base. **Décision de gui : les prix de la fiche sont la base de
+facture, marge de 20 % incluse** — même modèle que la facture Brunet 2025. Le catalogue disait
+encore 200/472,50 là où la fiche annonce 240/600 : toute facture générée aurait **sous-facturé
+l'agence de 127,50 € par pack 10h**. Migration écrite, voir le registre en tête.
+
+- 🔶 **Wing privé 4h / 10h** : le catalogue dit 200 / 472,50, alignés sur l'**ancien** tarif kite.
+  Le kite passe à 240 / 600 mais la fiche laisse ces deux cases vides, et vend le wing **moins
+  cher** à 2h (120 contre 140) — assumé, il n'y a que du matériel débutant en wing. **Ne rien
+  déduire** ([[reference_agency_package_hours]]) : demander les deux chiffres à gui.
+- ⬜ **KiteFoil 10h** et **location / gardiennage de 2 à 5 jours puis 8 à 21 jours** : cases encore
+  vides dans la fiche, F&Fly les redemandera.
+- ⬜ **Ligne 215 de la fiche, « % commission » : toujours vide.** C'est le seul champ qui dit à
+  F&Fly que les prix contiennent déjà leur marge. À remplir avant envoi (20).
+
+### 🛟 Location : `full_day` facture le tarif demi-journée (2026-09-07)
+
+`rentalPrice()` (`client/src/components/planning/LessonWeekView.tsx:207`) ne regarde que le
+`billable_type`, **jamais le `slot`**. Cocher « journée » facture donc 55 € au lieu des 95 € de la
+grille. Le slot `full_day` existe pourtant en base depuis toujours (`rental_slot` enum).
+
+⚠️ **Latent, pas encore nuisible** : vérifié en PROD le 2026-09-07, `equipment_rentals` est **vide**
+(0 ligne). Mais la saison démarre, et c'est exactement le genre d'écriture qui ment à l'écran sans
+erreur. Deux trous du même tonneau, à traiter ensemble :
+
+- ⬜ **Aucun `billable_type` wing** — l'enum a `rental_kite/board/full/surfboard/foilboard` et
+  s'arrête là, alors que la fiche vend du WingFoil 60 €/jour.
+- ⬜ **`bookings.center_access_rate` a `DEFAULT 5`** (`schema.sql:126`) alors que le tarif direct est
+  7 (`price_items.center_access`). C'est pour ça que la résa #22 est à 5.
+- ❓ **Choix de modèle à trancher avec gui** : un tarif jour par type d'équipement dans
+  `price_items`, ou une grille dégressive au nombre de jours sur le modèle de `price_tiers` (la
+  fiche vend aussi des forfaits 6-7 jours). Le second colle à la fiche, le premier est plus simple.
 
 ### 🔗 Divers
 
