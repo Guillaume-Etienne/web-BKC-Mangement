@@ -30,7 +30,12 @@ BEGIN
   -- Privé 4h 200 → 240, 10h 472,50 → 600 · Semi 4h 160 → 190, 10h 346,50 → 400
   UPDATE agency_rate_items SET price = 240 WHERE agency_id = ffly AND label = 'Pack cours Privé 4h';
   UPDATE agency_rate_items SET price = 600 WHERE agency_id = ffly AND label = 'Pack cours Privé 10h';
-  UPDATE agency_rate_items SET price = 190 WHERE agency_id = ffly AND label = 'Pack cours Groupe 4h';
+  -- Le catalogue disait 'Groupe 4h' mais 'Semi Privé 10h' : un seul vocabulaire,
+  -- celui de la fiche envoyée à l'agence. Les lignes de facture référencent l'id,
+  -- pas le libellé — renommer est sans effet sur l'existant.
+  UPDATE agency_rate_items SET label = 'Pack cours Semi Privé 4h'
+  WHERE agency_id = ffly AND label = 'Pack cours Groupe 4h';
+  UPDATE agency_rate_items SET price = 190 WHERE agency_id = ffly AND label = 'Pack cours Semi Privé 4h';
   UPDATE agency_rate_items SET price = 400 WHERE agency_id = ffly AND label = 'Pack cours Semi Privé 10h';
 
   -- Les 2h manquaient au catalogue alors que la fiche les vend.
@@ -60,18 +65,79 @@ BEGIN
   -- ── Gardiennage : 8 € via agence (7 € reste le tarif direct) ────────────
   UPDATE agency_rate_items SET price = 8
   WHERE agency_id = ffly AND label = 'Gardiennage matériel personnel — par personne et par jour';
+
+  INSERT INTO agency_rate_items (agency_id, category, label, unit_hours, price, is_active)
+  SELECT ffly, 'rental', 'Gardiennage matériel personnel — forfait 6 à 7 jours, par personne', NULL, 50, TRUE
+  WHERE NOT EXISTS (SELECT 1 FROM agency_rate_items WHERE agency_id = ffly AND label = 'Gardiennage matériel personnel — forfait 6 à 7 jours, par personne');
+
+  -- ── Cours kiteFoil ──────────────────────────────────────────────────────
+  -- Mêmes prix que le kite dans la fiche. Lignes distinctes quand même : une
+  -- facture doit dire ce qui a été vendu. (Le modèle de leçon de l'app ne
+  -- connaît pas la discipline — private/group/supervision et rien d'autre.)
+  INSERT INTO agency_rate_items (agency_id, category, label, unit_hours, price, is_active)
+  SELECT ffly, 'lesson', v.label, v.hours, v.price, TRUE
+  FROM (VALUES
+    ('Pack cours KiteFoil Privé 2h',      2, 140),
+    ('Pack cours KiteFoil Privé 4h',      4, 240),
+    ('Pack cours KiteFoil Semi Privé 2h', 2, 100),
+    ('Pack cours KiteFoil Semi Privé 4h', 4, 190)
+  ) AS v(label, hours, price)
+  WHERE NOT EXISTS (SELECT 1 FROM agency_rate_items r WHERE r.agency_id = ffly AND r.label = v.label);
+
+  -- ── Cours wing : seules les 2h sont chiffrées dans la fiche ─────────────
+  -- Moins cher que le kite, assumé : matériel débutant uniquement (l. 121).
+  INSERT INTO agency_rate_items (agency_id, category, label, unit_hours, price, is_active)
+  SELECT ffly, 'lesson', v.label, v.hours, v.price, TRUE
+  FROM (VALUES
+    ('Pack cours Wing privé 2h',      2, 120),
+    ('Pack cours Wing Semi Privé 2h', 2,  96)
+  ) AS v(label, hours, price)
+  WHERE NOT EXISTS (SELECT 1 FROM agency_rate_items r WHERE r.agency_id = ffly AND r.label = v.label);
+
+  -- ── Location d'équipement ───────────────────────────────────────────────
+  -- La fiche vend à la JOURNÉE, l'app facture à la demi-journée : voir le
+  -- chantier « rentalPrice() ignore le slot » dans BACKLOG.md.
+  INSERT INTO agency_rate_items (agency_id, category, label, unit_hours, price, is_active)
+  SELECT ffly, 'rental', v.label, NULL, v.price, TRUE
+  FROM (VALUES
+    ('Location kitesurf (kite + barre + planche) — la journée',  95),
+    ('Location kitesurf (kite + barre + planche) — 6 à 7 jours', 500),
+    ('Location aile et barre — la journée',                       70),
+    ('Location aile et barre — 6 à 7 jours',                     320),
+    ('Location foilboard — la journée',                           70),
+    ('Location foilboard — 6 à 7 jours',                         350),
+    ('Location wingfoil — la journée',                            60),
+    ('Location wingfoil — 6 à 7 jours',                          300)
+  ) AS v(label, price)
+  WHERE NOT EXISTS (SELECT 1 FROM agency_rate_items r WHERE r.agency_id = ffly AND r.label = v.label);
+
+  -- ── Hébergement ─────────────────────────────────────────────────────────
+  -- Seulement pour les séjours pris CHEZ NOUS. Quand F&Fly réserve en direct
+  -- auprès de Palmeiras, la chambre reste à 0 sur la résa — c'est le cas des
+  -- deux résas F&Fly actuelles. Prix par chambre et par nuit (fiche l. 49).
+  -- agency_rate_items n'a qu'une colonne prix : le palier de nuits est dans le
+  -- libellé, comme les heures des forfaits cours.
+  INSERT INTO agency_rate_items (agency_id, category, label, unit_hours, price, is_active)
+  SELECT ffly, 'accommodation', v.label, NULL, v.price, TRUE
+  FROM (VALUES
+    ('Maison partagée, chambre vue mer (double) — la nuit, 1 à 6 nuits',   90),
+    ('Maison partagée, chambre vue mer (double) — la nuit, 7 à 21 nuits',  85),
+    ('Maison partagée, chambre classique (double) — la nuit, 1 à 6 nuits', 65),
+    ('Maison partagée, chambre classique (double) — la nuit, 7 à 21 nuits',60),
+    ('Maison complète (4 pers.) — la nuit, 1 à 6 nuits',                  130),
+    ('Maison complète (4 pers.) — la nuit, 7 à 21 nuits',                 120)
+  ) AS v(label, price)
+  WHERE NOT EXISTS (SELECT 1 FROM agency_rate_items r WHERE r.agency_id = ffly AND r.label = v.label);
 END $$;
 
 -- ════════════════════════════════════════════════════════════════════════════
--- RESTE À POSER — en attente du fichier mis à jour par gui (2026-09-07) :
---   • Wing privé 2h / 4h / 10h  → aujourd'hui 4h=200 et 10h=472,50 en base,
---     alignés sur le kite, alors que la fiche vendait le wing MOINS cher (120 à
---     2h contre 140). Ne rien déduire.
---   • KiteFoil (aucune ligne au catalogue aujourd'hui).
---   • Location d'équipement à la journée et forfaits 6-7 jours (aucune ligne
---     category='rental' hors gardiennage).
---   • Hébergement : lignes category='accommodation' pour les séjours pris chez
---     nous (la fiche annonce 90/65/130 la nuit, 85/60/120 à partir de 7 nuits).
+-- RESTE À POSER — en attente d'une réponse de gui :
+--   • Wing privé 4h / 10h : le catalogue dit 200 / 472,50, alignés sur l'ANCIEN
+--     tarif kite. Le kite passe à 240 / 600, mais la fiche laisse ces deux cases
+--     vides et vend le wing MOINS cher à 2h (120 contre 140) — matériel débutant
+--     seulement. Ne rien déduire : c'est le piège « Pack cours 10x 2h ».
+--   • KiteFoil 10h : case vide dans la fiche.
+--   • Location et gardiennage de 2 à 5 jours, et de 8 à 21 jours : cases vides.
 -- ════════════════════════════════════════════════════════════════════════════
 
 -- VÉRIFICATION (après application) :
