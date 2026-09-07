@@ -52,7 +52,7 @@ export const managementI18n = {
   // Sources (attribution)
   btn_add_source: { fr: 'Ajouter une source', en: 'Add source', es: 'Añadir fuente' },
   label_source_name: { fr: 'Nom de la source', en: 'Source name', es: 'Nombre de la fuente' },
-  title_enquiry_sources: { fr: 'Sources des enquêtes', en: 'Enquiry sources', es: 'Fuentes de consultas' },
+  title_enquiry_sources: { fr: 'Sources des demandes', en: 'Enquiry sources', es: 'Fuentes de consultas' },
   btn_retire:   { fr: 'Retirer',  en: 'Retire',  es: 'Retirar' },
   btn_restore:  { fr: 'Restaurer', en: 'Restore', es: 'Restaurar' },
   label_retired: { fr: 'Retirée', en: 'Retired', es: 'Retirada' },

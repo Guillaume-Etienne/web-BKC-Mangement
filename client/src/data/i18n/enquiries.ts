@@ -2,7 +2,7 @@ import type { Tr } from './types'
 
 export const enquiriesI18n = {
   // EnquiryPanel — header
-  ep_new_enquiry:     { fr: 'Nouvelle enquête', en: 'New enquiry', es: 'Nueva consulta' },
+  ep_new_enquiry:     { fr: 'Nouvelle demande', en: 'New enquiry', es: 'Nueva consulta' },
   ep_from_website:    { fr: 'depuis le site',   en: 'from the website', es: 'desde el sitio web' },
   ep_added_by_hand:   { fr: 'ajoutée manuellement', en: 'added by hand', es: 'añadida manualmente' },
 
@@ -33,11 +33,11 @@ export const enquiriesI18n = {
   ep_status_lost:     { fr: 'Perdue',         en: 'Lost',       es: 'Perdida' },
   ep_label_lost_reason:      { fr: 'Pourquoi perdue — un mot', en: 'Why lost — one word', es: 'Por qué perdida — una palabra' },
   ep_placeholder_lost_reason: { fr: 'complet · budget · pas de réponse', en: 'full · budget · no reply', es: 'completo · presupuesto · sin respuesta' },
-  ep_msg_won: { fr: 'Une enquête gagnée quitte aussitôt la liste de travail — retrouvez-la dans l\'archive, avec sa couleur.', en: 'Won leaves the working list right away — find it again in the archive, in its colour.', es: 'Una consulta ganada sale de inmediato de la lista de trabajo — encuéntrela de nuevo en el archivo, con su color.' },
+  ep_msg_won: { fr: 'Une demande gagnée quitte aussitôt la liste de travail — retrouvez-la dans l\'archive, avec sa couleur.', en: 'Won leaves the working list right away — find it again in the archive, in its colour.', es: 'Una consulta ganada sale de inmediato de la lista de trabajo — encuéntrela de nuevo en el archivo, con su color.' },
 
   // EnquiryPanel — actions
   ep_saving:       { fr: 'Enregistrement…', en: 'Saving…', es: 'Guardando…' },
-  ep_btn_create:   { fr: 'Créer l\'enquête', en: 'Create enquiry', es: 'Crear consulta' },
+  ep_btn_create:   { fr: 'Créer la demande', en: 'Create enquiry', es: 'Crear consulta' },
 
   // EnquiryPanel — Brevo sync status
   ep_brevo_error:          { fr: '⚠ Non ajoutée à Brevo — {error}', en: '⚠ Not added to Brevo — {error}', es: '⚠ No añadida a Brevo — {error}' },
@@ -48,11 +48,11 @@ export const enquiriesI18n = {
   ep_section_full_form:  { fr: 'Formulaire de réservation complet', en: 'Full booking form', es: 'Formulario de reserva completo' },
   ep_btn_copy:           { fr: 'Copier', en: 'Copy', es: 'Copiar' },
   ep_btn_refresh:        { fr: 'Rafraîchir', en: 'Refresh', es: 'Actualizar' },
-  ep_refresh_tooltip:    { fr: 'Même lien, instantané nom/email/téléphone/langue rafraîchi depuis cette enquête', en: 'Same link, fresh name/email/phone/language snapshot from this enquiry', es: 'Mismo enlace, instantánea de nombre/correo/teléfono/idioma actualizada desde esta consulta' },
-  ep_form_filled:        { fr: '✅ Rempli — la soumission est revenue attachée à cette enquête.', en: '✅ Filled in — the submission came back attached to this enquiry.', es: '✅ Completado — la presentación volvió adjunta a esta consulta.' },
+  ep_refresh_tooltip:    { fr: 'Même lien, instantané nom/email/téléphone/langue rafraîchi depuis cette demande', en: 'Same link, fresh name/email/phone/language snapshot from this enquiry', es: 'Mismo enlace, instantánea de nombre/correo/teléfono/idioma actualizada desde esta consulta' },
+  ep_form_filled:        { fr: '✅ Rempli — la soumission est revenue attachée à cette demande.', en: '✅ Filled in — the submission came back attached to this enquiry.', es: '✅ Completado — la presentación volvió adjunta a esta consulta.' },
   ep_form_not_filled:    { fr: 'Envoyé mais pas encore rempli. Cela mérite une relance à part.', en: 'Sent but not filled in yet. That is worth a nudge on its own.', es: 'Enviado pero aún no completado. Eso merece un recordatorio aparte.' },
   ep_btn_create_link:    { fr: 'Créer un lien personnalisé', en: 'Create a personalised link', es: 'Crear un enlace personalizado' },
-  ep_create_link_desc:   { fr: 'Un lien qui porte cette enquête, pour que ce qui revient soit attaché par construction plutôt que rapproché après coup sur un nom qui a pu changer.', en: 'A link that carries this enquiry, so what comes back is attached by construction rather than matched afterwards on a name that may have changed.', es: 'Un enlace que lleva esta consulta, para que lo que vuelva quede adjunto por construcción en lugar de emparejado después con un nombre que pudo cambiar.' },
+  ep_create_link_desc:   { fr: 'Un lien qui porte cette demande, pour que ce qui revient soit attaché par construction plutôt que rapproché après coup sur un nom qui a pu changer.', en: 'A link that carries this enquiry, so what comes back is attached by construction rather than matched afterwards on a name that may have changed.', es: 'Un enlace que lleva esta consulta, para que lo que vuelva quede adjunto por construcción en lugar de emparejado después con un nombre que pudo cambiar.' },
 
   // EnquiryPanel — notes thread
   ep_last_exchange:    { fr: 'dernier échange le {date}', en: 'last exchange {date}', es: 'último intercambio {date}' },
