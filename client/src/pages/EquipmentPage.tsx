@@ -577,7 +577,11 @@ export default function EquipmentPage() {
 
           {/* Right: Detail Panel */}
           {selectedEquipment && (
-            <div className="xl:col-span-1">
+            // Sticky + self-start: without it the panel sits at the grid's
+            // top (same offset as the table's first row), so clicking a row
+            // far down the list opened it scrolled out of view above the
+            // viewport (gui, 2026-09-07).
+            <div className="xl:col-span-1 xl:sticky xl:top-4 xl:self-start">
               <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm overflow-hidden">
                 <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 text-white px-4 py-4">
                   <h3 className="font-bold text-lg">{selectedEquipment.name}</h3>
