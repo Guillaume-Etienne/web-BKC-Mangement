@@ -6,15 +6,6 @@
 
 ## 🚨 Migrations SQL — registre
 
-⬜ **`2026-09-11_client_relationship_flag.sql`** (TEST ⬜ / PROD ⬜) — colonne
-`clients.relationship_flag` (`'avoid' | 'favorite' | NULL`), la « black list » demandée par gui
-pour repérer les clients à éviter / à retenir. Aucun GRANT anon à toucher : `clients` est déjà en
-whitelist colonne (`id, first_name, last_name` seulement) donc la colonne est invisible aux pages
-partagées sans rien faire de plus. Code déjà en place (badge + filtre + éditeur dans ClientsPage,
-avertissement dans le picker client de BookingsPage et dans `create_booking`/
-`create_booking_from_enquiry` côté MCP) — tant que la migration n'est pas passée, tout reste juste
-vide (pas d'erreur, `select('*')`). Vérif curl anon dans le fichier lui-même.
-
 ⬜ **`2026-09-07_equipment_category_bar.sql`** (TEST ⬜ / PROD ⬜) — ajoute `'bar'` à l'enum
 `equipment_category`. À passer **avant** la suivante.
 ⬜ **`2026-09-07b_equipment_purchase_resale.sql`** (TEST ⬜ / PROD ⬜) — colonnes achat/revente sur
@@ -37,6 +28,12 @@ l'ancien transfert à 168 € désormais inactif. Détail et reste-à-faire : §
 `2026-09-05_client_errors.sql` (insert anon valide = 201, `kind` hors liste = `42501` sur les deux
 bases), `2026-09-05b_deposit_requested.sql` (`42501` et non `42703` = colonne présente, anon exclu)
 et `2026-09-03_client_notes.sql` (reconfirmée sur les deux bases).
+
+**Pour mémoire — passée et vérifiée le 2026-09-11 (curl anon réel, TEST + PROD) :**
+`2026-09-11_client_relationship_flag.sql` — `select id,relationship_flag` → `42501` (colonne non
+accordée) sur les deux bases, alors que `select id,first_name,last_name` → `[]` (lignes filtrées
+par RLS faute de jeton, pas une table vide) sur les deux aussi : la colonne existe et reste bien
+hors de portée d'anon.
 
 ⚠️ **Trois migrations plus anciennes n'ont jamais été re-vérifiées par une session** — gui les dit
 passées, l'ancien registre les affichait encore `⬜` par simple oubli de mise à jour :
