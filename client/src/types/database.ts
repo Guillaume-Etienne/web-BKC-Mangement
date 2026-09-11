@@ -1,6 +1,8 @@
 export type AccommodationType = 'house' | 'bungalow' | 'other'
 export type BookingStatus = 'confirmed' | 'provisional' | 'cancelled'
 export type KiteLevel = 'beg-total' | 'beg-bodydrag' | 'beg-waterstart' | 'intermediate' | 'advanced'
+/** Deliberately just two states, not a tag system — 2026-09-11, gui's "blacklist" request. */
+export type ClientRelationshipFlag = 'avoid' | 'favorite'
 
 export interface Accommodation {
   id: string
@@ -45,6 +47,7 @@ export interface Client {
   emergency_contact_phone: string | null
   emergency_contact_email: string | null
   emergency_contact_relation: string | null
+  relationship_flag: ClientRelationshipFlag | null
 }
 
 // Participant lié à un booking (table booking_participants)

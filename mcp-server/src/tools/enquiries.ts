@@ -230,10 +230,15 @@ export function registerEnquiryTools(server: McpServer) {
         client_id: clientId,
         last_contact_at: new Date().toISOString(),
       }).eq('id', enquiry_id)
+      const flagWarning = match?.client.relationship_flag === 'avoid'
+        ? '🚫 This client is flagged "avoid" — check the client file before confirming this booking.'
+        : null
+
       if (wonErr) {
         return jsonResult({
           ok: true, client_id: clientId, client_reused: clientReused, booking_id: booking.id, booking_number: booking.booking_number,
           warning: `Booking created, but the enquiry was NOT marked won: ${wonErr.message}`,
+          ...(flagWarning ? { relationship_warning: flagWarning } : {}),
         })
       }
 
@@ -246,6 +251,7 @@ export function registerEnquiryTools(server: McpServer) {
         booking_id: booking.id,
         booking_number: booking.booking_number,
         note: 'No room and no participant were assigned — finish this booking by hand in the app (rooms, planning, lessons).',
+        ...(flagWarning ? { relationship_warning: flagWarning } : {}),
       })
     }
   )

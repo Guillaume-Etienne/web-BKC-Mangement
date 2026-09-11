@@ -6,6 +6,15 @@
 
 ## 🚨 Migrations SQL — registre
 
+⬜ **`2026-09-11_client_relationship_flag.sql`** (TEST ⬜ / PROD ⬜) — colonne
+`clients.relationship_flag` (`'avoid' | 'favorite' | NULL`), la « black list » demandée par gui
+pour repérer les clients à éviter / à retenir. Aucun GRANT anon à toucher : `clients` est déjà en
+whitelist colonne (`id, first_name, last_name` seulement) donc la colonne est invisible aux pages
+partagées sans rien faire de plus. Code déjà en place (badge + filtre + éditeur dans ClientsPage,
+avertissement dans le picker client de BookingsPage et dans `create_booking`/
+`create_booking_from_enquiry` côté MCP) — tant que la migration n'est pas passée, tout reste juste
+vide (pas d'erreur, `select('*')`). Vérif curl anon dans le fichier lui-même.
+
 ⬜ **`2026-09-07_equipment_category_bar.sql`** (TEST ⬜ / PROD ⬜) — ajoute `'bar'` à l'enum
 `equipment_category`. À passer **avant** la suivante.
 ⬜ **`2026-09-07b_equipment_purchase_resale.sql`** (TEST ⬜ / PROD ⬜) — colonnes achat/revente sur

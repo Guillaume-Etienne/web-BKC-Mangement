@@ -80,7 +80,11 @@ CREATE TABLE clients (
   emergency_contact_phone     TEXT,
   emergency_contact_email     TEXT,
   emergency_contact_relation  TEXT,
-  created_at                  TIMESTAMPTZ DEFAULT now()
+  created_at                  TIMESTAMPTZ DEFAULT now(),
+  -- 'avoid' | 'favorite' | NULL. Added 2026-09-11 — migration
+  -- 2026-09-11_client_relationship_flag.sql. NOT a GRANT for anon: the
+  -- column-level whitelist further down already excludes it.
+  relationship_flag           TEXT CHECK (relationship_flag IN ('avoid', 'favorite'))
 );
 
 CREATE UNIQUE INDEX idx_clients_import_id ON clients(import_id) WHERE import_id IS NOT NULL;

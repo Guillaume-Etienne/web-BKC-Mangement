@@ -7,7 +7,8 @@ import { useClients } from '../hooks/useClients'
 import { useBookings, useBookingParticipants } from '../hooks/useBookings'
 import { useLessons } from '../hooks/useLessons'
 import { useClientDossier } from '../hooks/useClientDossier'
-import type { Client, Booking, KiteLevel, Season, Lang } from '../types/database'
+import type { Client, Booking, KiteLevel, Season, Lang, ClientRelationshipFlag } from '../types/database'
+import { relationshipFlagLabels, relationshipFlagIcons, relationshipFlagColors } from '../utils/clientRelationshipFlag'
 import { fmtDate } from '../utils/dates'
 import { readLocal, writeLocal } from '../utils/safeStorage'
 import { daysSinceLastTouch, dossierMoney } from '../utils/dossier'
@@ -84,6 +85,7 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
 
   const [searchTerm, setSearchTerm] = useState('')
   const [filterLevel, setFilterLevel] = useState<'' | KiteLevel>('')
+  const [filterFlag, setFilterFlag] = useState<'' | ClientRelationshipFlag>('')
   const [filterNationality, setFilterNationality] = useState('')
   const [filterSeasonId, setFilterSeasonId] = useState('')
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
@@ -118,9 +120,10 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
       (c.email?.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (c.phone?.includes(searchTerm))
     const matchesLevel = !filterLevel || c.kite_level === filterLevel
+    const matchesFlag = !filterFlag || c.relationship_flag === filterFlag
     const matchesNationality = !filterNationality || c.nationality === filterNationality
     const matchesSeason = !filterSeason || clientHasBookingInSeason(c.id, filterSeason)
-    return matchesSearch && matchesLevel && matchesNationality && matchesSeason
+    return matchesSearch && matchesLevel && matchesFlag && matchesNationality && matchesSeason
   })
 
   const getClientBookings = (clientId: string): Booking[] =>
@@ -194,6 +197,7 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
         passport_number: formData.passport_number || null,
         birth_date: formData.birth_date || null,
         kite_level: formData.kite_level || null,
+        relationship_flag: formData.relationship_flag || null,
         import_id: null,
         emergency_contact_name: null,
         emergency_contact_phone: null,
@@ -217,9 +221,10 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
     refreshClients()
   }
 
-  const hasFilters = !!filterLevel || !!filterNationality || !!filterSeasonId
+  const hasFilters = !!filterLevel || !!filterFlag || !!filterNationality || !!filterSeasonId
   const clearFilters = () => {
     setFilterLevel('')
+    setFilterFlag('')
     setFilterNationality('')
     setFilterSeasonId('')
   }
@@ -285,6 +290,15 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
             <option value="advanced">Advanced</option>
           </select>
           <select
+            value={filterFlag}
+            onChange={(e) => setFilterFlag(e.target.value as typeof filterFlag)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900"
+          >
+            <option value="">All clients</option>
+            <option value="favorite">⭐ Favorite</option>
+            <option value="avoid">🚫 Avoid</option>
+          </select>
+          <select
             value={filterNationality}
             onChange={(e) => setFilterNationality(e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900"
@@ -348,6 +362,11 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                       >
                         <td className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-200 whitespace-nowrap">
                           {client.first_name} {client.last_name}
+                          {client.relationship_flag && (
+                            <span className={`ml-2 px-1.5 py-0.5 rounded text-xs font-semibold ${relationshipFlagColors[client.relationship_flag]}`}>
+                              {relationshipFlagIcons[client.relationship_flag]} {relationshipFlagLabels[client.relationship_flag]}
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{client.nationality || '–'}</td>
                         <td className="px-4 py-3 text-sm whitespace-nowrap">
@@ -407,6 +426,11 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                         <span className="font-medium text-gray-800 dark:text-gray-200">{client.first_name} {client.last_name}</span>
                         {client.nationality && <span className="text-gray-400 dark:text-gray-400"> · {client.nationality}</span>}
                       </p>
+                      {client.relationship_flag && (
+                        <span className="flex-shrink-0 text-sm" title={relationshipFlagLabels[client.relationship_flag]}>
+                          {relationshipFlagIcons[client.relationship_flag]}
+                        </span>
+                      )}
                       {client.kite_level && (
                         <span className={`flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold ${kiteLevelColors[client.kite_level]}`}>
                           {kiteLevelShort[client.kite_level]}
@@ -436,7 +460,12 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                     >
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <p className="font-bold text-gray-800 dark:text-gray-200">{client.first_name} {client.last_name}</p>
+                          <p className="font-bold text-gray-800 dark:text-gray-200">
+                            {client.first_name} {client.last_name}
+                            {client.relationship_flag && (
+                              <span className="ml-1.5">{relationshipFlagIcons[client.relationship_flag]}</span>
+                            )}
+                          </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">{client.nationality || '–'}</p>
                         </div>
                         {client.kite_level && (
@@ -471,8 +500,18 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
               <div className="bg-white dark:bg-gray-900 rounded-lg shadow sticky top-24 max-h-[calc(100vh-150px)] overflow-hidden flex flex-col">
                 <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-lg flex justify-between items-start">
                   <div>
-                    <h2 className="text-xl font-bold">{selectedClient.first_name} {selectedClient.last_name}</h2>
+                    <h2 className="text-xl font-bold">
+                      {selectedClient.first_name} {selectedClient.last_name}
+                      {selectedClient.relationship_flag && (
+                        <span className="ml-2">{relationshipFlagIcons[selectedClient.relationship_flag]}</span>
+                      )}
+                    </h2>
                     <p className="text-blue-100 dark:text-blue-300 text-sm mt-1">{selectedClient.nationality || 'Unknown nationality'}</p>
+                    {selectedClient.relationship_flag && (
+                      <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold ${relationshipFlagColors[selectedClient.relationship_flag]}`}>
+                        {relationshipFlagIcons[selectedClient.relationship_flag]} {relationshipFlagLabels[selectedClient.relationship_flag]}
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={() => setSelectedClient(null)}
@@ -529,6 +568,14 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                       {selectedClient.kite_level ? (
                         <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold ${kiteLevelColors[selectedClient.kite_level]}`}>
                           {kiteLevelLabels[selectedClient.kite_level]}
+                        </span>
+                      ) : <p className="text-gray-800 dark:text-gray-200">–</p>}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Relationship</p>
+                      {selectedClient.relationship_flag ? (
+                        <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold ${relationshipFlagColors[selectedClient.relationship_flag]}`}>
+                          {relationshipFlagIcons[selectedClient.relationship_flag]} {relationshipFlagLabels[selectedClient.relationship_flag]}
                         </span>
                       ) : <p className="text-gray-800 dark:text-gray-200">–</p>}
                     </div>
@@ -694,6 +741,15 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                         <option value="advanced">Advanced</option>
                       </select>
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Relationship</label>
+                    <select value={formData.relationship_flag || ''} onChange={(e) => setFormData({ ...formData, relationship_flag: (e.target.value as ClientRelationshipFlag) || null })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">No flag</option>
+                      <option value="favorite">⭐ Favorite — happy to see them again</option>
+                      <option value="avoid">🚫 Avoid — prefer not to rebook</option>
+                    </select>
                   </div>
                   {/* No notes field here any more. It was a single block you
                       overwrite, next to a dated feed on the same person — the

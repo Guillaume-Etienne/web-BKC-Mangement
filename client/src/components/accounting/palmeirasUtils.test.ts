@@ -20,6 +20,7 @@ function bungalowSetup(over: { sell?: number; cost?: number; status?: 'confirmed
       nationality: null, passport_number: null, birth_date: null, kite_level: null, import_id: null,
       emergency_contact_name: null, emergency_contact_phone: null,
       emergency_contact_email: null, emergency_contact_relation: null,
+      relationship_flag: null,
     }],
   })
 }

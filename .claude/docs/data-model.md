@@ -63,6 +63,7 @@
 | email | string \| null |
 | phone | string \| null |
 | ~~notes~~ | string \| null — ⚠️ **vidée par la migration 2026-09-03**, les notes vivent dans `client_notes`. Colonne conservée, plus rien ne l'écrit |
+| relationship_flag | `'avoid' \| 'favorite' \| null` *(2026-09-11, migration en attente)* — la « black list » de gui : client à éviter / à retenir. Badge dans ClientsPage (liste, filtre, éditeur), avertissement dans le picker client de BookingsPage et dans `create_booking`/`create_booking_from_enquiry` (MCP). Le pourquoi va dans `client_notes`, pas ici — deux états seulement, pas un système de tags |
 | nationality | string \| null |
 | passport_number | string \| null |
 | birth_date | string \| null (ISO date) |

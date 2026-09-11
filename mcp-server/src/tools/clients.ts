@@ -42,6 +42,7 @@ export function registerClientTools(server: McpServer) {
         phone: c.phone,
         nationality: c.nationality,
         kite_level: c.kite_level,
+        relationship_flag: c.relationship_flag,
       }))
       return jsonResult({ count: summary.length, clients: summary })
     }

@@ -63,7 +63,7 @@ export const _client = {
   notes: null, nationality: null, passport_number: null, birth_date: null,
   kite_level: 'beg-total', import_id: null, emergency_contact_name: null,
   emergency_contact_phone: null, emergency_contact_email: null,
-  emergency_contact_relation: null,
+  emergency_contact_relation: null, relationship_flag: null,
 } satisfies Client
 
 export const _booking = {

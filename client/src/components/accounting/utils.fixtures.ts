@@ -188,6 +188,7 @@ export function mkClient(over: Partial<Client> = {}): Client {
     birth_date: null, kite_level: null, import_id: null,
     emergency_contact_name: null, emergency_contact_phone: null,
     emergency_contact_email: null, emergency_contact_relation: null,
+    relationship_flag: null,
     ...over,
   }
 }

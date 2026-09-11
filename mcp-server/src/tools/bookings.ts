@@ -247,6 +247,13 @@ export function registerBookingTools(server: McpServer) {
 
       // ── Client ────────────────────────────────────────────────────────────
       let clientId = client_id
+      let reusedClientFlag: string | null = null
+      if (clientId) {
+        const { data: existing, error: cFetchErr } = await supabase
+          .from('clients').select('relationship_flag').eq('id', clientId).single()
+        if (cFetchErr) return errorResult(`Client not found: ${cFetchErr.message}`)
+        reusedClientFlag = existing?.relationship_flag ?? null
+      }
       if (!clientId && client) {
         const { data: created, error: cErr } = await supabase.from('clients').insert({
           first_name: client.first_name,
@@ -292,6 +299,9 @@ export function registerBookingTools(server: McpServer) {
       if (bErr || !booking) return errorResult(`Creating booking (client ${clientId} exists): ${bErr?.message}`)
 
       const warnings: string[] = []
+      if (reusedClientFlag === 'avoid') {
+        warnings.push('🚫 This client is flagged "avoid" — check the client file before confirming this booking.')
+      }
 
       // ── Travellers ────────────────────────────────────────────────────────
       if (travellers.length > 0) {
