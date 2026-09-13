@@ -58,6 +58,22 @@ Options → Database → **Clear**. Rien en PROD.
 
 ## 🔴 Ouvert
 
+### 📥 Demandes ↔ formulaires — livré le 2026-09-13, **vérif écran à faire**
+
+`15de83a` (**non poussé**). Un formulaire de réservation reçu compte désormais comme un signe de
+vie : le silence part du plus récent entre `last_contact_at` et `submitted_at`, partout de la même
+façon (liste Requests, filtre « To chase », compteur, Home, « Waiting on you »). Le panneau
+Submissions affiche enfin « Came from the enquiry of X ». 562 tests, build vert. Détail et
+décisions : `.claude/docs/ENQUIRIES.md` § 4.
+
+⬜ **À vérifier à l'écran sur PROD** — l'extension Chrome s'est déconnectée avant que la session
+puisse le faire. Le cas à regarder : **Sibel** (demande du 01/09, formulaire reçu le 11/09,
+affichée « 11 j » avant le correctif). Attendu : `0 j`, pastille **📝** sur la ligne, et le bandeau
+vert d'origine dans Requests → Formulaires de réservation.
+⬜ **Et pendant qu'on y est** : son formulaire la déclare **« no kite »** alors que sa demande
+parlait d'un stage de wing foil — écart réel, à clarifier avec elle **avant** de créer la résa
+(`utils/intentGap.ts` ne le montre qu'une fois dans le wizard, donc trop tard).
+
 ### 🔓 EN PAUSE (gui, 2026-09-07) — le dépôt GitHub est PUBLIC avec des données clients
 
 **Rien n'est résolu. Mis de côté par gui pour y revenir plus tard, pas clos.**

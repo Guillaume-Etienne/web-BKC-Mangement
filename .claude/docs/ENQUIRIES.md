@@ -296,8 +296,32 @@ qui refuse de supprimer une origine utilisée).
    - Vérifié au navigateur bout-en-bout sur TEST : lien → formulaire complet rempli → payload
      porteur du bon `enquiry_id` → réservation #12 créée → demande fermée ; puis le cas orphelin
      (même email → suggestion → rattachement sans changement de statut). **274 tests.**
+   - ✅ **Le lien est enfin lu, dans les deux sens** (2026-09-13). Le défaut trouvé avec gui :
+     `form_submission_id` n'est écrit qu'à **la création de la réservation**, donc entre
+     « elle a rempli le formulaire » et « gui clique Create booking », la demande n'en savait
+     rien. La colonne Silence comptait depuis le premier message et désignait **le dossier le
+     plus avancé de la saison comme le plus muet** — Sibel, formulaire reçu le 11/09, affichée
+     « 11 j de silence » le 12. Le lien était pourtant là depuis le début, dans
+     `payload.enquiry_id` ; **aucun des deux écrans ne l'affichait**.
+     · `submissionsByEnquiry` + `lastSignOfEnquiry` (`utils/enquiries.ts`) : l'index partagé.
+     Les soumissions **rejetées** sont exclues — gui a regardé et dit non, c'est une réponse,
+     pas une nouvelle en attente. La plus récente gagne si quelqu'un envoie deux fois.
+     · Le silence part du **plus récent des deux signes**, et de la **même façon partout** :
+     liste Requests, filtre « To chase », compteur d'en-tête, pending actions de la Home et
+     « Waiting on you ». Une seule règle, sinon deux écrans se contredisent.
+     · Un formulaire qui traîne une semaine ne dit plus « aucune nouvelle » mais **« formulaire
+     reçu il y a N jours, pas encore transformé en réservation »** : le geste attendu n'est pas
+     de répondre, c'est de faire la résa — le dire faux aurait été pire que se taire.
+     · Panneau Submissions : bandeau **« Came from the enquiry of X »**. `linkedEnquiry` était
+     calculé depuis toujours (`SubmissionsPage.tsx`) et n'avait **jamais** été rendu.
+     · La Home lit désormais les **lignes** `form_submissions` au lieu d'un `head` count : la
+     même requête répond aux deux questions (combien en attente, et de qui).
    ⬜ **Reste** : replier l'onglet Submissions dans Enquiries — laissé exprès tant que gui n'a
    pas eu les écrans en main, la file de soumissions marche et n'a pas à être cassée d'avance.
+   ⬜ **Reste aussi** (option C écartée ce jour, à faire si le symptôme revient) : poser
+   `form_submission_id` sur la demande **dès l'arrivée** du formulaire, par trigger. Ça
+   supprimerait l'index côté client — mais c'est une migration TEST + PROD, et le correctif de
+   lecture suffisait pour ce que gui avait sous les yeux.
 2. Le tableau (frise, silence, couleurs, groupes, recherche).
 3. Le formulaire léger hébergé + iframe + contrat avec le projet site web.
 4. Rattachement : lien personnalisé, puis rapprochement à l'arrivée.
