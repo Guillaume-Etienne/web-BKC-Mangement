@@ -1,6 +1,6 @@
 /** Small shared bits of the enquiries pipeline.
  *  Design and decisions: .claude/docs/ENQUIRIES.md */
-import type { Enquiry, EnquiryStatus } from '../types/database'
+import type { Enquiry, EnquiryStatus, FormSubmissionStatus } from '../types/database'
 
 export const STATUS_META: Record<EnquiryStatus, { label: string; pill: string; dot: string }> = {
   new:     { label: 'New',        pill: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300',       dot: 'bg-blue-500' },
@@ -164,4 +164,44 @@ export function findCandidateEnquiries(
 export function isQualified(e: Enquiry): boolean {
   return e.party_size != null || e.arrival_month != null
     || e.wants_lessons || e.wants_rental || e.wants_accommodation
+}
+
+/** A booking form that came back carrying the enquiry it was sent from.
+ *
+ *  Deliberately the four cheapest columns: the Home page re-reads this on every
+ *  navigation, and `payload` is already the expensive part. */
+export interface EnquirySubmission {
+  id: string
+  status: FormSubmissionStatus
+  submitted_at: string
+  payload: { enquiry_id?: string }
+}
+
+/** enquiry_id → the form that person sent back, newest kept.
+ *
+ *  Why this has to exist: `enquiries.form_submission_id` is written only when
+ *  the submission is turned into a booking. Between "she filled the whole form"
+ *  and "gui pressed Create booking" the enquiry knows nothing about it — so the
+ *  Silence column kept counting from the first message and called the most
+ *  advanced file of the season the quietest one (Sibel, 2026-09-12: form in on
+ *  the 11th, still displayed as 11 days of silence).
+ *
+ *  Rejected submissions are skipped: gui looked and said no, which is an answer,
+ *  not a piece of news waiting to be dealt with. */
+export function submissionsByEnquiry(subs: EnquirySubmission[]): Map<string, EnquirySubmission> {
+  const out = new Map<string, EnquirySubmission>()
+  for (const s of subs) {
+    const id = s.payload?.enquiry_id
+    if (!id || s.status === 'rejected') continue
+    const kept = out.get(id)
+    if (!kept || s.submitted_at > kept.submitted_at) out.set(id, s)
+  }
+  return out
+}
+
+/** The last sign of life on an enquiry: our own last exchange, or the form they
+ *  sent back — whichever is later. A returned form is news, and the one thing
+ *  that used to be invisible here. */
+export function lastSignOfEnquiry(e: Enquiry, form?: EnquirySubmission): string {
+  return form && form.submitted_at > e.last_contact_at ? form.submitted_at : e.last_contact_at
 }

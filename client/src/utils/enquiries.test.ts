@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   silenceDays, silenceTone, fmtArrivalMonth, isSettled, isQualified,
   monthBand, groupByArrivalMonth, matchesSearch, findCandidateEnquiries, SILENCE_WARN_DAYS,
+  submissionsByEnquiry, lastSignOfEnquiry, type EnquirySubmission,
 } from './enquiries'
 import type { Enquiry } from '../types/database'
 
@@ -192,5 +193,60 @@ describe('findCandidateEnquiries', () => {
 
   it('returns nothing rather than guessing when there is nothing to go on', () => {
     expect(findCandidateEnquiries({ email: null, name: null }, [anna, other])).toEqual([])
+  })
+})
+
+describe('submissionsByEnquiry / lastSignOfEnquiry', () => {
+  function mkSub(over: Partial<EnquirySubmission> = {}): EnquirySubmission {
+    return {
+      id: 's1', status: 'pending', submitted_at: '2026-09-11T13:22:03Z',
+      payload: { enquiry_id: 'e1' },
+      ...over,
+    }
+  }
+
+  it('indexes a submission by the enquiry it rode in on', () => {
+    const m = submissionsByEnquiry([mkSub()])
+    expect(m.get('e1')?.id).toBe('s1')
+  })
+
+  it('ignores a submission that carries no enquiry_id', () => {
+    expect(submissionsByEnquiry([mkSub({ payload: {} })]).size).toBe(0)
+  })
+
+  it('ignores a rejected submission — gui looked and said no', () => {
+    expect(submissionsByEnquiry([mkSub({ status: 'rejected' })]).size).toBe(0)
+  })
+
+  it('keeps the most recent when someone sends the form twice', () => {
+    const m = submissionsByEnquiry([
+      mkSub({ id: 'old', submitted_at: '2026-09-01T10:00:00Z' }),
+      mkSub({ id: 'new', submitted_at: '2026-09-11T13:22:03Z' }),
+    ])
+    expect(m.get('e1')?.id).toBe('new')
+  })
+
+  it('the returned form counts as the last sign of life', () => {
+    const e = mkEnquiry({ last_contact_at: '2026-09-01T09:23:10Z' })
+    expect(lastSignOfEnquiry(e, mkSub())).toBe('2026-09-11T13:22:03Z')
+  })
+
+  it('but never rewinds time: an exchange after the form still wins', () => {
+    const e = mkEnquiry({ last_contact_at: '2026-09-12T08:00:00Z' })
+    expect(lastSignOfEnquiry(e, mkSub())).toBe('2026-09-12T08:00:00Z')
+  })
+
+  it('falls back to last_contact_at when no form came back', () => {
+    const e = mkEnquiry({ last_contact_at: '2026-09-01T09:23:10Z' })
+    expect(lastSignOfEnquiry(e, undefined)).toBe('2026-09-01T09:23:10Z')
+  })
+
+  // The case that started this: Sibel wrote on 01/09, filled the whole booking
+  // form on 11/09, and the Requests list still called her 11 days silent.
+  it('silence is counted from the form, not from the first message', () => {
+    const e = mkEnquiry({ last_contact_at: '2026-09-01T09:23:10Z' })
+    const now = new Date('2026-09-12T12:00:00Z')
+    expect(silenceDays(e.last_contact_at, now)).toBe(11)
+    expect(silenceDays(lastSignOfEnquiry(e, mkSub()), now)).toBe(0)
   })
 })

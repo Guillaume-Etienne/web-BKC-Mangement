@@ -9,7 +9,8 @@ import HomePage from './pages/HomePage'
 import { computePendingActions } from './components/pending/pendingActions'
 import type { PendingAction, Page } from './components/pending/pendingActions'
 import type { Booking, Payment, Enquiry } from './types/database'
-import { isSettled, isQualified, silenceDays, SILENCE_WARN_DAYS } from './utils/enquiries'
+import type { EnquirySubmission } from './utils/enquiries'
+import { isSettled, isQualified, lastSignOfEnquiry, silenceDays, submissionsByEnquiry, SILENCE_WARN_DAYS } from './utils/enquiries'
 import { computeFollowUps } from './utils/followUps'
 import type { FollowUp } from './utils/followUps'
 import { LanguageProvider } from './contexts/LanguageContext'
@@ -120,24 +121,33 @@ function App() {
       supabase.from('bookings').select('*, client:clients(first_name, last_name)'),
       supabase.from('payments').select('id, booking_id, date, is_verified, is_discount'),
       supabase.from('taxi_trips').select('booking_id'),
-      supabase.from('form_submissions').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      // Rows, not a head count: the same read now answers two questions — how
+      // many forms are waiting, and which enquiry each one came from. Without
+      // the second, a person who filled the whole form yesterday still showed up
+      // as weeks of silence (utils/enquiries.ts, submissionsByEnquiry).
+      supabase.from('form_submissions').select('id, status, submitted_at, payload').eq('status', 'pending'),
       // Whole rows rather than counts: "unqualified" and "silent" are decided in
       // one place, utils/enquiries.ts, and duplicating either as a SQL filter
       // here would let the Home page and the Requests table disagree.
       supabase.from('enquiries').select('id, name, status, party_size, arrival_month, wants_lessons, wants_rental, wants_accommodation, last_contact_at, crm_error'),
       supabase.from('email_logs').select('booking_id, type, status, sent_at, created_at'),
-    ]).then(([{ data: bookings }, { data: payments }, { data: taxis }, { count: pendingSubs }, { data: enquiries }, { data: emailLogs }]) => {
+    ]).then(([{ data: bookings }, { data: payments }, { data: taxis }, { data: submissions }, { data: enquiries }, { data: emailLogs }]) => {
       const bkgs = (bookings ?? []) as Booking[]
       const pmts = (payments ?? []) as Payment[]
       const enqs = (enquiries ?? []) as Enquiry[]
+      const subs = (submissions ?? []) as EnquirySubmission[]
+      const formByEnquiry = submissionsByEnquiry(subs)
       const unlinked = (taxis ?? []).filter((t: { booking_id: string | null }) => !t.booking_id).length
       const open = enqs.filter(e => !isSettled(e.status))
       setPendingActions(computePendingActions({
         bookings: bkgs, payments: pmts,
         taxiTripUnlinkedCount: unlinked,
-        pendingFormSubmissionsCount: pendingSubs ?? 0,
+        pendingFormSubmissionsCount: subs.length,
         unqualifiedEnquiriesCount: open.filter(e => !isQualified(e)).length,
-        silentEnquiriesCount: open.filter(e => silenceDays(e.last_contact_at) >= SILENCE_WARN_DAYS).length,
+        // Same rule as the Requests table and the follow-up list: a returned
+        // form counts as news, so nobody is chased for a silence they ended.
+        silentEnquiriesCount: open.filter(e =>
+          silenceDays(lastSignOfEnquiry(e, formByEnquiry.get(e.id))) >= SILENCE_WARN_DAYS).length,
         crmFailedCount: enqs.filter(e => !!e.crm_error).length,
         emailLogs: (emailLogs ?? []) as { booking_id: string; type: string; status: string }[],
       }, lang))
@@ -151,6 +161,7 @@ function App() {
           payments: (payments ?? []) as { booking_id: string; date: string }[],
           emails: (emailLogs ?? []) as { booking_id: string; sent_at?: string | null; created_at?: string | null }[],
         },
+        formByEnquiry,
       }, new Date(), lang))
     })
   }, [session, lang])

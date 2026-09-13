@@ -4,18 +4,21 @@ import { supabase } from '../lib/supabase'
 import { isMissingColumn } from '../utils/supabaseErrors'
 import type { Booking, Enquiry, EnquiryNote, EnquirySource, EnquiryStatus, Season } from '../types/database'
 import type { AttributionSubmission } from '../utils/attribution'
+import type { EnquirySubmission } from '../utils/enquiries'
 import EnquiryPanel from '../components/enquiries/EnquiryPanel'
 import AttributionPanel from '../components/enquiries/AttributionPanel'
 import SeasonClosePanel from '../components/enquiries/SeasonClosePanel'
 import {
   STATUS_META, STATUS_ORDER, silenceDays, silenceTone, fmtArrivalMonth,
-  isSettled, isQualified, monthBand, groupByArrivalMonth, matchesSearch, SILENCE_WARN_DAYS,
+  isSettled, isQualified, lastSignOfEnquiry, monthBand, groupByArrivalMonth, matchesSearch,
+  submissionsByEnquiry, SILENCE_WARN_DAYS,
 } from '../utils/enquiries'
 import { thisMonthISO } from '../utils/dates'
 
 /** Just enough of a booking to say "somebody came, and from where". */
 type AttributionBooking = Pick<Booking, 'id' | 'status' | 'check_in' | 'referral_source' | 'source_id'>
-type AttributionSubmissionRow = AttributionSubmission
+/** One read, two jobs: attribution counting and "did they send the form back?". */
+type AttributionSubmissionRow = AttributionSubmission & EnquirySubmission
 
 /** Everything that happens before a booking exists.
  *
@@ -57,8 +60,13 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
   // harmless.
   const { data: statBookings } = useTable<AttributionBooking>('bookings',
     { select: 'id, status, check_in, referral_source' })
+  // Doubles as the "has this person sent the form back?" source — three scalar
+  // columns next to a `payload` this query already pays for. Worth it: without
+  // it the Silence column counts from the first message and calls a finished
+  // dossier the quietest row on the page.
   const { data: statSubmissions } = useTable<AttributionSubmissionRow>('form_submissions',
-    { select: 'created_booking_id, payload' })
+    { select: 'id, status, submitted_at, created_booking_id, payload' })
+  const formByEnquiry = useMemo(() => submissionsByEnquiry(statSubmissions), [statSubmissions])
   const { data: seasons } = useTable<Season>('seasons', { order: 'start_date', ascending: false })
 
   // The origins written on the bookings themselves. Its own query so a database
@@ -104,11 +112,11 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
   const filtered = useMemo(() => scope.filter(e => {
     if (!matchesSearch(e, notesById.get(e.id) ?? [], query)) return false
     if (statusFilter.size > 0 && !statusFilter.has(e.status)) return false
-    if (chips.has('chase') && silenceDays(e.last_contact_at) < SILENCE_WARN_DAYS) return false
+    if (chips.has('chase') && silenceDays(lastSignOfEnquiry(e, formByEnquiry.get(e.id))) < SILENCE_WARN_DAYS) return false
     if (chips.has('new') && e.status !== 'new') return false
     if (chips.has('nodate') && e.arrival_month != null) return false
     return true
-  }), [scope, notesById, query, statusFilter, chips])
+  }), [scope, notesById, query, statusFilter, chips, formByEnquiry])
 
   const groups = useMemo(() => groupByArrivalMonth(filtered), [filtered])
   // One band for every row, so the columns line up and the empty months show.
@@ -116,7 +124,7 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
 
   const working = useMemo(() => enquiries.filter(e => !isSettled(e.status)), [enquiries])
   const people = working.reduce((n, e) => n + (e.party_size ?? 0), 0)
-  const toChase = working.filter(e => silenceDays(e.last_contact_at) >= SILENCE_WARN_DAYS).length
+  const toChase = working.filter(e => silenceDays(lastSignOfEnquiry(e, formByEnquiry.get(e.id))) >= SILENCE_WARN_DAYS).length
 
   // Memoised so the panel does not recompute on every keystroke in the search box.
   const attributionData = useMemo(
@@ -275,7 +283,8 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
                 {!isFolded && (
                   <div className="divide-y divide-gray-100 dark:divide-gray-800">
                     {g.items.map(e => {
-                      const days = silenceDays(e.last_contact_at)
+                      const form = formByEnquiry.get(e.id)
+                      const days = silenceDays(lastSignOfEnquiry(e, form))
                       const noteCount = (notesById.get(e.id) ?? []).length
                       return (
                         <button key={e.id} onClick={() => { setSelected(e.id); setCreating(false) }}
@@ -320,6 +329,16 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
                               {STATUS_META[e.status].label}
                             </span>
 
+                            {/* The form came back. Until it is turned into a
+                                booking nothing else on this row says so — the
+                                link lives in the submission's payload, and the
+                                enquiry's own form_submission_id stays null. */}
+                            <span className="w-6 shrink-0 text-center">
+                              {form && (
+                                <span title={`Booking form received ${form.submitted_at.slice(0, 10)} — not turned into a booking yet`}>📝</span>
+                              )}
+                            </span>
+
                             {/* Silence */}
                             <span className={`w-12 shrink-0 text-xs text-right ${silenceTone(days)}`}>{days} j</span>
                           </div>
@@ -330,6 +349,17 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
                                 to qualify
                               </span>
                               <span className="italic">{(e.message ?? '').slice(0, 120) || 'no message'}</span>
+                            </div>
+                          )}
+                          {/* Spelled out, not just the 📝: this is the one row
+                              where the next move is not "write back" but "make
+                              the booking", and the Silence figure alone cannot
+                              say that. */}
+                          {form && (
+                            <div className="mt-1 text-xs">
+                              <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 font-medium">
+                                📝 booking form received {form.submitted_at.slice(0, 10)} — to turn into a booking
+                              </span>
                             </div>
                           )}
                           {noteCount > 0 && (

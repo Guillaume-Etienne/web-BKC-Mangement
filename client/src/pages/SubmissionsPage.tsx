@@ -410,6 +410,26 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
 
   return (
     <div className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800 px-5 py-4 space-y-5">
+      {/* Where this came from. The link was already in the payload — it rode a
+          personalised link sent from the enquiry — but nothing on screen said
+          so, in either direction: the enquiry's own form_submission_id is not
+          written until the booking is created. So the most advanced dossier of
+          the season read as weeks of silence on the Requests list, and this
+          panel gave no hint the two were the same person. */}
+      {linkedEnquiry && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded-xl px-4 py-3">
+          <p className="text-sm text-emerald-900 dark:text-emerald-300">
+            📩 Came from the enquiry of <strong>{linkedEnquiry.name}</strong>
+            {linkedEnquiry.arrival_month && (
+              <span className="text-xs opacity-80"> · asked about {fmtArrivalMonth(linkedEnquiry.arrival_month)}</span>
+            )}
+          </p>
+          <p className="text-xs text-emerald-800 dark:text-emerald-400 mt-1">
+            Creating the booking closes that enquiry and files everything under the same person.
+          </p>
+        </div>
+      )}
+
       {/* Trip */}
       <div>
         <h4 className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-400 mb-2">Trip</h4>

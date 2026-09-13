@@ -182,3 +182,40 @@ describe('lastTouchOfBooking', () => {
     expect(lastTouchOfBooking(mkBooking(), touch, NOW)).toBe('2026-09-02T10:00:00Z')
   })
 })
+
+describe('computeFollowUps — a returned booking form is news', () => {
+  const sub = {
+    id: 's1', status: 'pending' as const, submitted_at: '2026-09-02T13:22:03Z',
+    payload: { enquiry_id: 'e1' },
+  }
+
+  function run(formByEnquiry?: Map<string, typeof sub>) {
+    const input: FollowUpInput = {
+      enquiries: [mkEnquiry({ last_contact_at: '2026-08-20T10:00:00Z' })],
+      bookings: [],
+      touch: { payments: [], emails: [] },
+      formByEnquiry,
+    }
+    return computeFollowUps(input, NOW)
+  }
+
+  it('without the form, the enquiry is chased for a fortnight of silence', () => {
+    const [row] = run()
+    expect(row.silenceDays).toBe(14)
+    expect(row.reason).toContain('no news')
+  })
+
+  it('with the form, the silence restarts at the day it arrived', () => {
+    const out = run(new Map([['e1', sub]]))
+    // 14 days of silence became 1 — below the threshold, so it drops off the list.
+    expect(out).toHaveLength(0)
+  })
+
+  it('a form left unprocessed for a week says so, instead of "no news"', () => {
+    const stale = { ...sub, submitted_at: '2026-08-25T13:22:03Z' }
+    const [row] = run(new Map([['e1', stale]]))
+    expect(row.silenceDays).toBe(8)
+    expect(row.reason).toContain('booking form')
+    expect(row.reason).not.toContain('no news')
+  })
+})

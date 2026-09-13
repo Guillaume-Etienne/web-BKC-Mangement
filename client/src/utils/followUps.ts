@@ -15,7 +15,8 @@
  *     A list that shows someone contacted yesterday is a list gui stops opening.
  */
 import type { Booking, Enquiry, Lang } from '../types/database'
-import { SILENCE_WARN_DAYS, isQualified, isSettled, silenceDays, fmtArrivalMonth } from './enquiries'
+import type { EnquirySubmission } from './enquiries'
+import { SILENCE_WARN_DAYS, isQualified, isSettled, lastSignOfEnquiry, silenceDays, fmtArrivalMonth } from './enquiries'
 import { toISODate } from './dates'
 import { i18n } from '../data/i18n'
 
@@ -100,6 +101,10 @@ export interface FollowUpInput {
   enquiries: Enquiry[]
   bookings: Booking[]
   touch: TouchInput
+  /** enquiry_id → the booking form that came back (utils/enquiries.ts,
+   *  `submissionsByEnquiry`). Optional: a caller that does not load submissions
+   *  keeps the old behaviour rather than breaking. */
+  formByEnquiry?: Map<string, EnquirySubmission>
 }
 
 /** Who is waiting on gui today, worst first. */
@@ -110,7 +115,11 @@ export function computeFollowUps(input: FollowUpInput, now: Date = new Date(), l
 
   for (const e of input.enquiries) {
     if (isSettled(e.status)) continue
-    const silence = silenceDays(e.last_contact_at, now)
+    // A returned booking form is a sign of life like any other. Counting from
+    // `last_contact_at` alone called the most advanced file of the season the
+    // quietest one — see submissionsByEnquiry in utils/enquiries.ts.
+    const form = input.formByEnquiry?.get(e.id)
+    const silence = silenceDays(lastSignOfEnquiry(e, form), now)
     const unqualified = !isQualified(e)
     // An unqualified enquiry is on the list from day one: someone wrote in and
     // has had no answer. Everything else waits for a real silence.
@@ -123,7 +132,12 @@ export function computeFollowUps(input: FollowUpInput, now: Date = new Date(), l
       wants: wantsOfEnquiry(e, lang),
       when: e.arrival_month ? fmtArrivalMonth(e.arrival_month) : null,
       silenceDays: silence,
-      reason: unqualified ? t.fu_reason_never_read[lang] : t.fu_reason_no_news[lang].replace('{days}', String(silence)),
+      // A form that has sat there for a week is not the same problem as an
+      // unanswered message: the work is to turn it into a booking, not to write
+      // back. Saying "no news" over a filled-in form would read as a lie.
+      reason: unqualified ? t.fu_reason_never_read[lang]
+        : form ? t.fu_reason_form_waiting[lang].replace('{days}', String(silence))
+        : t.fu_reason_no_news[lang].replace('{days}', String(silence)),
       tone: unqualified ? 'urgent' : 'normal',
     })
   }

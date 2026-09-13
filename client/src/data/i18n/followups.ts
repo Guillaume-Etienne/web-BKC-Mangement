@@ -25,4 +25,9 @@ export const followupsI18n = {
   fu_reason_no_news:    { fr: 'aucune nouvelle depuis {days} jours', en: 'no news for {days} days', es: 'sin noticias desde hace {days} días' },
   fu_reason_stay_over:  { fr: 'le séjour est terminé et la réservation est toujours provisoire', en: 'the stay is over and the booking is still provisional', es: 'la estancia terminó y la reserva sigue siendo provisional' },
   fu_reason_still_provisional: { fr: 'toujours provisoire · rien depuis {days} jours', en: 'still provisional · nothing for {days} days', es: 'todavía provisional · nada desde hace {days} días' },
+  fu_reason_form_waiting: {
+    fr: '📝 formulaire reçu il y a {days} jours — pas encore transformé en réservation',
+    en: '📝 booking form in {days} days ago — not turned into a booking yet',
+    es: '📝 formulario recibido hace {days} días — aún sin convertir en reserva',
+  },
 } satisfies Record<string, Tr>
