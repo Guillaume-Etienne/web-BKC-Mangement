@@ -58,21 +58,29 @@ Options → Database → **Clear**. Rien en PROD.
 
 ## 🔴 Ouvert
 
-### 📥 Demandes ↔ formulaires — livré le 2026-09-13, **vérif écran à faire**
+### ✅ Demandes ↔ formulaires — livré et **vérifié à l'écran** le 2026-09-13
 
-`15de83a` (**non poussé**). Un formulaire de réservation reçu compte désormais comme un signe de
-vie : le silence part du plus récent entre `last_contact_at` et `submitted_at`, partout de la même
-façon (liste Requests, filtre « To chase », compteur, Home, « Waiting on you »). Le panneau
-Submissions affiche enfin « Came from the enquiry of X ». 562 tests, build vert. Détail et
+`15de83a` + `c0764be` (**non poussés**). Un formulaire de réservation reçu compte désormais comme
+un signe de vie : le silence part du plus récent entre `last_contact_at` et `submitted_at`, partout
+de la même façon (liste Requests, filtre « To chase », compteur, Home, « Waiting on you »). Le
+panneau Submissions affiche enfin « Came from the enquiry of X ». 562 tests, build vert. Détail et
 décisions : `.claude/docs/ENQUIRIES.md` § 4.
 
-⬜ **À vérifier à l'écran sur PROD** — l'extension Chrome s'est déconnectée avant que la session
-puisse le faire. Le cas à regarder : **Sibel** (demande du 01/09, formulaire reçu le 11/09,
-affichée « 11 j » avant le correctif). Attendu : `0 j`, pastille **📝** sur la ligne, et le bandeau
-vert d'origine dans Requests → Formulaires de réservation.
-⬜ **Et pendant qu'on y est** : son formulaire la déclare **« no kite »** alors que sa demande
-parlait d'un stage de wing foil — écart réel, à clarifier avec elle **avant** de créer la résa
-(`utils/intentGap.ts` ne le montre qu'une fois dans le wizard, donc trop tard).
+**Vérif écran faite** (Claude in Chrome) :
+- **PROD** — non-régression seulement : le cas Sibel s'était refermé entre-temps (gui a créé la
+  résa **#031** le 12/09, `form_submission_id` posé, demande passée `won`), et **aucune soumission
+  n'est en `pending`**. Donc rien à y prouver, rien de cassé non plus.
+- **TEST** — preuve réelle, sur deux lignes créées puis **supprimées** (base revenue à son état
+  d'origine : 1 demande, 1 soumission `approved`). Cas reconstitué à l'identique (dernier contact
+  il y a 11 j, formulaire reçu la veille) : la ligne affiche **`1 j`** au lieu de 11, **`To chase`
+  tombe à 0**, la pastille **📝** et le bandeau vert *« booking form received … — to turn into a
+  booking »* sont là, et côté Submissions le bandeau **« 📩 Came from the enquiry of … · asked
+  about Feb 2027 »** s'affiche.
+
+⬜ **Reste pour gui** : la résa **#031 (Sibel Darmar)** attend son **email de confirmation**.
+⚠️ Et son formulaire la déclare **« no kite »** alors que sa demande parlait d'un **stage de wing
+foil** — écart réel, jamais tranché, à clarifier avec elle. `utils/intentGap.ts` ne le montre que
+dans le wizard, donc il est passé inaperçu à la création.
 
 ### 🔓 EN PAUSE (gui, 2026-09-07) — le dépôt GitHub est PUBLIC avec des données clients
 
