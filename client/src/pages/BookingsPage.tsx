@@ -18,6 +18,7 @@ import { getMissingFields, MISSING_LABELS } from '../utils/bookingCompleteness'
 import EnquiryOriginPanel from '../components/enquiries/EnquiryOriginPanel'
 import { intentGaps } from '../utils/intentGap'
 import { relationshipFlagLabels, relationshipFlagIcons, relationshipFlagColors } from '../utils/clientRelationshipFlag'
+import { linkedBookingBadge } from '../utils/linkedBooking'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,10 @@ interface WizardData {
   // Just tags the booking so Phase 3+ (consumption, client-side hiding) has
   // something to hang off. '' = direct booking, no agency.
   agency_id: string
+  /** Same family, staggered arrival/departure — this booking joins the stay of
+   *  another one instead of stretching its own dates to cover everyone.
+   *  '' = not part of a linked stay. See `bookings.linked_booking_id`. */
+  linked_booking_id: string
   /** An enquiry_sources id, or the literal 'other'. '' = never asked. */
   source_id: string
   /** The free line, only when the choice is 'other'. */
@@ -82,7 +87,7 @@ const EMPTY_WIZARD: WizardData = {
   client_id: '',
   new_client_first_name: '', new_client_last_name: '', new_client_email: '',
   new_client_phone: '', new_client_nationality: '', new_client_kite_level: '',
-  agency_id: '', source_id: '', referral_source: '',
+  agency_id: '', linked_booking_id: '', source_id: '', referral_source: '',
   check_in: '', check_out: '', visa_entry_date: '', visa_exit_date: '', room_ids: [], room_prices: {},
   external_stays: {}, status: 'provisional',
   participants: [], couples_count: 0, children_count: 0,
@@ -626,6 +631,22 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                   </select>
                 </Field>
               )}
+
+              <Field label="Part of another stay (optional)"
+                hint="Same family arriving/leaving in waves — a joiner or an early departure with its own room and dates. Balances stay separate; a 🔗 badge ties the two bookings together everywhere.">
+                <select value={d.linked_booking_id} onChange={e => update({ linked_booking_id: e.target.value })} className={inputCls}>
+                  <option value="">— not linked —</option>
+                  {bookings
+                    .filter(b => b.id !== editingBookingId)
+                    .slice()
+                    .sort((a, b) => b.check_in.localeCompare(a.check_in))
+                    .map(b => (
+                      <option key={b.id} value={b.id}>
+                        #{String(b.booking_number).padStart(3, '0')} — {clients.find(c => c.id === b.client_id)?.first_name} {clients.find(c => c.id === b.client_id)?.last_name} ({fmtDate(b.check_in)} → {fmtDate(b.check_out)})
+                      </option>
+                    ))}
+                </select>
+              </Field>
             </div>
           )}
 
@@ -1476,6 +1497,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     const bookingFields = {
       client_id: clientId,
       agency_id: data.agency_id || null,
+      linked_booking_id: data.linked_booking_id || null,
       check_in: data.check_in,
       check_out: data.check_out,
       visa_entry_date: data.visa_entry_date || null,
@@ -1751,6 +1773,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       ...EMPTY_WIZARD,
       client_id: b.client_id,
       agency_id: b.agency_id ?? '',
+      linked_booking_id: b.linked_booking_id ?? '',
       // 'other' when a label was typed but no listed source was chosen — that is
       // exactly what the free line means on the way back in.
       source_id: b.source_id ?? (b.referral_source ? 'other' : ''),
@@ -1966,6 +1989,11 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                     onClick={() => openEdit(b)}>
                     <td className="px-3 py-2 font-mono text-gray-400 dark:text-gray-400 whitespace-nowrap">
                       #{String(b.booking_number).padStart(3, '0')}
+                      {linkedBookingBadge(b, bookings) && (
+                        <span className="ml-1 text-blue-500 dark:text-blue-400" title="Same family, another booking — arrival/departure in waves">
+                          {linkedBookingBadge(b, bookings)}
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-200 whitespace-nowrap">
                       {agencyMarker({ booking_id: b.id }, agencyLookup) && (
@@ -2043,6 +2071,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-amber-100 dark:bg-amber-900/30 border-l-2 border-amber-400 dark:border-amber-700 rounded-sm" /> Incomplete</span>
           <span>📣 came from an enquiry</span>
           <span>📝 has a note (hover to read)</span>
+          <span>🔗 linked to another booking (same family, staggered arrival/departure)</span>
         </div>
 
         {/* Mobile cards */}
@@ -2057,6 +2086,11 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                 <div>
                   <p className="font-bold text-gray-800 dark:text-gray-200">
                     <span className="font-mono text-gray-400 dark:text-gray-400 text-xs mr-1">#{String(b.booking_number).padStart(3, '0')}</span>
+                    {linkedBookingBadge(b, bookings) && (
+                      <span className="mr-1 text-blue-500 dark:text-blue-400 text-xs" title="Same family, another booking — arrival/departure in waves">
+                        {linkedBookingBadge(b, bookings)}
+                      </span>
+                    )}
                     {agencyMarker({ booking_id: b.id }, agencyLookup) && (
                       <span className="mr-1 font-normal text-gray-500 dark:text-gray-400" title="Booking from a partner agency">
                         {agencyMarker({ booking_id: b.id }, agencyLookup)}

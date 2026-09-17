@@ -153,6 +153,12 @@ CREATE TABLE bookings (
   -- is replayed top to bottom, and that table does not exist yet up here.
   source_id                 UUID,
   agency_id                 UUID REFERENCES agencies(id) ON DELETE SET NULL,  -- 2026-08-16b, foundations only
+  -- Same family, staggered arrival/departure: a sub-group with its own room(s)
+  -- and dates gets its OWN booking row instead of stretching this table's
+  -- single check_in/check_out to cover everyone. Star topology: every
+  -- sub-booking points back at the main one; the main one points at nothing.
+  -- NULL = not part of a linked stay (2026-09-17, migration 2026-09-17_booking_linked_booking.sql).
+  linked_booking_id         UUID REFERENCES bookings(id) ON DELETE SET NULL,
   created_at                TIMESTAMPTZ DEFAULT now(),
   CONSTRAINT check_dates CHECK (check_out > check_in)
 );
@@ -161,6 +167,7 @@ CREATE UNIQUE INDEX idx_bookings_import_id ON bookings(import_id) WHERE import_i
 CREATE INDEX idx_bookings_dates   ON bookings(check_in, check_out);
 CREATE INDEX idx_bookings_client  ON bookings(client_id);
 CREATE INDEX idx_bookings_status  ON bookings(status);
+CREATE INDEX idx_bookings_linked_booking_id ON bookings(linked_booking_id) WHERE linked_booking_id IS NOT NULL;
 
 -- Booking ↔ Rooms (many-to-many)
 CREATE TABLE booking_rooms (

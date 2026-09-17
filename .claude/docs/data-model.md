@@ -143,6 +143,7 @@
 | waiver_version | string \| null | Version du texte waiver acceptée |
 | referral_source | string \| null | "How did you hear about us" — le **libellé**, ou la ligne libre |
 | source_id | string \| null | La ligne `enquiry_sources` derrière ce libellé (2026-09-03). NULL = jamais demandé, ou « Autre ». Écrit par un **UPDATE séparé** → le code marche sans la migration |
+| linked_booking_id | string \| null | *(2026-09-17)* Auto-référence vers une autre résa de la **même famille**, arrivée/repartie en plusieurs vagues (sous-groupe avec ses propres chambres/dates/solde). Topologie en étoile : chaque résa "rejointe" pointe vers la principale, jamais l'inverse. NULL = pas de lien. Badge 🔗 calculé par `utils/linkedBooking.ts` (`getLinkedBookings`/`linkedBookingBadge`), affiché dans BookingsPage (liste + wizard), les alertes Home (`pendingActions.bookingLabel`) et `ClientTimeline` (`dossier.ts`). **Pas de GRANT anon** — invisible aux pages partagées, même règle que `relationship_flag`. |
 > Participants dans `booking_participants` (requête séparée via `useBookingParticipants()`).
 > `has_travel_insurance`/`waiver_*`/`referral_source` ajoutés mai 2026 pour le formulaire public (voir § form_submissions).
 

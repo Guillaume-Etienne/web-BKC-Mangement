@@ -118,6 +118,12 @@ export interface Booking {
    *  migration instead of breaking the page. */
   deposit_requested_at?: string | null
   agency_id?: string | null                  // 2026-08-16, foundations only — see Agency below
+  /** Same family, staggered arrival/departure: a sub-group with its own
+   *  room(s)/dates gets its own booking row instead of stretching this
+   *  booking's check_in/check_out to cover everyone. Star topology — every
+   *  sub-booking points at the main one, never the other way round. NULL =
+   *  not part of a linked stay (the normal case). 2026-09-17. */
+  linked_booking_id?: string | null
   created_at?: string                        // ISO ts — the column always existed; typed 2026-09-03 for the client dossier timeline
 }
 

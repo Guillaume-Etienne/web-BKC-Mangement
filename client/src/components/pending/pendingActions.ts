@@ -1,5 +1,6 @@
 import type { Booking, Payment, Lang } from '../../types/database'
 import { i18n } from '../../data/i18n'
+import { linkedBookingBadge } from '../../utils/linkedBooking'
 
 export type ActionPriority = 'urgent' | 'week' | 'monitor'
 
@@ -47,11 +48,15 @@ function bookingRef(b: Booking): string {
   return `#${String(b.booking_number).padStart(3, '0')}`
 }
 
-/** Returns booking label with client name if available */
-function bookingLabel(b: Booking): string {
+/** Returns booking label with client name if available, plus a 🔗 badge when
+ *  this booking is part of a staggered-arrival/departure family (see
+ *  `bookings.linked_booking_id`) — so the same alert twice for one family
+ *  reads as one story instead of a duplicate. */
+function bookingLabel(b: Booking, allBookings: Booking[]): string {
   const ref = bookingRef(b)
   const name = b.client ? ` — ${b.client.first_name} ${b.client.last_name}` : ''
-  return ref + name
+  const badge = linkedBookingBadge(b, allBookings)
+  return ref + name + (badge ? ` (${badge})` : '')
 }
 
 export function computePendingActions(data: PendingActionsData, lang: Lang = 'en'): PendingAction[] {
@@ -96,7 +101,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
       id: `unverified-${bookingId}`,
       priority: 'urgent',
       message: (count > 1 ? t.msg_unverified_payments[lang] : t.msg_unverified_payment[lang]).replace('{count}', String(count)),
-      bookingRef: b ? bookingLabel(b) : undefined,
+      bookingRef: b ? bookingLabel(b, data.bookings) : undefined,
       route: 'accounting',
       routeLabel: routeLabelAccounting,
     })
@@ -111,7 +116,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
           id: `provisional-urgent-${b.id}`,
           priority: 'urgent',
           message: t.msg_provisional_urgent[lang].replace('{days}', String(Math.round((checkIn.getTime() - today.getTime()) / 86400000))),
-          bookingRef: bookingLabel(b),
+          bookingRef: bookingLabel(b, data.bookings),
           route: 'bookings',
           routeLabel: routeLabelBookings,
         })
@@ -129,7 +134,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
           id: `visa-${b.id}`,
           priority: 'urgent',
           message: t.msg_visa_urgent[lang].replace('{days}', String(daysLeft)),
-          bookingRef: bookingLabel(b),
+          bookingRef: bookingLabel(b, data.bookings),
           route: 'documents',
           routeLabel: routeLabelDocuments,
         })
@@ -147,7 +152,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
           id: `no-payment-urgent-${b.id}`,
           priority: 'urgent',
           message: t.msg_no_payment_urgent[lang],
-          bookingRef: bookingLabel(b),
+          bookingRef: bookingLabel(b, data.bookings),
           route: 'accounting',
           routeLabel: routeLabelAccounting,
         })
@@ -164,7 +169,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
           id: `provisional-week-${b.id}`,
           priority: 'week',
           message: t.msg_provisional_week[lang].replace('{days}', String(Math.round((checkIn.getTime() - today.getTime()) / 86400000))),
-          bookingRef: bookingLabel(b),
+          bookingRef: bookingLabel(b, data.bookings),
           route: 'bookings',
           routeLabel: routeLabelBookings,
         })
@@ -181,7 +186,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
           id: `no-payment-week-${b.id}`,
           priority: 'week',
           message: t.msg_no_payment_week[lang].replace('{days}', String(Math.round((checkIn.getTime() - today.getTime()) / 86400000))),
-          bookingRef: bookingLabel(b),
+          bookingRef: bookingLabel(b, data.bookings),
           route: 'accounting',
           routeLabel: routeLabelAccounting,
         })
@@ -199,7 +204,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
           id: `visa-week-${b.id}`,
           priority: 'week',
           message: t.msg_visa_week[lang].replace('{days}', String(daysLeft)),
-          bookingRef: bookingLabel(b),
+          bookingRef: bookingLabel(b, data.bookings),
           route: 'documents',
           routeLabel: routeLabelDocuments,
         })
@@ -266,7 +271,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
         id: `confirmation-missing-${b.id}`,
         priority: 'week',
         message: t.msg_confirmation_missing[lang],
-        bookingRef: bookingLabel(b),
+        bookingRef: bookingLabel(b, data.bookings),
         route: 'documents',
         routeLabel: routeLabelDocuments,
       })
@@ -282,7 +287,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
           id: `travel-guide-urgent-${b.id}`,
           priority: 'urgent',
           message: t.msg_travel_guide_urgent[lang],
-          bookingRef: bookingLabel(b),
+          bookingRef: bookingLabel(b, data.bookings),
           route: 'documents',
           routeLabel: routeLabelDocuments,
         })
@@ -291,7 +296,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
           id: `travel-guide-week-${b.id}`,
           priority: 'week',
           message: t.msg_travel_guide_week[lang],
-          bookingRef: bookingLabel(b),
+          bookingRef: bookingLabel(b, data.bookings),
           route: 'documents',
           routeLabel: routeLabelDocuments,
         })
@@ -311,7 +316,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
           id: `welcome-guide-${b.id}`,
           priority: 'urgent',
           message: t.msg_welcome_guide[lang],
-          bookingRef: bookingLabel(b),
+          bookingRef: bookingLabel(b, data.bookings),
           route: 'documents',
           routeLabel: routeLabelDocuments,
         })

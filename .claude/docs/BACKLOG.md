@@ -6,6 +6,18 @@
 
 ## 🚨 Migrations SQL — registre
 
+⬜ **`2026-09-17_booking_linked_booking.sql`** (TEST ⬜ / PROD ⬜) — `bookings.linked_booking_id`
+(auto-référence nullable) : une même famille arrivant/repartant en plusieurs vagues garde une résa
+par sous-groupe (ses propres chambres, dates, solde) au lieu d'étirer les dates d'une seule résa.
+Topologie en étoile, badge 🔗 partout où le numéro de résa apparaît déjà (BookingsPage liste
+desktop+mobile, alertes Home via `bookingLabel`, `ClientTimeline`/dossier). **Pas de GRANT anon** :
+la colonne reste invisible aux pages partagées, comme `relationship_flag`. Le code tourne déjà
+contre ce schéma (`Booking` TS a le champ optionnel) — `select('*')` sur `bookings` (useBookings)
+donc tant que la migration n'est pas passée le champ lit juste `undefined` (badge absent, pas
+d'erreur). Vérif curl anon dans le fichier lui-même. ⚠️ Lien croisé sur la page client publique
+(ClientSharePage) **volontairement pas fait** — demande une policy RLS dédiée (bookings est déjà
+filtré par ligne via le token de partage), pas seulement ce GRANT de colonne.
+
 ⬜ **`2026-09-07_equipment_category_bar.sql`** (TEST ⬜ / PROD ⬜) — ajoute `'bar'` à l'enum
 `equipment_category`. À passer **avant** la suivante.
 ⬜ **`2026-09-07b_equipment_purchase_resale.sql`** (TEST ⬜ / PROD ⬜) — colonnes achat/revente sur

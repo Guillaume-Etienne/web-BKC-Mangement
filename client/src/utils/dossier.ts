@@ -17,6 +17,7 @@ import type {
   ActivityBooking, Booking, ClientNote, EmailLog, EmailLogType, Enquiry, EnquiryNote,
   FormSubmission, Payment, TaxiTrip,
 } from '../types/database'
+import { linkedBookingBadge } from './linkedBooking'
 
 export type DossierEventKind =
   | 'enquiry' | 'note' | 'submission' | 'booking' | 'stay'
@@ -53,6 +54,10 @@ export interface DossierInput {
   activities: ActivityBooking[]
   /** id → display name, for the rooms/providers we can name. Optional. */
   providerNames?: Record<string, string>
+  /** The app-wide bookings list, only used to resolve a 🔗 linked-stay badge
+   *  (the linked booking can belong to another client). Falls back to
+   *  `bookings` — same-client links, the common case — when omitted. */
+  allBookings?: Booking[]
 }
 
 const EMAIL_LABEL: Record<EmailLogType, string> = {
@@ -81,8 +86,10 @@ const PAYMENT_METHOD: Record<string, string> = {
   card_palmeiras: 'card (Palmeiras)',
 }
 
-function bookingLabel(b: Booking): string {
-  return `#${String(b.booking_number).padStart(3, '0')}`
+function bookingLabel(b: Booking, allBookings: Booking[]): string {
+  const ref = `#${String(b.booking_number).padStart(3, '0')}`
+  const badge = linkedBookingBadge(b, allBookings)
+  return badge ? `${ref} (${badge})` : ref
 }
 
 function nights(b: Booking): number {
@@ -96,10 +103,11 @@ function nights(b: Booking): number {
  *  filter by client id, it only turns rows into lines. */
 export function buildDossier(input: DossierInput): DossierEvent[] {
   const events: DossierEvent[] = []
+  const allBookings = input.allBookings ?? input.bookings
   const byId = new Map(input.bookings.map(b => [b.id, b]))
   const ref = (id: string | null | undefined) => {
     const b = id ? byId.get(id) : undefined
-    return b ? ` · ${bookingLabel(b)}` : ''
+    return b ? ` · ${bookingLabel(b, allBookings)}` : ''
   }
 
   for (const e of input.enquiries) {
@@ -173,7 +181,7 @@ export function buildDossier(input: DossierInput): DossierEvent[] {
       at: b.created_at ?? b.check_in,
       kind: 'booking',
       icon: '📋',
-      title: `Booking ${bookingLabel(b)} created`,
+      title: `Booking ${bookingLabel(b, allBookings)} created`,
       // `bookings.notes` is shown here because it is shown nowhere else: it has
       // no column in the Bookings list and no read-only screen, so until now
       // the only way to read what gui wrote on a booking was to reopen the
@@ -188,7 +196,7 @@ export function buildDossier(input: DossierInput): DossierEvent[] {
       at: b.check_in,
       kind: 'stay',
       icon: '🏠',
-      title: `Stay ${bookingLabel(b)}`,
+      title: `Stay ${bookingLabel(b, allBookings)}`,
       detail: `${b.check_in} → ${b.check_out} · ${nights(b)} night${nights(b) > 1 ? 's' : ''}`,
       bookingId: b.id,
     })

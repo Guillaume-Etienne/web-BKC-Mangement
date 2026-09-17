@@ -161,7 +161,7 @@ export function useClientDossier(clientId: string | null, bookings: Booking[]): 
   }, [clientId])
 
   return {
-    events: buildDossier({ ...input, bookings: clientBookings }),
+    events: buildDossier({ ...input, bookings: clientBookings, allBookings: bookings }),
     payments,
     bookings: clientBookings,
     loading,
