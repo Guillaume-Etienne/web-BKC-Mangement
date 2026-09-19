@@ -693,16 +693,39 @@ CREATE TABLE lesson_rate_overrides (
   note       TEXT NOT NULL
 );
 
+-- Catégories de dépenses, 2 niveaux (parent_id NULL = niveau 1).
+-- `slug` est la clé stable citée par le code (EquipmentPage → 'equipment') ;
+-- `name` est renommable sans toucher une seule ligne de `expenses`.
+-- Profondeur limitée à 2 par l'UI, pas par un trigger.
+CREATE TABLE expense_categories (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  parent_id  UUID REFERENCES expense_categories(id) ON DELETE RESTRICT,
+  slug       TEXT NOT NULL UNIQUE,
+  name       TEXT NOT NULL,
+  color      TEXT,
+  sort_order INT     NOT NULL DEFAULT 0,
+  archived   BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT expense_categories_no_self_parent CHECK (parent_id IS NULL OR parent_id <> id)
+);
+
+CREATE INDEX idx_expense_categories_parent
+  ON expense_categories(parent_id) WHERE parent_id IS NOT NULL;
+
 CREATE TABLE expenses (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   date         DATE NOT NULL,
-  category     TEXT NOT NULL,
+  category     TEXT NOT NULL,          -- ⚠️ legacy : remplacée par category_id, supprimée en phase 3
+  category_id  UUID REFERENCES expense_categories(id) ON DELETE RESTRICT,
   amount       NUMERIC(10,2) NOT NULL,
   description  TEXT NOT NULL,
   created_at   TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE INDEX idx_expenses_date ON expenses(date);
+CREATE INDEX idx_expenses_category_id ON expenses(category_id) WHERE category_id IS NOT NULL;
+
+REVOKE ALL ON expense_categories FROM anon;  -- admin only, jamais anon (comme expenses)
 
 
 -- ── Palmeiras ─────────────────────────────────────────────────────────────────
@@ -916,7 +939,7 @@ BEGIN
     'external_accommodation_bookings',
     'payments',
     'instructor_debts', 'instructor_payments', 'lesson_rate_overrides',
-    'expenses',
+    'expenses', 'expense_categories',
     'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries',
     'email_logs', 'document_templates',
     'enquiry_sources', 'enquiries', 'enquiry_notes', 'client_notes',
