@@ -7,7 +7,7 @@ import { todayISO, fmtDate } from '../../utils/dates'
 import {
   computeSeasonTotals,
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
-  computeInstructorBalance, fmtEur, agencyMarker,
+  computeInstructorBalance, computeVolumeTotals, fmtEur, agencyMarker,
 } from './utils'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
@@ -76,6 +76,9 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
     instructorCosts, activityCosts, houseRentalCosts, bungalowCosts, externalStayCosts, totalExpenses,
     palmeirasNet, netResult,
   } = computeSeasonTotals(scoped)
+
+  // What was sold, in units — same perimeter, same pure-function treatment as the money.
+  const volume = computeVolumeTotals(scoped)
 
   const activeTrips     = taxiTrips.filter(t => t.booking_id === null || activeIds.has(t.booking_id))
   const standaloneTrips = activeTrips.filter(t => t.booking_id === null)
@@ -172,6 +175,50 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
     <div className="space-y-8">
 
       {periodBar}
+
+      {/* ── Row 0: what was sold, in units ──
+          The money below is meaningless without it: 4 700 € over 3 stays and
+          over 30 is not the same season. Same perimeter as every euro figure
+          (cancelled excluded), so the two rows can be divided into each other. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.dash_vol_bookings[lang]}</p>
+          <p className="text-3xl font-bold text-gray-800 dark:text-gray-200">{volume.bookings}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {i18n.accounting.dash_vol_bookings_detail[lang].replace('{confirmed}', String(confirmed)).replace('{provisional}', String(provisional))}
+          </p>
+        </div>
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.dash_vol_guests[lang]}</p>
+          <p className="text-3xl font-bold text-gray-800 dark:text-gray-200">{volume.guests}</p>
+          {/* A guest list nobody filled in drags BOTH this figure and the nights
+              down. Saying so is the whole point: a silent 0 reads like a fact. */}
+          {volume.bookingsWithoutGuestList > 0 ? (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              {i18n.accounting.dash_vol_guests_missing[lang]
+                .replace('{count}', String(volume.bookingsWithoutGuestList))
+                .replace('{s}', volume.bookingsWithoutGuestList !== 1 ? 's' : '')}
+            </p>
+          ) : (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{i18n.accounting.dash_vol_guests_detail[lang]}</p>
+          )}
+        </div>
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.dash_vol_nights[lang]}</p>
+          <p className="text-3xl font-bold text-gray-800 dark:text-gray-200">{volume.guestNights.toLocaleString('fr-FR')}</p>
+          {/* "Nights sold" has three defensible definitions — say which one this is. */}
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{i18n.accounting.dash_vol_nights_detail[lang]}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.dash_vol_transfers[lang]}</p>
+          <p className="text-3xl font-bold text-gray-800 dark:text-gray-200">{volume.taxiTransfers}</p>
+          {standaloneTrips.length > 0 && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {i18n.accounting.dash_vol_transfers_detail[lang].replace('{count}', String(standaloneTrips.length))}
+            </p>
+          )}
+        </div>
+      </div>
 
       {/* ── Row 1: main KPIs ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

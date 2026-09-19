@@ -727,6 +727,54 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
   }
 }
 
+/** The activity behind the money: how much was actually sold, in units.
+ *
+ *  Same period and same perimeter as every euro figure on the dashboard —
+ *  cancelled bookings are out, standalone taxi trips are in — so a reader can
+ *  divide one by the other without wondering whether they cover the same rows.
+ *
+ *  `guests` and `guestNights` are both read off `booking_participants`, the
+ *  source of truth for who travels (decision gui, 2026-09-19: the occupancy
+ *  figure counts people, not rooms). A booking nobody has been listed on
+ *  therefore weighs 0 on both, and lands in `bookingsWithoutGuestList` so the
+ *  screen can say so instead of quietly under-reporting.
+ */
+export interface VolumeTotals {
+  bookings: number                  // active bookings (cancelled excluded)
+  guests: number                    // named participants of those bookings
+  guestNights: number               // sum of (guests x nights) — the occupancy figure
+  taxiTransfers: number             // active trips, standalone ones included
+  bookingsWithoutGuestList: number  // active bookings with nobody listed on them
+}
+
+export function computeVolumeTotals(data: SharedAccountingData): VolumeTotals {
+  const activeBookings = data.bookings.filter(b => b.status !== 'cancelled')
+  const activeIds = new Set(activeBookings.map(b => b.id))
+
+  // A blank first name is an empty row left behind by a form, not a person —
+  // BookingsPage counts its `4G` badge the same way.
+  const named = data.bookingParticipants.filter(
+    p => p.first_name.trim() !== '' && activeIds.has(p.booking_id)
+  )
+
+  const perBooking = new Map<string, number>()
+  for (const p of named) perBooking.set(p.booking_id, (perBooking.get(p.booking_id) ?? 0) + 1)
+
+  // Nights come from the booking, not from the rooms: a stay with no room
+  // assigned yet (the planning's "No room" line) was still sold.
+  const guestNights = activeBookings.reduce(
+    (s, b) => s + (perBooking.get(b.id) ?? 0) * countNights(b.check_in, b.check_out), 0)
+
+  return {
+    bookings: activeBookings.length,
+    guests: named.length,
+    guestNights,
+    taxiTransfers: data.taxiTrips.filter(
+      t => t.booking_id === null || activeIds.has(t.booking_id)).length,
+    bookingsWithoutGuestList: activeBookings.filter(b => !perBooking.has(b.id)).length,
+  }
+}
+
 /** Format euros */
 export function fmtEur(amount: number): string {
   return `${Math.round(amount).toLocaleString('fr-FR')} €`

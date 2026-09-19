@@ -189,6 +189,17 @@ export const accountingI18n = {
   // ── AccountingDashboard ───────────────────────────────────────────────────
   dash_compare:           { fr: '⇄ Comparer', en: '⇄ Compare', es: '⇄ Comparar' },
   dash_no_season:         { fr: 'Aucune saison configurée — ajoutez-en une dans Options → Seasons pour ventiler ces chiffres par période.', en: 'No season configured — add one in Options → Seasons to break these figures down by period.', es: 'No hay temporada configurada — añade una en Opciones → Temporadas para desglosar estas cifras por período.' },
+  // Volume counters — the units behind the money (2026-09-19)
+  dash_vol_bookings:      { fr: 'Réservations', en: 'Bookings', es: 'Reservas' },
+  dash_vol_bookings_detail: { fr: '{confirmed} confirmée(s) · {provisional} provisoire(s)', en: '{confirmed} confirmed · {provisional} provisional', es: '{confirmed} confirmada(s) · {provisional} provisional(es)' },
+  dash_vol_guests:        { fr: 'Voyageurs', en: 'Guests', es: 'Viajeros' },
+  dash_vol_guests_detail: { fr: 'personnes inscrites sur ces séjours', en: 'people listed on those stays', es: 'personas inscritas en esas estancias' },
+  dash_vol_guests_missing: { fr: '⚠ {count} réservation(s) sans liste de voyageurs', en: '⚠ {count} booking{s} with no guest list', es: '⚠ {count} reserva(s) sin lista de viajeros' },
+  dash_vol_nights:        { fr: 'Nuits vendues', en: 'Nights sold', es: 'Noches vendidas' },
+  dash_vol_nights_detail: { fr: 'nuitées (personnes × nuits)', en: 'guest-nights (people × nights)', es: 'noches por persona (personas × noches)' },
+  dash_vol_transfers:     { fr: 'Transferts taxi', en: 'Taxi transfers', es: 'Traslados en taxi' },
+  dash_vol_transfers_detail: { fr: '{count} sans réservation', en: '{count} without a booking', es: '{count} sin reserva' },
+
   dash_total_revenue:     { fr: 'Revenu total', en: 'Total revenue', es: 'Ingreso total' },
   dash_active_booking:    { fr: '{count} réservation(s) active(s)', en: '{count} active booking{s}', es: '{count} reserva(s) activa(s)' },
   dash_collected:         { fr: 'Collecté', en: 'Collected', es: 'Cobrado' },

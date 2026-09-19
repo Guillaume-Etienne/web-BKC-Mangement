@@ -328,6 +328,16 @@
 - **Route :** `'accounting'`
 - **Hooks :** 21 hooks (useAccommodations, useHouseRentals, useBookings, useBookingParticipants, useClients, useRooms, useBookingRooms, useBookingRoomPrices, useExternalAccommodations, useExternalAccommodationBkgs, useDiningEvents, useLessons, useInstructors, useEquipment, useEquipmentRentals, useTaxiTrips, useActivityBookings, useActivityPayments, useSeasons, usePayments, + états mutables)
 - **State :** `tab: 'dashboard'|'bookings'|'instructors'|'houses'|'palmeiras'|'cashflow'|'expenses'|'events'|'unverified'`
+- **Dashboard — rangée « volume » en tête (2026-09-19)** : réservations, voyageurs,
+  nuits vendues, transferts taxi, juste sous le sélecteur de période, **avant** les
+  euros. Un seul calcul pur, `computeVolumeTotals` (`utils.ts`, testé), au même
+  périmètre que l'argent (annulées exclues, trajets sans résa inclus) : les deux
+  rangées se divisent l'une par l'autre sans piège.
+  ⚠️ **« Nuits vendues » = nuitées client** (`Σ participants × nuits`), décision gui —
+  pas des nuits-chambre : la résa #34 (90 nuits, aucune chambre attribuée) pèserait 0.
+  La tuile écrit sa définition sous le chiffre, et **voyageurs comme nuits se lisent
+  sur `booking_participants`** : une résa sans liste compte 0 et déclenche l'alerte
+  ambre « N bookings with no guest list » — jamais un 1 supposé.
 - **Onglet Expenses — la période est UNIQUE pour les deux vues** (Liste et Résumé),
   au-dessus du bascule, défaut « tout le temps ». Avant le 2026-09-19 elle
   n'appartenait qu'au Résumé, qui démarrait sur la saison pendant que la Liste

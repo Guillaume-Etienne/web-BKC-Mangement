@@ -7,7 +7,7 @@ import {
   computeDiningForBooking, computeDiningRevenue, computeInstructorDiningCharges,
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
   computeInstructorEarned, computeInstructorDebts, computeInstructorPaid, computeInstructorBalance,
-  computeSeasonTotals, suggestDeposit, fmtEur, fmtMonth,
+  computeSeasonTotals, computeVolumeTotals, suggestDeposit, fmtEur, fmtMonth,
   clientParticipantIds, cumulativeHoursBefore, getTierRate,
   isAgencyBilled, agencyLineHoursUsed, computeAgencyTotals, reFreezeInstructorRate, buildAgencyInvoiceRows, agencyMarker,
   nextInvoiceNumber, agencyInvoiceLineLabel, buildAgencyInvoiceDoc,
@@ -1711,5 +1711,90 @@ describe('buildAgencyInvoiceDoc', () => {
     expect(doc.bookingNumber).toBeNull()
     expect(doc.guestName).toBe('—')
     expect(doc.gross).toBe(890)
+  })
+})
+
+// ─── Volume counters (what was sold, in units) ────────────────────────────────
+
+describe('computeVolumeTotals', () => {
+  /** Two active stays and one cancelled one, each with its own guest list. */
+  function volumeData() {
+    return mkData({
+      bookings: [
+        mkBooking({ id: 'bk1', check_in: '2026-11-01', check_out: '2026-11-08' }),   // 7 nights
+        mkBooking({ id: 'bk2', check_in: '2026-11-10', check_out: '2026-11-13' }),   // 3 nights
+        mkBooking({ id: 'bk3', status: 'cancelled', check_in: '2026-11-01', check_out: '2026-11-11' }),
+      ],
+      bookingParticipants: [
+        mkParticipant({ id: 'p1', booking_id: 'bk1', first_name: 'Alice' }),
+        mkParticipant({ id: 'p2', booking_id: 'bk1', first_name: 'Bob' }),
+        mkParticipant({ id: 'p3', booking_id: 'bk2', first_name: 'Carla' }),
+        mkParticipant({ id: 'p4', booking_id: 'bk3', first_name: 'Dan' }),
+      ],
+      taxiTrips: [
+        mkTaxiTrip({ id: 't1', booking_id: 'bk1' }),
+        mkTaxiTrip({ id: 't2', booking_id: null }),      // standalone — still a transfer we drove
+        mkTaxiTrip({ id: 't3', booking_id: 'bk3' }),     // hangs off the cancelled stay
+      ],
+    })
+  }
+
+  it('counts active bookings, their guests and their transfers', () => {
+    const v = computeVolumeTotals(volumeData())
+    expect(v.bookings).toBe(2)
+    expect(v.guests).toBe(3)
+    expect(v.taxiTransfers).toBe(2)
+  })
+
+  it('counts guest-nights as guests x nights, per booking', () => {
+    // bk1: 2 guests x 7 nights = 14 · bk2: 1 x 3 = 3
+    expect(computeVolumeTotals(volumeData()).guestNights).toBe(17)
+  })
+
+  it('leaves the cancelled booking out of every counter', () => {
+    const v = computeVolumeTotals(volumeData())
+    expect(v.guests).toBe(3)        // Dan is not counted
+    expect(v.guestNights).toBe(17)  // its 10 nights are not counted
+    expect(v.bookingsWithoutGuestList).toBe(0)
+  })
+
+  it('reports bookings nobody is listed on rather than guessing one guest', () => {
+    const data = mkData({
+      bookings: [mkBooking({ id: 'bk1', check_in: '2026-11-01', check_out: '2026-11-08' })],
+      bookingParticipants: [],
+    })
+    const v = computeVolumeTotals(data)
+    expect(v.bookings).toBe(1)
+    expect(v.guests).toBe(0)
+    expect(v.guestNights).toBe(0)
+    expect(v.bookingsWithoutGuestList).toBe(1)
+  })
+
+  it('ignores a participant row left blank by a form', () => {
+    const data = mkData({
+      bookings: [mkBooking({ id: 'bk1', check_in: '2026-11-01', check_out: '2026-11-03' })],
+      bookingParticipants: [
+        mkParticipant({ id: 'p1', booking_id: 'bk1', first_name: 'Alice' }),
+        mkParticipant({ id: 'p2', booking_id: 'bk1', first_name: '  ' }),
+      ],
+    })
+    const v = computeVolumeTotals(data)
+    expect(v.guests).toBe(1)
+    expect(v.guestNights).toBe(2)
+  })
+
+  it('counts a stay with no room assigned — it was still sold', () => {
+    const data = mkData({
+      bookings: [mkBooking({ id: 'bk1', check_in: '2026-09-28', check_out: '2026-12-27' })],
+      bookingRooms: [],
+      bookingParticipants: [mkParticipant({ id: 'p1', booking_id: 'bk1', first_name: 'Remi' })],
+    })
+    expect(computeVolumeTotals(data).guestNights).toBe(90)
+  })
+
+  it('returns zeros on an empty dataset', () => {
+    expect(computeVolumeTotals(mkData())).toEqual({
+      bookings: 0, guests: 0, guestNights: 0, taxiTransfers: 0, bookingsWithoutGuestList: 0,
+    })
   })
 })
