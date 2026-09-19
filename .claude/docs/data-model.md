@@ -755,6 +755,8 @@ Types purement calculés, pas de table DB.
 | bookingRef | string \| undefined | ex. `#003 — John Smith` |
 | route | Page | page vers laquelle naviguer |
 | routeLabel | string | label du lien |
+| dismissKey | string | identité du **sujet**, sans la priorité (`travel-guide:<uuid>`) — clé de classement |
+| dismissCount | number | undefined | le nombre que la ligne compte, quand elle compte |
 
 **`PendingActionsData`** : `{ bookings: Booking[]; payments: Payment[]; taxiTripUnlinkedCount: number; pendingFormSubmissionsCount: number }`
 
@@ -770,6 +772,27 @@ Types purement calculés, pas de table DB.
 | 🟡 week | `visa_entry_date` J+5 à J+7 |
 | 🟡 week | `form_submissions` `pending` à reviewer (id `pending-submissions`, route `submissions`) |
 | 🟢 monitor | Trajets taxi sans `booking_id` |
+
+### « Affaire classée » — `dismissed_actions` *(2026-09-19, migration en attente)*
+
+La **seule** table de cette section : une alerte peut être vraie dans les données et fausse pour
+gui (guide de voyage parti par WhatsApp, acompte reçu en main propre). La classer ne touche à
+aucune donnée — la ligne descend dans l'accordéon « Closed cases » de la page d'accueil.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| dismiss_key | text PK | = `PendingAction.dismissKey` |
+| up_to_count | int | null | NULL = ligne oui/non ; sinon le nombre classé |
+| dismissed_at | timestamptz | |
+
+- **Pourquoi pas `PendingAction.id`** : il porte l'urgence (`travel-guide-week-…` devient
+  `travel-guide-urgent-…` à J-2). Classer dessus rouvrirait l'affaire le jour où elle presse.
+- **Pourquoi `up_to_count`** : « 3 demandes à lire » classé ne doit pas masquer la 4ᵉ. Le tri se
+  fait dans `splitDismissed(actions, dismissals)` → `{ open, closed }`, seul endroit qui décide.
+- Une situation qui se règle pour de bon n'est plus calculée du tout : la ligne quitte les deux
+  listes seule, la ligne en base devient inerte (pas de ménage, pas de cron).
+- Admin-only (RLS `authenticated`, `REVOKE ALL FROM anon`). Lue **une fois par session** dans
+  `App.tsx` (`loadDismissals`), écrite par les deux boutons de `HomePage`.
 
 Chargé dans `App.tsx` au login (4 requêtes parallèles légères, dont count `form_submissions` pending), passé à `HomePage` + `Navigation` (badge rouge `urgentCount` sur Home, badge bleu `submissionsCount` sur Submissions).
 

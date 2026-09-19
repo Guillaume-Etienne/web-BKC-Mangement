@@ -16,6 +16,18 @@ export interface PendingAction {
   bookingRef?: string
   route: Page
   routeLabel: string
+  /** Identity of the *subject*, not of this particular wording — what "case
+   *  closed" is filed under (table `dismissed_actions`, migration 2026-09-19b).
+   *  `id` carries the urgency: `travel-guide-week-<uuid>` becomes
+   *  `travel-guide-urgent-<uuid>` at J-2. Filing on `id` would reopen the case
+   *  on the very day it starts pressing, so the key drops the priority. */
+  dismissKey: string
+  /** How many things the line is about, when it counts them ("3 new enquiries
+   *  to read"). Filing it files *those* ones: the line comes back as soon as
+   *  the count goes past what was filed, so a fourth enquiry is never silenced
+   *  by a decision taken on three. Absent = a yes/no line, filed until it is
+   *  reopened by hand. */
+  dismissCount?: number
 }
 
 export interface PendingActionsData {
@@ -99,6 +111,8 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
     const b = data.bookings.find(b => b.id === bookingId)
     actions.push({
       id: `unverified-${bookingId}`,
+      dismissKey: `unverified:${bookingId}`,
+      dismissCount: count,
       priority: 'urgent',
       message: (count > 1 ? t.msg_unverified_payments[lang] : t.msg_unverified_payment[lang]).replace('{count}', String(count)),
       bookingRef: b ? bookingLabel(b, data.bookings) : undefined,
@@ -114,6 +128,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
       if (checkIn <= j2) {
         actions.push({
           id: `provisional-urgent-${b.id}`,
+          dismissKey: `provisional:${b.id}`,
           priority: 'urgent',
           message: t.msg_provisional_urgent[lang].replace('{days}', String(Math.round((checkIn.getTime() - today.getTime()) / 86400000))),
           bookingRef: bookingLabel(b, data.bookings),
@@ -132,6 +147,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
         const daysLeft = Math.round((visaEntry.getTime() - today.getTime()) / 86400000)
         actions.push({
           id: `visa-${b.id}`,
+          dismissKey: `visa:${b.id}`,
           priority: 'urgent',
           message: t.msg_visa_urgent[lang].replace('{days}', String(daysLeft)),
           bookingRef: bookingLabel(b, data.bookings),
@@ -150,6 +166,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
       if (checkIn <= j1) {
         actions.push({
           id: `no-payment-urgent-${b.id}`,
+          dismissKey: `no-payment:${b.id}`,
           priority: 'urgent',
           message: t.msg_no_payment_urgent[lang],
           bookingRef: bookingLabel(b, data.bookings),
@@ -167,6 +184,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
       if (checkIn > j2 && checkIn <= j7) {
         actions.push({
           id: `provisional-week-${b.id}`,
+          dismissKey: `provisional:${b.id}`,
           priority: 'week',
           message: t.msg_provisional_week[lang].replace('{days}', String(Math.round((checkIn.getTime() - today.getTime()) / 86400000))),
           bookingRef: bookingLabel(b, data.bookings),
@@ -184,6 +202,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
       if (checkIn > j1 && checkIn <= j7) {
         actions.push({
           id: `no-payment-week-${b.id}`,
+          dismissKey: `no-payment:${b.id}`,
           priority: 'week',
           message: t.msg_no_payment_week[lang].replace('{days}', String(Math.round((checkIn.getTime() - today.getTime()) / 86400000))),
           bookingRef: bookingLabel(b, data.bookings),
@@ -202,6 +221,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
         const daysLeft = Math.round((visaEntry.getTime() - today.getTime()) / 86400000)
         actions.push({
           id: `visa-week-${b.id}`,
+          dismissKey: `visa:${b.id}`,
           priority: 'week',
           message: t.msg_visa_week[lang].replace('{days}', String(daysLeft)),
           bookingRef: bookingLabel(b, data.bookings),
@@ -219,6 +239,8 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
     const n = data.unqualifiedEnquiriesCount!
     actions.push({
       id: 'unqualified-enquiries',
+      dismissKey: 'unqualified-enquiries',
+      dismissCount: n,
       priority: 'urgent',
       message: (n > 1 ? t.msg_new_enquiries[lang] : t.msg_new_enquiry[lang]).replace('{count}', String(n)),
       route: 'requests',
@@ -231,6 +253,8 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
     const n = data.pendingFormSubmissionsCount
     actions.push({
       id: 'pending-submissions',
+      dismissKey: 'pending-submissions',
+      dismissCount: n,
       priority: 'week',
       message: (n > 1 ? t.msg_new_booking_forms[lang] : t.msg_new_booking_form[lang]).replace('{count}', String(n)),
       route: 'requests',
@@ -243,6 +267,8 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
     const n = data.silentEnquiriesCount!
     actions.push({
       id: 'silent-enquiries',
+      dismissKey: 'silent-enquiries',
+      dismissCount: n,
       priority: 'week',
       message: (n > 1 ? t.msg_silent_enquiries[lang] : t.msg_silent_enquiry[lang]).replace('{count}', String(n)),
       route: 'requests',
@@ -257,6 +283,8 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
     const n = data.crmFailedCount!
     actions.push({
       id: 'crm-failed',
+      dismissKey: 'crm-failed',
+      dismissCount: n,
       priority: 'monitor',
       message: (n > 1 ? t.msg_crm_failed_enquiries[lang] : t.msg_crm_failed_enquiry[lang]).replace('{count}', String(n)),
       route: 'requests',
@@ -269,6 +297,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
     if (b.status === 'confirmed' && !sentTypes.has(`${b.id}:booking_confirmation`)) {
       actions.push({
         id: `confirmation-missing-${b.id}`,
+        dismissKey: `confirmation:${b.id}`,
         priority: 'week',
         message: t.msg_confirmation_missing[lang],
         bookingRef: bookingLabel(b, data.bookings),
@@ -285,6 +314,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
       if (checkIn <= j2) {
         actions.push({
           id: `travel-guide-urgent-${b.id}`,
+          dismissKey: `travel-guide:${b.id}`,
           priority: 'urgent',
           message: t.msg_travel_guide_urgent[lang],
           bookingRef: bookingLabel(b, data.bookings),
@@ -294,6 +324,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
       } else if (checkIn <= j7) {
         actions.push({
           id: `travel-guide-week-${b.id}`,
+          dismissKey: `travel-guide:${b.id}`,
           priority: 'week',
           message: t.msg_travel_guide_week[lang],
           bookingRef: bookingLabel(b, data.bookings),
@@ -314,6 +345,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
       if (today >= checkIn && today < checkOut) {
         actions.push({
           id: `welcome-guide-${b.id}`,
+          dismissKey: `welcome-guide:${b.id}`,
           priority: 'urgent',
           message: t.msg_welcome_guide[lang],
           bookingRef: bookingLabel(b, data.bookings),
@@ -329,6 +361,8 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
     const n = data.taxiTripUnlinkedCount
     actions.push({
       id: 'unlinked-taxis',
+      dismissKey: 'unlinked-taxis',
+      dismissCount: n,
       priority: 'monitor',
       message: (n > 1 ? t.msg_unlinked_taxi_trips[lang] : t.msg_unlinked_taxi_trip[lang]).replace('{count}', String(n)),
       route: 'taxis',
@@ -339,4 +373,42 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
   // Sort: urgent first, then week, then monitor
   const order: Record<ActionPriority, number> = { urgent: 0, week: 1, monitor: 2 }
   return actions.sort((a, b) => order[a.priority] - order[b.priority])
+}
+
+
+// ── Affaire classée ─────────────────────────────────────────────────────────
+
+/** One filed case, as it is stored — see `supabase/migrations/2026-09-19b`. */
+export interface Dismissal {
+  dismiss_key: string
+  /** NULL on a yes/no line; the count that was filed on a counting one. */
+  up_to_count: number | null
+}
+
+/** Separates what still has to be looked at from what has been filed.
+ *
+ *  Filing never touches the data that produced the line: the travel guide that
+ *  left by WhatsApp has still not left by email, and the app keeps saying so
+ *  internally. What changes is only where the line is read — the accordion at
+ *  the bottom of the Home page instead of the list at the top. When the
+ *  situation itself ends (payment verified, booking gone), the line is not
+ *  computed at all and leaves both lists on its own.
+ *
+ *  A counting line comes back when the count goes past what was filed; see
+ *  `dismissCount`. Everything else stays filed until it is reopened by hand.
+ */
+export function splitDismissed(
+  actions: PendingAction[],
+  dismissals: Dismissal[],
+): { open: PendingAction[]; closed: PendingAction[] } {
+  const byKey = new Map(dismissals.map(d => [d.dismiss_key, d]))
+  const open: PendingAction[] = []
+  const closed: PendingAction[] = []
+  for (const a of actions) {
+    const d = byKey.get(a.dismissKey)
+    const isClosed = !!d && (d.up_to_count == null || (a.dismissCount ?? 0) <= d.up_to_count)
+    if (isClosed) closed.push(a)
+    else open.push(a)
+  }
+  return { open, closed }
 }

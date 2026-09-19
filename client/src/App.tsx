@@ -6,8 +6,8 @@ import Navigation from './components/layout/Navigation'
 import RecoveryBoundary from './components/layout/RecoveryBoundary'
 import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
-import { computePendingActions } from './components/pending/pendingActions'
-import type { PendingAction, Page } from './components/pending/pendingActions'
+import { computePendingActions, splitDismissed } from './components/pending/pendingActions'
+import type { PendingAction, Dismissal, Page } from './components/pending/pendingActions'
 import type { Booking, Payment, Enquiry } from './types/database'
 import type { EnquirySubmission } from './utils/enquiries'
 import { isSettled, isQualified, lastSignOfEnquiry, silenceDays, submissionsByEnquiry, SILENCE_WARN_DAYS } from './utils/enquiries'
@@ -85,6 +85,10 @@ function App() {
     shareToken ? undefined : null
   )
   const [pendingActions, setPendingActions] = useState<PendingAction[]>([])
+  // Les affaires classées : ce que gui a vu et traite ailleurs. Séparé des
+  // alertes exprès — elles sont recalculées à chaque navigation, la liste des
+  // classements ne bouge qu'ici, quand on clique.
+  const [dismissals, setDismissals] = useState<Dismissal[]>([])
   const [followUps, setFollowUps] = useState<FollowUp[]>([])
 
   // ⌘K / Ctrl-K opens the palette from anywhere. Bound on the window rather
@@ -168,6 +172,41 @@ function App() {
 
   useEffect(() => { refreshPendingActions() }, [refreshPendingActions])
 
+  // ── Affaire classée ───────────────────────────────────────────────────────
+  // Une seule lecture par session : rien d'autre que cet écran n'écrit dans la
+  // table, et les deux boutons mettent l'état à jour sans attendre le serveur.
+  // `data ?? []` n'est pas de la prudence gratuite : tant que la migration
+  // 2026-09-19b n'est pas passée sur la base, la requête répond une erreur —
+  // la page d'accueil doit s'afficher quand même, simplement sans classement.
+  const loadDismissals = useCallback(() => {
+    if (!session) return
+    supabase.from('dismissed_actions').select('dismiss_key, up_to_count')
+      .then(({ data }) => setDismissals((data ?? []) as Dismissal[]))
+  }, [session])
+
+  useEffect(() => { loadDismissals() }, [loadDismissals])
+
+  const closeAction = useCallback(async (a: PendingAction) => {
+    setDismissals(ds => [
+      ...ds.filter(d => d.dismiss_key !== a.dismissKey),
+      { dismiss_key: a.dismissKey, up_to_count: a.dismissCount ?? null },
+    ])
+    const { error } = await supabase.from('dismissed_actions').upsert({
+      dismiss_key: a.dismissKey,
+      up_to_count: a.dismissCount ?? null,
+      dismissed_at: new Date().toISOString(),
+    }, { onConflict: 'dismiss_key' })
+    // On remet la ligne en haut plutôt que de laisser croire qu'elle est rangée :
+    // une alerte masquée par erreur est pire que pas de bouton du tout.
+    if (error) { loadDismissals(); alert('Could not file this one — ' + error.message) }
+  }, [loadDismissals])
+
+  const reopenAction = useCallback(async (a: PendingAction) => {
+    setDismissals(ds => ds.filter(d => d.dismiss_key !== a.dismissKey))
+    const { error } = await supabase.from('dismissed_actions').delete().eq('dismiss_key', a.dismissKey)
+    if (error) { loadDismissals(); alert('Could not reopen this one — ' + error.message) }
+  }, [loadDismissals])
+
   useEffect(() => {
     if (!shareToken) return
     // anon has no SELECT on shared_links (token enumeration) — resolution goes
@@ -231,11 +270,16 @@ function App() {
     return <LoginPage />
   }
 
+  // Une affaire classée quitte le haut de la page ET les compteurs de la barre
+  // de navigation : un badge rouge qui compte une ligne rangée plus bas
+  // enverrait chercher quelque chose d'introuvable.
+  const { open: openActions, closed: closedActions } = splitDismissed(pendingActions, dismissals)
+
   // Authenticated
   return (
     <LanguageProvider lang={lang} setLang={setLang}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={pendingActions.filter(a => a.priority === 'urgent').length} submissionsCount={pendingActions.filter(a => a.id === 'pending-submissions' || a.id === 'unqualified-enquiries').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
+        <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={openActions.filter(a => a.priority === 'urgent').length} submissionsCount={openActions.filter(a => a.id === 'pending-submissions' || a.id === 'unqualified-enquiries').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
         {/* Le fournisseur n'enveloppe QUE l'app admin : le bandeau nomme des
             tables et rend le message brut de Postgres. Les pages partagées, plus
             haut dans ce fichier, gardent le contexte inerte par défaut. */}
@@ -247,7 +291,10 @@ function App() {
               {currentPage === 'home'       && (
                 <HomePage
                   onNavigate={setCurrentPage}
-                  pendingActions={pendingActions}
+                  pendingActions={openActions}
+                  closedActions={closedActions}
+                  onCloseAction={closeAction}
+                  onReopenAction={reopenAction}
                   followUps={followUps}
                   onOpenFollowUp={(f) => {
                     if (f.kind === 'enquiry') { setPendingEnquiryId(f.targetId); setCurrentPage('requests') }

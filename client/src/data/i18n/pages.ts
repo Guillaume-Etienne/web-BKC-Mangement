@@ -6,6 +6,14 @@ export const pagesI18n = {
   section_pending: { fr: 'En attente',      en: 'Pending',       es: 'Pendiente' },
   section_follow:  { fr: 'Suivis',          en: 'Follow-ups',    es: 'Seguimientos' },
 
+  // HomePage — « affaire classée ». Le bouton ne dit pas « fait » : la
+  // situation est toujours vraie dans les données, gui la traite ailleurs.
+  btn_case_closed:      { fr: 'Affaire classée', en: 'Case closed', es: 'Caso cerrado' },
+  section_closed_cases: { fr: 'Affaires classées', en: 'Closed cases', es: 'Casos cerrados' },
+  desc_closed_cases:    { fr: 'Toujours vrai dans les données — vous avez dit que vous vous en occupiez ailleurs. Rouvrez si besoin.', en: 'Still true in the data — you said you were handling these elsewhere. Reopen any time.', es: 'Sigue siendo cierto en los datos — dijo que se ocupaba de ellos por otro lado. Reábralos cuando quiera.' },
+  btn_reopen:           { fr: 'Rouvrir',        en: 'Reopen',      es: 'Reabrir' },
+  msg_all_filed:        { fr: 'Rien en attente — tout est classé ci-dessous.', en: 'Nothing pending — everything is filed below.', es: 'Nada pendiente — todo está archivado abajo.' },
+
   // PlanningView
   page_planning:   { fr: 'Planning',        en: 'Planning',      es: 'Planificación' },
   btn_drag_note:   { fr: 'Glisser pour déplacer', en: 'Drag to move', es: 'Arrastra para mover' },

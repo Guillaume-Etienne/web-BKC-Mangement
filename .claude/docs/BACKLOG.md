@@ -6,6 +6,13 @@
 
 ## 🚨 Migrations SQL — registre
 
+⬜ **`2026-09-19b_dismissed_actions.sql`** (TEST ⬜ / PROD ⬜) — « affaire classée » sur la page
+d'accueil : table `dismissed_actions` (`dismiss_key` PK, `up_to_count`, `dismissed_at`),
+admin-only, `REVOKE ALL FROM anon`. **Strictement additive**, rien d'autre n'est touché.
+Le code ne casse **pas** sans elle : `loadDismissals` fait `data ?? []`, l'accueil s'affiche
+normalement, simplement aucun classement ne tient au rechargement. Vérifs (curl anon + un aller-
+retour à l'écran) écrites en bas du fichier de migration.
+
 ✅ **`2026-09-19_expense_categories.sql`** (TEST ✅ / PROD ✅, passée et **vérifiée le 2026-09-19**)
 — sous-catégories de dépenses sur 2 niveaux. Vérifs faites en lecture directe sur les deux bases :
 PROD 9 catégories / 12 dépenses / 3844.35 € inchangés / 0 orpheline / 0 fusion, TEST 7 / 2 / idem,

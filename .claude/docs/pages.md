@@ -174,9 +174,14 @@
 
 ### `HomePage`
 - **Route :** `'home'`
-- **Props :** `{ onNavigate; pendingActions?; followUps?; onOpenFollowUp? }`
+- **Props :** `{ onNavigate; pendingActions?; closedActions?; onCloseAction?; onReopenAction?; followUps?; onOpenFollowUp? }`
 - **But :** Page d'accueil + **deux** listes de travail, qui répondent à deux questions différentes.
 - **Pending actions :** liste color-codée (🔴 urgent / 🟡 week / 🟢 monitor), chaque item a un lien vers la page concernée. Calculé dans `App.tsx` au login via `computePendingActions()` (`pendingActions.ts`). Parle en **échéances**.
+- **« Case closed » (2026-09-19) :** chaque ligne a un bouton qui la range dans un accordéon
+  « Closed cases » (fermé par défaut) en bas du bloc, sans rien écrire dans les données —
+  table `dismissed_actions`, tri par `splitDismissed()`, détail dans `data-model.md`. Une ligne
+  classée sort aussi des compteurs de la barre de navigation. Le bouton **ne dit pas « fait »** :
+  il dit « je m'en occupe ailleurs », et `↩ Reopen` la remonte.
 - **« Waiting on you » (2026-09-03) :** demandes ouvertes **+ résas provisoires** triées par **silence**, avec « ce qu'ils veulent » sur chaque ligne. Calculé par `computeFollowUps()` (`utils/followUps.ts`) dans le même `.then()` que les pending actions — **sur les mêmes lignes, zéro requête de plus**. Un clic ouvre la demande (Requests) ou la résa (wizard).
 - ⚠️ Les deux blocs sont complémentaires, pas redondants : **une échéance n'est pas un silence**. Le dossier qui s'est tu ne déclenche aucune règle d'échéance.
 

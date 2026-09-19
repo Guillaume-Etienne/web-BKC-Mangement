@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { i18n } from '../data/i18n'
 import type { PendingAction, Page } from '../components/pending/pendingActions'
@@ -14,7 +15,14 @@ function getPriorityStyles(lang: Lang): Record<string, { bg: string; border: str
 
 interface HomePageProps {
   onNavigate: (page: Page) => void
+  /** Ce qui reste à regarder — les affaires classées en sont déjà retirées. */
   pendingActions?: PendingAction[]
+  /** Vu, et traité ailleurs. Toujours vrai dans les données : ces lignes sont
+   *  recalculées comme les autres, et disparaissent d'elles-mêmes le jour où la
+   *  situation se règle pour de bon. */
+  closedActions?: PendingAction[]
+  onCloseAction?: (a: PendingAction) => void
+  onReopenAction?: (a: PendingAction) => void
   /** Who has been waiting, longest first — see utils/followUps.ts. */
   followUps?: FollowUp[]
   /** Opens the person's file / the booking, rather than dropping gui on a list. */
@@ -39,11 +47,14 @@ function getShortcuts(lang: Lang): Shortcut[] {
   ]
 }
 
-export default function HomePage({ onNavigate, pendingActions = [], followUps = [], onOpenFollowUp }: HomePageProps) {
+export default function HomePage({ onNavigate, pendingActions = [], closedActions = [], onCloseAction, onReopenAction, followUps = [], onOpenFollowUp }: HomePageProps) {
   const { lang } = useLanguage()
   const PRIORITY_STYLES = getPriorityStyles(lang)
   const SHORTCUTS = getShortcuts(lang)
   const urgentCount = pendingActions.filter(a => a.priority === 'urgent').length
+  // Fermé par défaut, et pas mémorisé : l'accordéon est une archive qu'on va
+  // consulter, pas un deuxième écran de travail qui reprendrait la place gagnée.
+  const [showClosed, setShowClosed] = useState(false)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 dark:from-blue-950/40 to-indigo-100 dark:to-indigo-900/30">
@@ -58,8 +69,13 @@ export default function HomePage({ onNavigate, pendingActions = [], followUps = 
           </p>
         </div>
 
-        {/* Pending actions */}
-        {pendingActions.length > 0 && (
+        {/* Ce qui reste à faire — et ce qui n'en est plus.
+            Une ligne peut être vraie dans les données et fausse pour gui : le
+            guide de voyage parti par WhatsApp, l'acompte reçu en main propre.
+            « Case closed » ne touche à aucune donnée, elle range la ligne dans
+            l'accordéon du bas (table `dismissed_actions`) ; l'alerte remonte
+            d'elle-même si le sujet change — voir dismissKey / dismissCount. */}
+        {(pendingActions.length > 0 || closedActions.length > 0) && (
           <div className="mb-10">
             <div className="flex items-center gap-3 mb-4">
               <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">{i18n.pages.section_pending[lang]}</h2>
@@ -91,10 +107,73 @@ export default function HomePage({ onNavigate, pendingActions = [], followUps = 
                     >
                       {action.routeLabel} →
                     </button>
+                    {onCloseAction && (
+                      <button
+                        onClick={() => onCloseAction(action)}
+                        title={i18n.pages.btn_case_closed[lang]}
+                        aria-label={i18n.pages.btn_case_closed[lang]}
+                        className="flex-shrink-0 rounded-md border border-gray-300 dark:border-gray-700 bg-white/60 dark:bg-gray-900/60 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-900 hover:text-gray-900 dark:hover:text-gray-200 whitespace-nowrap"
+                      >
+                        <span className="md:hidden">✓</span>
+                        <span className="hidden md:inline">✓ {i18n.pages.btn_case_closed[lang]}</span>
+                      </button>
+                    )}
                   </div>
                 )
               })}
             </div>
+
+            {/* Tout est classé : le dire, sinon le titre « Pending » surplombe
+                un vide qui ressemble à un écran cassé. */}
+            {pendingActions.length === 0 && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">{i18n.pages.msg_all_filed[lang]}</p>
+            )}
+
+            {closedActions.length > 0 && (
+              <div className="mt-3">
+                <button
+                  onClick={() => setShowClosed(v => !v)}
+                  className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                >
+                  <span className="text-xs">{showClosed ? '▾' : '▸'}</span>
+                  {i18n.pages.section_closed_cases[lang]}
+                  <span className="rounded-full bg-gray-200 dark:bg-gray-800 px-2 py-0.5 text-xs tabular-nums">{closedActions.length}</span>
+                </button>
+                {showClosed && (
+                  <>
+                    <p className="mt-2 mb-2 text-xs text-gray-500 dark:text-gray-400">{i18n.pages.desc_closed_cases[lang]}</p>
+                    <div className="space-y-2">
+                      {closedActions.map(action => (
+                        <div
+                          key={action.id}
+                          className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50"
+                        >
+                          <span className="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-gray-300 dark:bg-gray-700" />
+                          {action.bookingRef && (
+                            <span className="flex-shrink-0 text-sm font-semibold text-gray-500 dark:text-gray-400">{action.bookingRef}</span>
+                          )}
+                          <span className="flex-1 min-w-0 truncate text-sm text-gray-500 dark:text-gray-400">{action.message}</span>
+                          <button
+                            onClick={() => onNavigate(action.route)}
+                            className="hidden sm:inline flex-shrink-0 text-sm font-medium text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap"
+                          >
+                            {action.routeLabel} →
+                          </button>
+                          {onReopenAction && (
+                            <button
+                              onClick={() => onReopenAction(action)}
+                              className="flex-shrink-0 rounded-md border border-gray-300 dark:border-gray-700 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-900 hover:text-gray-900 dark:hover:text-gray-200 whitespace-nowrap"
+                            >
+                              ↩ {i18n.pages.btn_reopen[lang]}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
 
