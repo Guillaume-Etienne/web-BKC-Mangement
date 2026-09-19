@@ -7,6 +7,7 @@ import {
   categoryTree, categoryColor, categoryPath, rollUpId, selfAndChildrenIds,
   legacyLabel, childrenOf,
 } from './expenseCategories'
+
 import ExpenseCategoryManager from './ExpenseCategoryManager'
 import MonthInput from '../common/MonthInput'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -41,7 +42,10 @@ function CategorySelect({ categories, value, onChange, allLabel, className }: Ca
           : (
             <optgroup key={parent.id} label={parent.name}>
               <option value={parent.id}>{parent.name}</option>
-              {children.map(c => <option key={c.id} value={c.id}>{`  ${c.name}`}</option>)}
+              {/* Pas d'indentation à la main : le navigateur décale déjà les options
+                  d'un <optgroup>, et un préfixe d'espaces insécables casse la
+                  recherche au clavier — taper « p » ne trouvait jamais « Petrol ». */}
+              {children.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </optgroup>
           ),
       )}
@@ -59,7 +63,11 @@ interface AddFormProps {
 function AddExpenseForm({ categories, allCategories, onAdd, onCancel }: AddFormProps) {
   const { lang } = useLanguage()
   const [date,        setDate]        = useState(todayISO())
-  const [categoryId,  setCategoryId]  = useState(categories[0]?.id ?? '')
+  // Le premier de l'ARBRE, pas le premier du tableau : trié par `sort_order`
+  // brut, un enfant peut arriver en tête (vu à l'écran — le formulaire s'ouvrait
+  // sur « Petrol »), et une dépense se serait rangée dans une sous-catégorie
+  // au hasard à chaque fois qu'on oublie de toucher au select.
+  const [categoryId,  setCategoryId]  = useState(categoryTree(categories)[0]?.parent.id ?? '')
   const [amount,      setAmount]      = useState('')
   const [description, setDescription] = useState('')
 
