@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { filterDataToSeason } from './seasonFilter'
+import { filterDataToSeason, expenseWindow } from './seasonFilter'
 import type { DateRange } from './seasonFilter'
 import { computeSeasonTotals } from './utils'
 import {
@@ -10,6 +10,42 @@ import {
 
 /** The real PROD window: 15 Sep 2026 → 15 Mar 2027. */
 const SEASON: DateRange = { start_date: '2026-09-15', end_date: '2027-03-15' }
+/** La saison précédente, pour éprouver la borne basse de la fenêtre dépenses. */
+const PREV: DateRange = { start_date: '2025-09-15', end_date: '2026-03-15' }
+
+describe('expenseWindow — l’inter-saison prépare la saison qui vient', () => {
+  it('démarre le LENDEMAIN de la fin de la saison précédente', () => {
+    expect(expenseWindow(SEASON, [PREV, SEASON])).toEqual({
+      start_date: '2026-03-16', end_date: '2027-03-15',
+    })
+  })
+
+  it('n’a pas de borne basse pour la toute première saison', () => {
+    expect(expenseWindow(SEASON, [SEASON]).start_date).toBe('0000-01-01')
+  })
+
+  it('ne déborde jamais sur la fin de la saison', () => {
+    expect(expenseWindow(SEASON, [PREV, SEASON]).end_date).toBe(SEASON.end_date)
+  })
+
+  it('rattrape les 4 dépenses que PROD laissait hors de toute saison', () => {
+    const w = expenseWindow(SEASON, [PREV, SEASON])
+    const dans = (d: string) => d >= w.start_date && d <= w.end_date
+    // Les vraies lignes PROD du 2026-09-19, toutes payées avant l'ouverture.
+    expect(['2026-04-13', '2026-08-10', '2026-08-23', '2026-09-02'].every(dans)).toBe(true)
+  })
+
+  it('les fenêtres de deux saisons ne se chevauchent pas', () => {
+    const a = expenseWindow(PREV, [PREV, SEASON])
+    const b = expenseWindow(SEASON, [PREV, SEASON])
+    expect(a.end_date < b.start_date).toBe(true)
+  })
+
+  it('ignore une saison POSTÉRIEURE en cherchant la précédente', () => {
+    const NEXT: DateRange = { start_date: '2027-09-15', end_date: '2028-03-15' }
+    expect(expenseWindow(SEASON, [PREV, SEASON, NEXT]).start_date).toBe('2026-03-16')
+  })
+})
 
 describe('filterDataToSeason — bookings', () => {
   it('keeps a booking that starts inside the season', () => {
@@ -105,6 +141,35 @@ describe('filterDataToSeason — what hangs off a booking', () => {
     }), SEASON)
     expect(d.taxiTrips.map(t => t.id)).toEqual(['tIn'])
     expect(d.activityBookings.map(a => a.id)).toEqual(['aIn'])
+  })
+})
+
+describe('filterDataToSeason — la fenêtre élargie des dépenses', () => {
+  const juin = { id: 'eJuin', date: '2026-06-02', category: 'x', category_id: 'x', amount: 50, description: 'billet' }
+
+  it('SANS la liste des saisons : ancien comportement, la dépense de juin sort', () => {
+    const d = filterDataToSeason(mkData({ expenses: [juin] }), SEASON)
+    expect(d.expenses).toHaveLength(0)
+  })
+
+  it('AVEC la liste : juin prépare la saison, il rentre', () => {
+    const d = filterDataToSeason(mkData({ expenses: [juin] }), SEASON, [PREV, SEASON])
+    expect(d.expenses.map(e => e.id)).toEqual(['eJuin'])
+  })
+
+  it('mais une dépense d’avant la saison PRÉCÉDENTE reste dehors', () => {
+    const vieux = { ...juin, id: 'eVieux', date: '2025-06-02' }
+    const d = filterDataToSeason(mkData({ expenses: [vieux] }), SEASON, [PREV, SEASON])
+    expect(d.expenses).toHaveLength(0)
+  })
+
+  it('n’élargit QUE les dépenses — un repas de juin reste hors saison', () => {
+    const d = filterDataToSeason(mkData({
+      expenses: [juin],
+      diningEvents: [mkDiningEvent({ id: 'dJuin', date: '2026-06-02' })],
+    }), SEASON, [PREV, SEASON])
+    expect(d.expenses).toHaveLength(1)
+    expect(d.diningEvents).toHaveLength(0)
   })
 })
 

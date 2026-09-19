@@ -9,6 +9,7 @@ import {
 } from './expenseCategories'
 
 import ExpenseCategoryManager from './ExpenseCategoryManager'
+import { expenseWindow } from './seasonFilter'
 import MonthInput from '../common/MonthInput'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
@@ -210,15 +211,17 @@ export default function ExpensesTab({ data, handlers }: Props) {
   // partent toutes d'ici, donc leurs totaux ne peuvent plus diverger.
   const periodExpenses = useMemo(() => {
     if (period === 'season' && currentSeason) {
-      const from = currentSeason.start_date.slice(0, 7)
-      const to   = currentSeason.end_date.slice(0, 7)
-      return expenses.filter(e => e.date.slice(0, 7) >= from && e.date.slice(0, 7) <= to)
+      // La MÊME fonction que le tableau de bord et la comparaison de saisons :
+      // une seule définition de « les dépenses de cette saison », sinon les
+      // écrans se remettent à diverger. La fenêtre est élargie à l'inter-saison.
+      const w = expenseWindow(currentSeason, seasons)
+      return expenses.filter(e => e.date >= w.start_date && e.date <= w.end_date)
     }
     if (period === 'custom' && periodFrom && periodTo) {
       return expenses.filter(e => e.date.slice(0, 7) >= periodFrom && e.date.slice(0, 7) <= periodTo)
     }
     return expenses
-  }, [expenses, period, currentSeason, periodFrom, periodTo])
+  }, [expenses, period, currentSeason, seasons, periodFrom, periodTo])
 
   /** Le nom de la période active — accolé à chaque total, pour qu'aucun chiffre
    *  de cet écran ne soit lisible sans savoir ce qu'il couvre. */
@@ -379,6 +382,11 @@ export default function ExpensesTab({ data, handlers }: Props) {
             </button>
           ))}
         </div>
+        {period === 'season' && currentSeason && (
+          <p className="w-full text-xs text-gray-400 dark:text-gray-500">
+            {i18n.accounting.ex_season_includes[lang]}
+          </p>
+        )}
         {period === 'custom' && (
           <div className="flex items-center gap-2 text-sm">
             <MonthInput value={periodFrom} onChange={setPeriodFrom} allowEmpty />

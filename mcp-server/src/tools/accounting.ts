@@ -36,7 +36,7 @@ export function registerAccountingTools(server: McpServer) {
             return { start_date: toISODate(w.start), end_date: toISODate(w.end) }
           })()
 
-      const filtered = filterDataToSeason(bundle, range)
+      const filtered = filterDataToSeason(bundle, range, bundle.seasons)
       const totals = computeSeasonTotals(filtered)
 
       return jsonResult({

@@ -1,4 +1,5 @@
 import type { SharedAccountingData } from './types'
+import { addDaysISO } from '../../utils/dates'
 
 /** The window a season covers. A `Season` row fits this shape as-is. */
 export interface DateRange {
@@ -14,6 +15,41 @@ const inRange = (date: string, r: DateRange) =>
  *  lease across two seasons would need a rule nobody has asked for. */
 const monthInRange = (month: string, r: DateRange) =>
   !!month && month >= r.start_date.slice(0, 7) && month <= r.end_date.slice(0, 7)
+
+/**  La fenêtre qu'une saison possède POUR SES DÉPENSES — plus large que la
+ *   saison elle-même : elle commence **le lendemain de la fin de la saison
+ *   précédente**.
+ *
+ *   Pourquoi (décision gui, 2026-09-19) : un centre saisonnier dépense pour sa
+ *   saison bien avant qu'elle n'ouvre. Les billets d'avion s'achètent en avril
+ *   parce qu'ils y sont moins chers, le matériel et les contrats saisonniers se
+ *   règlent l'été. Filtrer les dépenses sur la seule fenêtre 15/09 → 15/03
+ *   laissait **53 % de l'argent dépensé en PROD hors de toute saison**
+ *   (2071,91 € sur 3873,35 € au 2026-09-19) : un vol intitulé
+ *   « Flight 15 Sept to 15 March » payé le 23/08 ne comptait nulle part.
+ *   L'inter-saison est donc rattachée à la saison qu'elle prépare.
+ *
+ *   Les fenêtres ne se chevauchent pas — celle de la saison N commence où
+ *   s'arrête celle de N−1 — donc rien n'est compté deux fois dans une
+ *   comparaison saison par saison. La toute première saison n'a pas de borne
+ *   basse : ce qui la précède lui appartient, faute de mieux.
+ *
+ *   ⚠️ Limite assumée : la règle est automatique et SANS RECOURS. Une dépense
+ *   d'avril qui SOLDE la saison passée (un moniteur payé en retard) sera
+ *   rattachée à la suivante. La colonne `season_id` qui aurait permis de
+ *   corriger au cas par cas a été écartée par gui — à ressortir si le cas se
+ *   présente vraiment.
+ */
+export function expenseWindow(range: DateRange, seasons: DateRange[]): DateRange {
+  const previous = seasons
+    .filter(s => s.end_date < range.start_date)
+    .sort((a, b) => a.end_date.localeCompare(b.end_date))
+    .at(-1)
+  return {
+    start_date: previous ? addDaysISO(previous.end_date, 1) : '0000-01-01',
+    end_date: range.end_date,
+  }
+}
 
 /** Narrow a full accounting dataset to one season, so every existing computation
  *  can be run over it unchanged.
@@ -39,7 +75,13 @@ const monthInRange = (month: string, r: DateRange) =>
 export function filterDataToSeason(
   data: SharedAccountingData,
   range: DateRange,
+  /** Toutes les saisons connues, pour élargir la fenêtre des DÉPENSES à
+   *  l'inter-saison (cf. `expenseWindow`). Omis = ancien comportement, les
+   *  dépenses suivent la fenêtre stricte — les appelants qui ont la liste la
+   *  passent, pour que tous les écrans racontent la même chose. */
+  seasons?: DateRange[],
 ): SharedAccountingData {
+  const expRange = seasons ? expenseWindow(range, seasons) : range
   const bookings = data.bookings.filter(b => inRange(b.check_in, range))
   const keptBookingIds = new Set(bookings.map(b => b.id))
 
@@ -83,7 +125,9 @@ export function filterDataToSeason(
     agencyBillingLines:        byBookingId(data.agencyBillingLines),
 
     // ── Standalone: each row carries the date that places it ───────────────
-    expenses:            byOwnDate(data.expenses),
+    // ⚠️ Les dépenses, et elles seules, suivent la fenêtre ÉLARGIE : ce qui a
+    // été payé pendant l'inter-saison prépare la saison qui vient.
+    expenses:            data.expenses.filter(e => inRange(e.date, expRange)),
     diningEvents:        byOwnDate(data.diningEvents),
     instructorDebts:     byOwnDate(data.instructorDebts),
     instructorPayments:  byOwnDate(data.instructorPayments),

@@ -53,7 +53,7 @@ const BOTTOM: Line[] = [
 export default function SeasonComparison({ data, seasons }: Props) {
   const { lang } = useLanguage()
   const columns = useMemo(
-    () => seasons.map(s => ({ season: s, totals: computeSeasonTotals(filterDataToSeason(data, s)) })),
+    () => seasons.map(s => ({ season: s, totals: computeSeasonTotals(filterDataToSeason(data, s, seasons)) })),
     [data, seasons],
   )
 

@@ -23,7 +23,7 @@ export default function AgencyBillingTab({ data }: Props) {
 
   const currentSeason = data.seasons[data.seasons.length - 1]
   const scoped = useMemo(
-    () => (period === 'season' && currentSeason ? filterDataToSeason(data, currentSeason) : data),
+    () => (period === 'season' && currentSeason ? filterDataToSeason(data, currentSeason, data.seasons) : data),
     [data, period, currentSeason]
   )
 

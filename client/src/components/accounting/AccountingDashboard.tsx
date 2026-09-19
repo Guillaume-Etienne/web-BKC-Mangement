@@ -56,7 +56,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   // owes us" list and the instructor balances all have to describe the same
   // period, or the page contradicts itself.
   const scoped = useMemo(
-    () => (activeSeason ? filterDataToSeason(data, activeSeason) : data),
+    () => (activeSeason ? filterDataToSeason(data, activeSeason, data.seasons) : data),
     [data, activeSeason],
   )
 

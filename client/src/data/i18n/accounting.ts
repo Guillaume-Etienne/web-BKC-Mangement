@@ -389,6 +389,7 @@ export const accountingI18n = {
   ex_on_heading:          { fr: '{count} dépense(s) sont rangées sur « {name} », devenue un titre depuis qu’elle a des sous-catégories. Range-les dans l’une d’elles.', en: '{count} expense(s) still sit on “{name}”, which became a heading when it got sub-categories. Move them into one of those.', es: '{count} gasto(s) siguen en «{name}», que pasó a ser un título al tener subcategorías. Muévelos a una de ellas.' },
   ex_show_them:           { fr: 'Les voir', en: 'Show them', es: 'Verlos' },
   ex_breakdown:           { fr: 'Répartition', en: 'Breakdown', es: 'Desglose' },
+  ex_season_includes:     { fr: 'Inclut les dépenses de l’inter-saison : ce qui a été payé depuis la fin de la saison précédente prépare celle-ci.', en: 'Includes off-season spending: anything paid since the previous season ended prepares this one.', es: 'Incluye los gastos de entretemporada: lo pagado desde el fin de la temporada anterior prepara esta.' },
 
   // ── CollectionsModal ──────────────────────────────────────────────────────
   cm_title:               { fr: 'Sommes en attente', en: 'Outstanding collections', es: 'Cobros pendientes' },

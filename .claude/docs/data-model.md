@@ -638,6 +638,19 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 | sort_order | number | |
 | archived | boolean | sort de la saisie **sans** perdre l'historique — le geste par défaut à la place d'une suppression |
 
+⚠️ **Les dépenses d'une saison couvrent AUSSI l'inter-saison** (2026-09-19).
+`expenseWindow(range, seasons)` dans `components/accounting/seasonFilter.ts` : la
+fenêtre commence **le lendemain de la fin de la saison précédente**, parce qu'un
+centre saisonnier paie pour sa saison avant qu'elle n'ouvre (billets d'avion pris
+en avril, matériel et contrats réglés l'été). Sans ça, **53 % de l'argent dépensé
+en PROD ne comptait dans aucune saison** (2071,91 € sur 3873,35 €).
+`filterDataToSeason(data, range, seasons)` applique la règle — **aux dépenses
+seulement** — donc l'onglet Expenses, le tableau de bord, la comparaison de saisons
+et le MCP disent tous la même chose. Sans le 3ᵉ argument, l'ancien comportement.
+⚠️ Règle **automatique et sans recours** : une dépense d'avril qui *solde* la saison
+passée sera rattachée à la suivante. La colonne `season_id` qui permettrait de
+corriger au cas par cas a été **écartée par gui** — à ressortir si le cas se présente.
+
 ⚠️ **Une catégorie qui a des sous-catégories est un TITRE** (décision gui, 2026-09-19) :
 on ne range plus de dépense dessus, seulement dans une de ses branches. C'est
 `isPostable` / `postableCategories` qui le disent. Deux conséquences :
