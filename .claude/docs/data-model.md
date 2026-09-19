@@ -638,10 +638,19 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 | sort_order | number | |
 | archived | boolean | sort de la saisie **sans** perdre l'historique — le geste par défaut à la place d'une suppression |
 
-Logique dans `components/accounting/expenseCategories.ts` (testée, 37 cas) :
+Logique dans `components/accounting/expenseCategories.ts` (testée, 50 cas) :
 `slugify` (**doit rester identique à l'expression SQL du backfill**), `categoryTree`,
 `rollUpId` (c'est lui qui évite une matrice mois × catégories à 24 colonnes),
-`selfAndChildrenIds` (filtrer sur un parent ramène ses enfants), `canDelete`.
+`selfAndChildrenIds` (filtrer sur un parent ramène ses enfants), `canDelete`,
+`reorderSiblings` (les flèches ↑↓ — renumérote la fratrie de 10 en 10 et ne
+renvoie QUE les lignes qui changent) et `moveToParent` (changer de parent ;
+libère la couleur en devenant enfant, en attribue une en étant promu).
+
+⚠️ **Un montant en cours de saisie se tient en CHAÎNE, jamais en `number`.** Sur un
+`<input type="number">` contrôlé, `valueAsNumber` vaut `NaN` à chaque frappe
+intermédiaire (« 55. » n'est pas un nombre) : l'état part en `NaN`, le champ se
+re-rend et les caractères se perdent — taper « 55.25 » laissait « 25 » (vu à
+l'écran le 2026-09-19). Le parse ne se fait qu'à la validation.
 
 ### `expenses` → `Expense`
 | Field | Type | Notes |

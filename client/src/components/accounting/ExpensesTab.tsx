@@ -133,6 +133,14 @@ export default function ExpensesTab({ data, handlers }: Props) {
 
   const [view,        setView]        = useState<View>('list')
   const [showAddForm, setShowAddForm] = useState(false)
+  // Édition en place d'une dépense : un brouillon local, écrit seulement au Save.
+  // ⚠️ Le montant est tenu en CHAÎNE, comme dans le formulaire d'ajout. Sur un
+  // <input type="number"> contrôlé, `valueAsNumber` vaut NaN à chaque frappe
+  // intermédiaire (« 55. » n'est pas un nombre) : l'état partait en NaN et les
+  // caractères se perdaient — taper « 55.25 » laissait « 25 » (vu à l'écran).
+  const [editingId,   setEditingId]   = useState<string | null>(null)
+  const [editDraft,   setEditDraft]   = useState<Expense | null>(null)
+  const [editAmount,  setEditAmount]  = useState('')
   const [showManager, setShowManager] = useState(false)
   // Replié par défaut : 6 catégories × 4 sous-catégories feraient 24 colonnes.
   const [detailed,    setDetailed]    = useState(false)
@@ -225,6 +233,25 @@ export default function ExpensesTab({ data, handlers }: Props) {
   }, [expenses, detailed, expenseCategories])   // eslint-disable-line react-hooks/exhaustive-deps
   const allTotal = Object.values(allByCat).reduce((s, v) => s + v, 0) || 1
 
+  const startEdit = (e: Expense) => {
+    setEditingId(e.id); setEditDraft({ ...e }); setEditAmount(String(e.amount))
+  }
+  const cancelEdit = () => { setEditingId(null); setEditDraft(null); setEditAmount('') }
+  const saveEdit = () => {
+    if (!editDraft) return
+    const amt = parseFloat(editAmount)
+    if (!editDraft.date || !editDraft.description.trim() || isNaN(amt) || !editDraft.category_id) return
+    handlers.updateExpense({
+      ...editDraft,
+      amount: amt,
+      description: editDraft.description.trim(),
+      // On réaligne la colonne LEGACY sur la catégorie choisie, sinon elle
+      // garderait le libellé d'avant et les deux colonnes se contrediraient.
+      category: legacyLabel(expenseCategories, editDraft.category_id),
+    })
+    cancelEdit()
+  }
+
   const detailToggle = (
     <button onClick={() => setDetailed(v => !v)}
       className="text-xs px-2 py-1 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-500 dark:hover:border-blue-700 dark:hover:text-blue-400 transition-colors">
@@ -248,13 +275,32 @@ export default function ExpensesTab({ data, handlers }: Props) {
           ))}
         </div>
 
-        {/* Category chips + accès au gestionnaire */}
+        {/* Liste des catégories : chaque famille montre son parent ET ses enfants,
+            et chaque pastille filtre la liste. Avant, seuls les parents s'affichaient,
+            avec un simple compteur « · 3 » — on ne pouvait pas lire ses sous-catégories
+            sans ouvrir le gestionnaire. */}
         <div className="flex items-center gap-2 flex-wrap">
           {categoryTree(activeCategories).map(({ parent, children }) => (
-            <span key={parent.id} className="flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium"
-              style={{ backgroundColor: colorOf(parent.id) + '33', color: colorOf(parent.id) }}>
-              {parent.name}
-              {children.length > 0 && <span className="opacity-60">· {children.length}</span>}
+            <span key={parent.id}
+              className="inline-flex items-center gap-1 rounded-full border border-gray-200 dark:border-gray-800 p-0.5">
+              <button onClick={() => setFilterCat(filterCat === parent.id ? 'all' : parent.id)}
+                title={i18n.accounting.ex_filter_by_category[lang]}
+                className={`text-xs px-2 py-0.5 rounded-full font-semibold transition-all ${
+                  filterCat === parent.id ? 'ring-2 ring-offset-1 dark:ring-offset-gray-950' : 'hover:opacity-80'
+                }`}
+                style={{ backgroundColor: colorOf(parent.id) + '33', color: colorOf(parent.id) }}>
+                {parent.name}
+              </button>
+              {children.map(c => (
+                <button key={c.id} onClick={() => setFilterCat(filterCat === c.id ? 'all' : c.id)}
+                  title={i18n.accounting.ex_filter_by_category[lang]}
+                  className={`text-[11px] px-2 py-0.5 rounded-full font-medium transition-all ${
+                    filterCat === c.id ? 'ring-2 ring-offset-1 dark:ring-offset-gray-950' : 'opacity-75 hover:opacity-100'
+                  }`}
+                  style={{ backgroundColor: colorOf(c.id) + '1f', color: colorOf(c.id) }}>
+                  {c.name}
+                </button>
+              ))}
             </span>
           ))}
           <button onClick={() => setShowManager(v => !v)}
@@ -343,7 +389,40 @@ export default function ExpensesTab({ data, handlers }: Props) {
               {filtered.length === 0 && (
                 <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-gray-400 text-sm">{i18n.accounting.ex_no_expenses_match[lang]}</td></tr>
               )}
-              {filtered.map(e => (
+              {filtered.map(e => editingId === e.id && editDraft ? (
+                <tr key={e.id} className="border-b bg-blue-50/60 dark:bg-blue-950/30">
+                  <td className="px-4 py-2">
+                    <input type="date" value={editDraft.date}
+                      onChange={ev => setEditDraft({ ...editDraft, date: ev.target.value })}
+                      className="px-2 py-1 border border-gray-300 dark:border-gray-700 rounded-lg text-sm w-36 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-gray-200" />
+                  </td>
+                  <td className="px-4 py-2">
+                    <CategorySelect categories={activeCategories} value={editDraft.category_id ?? ''}
+                      onChange={v => setEditDraft({ ...editDraft, category_id: v })}
+                      className="px-2 py-1 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-gray-200" />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input type="text" value={editDraft.description}
+                      onChange={ev => setEditDraft({ ...editDraft, description: ev.target.value })}
+                      onKeyDown={ev => { if (ev.key === 'Enter') saveEdit(); if (ev.key === 'Escape') cancelEdit() }}
+                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-gray-200" />
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <input type="number" step="0.01" value={editAmount}
+                      onChange={ev => setEditAmount(ev.target.value)}
+                      onKeyDown={ev => { if (ev.key === 'Enter') saveEdit(); if (ev.key === 'Escape') cancelEdit() }}
+                      className="w-28 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-gray-200" />
+                  </td>
+                  <td className="px-4 py-2 text-right whitespace-nowrap">
+                    <button onClick={saveEdit}
+                      className="px-2 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                      {i18n.common.btn_save[lang]}
+                    </button>
+                    <button onClick={cancelEdit}
+                      className="ml-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg leading-none">×</button>
+                  </td>
+                </tr>
+              ) : (
                 <tr key={e.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                   <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtDate(e.date)}</td>
                   <td className="px-4 py-3">
@@ -354,9 +433,13 @@ export default function ExpensesTab({ data, handlers }: Props) {
                   </td>
                   <td className="px-4 py-3 text-gray-800 dark:text-gray-200">{e.description}</td>
                   <td className="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-400">− {fmtEur(e.amount)}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <button onClick={() => startEdit(e)} title={i18n.accounting.ex_edit_expense[lang]}
+                      className="text-xs px-2 py-1 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                      {i18n.accounting.ex_edit[lang]}
+                    </button>
                     <button onClick={() => handlers.deleteExpense(e.id)}
-                      className="text-gray-300 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors text-lg leading-none">×</button>
+                      className="ml-1 text-gray-300 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors text-lg leading-none">×</button>
                   </td>
                 </tr>
               ))}

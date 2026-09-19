@@ -126,6 +126,56 @@ export function canDelete(
   return { ok: true }
 }
 
+/**  Déplacer une catégorie d'un cran dans SA fratrie (les parents entre eux, les
+ *   enfants d'un même parent entre eux). Renvoie les lignes à écrire — seulement
+ *   celles dont le `sort_order` change vraiment, pour ne pas réécrire toute la
+ *   table à chaque clic sur une flèche.
+ *   Tableau vide = le geste n'a pas lieu d'être (déjà en bout de liste).
+ */
+export function reorderSiblings(
+  cats: ExpenseCategory[], id: string, dir: -1 | 1,
+): ExpenseCategory[] {
+  const cat = cats.find(c => c.id === id)
+  if (!cat) return []
+  const sibs = cat.parent_id === null ? parentsOf(cats) : childrenOf(cats, cat.parent_id)
+  const i = sibs.findIndex(c => c.id === id)
+  const j = i + dir
+  if (i < 0 || j < 0 || j >= sibs.length) return []
+  const next = [...sibs]
+  ;[next[i], next[j]] = [next[j], next[i]]
+  // On renumérote de 10 en 10 : des trous réguliers, donc une insertion
+  // ultérieure n'oblige pas à tout décaler.
+  return next
+    .map((c, k) => ({ ...c, sort_order: (k + 1) * 10 }))
+    .filter(c => c.sort_order !== cats.find(o => o.id === c.id)!.sort_order)
+}
+
+/**  Ranger une catégorie sous un autre parent, ou la remonter au niveau 1.
+ *   Renvoie `null` si le déplacement est refusé (cf. `isValidParent` : pas de
+ *   3e niveau, pas de boucle) ou s'il ne change rien.
+ *
+ *   La couleur suit la règle de l'affichage : seul un parent en porte une.
+ *   Devenir enfant la libère (il héritera), être promu parent en attribue une —
+ *   sinon un parent promu resterait gris et toute sa descendance avec lui.
+ */
+export function moveToParent(
+  cats: ExpenseCategory[], id: string, nextParentId: string | null,
+): ExpenseCategory | null {
+  const cat = cats.find(c => c.id === id)
+  if (!cat || cat.parent_id === nextParentId) return null
+  if (!isValidParent(cats, id, nextParentId)) return null
+  const sibs = (nextParentId === null ? parentsOf(cats) : childrenOf(cats, nextParentId))
+    .filter(s => s.id !== id)
+  return {
+    ...cat,
+    parent_id: nextParentId,
+    sort_order: (sibs.at(-1)?.sort_order ?? 0) + 10,
+    color: nextParentId === null
+      ? (cat.color ?? CATEGORY_PALETTE[parentsOf(cats).length % CATEGORY_PALETTE.length])
+      : null,
+  }
+}
+
 /**  Le libellé texte à écrire dans la colonne LEGACY `expenses.category`.
  *   Tant qu'elle existe (phase 3 la supprimera), on la garde alimentée pour que
  *   rien de ce qui la lit encore n'affiche une case vide.

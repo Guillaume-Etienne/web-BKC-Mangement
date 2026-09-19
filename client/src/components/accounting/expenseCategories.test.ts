@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   slugify, uniqueSlug, categoryTree, parentsOf, childrenOf, isValidParent,
   categoryColor, categoryPath, rollUpId, selfAndChildrenIds, canDelete, legacyLabel,
+  reorderSiblings, moveToParent,
 } from './expenseCategories'
 import type { Expense, ExpenseCategory } from '../../types/database'
 
@@ -14,9 +15,11 @@ const mkExpense = (o: Partial<Expense> & { id: string }): Expense => ({
 
 /** L'arbre de référence des tests : Energy avec 3 enfants, Admin tout seul. */
 const energy = mkCat({ id: 'energy', name: 'Energy', color: '#f97316', sort_order: 10 })
-const petrol = mkCat({ id: 'petrol', name: 'Petrol', parent_id: 'energy', sort_order: 1 })
-const elec   = mkCat({ id: 'elec',   name: 'Electricity', parent_id: 'energy', sort_order: 2 })
-const gas    = mkCat({ id: 'gas',    name: 'Gas', parent_id: 'energy', sort_order: 3 })
+// Pas de 10, comme ce que la renumérotation produit : une fratrie déjà normalisée
+// ne doit plus être réécrite en entier au moindre clic sur une flèche.
+const petrol = mkCat({ id: 'petrol', name: 'Petrol', parent_id: 'energy', sort_order: 10 })
+const elec   = mkCat({ id: 'elec',   name: 'Electricity', parent_id: 'energy', sort_order: 20 })
+const gas    = mkCat({ id: 'gas',    name: 'Gas', parent_id: 'energy', sort_order: 30 })
 const admin  = mkCat({ id: 'admin',  name: 'Admin', color: '#facc15', sort_order: 20 })
 const TREE = [petrol, energy, gas, admin, elec]   // volontairement désordonné
 
@@ -190,6 +193,90 @@ describe('canDelete — on n’ampute jamais l’historique', () => {
   it('ignore les dépenses rangées ailleurs', () => {
     const expenses = [mkExpense({ id: 'e1', category_id: 'energy' })]
     expect(canDelete(TREE, expenses, 'admin')).toEqual({ ok: true })
+  })
+})
+
+describe('reorderSiblings — les flèches de la liste', () => {
+  it('échange deux parents et ne réécrit QUE ceux qui bougent', () => {
+    const out = reorderSiblings(TREE, 'admin', -1)   // Admin remonte au-dessus d'Energy
+    expect(out.map(c => c.id).sort()).toEqual(['admin', 'energy'])
+    const byId = Object.fromEntries(out.map(c => [c.id, c.sort_order]))
+    expect(byId.admin).toBeLessThan(byId.energy)
+  })
+
+  it('réordonne à l’intérieur d’une fratrie d’enfants, sans toucher aux parents', () => {
+    const out = reorderSiblings(TREE, 'gas', -1)      // Gas passe devant Electricity
+    expect(out.map(c => c.id).sort()).toEqual(['elec', 'gas'])
+    const byId = Object.fromEntries(out.map(c => [c.id, c.sort_order]))
+    expect(byId.gas).toBeLessThan(byId.elec)
+  })
+
+  it('ne fait rien en haut de liste', () => {
+    expect(reorderSiblings(TREE, 'energy', -1)).toEqual([])
+  })
+
+  it('normalise une fratrie héritée d’une numérotation serrée, une seule fois', () => {
+    // Le backfill pose sort_order 1,2,3 ; le premier déplacement renumérote toute
+    // la fratrie en 10,20,30 — y compris celui qui n'a pas changé de place.
+    const serre = [
+      mkCat({ id: 'a', name: 'A', parent_id: 'p', sort_order: 1 }),
+      mkCat({ id: 'b', name: 'B', parent_id: 'p', sort_order: 2 }),
+      mkCat({ id: 'c', name: 'C', parent_id: 'p', sort_order: 3 }),
+      mkCat({ id: 'p', name: 'P' }),
+    ]
+    const premier = reorderSiblings(serre, 'c', -1)
+    expect(premier.map(c => c.id).sort()).toEqual(['a', 'b', 'c'])
+    // Une fois normalisée, la fois suivante ne touche que la paire échangée.
+    const apres = serre.map(c => premier.find(o => o.id === c.id) ?? c)
+    expect(reorderSiblings(apres, 'b', -1).map(c => c.id).sort()).toEqual(['b', 'c'])
+  })
+
+  it('ne fait rien en bas de liste', () => {
+    expect(reorderSiblings(TREE, 'gas', 1)).toEqual([])
+  })
+
+  it('ne fait rien sur une catégorie inconnue', () => {
+    expect(reorderSiblings(TREE, 'disparue', 1)).toEqual([])
+  })
+
+  it('l’ordre obtenu est bien celui qu’on relira', () => {
+    const out = reorderSiblings(TREE, 'gas', -1)
+    const after = TREE.map(c => out.find(o => o.id === c.id) ?? c)
+    expect(childrenOf(after, 'energy').map(c => c.id)).toEqual(['petrol', 'gas', 'elec'])
+  })
+})
+
+describe('moveToParent — ranger une catégorie ailleurs', () => {
+  it('range un parent SANS enfant sous un autre parent', () => {
+    const moved = moveToParent(TREE, 'admin', 'energy')
+    expect(moved).toMatchObject({ id: 'admin', parent_id: 'energy' })
+  })
+
+  it('libère la couleur quand la catégorie devient un enfant (elle héritera)', () => {
+    expect(moveToParent(TREE, 'admin', 'energy')!.color).toBeNull()
+  })
+
+  it('remonte un enfant au niveau 1 et lui donne une couleur', () => {
+    const moved = moveToParent(TREE, 'petrol', null)
+    expect(moved).toMatchObject({ id: 'petrol', parent_id: null })
+    expect(moved!.color).toBeTruthy()
+  })
+
+  it('le place en fin de sa nouvelle fratrie', () => {
+    const moved = moveToParent(TREE, 'admin', 'energy')!
+    const maxChild = Math.max(...childrenOf(TREE, 'energy').map(c => c.sort_order))
+    expect(moved.sort_order).toBeGreaterThan(maxChild)
+  })
+
+  it('refuse ce que isValidParent refuse — pas de 3e niveau', () => {
+    expect(moveToParent(TREE, 'admin', 'petrol')).toBeNull()
+    expect(moveToParent(TREE, 'energy', 'admin')).toBeNull()
+    expect(moveToParent(TREE, 'energy', 'energy')).toBeNull()
+  })
+
+  it('renvoie null quand rien ne change', () => {
+    expect(moveToParent(TREE, 'petrol', 'energy')).toBeNull()
+    expect(moveToParent(TREE, 'admin', null)).toBeNull()
   })
 })
 

@@ -284,6 +284,12 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       persist(supabase.from('expenses').insert([e]),
         () => setExpenses(before), 'the expense')
     },
+    updateExpense: (e: Expense) => {
+      const before = expenses
+      setExpenses(prev => prev.map(x => x.id === e.id ? e : x))
+      persist(supabase.from('expenses').update(e).eq('id', e.id),
+        () => setExpenses(before), 'the expense')
+    },
     deleteExpense: (id: string) => {
       const before = expenses
       setExpenses(prev => prev.filter(x => x.id !== id))

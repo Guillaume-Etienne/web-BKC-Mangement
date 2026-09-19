@@ -65,6 +65,7 @@ export interface AccountingHandlers {
   setLessonOverride:       (o: LessonRateOverride) => void
   removeLessonOverride:    (lesson_id: string)     => void
   addExpense:              (e: Expense)            => void
+  updateExpense:           (e: Expense)            => void
   deleteExpense:           (id: string)            => void
   addExpenseCategory:      (c: ExpenseCategory)    => void
   updateExpenseCategory:   (c: ExpenseCategory)    => void

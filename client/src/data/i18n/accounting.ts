@@ -376,6 +376,17 @@ export const accountingI18n = {
   ex_collapse_children:   { fr: 'Replier sur les parents', en: 'Collapse to parents', es: 'Agrupar por principal' },
   ex_no_categories:       { fr: 'Aucune catégorie. Crées-en une pour saisir une dépense.', en: 'No categories yet. Create one to record an expense.', es: 'No hay categorías. Crea una para registrar un gasto.' },
 
+  // Édition (2026-09-19)
+  ex_edit:                { fr: 'Modifier', en: 'Edit', es: 'Editar' },
+  ex_edit_expense:        { fr: 'Modifier la dépense', en: 'Edit expense', es: 'Editar gasto' },
+  ex_move_to:             { fr: 'Ranger sous', en: 'Move under', es: 'Mover bajo' },
+  ex_top_level:           { fr: 'Niveau 1', en: 'Top level', es: 'Nivel 1' },
+  ex_move_up:            { fr: 'Monter', en: 'Move up', es: 'Subir' },
+  ex_move_down:          { fr: 'Descendre', en: 'Move down', es: 'Bajar' },
+  ex_color:               { fr: 'Couleur', en: 'Colour', es: 'Color' },
+  ex_color_inherited:     { fr: 'Couleur héritée du parent', en: 'Colour inherited from the parent', es: 'Color heredado del principal' },
+  ex_filter_by_category:  { fr: 'Filtrer sur cette catégorie', en: 'Filter on this category', es: 'Filtrar por esta categoría' },
+
   // ── CollectionsModal ──────────────────────────────────────────────────────
   cm_title:               { fr: 'Sommes en attente', en: 'Outstanding collections', es: 'Cobros pendientes' },
   cm_to_collect_across:   { fr: '{amount} à collecter sur {count} réservation(s)', en: '{amount} to collect across {count} booking{s}', es: '{amount} por cobrar en {count} reserva(s)' },
