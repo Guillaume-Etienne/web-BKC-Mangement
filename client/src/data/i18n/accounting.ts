@@ -349,7 +349,6 @@ export const accountingI18n = {
   ex_list_view:           { fr: '📋 Liste', en: '📋 List', es: '📋 Lista' },
   ex_summary_view:        { fr: '📊 Résumé', en: '📊 Summary', es: '📊 Resumen' },
   ex_category_short:      { fr: '+ catégorie', en: '+ category', es: '+ categoría' },
-  ex_all_time_breakdown:  { fr: 'Répartition depuis toujours', en: 'All-time breakdown', es: 'Desglose histórico' },
   ex_all_categories:      { fr: 'Toutes les catégories', en: 'All categories', es: 'Todas las categorías' },
   ex_clear:               { fr: 'Effacer', en: 'Clear', es: 'Borrar' },
   ex_no_expenses_match:   { fr: 'Aucune dépense ne correspond aux filtres actuels.', en: 'No expenses match the current filters.', es: 'Ningún gasto coincide con los filtros actuales.' },
@@ -389,6 +388,7 @@ export const accountingI18n = {
   ex_all_of:              { fr: '{name} — tout', en: '{name} — all', es: '{name} — todo' },
   ex_on_heading:          { fr: '{count} dépense(s) sont rangées sur « {name} », devenue un titre depuis qu’elle a des sous-catégories. Range-les dans l’une d’elles.', en: '{count} expense(s) still sit on “{name}”, which became a heading when it got sub-categories. Move them into one of those.', es: '{count} gasto(s) siguen en «{name}», que pasó a ser un título al tener subcategorías. Muévelos a una de ellas.' },
   ex_show_them:           { fr: 'Les voir', en: 'Show them', es: 'Verlos' },
+  ex_breakdown:           { fr: 'Répartition', en: 'Breakdown', es: 'Desglose' },
 
   // ── CollectionsModal ──────────────────────────────────────────────────────
   cm_title:               { fr: 'Sommes en attente', en: 'Outstanding collections', es: 'Cobros pendientes' },

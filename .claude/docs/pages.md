@@ -328,6 +328,13 @@
 - **Route :** `'accounting'`
 - **Hooks :** 21 hooks (useAccommodations, useHouseRentals, useBookings, useBookingParticipants, useClients, useRooms, useBookingRooms, useBookingRoomPrices, useExternalAccommodations, useExternalAccommodationBkgs, useDiningEvents, useLessons, useInstructors, useEquipment, useEquipmentRentals, useTaxiTrips, useActivityBookings, useActivityPayments, useSeasons, usePayments, + états mutables)
 - **State :** `tab: 'dashboard'|'bookings'|'instructors'|'houses'|'palmeiras'|'cashflow'|'expenses'|'events'|'unverified'`
+- **Onglet Expenses — la période est UNIQUE pour les deux vues** (Liste et Résumé),
+  au-dessus du bascule, défaut « tout le temps ». Avant le 2026-09-19 elle
+  n'appartenait qu'au Résumé, qui démarrait sur la saison pendant que la Liste
+  montrait tout : deux totaux à un clic l'un de l'autre, **1748 € d'écart** sur TEST,
+  et rien pour dire que ce n'était pas la même période. Les deux vues partent
+  maintenant de `periodExpenses`, et **chaque total affiche le nom de sa période** —
+  un chiffre de cet écran ne doit jamais être lisible sans savoir ce qu'il couvre.
 - **Pattern :** objet `sharedData` + objet `handlers` passés aux sous-composants
 - **Mutations :** state local optimiste + appel Supabase fire-and-forget
 - **Onglet "⚠️ To Verify"** — liste les `payments` où `is_verified=false`. Badge count sur l'onglet.

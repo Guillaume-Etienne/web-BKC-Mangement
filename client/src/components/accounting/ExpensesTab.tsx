@@ -178,11 +178,17 @@ export default function ExpensesTab({ data, handlers }: Props) {
   const [filterMonth, setFilterMonth] = useState('')
   const [search,      setSearch]      = useState('')
 
-  // Summary period
-  type SummaryPeriod = 'all' | 'season' | 'custom'
-  const [sumPeriod,   setSumPeriod]   = useState<SummaryPeriod>('season')
-  const [sumFrom,     setSumFrom]     = useState(currentSeason?.start_date.slice(0, 7) ?? '')
-  const [sumTo,       setSumTo]       = useState(currentSeason?.end_date.slice(0, 7) ?? '')
+  // ── Période : UNE seule pour les deux vues ────────────────────────────────
+  // Avant le 2026-09-19 elle n'existait que dans le Résumé, qui démarrait sur la
+  // saison pendant que la Liste montrait tout : deux totaux à un clic l'un de
+  // l'autre, 1748 EUR d'écart sur TEST, et rien à l'écran pour dire que ce
+  // n'était pas la même période. L'écran ne se trompait pas, il mentait.
+  // Défaut « tout le temps » : c'est ce que la Liste a toujours montré, donc
+  // personne ne voit son écran rétrécir — et la saison reste à un clic.
+  type Period = 'all' | 'season' | 'custom'
+  const [period,   setPeriod]   = useState<Period>('all')
+  const [periodFrom,     setPeriodFrom]     = useState(currentSeason?.start_date.slice(0, 7) ?? '')
+  const [periodTo,       setPeriodTo]       = useState(currentSeason?.end_date.slice(0, 7) ?? '')
 
   const colorOf = (id: string | null) => categoryColor(expenseCategories, id)
   const pathOf  = (id: string | null) =>
@@ -199,33 +205,42 @@ export default function ExpensesTab({ data, handlers }: Props) {
     return (e: Expense) => e.category_id !== null && wanted.has(e.category_id)
   }, [filterCat, expenseCategories])
 
-  // ── Filtered list ─────────────────────────────────────────────────────────
-  const filtered = useMemo(() => expenses
-    .filter(catMatches)
-    .filter(e => !filterMonth || e.date.startsWith(filterMonth))
-    .filter(e => !search || e.description.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => b.date.localeCompare(a.date))
-  , [expenses, catMatches, filterMonth, search])
-
   // ── Summary data ──────────────────────────────────────────────────────────
-  const summaryExpenses = useMemo(() => {
-    if (sumPeriod === 'season' && currentSeason) {
+  // La base commune aux DEUX vues : liste, répartition, cartes et matrice
+  // partent toutes d'ici, donc leurs totaux ne peuvent plus diverger.
+  const periodExpenses = useMemo(() => {
+    if (period === 'season' && currentSeason) {
       const from = currentSeason.start_date.slice(0, 7)
       const to   = currentSeason.end_date.slice(0, 7)
       return expenses.filter(e => e.date.slice(0, 7) >= from && e.date.slice(0, 7) <= to)
     }
-    if (sumPeriod === 'custom' && sumFrom && sumTo) {
-      return expenses.filter(e => e.date.slice(0, 7) >= sumFrom && e.date.slice(0, 7) <= sumTo)
+    if (period === 'custom' && periodFrom && periodTo) {
+      return expenses.filter(e => e.date.slice(0, 7) >= periodFrom && e.date.slice(0, 7) <= periodTo)
     }
     return expenses
-  }, [expenses, sumPeriod, currentSeason, sumFrom, sumTo])
+  }, [expenses, period, currentSeason, periodFrom, periodTo])
+
+  /** Le nom de la période active — accolé à chaque total, pour qu'aucun chiffre
+   *  de cet écran ne soit lisible sans savoir ce qu'il couvre. */
+  const periodLabel =
+    period === 'season' ? (currentSeason?.label ?? '')
+    : period === 'custom' && periodFrom && periodTo ? `${fmtMonth(periodFrom)} → ${fmtMonth(periodTo)}`
+    : i18n.common.period_all_time[lang]
+
+  // ── Filtered list ─────────────────────────────────────────────────────────
+  const filtered = useMemo(() => periodExpenses
+    .filter(catMatches)
+    .filter(e => !filterMonth || e.date.startsWith(filterMonth))
+    .filter(e => !search || e.description.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => b.date.localeCompare(a.date))
+  , [periodExpenses, catMatches, filterMonth, search])
 
   // months × catégories (repliées sur le parent, ou détaillées)
   const summaryMatrix = useMemo(() => {
-    const months = [...new Set(summaryExpenses.map(e => e.date.slice(0, 7)))].sort()
-    const cats   = [...new Set(summaryExpenses.map(groupOf))]
+    const months = [...new Set(periodExpenses.map(e => e.date.slice(0, 7)))].sort()
+    const cats   = [...new Set(periodExpenses.map(groupOf))]
     const totals: Record<string, Record<string, number>> = {}
-    for (const e of summaryExpenses) {
+    for (const e of periodExpenses) {
       const m = e.date.slice(0, 7)
       const g = String(groupOf(e))
       if (!totals[m]) totals[m] = {}
@@ -233,14 +248,14 @@ export default function ExpensesTab({ data, handlers }: Props) {
     }
     const monthTotals = months.map(m => Object.values(totals[m] ?? {}).reduce((s, v) => s + v, 0))
     const catTotals: Record<string, number> = {}
-    for (const e of summaryExpenses) {
+    for (const e of periodExpenses) {
       const g = String(groupOf(e))
       catTotals[g] = (catTotals[g] ?? 0) + e.amount
     }
-    const grandTotal = summaryExpenses.reduce((s, e) => s + e.amount, 0)
+    const grandTotal = periodExpenses.reduce((s, e) => s + e.amount, 0)
     const ordered = cats.sort((a, b) => (catTotals[String(b)] ?? 0) - (catTotals[String(a)] ?? 0))
     return { months, cats: ordered, totals, monthTotals, catTotals, grandTotal }
-  }, [summaryExpenses, detailed, expenseCategories])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [periodExpenses, detailed, expenseCategories])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Grand totals for list ─────────────────────────────────────────────────
   const listTotal = filtered.reduce((s, e) => s + e.amount, 0)
@@ -248,12 +263,12 @@ export default function ExpensesTab({ data, handlers }: Props) {
   // ── Totals by category (all time, for breakdown bar) ─────────────────────
   const allByCat = useMemo(() => {
     const m: Record<string, number> = {}
-    for (const e of expenses) {
+    for (const e of periodExpenses) {
       const g = String(groupOf(e))
       m[g] = (m[g] ?? 0) + e.amount
     }
     return m
-  }, [expenses, detailed, expenseCategories])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [periodExpenses, detailed, expenseCategories])   // eslint-disable-line react-hooks/exhaustive-deps
   const allTotal = Object.values(allByCat).reduce((s, v) => s + v, 0) || 1
 
   const startEdit = (e: Expense) => {
@@ -345,6 +360,37 @@ export default function ExpensesTab({ data, handlers }: Props) {
           handlers={handlers} onClose={() => setShowManager(false)} />
       )}
 
+      {/* Période — AU-DESSUS des deux vues : c'est la même question pour la
+          liste et pour le résumé, et deux réponses différentes faisaient
+          diverger leurs totaux sans le dire. */}
+      {/* Period selector */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
+          {([
+            { id: 'all',    label: i18n.common.period_all_time[lang] },
+            { id: 'season', label: i18n.accounting.palm_season_label[lang].replace('{label}', currentSeason?.label ?? '') },
+            { id: 'custom', label: i18n.accounting.palm_custom[lang] },
+          ] as { id: Period; label: string }[]).map(opt => (
+            <button key={opt.id} onClick={() => setPeriod(opt.id)}
+              className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                period === opt.id ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {period === 'custom' && (
+          <div className="flex items-center gap-2 text-sm">
+            <MonthInput value={periodFrom} onChange={setPeriodFrom} allowEmpty />
+            <span className="text-gray-400 dark:text-gray-400">→</span>
+            <MonthInput value={periodTo} onChange={setPeriodTo} allowEmpty />
+          </div>
+        )}
+        <div className="ml-auto">{detailToggle}</div>
+      </div>
+
+
+
       {/* ── LIST VIEW ─────────────────────────────────────────────────────── */}
       {view === 'list' && (<>
 
@@ -366,7 +412,10 @@ export default function ExpensesTab({ data, handlers }: Props) {
         {/* Category breakdown bar */}
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.ex_all_time_breakdown[lang]}</p>
+            <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+              {i18n.accounting.ex_breakdown[lang]}
+              <span className="ml-2 font-normal text-xs text-gray-400">· {periodLabel}</span>
+            </p>
             {detailToggle}
           </div>
           {Object.entries(allByCat).sort((a, b) => b[1] - a[1]).map(([catId, val]) => (
@@ -491,7 +540,10 @@ export default function ExpensesTab({ data, handlers }: Props) {
             {filtered.length > 0 && (
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t font-semibold">
                 <tr>
-                  <td colSpan={3} className="px-4 py-3 text-gray-600 dark:text-gray-400">{i18n.accounting.ex_expense_count[lang].replace('{count}', String(filtered.length)).replace('{s}', filtered.length !== 1 ? 's' : '')}</td>
+                  <td colSpan={3} className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                    {i18n.accounting.ex_expense_count[lang].replace('{count}', String(filtered.length)).replace('{s}', filtered.length !== 1 ? 's' : '')}
+                    <span className="ml-2 font-normal text-xs text-gray-400">· {periodLabel}</span>
+                  </td>
                   <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">− {fmtEur(listTotal)}</td>
                   <td />
                 </tr>
@@ -503,32 +555,6 @@ export default function ExpensesTab({ data, handlers }: Props) {
 
       {/* ── SUMMARY VIEW ──────────────────────────────────────────────────── */}
       {view === 'summary' && (<>
-
-        {/* Period selector */}
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
-            {([
-              { id: 'all',    label: i18n.common.period_all_time[lang] },
-              { id: 'season', label: i18n.accounting.palm_season_label[lang].replace('{label}', currentSeason?.label ?? '') },
-              { id: 'custom', label: i18n.accounting.palm_custom[lang] },
-            ] as { id: SummaryPeriod; label: string }[]).map(opt => (
-              <button key={opt.id} onClick={() => setSumPeriod(opt.id)}
-                className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-                  sumPeriod === opt.id ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}>
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          {sumPeriod === 'custom' && (
-            <div className="flex items-center gap-2 text-sm">
-              <MonthInput value={sumFrom} onChange={setSumFrom} allowEmpty />
-              <span className="text-gray-400 dark:text-gray-400">→</span>
-              <MonthInput value={sumTo} onChange={setSumTo} allowEmpty />
-            </div>
-          )}
-          <div className="ml-auto">{detailToggle}</div>
-        </div>
 
         {/* KPI cards by category */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -552,6 +578,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
           <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{i18n.common.label_total[lang]}</p>
             <p className="text-xl font-bold text-red-700 dark:text-red-400">− {fmtEur(summaryMatrix.grandTotal)}</p>
+            <p className="text-[11px] text-gray-400 mt-1 truncate">{periodLabel}</p>
           </div>
         </div>
 
