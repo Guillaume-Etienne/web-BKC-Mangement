@@ -5,7 +5,7 @@ import { fmtEur, fmtMonth } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
 import {
   categoryTree, categoryColor, categoryPath, rollUpId, selfAndChildrenIds,
-  legacyLabel, childrenOf,
+  legacyLabel, childrenOf, postableCategories, expensesOnHeadings,
 } from './expenseCategories'
 
 import ExpenseCategoryManager from './ExpenseCategoryManager'
@@ -21,17 +21,28 @@ interface Props {
 type View = 'list' | 'summary'
 
 // ── Select à 2 niveaux, partagé par la saisie et les filtres ────────────────
-// Un PARENT reste sélectionnable : toutes les catégories n'ont pas d'enfants,
-// et « Admin » doit pouvoir porter une dépense directement.
+//
+// Une catégorie DÉCOUPÉE en sous-catégories devient un TITRE : on range dans une
+// de ses branches, plus dans le tronc (décision gui, 2026-09-19). C'est aussi ce
+// qui fait disparaître le doublon — le nom du parent servait à la fois d'en-tête
+// de groupe ET de première option, donc « Energy » s'affichait deux fois.
+//
+// Deux modes, parce que les deux selects ne posent pas la même question :
+//   'entry'  → OÙ ranger cette dépense ?  un titre n'est pas une réponse
+//   'filter' → QUOI regarder ?            un titre veut dire « lui et tout ce
+//              qu'il contient », donc il reste proposé, libellé « X — tout »
 interface CatSelectProps {
   categories: ExpenseCategory[]
   value:      string
   onChange:   (v: string) => void
   allLabel?:  string          // présent = un choix « toutes » en tête (filtres)
   className?: string
+  mode?:      'entry' | 'filter'
 }
-function CategorySelect({ categories, value, onChange, allLabel, className }: CatSelectProps) {
+function CategorySelect({ categories, value, onChange, allLabel, className, mode = 'entry' }: CatSelectProps) {
+  const { lang } = useLanguage()
   const tree = categoryTree(categories)
+  const isFilter = mode === 'filter'
   return (
     <select value={value} onChange={e => onChange(e.target.value)}
       className={className ?? 'w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-gray-200'}>
@@ -41,7 +52,20 @@ function CategorySelect({ categories, value, onChange, allLabel, className }: Ca
           ? <option key={parent.id} value={parent.id}>{parent.name}</option>
           : (
             <optgroup key={parent.id} label={parent.name}>
-              <option value={parent.id}>{parent.name}</option>
+              {isFilter && (
+                <option value={parent.id}>
+                  {i18n.accounting.ex_all_of[lang].replace('{name}', parent.name)}
+                </option>
+              )}
+              {/* ⚠️ En saisie, le titre reste proposé dans UN seul cas : quand une
+                  dépense y est déjà rangée (elle date d'avant la création des
+                  sous-catégories). Sans ça, rouvrir cette ligne afficherait la
+                  première option de la liste et le moindre Enregistrer la
+                  reclasserait EN SILENCE. Le bandeau au-dessus de la liste invite
+                  à la reventiler. */}
+              {!isFilter && value === parent.id && (
+                <option value={parent.id}>{parent.name}</option>
+              )}
               {/* Pas d'indentation à la main : le navigateur décale déjà les options
                   d'un <optgroup>, et un préfixe d'espaces insécables casse la
                   recherche au clavier — taper « p » ne trouvait jamais « Petrol ». */}
@@ -63,11 +87,10 @@ interface AddFormProps {
 function AddExpenseForm({ categories, allCategories, onAdd, onCancel }: AddFormProps) {
   const { lang } = useLanguage()
   const [date,        setDate]        = useState(todayISO())
-  // Le premier de l'ARBRE, pas le premier du tableau : trié par `sort_order`
-  // brut, un enfant peut arriver en tête (vu à l'écran — le formulaire s'ouvrait
-  // sur « Petrol »), et une dépense se serait rangée dans une sous-catégorie
-  // au hasard à chaque fois qu'on oublie de toucher au select.
-  const [categoryId,  setCategoryId]  = useState(categoryTree(categories)[0]?.parent.id ?? '')
+  // La première DESTINATION réelle, dans l'ordre de l'arbre : ni un titre, ni
+  // le premier du tableau brut (trié par `sort_order`, un enfant peut arriver
+  // en tête — vu à l'écran, le formulaire s'ouvrait sur « Petrol »).
+  const [categoryId,  setCategoryId]  = useState(postableCategories(categories)[0]?.id ?? '')
   const [amount,      setAmount]      = useState('')
   const [description, setDescription] = useState('')
 
@@ -252,6 +275,12 @@ export default function ExpensesTab({ data, handlers }: Props) {
     cancelEdit()
   }
 
+  // Une catégorie devenue titre peut garder des dépenses d'avant son découpage :
+  // elles s'affichent et se totalisent bien, mais plus personne ne peut les
+  // SAISIR là. On les remonte au lieu de les laisser dormir.
+  const onHeadings = useMemo(
+    () => expensesOnHeadings(expenseCategories, expenses), [expenseCategories, expenses])
+
   const detailToggle = (
     <button onClick={() => setDetailed(v => !v)}
       className="text-xs px-2 py-1 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-500 dark:hover:border-blue-700 dark:hover:text-blue-400 transition-colors">
@@ -319,6 +348,21 @@ export default function ExpensesTab({ data, handlers }: Props) {
       {/* ── LIST VIEW ─────────────────────────────────────────────────────── */}
       {view === 'list' && (<>
 
+        {onHeadings.map(({ category, count }) => (
+          <div key={category.id}
+            className="flex flex-wrap items-center gap-3 text-sm text-amber-800 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl px-4 py-3">
+            <span>
+              {i18n.accounting.ex_on_heading[lang]
+                .replace('{count}', String(count))
+                .replace('{name}', category.name)}
+            </span>
+            <button onClick={() => setFilterCat(category.id)}
+              className="ml-auto px-3 py-1 text-xs font-medium bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors">
+              {i18n.accounting.ex_show_them[lang]}
+            </button>
+          </div>
+        ))}
+
         {/* Category breakdown bar */}
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
           <div className="flex items-center justify-between gap-3">
@@ -349,7 +393,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
             className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-48" />
           <MonthInput value={filterMonth} onChange={setFilterMonth} allowEmpty />
           <CategorySelect categories={expenseCategories} value={filterCat} onChange={setFilterCat}
-            allLabel={i18n.accounting.ex_all_categories[lang]}
+            mode="filter" allLabel={i18n.accounting.ex_all_categories[lang]}
             className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-gray-200" />
           {(filterCat !== 'all' || filterMonth || search) && (
             <button onClick={() => { setFilterCat('all'); setFilterMonth(''); setSearch('') }}

@@ -638,7 +638,18 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 | sort_order | number | |
 | archived | boolean | sort de la saisie **sans** perdre l'historique — le geste par défaut à la place d'une suppression |
 
-Logique dans `components/accounting/expenseCategories.ts` (testée, 50 cas) :
+⚠️ **Une catégorie qui a des sous-catégories est un TITRE** (décision gui, 2026-09-19) :
+on ne range plus de dépense dessus, seulement dans une de ses branches. C'est
+`isPostable` / `postableCategories` qui le disent. Deux conséquences :
+- le select de **saisie** ne propose que des destinations réelles ; le select de
+  **filtre** garde le parent, libellé « X — tout » (= lui et tout ce qu'il contient) ;
+- une dépense rangée sur un parent AVANT son découpage y reste. Elle s'affiche et
+  se totalise bien, mais n'est plus saisissable là : `expensesOnHeadings` la remonte
+  dans un bandeau ambre, et le select de saisie **réexpose ce parent uniquement
+  quand c'est la valeur courante de la ligne** — sans ça, rouvrir la ligne
+  afficherait la première option et le moindre Enregistrer la reclasserait en silence.
+
+Logique dans `components/accounting/expenseCategories.ts` (testée, 60 cas) :
 `slugify` (**doit rester identique à l'expression SQL du backfill**), `categoryTree`,
 `rollUpId` (c'est lui qui évite une matrice mois × catégories à 24 colonnes),
 `selfAndChildrenIds` (filtrer sur un parent ramène ses enfants), `canDelete`,

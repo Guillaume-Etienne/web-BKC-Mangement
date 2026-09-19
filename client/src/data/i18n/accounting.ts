@@ -386,6 +386,9 @@ export const accountingI18n = {
   ex_color:               { fr: 'Couleur', en: 'Colour', es: 'Color' },
   ex_color_inherited:     { fr: 'Couleur héritée du parent', en: 'Colour inherited from the parent', es: 'Color heredado del principal' },
   ex_filter_by_category:  { fr: 'Filtrer sur cette catégorie', en: 'Filter on this category', es: 'Filtrar por esta categoría' },
+  ex_all_of:              { fr: '{name} — tout', en: '{name} — all', es: '{name} — todo' },
+  ex_on_heading:          { fr: '{count} dépense(s) sont rangées sur « {name} », devenue un titre depuis qu’elle a des sous-catégories. Range-les dans l’une d’elles.', en: '{count} expense(s) still sit on “{name}”, which became a heading when it got sub-categories. Move them into one of those.', es: '{count} gasto(s) siguen en «{name}», que pasó a ser un título al tener subcategorías. Muévelos a una de ellas.' },
+  ex_show_them:           { fr: 'Les voir', en: 'Show them', es: 'Verlos' },
 
   // ── CollectionsModal ──────────────────────────────────────────────────────
   cm_title:               { fr: 'Sommes en attente', en: 'Outstanding collections', es: 'Cobros pendientes' },

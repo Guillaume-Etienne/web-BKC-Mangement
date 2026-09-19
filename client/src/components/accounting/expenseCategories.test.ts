@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   slugify, uniqueSlug, categoryTree, parentsOf, childrenOf, isValidParent,
   categoryColor, categoryPath, rollUpId, selfAndChildrenIds, canDelete, legacyLabel,
-  reorderSiblings, moveToParent,
+  reorderSiblings, moveToParent, isPostable, postableCategories, expensesOnHeadings,
 } from './expenseCategories'
 import type { Expense, ExpenseCategory } from '../../types/database'
 
@@ -193,6 +193,64 @@ describe('canDelete — on n’ampute jamais l’historique', () => {
   it('ignore les dépenses rangées ailleurs', () => {
     const expenses = [mkExpense({ id: 'e1', category_id: 'energy' })]
     expect(canDelete(TREE, expenses, 'admin')).toEqual({ ok: true })
+  })
+})
+
+describe('isPostable / postableCategories — un parent découpé devient un titre', () => {
+  it('un parent SANS enfant porte des dépenses', () => {
+    expect(isPostable(TREE, 'admin')).toBe(true)
+  })
+
+  it('un parent AVEC des enfants n’en porte plus', () => {
+    expect(isPostable(TREE, 'energy')).toBe(false)
+  })
+
+  it('un enfant en porte toujours — il ne peut pas avoir d’enfants', () => {
+    expect(isPostable(TREE, 'petrol')).toBe(true)
+  })
+
+  it('la liste des destinations exclut le titre et garde l’ordre de l’arbre', () => {
+    expect(postableCategories(TREE).map(c => c.id)).toEqual(['petrol', 'elec', 'gas', 'admin'])
+  })
+
+  it('« Energy » n’est proposé nulle part comme destination', () => {
+    expect(postableCategories(TREE).some(c => c.id === 'energy')).toBe(false)
+  })
+
+  it('devenir parent retire la catégorie des destinations', () => {
+    const avant = postableCategories([admin, energy, petrol])
+    expect(avant.map(c => c.id)).toContain('admin')
+    const apres = postableCategories([admin, energy, petrol,
+      mkCat({ id: 'sub', name: 'Sub', parent_id: 'admin' })])
+    expect(apres.map(c => c.id)).not.toContain('admin')
+    expect(apres.map(c => c.id)).toContain('sub')
+  })
+})
+
+describe('expensesOnHeadings — les dépenses restées sur un titre', () => {
+  it('ne signale rien quand tout est bien rangé', () => {
+    const ok = [mkExpense({ id: 'e1', category_id: 'petrol' }), mkExpense({ id: 'e2', category_id: 'admin' })]
+    expect(expensesOnHeadings(TREE, ok)).toEqual([])
+  })
+
+  it('repère celles restées sur un parent devenu titre, et les compte', () => {
+    const ko = [
+      mkExpense({ id: 'e1', category_id: 'energy' }),
+      mkExpense({ id: 'e2', category_id: 'energy' }),
+      mkExpense({ id: 'e3', category_id: 'petrol' }),
+    ]
+    const out = expensesOnHeadings(TREE, ko)
+    expect(out).toHaveLength(1)
+    expect(out[0].category.id).toBe('energy')
+    expect(out[0].count).toBe(2)
+  })
+
+  it('ne signale pas un parent sans enfant qui porte des dépenses', () => {
+    expect(expensesOnHeadings(TREE, [mkExpense({ id: 'e1', category_id: 'admin' })])).toEqual([])
+  })
+
+  it('ignore les dépenses sans catégorie plutôt que de planter', () => {
+    expect(expensesOnHeadings(TREE, [mkExpense({ id: 'e1', category_id: null })])).toEqual([])
   })
 })
 

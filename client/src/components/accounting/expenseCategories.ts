@@ -126,6 +126,46 @@ export function canDelete(
   return { ok: true }
 }
 
+/**  Une catégorie peut-elle PORTER une dépense ?
+ *
+ *   Décision de gui, 2026-09-19 : dès qu'une catégorie est découpée en
+ *   sous-catégories, elle devient un TITRE — on range dans une de ses branches,
+ *   plus dans le tronc. C'est la convention comptable habituelle, et c'est ce
+ *   qui fait disparaître le doublon « Energy / Energy » du select (le nom
+ *   servait à la fois d'en-tête de groupe et de première option).
+ *
+ *   Un enfant est toujours « postable » : il ne peut pas avoir d'enfants.
+ */
+export function isPostable(cats: ExpenseCategory[], id: string): boolean {
+  return childrenOf(cats, id).length === 0
+}
+
+/** Les catégories où l'on peut ranger une dépense, dans l'ordre de l'arbre. */
+export function postableCategories(cats: ExpenseCategory[]): ExpenseCategory[] {
+  return categoryTree(cats).flatMap(({ parent, children }) =>
+    children.length === 0 ? [parent] : children)
+}
+
+/**  Les dépenses restées sur une catégorie DEVENUE un titre.
+ *
+ *   Le cas arrive tout seul : on range 5 factures sur « Energy », puis on crée
+ *   « Petrol » — les 5 ne bougent pas et se retrouvent sur un titre. Elles
+ *   s'affichent et se totalisent toujours correctement (`rollUpId` les laisse
+ *   sur elles-mêmes), mais plus personne ne peut les saisir là : il faut les
+ *   reventiler. On les remonte à l'écran plutôt que de les laisser dormir.
+ */
+export function expensesOnHeadings(
+  cats: ExpenseCategory[], expenses: Expense[],
+): { category: ExpenseCategory; count: number }[] {
+  const out: { category: ExpenseCategory; count: number }[] = []
+  for (const c of parentsOf(cats)) {
+    if (isPostable(cats, c.id)) continue
+    const count = expenses.filter(e => e.category_id === c.id).length
+    if (count > 0) out.push({ category: c, count })
+  }
+  return out
+}
+
 /**  Déplacer une catégorie d'un cran dans SA fratrie (les parents entre eux, les
  *   enfants d'un même parent entre eux). Renvoie les lignes à écrire — seulement
  *   celles dont le `sort_order` change vraiment, pour ne pas réécrire toute la
