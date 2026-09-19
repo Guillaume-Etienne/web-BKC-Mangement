@@ -1,13 +1,16 @@
 import { useState, useMemo } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
-import type { Expense } from '../../types/database'
+import type { Expense, ExpenseCategory } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
+import {
+  categoryTree, categoryColor, categoryPath, rollUpId, selfAndChildrenIds,
+  legacyLabel, childrenOf,
+} from './expenseCategories'
+import ExpenseCategoryManager from './ExpenseCategoryManager'
 import MonthInput from '../common/MonthInput'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
-
-const DEFAULT_CATEGORIES: string[] = ['Equipment', 'Maintenance', 'Transport', 'Staff', 'Admin', 'Other']
 
 interface Props {
   data:     SharedAccountingData
@@ -16,29 +19,62 @@ interface Props {
 
 type View = 'list' | 'summary'
 
-// Palette de couleurs cyclique pour les catégories
-const PALETTE = [
-  '#60a5fa', '#34d399', '#f97316', '#a78bfa', '#facc15',
-  '#f472b6', '#38bdf8', '#4ade80', '#fb923c', '#c084fc',
-]
+// ── Select à 2 niveaux, partagé par la saisie et les filtres ────────────────
+// Un PARENT reste sélectionnable : toutes les catégories n'ont pas d'enfants,
+// et « Admin » doit pouvoir porter une dépense directement.
+interface CatSelectProps {
+  categories: ExpenseCategory[]
+  value:      string
+  onChange:   (v: string) => void
+  allLabel?:  string          // présent = un choix « toutes » en tête (filtres)
+  className?: string
+}
+function CategorySelect({ categories, value, onChange, allLabel, className }: CatSelectProps) {
+  const tree = categoryTree(categories)
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)}
+      className={className ?? 'w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-gray-200'}>
+      {allLabel && <option value="all">{allLabel}</option>}
+      {tree.map(({ parent, children }) =>
+        children.length === 0
+          ? <option key={parent.id} value={parent.id}>{parent.name}</option>
+          : (
+            <optgroup key={parent.id} label={parent.name}>
+              <option value={parent.id}>{parent.name}</option>
+              {children.map(c => <option key={c.id} value={c.id}>{`  ${c.name}`}</option>)}
+            </optgroup>
+          ),
+      )}
+    </select>
+  )
+}
 
 // ── Add expense form (module-scope) ──────────────────────────────────────────
 interface AddFormProps {
-  categories: string[]
+  categories: ExpenseCategory[]        // actives seulement
+  allCategories: ExpenseCategory[]     // archivées incluses, pour le libellé legacy
   onAdd: (e: Expense) => void
   onCancel: () => void
 }
-function AddExpenseForm({ categories, onAdd, onCancel }: AddFormProps) {
+function AddExpenseForm({ categories, allCategories, onAdd, onCancel }: AddFormProps) {
   const { lang } = useLanguage()
   const [date,        setDate]        = useState(todayISO())
-  const [category,   setCategory]    = useState(categories[0] ?? 'Other')
-  const [amount,     setAmount]      = useState('')
-  const [description,setDescription] = useState('')
+  const [categoryId,  setCategoryId]  = useState(categories[0]?.id ?? '')
+  const [amount,      setAmount]      = useState('')
+  const [description, setDescription] = useState('')
 
   const submit = () => {
     const amt = parseFloat(amount)
-    if (!date || !description.trim() || isNaN(amt) || amt <= 0) return
-    onAdd({ id: crypto.randomUUID(), date, category, amount: amt, description: description.trim() })
+    if (!date || !description.trim() || isNaN(amt) || amt <= 0 || !categoryId) return
+    onAdd({
+      id: crypto.randomUUID(),
+      date,
+      category_id: categoryId,
+      // Colonne LEGACY : on la garde alimentée tant qu'elle existe (phase 3).
+      category: legacyLabel(allCategories, categoryId),
+      amount: amt,
+      description: description.trim(),
+    })
   }
 
   return (
@@ -52,10 +88,7 @@ function AddExpenseForm({ categories, onAdd, onCancel }: AddFormProps) {
         </div>
         <div>
           <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.ex_category[lang]}</label>
-          <select value={category} onChange={e => setCategory(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} />
         </div>
         <div>
           <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.bf_amount_eur[lang]}</label>
@@ -84,41 +117,22 @@ function AddExpenseForm({ categories, onAdd, onCancel }: AddFormProps) {
   )
 }
 
-// ── Add category form (module-scope) ─────────────────────────────────────────
-interface AddCatProps { onAdd: (name: string) => void; onCancel: () => void }
-function AddCategoryForm({ onAdd, onCancel }: AddCatProps) {
-  const { lang } = useLanguage()
-  const [name, setName] = useState('')
-  return (
-    <div className="flex items-center gap-2">
-      <input type="text" value={name} onChange={e => setName(e.target.value)}
-        placeholder="Category name…"
-        className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-44" />
-      <button onClick={() => { if (name.trim()) { onAdd(name.trim()); } }}
-        className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-        {i18n.common.btn_add[lang]}
-      </button>
-      <button onClick={onCancel} className="text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400 text-lg leading-none">×</button>
-    </div>
-  )
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ExpensesTab({ data, handlers }: Props) {
   const { lang } = useLanguage()
-  const { expenses, seasons } = data
+  const { expenses, expenseCategories, seasons } = data
   const currentSeason = seasons[seasons.length - 1]
 
   const [view,        setView]        = useState<View>('list')
-  const [extraCats,   setExtraCats]   = useState<string[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
-  const [showAddCat,  setShowAddCat]  = useState(false)
+  const [showManager, setShowManager] = useState(false)
+  // Replié par défaut : 6 catégories × 4 sous-catégories feraient 24 colonnes.
+  const [detailed,    setDetailed]    = useState(false)
 
-  // Categories = defaults + categories used in existing expenses + manually added in this session
-  const categories = useMemo(() => {
-    const fromExpenses = expenses.map(e => e.category)
-    return [...new Set([...DEFAULT_CATEGORIES, ...fromExpenses, ...extraCats])]
-  }, [expenses, extraCats])
+  // Les archivées restent lisibles (une vieille dépense y pointe encore) mais
+  // ne sont plus proposées à la saisie.
+  const activeCategories = useMemo(
+    () => expenseCategories.filter(c => !c.archived), [expenseCategories])
 
   // List filters
   const [filterCat,   setFilterCat]   = useState<string>('all')
@@ -131,29 +145,28 @@ export default function ExpensesTab({ data, handlers }: Props) {
   const [sumFrom,     setSumFrom]     = useState(currentSeason?.start_date.slice(0, 7) ?? '')
   const [sumTo,       setSumTo]       = useState(currentSeason?.end_date.slice(0, 7) ?? '')
 
-  // Color map for categories
-  const colorOf = (cat: string) => {
-    const idx = categories.indexOf(cat)
-    return PALETTE[(idx >= 0 ? idx : categories.length) % PALETTE.length]
-  }
+  const colorOf = (id: string | null) => categoryColor(expenseCategories, id)
+  const pathOf  = (id: string | null) =>
+    categoryPath(expenseCategories, id) || i18n.accounting.ex_uncategorised[lang]
 
-  // ── Category management ───────────────────────────────────────────────────
-  const addCategory = (name: string) => {
-    if (!categories.includes(name)) setExtraCats(prev => [...prev, name])
-    setShowAddCat(false)
-  }
-  const removeCategory = (name: string) => {
-    if (expenses.some(e => e.category === name)) return // used by an expense
-    setExtraCats(prev => prev.filter(c => c !== name))
-  }
+  /** L'axe de regroupement : le parent quand on est replié, la feuille sinon. */
+  const groupOf = (e: Expense) =>
+    detailed ? e.category_id : rollUpId(expenseCategories, e.category_id)
+
+  /** Filtrer sur un parent doit ramener ses sous-catégories avec lui. */
+  const catMatches = useMemo(() => {
+    if (filterCat === 'all') return () => true
+    const wanted = new Set(selfAndChildrenIds(expenseCategories, filterCat))
+    return (e: Expense) => e.category_id !== null && wanted.has(e.category_id)
+  }, [filterCat, expenseCategories])
 
   // ── Filtered list ─────────────────────────────────────────────────────────
   const filtered = useMemo(() => expenses
-    .filter(e => filterCat === 'all' || e.category === filterCat)
+    .filter(catMatches)
     .filter(e => !filterMonth || e.date.startsWith(filterMonth))
     .filter(e => !search || e.description.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => b.date.localeCompare(a.date))
-  , [expenses, filterCat, filterMonth, search])
+  , [expenses, catMatches, filterMonth, search])
 
   // ── Summary data ──────────────────────────────────────────────────────────
   const summaryExpenses = useMemo(() => {
@@ -168,25 +181,27 @@ export default function ExpensesTab({ data, handlers }: Props) {
     return expenses
   }, [expenses, sumPeriod, currentSeason, sumFrom, sumTo])
 
-  // months × categories matrix
+  // months × catégories (repliées sur le parent, ou détaillées)
   const summaryMatrix = useMemo(() => {
     const months = [...new Set(summaryExpenses.map(e => e.date.slice(0, 7)))].sort()
-    const cats   = [...new Set(summaryExpenses.map(e => e.category))]
-    // totals[month][cat] = amount
+    const cats   = [...new Set(summaryExpenses.map(groupOf))]
     const totals: Record<string, Record<string, number>> = {}
     for (const e of summaryExpenses) {
       const m = e.date.slice(0, 7)
+      const g = String(groupOf(e))
       if (!totals[m]) totals[m] = {}
-      totals[m][e.category] = (totals[m][e.category] ?? 0) + e.amount
+      totals[m][g] = (totals[m][g] ?? 0) + e.amount
     }
     const monthTotals = months.map(m => Object.values(totals[m] ?? {}).reduce((s, v) => s + v, 0))
     const catTotals: Record<string, number> = {}
-    for (const c of cats) {
-      catTotals[c] = summaryExpenses.filter(e => e.category === c).reduce((s, e) => s + e.amount, 0)
+    for (const e of summaryExpenses) {
+      const g = String(groupOf(e))
+      catTotals[g] = (catTotals[g] ?? 0) + e.amount
     }
     const grandTotal = summaryExpenses.reduce((s, e) => s + e.amount, 0)
-    return { months, cats, totals, monthTotals, catTotals, grandTotal }
-  }, [summaryExpenses])
+    const ordered = cats.sort((a, b) => (catTotals[String(b)] ?? 0) - (catTotals[String(a)] ?? 0))
+    return { months, cats: ordered, totals, monthTotals, catTotals, grandTotal }
+  }, [summaryExpenses, detailed, expenseCategories])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Grand totals for list ─────────────────────────────────────────────────
   const listTotal = filtered.reduce((s, e) => s + e.amount, 0)
@@ -194,10 +209,20 @@ export default function ExpensesTab({ data, handlers }: Props) {
   // ── Totals by category (all time, for breakdown bar) ─────────────────────
   const allByCat = useMemo(() => {
     const m: Record<string, number> = {}
-    for (const e of expenses) m[e.category] = (m[e.category] ?? 0) + e.amount
+    for (const e of expenses) {
+      const g = String(groupOf(e))
+      m[g] = (m[g] ?? 0) + e.amount
+    }
     return m
-  }, [expenses])
+  }, [expenses, detailed, expenseCategories])   // eslint-disable-line react-hooks/exhaustive-deps
   const allTotal = Object.values(allByCat).reduce((s, v) => s + v, 0) || 1
+
+  const detailToggle = (
+    <button onClick={() => setDetailed(v => !v)}
+      className="text-xs px-2 py-1 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-500 dark:hover:border-blue-700 dark:hover:text-blue-400 transition-colors">
+      {detailed ? i18n.accounting.ex_collapse_children[lang] : i18n.accounting.ex_expand_children[lang]}
+    </button>
+  )
 
   return (
     <div className="space-y-6">
@@ -215,48 +240,48 @@ export default function ExpensesTab({ data, handlers }: Props) {
           ))}
         </div>
 
-        {/* Category manager */}
+        {/* Category chips + accès au gestionnaire */}
         <div className="flex items-center gap-2 flex-wrap">
-          {categories.map(c => {
-            const used = expenses.some(e => e.category === c)
-            return (
-              <span key={c} className="flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium"
-                style={{ backgroundColor: colorOf(c) + '33', color: colorOf(c) }}>
-                {c}
-                {!used && (
-                  <button onClick={() => removeCategory(c)} className="opacity-50 hover:opacity-100 leading-none">×</button>
-                )}
-              </span>
-            )
-          })}
-          {showAddCat
-            ? <AddCategoryForm onAdd={addCategory} onCancel={() => setShowAddCat(false)} />
-            : <button onClick={() => setShowAddCat(true)}
-                className="text-xs px-2 py-1 border border-dashed border-gray-300 dark:border-gray-700 rounded-full text-gray-400 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-700 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
-                {i18n.accounting.ex_category_short[lang]}
-              </button>
-          }
+          {categoryTree(activeCategories).map(({ parent, children }) => (
+            <span key={parent.id} className="flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium"
+              style={{ backgroundColor: colorOf(parent.id) + '33', color: colorOf(parent.id) }}>
+              {parent.name}
+              {children.length > 0 && <span className="opacity-60">· {children.length}</span>}
+            </span>
+          ))}
+          <button onClick={() => setShowManager(v => !v)}
+            className="text-xs px-2 py-1 border border-dashed border-gray-300 dark:border-gray-700 rounded-full text-gray-400 hover:border-blue-400 hover:text-blue-500 dark:hover:border-blue-700 dark:hover:text-blue-400 transition-colors">
+            {i18n.accounting.ex_manage_categories[lang]}
+          </button>
         </div>
       </div>
+
+      {showManager && (
+        <ExpenseCategoryManager
+          categories={expenseCategories} expenses={expenses}
+          handlers={handlers} onClose={() => setShowManager(false)} />
+      )}
 
       {/* ── LIST VIEW ─────────────────────────────────────────────────────── */}
       {view === 'list' && (<>
 
         {/* Category breakdown bar */}
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
-          <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.ex_all_time_breakdown[lang]}</p>
-          {Object.entries(allByCat).sort((a, b) => b[1] - a[1]).map(([cat, val]) => (
-            <div key={cat} className="flex items-center gap-3">
-              <button onClick={() => setFilterCat(filterCat === cat ? 'all' : cat)}
-                className={`w-28 text-left text-xs px-2 py-0.5 rounded-full font-semibold truncate transition-all ${
-                  filterCat === cat ? 'ring-2 ring-offset-1' : 'opacity-70 hover:opacity-100'
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.ex_all_time_breakdown[lang]}</p>
+            {detailToggle}
+          </div>
+          {Object.entries(allByCat).sort((a, b) => b[1] - a[1]).map(([catId, val]) => (
+            <div key={catId} className="flex items-center gap-3">
+              <button onClick={() => setFilterCat(filterCat === catId ? 'all' : catId)}
+                className={`w-32 text-left text-xs px-2 py-0.5 rounded-full font-semibold truncate transition-all ${
+                  filterCat === catId ? 'ring-2 ring-offset-1' : 'opacity-70 hover:opacity-100'
                 }`}
-                style={{ backgroundColor: colorOf(cat) + '33', color: colorOf(cat),
-                         ...(filterCat === cat ? { ringColor: colorOf(cat) } : {}) }}>
-                {cat}
+                style={{ backgroundColor: colorOf(catId) + '33', color: colorOf(catId) }}>
+                {pathOf(catId)}
               </button>
               <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-3 overflow-hidden">
-                <div className="h-full rounded-full" style={{ width: `${(val / allTotal) * 100}%`, backgroundColor: colorOf(cat) }} />
+                <div className="h-full rounded-full" style={{ width: `${(val / allTotal) * 100}%`, backgroundColor: colorOf(catId) }} />
               </div>
               <p className="w-24 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">{fmtEur(val)}</p>
             </div>
@@ -269,11 +294,9 @@ export default function ExpensesTab({ data, handlers }: Props) {
             placeholder="Search…"
             className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-48" />
           <MonthInput value={filterMonth} onChange={setFilterMonth} allowEmpty />
-          <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-            <option value="all">{i18n.accounting.ex_all_categories[lang]}</option>
-            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <CategorySelect categories={expenseCategories} value={filterCat} onChange={setFilterCat}
+            allLabel={i18n.accounting.ex_all_categories[lang]}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-gray-200" />
           {(filterCat !== 'all' || filterMonth || search) && (
             <button onClick={() => { setFilterCat('all'); setFilterMonth(''); setSearch('') }}
               className="text-xs text-blue-600 dark:text-blue-400 hover:underline">{i18n.accounting.ex_clear[lang]}</button>
@@ -286,7 +309,15 @@ export default function ExpensesTab({ data, handlers }: Props) {
           </div>
         </div>
 
-        {showAddForm && <AddExpenseForm categories={categories} onAdd={e => { handlers.addExpense(e); setShowAddForm(false) }} onCancel={() => setShowAddForm(false)} />}
+        {showAddForm && (
+          activeCategories.length === 0
+            ? <p className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg px-3 py-2">
+                {i18n.accounting.ex_no_categories[lang]}
+              </p>
+            : <AddExpenseForm categories={activeCategories} allCategories={expenseCategories}
+                onAdd={e => { handlers.addExpense(e); setShowAddForm(false) }}
+                onCancel={() => setShowAddForm(false)} />
+        )}
 
         {/* Table */}
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
@@ -308,9 +339,9 @@ export default function ExpensesTab({ data, handlers }: Props) {
                 <tr key={e.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                   <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtDate(e.date)}</td>
                   <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
-                      style={{ backgroundColor: colorOf(e.category) + '33', color: colorOf(e.category) }}>
-                      {e.category}
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap"
+                      style={{ backgroundColor: colorOf(e.category_id) + '33', color: colorOf(e.category_id) }}>
+                      {pathOf(e.category_id)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-800 dark:text-gray-200">{e.description}</td>
@@ -361,17 +392,28 @@ export default function ExpensesTab({ data, handlers }: Props) {
               <MonthInput value={sumTo} onChange={setSumTo} allowEmpty />
             </div>
           )}
+          <div className="ml-auto">{detailToggle}</div>
         </div>
 
         {/* KPI cards by category */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {summaryMatrix.cats.sort((a, b) => (summaryMatrix.catTotals[b] ?? 0) - (summaryMatrix.catTotals[a] ?? 0)).map(cat => (
-            <div key={cat} className="rounded-xl border p-4"
-              style={{ borderColor: colorOf(cat) + '66', backgroundColor: colorOf(cat) + '11' }}>
-              <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: colorOf(cat) }}>{cat}</p>
-              <p className="text-xl font-bold text-gray-800 dark:text-gray-200">− {fmtEur(summaryMatrix.catTotals[cat] ?? 0)}</p>
-            </div>
-          ))}
+          {summaryMatrix.cats.map(catId => {
+            const id  = catId === null ? null : String(catId)
+            const key = String(catId)
+            const kids = id && !detailed ? childrenOf(expenseCategories, id) : []
+            return (
+              <div key={key} className="rounded-xl border p-4"
+                style={{ borderColor: colorOf(id) + '66', backgroundColor: colorOf(id) + '11' }}>
+                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: colorOf(id) }}>{pathOf(id)}</p>
+                <p className="text-xl font-bold text-gray-800 dark:text-gray-200">− {fmtEur(summaryMatrix.catTotals[key] ?? 0)}</p>
+                {kids.length > 0 && (
+                  <p className="text-[11px] text-gray-400 mt-1 truncate" title={kids.map(k => k.name).join(', ')}>
+                    {kids.map(k => k.name).join(' · ')}
+                  </p>
+                )}
+              </div>
+            )
+          })}
           <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{i18n.common.label_total[lang]}</p>
             <p className="text-xl font-bold text-red-700 dark:text-red-400">− {fmtEur(summaryMatrix.grandTotal)}</p>
@@ -385,10 +427,10 @@ export default function ExpensesTab({ data, handlers }: Props) {
               <thead className="bg-gray-50 dark:bg-gray-800 border-b">
                 <tr>
                   <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap">{i18n.accounting.label_month[lang]}</th>
-                  {summaryMatrix.cats.map(cat => (
-                    <th key={cat} className="px-4 py-3 text-right font-semibold whitespace-nowrap"
-                      style={{ color: colorOf(cat) }}>
-                      {cat}
+                  {summaryMatrix.cats.map(catId => (
+                    <th key={String(catId)} className="px-4 py-3 text-right font-semibold whitespace-nowrap"
+                      style={{ color: colorOf(catId === null ? null : String(catId)) }}>
+                      {pathOf(catId === null ? null : String(catId))}
                     </th>
                   ))}
                   <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.common.label_total[lang]}</th>
@@ -400,10 +442,10 @@ export default function ExpensesTab({ data, handlers }: Props) {
                   return (
                     <tr key={m} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtMonth(m)}</td>
-                      {summaryMatrix.cats.map(cat => {
-                        const val = summaryMatrix.totals[m]?.[cat] ?? 0
+                      {summaryMatrix.cats.map(catId => {
+                        const val = summaryMatrix.totals[m]?.[String(catId)] ?? 0
                         return (
-                          <td key={cat} className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">
+                          <td key={String(catId)} className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">
                             {val ? `− ${fmtEur(val)}` : '–'}
                           </td>
                         )
@@ -416,9 +458,9 @@ export default function ExpensesTab({ data, handlers }: Props) {
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t font-semibold">
                 <tr>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{i18n.common.label_total[lang]}</td>
-                  {summaryMatrix.cats.map(cat => (
-                    <td key={cat} className="px-4 py-3 text-right" style={{ color: colorOf(cat) }}>
-                      − {fmtEur(summaryMatrix.catTotals[cat] ?? 0)}
+                  {summaryMatrix.cats.map(catId => (
+                    <td key={String(catId)} className="px-4 py-3 text-right" style={{ color: colorOf(catId === null ? null : String(catId)) }}>
+                      − {fmtEur(summaryMatrix.catTotals[String(catId)] ?? 0)}
                     </td>
                   ))}
                   <td className="px-4 py-3 text-right text-red-700 dark:text-red-400">− {fmtEur(summaryMatrix.grandTotal)}</td>

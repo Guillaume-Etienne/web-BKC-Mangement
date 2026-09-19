@@ -50,7 +50,7 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 - `shared_links` : **aucune lecture anon directe** (depuis Lot A 2026-07-02) — résolution via la RPC `resolve_share_token(token)` (SECURITY DEFINER, token exact + actif + non expiré requis) → plus d'énumération possible des tokens.
 - `get_db_stats()` : EXECUTE révoqué pour PUBLIC/anon (Lot A 2026-07-02), admin only.
 - `form_submissions` : `anon` peut **INSÉRER** uniquement en `status = 'pending'`, et **ne peut rien lire** (les soumissions ne fuient pas).
-- Tables **non exposées** (donc privées) : `expenses`, `instructor_debts/payments`, `palmeiras_*`, `email_logs`, `seasons`, `house_rentals`, `price_items`, `day_activities`, `taxi_pricing_defaults`, `document_templates` (REVOKE anon explicite), `lesson_rate_overrides` (depuis 2026-07-29), `form_submissions` (lecture).
+- Tables **non exposées** (donc privées) : `expenses`, `expense_categories` (REVOKE anon explicite, 2026-09-19), `instructor_debts/payments`, `palmeiras_*`, `email_logs`, `seasons`, `house_rentals`, `price_items`, `day_activities`, `taxi_pricing_defaults`, `document_templates` (REVOKE anon explicite), `lesson_rate_overrides` (depuis 2026-07-29), `form_submissions` (lecture).
 - `room_rates` : **exception depuis le 2026-07-30** (C3). Un token `client` lit `room_id` +
   `price_per_night` (jamais `notes`) et **uniquement les clés de sa propre réservation** —
   ses chambres + la clé `full_{accId}` de leur maison, via le helper SECURITY DEFINER

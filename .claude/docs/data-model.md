@@ -627,15 +627,34 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 | rate | number (EUR/h) |
 | note | string (requis) |
 
+### `expense_categories` → `ExpenseCategory` (**depuis 2026-09-19**)
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| parent_id | string | null | NULL = niveau 1. **2 niveaux max**, imposés par l'UI (`isValidParent`), pas par un trigger |
+| slug | string UNIQUE | la clé **stable** citée par le code (`EquipmentPage` → `'equipment'`). Ne bouge **jamais** au renommage |
+| name | string | libellé affiché, renommable sans toucher une dépense |
+| color | string | null | portée par le parent, **héritée** par ses enfants |
+| sort_order | number | |
+| archived | boolean | sort de la saisie **sans** perdre l'historique — le geste par défaut à la place d'une suppression |
+
+Logique dans `components/accounting/expenseCategories.ts` (testée, 37 cas) :
+`slugify` (**doit rester identique à l'expression SQL du backfill**), `categoryTree`,
+`rollUpId` (c'est lui qui évite une matrice mois × catégories à 24 colonnes),
+`selfAndChildrenIds` (filtrer sur un parent ramène ses enfants), `canDelete`.
+
 ### `expenses` → `Expense`
-| Field | Type |
-|-------|------|
-| id | string (UUID) |
-| date | string (ISO date) |
-| category | string (free-form) |
-| amount | number (EUR) |
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| date | string (ISO date) | |
+| category | string | ⚠️ **LEGACY** — colonne texte libre d'avant le 2026-09-19, encore **écrite** comme instantané du libellé, plus jamais lue pour regrouper. Supprimée en phase 3 |
+| category_id | string | null | **la source de vérité**. FK `expense_categories`, `ON DELETE RESTRICT` |
+| amount | number (EUR) | |
 | description | string |
-> Catégories par défaut : Equipment, Maintenance, Transport, Staff, Admin, Other
+> Catégories par défaut (seedées par la migration, slugs stables) : equipment,
+> maintenance, transport, staff, admin, other. `equipment` **doit exister** :
+> `EquipmentPage` y range les dépenses d'achat et de revente de matériel.
 
 ### Palmeiras
 | Table | Interface | Clé |
@@ -726,7 +745,7 @@ Chargé dans `App.tsx` au login (4 requêtes parallèles légères, dont count `
 ## Types accounting partagés (`components/accounting/types.ts`)
 
 **`SharedAccountingData`** — bundle passé à tous les sous-composants :
-`accommodations, bookingParticipants, houseRentals, bookings, clients, rooms, bookingRooms, bookingRoomPrices, externalAccommodationBkgs, externalAccommodations, diningEvents, lessons, instructors, equipment, equipmentRentals, taxiTrips, eurMznRate, seasons, payments, instructorDebts, instructorPayments, lessonRateOverrides, expenses, palmeirasRents, palmeirasReversals, palmeirasEntries, palmeirasSubLets, activityBookings, activityPayments`
+`accommodations, bookingParticipants, houseRentals, bookings, clients, rooms, bookingRooms, bookingRoomPrices, externalAccommodationBkgs, externalAccommodations, diningEvents, lessons, instructors, equipment, equipmentRentals, taxiTrips, eurMznRate, seasons, payments, instructorDebts, instructorPayments, lessonRateOverrides, expenses, expenseCategories, palmeirasRents, palmeirasReversals, palmeirasEntries, palmeirasSubLets, activityBookings, activityPayments`
 > `eurMznRate` : taux EUR/MZN global (depuis `taxi_pricing_defaults`), utilisé pour la marge taxi nette.
 
 **`AccountingHandlers`** — mutations add/update/delete pour chaque entité mutable.

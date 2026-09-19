@@ -112,8 +112,8 @@ describe('filterDataToSeason — standalone rows', () => {
   it('places expenses, meals, payroll and settlements by their own date', () => {
     const d = filterDataToSeason(mkData({
       expenses: [
-        { id: 'eIn',  date: '2026-11-02', category: 'fuel', amount: 50, description: 'x' },
-        { id: 'eOut', date: '2026-06-02', category: 'fuel', amount: 50, description: 'x' },
+        { id: 'eIn',  date: '2026-11-02', category: 'fuel', category_id: 'fuel', amount: 50, description: 'x' },
+        { id: 'eOut', date: '2026-06-02', category: 'fuel', category_id: 'fuel', amount: 50, description: 'x' },
       ],
       diningEvents: [
         mkDiningEvent({ id: 'dIn',  date: '2026-11-02' }),

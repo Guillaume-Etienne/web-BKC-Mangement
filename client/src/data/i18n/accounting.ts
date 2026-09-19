@@ -355,6 +355,27 @@ export const accountingI18n = {
   ex_no_expenses_match:   { fr: 'Aucune dépense ne correspond aux filtres actuels.', en: 'No expenses match the current filters.', es: 'Ningún gasto coincide con los filtros actuales.' },
   ex_expense_count:       { fr: '{count} dépense(s)', en: '{count} expense{s}', es: '{count} gasto(s)' },
 
+  // Categories & sub-categories (2026-09-19)
+  ex_manage_categories:   { fr: 'Gérer les catégories', en: 'Manage categories', es: 'Gestionar categorías' },
+  ex_done:                { fr: 'Terminé', en: 'Done', es: 'Hecho' },
+  ex_new_category:        { fr: 'Nouvelle catégorie', en: 'New category', es: 'Nueva categoría' },
+  ex_new_subcategory:     { fr: 'Sous-catégorie', en: 'Sub-category', es: 'Subcategoría' },
+  ex_category_name:       { fr: 'Nom de la catégorie', en: 'Category name', es: 'Nombre de la categoría' },
+  ex_parent_category:     { fr: 'Catégorie parente', en: 'Parent category', es: 'Categoría principal' },
+  ex_no_parent:           { fr: 'Aucune (niveau 1)', en: 'None (top level)', es: 'Ninguna (nivel 1)' },
+  ex_add_sub:             { fr: '+ sous-catégorie', en: '+ sub-category', es: '+ subcategoría' },
+  ex_rename:              { fr: 'Renommer', en: 'Rename', es: 'Renombrar' },
+  ex_archive:             { fr: 'Archiver', en: 'Archive', es: 'Archivar' },
+  ex_unarchive:           { fr: 'Réactiver', en: 'Unarchive', es: 'Reactivar' },
+  ex_archived:            { fr: 'Archivée', en: 'Archived', es: 'Archivada' },
+  ex_show_archived:       { fr: 'Voir les archivées', en: 'Show archived', es: 'Ver archivadas' },
+  ex_cant_delete_used:    { fr: 'Gardée : {count} dépense(s) y sont rangées. Archive-la plutôt.', en: 'Kept: {count} expense(s) use it. Archive it instead.', es: 'Conservada: {count} gasto(s) la usan. Archívala en su lugar.' },
+  ex_cant_delete_parent:  { fr: 'Gardée : elle a {count} sous-catégorie(s).', en: 'Kept: it has {count} sub-categor(ies).', es: 'Conservada: tiene {count} subcategoría(s).' },
+  ex_uncategorised:       { fr: 'Sans catégorie', en: 'Uncategorised', es: 'Sin categoría' },
+  ex_expand_children:     { fr: 'Détailler les sous-catégories', en: 'Break down sub-categories', es: 'Desglosar subcategorías' },
+  ex_collapse_children:   { fr: 'Replier sur les parents', en: 'Collapse to parents', es: 'Agrupar por principal' },
+  ex_no_categories:       { fr: 'Aucune catégorie. Crées-en une pour saisir une dépense.', en: 'No categories yet. Create one to record an expense.', es: 'No hay categorías. Crea una para registrar un gasto.' },
+
   // ── CollectionsModal ──────────────────────────────────────────────────────
   cm_title:               { fr: 'Sommes en attente', en: 'Outstanding collections', es: 'Cobros pendientes' },
   cm_to_collect_across:   { fr: '{amount} à collecter sur {count} réservation(s)', en: '{amount} to collect across {count} booking{s}', es: '{amount} por cobrar en {count} reserva(s)' },

@@ -6,6 +6,15 @@
 
 ## 🚨 Migrations SQL — registre
 
+✅ **`2026-09-19_expense_categories.sql`** (TEST ✅ / PROD ✅, passée et **vérifiée le 2026-09-19**)
+— sous-catégories de dépenses sur 2 niveaux. Vérifs faites en lecture directe sur les deux bases :
+PROD 9 catégories / 12 dépenses / 3844.35 € inchangés / 0 orpheline / 0 fusion, TEST 7 / 2 / idem,
+anon refusé en **401** sur les deux (et pas un `[]`). Migration strictement additive :
+`expenses.category` jamais touchée, rollback en 2 lignes dans le fichier.
+⬜ **Phase 3, plus tard** : `ALTER COLUMN category_id SET NOT NULL` + `DROP COLUMN category`.
+Celle-là est **destructive** — migration séparée, décision séparée, pas avant plusieurs semaines
+de fonctionnement vérifié.
+
 ⬜ **`2026-09-07_equipment_category_bar.sql`** (TEST ⬜ / PROD ⬜) — ajoute `'bar'` à l'enum
 `equipment_category`. À passer **avant** la suivante.
 ⬜ **`2026-09-07b_equipment_purchase_resale.sql`** (TEST ⬜ / PROD ⬜) — colonnes achat/revente sur

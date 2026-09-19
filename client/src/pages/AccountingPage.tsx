@@ -28,7 +28,7 @@ import AgencyBillingTab     from '../components/accounting/AgencyBillingTab'
 import type {
   ExternalAccommodationBooking, HouseRental, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride, EquipmentRental,
-  Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
+  Expense, ExpenseCategory, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   TaxiPricingDefaults, TaxiManagerPayment,
   DiningEvent, BookingRoomPrice, RoomRate, PriceItem, Lesson,
   AgencyBillingLine, AgencyInvoice, TaxiTrip, Lang,
@@ -96,6 +96,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: instructorPaymentsData } = useTable<InstructorPayment>('instructor_payments', { order: 'date', ascending: false })
   const { data: lessonOverridesData }    = useTable<LessonRateOverride>('lesson_rate_overrides')
   const { data: expensesData }           = useTable<Expense>('expenses', { order: 'date', ascending: false })
+  const { data: expenseCategoriesData }  = useTable<ExpenseCategory>('expense_categories', { order: 'sort_order' })
   const { data: palmeirasRentsData }     = useTable<PalmeirasRent>('palmeiras_rents', { order: 'month', ascending: false })
   const { data: palmeirasReversalsData } = useTable<PalmeirasReversal>('palmeiras_reversals', { order: 'month', ascending: false })
   const { data: palmeirasEntriesData }   = useTable<PalmeirasEntry>('palmeiras_entries', { order: 'month', ascending: false })
@@ -110,6 +111,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const [instructorPayments, setInstructorPayments] = useState<InstructorPayment[]>([])
   const [lessonRateOverrides,setLessonRateOverrides]= useState<LessonRateOverride[]>([])
   const [expenses,           setExpenses]           = useState<Expense[]>([])
+  const [expenseCategories,  setExpenseCategories]  = useState<ExpenseCategory[]>([])
   const [palmeirasRents,     setPalmeirasRents]     = useState<PalmeirasRent[]>([])
   const [palmeirasReversals, setPalmeirasReversals] = useState<PalmeirasReversal[]>([])
   const [palmeirasEntries,   setPalmeirasEntries]   = useState<PalmeirasEntry[]>([])
@@ -125,6 +127,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   useEffect(() => setInstructorPayments(instructorPaymentsData),[instructorPaymentsData])
   useEffect(() => setLessonRateOverrides(lessonOverridesData), [lessonOverridesData])
   useEffect(() => setExpenses(expensesData),                   [expensesData])
+  useEffect(() => setExpenseCategories(expenseCategoriesData), [expenseCategoriesData])
   useEffect(() => setPalmeirasRents(palmeirasRentsData),       [palmeirasRentsData])
   useEffect(() => setPalmeirasReversals(palmeirasReversalsData),[palmeirasReversalsData])
   useEffect(() => setPalmeirasEntries(palmeirasEntriesData),   [palmeirasEntriesData])
@@ -157,6 +160,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     instructorPayments,
     lessonRateOverrides,
     expenses,
+    expenseCategories,
     palmeirasRents,
     palmeirasReversals,
     palmeirasEntries,
@@ -285,6 +289,26 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       setExpenses(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('expenses').delete().eq('id', id),
         () => setExpenses(before), 'the expense deletion')
+    },
+    addExpenseCategory: (c: ExpenseCategory) => {
+      const before = expenseCategories
+      setExpenseCategories(prev => [...prev, c])
+      persist(supabase.from('expense_categories').insert([c]),
+        () => setExpenseCategories(before), 'the category')
+    },
+    updateExpenseCategory: (c: ExpenseCategory) => {
+      const before = expenseCategories
+      setExpenseCategories(prev => prev.map(x => x.id === c.id ? c : x))
+      persist(supabase.from('expense_categories').update(c).eq('id', c.id),
+        () => setExpenseCategories(before), 'the category')
+    },
+    // La base refuse aussi (ON DELETE RESTRICT) : ici c'est `canDelete` qui
+    // explique POURQUOI à l'écran au lieu de laisser remonter une erreur Postgres.
+    deleteExpenseCategory: (id: string) => {
+      const before = expenseCategories
+      setExpenseCategories(prev => prev.filter(x => x.id !== id))
+      persist(supabase.from('expense_categories').delete().eq('id', id),
+        () => setExpenseCategories(before), 'the category deletion')
     },
 
     addPalmeirasRent: (r: PalmeirasRent) => {

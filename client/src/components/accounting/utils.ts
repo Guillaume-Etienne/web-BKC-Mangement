@@ -15,7 +15,7 @@ export function emptyAccountingData(): SharedAccountingData {
     lessons: [], instructors: [], priceItems: [], priceTiers: [], equipment: [], equipmentRentals: [],
     taxiTrips: [], taxiManagerPayments: [], eurMznRate: 65, seasons: [],
     payments: [], instructorDebts: [], instructorPayments: [], lessonRateOverrides: [],
-    expenses: [], palmeirasRents: [], palmeirasReversals: [], palmeirasEntries: [],
+    expenses: [], expenseCategories: [], palmeirasRents: [], palmeirasReversals: [], palmeirasEntries: [],
     activityBookings: [], activityPayments: [],
     agencies: [], agencyRateItems: [], agencyBillingLines: [], agencyInvoices: [],
   }

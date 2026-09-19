@@ -923,7 +923,7 @@ describe('computeSeasonTotals', () => {
       diningEvents: [mkDiningEvent({ price_per_person: 12, attendees: [mkAttendee({ person_id: 'p1' })] })], // 12
       activityBookings: [mkActivityBooking({ payment_flow: 'we_pay_provider', price_client: 100, price_provider: 70 })],
       payments: [mkPayment({ amount: 300 })],
-      expenses: [{ id: 'e1', date: '2026-11-02', category: 'fuel', amount: 50, description: 'x' }],
+      expenses: [{ id: 'e1', date: '2026-11-02', category: 'fuel', category_id: 'fuel', amount: 50, description: 'x' }],
       houseRentals: [{ id: 'h1', accommodation_id: 'accH', start_date: '2026-11-01', end_date: '2026-11-30', total_cost: 100, notes: null }],
       palmeirasReversals: [{ id: 'pr1', month: '2026-11', gross_amount: 300, percent: 10, net_amount: 30, notes: null }],
       palmeirasRents: [{ id: 'prt1', month: '2026-11', amount: 20, notes: null }],

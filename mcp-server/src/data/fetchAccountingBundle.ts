@@ -4,7 +4,7 @@ import type {
   Accommodation, BookingParticipant, HouseRental, Booking, Client, Room, BookingRoom,
   BookingRoomPrice, RoomRate, ExternalAccommodationBooking, DiningEvent, Lesson, Instructor,
   PriceItem, Equipment, EquipmentRental, TaxiTrip, TaxiManagerPayment, Season, Payment,
-  InstructorDebt, InstructorPayment, LessonRateOverride, Expense, PalmeirasRent,
+  InstructorDebt, InstructorPayment, LessonRateOverride, Expense, ExpenseCategory, PalmeirasRent,
   PalmeirasReversal, PalmeirasEntry, ActivityBooking, ActivityPayment, TaxiPricingDefaults,
   PriceTier, Agency, AgencyRateItem, AgencyBillingLine, AgencyInvoice,
 } from '../../../client/src/types/database.js'
@@ -20,6 +20,7 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     bookingRoomPrices, roomRates, externalAccommodationBkgs, diningEvents, lessons, instructors,
     priceItems, equipment, equipmentRentals, taxiTrips, taxiManagerPayments, taxiPricingDefaults,
     seasons, payments, instructorDebts, instructorPayments, lessonRateOverrides, expenses,
+    expenseCategories,
     palmeirasRents, palmeirasReversals, palmeirasEntries, activityBookings, activityPayments,
     priceTiers, agencies, agencyRateItems, agencyBillingLines, agencyInvoices,
   ] = await Promise.all([
@@ -48,6 +49,7 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     selectAll<InstructorPayment>('instructor_payments'),
     selectAll<LessonRateOverride>('lesson_rate_overrides'),
     selectAll<Expense>('expenses'),
+    selectAll<ExpenseCategory>('expense_categories'),       // sub-categories, 2026-09-19
     selectAll<PalmeirasRent>('palmeiras_rents'),
     selectAll<PalmeirasReversal>('palmeiras_reversals'),
     selectAll<PalmeirasEntry>('palmeiras_entries'),
@@ -70,6 +72,7 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     priceItems, equipment, equipmentRentals, taxiTrips, taxiManagerPayments,
     eurMznRate: taxiPricingDefaults[0]?.eur_mzn_rate ?? 65,
     seasons, payments, instructorDebts, instructorPayments, lessonRateOverrides, expenses,
+    expenseCategories,
     palmeirasRents, palmeirasReversals, palmeirasEntries, activityBookings, activityPayments,
     priceTiers, agencies, agencyRateItems, agencyBillingLines, agencyInvoices,
   }

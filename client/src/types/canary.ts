@@ -32,7 +32,7 @@ import type {
   PriceItem, DayActivity, TaxiDriver, TaxiTrip, TaxiPricingDefaults,
   Equipment, EquipmentRental, DiningEvent, SharedLink, Season, RoomRate,
   BookingRoomPrice, ExternalAccommodationBooking, Payment, InstructorDebt,
-  InstructorPayment, LessonRateOverride, Expense, PalmeirasRent,
+  InstructorPayment, LessonRateOverride, Expense, ExpenseCategory, PalmeirasRent,
   PalmeirasReversal, PalmeirasEntry,
 } from './database'
 
@@ -183,8 +183,12 @@ export const _payment = {
 } satisfies Payment
 
 export const _expense = {
-  id: 'x', date: '2026-01-01', category: 'x', amount: 0, description: 'x',
+  id: 'x', date: '2026-01-01', category: 'x', category_id: null, amount: 0, description: 'x',
 } satisfies Expense
+
+export const _expenseCategory = {
+  id: 'x', parent_id: null, slug: 'x', name: 'x', color: null, sort_order: 0, archived: false,
+} satisfies ExpenseCategory
 
 export const _palmeirasRent = {
   id: 'x', month: '2026-01', amount: 0, notes: null,

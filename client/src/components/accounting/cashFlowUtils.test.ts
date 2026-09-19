@@ -141,7 +141,7 @@ describe('buildCashFlowRows', () => {
       eurMznRate: 73,
       payments: [mkPayment({ date: '2026-11-10', amount: 1000 })],
       palmeirasReversals: [{ id: 'pr1', month: '2026-11', gross_amount: 500, percent: 10, net_amount: 50, notes: null }],
-      expenses: [{ id: 'e1', date: '2026-11-12', category: 'fuel', amount: 80, description: 'x' }],
+      expenses: [{ id: 'e1', date: '2026-11-12', category: 'fuel', category_id: 'fuel', amount: 80, description: 'x' }],
       palmeirasRents: [{ id: 'prt1', month: '2026-11', amount: 200, notes: null }],
       instructorPayments: [mkInstructorPayment({ date: '2026-11-28', amount: 300 })],
       taxiTrips: [mkTaxiTrip({ date: '2026-11-02', status: 'done', price_driver_mzn: 7300 })],

@@ -3,7 +3,7 @@ import type {
   ExternalAccommodationBooking,
   HouseRental, Lesson, Instructor, Equipment, EquipmentRental, TaxiTrip, TaxiManagerPayment, Season, PriceItem, PriceTier,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
-  Expense, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
+  Expense, ExpenseCategory, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   DiningEvent, ActivityBooking, ActivityPayment,
   Agency, AgencyRateItem, AgencyBillingLine, AgencyInvoice,
 } from '../../types/database'
@@ -35,6 +35,7 @@ export interface SharedAccountingData {
   instructorPayments:        InstructorPayment[]
   lessonRateOverrides:       LessonRateOverride[]
   expenses:                  Expense[]
+  expenseCategories:         ExpenseCategory[]
   palmeirasRents:            PalmeirasRent[]
   palmeirasReversals:        PalmeirasReversal[]
   palmeirasEntries:          PalmeirasEntry[]
@@ -65,6 +66,9 @@ export interface AccountingHandlers {
   removeLessonOverride:    (lesson_id: string)     => void
   addExpense:              (e: Expense)            => void
   deleteExpense:           (id: string)            => void
+  addExpenseCategory:      (c: ExpenseCategory)    => void
+  updateExpenseCategory:   (c: ExpenseCategory)    => void
+  deleteExpenseCategory:   (id: string)            => void
   addPalmeirasRent:        (r: PalmeirasRent)      => void
   updatePalmeirasRent:     (r: PalmeirasRent)      => void
   addPalmeirasReversal:    (r: PalmeirasReversal)  => void

@@ -9,7 +9,7 @@ import { useTable } from '../hooks/useSupabase'
 import { getLessonClientRate, getInstructorRate } from '../components/accounting/utils'
 import type {
   Equipment, EquipmentRental, EquipmentCategory, EquipmentCondition, Lesson, RentalSlot,
-  Instructor, PriceItem, LessonRateOverride, EquipmentPricingDefaults, Expense, Lang,
+  Instructor, PriceItem, LessonRateOverride, EquipmentPricingDefaults, Expense, ExpenseCategory, Lang,
 } from '../types/database'
 import { todayISO } from '../utils/dates'
 
@@ -159,6 +159,7 @@ export default function EquipmentPage() {
     useTable<EquipmentPricingDefaults>('equipment_pricing_defaults', { order: 'updated_at', ascending: false })
   const pricingDefaults = pricingRows[0] ?? null
   const { data: expenses, refresh: refreshExpenses } = useTable<Expense>('expenses', { order: 'date', ascending: false })
+  const { data: expenseCategories } = useTable<ExpenseCategory>('expense_categories', { order: 'sort_order' })
 
   const [activeTab, setActiveTab]           = useState<'inventory' | 'rentals' | 'revenue' | 'assets'>('inventory')
 
@@ -269,6 +270,13 @@ export default function EquipmentPage() {
     setSelectedEquipment(null)
   }
 
+  // La catégorie se résout par SLUG, jamais par le libellé : gui peut renommer
+  // « Equipment » en « Gear » depuis la compta sans casser ce bouton. Si le slug
+  // a disparu, on écrit sans catégorie plutôt que d'inventer une catégorie —
+  // la dépense s'affichera « Uncategorised », ce qui se voit et se corrige.
+  const equipmentCategoryId = expenseCategories.find(c => c.slug === 'equipment')?.id ?? null
+  const equipmentCategoryName = expenseCategories.find(c => c.slug === 'equipment')?.name ?? 'Equipment'
+
   // ── Purchase / resale ↔ Expenses linking ───────────────────────────────────
   // Deliberately one-shot buttons, never a silent sync: gui asked for a way to
   // push a correction into the linked expense on demand, not a live mirror
@@ -278,7 +286,8 @@ export default function EquipmentPage() {
     if (eq.purchase_price == null) return
     const { data, error } = await supabase.from('expenses').insert([{
       date: eq.purchase_date || todayISO(),
-      category: 'Equipment',
+      category_id: equipmentCategoryId,
+      category: equipmentCategoryName,
       amount: eq.purchase_price + (eq.shipping_cost ?? 0),
       description: `Achat — ${eq.name}`,
     }]).select().single()
@@ -304,7 +313,8 @@ export default function EquipmentPage() {
     if (eq.sold_price == null) return
     const { data, error } = await supabase.from('expenses').insert([{
       date: eq.sold_date || todayISO(),
-      category: 'Equipment',
+      category_id: equipmentCategoryId,
+      category: equipmentCategoryName,
       amount: -eq.sold_price,
       description: `Revente — ${eq.name}`,
     }]).select().single()

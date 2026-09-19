@@ -743,11 +743,28 @@ export interface LessonRateOverride {
   note: string                  // required — must justify override
 }
 
-// Manual expenses — category is a free string, managed in UI
+// Expense categories — 2 levels: parent_id NULL = top level, otherwise a child.
+// `slug` is the stable key the code refers to (never a hardcoded UUID, never
+// `name`, which is renameable). `archived` hides a category from new entries
+// without losing the expenses already attached to it.
+export interface ExpenseCategory {
+  id: string
+  parent_id: string | null
+  slug: string
+  name: string
+  color: string | null
+  sort_order: number
+  archived: boolean
+}
+
+// Manual expenses
+// ⚠️ `category` is the LEGACY free-text column, still written as a label
+// snapshot until it is dropped (phase 3). `category_id` is the source of truth.
 export interface Expense {
   id: string
   date: string
   category: string
+  category_id: string | null
   amount: number
   description: string
 }
