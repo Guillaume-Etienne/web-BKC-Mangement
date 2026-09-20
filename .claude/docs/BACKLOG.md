@@ -6,12 +6,15 @@
 
 ## 🚨 Migrations SQL — registre
 
-⬜ **`2026-09-19b_dismissed_actions.sql`** (TEST ⬜ / PROD ⬜) — « affaire classée » sur la page
-d'accueil : table `dismissed_actions` (`dismiss_key` PK, `up_to_count`, `dismissed_at`),
-admin-only, `REVOKE ALL FROM anon`. **Strictement additive**, rien d'autre n'est touché.
-Le code ne casse **pas** sans elle : `loadDismissals` fait `data ?? []`, l'accueil s'affiche
-normalement, simplement aucun classement ne tient au rechargement. Vérifs (curl anon + un aller-
-retour à l'écran) écrites en bas du fichier de migration.
+✅ **`2026-09-19b_dismissed_actions.sql`** (TEST ✅ / PROD ✅, passée par gui et **vérifiée le
+2026-09-20**) — « affaire classée » sur la page d'accueil : table `dismissed_actions`
+(`dismiss_key` PK, `up_to_count`, `dismissed_at`), admin-only. **Strictement additive.**
+Curl anon réel sur les deux bases : `42501 permission denied` en lecture **et** en insert
+(donc pas `42P01` = la table existe bien, et anon n'y touche pas). Aller-retour à l'écran fait
+sur TEST : 11 alertes → « ✓ Affaire classée » sur #031 → 10 + accordéon « Affaires classées 1 »,
+**rechargement complet : toujours 10** (l'écriture tient), accordéon ouvert = la ligne en gris
+avec son lien Documents, « ↩ Rouvrir » → retour à 11, rechargement → toujours 11 (ligne bien
+supprimée). TEST laissé exactement dans l'état trouvé.
 
 ✅ **`2026-09-19_expense_categories.sql`** (TEST ✅ / PROD ✅, passée et **vérifiée le 2026-09-19**)
 — sous-catégories de dépenses sur 2 niveaux. Vérifs faites en lecture directe sur les deux bases :
