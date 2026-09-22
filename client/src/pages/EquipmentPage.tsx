@@ -1245,6 +1245,7 @@ export default function EquipmentPage() {
                 <thead className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800">
                   <tr>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Nom</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Taille</th>
                     <th
                       onClick={() => {
                         if (assetSortField === 'purchase_price') {
@@ -1288,6 +1289,9 @@ export default function EquipmentPage() {
                           <p className="font-medium text-gray-900 dark:text-gray-100">{eq.name}</p>
                           <p className="text-xs text-gray-400 dark:text-gray-400">{getCategoryLabel(eq.category, lang)}</p>
                           {!eq.is_active && <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">{i18n.equipment.label_sold_badge[lang]}</span>}
+                        </td>
+                        <td className="px-4 py-3 align-top text-xs text-gray-600 dark:text-gray-400">
+                          {eq.size || '—'}
                         </td>
                         <td className="px-4 py-3 align-top">
                           {eq.purchase_price == null ? (
