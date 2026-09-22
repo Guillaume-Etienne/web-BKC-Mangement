@@ -220,10 +220,50 @@ export default function EquipmentPage() {
   const [currentMonth, setCurrentMonth]     = useState(new Date())
   const [rentalCategoryFilter, setRentalCategoryFilter] = useState<EquipmentCategory | 'all'>('all')
 
+  // ── Size filters ───────────────────────────────────────────────────────────────
+  const [sizeFilter, setSizeFilter]         = useState('')
+  const [rentalSizeFilter, setRentalSizeFilter] = useState('')
+  const [assetSizeFilter, setAssetSizeFilter] = useState('')
+
+  // ── Sorting ────────────────────────────────────────────────────────────────────
+  type SortField = 'name' | 'size' | 'condition' | 'purchase_price' | 'purchase_date'
+  const [inventorySortField, setInventorySortField] = useState<SortField | null>(null)
+  const [inventorySortAsc, setInventorySortAsc] = useState(true)
+  const [assetSortField, setAssetSortField] = useState<SortField | null>(null)
+  const [assetSortAsc, setAssetSortAsc] = useState(true)
+
+  // Get all unique sizes for the dropdown
+  const availableSizes = Array.from(
+    new Set(equipment.filter(e => e.category === 'kite' || e.category === 'board').map(e => e.size).filter((s): s is string => Boolean(s)))
+  ).sort((a, b) => {
+    const aNum = parseInt(a, 10)
+    const bNum = parseInt(b, 10)
+    return bNum - aNum  // descending order (14 before 12)
+  })
+
   // ── Inventory handlers ─────────────────────────────────────────────────────
 
-  const inventoryItems = equipment.filter(
-    eq => categoryFilter === 'all' || eq.category === categoryFilter
+  function sortInventoryItems(items: Equipment[]): Equipment[] {
+    if (!inventorySortField) return items
+    const sorted = [...items].sort((a, b) => {
+      let aVal: any = a[inventorySortField as keyof Equipment]
+      let bVal: any = b[inventorySortField as keyof Equipment]
+      if (aVal == null) aVal = ''
+      if (bVal == null) bVal = ''
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase()
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase()
+      const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0
+      return inventorySortAsc ? cmp : -cmp
+    })
+    return sorted
+  }
+
+  const inventoryItems = sortInventoryItems(
+    equipment.filter(eq => {
+      if (categoryFilter !== 'all' && eq.category !== categoryFilter) return false
+      if (sizeFilter !== '' && eq.size !== sizeFilter) return false
+      return true
+    })
   )
 
   function openEditModal(eq: Equipment | null = null) {
@@ -341,7 +381,11 @@ export default function EquipmentPage() {
   const rentalItems = rentals.filter(r => {
     if (rentalCategoryFilter === 'all') return true
     const eq = equipment.find(e => e.id === r.equipment_id)
-    return eq?.category === rentalCategoryFilter
+    if (eq?.category !== rentalCategoryFilter) return false
+    if (rentalSizeFilter) {
+      return eq?.size === rentalSizeFilter
+    }
+    return true
   }).sort((a, b) => a.date.localeCompare(b.date))
 
   async function addRental() {
@@ -403,14 +447,34 @@ export default function EquipmentPage() {
 
   // ── Assets tab (purchase / resale) ──────────────────────────────────────────
 
-  const assetRows = equipment
-    .filter(eq => eq.purchase_price != null || eq.sold_price != null)
-    .map(eq => ({
-      eq,
-      invested: (eq.purchase_price ?? 0) + (eq.shipping_cost ?? 0),
-      gainLoss: eq.sold_price != null ? eq.sold_price - (eq.purchase_price ?? 0) - (eq.shipping_cost ?? 0) : null,
-    }))
-    .sort((a, b) => (b.eq.purchase_date || '').localeCompare(a.eq.purchase_date || ''))
+  function sortAssetRows(rows: Array<{ eq: Equipment; invested: number; gainLoss: number | null }>): typeof rows {
+    if (!assetSortField) return rows
+    const sorted = [...rows].sort((a, b) => {
+      let aVal: any = a.eq[assetSortField as keyof Equipment]
+      let bVal: any = b.eq[assetSortField as keyof Equipment]
+      if (aVal == null) aVal = ''
+      if (bVal == null) bVal = ''
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase()
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase()
+      const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0
+      return assetSortAsc ? cmp : -cmp
+    })
+    return sorted
+  }
+
+  const assetRows = sortAssetRows(
+    equipment
+      .filter(eq => {
+        if (eq.purchase_price == null && eq.sold_price == null) return false
+        if (assetSizeFilter !== '' && eq.size !== assetSizeFilter) return false
+        return true
+      })
+      .map(eq => ({
+        eq,
+        invested: (eq.purchase_price ?? 0) + (eq.shipping_cost ?? 0),
+        gainLoss: eq.sold_price != null ? eq.sold_price - (eq.purchase_price ?? 0) - (eq.shipping_cost ?? 0) : null,
+      }))
+  )
 
   const totalInvested  = assetRows.reduce((sum, r) => sum + r.invested, 0)
   const totalRecovered = assetRows.reduce((sum, r) => sum + (r.eq.sold_price ?? 0), 0)
@@ -482,35 +546,127 @@ export default function EquipmentPage() {
         <div className="grid xl:grid-cols-3 gap-6">
           {/* Left: Table */}
           <div className="xl:col-span-2 space-y-4">
-            <div className="flex items-center justify-between">
-              <select
-                value={categoryFilter}
-                onChange={e => setCategoryFilter(e.target.value as EquipmentCategory | 'all')}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm"
-              >
-                <option value="all">{i18n.equipment.label_all_categories[lang]}</option>
-                <option value="kite">{i18n.equipment.category_kite[lang]}</option>
-                <option value="board">{i18n.equipment.category_board[lang]}</option>
-                <option value="surfboard">{i18n.equipment.category_surfboard[lang]}</option>
-                <option value="foilboard">{i18n.equipment.category_foilboard[lang]}</option>
-                <option value="bar">{i18n.equipment.category_bar[lang]}</option>
-              </select>
-              <button
-                onClick={() => openEditModal()}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm"
-              >
-                + {i18n.common.btn_add[lang]}
-              </button>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <select
+                    value={categoryFilter}
+                    onChange={e => {
+                      setCategoryFilter(e.target.value as EquipmentCategory | 'all')
+                      setSizeFilter('')
+                    }}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm"
+                  >
+                    <option value="all">{i18n.equipment.label_all_categories[lang]}</option>
+                    <option value="kite">{i18n.equipment.category_kite[lang]}</option>
+                    <option value="board">{i18n.equipment.category_board[lang]}</option>
+                    <option value="surfboard">{i18n.equipment.category_surfboard[lang]}</option>
+                    <option value="foilboard">{i18n.equipment.category_foilboard[lang]}</option>
+                    <option value="bar">{i18n.equipment.category_bar[lang]}</option>
+                  </select>
+                  <button
+                    onClick={() => { setCategoryFilter('kite'); setSizeFilter('') }}
+                    className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
+                      categoryFilter === 'kite'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    🪂 Kite
+                  </button>
+                  <button
+                    onClick={() => { setCategoryFilter('board'); setSizeFilter('') }}
+                    className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
+                      categoryFilter === 'board'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    🏄 Board
+                  </button>
+                </div>
+                <button
+                  onClick={() => openEditModal()}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm"
+                >
+                  + {i18n.common.btn_add[lang]}
+                </button>
+              </div>
+              {(categoryFilter === 'kite' || categoryFilter === 'board') && availableSizes.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <select
+                    value={sizeFilter}
+                    onChange={e => setSizeFilter(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm"
+                  >
+                    <option value="">Toutes les tailles</option>
+                    {availableSizes.map(size => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </select>
+                  {['14', '12'].map(size => (
+                    availableSizes.includes(size) && (
+                      <button
+                        key={size}
+                        onClick={() => setSizeFilter(sizeFilter === size ? '' : size)}
+                        className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
+                          sizeFilter === size
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    )
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="hidden md:block overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800">
                   <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Nom</th>
+                    <th
+                      onClick={() => {
+                        if (inventorySortField === 'name') {
+                          setInventorySortAsc(!inventorySortAsc)
+                        } else {
+                          setInventorySortField('name')
+                          setInventorySortAsc(true)
+                        }
+                      }}
+                      className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                    >
+                      Nom {inventorySortField === 'name' && (inventorySortAsc ? '↑' : '↓')}
+                    </th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Catégorie</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Taille</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.label_condition[lang]}</th>
+                    <th
+                      onClick={() => {
+                        if (inventorySortField === 'size') {
+                          setInventorySortAsc(!inventorySortAsc)
+                        } else {
+                          setInventorySortField('size')
+                          setInventorySortAsc(true)
+                        }
+                      }}
+                      className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                    >
+                      Taille {inventorySortField === 'size' && (inventorySortAsc ? '↑' : '↓')}
+                    </th>
+                    <th
+                      onClick={() => {
+                        if (inventorySortField === 'condition') {
+                          setInventorySortAsc(!inventorySortAsc)
+                        } else {
+                          setInventorySortField('condition')
+                          setInventorySortAsc(true)
+                        }
+                      }}
+                      className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                    >
+                      {i18n.equipment.label_condition[lang]} {inventorySortField === 'condition' && (inventorySortAsc ? '↑' : '↓')}
+                    </th>
                     <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">Sorties</th>
                     <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">≈ Heures</th>
                     <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.label_active[lang]}</th>
@@ -682,7 +838,7 @@ export default function EquipmentPage() {
       {/* ─── RENTALS TAB ───────────────────────────────────────────────────────── */}
       {activeTab === 'rentals' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
@@ -696,10 +852,13 @@ export default function EquipmentPage() {
                 className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg"
               >→</button>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
               <select
                 value={rentalCategoryFilter}
-                onChange={e => setRentalCategoryFilter(e.target.value as EquipmentCategory | 'all')}
+                onChange={e => {
+                  setRentalCategoryFilter(e.target.value as EquipmentCategory | 'all')
+                  setRentalSizeFilter('')
+                }}
                 className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm"
               >
                 <option value="all">{i18n.equipment.label_all_categories[lang]}</option>
@@ -709,6 +868,55 @@ export default function EquipmentPage() {
                 <option value="foilboard">{i18n.equipment.category_foilboard[lang]}</option>
                 <option value="bar">{i18n.equipment.category_bar[lang]}</option>
               </select>
+              <button
+                onClick={() => { setRentalCategoryFilter('kite'); setRentalSizeFilter('') }}
+                className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
+                  rentalCategoryFilter === 'kite'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                🪂 Kite
+              </button>
+              <button
+                onClick={() => { setRentalCategoryFilter('board'); setRentalSizeFilter('') }}
+                className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
+                  rentalCategoryFilter === 'board'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                🏄 Board
+              </button>
+              {(rentalCategoryFilter === 'kite' || rentalCategoryFilter === 'board') && availableSizes.length > 0 && (
+                <>
+                  <select
+                    value={rentalSizeFilter}
+                    onChange={e => setRentalSizeFilter(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm"
+                  >
+                    <option value="">Toutes les tailles</option>
+                    {availableSizes.map(size => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </select>
+                  {['14', '12'].map(size => (
+                    availableSizes.includes(size) && (
+                      <button
+                        key={size}
+                        onClick={() => setRentalSizeFilter(rentalSizeFilter === size ? '' : size)}
+                        className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
+                          rentalSizeFilter === size
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    )
+                  ))}
+                </>
+              )}
               <button
                 onClick={addRental}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm"
@@ -984,7 +1192,35 @@ export default function EquipmentPage() {
       {/* ─── ASSETS TAB (purchase / resale) ────────────────────────────────────── */}
       {activeTab === 'assets' && (
         <div className="space-y-5">
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setAssetSizeFilter('') }}
+                className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
+                  assetSizeFilter === ''
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                Tous
+              </button>
+              {availableSizes.map(size => (
+                <button
+                  key={size}
+                  onClick={() => setAssetSizeFilter(assetSizeFilter === size ? '' : size)}
+                  className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
+                    assetSizeFilter === size
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.equipment.label_total_invested[lang]}</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{Math.round(totalInvested)}€</p>
@@ -1009,9 +1245,36 @@ export default function EquipmentPage() {
                 <thead className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800">
                   <tr>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Nom</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.section_purchase[lang]}</th>
+                    <th
+                      onClick={() => {
+                        if (assetSortField === 'purchase_price') {
+                          setAssetSortAsc(!assetSortAsc)
+                        } else {
+                          setAssetSortField('purchase_price')
+                          setAssetSortAsc(false)  // descending by default for prices
+                        }
+                      }}
+                      className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                    >
+                      {i18n.equipment.section_purchase[lang]} {assetSortField === 'purchase_price' && (assetSortAsc ? '↑' : '↓')}
+                    </th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.section_resale[lang]}</th>
                     <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.label_gain_loss[lang]}</th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
+                      <button
+                        onClick={() => {
+                          if (assetSortField === 'purchase_date') {
+                            setAssetSortAsc(!assetSortAsc)
+                          } else {
+                            setAssetSortField('purchase_date')
+                            setAssetSortAsc(false)
+                          }
+                        }}
+                        className="hover:bg-gray-100 dark:hover:bg-gray-700/50 px-2 py-1 rounded"
+                      >
+                        {i18n.common.label_date[lang]} {assetSortField === 'purchase_date' && (assetSortAsc ? '↑' : '↓')}
+                      </button>
+                    </th>
                     <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Actions</th>
                   </tr>
                 </thead>
@@ -1077,6 +1340,9 @@ export default function EquipmentPage() {
                               )}
                             </div>
                           )}
+                        </td>
+                        <td className="px-4 py-3 text-right align-top text-xs text-gray-600 dark:text-gray-400">
+                          {eq.purchase_date ? formatDate(eq.purchase_date) : '—'}
                         </td>
                         <td className="px-4 py-3 text-right align-top">
                           {gainLoss == null ? (
