@@ -228,6 +228,9 @@ export default function EquipmentPage() {
   // ── Brand filter ───────────────────────────────────────────────────────────────
   const [brandFilter, setBrandFilter] = useState('')
 
+  // ── Active filter ───────────────────────────────────────────────────────────────
+  const [showInactive, setShowInactive] = useState(false)
+
   // Get all unique brands
   const availableBrands = Array.from(
     new Set(equipment.map(e => e.brand).filter((b): b is string => Boolean(b)))
@@ -278,6 +281,7 @@ export default function EquipmentPage() {
 
   const inventoryItems = sortInventoryItems(
     equipment.filter(eq => {
+      if (!showInactive && !eq.is_active) return false
       if (categoryFilter !== 'all' && eq.category !== categoryFilter) return false
       if (sizeFilter !== '' && eq.size !== sizeFilter) return false
       if (brandFilter !== '' && eq.brand !== brandFilter) return false
@@ -495,7 +499,10 @@ export default function EquipmentPage() {
     equipment
       .filter(eq => {
         if (eq.purchase_price == null && eq.sold_price == null) return false
+        if (!showInactive && !eq.is_active) return false
+        if (categoryFilter !== 'all' && eq.category !== categoryFilter) return false
         if (assetSizeFilter !== '' && eq.size !== assetSizeFilter) return false
+        if (brandFilter !== '' && eq.brand !== brandFilter) return false
         return true
       })
       .map(eq => ({
@@ -664,6 +671,18 @@ export default function EquipmentPage() {
                   </select>
                 </div>
               )}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="showInactiveInventory"
+                  checked={showInactive}
+                  onChange={e => setShowInactive(e.target.checked)}
+                  className="rounded dark:bg-gray-800 dark:border-gray-600"
+                />
+                <label htmlFor="showInactiveInventory" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Afficher les inactifs
+                </label>
+              </div>
             </div>
 
             <div className="hidden md:block overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg">
@@ -1238,30 +1257,99 @@ export default function EquipmentPage() {
       {activeTab === 'assets' && (
         <div className="space-y-5">
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => { setAssetSizeFilter('') }}
-                className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
-                  assetSizeFilter === ''
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                }`}
-              >
-                Tous
-              </button>
-              {availableSizes.map(size => (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <select
+                  value={categoryFilter}
+                  onChange={e => {
+                    setCategoryFilter(e.target.value as EquipmentCategory | 'all')
+                    setAssetSizeFilter('')
+                  }}
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm"
+                >
+                  <option value="all">{i18n.equipment.label_all_categories[lang]}</option>
+                  <option value="kite">{i18n.equipment.category_kite[lang]}</option>
+                  <option value="board">{i18n.equipment.category_board[lang]}</option>
+                  <option value="surfboard">{i18n.equipment.category_surfboard[lang]}</option>
+                  <option value="foilboard">{i18n.equipment.category_foilboard[lang]}</option>
+                  <option value="bar">{i18n.equipment.category_bar[lang]}</option>
+                </select>
                 <button
-                  key={size}
-                  onClick={() => setAssetSizeFilter(assetSizeFilter === size ? '' : size)}
+                  onClick={() => { setCategoryFilter('kite'); setAssetSizeFilter('') }}
                   className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
-                    assetSizeFilter === size
+                    categoryFilter === 'kite'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}
                 >
-                  {size}
+                  🪂 Kite
                 </button>
-              ))}
+                <button
+                  onClick={() => { setCategoryFilter('board'); setAssetSizeFilter('') }}
+                  className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
+                    categoryFilter === 'board'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  🏄 Board
+                </button>
+              </div>
+            </div>
+            {(categoryFilter === 'kite' || categoryFilter === 'board') && availableSizes.length > 0 && (
+              <div className="flex items-center gap-2">
+                <select
+                  value={assetSizeFilter}
+                  onChange={e => setAssetSizeFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm"
+                >
+                  <option value="">Toutes les tailles</option>
+                  {availableSizes.map(size => (
+                    <option key={size} value={size}>{size}</option>
+                  ))}
+                </select>
+                {['14', '12'].map(size => (
+                  availableSizes.includes(size) && (
+                    <button
+                      key={size}
+                      onClick={() => setAssetSizeFilter(assetSizeFilter === size ? '' : size)}
+                      className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
+                        assetSizeFilter === size
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  )
+                ))}
+              </div>
+            )}
+            {availableBrands.length > 0 && (
+              <div className="flex items-center gap-2">
+                <select
+                  value={brandFilter}
+                  onChange={e => setBrandFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm"
+                >
+                  <option value="">Toutes les marques</option>
+                  {availableBrands.map(brand => (
+                    <option key={brand} value={brand}>{brand}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="showInactiveAssets"
+                checked={showInactive}
+                onChange={e => setShowInactive(e.target.checked)}
+                className="rounded dark:bg-gray-800 dark:border-gray-600"
+              />
+              <label htmlFor="showInactiveAssets" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Afficher les inactifs
+              </label>
             </div>
           </div>
 
