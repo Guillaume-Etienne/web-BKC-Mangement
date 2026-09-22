@@ -225,6 +225,14 @@ export default function EquipmentPage() {
   const [rentalSizeFilter, setRentalSizeFilter] = useState('')
   const [assetSizeFilter, setAssetSizeFilter] = useState('')
 
+  // ── Brand filter ───────────────────────────────────────────────────────────────
+  const [brandFilter, setBrandFilter] = useState('')
+
+  // Get all unique brands
+  const availableBrands = Array.from(
+    new Set(equipment.map(e => e.brand).filter((b): b is string => Boolean(b)))
+  ).sort()
+
   // ── Sorting ────────────────────────────────────────────────────────────────────
   type SortField = 'name' | 'size' | 'condition' | 'purchase_price' | 'purchase_date'
   const [inventorySortField, setInventorySortField] = useState<SortField | null>(null)
@@ -262,6 +270,7 @@ export default function EquipmentPage() {
     equipment.filter(eq => {
       if (categoryFilter !== 'all' && eq.category !== categoryFilter) return false
       if (sizeFilter !== '' && eq.size !== sizeFilter) return false
+      if (brandFilter !== '' && eq.brand !== brandFilter) return false
       return true
     })
   )
@@ -621,6 +630,20 @@ export default function EquipmentPage() {
                   ))}
                 </div>
               )}
+              {availableBrands.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <select
+                    value={brandFilter}
+                    onChange={e => setBrandFilter(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm"
+                  >
+                    <option value="">Toutes les marques</option>
+                    {availableBrands.map(brand => (
+                      <option key={brand} value={brand}>{brand}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <div className="hidden md:block overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg">
@@ -641,6 +664,7 @@ export default function EquipmentPage() {
                       Nom {inventorySortField === 'name' && (inventorySortAsc ? '↑' : '↓')}
                     </th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Catégorie</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Marque</th>
                     <th
                       onClick={() => {
                         if (inventorySortField === 'size') {
@@ -682,6 +706,7 @@ export default function EquipmentPage() {
                     >
                       <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{eq.name}</td>
                       <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{getCategoryLabel(eq.category, lang)}</td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{eq.brand || '—'}</td>
                       <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{eq.size || '—'}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getConditionColor(eq.condition)}`}>
@@ -722,7 +747,7 @@ export default function EquipmentPage() {
                     </span>
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    {getCategoryLabel(eq.category, lang)}{eq.size ? ` · ${eq.size}` : ''}
+                    {getCategoryLabel(eq.category, lang)}{eq.brand ? ` · ${eq.brand}` : ''}{eq.size ? ` · ${eq.size}` : ''}
                     {!eq.is_active && <span className="text-gray-400 dark:text-gray-500"> · inactif</span>}
                   </p>
                   <div className="flex items-center justify-between">
