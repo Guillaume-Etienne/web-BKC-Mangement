@@ -258,6 +258,16 @@ export default function EquipmentPage() {
       let bVal: any = b[inventorySortField as keyof Equipment]
       if (aVal == null) aVal = ''
       if (bVal == null) bVal = ''
+
+      // Handle numeric sorting for size field
+      if (inventorySortField === 'size' && aVal !== '' && bVal !== '') {
+        const aNum = parseInt(aVal, 10)
+        const bNum = parseInt(bVal, 10)
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          return inventorySortAsc ? aNum - bNum : bNum - aNum
+        }
+      }
+
       if (typeof aVal === 'string') aVal = aVal.toLowerCase()
       if (typeof bVal === 'string') bVal = bVal.toLowerCase()
       const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0
@@ -463,6 +473,16 @@ export default function EquipmentPage() {
       let bVal: any = b.eq[assetSortField as keyof Equipment]
       if (aVal == null) aVal = ''
       if (bVal == null) bVal = ''
+
+      // Handle numeric sorting for size field
+      if (assetSortField === 'size' && aVal !== '' && bVal !== '') {
+        const aNum = parseInt(aVal, 10)
+        const bNum = parseInt(bVal, 10)
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          return assetSortAsc ? aNum - bNum : bNum - aNum
+        }
+      }
+
       if (typeof aVal === 'string') aVal = aVal.toLowerCase()
       if (typeof bVal === 'string') bVal = bVal.toLowerCase()
       const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0
