@@ -5,6 +5,7 @@
  *  "Incomplete" filters show — and a rule that decides gets a test.
  */
 import type { Booking, BookingParticipant } from '../types/database'
+import { isDayVisitor } from './dayVisitor'
 
 export type MissingField =
   | 'room'
@@ -32,6 +33,9 @@ export function getMissingFields(
   bParticipants: BookingParticipant[],
 ): MissingField[] {
   if (b.status === 'cancelled') return []
+  // A walk-in visit is a lesson or a rental, settled on the spot: no room,
+  // passport, arrival time or visa is ever coming (utils/dayVisitor.ts).
+  if (isDayVisitor(b)) return []
   const missing: MissingField[] = []
   if (!hasRoom) missing.push('room')
 

@@ -1,5 +1,6 @@
 export type AccommodationType = 'house' | 'bungalow' | 'other'
 export type BookingStatus = 'confirmed' | 'provisional' | 'cancelled'
+export type BookingKind = 'stay' | 'day_visitor'
 export type KiteLevel = 'beg-total' | 'beg-bodydrag' | 'beg-waterstart' | 'intermediate' | 'advanced'
 /** Deliberately just two states, not a tag system — 2026-09-11, gui's "blacklist" request. */
 export type ClientRelationshipFlag = 'avoid' | 'favorite'
@@ -48,6 +49,13 @@ export interface Client {
   emergency_contact_email: string | null
   emergency_contact_relation: string | null
   relationship_flag: ClientRelationshipFlag | null
+  /** Walk-ins (2026-09-25): the "mate's rate" €/h offered instead of the
+   *  official lesson price. Null = official price. Optional because the code
+   *  runs on a base without the migration (the field is then simply absent). */
+  custom_lesson_rate?: number | null
+  /** Walk-ins: a regular signs the waiver once, on the client — not on every
+   *  visit. Null = never signed. Same optional reason as above. */
+  waiver_signed_at?: string | null
 }
 
 // Participant lié à un booking (table booking_participants)
@@ -124,7 +132,12 @@ export interface Booking {
    *  sub-booking points at the main one, never the other way round. NULL =
    *  not part of a linked stay (the normal case). 2026-09-17. */
   linked_booking_id?: string | null
-  created_at?: string                        // ISO ts — the column always existed; typed 2026-09-03 for the client dossier timeline
+  /** 'day_visitor' = a walk-in visit (lesson/rental only, no room), created
+   *  from the Daily tab — see utils/dayVisitor.ts. Absent (base without the
+   *  2026-09-25 migration) or 'stay' = a real stay, which every booking before
+   *  that date is. */
+  kind?: BookingKind
+  created_at?: string                       // ISO ts — the column always existed; typed 2026-09-03 for the client dossier timeline
 }
 
 export interface BookingRoom {

@@ -84,7 +84,12 @@ CREATE TABLE clients (
   -- 'avoid' | 'favorite' | NULL. Added 2026-09-11 — migration
   -- 2026-09-11_client_relationship_flag.sql. NOT a GRANT for anon: the
   -- column-level whitelist further down already excludes it.
-  relationship_flag           TEXT CHECK (relationship_flag IN ('avoid', 'favorite'))
+  relationship_flag           TEXT CHECK (relationship_flag IN ('avoid', 'favorite')),
+  -- Walk-ins (2026-09-25_walk_ins.sql). Neither is granted to anon.
+  -- The "mate's rate" €/h offered instead of the official price; NULL = official.
+  custom_lesson_rate          NUMERIC(10,2) CHECK (custom_lesson_rate IS NULL OR custom_lesson_rate >= 0),
+  -- A regular signs the waiver once, on the client, not on every visit.
+  waiver_signed_at            TIMESTAMPTZ
 );
 
 CREATE UNIQUE INDEX idx_clients_import_id ON clients(import_id) WHERE import_id IS NOT NULL;
@@ -159,6 +164,11 @@ CREATE TABLE bookings (
   -- sub-booking points back at the main one; the main one points at nothing.
   -- NULL = not part of a linked stay (2026-09-17, migration 2026-09-17_booking_linked_booking.sql).
   linked_booking_id         UUID REFERENCES bookings(id) ON DELETE SET NULL,
+  -- 'stay' = a real stay (every booking before 2026-09-25). 'day_visitor' = a
+  -- walk-in visit (one lesson/rental, no room), created from the Daily tab and
+  -- kept out of the accommodation grid and stay alerts. check_out = check_in + 1
+  -- because of check_dates below. Migration 2026-09-25_walk_ins.sql.
+  kind                      TEXT NOT NULL DEFAULT 'stay' CONSTRAINT bookings_kind_check CHECK (kind IN ('stay', 'day_visitor')),
   created_at                TIMESTAMPTZ DEFAULT now(),
   CONSTRAINT check_dates CHECK (check_out > check_in)
 );

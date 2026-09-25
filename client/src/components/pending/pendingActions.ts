@@ -1,6 +1,7 @@
 import type { Booking, Payment, Lang } from '../../types/database'
 import { i18n } from '../../data/i18n'
 import { linkedBookingBadge } from '../../utils/linkedBooking'
+import { isDayVisitor } from '../../utils/dayVisitor'
 
 export type ActionPriority = 'urgent' | 'week' | 'monitor'
 
@@ -87,9 +88,12 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
   const j4 = addDays(today, 4)
   const j7 = addDays(today, 7)
 
-  // Active bookings = not cancelled and not checked out
+  // Active bookings = not cancelled and not checked out — stays only: every
+  // alert below is about a stay (confirmation, deposit, visa, guides). A walk-in
+  // visit (utils/dayVisitor.ts) is settled on the spot; its unverified payments
+  // still surface, since those are read from data.payments, not from here.
   const activeBookings = data.bookings.filter(b =>
-    b.status !== 'cancelled' && parseDate(b.check_out) >= today
+    !isDayVisitor(b) && b.status !== 'cancelled' && parseDate(b.check_out) >= today
   )
 
   // Docs already sent (or delivered/opened) — a reminder should disappear once

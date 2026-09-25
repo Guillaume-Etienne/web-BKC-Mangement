@@ -1,10 +1,14 @@
 import { useState } from 'react'
-import type { Lesson, DayActivity, DaySlot, LessonType, RentalType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine, Lang } from '../../types/database'
+import type { Lesson, DayActivity, DaySlot, LessonType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine, Lang } from '../../types/database'
 import { rentalBillable } from '../../types/database'
 import { currentInstructorRate, reFreezeInstructorRate, resolveLessonRate, agencyMarker } from '../accounting/utils'
 import { toISODate as dateToISO } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
+import { RENTAL_TYPES, type RentalKind } from './rentalTypes'
+import WalkInForm from './WalkInForm'
+import type { WalkInRequest } from './walkInSave'
+import { isDayVisitor, isOnSiteOn } from '../../utils/dayVisitor'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -31,21 +35,6 @@ function lessonTypeCfg(lang: Lang): Record<LessonType, { label: string; icon: st
 const DAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DURATION_OPTIONS = [0.5, 1, 1.5, 2, 2.5, 3]
-
-/** What the picker offers: every billable type, plus "Other" which is free by
- *  definition. There is deliberately no fallback price table here — a rate lives
- *  in Options → Pricing or nowhere, so it can never be silently different from
- *  what the screen shows. */
-type RentalKind = RentalType | 'free'
-
-const RENTAL_TYPES: { key: RentalKind; label: string; icon: string; sub?: string }[] = [
-  { key: 'kite',      label: 'Kite',            icon: '🪂' },
-  { key: 'board',     label: 'Board',           icon: '🏄' },
-  { key: 'full',      label: 'Full',            icon: '🪂🏄', sub: 'Kite + Board' },
-  { key: 'surfboard', label: 'Surfboard',       icon: '🌊' },
-  { key: 'foilboard', label: 'Foilboard',       icon: '⬆️' },
-  { key: 'free',      label: 'Other',           icon: '📦' },
-]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -135,6 +124,9 @@ interface LessonWeekViewProps {
   onAddRental: (r: Omit<EquipmentRental, 'id'>) => void
   onUpdateRental: (r: EquipmentRental) => void
   onDeleteRental: (id: string) => void
+  /** Walk-in: creates (or reuses) the visit behind the scenes — see walkInSave.
+   *  Resolves true once saved, so the form can close. */
+  onAddWalkIn: (req: WalkInRequest) => Promise<boolean>
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -146,6 +138,7 @@ export default function LessonWeekView({
   onAddLesson, onUpdateLesson, onDeleteLesson,
   onAddActivity, onDeleteActivity,
   onAddRental, onUpdateRental, onDeleteRental,
+  onAddWalkIn,
 }: LessonWeekViewProps) {
   const { lang } = useLanguage()
   const SLOT_CONFIG = slotConfig(lang)
@@ -170,6 +163,8 @@ export default function LessonWeekView({
   }}
 
   const [addForm, setAddForm] = useState<AddForm | null>(null)
+  // Walk-in form (modal): the day and slot it was opened from.
+  const [walkIn, setWalkIn] = useState<{ date: string; slot: Slot } | null>(null)
   // Off by default: only guests checked in that day. Escape hatch for edge
   // cases (early arrivals, data not quite in sync) — reset on each new form.
   const [showAllGuests, setShowAllGuests] = useState(false)
@@ -236,15 +231,22 @@ export default function LessonWeekView({
     return agencyMarker(row, { agencies, bookings, agencyBillingLines })
   }
 
+  /** 🚶 on a card whose booking is a walk-in visit — the only place a visit
+   *  shows up in the planning, so it has to read as one. */
+  function isWalkIn(bookingId: string | null | undefined): boolean {
+    const b = bookingId ? bookings.find(x => x.id === bookingId) : undefined
+    return !!b && isDayVisitor(b)
+  }
+
   // ── Booking lookup ────────────────────────────────────────────────────────
   function bookingForParticipant(participantId: string): string {
     return bookingParticipants.find(p => p.id === participantId)?.booking_id ?? ''
   }
 
   function activeParticipantsForDate(date: string): BookingParticipant[] {
-    const activeIds = new Set(
-      bookings.filter(b => b.status !== 'cancelled' && b.check_in <= date && b.check_out >= date).map(b => b.id)
-    )
+    // isOnSiteOn: a walk-in visit counts on its own day only, although its
+    // check_out is the next day (utils/dayVisitor.ts).
+    const activeIds = new Set(bookings.filter(b => isOnSiteOn(b, date)).map(b => b.id))
     // No silent fallback to "everyone" here — an empty result genuinely means
     // no one is checked in that day. Callers that want to override this (the
     // "Show all guests" checkbox) pass `bookingParticipants` directly instead.
@@ -627,6 +629,9 @@ export default function LessonWeekView({
                                   very lesson sits on one of their packages. Before the
                                   name and non-shrinking: on a narrow column the name
                                   gives way first. */}
+                              {isWalkIn(lesson.booking_id) && (
+                                <span className="shrink-0" title={i18n.planning.walkin_badge[lang]}>🚶</span>
+                              )}
                               {markerFor(lesson) && (
                                 <span className="shrink-0" title="Agency booking">{markerFor(lesson)}</span>
                               )}
@@ -698,6 +703,9 @@ export default function LessonWeekView({
                             {equip && <div className="text-[11px] opacity-60 truncate">{equip.name}</div>}
                             <div className="opacity-70 truncate flex items-center gap-1">
                               {client && <Avatar id={client.id} first_name={client.first_name} last_name={client.last_name} />}
+                              {isWalkIn(r.booking_id) && (
+                                <span className="shrink-0" title={i18n.planning.walkin_badge[lang]}>🚶</span>
+                              )}
                               {markerFor(r) && (
                                 <span className="shrink-0 font-semibold" title="Agency booking">{markerFor(r)}</span>
                               )}
@@ -957,6 +965,10 @@ export default function LessonWeekView({
                             onClick={() => openAdd(iso, slot, 'rental')}
                             className="text-sm md:text-xs text-gray-400 dark:text-gray-400 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-700 hover:border-amber-400 dark:hover:border-amber-700 transition-colors"
                           >{i18n.planning.btn_add_rental[lang]}</button>
+                          <button
+                            onClick={() => setWalkIn({ date: iso, slot })}
+                            className="text-sm md:text-xs text-gray-400 dark:text-gray-400 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/40 px-2.5 py-2 md:px-1.5 md:py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-700 hover:border-teal-400 dark:hover:border-teal-700 transition-colors"
+                          >{i18n.planning.btn_add_walkin[lang]}</button>
                           {clipboard && (
                             <button
                               onClick={() => pasteLesson(iso, slot)}
@@ -1015,8 +1027,28 @@ export default function LessonWeekView({
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" /> {i18n.planning.legend_rental[lang]}
         </span>
+        <span className="flex items-center gap-1.5">🚶 {i18n.planning.legend_walkin[lang]}</span>
         <span className="text-gray-400 dark:text-gray-400 ml-2">{i18n.planning.legend_move_copy_hint[lang]}</span>
       </div>
+
+      {/* Walk-in modal */}
+      {walkIn && (
+        <WalkInForm
+          date={walkIn.date}
+          defaultTime={SLOT_CONFIG[walkIn.slot].defaultTime}
+          defaultRentalSlot={walkIn.slot === 'afternoon' ? 'afternoon' : walkIn.slot === 'morning' ? 'morning' : 'full_day'}
+          clients={clients}
+          bookings={bookings}
+          bookingParticipants={bookingParticipants}
+          lessons={lessons}
+          instructors={instructors}
+          equipment={equipment}
+          priceItems={priceItems}
+          priceTiers={priceTiers}
+          onSubmit={onAddWalkIn}
+          onClose={() => setWalkIn(null)}
+        />
+      )}
 
       {/* Edit modal */}
       {editLesson && (

@@ -56,6 +56,7 @@ export const bookingsI18n = {
 
   // List filters
   filter_all:        { fr: 'Toutes',       en: 'All',        es: 'Todas' },
+  filter_walkins:    { fr: 'Walk-ins',     en: 'Walk-ins',   es: 'Walk-ins' },
   filter_complete:   { fr: 'Complètes',    en: 'Complete',   es: 'Completas' },
   filter_incomplete: { fr: 'Incomplètes',  en: 'Incomplete', es: 'Incompletas' },
   filter_upcoming:   { fr: 'À venir',      en: 'Upcoming',   es: 'Próximas' },

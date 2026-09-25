@@ -19,6 +19,7 @@ import EnquiryOriginPanel from '../components/enquiries/EnquiryOriginPanel'
 import { intentGaps } from '../utils/intentGap'
 import { relationshipFlagLabels, relationshipFlagIcons, relationshipFlagColors } from '../utils/clientRelationshipFlag'
 import { linkedBookingBadge } from '../utils/linkedBooking'
+import { isDayVisitor } from '../utils/dayVisitor'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1317,7 +1318,7 @@ function getNights(b: Booking) {
   return Math.max(0, (new Date(b.check_out).getTime() - new Date(b.check_in).getTime()) / 86400000)
 }
 
-type FilterKey = 'all' | 'complete' | 'incomplete' | 'upcoming' | 'active' | 'confirmed' | 'provisional' | 'cancelled'
+type FilterKey = 'all' | 'complete' | 'incomplete' | 'upcoming' | 'active' | 'confirmed' | 'provisional' | 'cancelled' | 'walkins'
 
 type SortKey = 'booking_number' | 'client' | 'check_in' | 'status'
 type SortDir = 'asc' | 'desc'
@@ -1332,6 +1333,7 @@ function getFilters(lang: Lang): { key: FilterKey; label: string }[] {
     { key: 'confirmed',   label: i18n.bookings.status_confirmed[lang] },
     { key: 'provisional', label: i18n.bookings.status_provisional[lang] },
     { key: 'cancelled',   label: i18n.bookings.status_cancelled[lang] },
+    { key: 'walkins',     label: `🚶 ${i18n.bookings.filter_walkins[lang]}` },
   ]
 }
 
@@ -1834,6 +1836,10 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
 
   const unsortedFilteredBookings = bookings.filter(b => {
     if (!matchesNameSearch(b)) return false
+    // Walk-in visits (one lesson or rental, utils/dayVisitor.ts) come often and
+    // would bury the stays: they have their own chip and stay out of the others.
+    if (filter === 'walkins') return isDayVisitor(b)
+    if (isDayVisitor(b)) return false
     const hasRoom = bookingRooms.some(br => br.booking_id === b.id)
     const missing = getMissingFields(b, hasRoom, bookingParticipants)
     const isComplete = missing.length === 0
@@ -1989,6 +1995,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                     onClick={() => openEdit(b)}>
                     <td className="px-3 py-2 font-mono text-gray-400 dark:text-gray-400 whitespace-nowrap">
                       #{String(b.booking_number).padStart(3, '0')}
+                      {isDayVisitor(b) && <span className="ml-1" title="Walk-in visit">🚶</span>}
                       {linkedBookingBadge(b, bookings) && (
                         <span className="ml-1 text-blue-500 dark:text-blue-400" title="Same family, another booking — arrival/departure in waves">
                           {linkedBookingBadge(b, bookings)}
@@ -2086,6 +2093,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
                 <div>
                   <p className="font-bold text-gray-800 dark:text-gray-200">
                     <span className="font-mono text-gray-400 dark:text-gray-400 text-xs mr-1">#{String(b.booking_number).padStart(3, '0')}</span>
+                    {isDayVisitor(b) && <span className="mr-1 text-xs" title="Walk-in visit">🚶</span>}
                     {linkedBookingBadge(b, bookings) && (
                       <span className="mr-1 text-blue-500 dark:text-blue-400 text-xs" title="Same family, another booking — arrival/departure in waves">
                         {linkedBookingBadge(b, bookings)}

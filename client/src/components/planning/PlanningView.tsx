@@ -10,6 +10,8 @@ import ForecastView from './ForecastView'
 import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental, PriceItem, BookingParticipant, Room, Accommodation, AccommodationType, Season, Lang } from '../../types/database'
 import { seasonWindowAt, seasonOffsetBounds, monthColumns } from '../../utils/seasonWindow'
 import { toISODate, fromISODate } from '../../utils/dates'
+import { stayBookings } from '../../utils/dayVisitor'
+import { saveWalkIn, type WalkInRequest } from './walkInSave'
 import { useBookingDrag, CELL_W, type DragMode } from '../../hooks/useBookingDrag'
 import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
 import { useTable } from '../../hooks/useSupabase'
@@ -231,12 +233,12 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   const { data: lessonsData } = useLessons()
   const { data: dayActivitiesData } = useDayActivities()
   const { data: instructors } = useInstructors()
-  const { data: clients } = useClients()
+  const { data: clients, refresh: refreshClients } = useClients()
   const { data: equipment } = useEquipment()
   const { data: rentalsData } = useEquipmentRentals()
   const { data: priceItems } = useTable<PriceItem>('price_items')
   const { data: priceTiers } = usePriceTiers()
-  const { data: bookingParticipants } = useBookingParticipants()
+  const { data: bookingParticipants, refresh: refreshParticipants } = useBookingParticipants()
   // Agency short codes: the "(FF)" badge shown beside a guest's name on a
   // booking that came through a partner agency (see agencyMarker).
   const { data: agencies } = useAgencies()
@@ -353,6 +355,11 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       return d ? { ...b, check_in: d.checkIn, check_out: d.checkOut } : b
     }), [bookings, draftMoves])
 
+  /** What the accommodation grid draws: stays only. A walk-in visit has no
+   *  room by design — it lives in the Daily tab and the client file, and would
+   *  otherwise fill the "No room" row with one-day bars (utils/dayVisitor.ts). */
+  const gridBookings = useMemo(() => stayBookings(resolvedBookings), [resolvedBookings])
+
   const resolvedBookingRooms = useMemo(() => {
     const saved = bookingRooms
       .filter(br => {
@@ -386,11 +393,11 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     const assignedIds = new Set(resolvedBookingRooms.map(br => br.booking_id))
     const fromISO = toISODate(seasonStart)
     const toISO   = toISODate(seasonEnd)
-    return resolvedBookings.filter(b =>
+    return gridBookings.filter(b =>
       b.status !== 'cancelled' &&
       !assignedIds.has(b.id) &&
       b.check_in <= toISO && b.check_out >= fromISO)
-  }, [resolvedBookings, resolvedBookingRooms, seasonStart, seasonEnd])
+  }, [gridBookings, resolvedBookingRooms, seasonStart, seasonEnd])
 
   const [unassignedOpen, setUnassignedOpen] = useState(false)
 
@@ -474,7 +481,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
 
   function getBookingsForRoom(roomId: string): Booking[] {
     const ids = resolvedBookingRooms.filter(br => br.room_id === roomId).map(br => br.booking_id)
-    return resolvedBookings.filter(b => ids.includes(b.id))
+    return gridBookings.filter(b => ids.includes(b.id))
   }
 
   /** Which spots of an accommodation get a planning row.
@@ -776,6 +783,29 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     }
   }, [])
 
+  /** Walk-in from the Daily tab: client → visit → lesson/rental → payment, in
+   *  that order, by one awaited handler (walkInSave.ts). The new rows land in
+   *  local state at once; clients and participants are re-fetched since they
+   *  have no local copy here. */
+  const onAddWalkIn = useCallback(async (req: WalkInRequest): Promise<boolean> => {
+    const res = await saveWalkIn(req, { clients, bookings: bookingsRef.current, participants: bookingParticipants })
+    if (res.booking && !res.reusedVisit) {
+      const nb = res.booking
+      setBookings(prev => prev.some(b => b.id === nb.id) ? prev : [nb, ...prev])
+    }
+    if (res.lesson) { const l = res.lesson; setLessons(prev => [...prev, l]) }
+    if (res.rental) { const r = res.rental; setRentals(prev => [...prev, r]) }
+    if (res.client || res.participant) { refreshClients(); refreshParticipants() }
+    if (res.error) {
+      console.error('Walk-in save error:', res.error)
+      const where = res.booking ? `\n\nThe visit exists (booking #${res.booking.booking_number}): finish it from Bookings.` : ''
+      alert(`Walk-in not fully saved — ${res.error}${where}`)
+      return false
+    }
+    if (res.warnings.length) alert(`Walk-in saved, with warnings:\n- ${res.warnings.join('\n- ')}`)
+    return true
+  }, [clients, bookingParticipants, refreshClients, refreshParticipants])
+
   const onBookingTap = useCallback((bookingId: string) => {
     setQuickViewBookingId(bookingId)
   }, [])
@@ -1010,9 +1040,9 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                     </div>
                   )
                 })}
-                <TotalsRow label="Tot Guest" totalDays={totalDays} seasonStart={seasonStart} bookings={resolvedBookings} bookingParticipants={bookingParticipants} type="guests" />
-                <TotalsRow label="Tot less" totalDays={totalDays} seasonStart={seasonStart} bookings={resolvedBookings} bookingParticipants={bookingParticipants} type="lessons" />
-                <TotalsRow label="Tot rent" totalDays={totalDays} seasonStart={seasonStart} bookings={resolvedBookings} bookingParticipants={bookingParticipants} type="equipment" />
+                <TotalsRow label="Tot Guest" totalDays={totalDays} seasonStart={seasonStart} bookings={gridBookings} bookingParticipants={bookingParticipants} type="guests" />
+                <TotalsRow label="Tot less" totalDays={totalDays} seasonStart={seasonStart} bookings={gridBookings} bookingParticipants={bookingParticipants} type="lessons" />
+                <TotalsRow label="Tot rent" totalDays={totalDays} seasonStart={seasonStart} bookings={gridBookings} bookingParticipants={bookingParticipants} type="equipment" />
               </div>
             </div>
           </>
@@ -1020,7 +1050,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
 
         {/* ── NOW TAB ── */}
         {planningTab === 'now' && (
-          <NowView bookings={bookings} bookingParticipants={bookingParticipants} bookingRooms={bookingRooms} rooms={rooms} accommodations={accommodations} instructors={instructors} />
+          <NowView bookings={stayBookings(bookings)} bookingParticipants={bookingParticipants} bookingRooms={bookingRooms} rooms={rooms} accommodations={accommodations} instructors={instructors} />
         )}
 
         {/* ── FORECAST TAB ── */}
@@ -1118,6 +1148,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
               onAddRental={onAddRental}
               onUpdateRental={onUpdateRental}
               onDeleteRental={onDeleteRental}
+              onAddWalkIn={onAddWalkIn}
             />
           </>
         )}

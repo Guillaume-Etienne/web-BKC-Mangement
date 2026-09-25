@@ -14,6 +14,7 @@ import { readLocal, writeLocal } from '../utils/safeStorage'
 import { daysSinceLastTouch, dossierMoney } from '../utils/dossier'
 import ClientTimeline from '../components/clients/ClientTimeline'
 import { clientParticipantIds, cumulativeHoursBefore } from '../components/accounting/utils'
+import { isDayVisitor, visitsOf } from '../utils/dayVisitor'
 
 interface ClientsPageProps {
   onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients') => void
@@ -579,6 +580,28 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                         </span>
                       ) : <p className="text-gray-800 dark:text-gray-200">–</p>}
                     </div>
+                    {/* Walk-ins (2026-09-25). Shown even when empty: "not signed"
+                        is exactly what gui needs to see before a lesson. */}
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Mate's rate</p>
+                      <p className="text-gray-800 dark:text-gray-200">
+                        {selectedClient.custom_lesson_rate != null ? `€${selectedClient.custom_lesson_rate}/h` : 'Official prices'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Waiver</p>
+                      <p className={selectedClient.waiver_signed_at ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}>
+                        {selectedClient.waiver_signed_at ? `✓ Signed on ${fmtDate(selectedClient.waiver_signed_at.slice(0, 10))}` : 'Not signed yet'}
+                      </p>
+                    </div>
+                    {visitsOf(bookings, selectedClient.id).length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">🚶 Walk-in visits</p>
+                        <p className="text-gray-800 dark:text-gray-200">
+                          {visitsOf(bookings, selectedClient.id).length} · last on {fmtDate(visitsOf(bookings, selectedClient.id)[0].check_in)}
+                        </p>
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Lifetime kite hours</p>
                       <p className="text-gray-800 dark:text-gray-200">
@@ -631,7 +654,11 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                             <div key={booking.id} className="border rounded-lg p-3 text-sm">
                               <div className="flex justify-between items-start mb-2">
                                 <div className="font-medium text-gray-800 dark:text-gray-200">
-                                  {fmtDate(booking.check_in)} → {fmtDate(booking.check_out)}
+                                  {/* A walk-in's check_out is only there to satisfy the
+                                      check_out > check_in constraint: it is a one-day visit. */}
+                                  {isDayVisitor(booking)
+                                    ? <>🚶 {fmtDate(booking.check_in)} · Walk-in</>
+                                    : <>{fmtDate(booking.check_in)} → {fmtDate(booking.check_out)}</>}
                                 </div>
                                 <span className={`px-2 py-1 rounded text-xs font-semibold ${bookingStatusColor[booking.status]}`}>
                                   {bookingStatusLabel[booking.status]}
@@ -750,6 +777,26 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                       <option value="favorite">⭐ Favorite — happy to see them again</option>
                       <option value="avoid">🚫 Avoid — prefer not to rebook</option>
                     </select>
+                  </div>
+                  {/* Walk-ins. Written only once touched (undefined keys are dropped
+                      by the update), so editing a client keeps working on a base
+                      where the 2026-09-25 migration has not been applied. */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mate's rate €/h</label>
+                      <input type="number" min={0} step="0.5" placeholder="Official prices"
+                        value={formData.custom_lesson_rate ?? ''}
+                        onChange={(e) => setFormData({ ...formData, custom_lesson_rate: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Waiver</label>
+                      <label className="flex items-center gap-2 py-2 text-sm text-gray-700 dark:text-gray-300">
+                        <input type="checkbox" checked={!!formData.waiver_signed_at}
+                          onChange={(e) => setFormData({ ...formData, waiver_signed_at: e.target.checked ? (selectedClient?.waiver_signed_at ?? new Date().toISOString()) : null })} />
+                        Signed
+                      </label>
+                    </div>
                   </div>
                   {/* No notes field here any more. It was a single block you
                       overwrite, next to a dated feed on the same person — the

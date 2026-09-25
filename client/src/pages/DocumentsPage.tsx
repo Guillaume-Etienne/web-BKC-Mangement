@@ -20,6 +20,7 @@ import type { Booking } from '../types/database'
 import { supabase } from '../lib/supabase'
 import { fmtDate, fmtDateShort, todayISO, addDaysISO } from '../utils/dates'
 import { depositState, askedState, stayState } from '../utils/documentsOverview'
+import { stayBookings } from '../utils/dayVisitor'
 import type { AskedState, DepositState, StayState } from '../utils/documentsOverview'
 
 // ── Guide sections — legacy localStorage fallback ──────────────────────────────
@@ -580,7 +581,8 @@ export default function DocumentsPage() {
   const [overviewRefresh, setOverviewRefresh] = useState(0)
   const [bulkBusy,        setBulkBusy]        = useState<{ kind: 'send' | 'mark'; done: number; total: number } | null>(null)
 
-  const activeBookings = allBookings.filter(b => b.status !== 'cancelled')
+  // Stays only: a walk-in visit gets no visa letter, guide or confirmation.
+  const activeBookings = stayBookings(allBookings).filter(b => b.status !== 'cancelled')
 
   const effectiveVisaId    = visaBookingId    || activeBookings[0]?.id || ''
   const effectiveSummaryId = summaryBookingId || activeBookings[0]?.id || ''

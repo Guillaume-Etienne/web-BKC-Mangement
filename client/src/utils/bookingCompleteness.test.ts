@@ -42,6 +42,11 @@ describe('getMissingFields', () => {
     expect(missing).toEqual([])
   })
 
+  it('never flags a walk-in visit — no room, passport or visa is ever coming', () => {
+    const visit = mkBooking({ kind: 'day_visitor', arrival_time: null, visa_entry_date: null, visa_exit_date: null })
+    expect(getMissingFields(visit, false, [mkGuest({ passport_number: null })])).toEqual([])
+  })
+
   it('flags the room, the arrival time and the visa dates', () => {
     const b = mkBooking({ arrival_time: null, visa_entry_date: null })
     expect(getMissingFields(b, false, [mkGuest()])).toEqual(['room', 'arrival_time', 'visa_dates'])

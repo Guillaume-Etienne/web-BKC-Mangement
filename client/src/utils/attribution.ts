@@ -22,6 +22,7 @@
  */
 import type { Booking, EnquirySource, Enquiry, FormSubmission } from '../types/database'
 import { norm } from './enquiries'
+import { isDayVisitor } from './dayVisitor'
 
 /** The rows this needs from a submission — kept narrow so callers can pass a
  *  projection rather than the whole payload. */
@@ -131,9 +132,11 @@ export function computeAttribution(input: AttributionInput): AttributionStats {
       }))
     : input.enquiries
 
-  // A cancelled booking is not somebody who came.
+  // A cancelled booking is not somebody who came. A walk-in visit is not a
+  // stay anyone was won over for: counted, a regular's tenth lesson would read
+  // as ten bookings from "unknown" (utils/dayVisitor.ts).
   const bookings = input.bookings
-    .filter(b => b.status !== 'cancelled')
+    .filter(b => b.status !== 'cancelled' && !isDayVisitor(b))
     .filter(b => (range ? inRange(b.check_in, range) : true))
 
   const rows = new Map<string, AttributionRow>()
