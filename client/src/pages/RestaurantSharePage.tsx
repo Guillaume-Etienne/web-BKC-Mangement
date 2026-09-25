@@ -10,8 +10,14 @@ import { todayISO as isoToday, addDaysISO as addDays } from '../utils/dates'
 // who leaves when and can collect restaurant bills before departure.
 // Only reads bookings (dates/status) + clients identity columns — both already
 // anon-readable (see security-rls.md). Cancelled bookings are excluded.
+//
+// The grid shows 3 months back-to-back (previous / current / next) so the
+// full width of the page is put to use and she can see what's coming without
+// clicking through — the "current" month (nav arrows + Today) just picks
+// which one sits in the middle.
 
 const CELL_W = 32 // px per day, same as the admin planning grid
+const NAME_COL_W = 176 // px, keep in sync with the w-44 sticky name column below
 
 type BookingRow = Booking & { client: Client | null }
 
@@ -22,7 +28,7 @@ const L = {
   no_departures:  { pt: 'Nenhuma partida nos próximos dias', en: 'No departures in the next few days' },
   today:          { pt: 'Hoje', en: 'Today' },
   tomorrow:       { pt: 'Amanhã', en: 'Tomorrow' },
-  no_bookings:    { pt: 'Sem estadias neste mês', en: 'No stays this month' },
+  no_bookings:    { pt: 'Sem estadias neste período', en: 'No stays in this period' },
   loading:        { pt: 'A carregar…', en: 'Loading…' },
   confirmed:      { pt: 'Confirmada', en: 'Confirmed' },
   provisional:    { pt: 'Provisória', en: 'Provisional' },
@@ -46,10 +52,18 @@ const fmtDay = (iso: string, lang: TaxiLang) =>
 const guestName = (b: BookingRow) =>
   b.client ? `${b.client.first_name} ${b.client.last_name}` : `#${b.booking_number}`
 
+const shiftYM = (ym: string, delta: number) => {
+  const [y, m] = ym.split('-').map(Number)
+  const d = new Date(y, m - 1 + delta, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+const isWeekendDate = (d: Date) => d.getDay() === 0 || d.getDay() === 6
+
 export default function RestaurantSharePage() {
   const today = isoToday()
   const [lang, setLang] = usePref<TaxiLang>('restaurant_share_lang', 'pt')
-  const [month, setMonth] = useState(() => today.slice(0, 7)) // 'YYYY-MM'
+  const [month, setMonth] = useState(() => today.slice(0, 7)) // 'YYYY-MM', the centered month
 
   const { data: allBookings, loading } = useTable<BookingRow>('bookings', {
     select: 'id, booking_number, check_in, check_out, status, client:clients(id, first_name, last_name)',
@@ -57,21 +71,38 @@ export default function RestaurantSharePage() {
   })
   const bookings = allBookings.filter(b => b.status !== 'cancelled')
 
-  const [year, mon] = month.split('-').map(Number)
-  const daysInMonth = new Date(year, mon, 0).getDate()
-  const monthStart = `${month}-01`
-  const monthEnd = `${month}-${String(daysInMonth).padStart(2, '0')}`
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
+  // 3-month window: previous / current / next, laid out back-to-back with
+  // a running column offset (colStart) so bookings position by absolute day.
+  let colCursor = 0
+  const blocks = [shiftYM(month, -1), month, shiftYM(month, 1)].map(ym => {
+    const [y, m] = ym.split('-').map(Number)
+    const daysInMonth = new Date(y, m, 0).getDate()
+    const label = new Date(y, m - 1, 1).toLocaleDateString(LOCALE[lang], { month: 'long', year: 'numeric' })
+    const colStart = colCursor
+    colCursor += daysInMonth
+    return { ym, year: y, mon: m, daysInMonth, label, colStart }
+  })
+  const totalDays = colCursor
+  const rangeStart = `${blocks[0].ym}-01`
+  const lastBlock = blocks[2]
+  const rangeEnd = `${lastBlock.ym}-${String(lastBlock.daysInMonth).padStart(2, '0')}`
+
+  const dayIndex = (iso: string) =>
+    Math.round((new Date(iso + 'T00:00:00').getTime() - new Date(rangeStart + 'T00:00:00').getTime()) / 86400000)
+
+  const dayCells = blocks.flatMap(b =>
+    Array.from({ length: b.daysInMonth }, (_, i) => {
+      const date = new Date(b.year, b.mon - 1, i + 1)
+      return { idx: b.colStart + i, dayNum: i + 1, date, isBlockStart: i === 0 }
+    })
+  )
 
   const rows = bookings
-    .filter(b => b.check_in <= monthEnd && b.check_out >= monthStart)
+    .filter(b => b.check_in <= rangeEnd && b.check_out >= rangeStart)
     .sort((a, b) => a.check_in.localeCompare(b.check_in) || a.check_out.localeCompare(b.check_out))
 
-  const shiftMonth = (delta: number) => {
-    const d = new Date(year, mon - 1 + delta, 1)
-    setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
-  }
-  const monthLabel = new Date(year, mon - 1, 1).toLocaleDateString(LOCALE[lang], { month: 'long', year: 'numeric' })
+  const shiftMonth = (delta: number) => setMonth(shiftYM(month, delta))
+  const monthLabel = blocks[1].label
 
   // Departures within the next 3 days, grouped by date
   const soonEnd = addDays(today, 3)
@@ -84,19 +115,15 @@ export default function RestaurantSharePage() {
   const dateLabel = (iso: string) =>
     iso === today ? L.today[lang] : iso === addDays(today, 1) ? L.tomorrow[lang] : fmtDay(iso, lang)
 
-  const isWeekend = (day: number) => {
-    const dow = new Date(year, mon - 1, day).getDay()
-    return dow === 0 || dow === 6
-  }
-  const todayDay = today.slice(0, 7) === month ? parseInt(today.slice(8)) : null
+  const todayIndex = today >= rangeStart && today <= rangeEnd ? dayIndex(today) : null
 
   const scrollRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (!todayDay || !scrollRef.current) return
+    if (todayIndex === null || !scrollRef.current) return
     const container = scrollRef.current
-    const target = 176 + (todayDay - 1) * CELL_W - container.clientWidth / 2 + CELL_W / 2
+    const target = NAME_COL_W + todayIndex * CELL_W - container.clientWidth / 2 + CELL_W / 2
     container.scrollTo({ left: Math.max(0, target) })
-  }, [todayDay, loading])
+  }, [todayIndex, loading])
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -150,7 +177,7 @@ export default function RestaurantSharePage() {
           </button>
         </div>
 
-        {/* Timeline */}
+        {/* Timeline: 3 months, previous ← current → next */}
         {loading ? (
           <div className="text-center py-16 text-gray-400 dark:text-gray-400">{L.loading[lang]}</div>
         ) : rows.length === 0 ? (
@@ -160,28 +187,44 @@ export default function RestaurantSharePage() {
           </div>
         ) : (
           <div ref={scrollRef} className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-x-auto">
-            <div style={{ width: 176 + daysInMonth * CELL_W }}>
+            <div style={{ width: NAME_COL_W + totalDays * CELL_W }}>
+              {/* Month labels */}
+              <div className="flex">
+                <div className="w-44 shrink-0 sticky left-0 bg-white dark:bg-gray-900 z-10 border-r border-gray-200 dark:border-gray-800" />
+                {blocks.map((b, i) => (
+                  <div key={b.ym}
+                    className={`shrink-0 text-center py-1 text-xs font-semibold capitalize text-gray-500 dark:text-gray-400 ${
+                      i > 0 ? 'border-l-2 border-gray-300 dark:border-gray-700' : ''} ${
+                      b.ym === month ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}
+                    style={{ width: b.daysInMonth * CELL_W }}>
+                    {b.label}
+                  </div>
+                ))}
+              </div>
+
               {/* Day header */}
               <div className="flex border-b border-gray-200 dark:border-gray-800">
                 <div className="w-44 shrink-0 sticky left-0 bg-white dark:bg-gray-900 z-10 border-r border-gray-200 dark:border-gray-800" />
-                {days.map(d => (
-                  <div key={d}
+                {dayCells.map(c => (
+                  <div key={c.idx}
                     className={`w-8 shrink-0 text-center py-1 border-r border-gray-100 dark:border-gray-800 ${
-                      d === todayDay ? 'bg-blue-600 dark:bg-blue-600 border-x-2 border-blue-700 dark:border-blue-400' : isWeekend(d) ? 'bg-gray-50 dark:bg-gray-800' : ''}`}>
-                    <div className={`text-[10px] leading-none ${d === todayDay ? 'text-blue-100' : 'text-gray-400 dark:text-gray-400'}`}>
-                      {new Date(year, mon - 1, d).toLocaleDateString(LOCALE[lang], { weekday: 'narrow' })}
+                      c.isBlockStart ? 'border-l-2 border-l-gray-300 dark:border-l-gray-700' : ''} ${
+                      c.idx === todayIndex ? 'bg-blue-600 dark:bg-blue-600 border-x-2 border-blue-700 dark:border-blue-400' :
+                      isWeekendDate(c.date) ? 'bg-gray-50 dark:bg-gray-800' : ''}`}>
+                    <div className={`text-[10px] leading-none ${c.idx === todayIndex ? 'text-blue-100' : 'text-gray-400 dark:text-gray-400'}`}>
+                      {c.date.toLocaleDateString(LOCALE[lang], { weekday: 'narrow' })}
                     </div>
-                    <div className={`text-xs font-bold ${d === todayDay ? 'text-white' : 'text-gray-600 dark:text-gray-400'}`}>{d}</div>
+                    <div className={`text-xs font-bold ${c.idx === todayIndex ? 'text-white' : 'text-gray-600 dark:text-gray-400'}`}>{c.dayNum}</div>
                   </div>
                 ))}
               </div>
 
               {/* Booking rows */}
               {rows.map(b => {
-                const clippedStart = b.check_in < monthStart
-                const clippedEnd = b.check_out > monthEnd
-                const startDay = clippedStart ? 1 : parseInt(b.check_in.slice(8))
-                const endDay = clippedEnd ? daysInMonth : parseInt(b.check_out.slice(8))
+                const clippedStart = b.check_in < rangeStart
+                const clippedEnd = b.check_out > rangeEnd
+                const startCol = clippedStart ? 0 : dayIndex(b.check_in)
+                const endCol = clippedEnd ? totalDays - 1 : dayIndex(b.check_out)
                 const color = BAR_COLOR[b.status as Exclude<BookingStatus, 'cancelled'>]
                 const tooltip = `${guestName(b)} — ${L.arrival[lang]} ${fmtDay(b.check_in, lang)} · ${L.departure[lang]} ${fmtDay(b.check_out, lang)} (${b.status === 'confirmed' ? L.confirmed[lang] : L.provisional[lang]})`
                 return (
@@ -192,19 +235,21 @@ export default function RestaurantSharePage() {
                         {fmtDay(b.check_in, lang)} → {fmtDay(b.check_out, lang)}
                       </div>
                     </div>
-                    <div className="relative h-11 shrink-0" style={{ width: daysInMonth * CELL_W }}>
+                    <div className="relative h-11 shrink-0" style={{ width: totalDays * CELL_W }}>
                       {/* day grid background */}
                       <div className="absolute inset-0 flex">
-                        {days.map(d => (
-                          <div key={d} className={`w-8 shrink-0 border-r border-gray-100 dark:border-gray-800 ${
-                            d === todayDay ? 'bg-blue-50 dark:bg-blue-950/40 border-x-2 border-blue-400 dark:border-blue-500' : isWeekend(d) ? 'bg-gray-50 dark:bg-gray-800' : ''}`} />
+                        {dayCells.map(c => (
+                          <div key={c.idx} className={`w-8 shrink-0 border-r border-gray-100 dark:border-gray-800 ${
+                            c.isBlockStart ? 'border-l-2 border-l-gray-200 dark:border-l-gray-700' : ''} ${
+                            c.idx === todayIndex ? 'bg-blue-50 dark:bg-blue-950/40 border-x-2 border-blue-400 dark:border-blue-500' :
+                            isWeekendDate(c.date) ? 'bg-gray-50 dark:bg-gray-800' : ''}`} />
                         ))}
                       </div>
                       {/* stay bar */}
                       <div title={tooltip}
                         className={`absolute top-2 bottom-2 flex items-center overflow-hidden ${color.bar} ${
                           clippedStart ? '' : 'rounded-l-md'} ${clippedEnd ? '' : 'rounded-r-md'}`}
-                        style={{ left: (startDay - 1) * CELL_W, width: (endDay - startDay + 1) * CELL_W }}>
+                        style={{ left: startCol * CELL_W, width: (endCol - startCol + 1) * CELL_W }}>
                         {clippedStart && <span className="text-white text-[10px] pl-0.5">◀</span>}
                         <span className="flex-1" />
                         {/* darker cap on the departure day */}
