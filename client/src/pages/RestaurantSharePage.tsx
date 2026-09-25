@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useTable } from '../hooks/useSupabase'
 import type { Booking, BookingStatus, Client } from '../types/database'
 import { TAXI_LANGS, type TaxiLang } from '../data/taxiShareI18n'
@@ -90,11 +90,19 @@ export default function RestaurantSharePage() {
   }
   const todayDay = today.slice(0, 7) === month ? parseInt(today.slice(8)) : null
 
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!todayDay || !scrollRef.current) return
+    const container = scrollRef.current
+    const target = 176 + (todayDay - 1) * CELL_W - container.clientWidth / 2 + CELL_W / 2
+    container.scrollTo({ left: Math.max(0, target) })
+  }, [todayDay, loading])
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-        <div className="max-w-5xl mx-auto px-4 py-5 flex items-start justify-between gap-4">
+        <div className="px-4 md:px-8 py-5 flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="text-3xl">🍽️</span>
             <div>
@@ -107,7 +115,7 @@ export default function RestaurantSharePage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <div className="px-4 md:px-8 py-6 space-y-6">
         {/* Upcoming departures */}
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4">
           <h2 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">🧳 {L.departures[lang]}</h2>
@@ -151,7 +159,7 @@ export default function RestaurantSharePage() {
             <p className="text-lg font-medium">{L.no_bookings[lang]}</p>
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-x-auto">
+          <div ref={scrollRef} className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-x-auto">
             <div style={{ width: 176 + daysInMonth * CELL_W }}>
               {/* Day header */}
               <div className="flex border-b border-gray-200 dark:border-gray-800">
@@ -159,11 +167,11 @@ export default function RestaurantSharePage() {
                 {days.map(d => (
                   <div key={d}
                     className={`w-8 shrink-0 text-center py-1 border-r border-gray-100 dark:border-gray-800 ${
-                      d === todayDay ? 'bg-blue-100 dark:bg-blue-900/30' : isWeekend(d) ? 'bg-gray-50 dark:bg-gray-800' : ''}`}>
-                    <div className="text-[10px] text-gray-400 dark:text-gray-400 leading-none">
+                      d === todayDay ? 'bg-blue-600 dark:bg-blue-600 border-x-2 border-blue-700 dark:border-blue-400' : isWeekend(d) ? 'bg-gray-50 dark:bg-gray-800' : ''}`}>
+                    <div className={`text-[10px] leading-none ${d === todayDay ? 'text-blue-100' : 'text-gray-400 dark:text-gray-400'}`}>
                       {new Date(year, mon - 1, d).toLocaleDateString(LOCALE[lang], { weekday: 'narrow' })}
                     </div>
-                    <div className={`text-xs font-medium ${d === todayDay ? 'text-blue-700 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'}`}>{d}</div>
+                    <div className={`text-xs font-bold ${d === todayDay ? 'text-white' : 'text-gray-600 dark:text-gray-400'}`}>{d}</div>
                   </div>
                 ))}
               </div>
@@ -189,7 +197,7 @@ export default function RestaurantSharePage() {
                       <div className="absolute inset-0 flex">
                         {days.map(d => (
                           <div key={d} className={`w-8 shrink-0 border-r border-gray-100 dark:border-gray-800 ${
-                            d === todayDay ? 'bg-blue-50 dark:bg-blue-950/40' : isWeekend(d) ? 'bg-gray-50 dark:bg-gray-800' : ''}`} />
+                            d === todayDay ? 'bg-blue-50 dark:bg-blue-950/40 border-x-2 border-blue-400 dark:border-blue-500' : isWeekend(d) ? 'bg-gray-50 dark:bg-gray-800' : ''}`} />
                         ))}
                       </div>
                       {/* stay bar */}
