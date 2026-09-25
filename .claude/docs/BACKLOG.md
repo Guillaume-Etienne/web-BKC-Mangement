@@ -89,6 +89,16 @@ Options → Database → **Clear**. Rien en PROD.
 
 ## 🔴 Ouvert
 
+### 🚶 Walk-ins & packs — conçu le 2026-09-25, **rien de codé**
+
+Clients qui viennent juste pour un cours ou une location, souvent, surtout des locaux, et qui
+reviennent. Conception complète et décisions de gui : **`.claude/docs/WALK_INS.md`**.
+- ⬜ **Étape 1 — walk-in à la séance** : bouton Walk-in dans le Daily, client normal créé à la
+  volée, résa « day visitor » en coulisse (hors planning hébergement et alertes de séjour),
+  tarif perso sur le client, décharge signée une fois par client.
+- ⬜ **Étape 2 — packs** : heures prépayées sur le client, sans expiration, non partagés, walk-ins
+  seulement, prix libre + note libre, tout en EUR.
+
 ### ✅ Demandes ↔ formulaires — livré et **vérifié à l'écran** le 2026-09-13
 
 `15de83a` + `c0764be` (**non poussés**). Un formulaire de réservation reçu compte désormais comme
