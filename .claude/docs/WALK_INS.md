@@ -1,6 +1,7 @@
-# Walk-ins & packs — conception (2026-09-25, rien de codé)
+# Walk-ins & packs — conception (2026-09-25) · étape 1 livrée
 
-> Décidé avec gui en discussion le 2026-09-25. **Aucun code, aucune migration encore.**
+> Décidé avec gui en discussion le 2026-09-25. **Étape 1 codée le soir même** (`d024495`, non poussé),
+> migration `2026-09-25_walk_ins.sql` **à passer** TEST + PROD. Étape 2 (packs) : rien de codé.
 > Avancement : `BACKLOG.md` § 🚶 Walk-ins.
 
 ## Le besoin
@@ -62,6 +63,44 @@ Modèle de données (à préciser au moment de coder) :
   `bookings`. Pour un habitué, il faut une décharge **une fois par client** (colonnes côté
   `clients`, la résa pouvant continuer d'hériter). Ne pas casser le formulaire public, qui écrit
   sur la résa.
+
+## Étape 1 — ce qui a été livré (2026-09-25)
+
+| Quoi | Où |
+|---|---|
+| Règles (qui est une visite, présent quel jour, réutiliser la visite du jour, tarif proposé, recherche) | `utils/dayVisitor.ts` + tests |
+| Formulaire (modale, mobile en bas d'écran) | `components/planning/WalkInForm.tsx` |
+| Enregistrement séquencé client → visite → cours/location → paiement | `components/planning/walkInSave.ts` |
+| Bouton 🚶 Walk-in dans chaque créneau du Daily, badge 🚶 sur les cartes, légende | `LessonWeekView.tsx` |
+| Hors grille hébergement (ligne No room + totaux) et hors Now | `PlanningView.tsx` (`gridBookings`) |
+| Hors alertes de séjour (paiements non vérifiés toujours signalés) | `pendingActions.ts` |
+| Hors Documents, complétude (⚠️), attribution des sources | `DocumentsPage`, `bookingCompleteness`, `attribution` |
+| Bookings : chip « 🚶 Walk-ins », visites exclues des autres filtres, badge 🚶 | `BookingsPage.tsx` |
+| Fiche client : tarif perso, décharge (lecture + édition), nombre de venues | `ClientsPage.tsx` |
+
+Détails qui comptent :
+- **`check_out = check_in + 1`** (contrainte `check_dates`), mais une visite n'est « présente » que
+  le jour de `check_in` : toujours passer par `isOnSiteOn`, jamais `check_in <= d <= check_out`.
+- Même client, même jour → **même visite** (un cours le matin + une location l'après-midi = une
+  résa, un solde). Ne marche **qu'après la migration** (il faut `kind` pour reconnaître une visite).
+- Prix proposé = tarif perso, sinon tarif officiel **avec paliers** (les heures des venues passées
+  comptent, via le `client_id` du participant). Toujours modifiable, figé sur la leçon.
+- Paiement « Payé maintenant » : `is_verified = true`, note « Walk-in ».
+- Nouveau client : réutilise un client existant si l'email correspond exactement (`clientIdentity`).
+- **Sans la migration** : tout s'enregistre, un avertissement liste ce qui manque, et la visite
+  apparaît comme une résa normale dans la ligne « No room ». Vérifié à l'écran sur TEST le
+  2026-09-25 (client fictif créé puis tout supprimé, 0 ligne restante).
+
+### Reste à faire / points ouverts de l'étape 1
+- ⬜ **Passer la migration** TEST + PROD, puis refaire le test écran (même visite réutilisée,
+  visite absente de « No room », tarif perso et décharge enregistrés).
+- ⬜ **Page partagée Restaurant** : elle liste les résas présentes et ne peut pas lire `kind`
+  (pas de GRANT anon, volontairement). Un walk-in y apparaîtra comme un invité d'une nuit.
+  Décision à prendre par gui : `GRANT SELECT (kind) ON bookings TO anon` (colonne non
+  sensible) + filtre dans `RestaurantSharePage`, ou laisser tel quel.
+- ⬜ Décharge **par lien** (signée sur le téléphone du client) : pas faite, seule la case
+  « signée sur papier » existe.
+- ⬜ Pas de bouton « + Walk-in » ailleurs que dans le Daily (Prévisions, Home) : à voir à l'usage.
 
 ## Étape 2 — Packs
 

@@ -6,6 +6,13 @@
 
 ## 🚨 Migrations SQL — registre
 
+⬜ **`2026-09-25_walk_ins.sql`** (TEST ⬜ / PROD ⬜) — walk-ins : `bookings.kind`
+(`'stay'` défaut | `'day_visitor'`, CHECK), `clients.custom_lesson_rate`, `clients.waiver_signed_at`.
+**Strictement additive**, rollback en 3 lignes dans le fichier. Aucun GRANT anon (bookings et
+clients sont en whitelist par colonne). Le code tourne déjà sans elle (avertissement à
+l'enregistrement, la visite tombe dans « No room »). Vérif : curl anon
+`select=id,kind` → `42501` (pas `42703`), puis test écran Daily → Walk-in (voir `WALK_INS.md`).
+
 ✅ **`2026-09-19b_dismissed_actions.sql`** (TEST ✅ / PROD ✅, passée par gui et **vérifiée le
 2026-09-20**) — « affaire classée » sur la page d'accueil : table `dismissed_actions`
 (`dismiss_key` PK, `up_to_count`, `dismissed_at`), admin-only. **Strictement additive.**
@@ -89,13 +96,17 @@ Options → Database → **Clear**. Rien en PROD.
 
 ## 🔴 Ouvert
 
-### 🚶 Walk-ins & packs — conçu le 2026-09-25, **rien de codé**
+### 🚶 Walk-ins & packs — étape 1 livrée le 2026-09-25 (`d024495`, non poussé)
 
 Clients qui viennent juste pour un cours ou une location, souvent, surtout des locaux, et qui
-reviennent. Conception complète et décisions de gui : **`.claude/docs/WALK_INS.md`**.
-- ⬜ **Étape 1 — walk-in à la séance** : bouton Walk-in dans le Daily, client normal créé à la
+reviennent. Conception, livraison et points ouverts : **`.claude/docs/WALK_INS.md`**.
+- ✅ **Étape 1 — walk-in à la séance** : bouton Walk-in dans le Daily, client normal créé à la
   volée, résa « day visitor » en coulisse (hors planning hébergement et alertes de séjour),
-  tarif perso sur le client, décharge signée une fois par client.
+  tarif perso sur le client, décharge signée une fois par client. 667 tests, build vert, test
+  écran sur TEST (mode sans migration) fait et nettoyé.
+  ⬜ **À faire par gui** : passer la migration (registre ci-dessus), puis refaire le test écran.
+  ⬜ **Décision gui** : page Restaurant partagée (un walk-in y apparaît comme un invité) —
+  voir WALK_INS.md § Reste à faire.
 - ⬜ **Étape 2 — packs** : heures prépayées sur le client, sans expiration, non partagés, walk-ins
   seulement, prix libre + note libre, tout en EUR.
 

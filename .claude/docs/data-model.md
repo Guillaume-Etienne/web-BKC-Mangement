@@ -73,6 +73,8 @@
 | emergency_contact_phone | string \| null |
 | emergency_contact_email | string \| null |
 | emergency_contact_relation | string \| null |
+| custom_lesson_rate | number \| null *(2026-09-25, walk-ins)* — « tarif perso » €/h proposé à la place du tarif officiel à la création d'un walk-in. NULL = tarif officiel. Pas de GRANT anon |
+| waiver_signed_at | string \| null (ISO ts) *(2026-09-25, walk-ins)* — décharge signée **une fois sur le client** (un habitué ne la resigne pas à chaque venue). Distincte de `bookings.waiver_accepted_at` (formulaire public). Pas de GRANT anon |
 
 ### `client_notes` → `ClientNote` *(2026-09-03, migration en attente)*
 | Field | Type |
@@ -144,6 +146,7 @@
 | referral_source | string \| null | "How did you hear about us" — le **libellé**, ou la ligne libre |
 | source_id | string \| null | La ligne `enquiry_sources` derrière ce libellé (2026-09-03). NULL = jamais demandé, ou « Autre ». Écrit par un **UPDATE séparé** → le code marche sans la migration |
 | linked_booking_id | string \| null | *(2026-09-17)* Auto-référence vers une autre résa de la **même famille**, arrivée/repartie en plusieurs vagues (sous-groupe avec ses propres chambres/dates/solde). Topologie en étoile : chaque résa "rejointe" pointe vers la principale, jamais l'inverse. NULL = pas de lien. Badge 🔗 calculé par `utils/linkedBooking.ts` (`getLinkedBookings`/`linkedBookingBadge`), affiché dans BookingsPage (liste + wizard), les alertes Home (`pendingActions.bookingLabel`) et `ClientTimeline` (`dossier.ts`). **Pas de GRANT anon** — invisible aux pages partagées, même règle que `relationship_flag`. |
+| kind | `'stay' \| 'day_visitor'` | *(2026-09-25)* `day_visitor` = une **venue walk-in** (cours/location seulement, sans chambre), créée depuis le Daily. `check_out = check_in + 1` (contrainte `check_dates`) mais présente **le seul jour de check_in** — passer par `utils/dayVisitor.ts` (`isOnSiteOn`, `stayBookings`). Exclue de la grille hébergement, Now, alertes de séjour, Documents, complétude, attribution ; comptée en compta et paie moniteur. Absente (base non migrée) = séjour. Pas de GRANT anon. Voir `WALK_INS.md` |
 > Participants dans `booking_participants` (requête séparée via `useBookingParticipants()`).
 > `has_travel_insurance`/`waiver_*`/`referral_source` ajoutés mai 2026 pour le formulaire public (voir § form_submissions).
 

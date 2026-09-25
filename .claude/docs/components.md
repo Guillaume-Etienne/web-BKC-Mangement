@@ -67,6 +67,11 @@ en croyant agir sur le planning. À supprimer un jour, décision de gui.
   formulaire public arrive sans chambre et n'avait donc aucune ligne où s'accrocher — invisible
   au planning, sans la moindre erreur.
 
+### `WalkInForm` — `planning/WalkInForm.tsx` *(2026-09-25)*
+- Modale ouverte par le bouton 🚶 Walk-in de chaque créneau du Daily. Client existant (recherche nom / chiffres WhatsApp, `searchClients`) ou nouveau (prénom, nom, WhatsApp, email, tarif perso), case décharge, cours ou location, prix proposé (tarif perso → officiel avec paliers), « Payé maintenant » + méthode.
+- Enregistre via `walkInSave.ts` (`saveWalkIn`) : un seul handler séquencé client → visite (réutilisée si même client même jour) → cours/location → paiement. Colonnes de la migration 2026-09-25 écrites par UPDATE séparés → avertissement, pas d'échec, sur une base non migrée.
+- Branché dans `PlanningView.onAddWalkIn` (état local + refresh clients/participants). Détail : `WALK_INS.md`.
+
 ### `LessonWeekView` — `planning/LessonWeekView.tsx`
 *(Props : données des hooks + callbacks mutations + `bookingParticipants: BookingParticipant[]` + `clients: Client[]`)*
 - Navigateur semaine (Lun–Dim)
