@@ -121,7 +121,10 @@ export default function RestaurantSharePage() {
   useEffect(() => {
     if (todayIndex === null || !scrollRef.current) return
     const container = scrollRef.current
-    const target = NAME_COL_W + todayIndex * CELL_W - container.clientWidth / 2 + CELL_W / 2
+    // The name column stays sticky at left:0, so it permanently covers the
+    // first NAME_COL_W px of whatever's visible — center within the rest.
+    const visibleDayW = container.clientWidth - NAME_COL_W
+    const target = todayIndex * CELL_W + CELL_W / 2 - visibleDayW / 2
     container.scrollTo({ left: Math.max(0, target) })
   }, [todayIndex, loading])
 
