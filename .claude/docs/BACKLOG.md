@@ -96,6 +96,20 @@ Options → Database → **Clear**. Rien en PROD.
 
 ## 🔴 Ouvert
 
+### 🧑‍🤝‍🧑 À revoir — sélecteur de participants dans Planning/Quotidien (gui, 2026-09-26)
+
+Dans `LessonWeekView.tsx`, le choix des participants d'un cours/location montre soit les invités
+actifs à la date (par défaut), soit **tous les invités de la saison** derrière la case « Montrer
+tous les invités » (add) — et **toujours tous, sans case ni filtre**, dans les modales d'édition
+(cours et location). Sur une base avec beaucoup de réservations ça fait une liste énorme à
+parcourir pour trouver la bonne personne. Gui veut qu'on revoie cette UX (recherche par nom ? filtre
+par semaine plutôt que par jour actif ? case aussi en édition ?) — **pas encore fait, à discuter
+avec lui d'abord.**
+⬜ **Corrigé au passage (`8bbbfff`)** : le bug d'affichage qui allait avec — cette longue liste
+débordait des modales fixes sans défiler, la molette scrollait la page derrière au lieu du
+contenu, rendant Enregistrer/Annuler inatteignables. Les deux modales défilent maintenant en
+interne (`max-h-[90vh] flex flex-col` + formulaire en overflow-y-auto). Non poussé.
+
 ### 🚶 Walk-ins & packs — étape 1 livrée le 2026-09-25 (`d024495`, non poussé)
 
 Clients qui viennent juste pour un cours ou une location, souvent, surtout des locaux, et qui
