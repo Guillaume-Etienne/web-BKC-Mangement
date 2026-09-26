@@ -713,11 +713,20 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   }, [])
 
   const onUpdateLesson = useCallback(async (lesson: Lesson) => {
+    const before = lessons
     setLessons(prev => prev.map(l => l.id === lesson.id ? lesson : l))
-    const { id, instructor: _i, clients: _c, ...fields } = lesson
+    // share_price_per_hour is a GENERATED column (redacted mirror for shared
+    // links) — Postgres rejects any write to it, even the same value
+    // round-tripped from select('*'), which silently failed the WHOLE update.
+    const { id, instructor: _i, clients: _c, share_price_per_hour: _sp, ...fields } =
+      lesson as Lesson & { share_price_per_hour?: number | null }
     const { error } = await supabase.from('lessons').update(fields).eq('id', id)
-    if (error) console.error('Lesson update error:', error.message)
-  }, [])
+    if (error) {
+      console.error('Lesson update error:', error.message)
+      setLessons(before)
+      alert('Error updating lesson: ' + error.message)
+    }
+  }, [lessons])
 
   const onDeleteLesson = useCallback(async (id: string) => {
     let removed: Lesson | undefined
@@ -766,11 +775,18 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   }, [])
 
   const onUpdateRental = useCallback(async (rental: EquipmentRental) => {
+    const before = rentals
     setRentals(prev => prev.map(r => r.id === rental.id ? rental : r))
-    const { id, ...fields } = rental
+    // share_price is a GENERATED column (redacted mirror for shared links) —
+    // same trap as lessons.share_price_per_hour above.
+    const { id, share_price: _sp, ...fields } = rental as EquipmentRental & { share_price?: number | null }
     const { error } = await supabase.from('equipment_rentals').update(fields).eq('id', id)
-    if (error) console.error('Rental update error:', error.message)
-  }, [])
+    if (error) {
+      console.error('Rental update error:', error.message)
+      setRentals(before)
+      alert('Error updating rental: ' + error.message)
+    }
+  }, [rentals])
 
   const onDeleteRental = useCallback(async (id: string) => {
     let removed: EquipmentRental | undefined

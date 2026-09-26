@@ -198,7 +198,10 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     updateRental: (r: EquipmentRental) => {
       const before = equipmentRentals
       setEquipmentRentals(prev => prev.map(x => x.id === r.id ? r : x))
-      const { id, ...fields } = r
+      // share_price is a GENERATED column (redacted mirror for shared links) —
+      // Postgres rejects any write to it, even the same value round-tripped
+      // from select('*'), which failed the whole update.
+      const { id, share_price: _sp, ...fields } = r as EquipmentRental & { share_price?: number | null }
       persist(supabase.from('equipment_rentals').update(fields).eq('id', id),
         () => setEquipmentRentals(before), 'the rental')
     },
