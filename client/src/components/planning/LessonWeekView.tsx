@@ -172,9 +172,12 @@ export default function LessonWeekView({
   // ── Edit modal ─────────────────────────────────────────────────────────────
   const [editLesson, setEditLesson] = useState<Lesson | null>(null)
   const [editData, setEditData] = useState<Partial<Lesson>>({})
+  // Same escape hatch as the add-form's, reset on each open — see candidatesForEdit.
+  const [showAllGuestsEditLesson, setShowAllGuestsEditLesson] = useState(false)
 
   // ── Rental edit ────────────────────────────────────────────────────────────
   const [editRental, setEditRental] = useState<EquipmentRental | null>(null)
+  const [showAllGuestsEditRental, setShowAllGuestsEditRental] = useState(false)
   const [editRentalPrice, setEditRentalPrice] = useState('')
   const [editRentalSlot, setEditRentalSlot] = useState<'morning' | 'afternoon' | 'full_day'>('morning')
   const [editRentalParticipantId, setEditRentalParticipantId] = useState('')
@@ -253,6 +256,17 @@ export default function LessonWeekView({
     return bookingParticipants.filter(p => activeIds.has(p.booking_id))
   }
 
+  // Edit modals default to this instead of the full guest list (illegible on
+  // a base with many bookings): active-on-that-day, plus whoever is already
+  // picked even if their booking isn't active anymore — so an edit never
+  // silently hides the person it's about. "Show all guests" still escapes to
+  // the full list for the rare case of picking someone else entirely.
+  function candidatesForEdit(date: string, selectedIds: string[]): BookingParticipant[] {
+    const active = activeParticipantsForDate(date)
+    const missing = bookingParticipants.filter(p => selectedIds.includes(p.id) && !active.some(a => a.id === p.id))
+    return missing.length ? [...active, ...missing] : active
+  }
+
   // ── Fallback name lookup (from booking's client when no participant) ─────────
   function bookingClient(bookingId: string | null): Client | undefined {
     const bid = bookingId ?? ''
@@ -261,10 +275,9 @@ export default function LessonWeekView({
   }
 
   // ── Participant picker: tappable chips grouped by booking, instead of a
-  // native <select> (can't show a colored avatar inside an <option>). Add-forms
-  // pass only currently-active participants; edit-forms pass everyone, so an
-  // already-assigned person still shows up even if their booking isn't active
-  // today anymore — same distinction the old selects made.
+  // native <select> (can't show a colored avatar inside an <option>). Both
+  // add- and edit-forms default to activeParticipantsForDate / candidatesForEdit
+  // and offer a "show all guests" checkbox to escape to the full list.
   function renderParticipantChips(opts: {
     candidates: BookingParticipant[]
     selectedIds: string[]
@@ -353,6 +366,7 @@ export default function LessonWeekView({
     setEditRentalKiteId(equip?.category === 'kite' ? r.equipment_id : null)
     setEditRentalBoardId(equip?.category !== 'kite' && equip ? r.equipment_id : null)
     setEditRentalNotes(r.notes ?? '')
+    setShowAllGuestsEditRental(false)
   }
 
   function submitEditRental(e: React.FormEvent) {
@@ -435,6 +449,7 @@ export default function LessonWeekView({
   function openEdit(lesson: Lesson) {
     setEditLesson(lesson)
     setEditData({ ...lesson })
+    setShowAllGuestsEditLesson(false)
   }
 
   function submitEdit(e: React.FormEvent) {
@@ -1097,7 +1112,9 @@ export default function LessonWeekView({
                   {editData.type === 'group' ? 'Participants' : 'Participant'}
                 </label>
                 {renderParticipantChips({
-                  candidates: bookingParticipants,
+                  candidates: showAllGuestsEditLesson
+                    ? bookingParticipants
+                    : candidatesForEdit(editData.date ?? editLesson.date, editData.participant_ids ?? []),
                   selectedIds: editData.participant_ids ?? [],
                   onToggle: id => setEditData(d => {
                     if (d.type !== 'group') return { ...d, participant_ids: [id] }
@@ -1110,6 +1127,10 @@ export default function LessonWeekView({
                     return { ...d, participant_ids: [...ids, id] }
                   }),
                 })}
+                <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 px-0.5 mt-1">
+                  <input type="checkbox" checked={showAllGuestsEditLesson} onChange={e => setShowAllGuestsEditLesson(e.target.checked)} />
+                  {i18n.planning.label_show_all_guests[lang]}
+                </label>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Instructor</label>
@@ -1224,10 +1245,16 @@ export default function LessonWeekView({
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Guest (tap again to clear)</label>
                 {renderParticipantChips({
-                  candidates: bookingParticipants,
+                  candidates: showAllGuestsEditRental
+                    ? bookingParticipants
+                    : candidatesForEdit(editRental.date, editRentalParticipantId ? [editRentalParticipantId] : []),
                   selectedIds: editRentalParticipantId ? [editRentalParticipantId] : [],
                   onToggle: id => setEditRentalParticipantId(prev => prev === id ? '' : id),
                 })}
+                <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 px-0.5 mt-1">
+                  <input type="checkbox" checked={showAllGuestsEditRental} onChange={e => setShowAllGuestsEditRental(e.target.checked)} />
+                  {i18n.planning.label_show_all_guests[lang]}
+                </label>
               </div>
               {/* Type */}
               <div>
