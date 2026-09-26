@@ -4,12 +4,15 @@ import type { Booking, BookingStatus, Client } from '../types/database'
 import { TAXI_LANGS, type TaxiLang } from '../data/taxiShareI18n'
 import { usePref, Segmented } from './taxiShareUI'
 import { todayISO as isoToday, addDaysISO as addDays } from '../utils/dates'
+import { stayBookings } from '../utils/dayVisitor'
 
 // Public read-only stay planning for the hotel restaurant manager:
 // one timeline row per booking (guest name + arrival/departure), so she knows
 // who leaves when and can collect restaurant bills before departure.
-// Only reads bookings (dates/status) + clients identity columns — both already
-// anon-readable (see security-rls.md). Cancelled bookings are excluded.
+// Only reads bookings (dates/status/kind) + clients identity columns — all
+// already anon-readable (see security-rls.md). Cancelled bookings and
+// walk-ins (day visitors, WALK_INS.md) are excluded — gui only wants actual
+// guest stays here, not a local who dropped in for a lesson.
 //
 // The grid shows 3 months back-to-back (previous / current / next) so the
 // full width of the page is put to use and she can see what's coming without
@@ -66,10 +69,10 @@ export default function RestaurantSharePage() {
   const [month, setMonth] = useState(() => today.slice(0, 7)) // 'YYYY-MM', the centered month
 
   const { data: allBookings, loading } = useTable<BookingRow>('bookings', {
-    select: 'id, booking_number, check_in, check_out, status, client:clients(id, first_name, last_name)',
+    select: 'id, booking_number, check_in, check_out, status, kind, client:clients(id, first_name, last_name)',
     order: 'check_in',
   })
-  const bookings = allBookings.filter(b => b.status !== 'cancelled')
+  const bookings = stayBookings(allBookings.filter(b => b.status !== 'cancelled'))
 
   // 3-month window: previous / current / next, laid out back-to-back with
   // a running column offset (colStart) so bookings position by absolute day.

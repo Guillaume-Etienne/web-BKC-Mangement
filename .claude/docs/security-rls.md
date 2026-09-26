@@ -23,6 +23,10 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 
 > **Mise à jour 2026-06-30** : `clients` et `booking_participants` sont désormais **restreintes par colonne** pour `anon` (voir migration `2026-06-30_shared_pages_security.sql`). `anon` n'y lit plus que `id / first_name / last_name` (+`booking_id`) — passeports, emails, téléphones, dates de naissance, contacts d'urgence et notes ne sont **plus** exposés.
 > **Mise à jour 2026-07-04 (Lot B)** : `bookings` restreinte par colonne aussi (migration `2026-07-04_lot_b_bookings_columns.sql`) : `anon` ne lit que `id / booking_number / check_in / check_out / status / client_id / num_center_access / center_access_rate` — contacts d'urgence, notes, amount_paid, dates visa, waiver, referral_source ne sont **plus** exposés. ⚠️ Tout `.select()` anon sur bookings doit lister ces colonnes explicitement (`*` → 42501).
+> **Mise à jour 2026-09-26** : `kind` ajoutée à ce GRANT (migration `2026-09-25_walk_ins.sql`,
+> **pas encore passée** — voir BACKLOG.md) pour que RestaurantSharePage exclue les walk-ins
+> (day visitors) de son planning de séjours. Colonne non sensible ('stay'/'day_visitor'),
+> décision gui. `custom_lesson_rate` et `waiver_signed_at` (clients) restent fermées.
 
 | Table | Sensibilité | Exposée pour quelle page |
 |-------|-------------|--------------------------|

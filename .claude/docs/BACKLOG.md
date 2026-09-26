@@ -6,12 +6,18 @@
 
 ## 🚨 Migrations SQL — registre
 
-⬜ **`2026-09-25_walk_ins.sql`** (TEST ⬜ / PROD ⬜) — walk-ins : `bookings.kind`
-(`'stay'` défaut | `'day_visitor'`, CHECK), `clients.custom_lesson_rate`, `clients.waiver_signed_at`.
-**Strictement additive**, rollback en 3 lignes dans le fichier. Aucun GRANT anon (bookings et
-clients sont en whitelist par colonne). Le code tourne déjà sans elle (avertissement à
-l'enregistrement, la visite tombe dans « No room »). Vérif : curl anon
-`select=id,kind` → `42501` (pas `42703`), puis test écran Daily → Walk-in (voir `WALK_INS.md`).
+⬜ **`2026-09-25_walk_ins.sql`** (TEST ⬜ / PROD ⬜, **mise à jour le 2026-09-26**) — walk-ins :
+`bookings.kind` (`'stay'` défaut | `'day_visitor'`, CHECK), `clients.custom_lesson_rate`,
+`clients.waiver_signed_at`, **+ `GRANT SELECT (kind) ON bookings TO anon`** (décision gui du
+26/09 : les walk-ins ne doivent pas apparaître sur le lien Restaurant, `RestaurantSharePage.tsx`
+sélectionne désormais `kind` — voir WALK_INS.md § Reste à faire). `custom_lesson_rate` et
+`waiver_signed_at` restent hors GRANT. **Strictement additive**, rollback dans le fichier.
+⚠️ **Cette migration doit être passée sur PROD avant/avec le déploiement du code** (le commit
+qui ajoute `kind` au select anon) — sinon la page Restaurant casse entièrement en attendant
+(colonne absente ou non accordée = requête anon en échec total, pas juste sans filtre). Vérif :
+curl anon `select=id,kind` → **200** (plus `42501`, décision changée), `select=id,custom_lesson_rate`
+sur `clients` → toujours `42501`. Puis test écran Daily → Walk-in **et** lien Restaurant (voir
+`WALK_INS.md`).
 
 ✅ **`2026-09-19b_dismissed_actions.sql`** (TEST ✅ / PROD ✅, passée par gui et **vérifiée le
 2026-09-20**) — « affaire classée » sur la page d'accueil : table `dismissed_actions`
@@ -118,9 +124,10 @@ reviennent. Conception, livraison et points ouverts : **`.claude/docs/WALK_INS.m
   volée, résa « day visitor » en coulisse (hors planning hébergement et alertes de séjour),
   tarif perso sur le client, décharge signée une fois par client. 667 tests, build vert, test
   écran sur TEST (mode sans migration) fait et nettoyé.
-  ⬜ **À faire par gui** : passer la migration (registre ci-dessus), puis refaire le test écran.
-  ⬜ **Décision gui** : page Restaurant partagée (un walk-in y apparaît comme un invité) —
-  voir WALK_INS.md § Reste à faire.
+  ⬜ **À faire par gui** : passer la migration (registre ci-dessus, mise à jour le 2026-09-26),
+  puis refaire le test écran **et** vérifier le lien Restaurant.
+  ✅ **Décidé le 2026-09-26** : les walk-ins ne doivent PAS apparaître sur la page Restaurant
+  partagée — codé, voir WALK_INS.md § Reste à faire et le registre de migrations ci-dessus.
 - ⬜ **Étape 2 — packs** : heures prépayées sur le client, sans expiration, non partagés, walk-ins
   seulement, prix libre + note libre, tout en EUR.
 

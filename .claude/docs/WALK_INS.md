@@ -94,10 +94,12 @@ Détails qui comptent :
 ### Reste à faire / points ouverts de l'étape 1
 - ⬜ **Passer la migration** TEST + PROD, puis refaire le test écran (même visite réutilisée,
   visite absente de « No room », tarif perso et décharge enregistrés).
-- ⬜ **Page partagée Restaurant** : elle liste les résas présentes et ne peut pas lire `kind`
-  (pas de GRANT anon, volontairement). Un walk-in y apparaîtra comme un invité d'une nuit.
-  Décision à prendre par gui : `GRANT SELECT (kind) ON bookings TO anon` (colonne non
-  sensible) + filtre dans `RestaurantSharePage`, ou laisser tel quel.
+- ✅ **Page partagée Restaurant** — décidé et codé le 2026-09-26 : les walk-ins ne doivent PAS
+  apparaître (gui). `GRANT SELECT (kind) ON bookings TO anon` ajouté à la migration
+  `2026-09-25_walk_ins.sql` (toujours **pas passée**) + `RestaurantSharePage.tsx` sélectionne
+  `kind` et filtre avec `stayBookings()`. ⚠️ Cette migration doit être passée sur PROD avant/avec
+  le déploiement de ce code, sinon la page partagée casse entièrement (voir le commentaire dans
+  le fichier de migration).
 - ⬜ Décharge **par lien** (signée sur le téléphone du client) : pas faite, seule la case
   « signée sur papier » existe.
 - ⬜ Pas de bouton « + Walk-in » ailleurs que dans le Daily (Prévisions, Home) : à voir à l'usage.

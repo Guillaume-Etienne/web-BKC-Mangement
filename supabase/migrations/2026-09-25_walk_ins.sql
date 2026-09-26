@@ -31,13 +31,25 @@
 
    Sécurité : `bookings` et `clients` sont en GRANT par colonne pour anon
    (Lot B 2026-07-04 / 2026-06-30). Les nouvelles colonnes sont donc
-   invisibles à toute page partagée sans rien faire de plus. On NE les ajoute
-   PAS au GRANT.
+   invisibles à toute page partagée sans rien faire de plus.
+
+   Exception décidée par gui le 2026-09-26 : `bookings.kind` EST ajoutée au
+   GRANT anon (colonne non sensible, juste 'stay'/'day_visitor'). Raison :
+   RestaurantSharePage doit pouvoir exclure les walk-ins (des locaux passés
+   pour un cours, jamais des hôtes) de son planning de séjours — voir
+   WALK_INS.md § Reste à faire. `custom_lesson_rate` et `waiver_signed_at`
+   restent hors GRANT, rien ne les justifie côté pages partagées.
 
    Le code tourne déjà sans cette migration : `kind` absent = tout est un
    séjour (le walk-in atterrit alors dans la ligne « No room » du planning,
    comme avant), et les deux colonnes client sont écrites par un UPDATE séparé
    qui signale la migration manquante au lieu de casser l'écran.
+
+   ⚠️ RestaurantSharePage.tsx sélectionne désormais `kind` dans sa requête
+   anon : cette migration doit être passée sur PROD **avant** (ou en même
+   temps que) le déploiement de ce code, sinon la page partagée casse
+   entièrement (colonne absente ou non accordée = la requête ENTIÈRE échoue,
+   pas juste le filtre — voir reference_never_select_unmigrated_column).
 
    Idempotente. À passer en TEST **puis en PROD** dans la foulée.
    ============================================================================ */
@@ -57,6 +69,8 @@ BEGIN
   END IF;
 END $$;
 
+GRANT SELECT (kind) ON bookings TO anon;
+
 ALTER TABLE clients
   ADD COLUMN IF NOT EXISTS custom_lesson_rate NUMERIC(10,2)
     CHECK (custom_lesson_rate IS NULL OR custom_lesson_rate >= 0);
@@ -68,6 +82,7 @@ COMMIT;
 
 /* ============================================================================
    ROLLBACK (si besoin, rien d'autre ne dépend de ces colonnes en base)
+     REVOKE SELECT (kind) ON bookings FROM anon;
      ALTER TABLE bookings DROP COLUMN IF EXISTS kind;
      ALTER TABLE clients  DROP COLUMN IF EXISTS custom_lesson_rate;
      ALTER TABLE clients  DROP COLUMN IF EXISTS waiver_signed_at;
@@ -82,8 +97,9 @@ COMMIT;
       UPDATE bookings SET kind = 'oops' WHERE id = (SELECT id FROM bookings LIMIT 1);
       -- attendu : ERROR violation de contrainte bookings_kind_check
 
-   3. anon ne voit pas les nouvelles colonnes :
+   3. anon voit `kind` (décision du 2026-09-26) mais rien d'autre de nouveau :
       curl "$SUPABASE_URL/rest/v1/bookings?select=id,kind" -H "apikey: $ANON_KEY"
+      -- attendu : 200, des lignes (PAS 42501, PAS 42703)
       curl "$SUPABASE_URL/rest/v1/clients?select=id,custom_lesson_rate,waiver_signed_at" -H "apikey: $ANON_KEY"
-      -- attendu : 42501 permission denied (et PAS 42703 = colonne absente)
+      -- attendu : 42501 permission denied (colonnes client toujours fermées)
    ============================================================================ */
