@@ -98,6 +98,16 @@ d'ici seulement après un **curl anon réel**.
 ⚠️ Une ligne de test traîne dans `client_errors` **sur TEST** (« migration check 2026-09-05 ») :
 Options → Database → **Clear**. Rien en PROD.
 
+⚠️ **TEST a perdu son cloisonnement anon par colonne** (constaté le 2026-09-26, en vérifiant le
+GRANT `kind` ci-dessus) : `bookings?select=*` et `clients?select=email` renvoient `200 []` au
+lieu du `42501` attendu — probablement effacé par la restauration PROD→TEST du 18/09 (une
+restauration ne rejoue pas forcément les `GRANT`/`REVOKE`). **Pas urgent (gui)**, le `[]` masque
+l'impact tant qu'il faut un token de partage valide pour voir des lignes, mais TEST contient une
+copie des vrais noms de PROD. **PROD vérifié intact** (42501 confirmé partout, kind y est bien à
+200). Pour réparer TEST : repasser (idempotent, `REVOKE`+`GRANT`) `2026-06-30_shared_pages_security.sql`
+(clients + booking_participants) et `2026-07-04_lot_b_bookings_columns.sql` (bookings), puis
+reverifier par curl anon.
+
 ---
 
 ## 🔴 Ouvert
