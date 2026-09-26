@@ -1053,12 +1053,16 @@ export default function LessonWeekView({
       {/* Edit modal */}
       {editLesson && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md">
-            <div className="flex justify-between items-center p-4 border-b">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b shrink-0">
               <h3 className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_edit_lesson[lang]}</h3>
               <button onClick={() => setEditLesson(null)} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold">✕</button>
             </div>
-            <form onSubmit={submitEdit} className="p-4 space-y-3">
+            {/* Participant chips below list every guest in the booking data (no
+                date filter here) — can run long, so this has to scroll inside
+                the modal or the page behind it scrolls instead and Save/Cancel
+                become unreachable. */}
+            <form onSubmit={submitEdit} className="p-4 space-y-3 overflow-y-auto min-h-0 flex-1">
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Type</label>
                 <div className="grid grid-cols-3 gap-1">
@@ -1210,12 +1214,12 @@ export default function LessonWeekView({
       {/* ── Rental edit modal ── */}
       {editRental && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditRental(null)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
               <h3 className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_edit_rental[lang]}</h3>
               <button onClick={() => setEditRental(null)} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">✕</button>
             </div>
-            <form onSubmit={submitEditRental} className="p-4 space-y-3">
+            <form onSubmit={submitEditRental} className="p-4 space-y-3 overflow-y-auto min-h-0 flex-1">
               {/* Participant */}
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Guest (tap again to clear)</label>
