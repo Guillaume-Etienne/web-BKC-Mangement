@@ -111,6 +111,7 @@ enregistré — et la base n'a rien. Corrigé partout le 2026-07-31. Pattern sel
 | Formulaire public : table file d'attente | `data-model.md` | § form_submissions |
 | **Avant-réservation (demandes / prospects)** — conception + avancement | `ENQUIRIES.md` | tout |
 | **Walk-ins (clients de passage) & packs d'heures** — conception + étape 1 livrée | `WALK_INS.md` · règles `utils/dayVisitor.ts` | tout |
+| **Compte courant Palmeiras** (bungalows payés en direct, commission, CB, compensation) — conception, rien de codé | `PALMEIRAS_ACCOUNT.md` | tout |
 | **Intégrer le formulaire de demande sur le site** (iframe, `lang`, en-têtes) | `ENQUIRY_FORM_EMBED.md` | à donner tel quel au projet site web |
 | BookingFormPayload (champs du form) | `data-model.md` | § form_submissions |
 | Guides clients (Travel/Welcome, table document_templates) | `data-model.md` | § Guides — document_templates |
