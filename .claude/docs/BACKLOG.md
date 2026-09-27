@@ -112,6 +112,13 @@ reverifier par curl anon.
 
 ## 🔴 Ouvert
 
+### 🌴 Bungalow payé en direct au Palmeiras — conçu, pas codé (2026-09-27)
+
+Case « Paid directly to Palmeiras » sur la ligne bungalow de la résa : sort le bungalow du dû
+client et du coût propriétaire. Le reste (commission ~15 %, comptes mensuels) reste **manuel**
+via Reversals. Conception + rappel du fonctionnement : `PALMEIRAS_ACCOUNT.md`. Premier cas :
+**#39** (dû 340 € affiché à tort).
+
 ### ✅ Sélecteur de participants dans Planning/Quotidien — corrigé le 2026-09-26
 
 Éditer un cours ou une location montrait **tous les invités de la saison**, sans case ni filtre

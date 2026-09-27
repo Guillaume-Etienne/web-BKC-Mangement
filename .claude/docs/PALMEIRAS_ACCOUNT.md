@@ -1,133 +1,53 @@
-# Compte courant Palmeiras — conception (2026-09-27) · rien de codé
+# Bungalows Palmeiras payés en direct — conception (2026-09-27) · rien de codé
 
-> Réfléchi avec gui en discussion les 26–27/09, à partir d'un cas réel (résa **#39**, Bungalow
-> See View 5, client qui paie le Palmeiras en direct). **Pas une ligne de code** : ce document
-> est à relire avec gui avant tout chantier. Questions encore ouvertes en § 7.
+> Décidé avec gui le 2026-09-27, à partir de la résa **#39** (Bungalow See View 5).
+> Une première version (compte courant complet, taux figé par résa, règlements) a été
+> **abandonnée par gui : trop compliqué pour ce que c'est.** On reste **manuel**, avec **une
+> seule case à cocher** en plus.
 
-## 1. Le constat
+## Comment ça marche avec le Palmeiras (à rappeler à gui s'il oublie)
 
-- Les **bungalows appartiennent au Palmeiras** (les maisons, c'est nous qui les gérons).
-- Selon le client, c'est **au cas par cas** :
-  - **sous-location** : le client nous paie le bungalow, on doit sa part au Palmeiras ;
-  - **paiement direct** : le client paie le Palmeiras, qui nous doit notre commission.
-- Le Palmeiras est aussi le seul à avoir un **terminal CB** : des clients à nous paient par carte
-  chez eux (mode de paiement `card_palmeiras`), donc **l'argent est chez eux**.
-- On ne se règle pas ligne à ligne : **on compense** (le loyer qu'on leur doit, leur part d'un
-  bungalow, nos commissions, les paiements CB) et seul le solde est réglé.
+Les **bungalows appartiennent au Palmeiras** (les maisons, c'est nous). Deux cas, **au cas par
+cas** selon le client :
 
-→ Le Palmeiras n'est pas un fournisseur : c'est un **compte courant**.
+| Cas | Qui encaisse | Qui doit quoi | Où c'est suivi |
+|---|---|---|---|
+| **1. Le client nous paie** (sous-location) | le centre | le centre doit au Palmeiras le prix **moins notre marge** | **Déjà en place** : coût/nuit sur la fiche bungalow (Options → Accommodations) → onglet Accounting → Palmeiras, marge par séjour |
+| **2. Le client paie le Palmeiras** | le Palmeiras | le Palmeiras nous doit **notre %** du prix payé (~15 %, chiffre exact oublié) | **Manuel** : sous-onglet Palmeiras → **Reversals**, une ligne par mois : total encaissé chez eux × % |
 
-## 2. Ce que fait l'app aujourd'hui (vérifié dans le code le 2026-09-27)
+gui fait les **comptes avec le Palmeiras une fois par mois**, par compensation (loyer, parts
+bungalow, commissions). Les paiements clients passés sur **leur terminal CB** (`card_palmeiras`)
+se déduisent à la main, en **Free Entries**, au même moment.
 
-| Élément | Où | Comportement |
-|---|---|---|
-| Coût bungalow | `accommodations.cost_per_night` (Options → Accommodations) | Ce qu'on paie au propriétaire. **Relu en direct**, pas figé sur la résa (`palmeirasUtils.buildBungalowRows`) → le changer réécrit toutes les marges passées |
-| Prix de vente | grille « Sell rate » → figé dans `booking_room_prices` à la résa | Ce que le client **nous** doit |
-| Marge bungalow | onglet Palmeiras | (vente − coût) × nuits |
-| Dashboard | carte « bungalow owners » | coût × nuits compté comme dépense |
-| Reversals | Palmeiras → Reversals | Saisie **manuelle** mensuelle : « Total they collected » × % (**15 % par défaut**) = ce qu'ils nous doivent. Sens exact inconnu (§ 7) |
-| Rent / Free Entries | Palmeiras → Rent / Free Entries | Saisies manuelles mensuelles |
-| `card_palmeiras` | `payments.method` | Solde la dette du client — **et c'est tout** : n'apparaît nulle part dans la relation Palmeiras |
+## Le seul trou (constaté sur #39)
 
-**Seul modèle connu pour un bungalow : la sous-location.** Le paiement direct n'existe pas :
-- #39 affiche le client **dû 340 €** au centre (faux) et une dette de **308 €** au Palmeiras
-  (fausse) ; les ~34 € que le Palmeiras nous doit n'apparaissent nulle part ;
-- la fiche Bungalow See View 5 encode la commission à la main (vente 170 / coût 154 ≈ 10 %),
-  alors que gui pense que la marge est plutôt de **15 %** — l'une des deux valeurs est fausse.
+Rien sur la résa ne dit « ce bungalow a été payé au Palmeiras ». L'app croit donc que le client
+nous doit le bungalow (#39 : **340 €, faux**) et qu'on doit le coût au Palmeiras (**308 €,
+faux**).
 
-L'onglet Palmeiras mélange deux questions : **« combien le Palmeiras nous rapporte »**
-(résultat) et **« qui doit combien à qui »** (compte courant). Il ne répond qu'à la première,
-et encore sans les paiements CB.
+## Ce qu'on code (quand gui dit go)
 
-## 3. Décisions prises
+1. **Case « Paid directly to Palmeiras »** sur la ligne bungalow dans les finances de la résa
+   (`BookingFinances`), + note libre (date du paiement).
+2. Cochée → le bungalow **sort du dû client** et du **revenu hébergement**, et son **coût
+   propriétaire ne compte plus** (onglet Palmeiras + carte « bungalow owners » du dashboard).
+   La ligne reste visible, grisée, avec la mention.
+3. **Bonus facultatif** : dans l'onglet Palmeiras, liste « bungalows payés en direct ce mois »
+   avec leur total, à recopier dans Reversals lors des comptes.
 
-| Question | Décision |
-|---|---|
-| Paiement direct : pour tous les bungalows ou au cas par cas ? | **Au cas par cas**, par résa |
-| Sur quoi porte la commission ? | Sur le **prix réellement payé par le client** |
-| Taux de commission | **Modifiable** (gui ne se souvient plus du chiffre exact, a priori **15 %**) |
-| Comment se règle-t-on ? | **Par compensation** avec ce qu'on leur doit (loyer, part d'un bungalow sous-loué) |
-| Paiements `card_palmeiras` | Argent de nos clients encaissé chez eux → **ils nous le doivent**, se soustrait dans le compte |
-| Pistes écartées | Dupliquer le bungalow en version « direct » (2 lignes au planning, dispos qui se contredisent) ; tout passer par Reversals à la main (le faux « dû » client reste affiché) |
+À toucher : `computeBookingTotal` et **tous ses appelants** (dû client, CollectionsModal, pages
+partagées client, **mcp-server** — il consomme le code de `client/`), `palmeirasUtils`
++ tests, `computeSeasonTotals`. Stockage probable : un booléen + note sur
+`booking_room_prices` (attention aux colonnes `share_price*` générées, cf. gotchas Supabase n°4).
 
-## 4. Le modèle proposé
+## Écarté (ne pas relancer sans que gui le demande)
 
-### 4.1 Le taux de commission
+Compte courant automatique avec soldes reportés, taux de commission figé par résa, lignes de
+règlement, suppression de `cost_per_night`, déduction automatique des paiements CB.
 
-- Un champ **« Commission % »** sur la fiche bungalow, pré-rempli à **15 %**. Il **remplace**
-  `cost_per_night` (voir la question ouverte § 7.2).
-- **Figé sur la résa** à la réservation, comme le prix de la nuit. Changer le taux plus tard ne
-  réécrit pas le passé.
-- **Modifiable résa par résa** dans les finances de la résa, **note obligatoire** (même geste
-  que les corrections de prix existantes). Sert aussi à rattraper les anciennes résas quand le
-  vrai taux sera retrouvé.
+## Reprise
 
-### 4.2 L'option « payé en direct au Palmeiras »
-
-Sur la chambre bungalow d'une résa (`booking_room_prices` ou équivalent) :
-
-| | Sous-location (défaut actuel) | Payé en direct |
-|---|---|---|
-| Le client doit au centre | prix × nuits | **0** (ligne affichée « paid directly to Palmeiras ») |
-| Revenu hébergement | prix × nuits | **0** |
-| Le centre doit au Palmeiras | (100 % − taux) × prix payé | **0** |
-| Le Palmeiras doit au centre | 0 | **taux × prix payé** |
-| Planning | bungalow occupé | bungalow occupé (inchangé) |
-
-Le même taux sert dans les deux sens : **une seule règle**.
-
-### 4.3 Le compte courant
-
-| Le centre doit au Palmeiras | Le Palmeiras doit au centre |
-|---|---|
-| Loyer du mois (Rent) | Commission des bungalows **payés en direct** |
-| Part d'un bungalow **sous-loué** (payé chez nous) | Paiements **`card_palmeiras`** de nos clients |
-| Dépenses manuelles (Free Entries) | Reversals (§ 7.1) |
-| | Recettes manuelles (Free Entries) |
-
-+ une ligne **« Règlement »** (qui a payé le solde, quand, combien) → **solde reporté de mois en
-mois**, lisible comme un relevé : « au 30/09, le Palmeiras nous doit X € ».
-
-Les lignes automatiques (commissions, parts, CB) se **dérivent** des résas et des paiements,
-comme `buildBungalowRows` aujourd'hui : rien à ressaisir. Seuls le loyer, les entrées libres et
-les règlements restent manuels.
-
-### 4.4 Deux vues, pas une
-
-- **Compte courant** (nouveau) : qui doit combien à qui, soldes, règlements. Les paiements CB y
-  sont — ce sont des flux d'argent, pas du résultat.
-- **Résultat** (existant, KPI dashboard + net de l'onglet) : ce que la relation rapporte. Les
-  paiements CB n'y sont **pas** (déjà comptés comme revenu client). ⚠️ L'écart voulu entre net de
-  l'onglet et KPI dashboard (`TEST_SUITE_ACCOUNTING.md` § Palmeiras) est à revoir avec le modèle.
-
-## 5. Ce que ça touche (repérage, pas un plan)
-
-- Migration : taux sur `accommodations`, taux figé + drapeau « direct » par chambre de résa,
-  table des règlements Palmeiras. Garder la redaction anon (`share_price*`, § gotchas n°4).
-- `palmeirasUtils.ts` (+ tests) : lignes bungalow par taux, compte courant.
-- `computeSeasonTotals` : revenu hébergement / `bungalowCosts` sans les séjours directs,
-  commission comptée.
-- `BookingFinances` : ligne « paid directly », override du taux.
-- `computeBookingTotal` et **tous ses appelants** (dû client, CollectionsModal, pages partagées
-  client, mcp-server — cf. [[reference_mcp_server_consumes_client_code]]).
-- Formulaire de résa : cocher « payé en direct » à la création.
-- `PalmeirasTab` : vue compte courant.
-
-## 6. Reprise des données existantes
-
-- **#39** (Bungalow See View 5, 25→27/09) : à passer en « payé en direct » dès que c'est codé.
-  En attendant : **ne rien encaisser** pour le bungalow, le « dû 340 € » est faux.
-- Les Reversals déjà saisis : voir s'ils contiennent déjà des commissions bungalow (risque de
-  **double comptage** une fois les commissions automatiques).
-- Les anciens séjours bungalow : taux figé = à déduire de vente/coût actuels, ou taux par défaut ?
-
-## 7. Questions ouvertes
-
-1. **Reversals : 15 % de quoi ?** Si c'est déjà « ce qu'ils ont encaissé en bungalows × 15 % »,
-   c'est la version manuelle de § 4.2 et il faut éviter de compter deux fois. Piste : relire les
-   notes des Reversals saisis.
-2. **Sous-location : on leur doit (100 % − taux) du prix payé, ou un coût fixe par nuit ?**
-   Si c'est le pourcentage, `cost_per_night` disparaît (et le piège du coût non figé avec).
-3. **Le vrai taux** (15 % ? 10 % ?) et s'il est le même pour tous les bungalows (B1 : coût 45 €).
-4. **Règlements** : faut-il un moyen de paiement (cash / virement) et une pièce jointe ?
-5. **Solde d'ouverture** : à partir de quand démarre le compte courant, avec quel solde ?
+- **#39** : ne rien encaisser pour le bungalow. Une fois codé : cocher la case, noter la date,
+  puis le mettre dans Reversals au prochain point mensuel.
+- Remarque : la fiche Bungalow See View 5 est à vente 170 / coût 154 (≈ 10 % de marge), alors
+  que gui pense à 15 %. À vérifier un jour, sans urgence.
