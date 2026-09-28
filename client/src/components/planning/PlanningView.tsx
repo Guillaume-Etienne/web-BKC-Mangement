@@ -23,6 +23,8 @@ import { useInstructors } from '../../hooks/useInstructors'
 import { useClients } from '../../hooks/useClients'
 import { useEquipment, useEquipmentRentals } from '../../hooks/useEquipment'
 import { supabase } from '../../lib/supabase'
+import { ensureInHouseProvider, buildBilledActivities } from '../../utils/billedActivities'
+import type { BillActivityRequest } from '../../utils/billedActivities'
 
 // ── Booking quick view modal ───────────────────────────────────────────────────
 
@@ -751,6 +753,21 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     }
   }, [])
 
+  // "Bill to guests" on a Daily activity: one activity_bookings row per booking
+  // involved, under the in-house provider — see utils/billedActivities.ts. The
+  // planning holds no copy of those rows, so there is nothing local to update.
+  const onBillActivity = useCallback(async (req: BillActivityRequest) => {
+    try {
+      const providerId = await ensureInHouseProvider()
+      const rows = buildBilledActivities({ ...req, providerId })
+      const { error } = await supabase.from('activity_bookings').insert(rows)
+      if (error) throw new Error(error.message)
+    } catch (err) {
+      alert('The activity is on the planning, but it was NOT added to the guests’ bills.\n\n'
+        + (err as Error).message + '\n\nAdd it from Accounting → the booking → Activities.')
+    }
+  }, [])
+
   const onDeleteActivity = useCallback(async (id: string) => {
     let removed: DayActivity | undefined
     setDayActivities(prev => { removed = prev.find(a => a.id === id); return prev.filter(a => a.id !== id) })
@@ -1160,6 +1177,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
               onUpdateLesson={onUpdateLesson}
               onDeleteLesson={onDeleteLesson}
               onAddActivity={onAddActivity}
+              onBillActivity={onBillActivity}
               onDeleteActivity={onDeleteActivity}
               onAddRental={onAddRental}
               onUpdateRental={onUpdateRental}

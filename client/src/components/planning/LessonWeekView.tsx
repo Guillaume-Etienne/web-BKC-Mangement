@@ -9,6 +9,7 @@ import { RENTAL_TYPES, type RentalKind } from './rentalTypes'
 import WalkInForm from './WalkInForm'
 import type { WalkInRequest } from './walkInSave'
 import { isDayVisitor, isOnSiteOn } from '../../utils/dayVisitor'
+import type { BillActivityRequest } from '../../utils/billedActivities'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -88,6 +89,10 @@ interface AddForm {
   // activity fields
   name: string
   actNotes: string
+  act_bill: boolean          // "Bill to guests" ticked
+  act_participant_ids: string[]
+  act_price_pp: string       // € per guest, as typed
+  act_cost: string           // € total cost to us, optional
   // rental fields
   rental_participant_id: string
   rental_slot: 'morning' | 'afternoon' | 'full_day'
@@ -120,6 +125,8 @@ interface LessonWeekViewProps {
   onUpdateLesson: (l: Lesson) => void
   onDeleteLesson: (id: string) => void
   onAddActivity: (a: Omit<DayActivity, 'id'>) => void
+  /** "Bill to guests" on an activity: adds it to each involved booking's bill */
+  onBillActivity: (req: BillActivityRequest) => void
   onDeleteActivity: (id: string) => void
   onAddRental: (r: Omit<EquipmentRental, 'id'>) => void
   onUpdateRental: (r: EquipmentRental) => void
@@ -136,7 +143,7 @@ export default function LessonWeekView({
   bookings, instructors, clients, bookingParticipants, equipment, rentals, priceItems, priceTiers,
   agencies, agencyBillingLines,
   onAddLesson, onUpdateLesson, onDeleteLesson,
-  onAddActivity, onDeleteActivity,
+  onAddActivity, onBillActivity, onDeleteActivity,
   onAddRental, onUpdateRental, onDeleteRental,
   onAddWalkIn,
 }: LessonWeekViewProps) {
@@ -152,7 +159,7 @@ export default function LessonWeekView({
     date, slot, kind,
     type: 'private', participant_ids: [firstParticipant], instructor_id: instructors[0]?.id ?? '',
     start_time: SLOT_CONFIG[slot].defaultTime, duration_hours: 1, notes: '', kite_id: null, board_id: null,
-    name: '', actNotes: '',
+    name: '', actNotes: '', act_bill: false, act_participant_ids: [], act_price_pp: '', act_cost: '',
     rental_participant_id: firstParticipant,
     rental_slot: slot === 'morning' ? 'morning' : slot === 'afternoon' ? 'afternoon' : 'full_day',
     rental_type: 'kite' as RentalKind,
@@ -244,6 +251,13 @@ export default function LessonWeekView({
   // ── Booking lookup ────────────────────────────────────────────────────────
   function bookingForParticipant(participantId: string): string {
     return bookingParticipants.find(p => p.id === participantId)?.booking_id ?? ''
+  }
+
+  /** "Bill to guests" is complete: at least one guest and a valid price. */
+  function activityBillReady(f: AddForm): boolean {
+    const p = parseFloat(f.act_price_pp)
+    const c = f.act_cost.trim() === '' ? 0 : parseFloat(f.act_cost)
+    return f.act_bill && f.act_participant_ids.length > 0 && !isNaN(p) && p >= 0 && !isNaN(c) && c >= 0
   }
 
   function activeParticipantsForDate(date: string): BookingParticipant[] {
@@ -424,6 +438,17 @@ export default function LessonWeekView({
         name: addForm.name,
         notes: addForm.actNotes || null,
       })
+      if (activityBillReady(addForm)) {
+        onBillActivity({
+          date: addForm.date,
+          label: addForm.name,
+          pricePerPerson: parseFloat(addForm.act_price_pp),
+          totalCost: parseFloat(addForm.act_cost) || 0,
+          notes: addForm.actNotes || null,
+          guests: addForm.act_participant_ids.map(id => ({ participantId: id, bookingId: bookingForParticipant(id) }))
+            .filter(g => g.bookingId),
+        })
+      }
     } else {
       // Use specific equipment id if chosen, otherwise fall back to the type key as virtual id
       const equipId = (
@@ -947,6 +972,49 @@ export default function LessonWeekView({
                                 onChange={e => setAddForm(f => f && { ...f, actNotes: e.target.value })}
                                 className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                               />
+                              {/* Bill to guests — optional: adds it to each guest's booking bill */}
+                              <label className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300 px-0.5 cursor-pointer">
+                                <input type="checkbox" checked={!!addForm?.act_bill}
+                                  onChange={e => setAddForm(f => f && { ...f, act_bill: e.target.checked })} />
+                                {i18n.planning.label_bill_guests[lang]}
+                              </label>
+                              {addForm?.act_bill && (
+                                <>
+                                  {renderParticipantChips({
+                                    candidates: showAllGuests ? bookingParticipants : activeParticipantsForDate(addForm?.date ?? ''),
+                                    selectedIds: addForm?.act_participant_ids ?? [],
+                                    onToggle: id => setAddForm(f => f && {
+                                      ...f,
+                                      act_participant_ids: f.act_participant_ids.includes(id)
+                                        ? f.act_participant_ids.filter(x => x !== id)
+                                        : [...f.act_participant_ids, id],
+                                    }),
+                                  })}
+                                  <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 px-0.5">
+                                    <input type="checkbox" checked={showAllGuests} onChange={e => setShowAllGuests(e.target.checked)} />
+                                    {i18n.planning.label_show_all_guests[lang]}
+                                  </label>
+                                  <div className="grid grid-cols-2 gap-1">
+                                    <input type="number" min="0" step="0.01" inputMode="decimal"
+                                      placeholder={i18n.planning.ph_price_per_guest[lang]}
+                                      value={addForm?.act_price_pp}
+                                      onChange={e => setAddForm(f => f && { ...f, act_price_pp: e.target.value })}
+                                      className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1" />
+                                    <input type="number" min="0" step="0.01" inputMode="decimal"
+                                      placeholder={i18n.planning.ph_our_cost[lang]}
+                                      value={addForm?.act_cost}
+                                      onChange={e => setAddForm(f => f && { ...f, act_cost: e.target.value })}
+                                      className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1" />
+                                  </div>
+                                  {addForm && activityBillReady(addForm) && (
+                                    <p className="text-xs text-blue-600 dark:text-blue-400 px-0.5">
+                                      {i18n.planning.msg_bill_total[lang]
+                                        .replace('{count}', String(addForm.act_participant_ids.length))
+                                        .replace('{total}', `${Math.round(parseFloat(addForm.act_price_pp) * addForm.act_participant_ids.length * 100) / 100} €`)}
+                                    </p>
+                                  )}
+                                </>
+                              )}
                             </>
                           )}
                           <div className="flex gap-1 pt-0.5">
@@ -958,6 +1026,7 @@ export default function LessonWeekView({
                               onClick={submitAdd}
                               disabled={
                                 (addForm?.kind === 'activity' && !addForm?.name) ||
+                                (addForm?.kind === 'activity' && !!addForm?.act_bill && !activityBillReady(addForm)) ||
                                 (addForm?.kind === 'lesson' && !addForm?.participant_ids[0]) ||
                                 (addForm?.kind === 'rental' && !addForm?.rental_participant_id)
                               }

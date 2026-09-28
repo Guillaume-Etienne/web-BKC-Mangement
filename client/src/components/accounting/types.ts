@@ -7,6 +7,7 @@ import type {
   DiningEvent, ActivityBooking, ActivityPayment,
   Agency, AgencyRateItem, AgencyBillingLine, AgencyInvoice,
 } from '../../types/database'
+import type { NewActivityBooking } from '../../utils/billedActivities'
 
 export interface SharedAccountingData {
   accommodations:            Accommodation[]
@@ -67,6 +68,10 @@ export interface AccountingHandlers {
   addExpense:              (e: Expense)            => void
   updateExpense:           (e: Expense)            => void
   deleteExpense:           (id: string)            => void
+  /** An activity billed from a booking's bill, filed under the in-house provider */
+  addInHouseActivity:      (a: Omit<NewActivityBooking, 'provider_id'>) => void
+  updateActivityBooking:   (a: ActivityBooking)    => void
+  deleteActivityBooking:   (id: string)            => void
   addExpenseCategory:      (c: ExpenseCategory)    => void
   updateExpenseCategory:   (c: ExpenseCategory)    => void
   deleteExpenseCategory:   (id: string)            => void

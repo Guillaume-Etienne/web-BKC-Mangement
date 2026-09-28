@@ -311,6 +311,90 @@ function PaymentForm({ bookingId, initial, suggestedDeposit = 0, onSave, onCance
   )
 }
 
+// ── Activity line on the bill (add / edit) ─────────────────────────────────
+// A boat trip, an outing… billed straight onto this booking. A new line is
+// filed under the in-house provider; editing keeps the line's provider.
+
+interface ActivityLineValues {
+  date: string
+  label: string
+  nb_persons: number
+  participant_ids: string[]
+  price_client: number
+  price_provider: number
+}
+interface ActivityLineFormProps {
+  initial?: ActivityLineValues
+  defaultDate: string
+  participants: { id: string; first_name: string; last_name: string | null }[]
+  onSave: (v: ActivityLineValues) => void
+  onCancel: () => void
+}
+function ActivityLineForm({ initial, defaultDate, participants, onSave, onCancel }: ActivityLineFormProps) {
+  const { lang } = useLanguage()
+  const [label, setLabel] = useState(initial?.label ?? '')
+  const [date, setDate]   = useState(initial?.date ?? defaultDate)
+  const [picked, setPicked] = useState<string[]>(initial?.participant_ids ?? [])
+  const [price, setPrice] = useState(initial ? String(initial.price_client) : '')
+  const [cost, setCost]   = useState(initial && initial.price_provider ? String(initial.price_provider) : '')
+  const toggle = (id: string) => setPicked(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const p = parseFloat(price)
+    const c = cost.trim() === '' ? 0 : parseFloat(cost)
+    if (!label.trim() || isNaN(p) || p < 0 || isNaN(c) || c < 0) return
+    onSave({
+      date, label: label.trim(),
+      // No guest ticked: keep the head count the line already had (lines made
+      // in the Activities page may carry a count without names).
+      nb_persons: picked.length || initial?.nb_persons || 1,
+      participant_ids: picked,
+      price_client: p,
+      price_provider: c,
+    })
+  }
+
+  const input = 'w-full px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400'
+  return (
+    <form onSubmit={handleSubmit} className="mt-2 mb-1 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg space-y-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <input value={label} onChange={e => setLabel(e.target.value)} placeholder={i18n.accounting.bf_act_label_ph[lang]} className={input} required autoFocus />
+        <input type="date" value={date} onChange={e => setDate(e.target.value)} className={input} required />
+      </div>
+      {participants.length > 0 && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          {participants.map(p => (
+            <label key={p.id} className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300 cursor-pointer">
+              <input type="checkbox" checked={picked.includes(p.id)} onChange={() => toggle(p.id)} />
+              {p.first_name} {p.last_name ?? ''}
+            </label>
+          ))}
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-xs text-gray-500 dark:text-gray-400">
+          {i18n.accounting.bf_act_total_price[lang]}
+          <input type="number" min="0" step="0.01" value={price} onChange={e => setPrice(e.target.value)} className={input} required />
+        </label>
+        <label className="text-xs text-gray-500 dark:text-gray-400">
+          {i18n.accounting.bf_act_cost[lang]}
+          <input type="number" min="0" step="0.01" value={cost} onChange={e => setCost(e.target.value)} placeholder="0" className={input} />
+        </label>
+      </div>
+      <div className="flex gap-2">
+        <button type="button" onClick={onCancel}
+          className="flex-1 px-3 py-1.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
+          {i18n.common.btn_cancel[lang]}
+        </button>
+        <button type="submit" className="flex-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-semibold">
+          {initial ? i18n.accounting.bf_update[lang] : i18n.accounting.bf_act_add[lang]}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 // ── Booking detail panel ───────────────────────────────────────────────────
 
 interface DetailPanelProps {
@@ -327,6 +411,8 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
   const [editingRoomPriceId, setEditingRoomPriceId] = useState<string | null>(null)
   const [editingRentalId, setEditingRentalId] = useState<string | null>(null)
   const [editingLessonPriceId, setEditingLessonPriceId] = useState<string | null>(null)
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null)
+  const [showAddActivity, setShowAddActivity] = useState(false)
 
   const total        = computeBookingTotal(b, data)
   const discounts    = computeBookingDiscounts(b.id, data.payments)
@@ -659,27 +745,74 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           })()}
 
           {/* Activities */}
-          {activityRev > 0 && (
+          {/* Always shown, even empty: it is where an outing gets billed. */}
+          {(() => {
+            const today = todayISO()
+            const defaultDate = today >= b.check_in && today <= b.check_out ? today : b.check_in
+            return (
             <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
               <div className="flex justify-between items-center px-4 py-2 bg-gray-50 dark:bg-gray-800">
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🎯 {i18n.accounting.rev_activities[lang]}</span>
-                <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{fmtEur(activityRev)}</span>
+                <div className="flex items-center gap-3">
+                  {!showAddActivity && (
+                    <button onClick={() => { setShowAddActivity(true); setEditingActivityId(null) }}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline">+ {i18n.accounting.bf_act_add[lang]}</button>
+                  )}
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{fmtEur(activityRev)}</span>
+                </div>
               </div>
               <div className="px-4 py-2 space-y-1">
                 {bkActivities.map(a => (
-                  <div key={a.id} className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                    <span>
-                      {fmtDate(a.date)} · {a.label} · {a.nb_persons}p
-                      {a.participant_ids.length > 0 && (
-                        <span className="ml-1 text-blue-400 dark:text-blue-300">— {partNames(a.participant_ids)}</span>
-                      )}
-                    </span>
-                    <span>{fmtEur(a.price_client)}</span>
+                  <div key={a.id}>
+                    <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+                      <span>
+                        {fmtDate(a.date)} · {a.label} · {a.nb_persons}p
+                        {a.participant_ids.length > 0 && (
+                          <span className="ml-1 text-blue-400 dark:text-blue-300">— {partNames(a.participant_ids)}</span>
+                        )}
+                        {a.price_provider > 0 && (
+                          <span className="ml-1 text-gray-400 dark:text-gray-500">({i18n.accounting.bf_act_cost_short[lang]} {fmtEur(a.price_provider)})</span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span>{fmtEur(a.price_client)}</span>
+                        <button onClick={() => { setEditingActivityId(editingActivityId === a.id ? null : a.id); setShowAddActivity(false) }}
+                          className="text-gray-300 dark:text-gray-500 hover:text-amber-500 dark:hover:text-amber-400 transition-colors">✏️</button>
+                        <button onClick={() => handlers.deleteActivityBooking(a.id)} title={i18n.accounting.bf_act_delete[lang]}
+                          className="text-gray-300 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors">✕</button>
+                      </div>
+                    </div>
+                    {editingActivityId === a.id && (
+                      <ActivityLineForm
+                        initial={a}
+                        defaultDate={defaultDate}
+                        participants={bkParts}
+                        onSave={v => { handlers.updateActivityBooking({ ...a, ...v }); setEditingActivityId(null) }}
+                        onCancel={() => setEditingActivityId(null)}
+                      />
+                    )}
                   </div>
                 ))}
+                {bkActivities.length === 0 && !showAddActivity && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 italic">{i18n.accounting.bf_act_none[lang]}</p>
+                )}
+                {showAddActivity && (
+                  <ActivityLineForm
+                    defaultDate={defaultDate}
+                    participants={bkParts}
+                    onSave={v => {
+                      handlers.addInHouseActivity({
+                        id: crypto.randomUUID(), booking_id: b.id, payment_flow: 'we_pay_provider', notes: null, ...v,
+                      })
+                      setShowAddActivity(false)
+                    }}
+                    onCancel={() => setShowAddActivity(false)}
+                  />
+                )}
               </div>
             </div>
-          )}
+            )
+          })()}
 
           {/* Center access */}
           {centerAccessRev > 0 && (

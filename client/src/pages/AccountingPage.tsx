@@ -15,6 +15,8 @@ import { useTable } from '../hooks/useSupabase'
 import { usePriceTiers } from '../hooks/usePriceTiers'
 import { persist } from '../components/accounting/persist'
 import { getRoomNightlyRate } from '../components/accounting/utils'
+import { ensureInHouseProvider } from '../utils/billedActivities'
+import type { NewActivityBooking } from '../utils/billedActivities'
 import AccountingDashboard  from '../components/accounting/AccountingDashboard'
 import BookingFinances      from '../components/accounting/BookingFinances'
 import InstructorPayroll    from '../components/accounting/InstructorPayroll'
@@ -31,7 +33,7 @@ import type {
   Expense, ExpenseCategory, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   TaxiPricingDefaults, TaxiManagerPayment,
   DiningEvent, BookingRoomPrice, RoomRate, PriceItem, Lesson,
-  AgencyBillingLine, AgencyInvoice, TaxiTrip, Lang,
+  AgencyBillingLine, AgencyInvoice, TaxiTrip, Lang, ActivityBooking,
 } from '../types/database'
 
 type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'agencies' | 'cashflow' | 'expenses' | 'events' | 'unverified'
@@ -77,7 +79,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: taxiManagerPayments }      = useTable<TaxiManagerPayment>('taxi_manager_payments', { order: 'date', ascending: false })
   // order matters: several rows may exist, every screen must pick the most recent (8000€ bug)
   const { data: taxiPricingDefaults }      = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
-  const { data: activityBookings }         = useActivityBookings()
+  const { data: activityBookingsData }     = useActivityBookings()
   const { data: activityPayments }         = useActivityPayments()
   const { data: agencies }                 = useAgencies()
   const { data: agencyRateItems }          = useAgencyRateItems()
@@ -115,6 +117,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const [palmeirasRents,     setPalmeirasRents]     = useState<PalmeirasRent[]>([])
   const [palmeirasReversals, setPalmeirasReversals] = useState<PalmeirasReversal[]>([])
   const [palmeirasEntries,   setPalmeirasEntries]   = useState<PalmeirasEntry[]>([])
+  const [activityBookings,   setActivityBookings]   = useState<ActivityBooking[]>([])
 
   useEffect(() => setLessons(lessonsData),                     [lessonsData])
   useEffect(() => setTaxiTrips(taxiTripsData),                 [taxiTripsData])
@@ -123,6 +126,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   useEffect(() => setBookingRoomPrices(bookingRoomPricesData), [bookingRoomPricesData])
   useEffect(() => setEquipmentRentals(equipmentRentalsData),  [equipmentRentalsData])
   useEffect(() => setPayments(paymentsData),                   [paymentsData])
+  useEffect(() => setActivityBookings(activityBookingsData),   [activityBookingsData])
   useEffect(() => setInstructorDebts(instructorDebtsData),     [instructorDebtsData])
   useEffect(() => setInstructorPayments(instructorPaymentsData),[instructorPaymentsData])
   useEffect(() => setLessonRateOverrides(lessonOverridesData), [lessonOverridesData])
@@ -303,6 +307,33 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       setExpenses(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('expenses').delete().eq('id', id),
         () => setExpenses(before), 'the expense deletion')
+    },
+
+    // Activities billed from a booking's bill: filed under the in-house provider
+    // (created on first use), see utils/billedActivities.ts.
+    addInHouseActivity: (a: Omit<NewActivityBooking, 'provider_id'>) => {
+      const before = activityBookings
+      ensureInHouseProvider().then(provider_id => {
+        const row: NewActivityBooking = { ...a, provider_id }
+        setActivityBookings(prev => [{ ...row, created_at: new Date().toISOString() }, ...prev])
+        persist(supabase.from('activity_bookings').insert([row]),
+          () => setActivityBookings(before), 'the activity')
+      }).catch((err: Error) => alert('Could not save the activity.\n\n' + err.message))
+    },
+    updateActivityBooking: (a: ActivityBooking) => {
+      const before = activityBookings
+      setActivityBookings(prev => prev.map(x => x.id === a.id ? a : x))
+      // Only what the bill edits — never the provider, the flow or created_at.
+      const { date, label, nb_persons, participant_ids, price_client, price_provider, notes } = a
+      persist(supabase.from('activity_bookings')
+        .update({ date, label, nb_persons, participant_ids, price_client, price_provider, notes }).eq('id', a.id),
+        () => setActivityBookings(before), 'the activity')
+    },
+    deleteActivityBooking: (id: string) => {
+      const before = activityBookings
+      setActivityBookings(prev => prev.filter(x => x.id !== id))
+      persist(supabase.from('activity_bookings').delete().eq('id', id),
+        () => setActivityBookings(before), 'the activity deletion')
     },
     addExpenseCategory: (c: ExpenseCategory) => {
       const before = expenseCategories
