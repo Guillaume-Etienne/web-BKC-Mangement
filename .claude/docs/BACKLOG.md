@@ -124,6 +124,14 @@ reverifier par curl anon.
 
 ## 🔴 Ouvert
 
+### 🎯 Activités facturées depuis le Daily / la note — codé le 2026-09-28 (`fb34d4d`), vérif écran à faire
+
+Daily → + Activity → « Bill to guests » (participants, prix/pers., coût facultatif) : une ligne
+`activity_bookings` par résa, sous le prestataire **« BKC (in-house) »** créé au premier usage
+(`utils/billedActivities.ts`, testé). Accounting → résa → Activities : + Add activity, ✏️, ✕.
+**Limite assumée** : la note du Daily (`day_activities`) et les lignes facturées ne sont pas
+reliées — supprimer l'une ne touche pas l'autre. Premier cas : sortie bateau de Marie (#32).
+
 ### ✅ Bungalow payé en direct au Palmeiras — livré et vérifié à l'écran par gui le 2026-09-28
 
 Case « Paid directly to Palmeiras » sur la ligne bungalow de la résa. #39 cochée, paiement
