@@ -271,7 +271,9 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         const idx = prev.findIndex(x => x.lesson_id === o.lesson_id)
         return idx >= 0 ? prev.map((x, i) => i === idx ? o : x) : [...prev, o]
       })
-      persist(supabase.from('lesson_rate_overrides').upsert([o]),
+      // One override per lesson (UNIQUE lesson_id): the form mints a fresh id
+      // each time, so the conflict must be on the lesson, not the id.
+      persist(supabase.from('lesson_rate_overrides').upsert([o], { onConflict: 'lesson_id' }),
         () => setLessonRateOverrides(before), 'the pay override')
     },
     removeLessonOverride: (lesson_id: string) => {

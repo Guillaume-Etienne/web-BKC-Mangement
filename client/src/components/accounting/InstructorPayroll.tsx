@@ -38,7 +38,7 @@ function AddDebtForm({ instructorId, onAdd, onCancel }: AddDebtFormProps) {
     e.preventDefault()
     const parsed = parseFloat(amount)
     if (!parsed || !description.trim()) return
-    onAdd({ id: `debt_${Date.now()}`, instructor_id: instructorId, date, amount: parsed, description: description.trim() })
+    onAdd({ id: crypto.randomUUID(), instructor_id: instructorId, date, amount: parsed, description: description.trim() })
   }
 
   return (
@@ -89,7 +89,7 @@ function AddPaymentForm({ instructorId, suggestedAmount, onAdd, onCancel }: AddP
     e.preventDefault()
     const parsed = parseFloat(amount)
     if (!parsed || parsed <= 0) return
-    onAdd({ id: `ipay_${Date.now()}`, instructor_id: instructorId, date, amount: parsed, method, notes: notes || null })
+    onAdd({ id: crypto.randomUUID(), instructor_id: instructorId, date, amount: parsed, method, notes: notes || null })
   }
 
   return (
@@ -150,7 +150,7 @@ function OverrideForm({ lessonId, currentRate, onSave, onRemove, onCancel, hasOv
     e.preventDefault()
     const parsed = parseFloat(rate)
     if (!parsed || !note.trim()) return
-    onSave({ id: `lro_${Date.now()}`, lesson_id: lessonId, rate: parsed, note: note.trim() })
+    onSave({ id: crypto.randomUUID(), lesson_id: lessonId, rate: parsed, note: note.trim() })
   }
 
   return (

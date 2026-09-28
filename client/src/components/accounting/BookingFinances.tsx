@@ -170,7 +170,7 @@ function DiscountForm({ bookingId, initial, onSave, onCancel }: DiscountFormProp
     const parsed = parseFloat(amount)
     if (!parsed || parsed <= 0) return
     onSave({
-      id:          initial?.id ?? `pay_${Date.now()}`,
+      id:          initial?.id ?? crypto.randomUUID(),
       booking_id:  bookingId,
       date,
       amount:      parsed,
@@ -240,7 +240,7 @@ function PaymentForm({ bookingId, initial, suggestedDeposit = 0, onSave, onCance
     const parsed = parseFloat(amount)
     if (!parsed || parsed <= 0) return
     onSave({
-      id:          initial?.id ?? `pay_${Date.now()}`,
+      id:          initial?.id ?? crypto.randomUUID(),
       booking_id:  bookingId,
       date,
       amount:      parsed,

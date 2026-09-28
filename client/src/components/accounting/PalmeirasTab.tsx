@@ -29,7 +29,7 @@ function RentForm({ existing, onSave, onCancel }: { existing?: PalmeirasRent; on
     e.preventDefault()
     const parsed = parseFloat(amount)
     if (!parsed) return
-    onSave({ id: existing?.id ?? `pr_${Date.now()}`, month, amount: parsed, notes: notes || null })
+    onSave({ id: existing?.id ?? crypto.randomUUID(), month, amount: parsed, notes: notes || null })
   }
   return (
     <form onSubmit={submit} className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-4 space-y-3">
@@ -70,7 +70,7 @@ function ReversalForm({ existing, onSave, onCancel }: { existing?: PalmeirasReve
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!grossNum || !pctNum) return
-    onSave({ id: existing?.id ?? `prev_${Date.now()}`, month, gross_amount: grossNum, percent: pctNum, net_amount: netAmount, notes: notes || null })
+    onSave({ id: existing?.id ?? crypto.randomUUID(), month, gross_amount: grossNum, percent: pctNum, net_amount: netAmount, notes: notes || null })
   }
   return (
     <form onSubmit={submit} className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-lg p-4 space-y-3">
@@ -122,7 +122,7 @@ function EntryForm({ month, type, onSave, onCancel }: {
     ev.preventDefault()
     const amt = parseFloat(amount)
     if (!description.trim() || isNaN(amt) || amt <= 0) return
-    onSave({ id: `pe_${Date.now()}`, month, type, description: description.trim(), amount: amt })
+    onSave({ id: crypto.randomUUID(), month, type, description: description.trim(), amount: amt })
   }
   const color = type === 'expense' ? 'red' : 'emerald'
   return (
