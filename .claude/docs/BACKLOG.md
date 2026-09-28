@@ -124,13 +124,11 @@ reverifier par curl anon.
 
 ## 🔴 Ouvert
 
-### 🌴 Bungalow payé en direct au Palmeiras — codé le 2026-09-28, migration à passer
+### ✅ Bungalow payé en direct au Palmeiras — livré et vérifié à l'écran par gui le 2026-09-28
 
-Case « Paid directly to Palmeiras » sur la ligne bungalow de la résa : sort le bungalow du dû
-client et du coût propriétaire. Le reste (commission ~15 %, comptes mensuels) reste **manuel**
-via Reversals. Conception + rappel du fonctionnement : `PALMEIRAS_ACCOUNT.md`. Reste : migration
-`2026-09-28_room_paid_to_owner.sql` (registre en tête), puis cocher **#39** et vérifier que son
-dû tombe de 340 € à ce qu'il nous doit vraiment.
+Case « Paid directly to Palmeiras » sur la ligne bungalow de la résa. #39 cochée, paiement
+enregistré (correctif id non-UUID `90d2953` validé au passage). Le reste (commission ~15 %,
+comptes mensuels) reste **manuel** via Reversals : `PALMEIRAS_ACCOUNT.md`. À archiver.
 
 ### ✅ Sélecteur de participants dans Planning/Quotidien — corrigé le 2026-09-26
 
