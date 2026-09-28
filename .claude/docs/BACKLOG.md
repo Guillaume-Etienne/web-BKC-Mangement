@@ -124,7 +124,7 @@ reverifier par curl anon.
 
 ## 🔴 Ouvert
 
-### 🎯 Activités facturées depuis le Daily / la note — codé le 2026-09-28 (`fb34d4d`), vérif écran à faire
+### ✅ Activités facturées depuis le Daily / la note — livré le 2026-09-28 (`fb34d4d`), vérifié à l'écran par gui
 
 Daily → + Activity → « Bill to guests » (participants, prix/pers., coût facultatif) : une ligne
 `activity_bookings` par résa, sous le prestataire **« BKC (in-house) »** créé au premier usage
