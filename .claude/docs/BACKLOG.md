@@ -6,6 +6,14 @@
 
 ## 🚨 Migrations SQL — registre
 
+⬜ **`2026-09-28_room_paid_to_owner.sql`** (TEST ⬜ / PROD ⬜) — bungalow payé en direct au
+Palmeiras : `booking_room_prices.paid_to_owner boolean NOT NULL DEFAULT false` + `GRANT SELECT
+(paid_to_owner) ... TO anon` (la page client partagée doit savoir que le bungalow n'est pas dû).
+**Strictement additive.** Code déployable avant : cocher la case échoue proprement (alerte +
+annulation), rien d'autre ne casse (la page partagée lit la colonne dans une requête à part).
+Vérif : curl anon avec token client `booking_room_prices?select=room_id,paid_to_owner` → **200**.
+Puis cocher la case sur **#39** (voir `PALMEIRAS_ACCOUNT.md`).
+
 ⬜ **`2026-09-25_walk_ins.sql`** (TEST ⬜ / PROD ⬜, **mise à jour le 2026-09-26**) — walk-ins :
 `bookings.kind` (`'stay'` défaut | `'day_visitor'`, CHECK), `clients.custom_lesson_rate`,
 `clients.waiver_signed_at`, **+ `GRANT SELECT (kind) ON bookings TO anon`** (décision gui du
@@ -112,12 +120,13 @@ reverifier par curl anon.
 
 ## 🔴 Ouvert
 
-### 🌴 Bungalow payé en direct au Palmeiras — conçu, pas codé (2026-09-27)
+### 🌴 Bungalow payé en direct au Palmeiras — codé le 2026-09-28, migration à passer
 
 Case « Paid directly to Palmeiras » sur la ligne bungalow de la résa : sort le bungalow du dû
 client et du coût propriétaire. Le reste (commission ~15 %, comptes mensuels) reste **manuel**
-via Reversals. Conception + rappel du fonctionnement : `PALMEIRAS_ACCOUNT.md`. Premier cas :
-**#39** (dû 340 € affiché à tort).
+via Reversals. Conception + rappel du fonctionnement : `PALMEIRAS_ACCOUNT.md`. Reste : migration
+`2026-09-28_room_paid_to_owner.sql` (registre en tête), puis cocher **#39** et vérifier que son
+dû tombe de 340 € à ce qu'il nous doit vraiment.
 
 ### ✅ Sélecteur de participants dans Planning/Quotidien — corrigé le 2026-09-26
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { SharedAccountingData } from './types'
-import { countNights, getRoomNightlyRate, fmtEur } from './utils'
+import { countNights, getRoomNightlyRate, fmtEur, isRoomPaidToOwner } from './utils'
 import { fmtDate } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
@@ -73,8 +73,10 @@ export default function HousesTab({ data }: Props) {
         }
         const nights   = countNights(booking.check_in, booking.check_out)
         const sellRate = bookingRoomPrices.find(p => p.booking_id === br.booking_id && p.room_id === br.room_id)?.price_per_night ?? 0
-        const revenue  = sellRate * nights
-        const cost     = costRate * nights
+        // Paid to Palmeiras directly: neither our revenue nor our cost.
+        const direct   = isRoomPaidToOwner(br.booking_id, br.room_id, data)
+        const revenue  = direct ? 0 : sellRate * nights
+        const cost     = direct ? 0 : costRate * nights
         const client   = data.clients.find(c => c.id === booking.client_id)
         bookingLines.push({
           bookingId:  booking.id,

@@ -46,6 +46,14 @@ export function isRoomAgencyBilled(bookingId: string, roomId: string, data: Shar
   return snapshot ? isAgencyBilled(snapshot) : false
 }
 
+/** True when the guest paid the bungalow's owner (Palmeiras) directly: the room
+ *  is then neither owed to us nor a cost to us — our commission is entered by
+ *  hand in Palmeiras → Reversals. `=== true` because rows fetched before the
+ *  column existed carry `undefined`. See .claude/docs/PALMEIRAS_ACCOUNT.md. */
+export function isRoomPaidToOwner(bookingId: string, roomId: string, data: Pick<SharedAccountingData, 'bookingRoomPrices'>): boolean {
+  return data.bookingRoomPrices.some(p => p.booking_id === bookingId && p.room_id === roomId && p.paid_to_owner === true)
+}
+
 /** Everything the marker needs, so callers outside accounting (the planning
  *  views) can pass the two slices they already have instead of a full dataset. */
 export interface AgencyLookup {
@@ -240,6 +248,7 @@ export function computeAccommodationRevenue(booking: Booking, data: SharedAccoun
   const ownRooms = data.bookingRooms
     .filter(br => br.booking_id === booking.id)
     .filter(br => !isRoomAgencyBilled(booking.id, br.room_id, data))
+    .filter(br => !isRoomPaidToOwner(booking.id, br.room_id, data))
     .reduce((sum, br) => sum + getRoomNightlyRate(booking.id, br.room_id, data) * nights, 0)
 
   // External stays are priced as a lump sum for the whole stay, not per night:
@@ -690,6 +699,8 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
     if (!bungalowRoomIds.has(br.room_id)) return sum
     const bk = data.bookings.find(b => b.id === br.booking_id)
     if (!bk || bk.status === 'cancelled') return sum
+    // Paid to the owner directly: not in accomRev, and nothing owed to them.
+    if (isRoomPaidToOwner(br.booking_id, br.room_id, data)) return sum
     const room = data.rooms.find(r => r.id === br.room_id)
     const acc  = bungalows.find(b => b.id === room?.accommodation_id)
     return sum + (acc?.cost_per_night ?? 0) * countNights(bk.check_in, bk.check_out)

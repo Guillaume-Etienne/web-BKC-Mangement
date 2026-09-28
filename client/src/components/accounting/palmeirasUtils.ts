@@ -1,6 +1,6 @@
 import type { SharedAccountingData } from './types'
 import type { PalmeirasRent, PalmeirasReversal, PalmeirasEntry } from '../../types/database'
-import { countNights } from './utils'
+import { countNights, isRoomPaidToOwner } from './utils'
 
 /** One bungalow stay, with the margin the centre makes by sub-letting it. */
 export interface BungalowRow {
@@ -12,6 +12,9 @@ export interface BungalowRow {
   costRate: number   // €/night paid to the owner
   sellRate: number   // €/night billed to the client (booking snapshot)
   margin: number     // (sell − cost) × nights
+  /** The guest paid Palmeiras directly: cost and margin are 0 — our commission
+   *  on sellRate × nights is entered by hand as a Reversal. */
+  paidToOwner: boolean
   month: string      // YYYY-MM, the booking check-in month
 }
 
@@ -45,7 +48,8 @@ export function buildBungalowRows(data: SharedAccountingData): BungalowRow[] {
     const acc  = bungalows.find(b => b.id === room?.accommodation_id)
     const sellRate = data.bookingRoomPrices
       .find(p => p.booking_id === br.booking_id && p.room_id === br.room_id)?.price_per_night ?? 0
-    const costRate = acc?.cost_per_night ?? 0
+    const paidToOwner = isRoomPaidToOwner(br.booking_id, br.room_id, data)
+    const costRate = paidToOwner ? 0 : acc?.cost_per_night ?? 0
     const nights = countNights(booking.check_in, booking.check_out)
     const client = data.clients.find(c => c.id === booking.client_id)
 
@@ -57,7 +61,8 @@ export function buildBungalowRows(data: SharedAccountingData): BungalowRow[] {
       nights,
       costRate,
       sellRate,
-      margin: (sellRate - costRate) * nights,
+      margin: paidToOwner ? 0 : (sellRate - costRate) * nights,
+      paidToOwner,
       month:  booking.check_in.slice(0, 7),
     })
   }

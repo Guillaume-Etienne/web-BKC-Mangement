@@ -127,6 +127,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const [booking,        setBooking]        = useState<BookingWithClient | 'not_found' | undefined>(undefined)
   const [bkgRooms,       setBkgRooms]       = useState<BookingRoom[]>([])
   const [roomPrices,     setRoomPrices]     = useState<SharedRoomPrice[]>([])
+  const [paidToOwnerIds, setPaidToOwnerIds] = useState<Set<string>>(new Set())
   const [roomRates,      setRoomRates]      = useState<RoomRate[]>([])
   const [rooms,          setRooms]          = useState<Room[]>([])
   const [accoms,         setAccoms]         = useState<Accommodation[]>([])
@@ -200,11 +201,17 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       // Base rates, used only when this booking has no price snapshot. Column-restricted
       // for anon (no `notes`), and RLS only returns the rooms of this very booking.
       supabase.from('room_rates').select('room_id, price_per_night'),
+      // Bungalows the guest paid Palmeiras for directly — not owed to us. Its own
+      // query on purpose: before the 2026-09-28 migration grants this column to
+      // anon it errors, and folded into the prices query above that error would
+      // blank the whole page. Alone, a failure just means "none".
+      supabase.from('booking_room_prices').select('room_id, paid_to_owner').eq('booking_id', id),
     ]).then(([
       bkgRoomsRes, pricesRes, roomsRes, acomsRes, paymentsRes,
       lessonsRes, instrRes, rentalsRes, taxisRes,
-      diningRes, partRes, extBkgRes, actBkgRes, roomRatesRes,
+      diningRes, partRes, extBkgRes, actBkgRes, roomRatesRes, paidToOwnerRes,
     ]) => {
+      setPaidToOwnerIds(new Set((paidToOwnerRes.data ?? []).filter(p => p.paid_to_owner === true).map(p => p.room_id)))
       setBkgRooms(bkgRoomsRes.data ?? [])
       setRoomPrices(pricesRes.data ?? [])
       setRooms(roomsRes.data ?? [])
@@ -268,7 +275,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       pricePerNight,
       // A room picked up by the agency comes out at 0, which the filter below
       // drops — same treatment as any other room the guest is not charged for.
-      total: priceRow && coveredByAgency(priceRow) ? 0 : nights * pricePerNight,
+      // Same for a bungalow the guest paid Palmeiras for directly.
+      total: (priceRow && coveredByAgency(priceRow)) || paidToOwnerIds.has(br.room_id) ? 0 : nights * pricePerNight,
       note: priceRow?.override_note ?? null,
     }
   })

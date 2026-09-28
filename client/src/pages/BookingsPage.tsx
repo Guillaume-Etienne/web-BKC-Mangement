@@ -1634,16 +1634,28 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     // 5. Booking room prices (delete all + re-insert)
     //    Same shape, and these are the frozen prices: losing them makes the
     //    booking fall back to today's rates instead of the agreed ones.
+    //    What was set on a room from Accounting survives the re-insert as long
+    //    as the room stays: its agency line, "paid to Palmeiras", and the price
+    //    note if the price itself did not change. Before, any edit of the
+    //    booking silently wiped them. Keys are only sent when set, so a column
+    //    not yet migrated is never named in the insert.
+    const previousPrices = isNew ? [] : bookingRoomPricesData.filter(p => p.booking_id === bookingId)
     const { error: pricesDelErr } = await supabase.from('booking_room_prices').delete().eq('booking_id', bookingId)
     if (pricesDelErr) problems.push(`Room prices were not updated (${pricesDelErr.message}). The previous ones are still in place.`)
     else if (data.room_ids.length > 0) {
       const { error: pricesInsErr } = await supabase.from('booking_room_prices').insert(
-        data.room_ids.map(rid => ({
-          booking_id: bookingId,
-          room_id: rid,
-          price_per_night: data.room_prices[rid] ?? 0,
-          override_note: null,
-        }))
+        data.room_ids.map(rid => {
+          const prev = previousPrices.find(p => p.room_id === rid)
+          const price = data.room_prices[rid] ?? 0
+          return {
+            booking_id: bookingId,
+            room_id: rid,
+            price_per_night: price,
+            override_note: prev && prev.price_per_night === price ? prev.override_note : null,
+            ...(prev?.agency_billing_line_id ? { agency_billing_line_id: prev.agency_billing_line_id } : {}),
+            ...(prev?.paid_to_owner ? { paid_to_owner: true } : {}),
+          }
+        })
       )
       if (pricesInsErr) problems.push(`⚠️ THIS BOOKING HAS NO FROZEN PRICES (${pricesInsErr.message}). Re-open it and set them again, or it will be billed at today's rates.`)
     }

@@ -1,4 +1,4 @@
-# Bungalows Palmeiras payés en direct — conception (2026-09-27) · rien de codé
+# Bungalows Palmeiras payés en direct — conception (2026-09-27) · codé le 2026-09-28
 
 > Décidé avec gui le 2026-09-27, à partir de la résa **#39** (Bungalow See View 5).
 > Une première version (compte courant complet, taux figé par résa, règlements) a été
@@ -25,20 +25,23 @@ Rien sur la résa ne dit « ce bungalow a été payé au Palmeiras ». L'app cro
 nous doit le bungalow (#39 : **340 €, faux**) et qu'on doit le coût au Palmeiras (**308 €,
 faux**).
 
-## Ce qu'on code (quand gui dit go)
+## Codé le 2026-09-28 (migration `2026-09-28_room_paid_to_owner.sql` à passer)
 
-1. **Case « Paid directly to Palmeiras »** sur la ligne bungalow dans les finances de la résa
-   (`BookingFinances`), + note libre (date du paiement).
-2. Cochée → le bungalow **sort du dû client** et du **revenu hébergement**, et son **coût
-   propriétaire ne compte plus** (onglet Palmeiras + carte « bungalow owners » du dashboard).
-   La ligne reste visible, grisée, avec la mention.
-3. **Bonus facultatif** : dans l'onglet Palmeiras, liste « bungalows payés en direct ce mois »
-   avec leur total, à recopier dans Reversals lors des comptes.
+**Où :** Accounting → Bookings → la résa → sous la ligne du bungalow, case **« Paid directly to
+Palmeiras »** (visible seulement sur un bungalow). La date du paiement va dans la note du prix
+(✏️), comme toute correction.
 
-À toucher : `computeBookingTotal` et **tous ses appelants** (dû client, CollectionsModal, pages
-partagées client, **mcp-server** — il consomme le code de `client/`), `palmeirasUtils`
-+ tests, `computeSeasonTotals`. Stockage probable : un booléen + note sur
-`booking_room_prices` (attention aux colonnes `share_price*` générées, cf. gotchas Supabase n°4).
+- Stockage : `booking_room_prices.paid_to_owner` ; règle unique `isRoomPaidToOwner` (`utils.ts`).
+- Cochée → hors `computeAccommodationRevenue` (donc dû client, dashboard, CollectionsModal,
+  mcp-server), hors `bungalowCosts`, coût/marge à 0 dans `buildBungalowRows` et `HousesTab`.
+  Le montant reste affiché barré sur la résa.
+- Onglet Palmeiras : badge « Paid to Palmeiras » dans « Bungalow bookings detail » + ligne
+  « Paid directly to Palmeiras this period : X € » = la base à recopier dans un **+ Reversal**.
+- Page client partagée : bungalow retiré de la facture (requête à part, tolérante à la migration).
+- Au passage : modifier une résa (BookingsPage) **effaçait** note de prix, ligne agence et
+  maintenant la case ; ils survivent désormais tant que la chambre reste (note : si le prix
+  ne change pas).
+- Tests : `palmeirasUtils.test.ts` § « bungalow paid directly to Palmeiras ».
 
 ## Écarté (ne pas relancer sans que gui le demande)
 

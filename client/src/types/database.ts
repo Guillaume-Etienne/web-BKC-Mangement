@@ -695,6 +695,10 @@ export interface BookingRoomPrice {
   price_per_night: number
   override_note: string | null
   agency_billing_line_id?: string | null  // 2026-08-16, foundations only — see AgencyBillingLine
+  // 2026-09-28 — the guest paid the owner (Palmeiras) directly for this bungalow:
+  // not owed to us, and we owe the owner nothing for it. Our commission is
+  // settled by hand in Palmeiras → Reversals. Optional: undefined before migration.
+  paid_to_owner?: boolean
 }
 
 // External accommodation (Palmeiras bungalows, other hotels)

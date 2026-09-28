@@ -500,6 +500,20 @@ export default function PalmeirasTab({ data, handlers }: Props) {
           <div className="px-5 py-4 border-b">
             <h2 className="font-semibold text-gray-800 dark:text-gray-200">{i18n.accounting.palm_bungalow_detail[lang]}</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Auto-calculated from bookings assigned to bungalow accommodations</p>
+            {/* What guests paid Palmeiras directly — the base of our commission,
+                to copy into a Reversal when settling the month with them. */}
+            {(() => {
+              const direct = filteredBungalows.filter(b => b.paidToOwner)
+              if (direct.length === 0) return null
+              const total = direct.reduce((s, b) => s + b.sellRate * b.nights, 0)
+              return (
+                <p className="text-xs text-purple-700 dark:text-purple-400 mt-2 font-medium">
+                  {i18n.accounting.palm_paid_direct_summary[lang]
+                    .replace('{total}', fmtEur(total))
+                    .replace('{count}', String(direct.length))}
+                </p>
+              )
+            })()}
           </div>
           <table className="w-full text-sm min-w-[700px]">
             <thead className="bg-gray-50 dark:bg-gray-800 border-b">
@@ -519,11 +533,19 @@ export default function PalmeirasTab({ data, handlers }: Props) {
                   <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{b.bungalow}</td>
                   <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{b.checkIn} → {b.checkOut}</td>
                   <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{b.nights}</td>
-                  <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">{fmtEur(b.costRate)}</td>
+                  <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">{b.paidToOwner ? <span className="text-gray-300 dark:text-gray-500">–</span> : fmtEur(b.costRate)}</td>
                   <td className="px-4 py-3 text-right text-emerald-600 dark:text-emerald-400">{fmtEur(b.sellRate)}</td>
-                  <td className={`px-4 py-3 text-right font-semibold ${b.margin >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'}`}>
-                    {b.margin >= 0 ? '+' : ''}{fmtEur(b.margin)}
-                  </td>
+                  {b.paidToOwner ? (
+                    <td className="px-4 py-3 text-right">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400 whitespace-nowrap">
+                        {i18n.accounting.palm_paid_direct_badge[lang]}
+                      </span>
+                    </td>
+                  ) : (
+                    <td className={`px-4 py-3 text-right font-semibold ${b.margin >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'}`}>
+                      {b.margin >= 0 ? '+' : ''}{fmtEur(b.margin)}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{b.bookingRef}</td>
                 </tr>
               ))}

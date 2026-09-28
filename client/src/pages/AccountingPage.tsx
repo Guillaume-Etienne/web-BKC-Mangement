@@ -184,7 +184,10 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       const before = bookingRoomPrices
       setBookingRoomPrices(prev => {
         const idx = prev.findIndex(x => x.booking_id === p.booking_id && x.room_id === p.room_id)
-        return idx >= 0 ? prev.map((x, i) => i === idx ? p : x) : [...prev, p]
+        // Merge, not replace: callers send only the columns they change (the
+        // DB upsert leaves the others alone), so the screen must keep them too —
+        // e.g. editing the price must not visually untick "paid to Palmeiras".
+        return idx >= 0 ? prev.map((x, i) => i === idx ? { ...x, ...p } : x) : [...prev, p]
       })
       persist(supabase.from('booking_room_prices').upsert([p]),
         () => setBookingRoomPrices(before), 'the room price')

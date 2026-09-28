@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildBungalowRows, computePalmeirasTotals } from './palmeirasUtils'
 import type { BungalowRow } from './palmeirasUtils'
-import { computeSeasonTotals } from './utils'
+import { computeAccommodationRevenue, computeSeasonTotals } from './utils'
 import {
   mkData, mkBooking, mkBookingRoom, mkBookingRoomPrice, mkAccommodation, mkRoom,
 } from './utils.fixtures'
@@ -71,6 +71,36 @@ describe('buildBungalowRows', () => {
   })
 })
 
+describe('bungalow paid directly to Palmeiras', () => {
+  function directSetup() {
+    const data = bungalowSetup()
+    data.bookingRoomPrices = [mkBookingRoomPrice({ room_id: 'roomBu', price_per_night: 50, paid_to_owner: true })]
+    return data
+  }
+
+  it('keeps the stay in the list, at no cost and no margin', () => {
+    const [row] = buildBungalowRows(directSetup())
+    expect(row.paidToOwner).toBe(true)
+    expect(row.sellRate).toBe(50)         // still shown: the base of our commission
+    expect(row.costRate).toBe(0)
+    expect(row.margin).toBe(0)
+  })
+
+  it('is neither owed by the guest nor a cost to us', () => {
+    const data = directSetup()
+    expect(computeAccommodationRevenue(data.bookings[0], data)).toBe(0)
+    const t = computeSeasonTotals(data)
+    expect(t.bungalowCosts).toBe(0)
+    expect(t.billedNet).toBe(0)
+  })
+
+  it('a row fetched before the migration (no column) is a normal sub-let', () => {
+    const [row] = buildBungalowRows(bungalowSetup())
+    expect(row.paidToOwner).toBe(false)
+    expect(computeSeasonTotals(bungalowSetup()).bungalowCosts).toBe(175)   // 25 × 7
+  })
+})
+
 describe('computePalmeirasTotals', () => {
   const rents = [{ id: 'r1', month: '2026-11', amount: 850, notes: null }]
   const reversals = [{ id: 'v1', month: '2026-11', gross_amount: 1000, percent: 10, net_amount: 100, notes: null }]
@@ -80,7 +110,7 @@ describe('computePalmeirasTotals', () => {
   ]
   const bungalows: BungalowRow[] = [
     { bungalow: 'B-1', bookingRef: 'Alice', checkIn: '2026-11-01', checkOut: '2026-11-08',
-      nights: 7, costRate: 25, sellRate: 50, margin: 175, month: '2026-11' },
+      nights: 7, costRate: 25, sellRate: 50, margin: 175, paidToOwner: false, month: '2026-11' },
   ]
 
   it('sums each line of the partnership', () => {

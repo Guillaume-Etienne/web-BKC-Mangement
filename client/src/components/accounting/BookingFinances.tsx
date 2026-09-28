@@ -415,6 +415,17 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                   const isEditing = editingRoomPriceId === br.room_id
                   const roomLabel = acc ? `${acc.name}/${room?.name}` : (room?.name ?? br.room_id)
                   const hasNoPrice = !snap
+                  const isBungalow = acc?.type === 'bungalow'
+                  const paidToOwner = snap?.paid_to_owner === true
+                  // Narrow row on purpose: a spread of `snap` would carry the
+                  // GENERATED share_price_per_night column and fail the upsert.
+                  const togglePaidToOwner = () => handlers.upsertBookingRoomPrice({
+                    booking_id: b.id,
+                    room_id: br.room_id,
+                    price_per_night: rate,
+                    override_note: snap?.override_note ?? null,
+                    paid_to_owner: !paidToOwner,
+                  })
                   // A spot in an externally-billed place holds no nightly rate by
                   // design: showing it at 0 €/N next to the flat line below would
                   // read as a missing price, which is exactly the alarm we want to
@@ -440,11 +451,19 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                           )}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span>{fmtEur(rate * nights)}</span>
+                          <span className={paidToOwner ? 'line-through text-gray-300 dark:text-gray-500' : ''}>{fmtEur(rate * nights)}</span>
                           <button onClick={() => setEditingRoomPriceId(isEditing ? null : br.room_id)}
                             className={`transition-colors ${hasNoPrice ? 'text-red-400 dark:text-red-300 hover:text-red-600 dark:hover:text-red-400' : 'text-gray-300 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400'}`}>✏️</button>
                         </div>
                       </div>
+                      {isBungalow && (
+                        <label className="flex items-center gap-1.5 mt-0.5 cursor-pointer w-fit" title={i18n.accounting.bf_paid_to_owner_hint[lang]}>
+                          <input type="checkbox" checked={paidToOwner} onChange={togglePaidToOwner} className="accent-purple-600" />
+                          <span className={paidToOwner ? 'text-purple-700 dark:text-purple-400 font-medium' : 'text-gray-400 dark:text-gray-500'}>
+                            {i18n.accounting.bf_paid_to_owner[lang]}
+                          </span>
+                        </label>
+                      )}
                       {isEditing && (
                         <EditRoomPriceForm
                           bookingId={b.id}
