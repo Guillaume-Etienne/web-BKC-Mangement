@@ -6,7 +6,9 @@
 
 ## 🚨 Migrations SQL — registre
 
-⬜ **`2026-09-28_room_paid_to_owner.sql`** (TEST ⬜ / PROD ⬜) — bungalow payé en direct au
+✅ **`2026-09-28_room_paid_to_owner.sql`** (TEST ✅ / PROD ✅, passée par gui, **curl anon vérifié
+le 2026-09-28** : `select=room_id,paid_to_owner` → 200 sur les deux ; `price_per_night` toujours
+42501 en PROD) — bungalow payé en direct au
 Palmeiras : `booking_room_prices.paid_to_owner boolean NOT NULL DEFAULT false` + `GRANT SELECT
 (paid_to_owner) ... TO anon` (la page client partagée doit savoir que le bungalow n'est pas dû).
 **Strictement additive.** Code déployable avant : cocher la case échoue proprement (alerte +
@@ -14,7 +16,9 @@ annulation), rien d'autre ne casse (la page partagée lit la colonne dans une re
 Vérif : curl anon avec token client `booking_room_prices?select=room_id,paid_to_owner` → **200**.
 Puis cocher la case sur **#39** (voir `PALMEIRAS_ACCOUNT.md`).
 
-⬜ **`2026-09-25_walk_ins.sql`** (TEST ⬜ / PROD ⬜, **mise à jour le 2026-09-26**) — walk-ins :
+✅ **`2026-09-25_walk_ins.sql`** (TEST ✅ / PROD ✅, passée par gui, **curl anon vérifié le
+2026-09-28** : PROD `bookings?select=id,kind` → 200, `clients?select=id,custom_lesson_rate` →
+42501 comme voulu ; visites #41/#42 créées en PROD) — walk-ins :
 `bookings.kind` (`'stay'` défaut | `'day_visitor'`, CHECK), `clients.custom_lesson_rate`,
 `clients.waiver_signed_at`, **+ `GRANT SELECT (kind) ON bookings TO anon`** (décision gui du
 26/09 : les walk-ins ne doivent pas apparaître sur le lien Restaurant, `RestaurantSharePage.tsx`
