@@ -1037,12 +1037,27 @@ export default function BookingFinances({ data, handlers }: Props) {
   const { bookings, clients, payments } = data
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showCancelled, setShowCancelled] = useState(false)
+  const [presentOnly, setPresentOnly] = useState(false)
+  const [maxNights, setMaxNights] = useState('')  // "under x days"
+  const [minNights, setMinNights] = useState('')  // "over y days"
 
   const standaloneTrips = data.taxiTrips.filter(t => t.booking_id === null)
   const standaloneRev   = computeStandaloneTaxiRevenue(data)
 
   const rows = bookings
     .filter(b => showCancelled || b.status !== 'cancelled')
+    .filter(b => {
+      if (presentOnly) {
+        const today = todayISO()
+        if (b.check_in > today || b.check_out < today) return false
+      }
+      const n = countNights(b.check_in, b.check_out)
+      const max = parseInt(maxNights, 10)
+      const min = parseInt(minNights, 10)
+      if (!isNaN(max) && n >= max) return false
+      if (!isNaN(min) && n <= min) return false
+      return true
+    })
     .map(b => {
       const client    = clients.find(c => c.id === b.client_id)
       const total     = computeBookingTotal(b, data)
@@ -1069,6 +1084,26 @@ export default function BookingFinances({ data, handlers }: Props) {
             <p className={`text-xl font-bold ${kpi.color}`}>{fmtEur(kpi.value)}</p>
           </div>
         ))}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={presentOnly} onChange={e => setPresentOnly(e.target.checked)} className="rounded" />
+          {i18n.accounting.bf_filter_present[lang]}
+        </label>
+        <label className="flex items-center gap-2">
+          {i18n.accounting.bf_filter_under[lang]}
+          <input type="number" min="1" value={maxNights} onChange={e => setMaxNights(e.target.value)}
+            className="w-16 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400" />
+          {i18n.accounting.bf_filter_days[lang]}
+        </label>
+        <label className="flex items-center gap-2">
+          {i18n.accounting.bf_filter_over[lang]}
+          <input type="number" min="1" value={minNights} onChange={e => setMinNights(e.target.value)}
+            className="w-16 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400" />
+          {i18n.accounting.bf_filter_days[lang]}
+        </label>
       </div>
 
       {/* Table */}
