@@ -330,6 +330,7 @@ visa) : **rien n'est envoyé**, gui relit avant d'expédier.
 - 2 vues : List (tableau + filtres) / Summary (matrice mois × catégorie)
 - Catégories free-form, liste par défaut `DEFAULT_CATEGORIES`
 - Form `AddExpenseForm` au scope module
+- Bloc **House rentals** en lecture seule sous la liste (2026-10-07) : house_rentals filtrés par la même période (au start_date), total séparé, JAMAIS ajouté au total des dépenses (le dashboard les compte déjà à part). Masqué si filtre catégorie.
 
 ### `EventsTab` — `accounting/EventsTab.tsx`
 **Props :** `{ data, handlers }`
