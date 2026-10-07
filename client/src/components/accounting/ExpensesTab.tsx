@@ -269,10 +269,10 @@ export default function ExpensesTab({ data, handlers }: Props) {
   // qu'on recopie ce total ailleurs, donc bloc séparé, total séparé.
   // Même règle de période que `filterDataToSeason` : rattaché au `start_date`.
   // Masqués dès qu'une catégorie est filtrée — ils n'en ont pas.
-  const houseRentalRows = useMemo(() => {
-    if (filterCat !== 'all') return []
+  // Période seule : la base du Résumé (qui ignore les filtres de la Liste,
+  // comme pour les dépenses).
+  const housePeriodRows = useMemo(() => {
     const accName = (id: string) => data.accommodations.find(a => a.id === id)?.name ?? '?'
-    const q = search.toLowerCase()
     return data.houseRentals
       .filter(r => {
         if (period === 'season' && currentSeason)
@@ -281,12 +281,32 @@ export default function ExpensesTab({ data, handlers }: Props) {
           return r.start_date.slice(0, 7) >= periodFrom && r.start_date.slice(0, 7) <= periodTo
         return true
       })
-      .filter(r => !filterMonth || r.start_date.startsWith(filterMonth))
       .map(r => ({ ...r, house: accName(r.accommodation_id) }))
-      .filter(r => !q || r.house.toLowerCase().includes(q) || (r.notes ?? '').toLowerCase().includes(q))
       .sort((a, b) => b.start_date.localeCompare(a.start_date))
-  }, [data.houseRentals, data.accommodations, filterCat, search, filterMonth, period, currentSeason, periodFrom, periodTo])
+  }, [data.houseRentals, data.accommodations, period, currentSeason, periodFrom, periodTo])
+  const houseRentalRows = useMemo(() => {
+    if (filterCat !== 'all') return []
+    const q = search.toLowerCase()
+    return housePeriodRows
+      .filter(r => !filterMonth || r.start_date.startsWith(filterMonth))
+      .filter(r => !q || r.house.toLowerCase().includes(q) || (r.notes ?? '').toLowerCase().includes(q))
+  }, [housePeriodRows, filterCat, search, filterMonth])
   const houseRentalTotal = houseRentalRows.reduce((s, r) => s + r.total_cost, 0)
+
+  // Résumé : une colonne « maisons » APRÈS le Total, hors Total — même règle
+  // que la Liste. Les mois sans dépense mais avec un loyer doivent apparaître.
+  const houseByMonth = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const r of housePeriodRows) {
+      const k = r.start_date.slice(0, 7)
+      m[k] = (m[k] ?? 0) + r.total_cost
+    }
+    return m
+  }, [housePeriodRows])
+  const housePeriodTotal = housePeriodRows.reduce((s, r) => s + r.total_cost, 0)
+  const summaryMonths = useMemo(
+    () => [...new Set([...summaryMatrix.months, ...Object.keys(houseByMonth)])].sort(),
+    [summaryMatrix.months, houseByMonth])
 
   // ── Totals by category (all time, for breakdown bar) ─────────────────────
   const allByCat = useMemo(() => {
@@ -643,10 +663,18 @@ export default function ExpensesTab({ data, handlers }: Props) {
             <p className="text-xl font-bold text-red-700 dark:text-red-400">− {fmtEur(summaryMatrix.grandTotal)}</p>
             <p className="text-[11px] text-gray-400 mt-1 truncate">{periodLabel}</p>
           </div>
+          {housePeriodRows.length > 0 && (
+            <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-4"
+              title={i18n.accounting.ex_house_rentals_note[lang]}>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">🏠 {i18n.accounting.ex_house_rentals[lang]}</p>
+              <p className="text-xl font-bold text-gray-500 dark:text-gray-400">− {fmtEur(housePeriodTotal)}</p>
+              <p className="text-[11px] text-gray-400 mt-1 truncate">{i18n.accounting.ex_house_rentals_excluded[lang]}</p>
+            </div>
+          )}
         </div>
 
         {/* Month × Category table */}
-        {summaryMatrix.months.length > 0 && (
+        {summaryMonths.length > 0 && (
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b">
@@ -659,11 +687,18 @@ export default function ExpensesTab({ data, handlers }: Props) {
                     </th>
                   ))}
                   <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.common.label_total[lang]}</th>
+                  {housePeriodRows.length > 0 && (
+                    <th className="px-4 py-3 text-right font-semibold text-gray-400 dark:text-gray-500 whitespace-nowrap border-l border-dashed border-gray-300 dark:border-gray-700"
+                      title={i18n.accounting.ex_house_rentals_note[lang]}>
+                      🏠 {i18n.accounting.ex_house_rentals[lang]}
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {[...summaryMatrix.months].reverse().map((m, mi) => {
-                  const monthTotal = summaryMatrix.monthTotals[summaryMatrix.months.length - 1 - mi]
+                {[...summaryMonths].reverse().map(m => {
+                  const mIdx = summaryMatrix.months.indexOf(m)
+                  const monthTotal = mIdx >= 0 ? summaryMatrix.monthTotals[mIdx] : 0
                   return (
                     <tr key={m} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtMonth(m)}</td>
@@ -675,7 +710,12 @@ export default function ExpensesTab({ data, handlers }: Props) {
                           </td>
                         )
                       })}
-                      <td className="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-400">− {fmtEur(monthTotal)}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-400">{monthTotal ? `− ${fmtEur(monthTotal)}` : '–'}</td>
+                      {housePeriodRows.length > 0 && (
+                        <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500 border-l border-dashed border-gray-300 dark:border-gray-700">
+                          {houseByMonth[m] ? `− ${fmtEur(houseByMonth[m])}` : '–'}
+                        </td>
+                      )}
                     </tr>
                   )
                 })}
@@ -689,6 +729,11 @@ export default function ExpensesTab({ data, handlers }: Props) {
                     </td>
                   ))}
                   <td className="px-4 py-3 text-right text-red-700 dark:text-red-400">− {fmtEur(summaryMatrix.grandTotal)}</td>
+                  {housePeriodRows.length > 0 && (
+                    <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400 border-l border-dashed border-gray-300 dark:border-gray-700">
+                      − {fmtEur(housePeriodTotal)}
+                    </td>
+                  )}
                 </tr>
               </tfoot>
             </table>
