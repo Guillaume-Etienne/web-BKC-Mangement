@@ -15,7 +15,7 @@ CREATE TYPE day_slot                        AS ENUM ('morning', 'afternoon', 'ev
 CREATE TYPE price_category                  AS ENUM ('lesson', 'activity', 'rental', 'meal', 'center_access');
 CREATE TYPE taxi_trip_type                  AS ENUM ('aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other');
 CREATE TYPE taxi_trip_status                AS ENUM ('confirmed', 'needs_details', 'done');
-CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form', 'restaurant', 'enquiry_form');
+CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form', 'restaurant', 'enquiry_form', 'partner_hotel');
 CREATE TYPE equipment_category              AS ENUM ('kite', 'board', 'surfboard', 'foilboard');
 -- Tout ce que l'app facture automatiquement : une valeur = un tarif (index unique sur
 -- price_items). Brancher un nouveau poste = ajouter une valeur, pas une colonne.
@@ -604,6 +604,58 @@ CREATE TABLE activity_payments (
 CREATE INDEX idx_activity_bookings_provider ON activity_bookings(provider_id);
 CREATE INDEX idx_activity_bookings_date     ON activity_bookings(date);
 CREATE INDEX idx_activity_payments_provider ON activity_payments(provider_id);
+
+-- ── Partner hotels (Maputo stop-over, 2026-10-07) ─────────────────────────────
+-- Money in MZN. RLS (admin + anon token 'partner_hotel'), column GRANTs and the
+-- seed: migrations/2026-10-07b_partner_hotels.sql.
+
+CREATE TABLE partner_hotels (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                   TEXT NOT NULL,
+  default_room_rate_mzn  NUMERIC(12,2) NOT NULL DEFAULT 3500,
+  commission_pct         NUMERIC(5,2)  NOT NULL DEFAULT 10,
+  is_active              BOOLEAN NOT NULL DEFAULT true,
+  notes                  TEXT,
+  created_at             TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE partner_hotel_stays (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  hotel_id         UUID NOT NULL REFERENCES partner_hotels(id) ON DELETE CASCADE,
+  booking_id       UUID REFERENCES bookings(id) ON DELETE SET NULL,
+  display_name     TEXT NOT NULL,
+  check_in         DATE NOT NULL,
+  check_out        DATE NOT NULL,
+  nb_persons       INTEGER NOT NULL DEFAULT 1,
+  couples_count    INTEGER NOT NULL DEFAULT 0,
+  children_count   INTEGER NOT NULL DEFAULT 0,
+  rooms            JSONB NOT NULL DEFAULT '[]',   -- [{ label, rate_mzn }]
+  commission_pct   NUMERIC(5,2) NOT NULL DEFAULT 10,
+  airport_transfer BOOLEAN NOT NULL DEFAULT false,
+  transfer_time    TEXT,
+  big_bags         INTEGER NOT NULL DEFAULT 0,
+  hotel_confirmed  BOOLEAN NOT NULL DEFAULT false,
+  guests_paid      BOOLEAN NOT NULL DEFAULT false,
+  paid_by          TEXT NOT NULL DEFAULT 'guest_to_hotel' CHECK (paid_by IN ('guest_to_hotel', 'guest_to_us')),
+  notes            TEXT,
+  internal_notes   TEXT,
+  created_at       TIMESTAMPTZ DEFAULT now(),
+  CHECK (check_out > check_in)
+);
+
+CREATE TABLE partner_hotel_payments (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  hotel_id    UUID NOT NULL REFERENCES partner_hotels(id) ON DELETE CASCADE,
+  date        DATE NOT NULL,
+  amount_mzn  NUMERIC(12,2) NOT NULL CHECK (amount_mzn > 0),
+  direction   TEXT NOT NULL CHECK (direction IN ('hotel_to_us', 'us_to_hotel')),
+  notes       TEXT,
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_partner_hotel_stays_hotel    ON partner_hotel_stays(hotel_id);
+CREATE INDEX idx_partner_hotel_stays_booking  ON partner_hotel_stays(booking_id);
+CREATE INDEX idx_partner_hotel_payments_hotel ON partner_hotel_payments(hotel_id);
 
 
 -- ── Accounting ────────────────────────────────────────────────────────────────

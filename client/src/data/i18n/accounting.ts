@@ -16,6 +16,7 @@ export const accountingI18n = {
   rev_events:     { fr: 'Événements',    en: 'Events',        es: 'Eventos' },
   rev_center_access: { fr: 'Accès centre', en: 'Center access', es: 'Acceso al centro' },
   rev_agencies:   { fr: 'Agences',       en: 'Agencies',      es: 'Agencias' },
+  rev_partner_hotels: { fr: 'Hôtels partenaires (≈)', en: 'Partner hotels (≈)', es: 'Hoteles asociados (≈)' },
 
   // Billing & payment
   label_gross_billed: { fr: 'Facturé brut', en: 'Gross billed', es: 'Facturado bruto' },

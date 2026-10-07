@@ -123,6 +123,9 @@ export function filterDataToSeason(
     // belongs to happens, so it follows the booking like everything else.
     // `agencies` and `agencyRateItems` are reference data, left whole above.
     agencyBillingLines:        byBookingId(data.agencyBillingLines),
+    // A Maputo stop-over follows its booking; an unlinked one, its own check-in.
+    partnerHotelStays:         data.partnerHotelStays.filter(s =>
+      s.booking_id ? keptBookingIds.has(s.booking_id) : inRange(s.check_in, range)),
 
     // ── Standalone: each row carries the date that places it ───────────────
     // ⚠️ Les dépenses, et elles seules, suivent la fenêtre ÉLARGIE : ce qui a

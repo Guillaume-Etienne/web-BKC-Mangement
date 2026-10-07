@@ -6,6 +6,17 @@
 
 ## 🚨 Migrations SQL — registre
 
+⬜ **`2026-10-07_partner_hotel_share_type.sql` PUIS `2026-10-07b_partner_hotels.sql`** (TEST ⬜ /
+PROD ⬜) — hôtels partenaires (Hotel CasaMoz, Maputo). **Deux fichiers, dans cet ordre, l'un
+après l'autre** (le premier ajoute la valeur d'enum `partner_hotel`, le second l'utilise dans les
+policies → 55P04 si dans la même transaction). Crée `partner_hotels` (+ seed « Hotel CasaMoz »,
+3500 MZN, 10 %), `partner_hotel_stays`, `partner_hotel_payments`, RLS admin + anon scopée au
+token `partner_hotel` (`params.hotel_id`), GRANT par colonne (jamais `internal_notes` /
+`booking_id` / `partner_hotels.notes`). **Strictement additive.** Code déployable avant : l'onglet
+n'apparaît pas (aucun hôtel lu), le bandeau d'erreur de lecture le signale ; le MCP tolère la
+table absente. Vérif : curl anon sans token `partner_hotel_stays?select=id` → `[]` ;
+`select=internal_notes` → **42501** ; puis Activités → onglet 🏨 Hotel CasaMoz visible.
+
 ✅ **`2026-09-28_room_paid_to_owner.sql`** (TEST ✅ / PROD ✅, passée par gui, **curl anon vérifié
 le 2026-09-28** : `select=room_id,paid_to_owner` → 200 sur les deux ; `price_per_night` toujours
 42501 en PROD) — bungalow payé en direct au

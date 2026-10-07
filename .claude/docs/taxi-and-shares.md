@@ -16,6 +16,7 @@
 | `activity_provider` | `ActivityProviderSharePage` | `provider_id` | Activity Provider |
 | `booking_form` | `BookingFormPage` | — | Public Booking Form |
 | `restaurant` | `RestaurantSharePage` | — | Hotel Restaurant Planning |
+| `partner_hotel` | `PartnerHotelSharePage` | `hotel_id` | Partner Hotel (Maputo) — créé depuis l'onglet de l'hôtel dans /activities (exclu du form Options, comme `activity_provider`) |
 
 **`restaurant` (ajouté 2026-07-02)** : timeline mensuelle en lecture seule pour la **manager du restaurant de l'hôtel** — une ligne par booking (nom client + chegada/partida), statuts confirmed (vert) / provisional (ambre), annulés exclus, cap foncé 🧳 sur le jour de départ + bandeau « Próximas partidas » (3 jours). Objectif : savoir **qui part quand** pour encaisser les notes du restaurant avant le départ. PT défaut + toggle EN (réutilise `usePref`/`Segmented` de `taxiShareUI` + `TAXI_LANGS`, dico local dans la page). Ne lit que `bookings` (id, booking_number, check_in, check_out, status) + `clients` (identité) — déjà anon-readable, **aucune nouvelle policy**. Migration : `2026-07-02_restaurant_share_type.sql` (enum).
 

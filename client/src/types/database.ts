@@ -500,8 +500,60 @@ export interface ActivityPayment {
   created_at:  string
 }
 
+// Partner hotels (Maputo stop-over, 2026-10-07) — money in MZN
+export type PartnerHotelPaidBy    = 'guest_to_hotel' | 'guest_to_us'
+export type PartnerHotelDirection = 'hotel_to_us' | 'us_to_hotel'
+
+export interface PartnerHotel {
+  id:                    string
+  name:                  string
+  default_room_rate_mzn: number
+  commission_pct:        number
+  is_active:             boolean
+  notes:                 string | null
+  created_at:            string
+}
+
+export interface PartnerHotelRoom {
+  label:    string
+  rate_mzn: number   // per night
+}
+
+export interface PartnerHotelStay {
+  id:               string
+  hotel_id:         string
+  booking_id:       string | null
+  display_name:     string
+  check_in:         string
+  check_out:        string
+  nb_persons:       number
+  couples_count:    number
+  children_count:   number
+  rooms:            PartnerHotelRoom[]
+  commission_pct:   number   // frozen from the hotel when the stay is created
+  airport_transfer: boolean
+  transfer_time:    string | null
+  big_bags:         number
+  hotel_confirmed:  boolean
+  guests_paid:      boolean
+  paid_by:          PartnerHotelPaidBy
+  notes:            string | null   // shown to the hotel
+  internal_notes:   string | null   // never shown to the hotel
+  created_at:       string
+}
+
+export interface PartnerHotelPayment {
+  id:         string
+  hotel_id:   string
+  date:       string
+  amount_mzn: number
+  direction:  PartnerHotelDirection
+  notes:      string | null
+  created_at: string
+}
+
 // Shared public links
-export type SharedLinkType = 'forecast' | 'taxi' | 'client' | 'driver' | 'taxi_manager' | 'activity_provider' | 'booking_form' | 'restaurant' | 'enquiry_form'
+export type SharedLinkType = 'forecast' | 'taxi' | 'client' | 'driver' | 'taxi_manager' | 'activity_provider' | 'booking_form' | 'restaurant' | 'enquiry_form' | 'partner_hotel'
 
 export interface SharedLink {
   id: string

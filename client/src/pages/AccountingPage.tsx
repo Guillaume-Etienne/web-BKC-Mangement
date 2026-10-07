@@ -9,7 +9,7 @@ import { useLessons } from '../hooks/useLessons'
 import { useInstructors } from '../hooks/useInstructors'
 import { useEquipment, useEquipmentRentals } from '../hooks/useEquipment'
 import { useTaxiTrips } from '../hooks/useTaxis'
-import { useActivityBookings, useActivityPayments } from '../hooks/useActivities'
+import { useActivityBookings, useActivityPayments, usePartnerHotelStays } from '../hooks/useActivities'
 import { useAgencies, useAgencyRateItems, useAgencyBillingLines, useAgencyInvoices } from '../hooks/useAgencies'
 import { useTable } from '../hooks/useSupabase'
 import { usePriceTiers } from '../hooks/usePriceTiers'
@@ -94,6 +94,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: paymentsData }           = usePayments()
   const { data: agencyBillingLinesData } = useAgencyBillingLines()
   const { data: agencyInvoicesData }     = useAgencyInvoices()
+  const { data: partnerHotelStays }      = usePartnerHotelStays()
   const { data: instructorDebtsData }    = useTable<InstructorDebt>('instructor_debts', { order: 'date', ascending: false })
   const { data: instructorPaymentsData } = useTable<InstructorPayment>('instructor_payments', { order: 'date', ascending: false })
   const { data: lessonOverridesData }    = useTable<LessonRateOverride>('lesson_rate_overrides')
@@ -174,6 +175,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     agencyRateItems,
     agencyBillingLines,
     agencyInvoices,
+    partnerHotelStays,
   }
 
   // ── Handlers (optimistic local update, rolled back if the DB refuses) ─────

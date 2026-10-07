@@ -7,6 +7,7 @@ import type {
   InstructorDebt, InstructorPayment, LessonRateOverride, Expense, ExpenseCategory, PalmeirasRent,
   PalmeirasReversal, PalmeirasEntry, ActivityBooking, ActivityPayment, TaxiPricingDefaults,
   PriceTier, Agency, AgencyRateItem, AgencyBillingLine, AgencyInvoice,
+  PartnerHotelStay,
 } from '../../../client/src/types/database.js'
 
 /** Every table `SharedAccountingData` needs, fetched in parallel. This is the
@@ -22,7 +23,7 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     seasons, payments, instructorDebts, instructorPayments, lessonRateOverrides, expenses,
     expenseCategories,
     palmeirasRents, palmeirasReversals, palmeirasEntries, activityBookings, activityPayments,
-    priceTiers, agencies, agencyRateItems, agencyBillingLines, agencyInvoices,
+    priceTiers, agencies, agencyRateItems, agencyBillingLines, agencyInvoices, partnerHotelStays,
   ] = await Promise.all([
     selectAll<Accommodation>('accommodations'),
     selectAll<BookingParticipant>('booking_participants'),
@@ -64,6 +65,12 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     selectAll<AgencyRateItem>('agency_rate_items'),
     selectAll<AgencyBillingLine>('agency_billing_lines'),
     selectAll<AgencyInvoice>('agency_invoices'),          // the documents, 2026-08-19
+    // Maputo partner hotels, 2026-10-07. Tolerated while the table is not
+    // migrated yet (PGRST205), so the whole summary does not fail over it.
+    selectAll<PartnerHotelStay>('partner_hotel_stays').catch(err => {
+      if (String(err.message).includes('Could not find the table')) return [] as PartnerHotelStay[]
+      throw err
+    }),
   ])
 
   return {
@@ -74,7 +81,7 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     seasons, payments, instructorDebts, instructorPayments, lessonRateOverrides, expenses,
     expenseCategories,
     palmeirasRents, palmeirasReversals, palmeirasEntries, activityBookings, activityPayments,
-    priceTiers, agencies, agencyRateItems, agencyBillingLines, agencyInvoices,
+    priceTiers, agencies, agencyRateItems, agencyBillingLines, agencyInvoices, partnerHotelStays,
   }
 }
 

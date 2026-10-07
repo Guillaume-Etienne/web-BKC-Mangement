@@ -6,6 +6,7 @@ import type {
   Expense, ExpenseCategory, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   DiningEvent, ActivityBooking, ActivityPayment,
   Agency, AgencyRateItem, AgencyBillingLine, AgencyInvoice,
+  PartnerHotelStay,
 } from '../../types/database'
 import type { NewActivityBooking } from '../../utils/billedActivities'
 
@@ -46,6 +47,7 @@ export interface SharedAccountingData {
   agencyRateItems:           AgencyRateItem[]   // per-agency catalogue, priced at line creation
   agencyBillingLines:        AgencyBillingLine[]  // what a partner agency owes us, not the client
   agencyInvoices:            AgencyInvoice[]      // the documents themselves — number, agency ref, invoiced/paid stamps
+  partnerHotelStays:         PartnerHotelStay[]   // Maputo stop-overs; only our commission counts (MZN → EUR)
 }
 
 export interface AccountingHandlers {

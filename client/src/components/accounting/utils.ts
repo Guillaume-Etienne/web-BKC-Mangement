@@ -2,6 +2,7 @@ import type { Booking, BookingParticipant, Payment, Lesson, LessonType, Instruct
 import { lessonBillable } from '../../types/database'
 import type { SharedAccountingData } from './types'
 import { getBaseNightlyRate } from '../../utils/roomPricing'
+import { commissionEur } from '../../utils/partnerHotel'
 
 /** An accounting dataset with every collection empty.
  *  Spread a partial on top when a caller only needs a few slices — that keeps the
@@ -18,6 +19,7 @@ export function emptyAccountingData(): SharedAccountingData {
     expenses: [], expenseCategories: [], palmeirasRents: [], palmeirasReversals: [], palmeirasEntries: [],
     activityBookings: [], activityPayments: [],
     agencies: [], agencyRateItems: [], agencyBillingLines: [], agencyInvoices: [],
+    partnerHotelStays: [],
   }
 }
 
@@ -610,6 +612,7 @@ export interface SeasonTotals {
   activitiesRev: number
   eventsRev: number
   centerAccessRev: number
+  partnerHotelRev: number    // our commission on Maputo stop-overs, MZN → EUR at the current rate (approximate)
   agencyGross: number        // billed to partner agencies, before their commission
   agencyCommission: number   // what they retain
   agencyRev: number          // what reaches us — the part counted in totalRevenue
@@ -671,6 +674,12 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
 
   const eventsRev    = computeDiningRevenue(data.diningEvents)
 
+  // Partner hotels (Maputo): only our commission is ours — the room price goes
+  // to the hotel whoever collects it. Counted as soon as the stay exists, like
+  // every other line here (a booking is revenue before it is paid).
+  const activeHotelStays = (data.partnerHotelStays ?? []).filter(s => s.booking_id === null || activeIds.has(s.booking_id))
+  const partnerHotelRev  = commissionEur(activeHotelStays, data.eurMznRate)
+
   // Partner agencies. The revenue every other line above just gave up (lessons,
   // rentals, transfers and rooms carrying an agency_billing_line_id) comes back
   // here at the agency's own catalogue price, NET of the commission it retains —
@@ -678,6 +687,7 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
   const agency = computeAgencyTotals(data)
 
   const totalRevenue = accomRev + lessonsRev + rentalsRev + taxiMargin + eventsRev + activitiesRev + centerAccessRev + agency.net
+    + partnerHotelRev
 
   const billedNet = activeBookings.reduce(
     (s, b) => s + computeBookingTotal(b, data) - computeBookingDiscounts(b.id, data.payments), 0)
@@ -728,7 +738,7 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
 
   return {
     accomRev, lessonsRev, rentalsRev, taxiRevGross, taxiCosts, taxiMargin,
-    activitiesRev, eventsRev, centerAccessRev,
+    activitiesRev, eventsRev, centerAccessRev, partnerHotelRev,
     agencyGross: agency.gross, agencyCommission: agency.commission,
     agencyRev: agency.net, agencyOutstanding: agency.outstanding,
     totalRevenue,

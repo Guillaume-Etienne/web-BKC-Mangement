@@ -387,6 +387,30 @@
 | notes | string \| null | |
 | created_at | string | |
 
+### Partner hotels (Maputo, 2026-10-07) — `partner_hotels` / `partner_hotel_stays` / `partner_hotel_payments`
+
+Escale à Maputo avant/après le safari (Hotel CasaMoz). **Montants en MZN.** Un onglet par hôtel
+actif dans /activities (`components/activities/PartnerHotelTab.tsx`), lien public
+`partner_hotel` (`PartnerHotelSharePage`, `params.hotel_id`). Migration `2026-10-07b_partner_hotels.sql`.
+
+- `partner_hotels` : name, `default_room_rate_mzn` (3500), `commission_pct` (10), is_active, notes (interne).
+- `partner_hotel_stays` : **une ligne par séjour** (avant ET après le safari = 2 lignes, même `booking_id`
+  nullable). `display_name` = ce que lit l'hôtel (pré-rempli du nom du booking, modifiable).
+  nb_persons/couples_count/children_count (pré-remplis de la résa), `rooms` JSONB
+  `[{label, rate_mzn}]` (prix / chambre / nuit), `commission_pct` **figé** à la création,
+  airport_transfer + transfer_time (transfert fait par l'hôtel), big_bags (pré-rempli de
+  `boardbag_count`), hotel_confirmed, guests_paid, `paid_by` (`guest_to_hotel` | `guest_to_us`),
+  notes (vues par l'hôtel), internal_notes (jamais).
+- `partner_hotel_payments` : règlements, `direction` `hotel_to_us` | `us_to_hotel`, amount_mzn.
+
+**Calculs** (`utils/partnerHotel.ts`, testé) : total = Σ prix chambres × nuits ; commission =
+total × pct. Guest → hôtel : l'hôtel nous doit la commission. Guest → nous : on doit total −
+commission. **Dû seulement si `guests_paid`** ; solde hôtel = Σ dû − règlements hotel_to_us +
+règlements us_to_hotel. **Compta** : `SeasonTotals.partnerHotelRev` = commission de tous les
+séjours actifs (payés ou non) / `eur_mzn_rate` courant, dans `totalRevenue` (ligne « Partner hotels (≈) »).
+⚠️ Si le guest NOUS paie l'hôtel, ce paiement n'est pas relié à `payments` du booking : à ne pas
+saisir comme paiement de la résa (sinon solde client faux).
+
 ---
 
 ## Management

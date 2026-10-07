@@ -33,6 +33,7 @@ const REVENUE: Line[] = [
   { label: i18n.accounting.rev_activities,    pick: t => t.activitiesRev },
   { label: i18n.accounting.rev_events,        pick: t => t.eventsRev },
   { label: i18n.accounting.rev_center_access, pick: t => t.centerAccessRev },
+  { label: i18n.accounting.rev_partner_hotels, pick: t => t.partnerHotelRev },
   { label: i18n.accounting.dash_total_revenue, pick: t => t.totalRevenue, strong: true },
 ]
 

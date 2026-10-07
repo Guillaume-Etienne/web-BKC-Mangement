@@ -94,6 +94,7 @@ const LINK_TYPE_LABELS: Record<SharedLinkType, { icon: string; label: string }> 
   booking_form:      { icon: '📝', label: 'Public Booking Form' },
   restaurant:        { icon: '🍽️', label: 'Hotel Restaurant Planning' },
   enquiry_form:      { icon: '📣', label: 'Website Enquiry Form (iframe)' },
+  partner_hotel:     { icon: '🏨', label: 'Partner Hotel (Maputo)' },
 }
 
 function generateToken(type: SharedLinkType) {
@@ -886,7 +887,7 @@ export default function ManagementPage() {
                   <select value={linkFormData.type}
                     onChange={e => setLinkFormData(d => ({ ...d, type: e.target.value as SharedLinkType }))}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    {(Object.entries(LINK_TYPE_LABELS) as [SharedLinkType, { icon: string; label: string }][]).filter(([k]) => k !== 'activity_provider').map(([k, v]) => (
+                    {(Object.entries(LINK_TYPE_LABELS) as [SharedLinkType, { icon: string; label: string }][]).filter(([k]) => k !== 'activity_provider' && k !== 'partner_hotel').map(([k, v]) => (
                       <option key={k} value={k}>{v.icon} {v.label}</option>
                     ))}
                   </select>

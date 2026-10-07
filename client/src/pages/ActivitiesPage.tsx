@@ -2,13 +2,17 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useLanguage } from '../contexts/LanguageContext'
 import { i18n } from '../data/i18n'
-import { useActivityProviders, useActivityBookings, useActivityPayments } from '../hooks/useActivities'
+import {
+  useActivityProviders, useActivityBookings, useActivityPayments,
+  usePartnerHotels, usePartnerHotelStays, usePartnerHotelPayments,
+} from '../hooks/useActivities'
+import PartnerHotelTab, { type HotelBookingRef } from '../components/activities/PartnerHotelTab'
 import { useBookingParticipants } from '../hooks/useBookings'
 import { useTable } from '../hooks/useSupabase'
 import type {
   ActivityProvider, ActivityBooking, ActivityPayment,
   ActivityProviderType, ActivityPaymentFlow, ActivityPaymentDirection,
-  SharedLink, BookingRef, Lang,
+  SharedLink, BookingRef, Lang, TaxiPricingDefaults,
 } from '../types/database'
 import { todayISO, addDaysISO, fmtDate } from '../utils/dates'
 
@@ -621,6 +625,20 @@ export default function ActivitiesPage() {
   const { data: sharedLinksData, refresh: refreshLinks } = useTable<SharedLink>('shared_links')
   const providerLinks = sharedLinksData.filter(l => l.type === 'activity_provider')
 
+  // Partner hotels (Maputo stop-over) — one tab per active hotel.
+  const { data: hotels,        refresh: refreshHotels }        = usePartnerHotels()
+  const { data: hotelStays,    refresh: refreshHotelStays }    = usePartnerHotelStays()
+  const { data: hotelPayments, refresh: refreshHotelPayments } = usePartnerHotelPayments()
+  const { data: hotelBookings } = useTable<HotelBookingRef>('bookings', {
+    select: 'id, booking_number, check_in, check_out, status, couples_count, children_count, boardbag_count, client:clients(first_name, last_name)',
+    order: 'check_in', ascending: false,
+  })
+  const { data: taxiPricingDefaults } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
+  const eurMznRate = taxiPricingDefaults[0]?.eur_mzn_rate ?? 65
+  const activeHotels = hotels.filter(h => h.is_active)
+  const participantCounts: Record<string, number> = {}
+  for (const p of bpData) participantCounts[p.booking_id] = (participantCounts[p.booking_id] ?? 0) + 1
+
   const allParticipants = bpData.map(p => ({
     id:         p.id,
     booking_id: p.booking_id,
@@ -628,7 +646,8 @@ export default function ActivitiesPage() {
     last_name:  p.last_name ?? '',
   }))
 
-  const [tab,              setTab]              = useState<'providers' | 'bookings'>('providers')
+  // 'hotel:<id>' = a partner hotel tab
+  const [tab,              setTab]              = useState<string>('providers')
   const [viewingId,        setViewingId]        = useState<string | null>(null)
   const [showProviderForm, setShowProviderForm] = useState(false)
   const [editingProvider,  setEditingProvider]  = useState<ActivityProvider | null>(null)
@@ -749,7 +768,30 @@ export default function ActivitiesPage() {
               {t === 'providers' ? `🏕️ ${i18n.activities.section_providers[lang]}` : `📋 ${i18n.activities.tab_all_bookings[lang]}`}
             </button>
           ))}
+          {activeHotels.map(h => (
+            <button key={h.id} onClick={() => setTab(`hotel:${h.id}`)}
+              className={`px-4 py-2 font-medium transition-colors ${tab === `hotel:${h.id}` ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
+              🏨 {h.name}
+            </button>
+          ))}
         </div>
+
+        {/* ── Partner hotel tabs ── */}
+        {activeHotels.filter(h => tab === `hotel:${h.id}`).map(h => (
+          <PartnerHotelTab key={h.id}
+            hotel={h}
+            stays={hotelStays.filter(s => s.hotel_id === h.id)}
+            payments={hotelPayments.filter(p => p.hotel_id === h.id)}
+            bookings={hotelBookings.filter(b => b.status !== 'cancelled')}
+            participantCounts={participantCounts}
+            shareLink={sharedLinksData.find(l => l.type === 'partner_hotel' && l.is_active && l.params?.hotel_id === h.id)}
+            eurMznRate={eurMznRate}
+            onStaysChanged={refreshHotelStays}
+            onPaymentsChanged={refreshHotelPayments}
+            onHotelChanged={refreshHotels}
+            onLinksChanged={refreshLinks}
+          />
+        ))}
 
         {/* ── Providers tab ── */}
         {tab === 'providers' && (
