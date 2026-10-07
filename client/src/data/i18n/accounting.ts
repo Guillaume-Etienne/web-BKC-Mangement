@@ -379,6 +379,9 @@ export const accountingI18n = {
   ex_clear:               { fr: 'Effacer', en: 'Clear', es: 'Borrar' },
   ex_no_expenses_match:   { fr: 'Aucune dépense ne correspond aux filtres actuels.', en: 'No expenses match the current filters.', es: 'Ningún gasto coincide con los filtros actuales.' },
   ex_expense_count:       { fr: '{count} dépense(s)', en: '{count} expense{s}', es: '{count} gasto(s)' },
+  ex_house_rentals:       { fr: 'Locations de maisons', en: 'House rentals', es: 'Alquileres de casas' },
+  ex_house_rentals_note:  { fr: 'Lecture seule — se gèrent dans Management → Accommodations. Non comptées dans le total des dépenses ci-dessus (déjà comptées à part dans le tableau de bord).', en: 'Read-only — managed in Management → Accommodations. Not included in the expenses total above (already counted separately on the dashboard).', es: 'Solo lectura — se gestionan en Management → Accommodations. No incluidos en el total de gastos de arriba (ya contados aparte en el panel).' },
+  ex_house_rentals_total: { fr: '{count} location(s)', en: '{count} rental{s}', es: '{count} alquiler(es)' },
 
   // Categories & sub-categories (2026-09-19)
   ex_manage_categories:   { fr: 'Gérer les catégories', en: 'Manage categories', es: 'Gestionar categorías' },

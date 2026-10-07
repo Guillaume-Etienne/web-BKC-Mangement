@@ -263,6 +263,31 @@ export default function ExpensesTab({ data, handlers }: Props) {
   // ── Grand totals for list ─────────────────────────────────────────────────
   const listTotal = filtered.reduce((s, e) => s + e.amount, 0)
 
+  // ── Loyers des maisons : LECTURE SEULE (décision gui, 2026-10-07) ─────────
+  // Ils vivent dans `house_rentals`, pas dans `expenses` : le tableau de bord
+  // les compte à part. Les additionner au total d'ici = double comptage dès
+  // qu'on recopie ce total ailleurs, donc bloc séparé, total séparé.
+  // Même règle de période que `filterDataToSeason` : rattaché au `start_date`.
+  // Masqués dès qu'une catégorie est filtrée — ils n'en ont pas.
+  const houseRentalRows = useMemo(() => {
+    if (filterCat !== 'all') return []
+    const accName = (id: string) => data.accommodations.find(a => a.id === id)?.name ?? '?'
+    const q = search.toLowerCase()
+    return data.houseRentals
+      .filter(r => {
+        if (period === 'season' && currentSeason)
+          return r.start_date >= currentSeason.start_date && r.start_date <= currentSeason.end_date
+        if (period === 'custom' && periodFrom && periodTo)
+          return r.start_date.slice(0, 7) >= periodFrom && r.start_date.slice(0, 7) <= periodTo
+        return true
+      })
+      .filter(r => !filterMonth || r.start_date.startsWith(filterMonth))
+      .map(r => ({ ...r, house: accName(r.accommodation_id) }))
+      .filter(r => !q || r.house.toLowerCase().includes(q) || (r.notes ?? '').toLowerCase().includes(q))
+      .sort((a, b) => b.start_date.localeCompare(a.start_date))
+  }, [data.houseRentals, data.accommodations, filterCat, search, filterMonth, period, currentSeason, periodFrom, periodTo])
+  const houseRentalTotal = houseRentalRows.reduce((s, r) => s + r.total_cost, 0)
+
   // ── Totals by category (all time, for breakdown bar) ─────────────────────
   const allByCat = useMemo(() => {
     const m: Record<string, number> = {}
@@ -559,6 +584,36 @@ export default function ExpensesTab({ data, handlers }: Props) {
             )}
           </table>
         </div>
+
+        {houseRentalRows.length > 0 && (
+          <div className="bg-gray-50 dark:bg-gray-900/60 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 overflow-x-auto">
+            <div className="px-4 pt-3 pb-2">
+              <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">🏠 {i18n.accounting.ex_house_rentals[lang]}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">{i18n.accounting.ex_house_rentals_note[lang]}</p>
+            </div>
+            <table className="w-full text-sm min-w-[540px]">
+              <tbody>
+                {houseRentalRows.map(r => (
+                  <tr key={r.id} className="border-t border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
+                    <td className="px-4 py-2 whitespace-nowrap">{fmtDate(r.start_date)} → {fmtDate(r.end_date)}</td>
+                    <td className="px-4 py-2 font-medium">{r.house}</td>
+                    <td className="px-4 py-2">{r.notes}</td>
+                    <td className="px-4 py-2 text-right">− {fmtEur(r.total_cost)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t border-gray-200 dark:border-gray-800 font-semibold text-gray-600 dark:text-gray-400">
+                <tr>
+                  <td colSpan={3} className="px-4 py-2">
+                    {i18n.accounting.ex_house_rentals_total[lang].replace('{count}', String(houseRentalRows.length)).replace('{s}', houseRentalRows.length !== 1 ? 's' : '')}
+                    <span className="ml-2 font-normal text-xs text-gray-400">· {periodLabel}</span>
+                  </td>
+                  <td className="px-4 py-2 text-right">− {fmtEur(houseRentalTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
       </>)}
 
       {/* ── SUMMARY VIEW ──────────────────────────────────────────────────── */}
