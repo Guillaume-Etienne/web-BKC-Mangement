@@ -6,14 +6,13 @@
 
 ## 🚨 Migrations SQL — registre
 
-⬜ **`2026-10-08_activity_end_date.sql`** (TEST ⬜ / PROD ⬜) — `activity_bookings.end_date DATE`
+✅ **`2026-10-08_activity_end_date.sql`** (TEST ✅ / PROD ✅, passée par gui, **curl anon vérifié le 2026-10-08** : `select=id,end_date` → 200 sur les deux, témoin colonne absente → 42703) — `activity_bookings.end_date DATE`
 nullable + CHECK `end_date >= date` (safaris de plusieurs jours, onglet 🦁 Safaris).
 **Strictement additive**, indépendante des migrations partner hotel. Table non restreinte par
 colonne pour anon → rien à accorder. Code déployable avant : seule la saisie d'une date de fin
 échoue (alerte) tant que ce n'est pas passé. Vérif (admin) : `SELECT end_date FROM activity_bookings LIMIT 1;`
 
-⬜ **`2026-10-07_partner_hotel_share_type.sql` PUIS `2026-10-07b_partner_hotels.sql`** (TEST ⬜ /
-PROD ⬜) — hôtels partenaires (Hotel CasaMoz, Maputo). **Deux fichiers, dans cet ordre, l'un
+✅ **`2026-10-07_partner_hotel_share_type.sql` PUIS `2026-10-07b_partner_hotels.sql`** (TEST ✅ / PROD ✅, passées par gui, **curl anon vérifié le 2026-10-08** sur les deux : stays/payments sans token → `[]` 200 ; `internal_notes`, `booking_id`, `partner_hotels.notes` → 42501 ; seed CasaMoz non vérifiable en anon → à l’écran) — hôtels partenaires (Hotel CasaMoz, Maputo). **Deux fichiers, dans cet ordre, l'un
 après l'autre** (le premier ajoute la valeur d'enum `partner_hotel`, le second l'utilise dans les
 policies → 55P04 si dans la même transaction). Crée `partner_hotels` (+ seed « Hotel CasaMoz »,
 3500 MZN, 10 %), `partner_hotel_stays`, `partner_hotel_payments`, RLS admin + anon scopée au
