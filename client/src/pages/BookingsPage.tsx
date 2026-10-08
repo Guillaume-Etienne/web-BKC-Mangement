@@ -158,6 +158,61 @@ function Field({ label, children, hint }: { label: string; children: React.React
 const inputCls = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
 const numCls = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-center'
 
+/** Search-as-you-type picker for "Part of another stay": matches on client name or #number. */
+function LinkedBookingPicker({ value, onChange, bookings, clients, excludeId }: {
+  value: string
+  onChange: (id: string) => void
+  bookings: Booking[]
+  clients: Client[]
+  excludeId: string | null
+}) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+
+  const label = (b: Booking) => {
+    const c = clients.find(c => c.id === b.client_id)
+    return `#${String(b.booking_number).padStart(3, '0')} — ${c?.first_name ?? ''} ${c?.last_name ?? ''} (${fmtDate(b.check_in)} → ${fmtDate(b.check_out)})`
+  }
+  const selected = bookings.find(b => b.id === value)
+  const q = query.trim().toLowerCase()
+  const matches = bookings
+    .filter(b => b.id !== excludeId)
+    .filter(b => !q || label(b).toLowerCase().includes(q))
+    .sort((a, b) => b.check_in.localeCompare(a.check_in))
+    .slice(0, 30)
+
+  if (selected && !open) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className={`${inputCls} flex-1 bg-gray-50 dark:bg-gray-800`}>{label(selected)}</div>
+        <button type="button" onClick={() => { onChange(''); setQuery('') }}
+          className="text-sm text-gray-500 dark:text-gray-400 hover:text-red-600">✕ Unlink</button>
+      </div>
+    )
+  }
+  return (
+    <div className="relative">
+      <input className={inputCls} placeholder="Search by guest name or #number…" value={query}
+        onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onChange={e => { setQuery(e.target.value); setOpen(true) }} />
+      {open && (
+        <ul className="absolute z-20 mt-1 w-full max-h-60 overflow-auto bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg text-sm">
+          {matches.length === 0 && <li className="px-3 py-2 text-gray-400">No booking found</li>}
+          {matches.map(b => (
+            <li key={b.id}>
+              <button type="button" className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => { onChange(b.id); setQuery(''); setOpen(false) }}>
+                {label(b)}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 function Counter({ value, onChange, min = 0 }: { value: number; onChange: (v: number) => void; min?: number }) {
   return (
     <div className="flex items-center gap-2">
@@ -635,18 +690,8 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
 
               <Field label="Part of another stay (optional)"
                 hint="Same family arriving/leaving in waves — a joiner or an early departure with its own room and dates. Balances stay separate; a 🔗 badge ties the two bookings together everywhere.">
-                <select value={d.linked_booking_id} onChange={e => update({ linked_booking_id: e.target.value })} className={inputCls}>
-                  <option value="">— not linked —</option>
-                  {bookings
-                    .filter(b => b.id !== editingBookingId)
-                    .slice()
-                    .sort((a, b) => b.check_in.localeCompare(a.check_in))
-                    .map(b => (
-                      <option key={b.id} value={b.id}>
-                        #{String(b.booking_number).padStart(3, '0')} — {clients.find(c => c.id === b.client_id)?.first_name} {clients.find(c => c.id === b.client_id)?.last_name} ({fmtDate(b.check_in)} → {fmtDate(b.check_out)})
-                      </option>
-                    ))}
-                </select>
+                <LinkedBookingPicker value={d.linked_booking_id} onChange={id => update({ linked_booking_id: id })}
+                  bookings={bookings} clients={clients} excludeId={editingBookingId} />
               </Field>
             </div>
           )}
