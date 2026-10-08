@@ -403,7 +403,7 @@ actif dans /activities (`components/activities/PartnerHotelTab.tsx`), lien publi
   (`groupStays`, absences calculées). UUID dédié accordé à anon, car `booking_id` reste fermé. `display_name` = ce que lit l'hôtel (pré-rempli du nom du booking, modifiable).
   nb_persons/couples_count/children_count (pré-remplis de la résa), `rooms` JSONB
   `[{label, rate_mzn}]` (prix / chambre / nuit), `commission_pct` **figé** à la création,
-  airport_transfer + transfer_time (transfert fait par l'hôtel), big_bags (pré-rempli de
+  airport_transfer + transfer_time = PICK-UP le jour d’arrivée, departure_transfer + departure_transfer_time = DROP-OFF le jour du départ (2026-10-08c ; transferts faits par l’hôtel), big_bags (pré-rempli de
   `boardbag_count`), hotel_confirmed, guests_paid, `paid_by` (`guest_to_hotel` | `guest_to_us`),
   notes (vues par l'hôtel), internal_notes (jamais).
 - `partner_hotel_payments` : règlements, `direction` `hotel_to_us` | `us_to_hotel`, amount_mzn.

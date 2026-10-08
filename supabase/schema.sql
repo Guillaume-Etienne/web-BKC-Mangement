@@ -633,8 +633,10 @@ CREATE TABLE partner_hotel_stays (
   children_count   INTEGER NOT NULL DEFAULT 0,
   rooms            JSONB NOT NULL DEFAULT '[]',   -- [{ label, rate_mzn }]
   commission_pct   NUMERIC(5,2) NOT NULL DEFAULT 10,
-  airport_transfer BOOLEAN NOT NULL DEFAULT false,
+  airport_transfer BOOLEAN NOT NULL DEFAULT false,   -- pick-up, check-in day
   transfer_time    TEXT,
+  departure_transfer      BOOLEAN NOT NULL DEFAULT false,  -- drop-off, check-out day (2026-10-08c)
+  departure_transfer_time TEXT,
   big_bags         INTEGER NOT NULL DEFAULT 0,
   hotel_confirmed  BOOLEAN NOT NULL DEFAULT false,
   guests_paid      BOOLEAN NOT NULL DEFAULT false,

@@ -6,7 +6,15 @@
 
 ## 🚨 Migrations SQL — registre
 
-⬜ **`2026-10-08b_partner_hotel_stay_group.sql`** (TEST ⬜ / PROD ⬜) — `partner_hotel_stays.group_id
+⬜ **`2026-10-08c_partner_hotel_departure_transfer.sql`** (TEST ⬜ / PROD ⬜) — drop-off aéroport
+le jour du DÉPART : `departure_transfer boolean NOT NULL DEFAULT false` + `departure_transfer_time
+text` + GRANT anon des deux. Le transfert existant (`airport_transfer`/`transfer_time`) devient le
+pick-up du jour d'arrivée. **Strictement additive.** ⚠️ **Avant le push** : sinon enregistrer une
+résa échoue (alerte) ; la page hôtel se rabat sur une lecture sans ces colonnes. Vérif : curl anon
+`select=id,departure_transfer,departure_transfer_time` → `[]` 200.
+
+✅ **`2026-10-08b_partner_hotel_stay_group.sql`** (TEST ✅ / PROD ✅, passée par gui, **curl anon
+vérifié le 2026-10-08** : `select=id,group_id` → 200, `booking_id` toujours 42501) — `partner_hotel_stays.group_id
 UUID` (relie les nuits d'une même résa CasaMoz) + backfill (même hôtel + booking = même groupe,
 sinon `id`) + `GRANT SELECT (group_id) … TO anon`. **Strictement additive.** ⚠️ **À passer AVANT
 de pousser le code** : sinon enregistrer une résa échoue (alerte), la page de l'hôtel se rabat

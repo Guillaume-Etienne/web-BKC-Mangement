@@ -42,6 +42,8 @@ interface Night {
   check_out:        string
   airport_transfer: boolean
   transfer_time:    string | null
+  departure_transfer:      boolean
+  departure_transfer_time: string | null
   big_bags:         number
   hotel_confirmed:  boolean
 }
@@ -52,7 +54,8 @@ const input = 'w-full text-sm border rounded-lg px-3 py-2 focus:outline-none foc
 const labelCls = 'block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1'
 
 const blankNight = (): Night => ({
-  check_in: '', check_out: '', airport_transfer: false, transfer_time: null, big_bags: 0, hotel_confirmed: false,
+  check_in: '', check_out: '', airport_transfer: false, transfer_time: null,
+  departure_transfer: false, departure_transfer_time: null, big_bags: 0, hotel_confirmed: false,
 })
 
 function bookingName(b: HotelBookingRef): string {
@@ -155,7 +158,11 @@ function ReservationForm({ hotel, initial, bookings, participantCounts, safaris,
     await onSave({
       groupId: initial.groupId,
       common: { ...c, display_name: c.display_name.trim(), notes: c.notes?.trim() || null, internal_notes: c.internal_notes?.trim() || null },
-      nights: nights.map(n => ({ ...n, transfer_time: n.airport_transfer ? (n.transfer_time || null) : null })),
+      nights: nights.map(n => ({
+        ...n,
+        transfer_time:           n.airport_transfer   ? (n.transfer_time || null)           : null,
+        departure_transfer_time: n.departure_transfer ? (n.departure_transfer_time || null) : null,
+      })),
     })
   }
 
@@ -195,33 +202,63 @@ function ReservationForm({ hotel, initial, bookings, participantCounts, safaris,
         <label className={labelCls}>Nights at the hotel</label>
         <div className="space-y-2">
           {nights.map((n, i) => (
-            <div key={i} className="grid grid-cols-2 md:grid-cols-[6rem_1fr_1fr_auto_8rem_5rem_auto_auto] gap-2 items-center bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2">
-              <span className="col-span-2 md:col-span-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                {nightLabel(i, nights.length)}{n.check_in && n.check_out && n.check_out > n.check_in ? ` · ${stayNights(n)}n` : ''}
-              </span>
-              <input type="date" aria-label="Check-in" value={n.check_in} onChange={e => setNight(i, { check_in: e.target.value })} className={input} />
-              <input type="date" aria-label="Check-out" min={n.check_in || undefined} value={n.check_out} onChange={e => setNight(i, { check_out: e.target.value })} className={input} />
-              <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 cursor-pointer whitespace-nowrap">
-                <input type="checkbox" checked={n.airport_transfer} onChange={e => setNight(i, { airport_transfer: e.target.checked })} className="w-4 h-4 rounded" />
-                ✈️ Transfer
-              </label>
-              <input type="time" aria-label="Transfer time" disabled={!n.airport_transfer} value={n.transfer_time ?? ''}
-                onChange={e => setNight(i, { transfer_time: e.target.value })} className={`${input} disabled:opacity-40`} />
-              <input type="number" min={0} aria-label="Big bags" title="Big bags" placeholder="🧳" value={n.big_bags}
-                onChange={e => setNight(i, { big_bags: Number(e.target.value) })} className={input} />
-              <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 cursor-pointer whitespace-nowrap">
-                <input type="checkbox" checked={n.hotel_confirmed} onChange={e => setNight(i, { hotel_confirmed: e.target.checked })} className="w-4 h-4 rounded" />
-                Confirmed
-              </label>
-              <button type="button" disabled={nights.length === 1} title="Remove this night"
-                onClick={() => setNights(nights.filter((_, j) => j !== i))}
-                className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-2 disabled:opacity-20">✕</button>
+            <div key={i} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 space-y-2">
+              {/* Line 1 — when */}
+              <div className="flex flex-wrap items-end gap-3">
+                <span className="w-full sm:w-20 text-xs font-semibold text-gray-700 dark:text-gray-300 sm:pb-2">
+                  {nightLabel(i, nights.length)}
+                  {n.check_in && n.check_out && n.check_out > n.check_in && (
+                    <span className="font-normal text-gray-400"> · {stayNights(n)} night{stayNights(n) > 1 ? 's' : ''}</span>
+                  )}
+                </span>
+                <div className="flex-1 min-w-[9rem]">
+                  <label className={labelCls}>Check-in</label>
+                  <input type="date" value={n.check_in} onChange={e => setNight(i, { check_in: e.target.value })} className={input} />
+                </div>
+                <div className="flex-1 min-w-[9rem]">
+                  <label className={labelCls}>Check-out</label>
+                  <input type="date" min={n.check_in || undefined} value={n.check_out} onChange={e => setNight(i, { check_out: e.target.value })} className={input} />
+                </div>
+                <label className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer whitespace-nowrap pb-2">
+                  <input type="checkbox" checked={n.hotel_confirmed} onChange={e => setNight(i, { hotel_confirmed: e.target.checked })} className="w-4 h-4 rounded" />
+                  Confirmed by the hotel
+                </label>
+                <button type="button" disabled={nights.length === 1} title="Remove this night"
+                  onClick={() => setNights(nights.filter((_, j) => j !== i))}
+                  className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-2 pb-2 disabled:opacity-20">✕</button>
+              </div>
+              {/* Line 2 — airport and luggage */}
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 sm:pl-[5.75rem]">
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer whitespace-nowrap"
+                    title="Airport → hotel, on the check-in day">
+                    <input type="checkbox" checked={n.airport_transfer} onChange={e => setNight(i, { airport_transfer: e.target.checked })} className="w-4 h-4 rounded" />
+                    🛬 Airport pick-up
+                  </label>
+                  <input type="time" aria-label="Pick-up time" disabled={!n.airport_transfer} value={n.transfer_time ?? ''}
+                    onChange={e => setNight(i, { transfer_time: e.target.value })} className={`${input} w-28 disabled:opacity-40`} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer whitespace-nowrap"
+                    title="Hotel → airport, on the check-out day">
+                    <input type="checkbox" checked={n.departure_transfer} onChange={e => setNight(i, { departure_transfer: e.target.checked })} className="w-4 h-4 rounded" />
+                    🛫 Airport drop-off
+                  </label>
+                  <input type="time" aria-label="Drop-off time" disabled={!n.departure_transfer} value={n.departure_transfer_time ?? ''}
+                    onChange={e => setNight(i, { departure_transfer_time: e.target.value })} className={`${input} w-28 disabled:opacity-40`} />
+                </div>
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                  🧳 Big bags
+                  <input type="number" min={0} value={n.big_bags}
+                    onChange={e => setNight(i, { big_bags: Number(e.target.value) })} className={`${input} w-20`} />
+                </label>
+              </div>
             </div>
           ))}
           <button type="button" onClick={() => setNights([...nights, blankNight()])}
             className="text-sm text-blue-600 dark:text-blue-400 hover:underline">+ Add a night</button>
         </div>
-        <p className="text-[11px] text-gray-400 mt-1">Columns: dates · airport transfer and time · big bags · confirmed by the hotel.</p>
+        <p className="text-[11px] text-gray-400 mt-1">Pick-up happens on the check-in day, drop-off on the check-out day.</p>
       </div>
 
       {/* Rooms */}
@@ -404,6 +441,7 @@ export default function PartnerHotelTab({
       nights: groupStays.map(s => ({
         id: s.id, check_in: s.check_in, check_out: s.check_out,
         airport_transfer: s.airport_transfer, transfer_time: s.transfer_time,
+        departure_transfer: s.departure_transfer ?? false, departure_transfer_time: s.departure_transfer_time ?? null,
         big_bags: s.big_bags, hotel_confirmed: s.hotel_confirmed,
       })),
     }
@@ -598,7 +636,7 @@ export default function PartnerHotelTab({
                 <th className="px-3 py-3 font-medium">Night</th>
                 <th className="px-3 py-3 font-medium">Dates</th>
                 <th className="px-3 py-3 font-medium text-center">Nights</th>
-                <th className="px-3 py-3 font-medium">Airport transfer</th>
+                <th className="px-3 py-3 font-medium">Airport transfers</th>
                 <th className="px-3 py-3 font-medium text-center">Big bags</th>
                 <th className="px-3 py-3 font-medium text-center">{shortName} confirmed?</th>
                 <th className="px-3 py-3 font-medium text-center">Guests paid?</th>
@@ -655,7 +693,9 @@ export default function PartnerHotelTab({
                         <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(s.check_in)} → {fmtDate(s.check_out)}</td>
                         <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{stayNights(s)}</td>
                         <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                          {s.airport_transfer ? `✈️ ${s.transfer_time ?? 'time?'}` : '–'}
+                          {!s.airport_transfer && !s.departure_transfer && '–'}
+                          {s.airport_transfer && <div title="Airport pick-up, check-in day">🛬 {fmtDate(s.check_in)} {s.transfer_time ?? 'time?'}</div>}
+                          {s.departure_transfer && <div title="Airport drop-off, check-out day">🛫 {fmtDate(s.check_out)} {s.departure_transfer_time ?? 'time?'}</div>}
                         </td>
                         <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{s.big_bags || '–'}</td>
                         <td className="px-3 py-2 text-center">

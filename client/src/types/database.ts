@@ -533,8 +533,10 @@ export interface PartnerHotelStay {
   children_count:   number
   rooms:            PartnerHotelRoom[]
   commission_pct:   number   // frozen from the hotel when the stay is created
-  airport_transfer: boolean
+  airport_transfer: boolean         // pick-up: airport → hotel, on check_in
   transfer_time:    string | null
+  departure_transfer:      boolean  // drop-off: hotel → airport, on check_out (2026-10-08c)
+  departure_transfer_time: string | null
   big_bags:         number
   hotel_confirmed:  boolean
   guests_paid:      boolean

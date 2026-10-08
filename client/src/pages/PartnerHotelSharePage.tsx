@@ -13,7 +13,7 @@ import type { PartnerHotelStay, PartnerHotelPayment } from '../types/database'
 import { todayISO, fmtDate, fromISODate } from '../utils/dates'
 import {
   stayNights, stayExpectedMzn, hotelBalanceMzn, fmtMzn, groupStays, hotelDays,
-  type StayGroup,
+  type StayGroup, type HotelDay,
 } from '../utils/partnerHotel'
 import { usePref, Segmented } from './taxiShareUI'
 
@@ -50,13 +50,22 @@ function Confirmed({ ok }: { ok: boolean }) {
   )
 }
 
-function Extras({ s }: { s: PartnerHotelStay }) {
-  if (!s.airport_transfer && s.big_bags === 0) return null
+const at = (t: string | null) => t ? `at ${t}` : '(time to confirm)'
+const bags = (n: number) => `🧳 ${n} big bag${n > 1 ? 's' : ''}`
+
+/** Pick-up and drop-off of one night, each on its own day. */
+function Transfers({ s, withDates }: { s: PartnerHotelStay; withDates?: boolean }) {
+  if (!s.airport_transfer && !s.departure_transfer && s.big_bags === 0) return null
   return (
-    <span className="flex flex-wrap gap-x-3 text-sm">
-      {s.airport_transfer && <span>✈️ Airport transfer {s.transfer_time ? `at ${s.transfer_time}` : '(time to confirm)'}</span>}
-      {s.big_bags > 0 && <span className="font-semibold">🧳 {s.big_bags} big bag{s.big_bags > 1 ? 's' : ''}</span>}
-    </span>
+    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-700 dark:text-gray-300">
+      {s.airport_transfer && (
+        <span>🛬 Pick-up at the airport{withDates ? ` ${fmtDate(s.check_in)}` : ''} {at(s.transfer_time)}</span>
+      )}
+      {s.departure_transfer && (
+        <span>🛫 Drop-off to the airport{withDates ? ` ${fmtDate(s.check_out)}` : ''} {at(s.departure_transfer_time)}</span>
+      )}
+      {s.big_bags > 0 && <span className="font-semibold">{bags(s.big_bags)}</span>}
+    </div>
   )
 }
 
@@ -95,7 +104,7 @@ function ReservationCard({ g }: { g: StayGroup }) {
                   </span>
                   <Confirmed ok={s.hotel_confirmed} />
                 </div>
-                <div className="text-gray-700 dark:text-gray-300"><Extras s={s} /></div>
+                <Transfers s={s} withDates />
               </div>
             </div>
           )
@@ -126,9 +135,34 @@ function DayEntry({ s, tone }: { s: PartnerHotelStay; tone: 'in' | 'stay' | 'out
         {tone !== 'out' && <Confirmed ok={s.hotel_confirmed} />}
       </div>
       <p className="text-xs text-gray-500 dark:text-gray-400">{paxLine(s)} · {roomsLine(s)}</p>
-      {tone === 'in' && <div className="text-gray-700 dark:text-gray-300"><Extras s={s} /></div>}
-      {tone === 'out' && s.big_bags > 0 && <p className="text-xs text-gray-600 dark:text-gray-400">🧳 {s.big_bags} big bag{s.big_bags > 1 ? 's' : ''}</p>}
+      <div className="flex flex-wrap gap-x-4 text-sm text-gray-700 dark:text-gray-300">
+        {tone === 'in' && s.airport_transfer && <span>🛬 Pick-up {at(s.transfer_time)}</span>}
+        {tone === 'out' && s.departure_transfer && <span>🛫 Drop-off {at(s.departure_transfer_time)}</span>}
+        {tone !== 'stay' && s.big_bags > 0 && <span className="font-semibold">{bags(s.big_bags)}</span>}
+      </div>
       {tone === 'in' && s.notes && <p className="text-xs text-gray-500 italic">{s.notes}</p>}
+    </div>
+  )
+}
+
+/** The day's airport runs, in time order — what the driver needs first. */
+function DayTransfers({ day }: { day: HotelDay }) {
+  const runs = [
+    ...day.arrivals.filter(s => s.airport_transfer)
+      .map(s => ({ id: `${s.id}-in`, time: s.transfer_time, icon: '🛬', what: 'Pick-up', s })),
+    ...day.departures.filter(s => s.departure_transfer)
+      .map(s => ({ id: `${s.id}-out`, time: s.departure_transfer_time, icon: '🛫', what: 'Drop-off', s })),
+  ].sort((a, b) => (a.time ?? '99').localeCompare(b.time ?? '99'))
+  if (runs.length === 0) return null
+  return (
+    <div className="rounded-lg bg-sky-50 dark:bg-sky-900/20 border border-sky-100 dark:border-sky-900 px-3 py-2 space-y-1">
+      <p className="text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-400">Airport transfers</p>
+      {runs.map(r => (
+        <p key={r.id} className="text-sm text-gray-800 dark:text-gray-200">
+          <span className="font-semibold tabular-nums">{r.time ?? '--:--'}</span> {r.icon} {r.what} · {r.s.display_name}
+          <span className="text-gray-500 dark:text-gray-400"> · {r.s.nb_persons} pax{r.s.big_bags > 0 ? ` · ${bags(r.s.big_bags)}` : ''}</span>
+        </p>
+      ))}
     </div>
   )
 }
@@ -145,6 +179,7 @@ function DaysView({ stays }: { stays: PartnerHotelStay[] }) {
           <p className="font-semibold text-gray-800 dark:text-gray-200">
             {longDate(d.date)}{d.date === today && <span className="ml-2 text-xs text-sky-600 dark:text-sky-400">today</span>}
           </p>
+          <DayTransfers day={d} />
           {d.arrivals.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Arriving ({d.arrivals.length})</p>
@@ -185,20 +220,26 @@ export default function PartnerHotelSharePage({ hotelId }: Props) {
       const staysQuery = (cols: string) => supabase.from('partner_hotel_stays').select(cols).eq('hotel_id', hotelId).order('check_in')
       const [hRes, sFirst, pRes] = await Promise.all([
         supabase.from('partner_hotels').select('id, name, commission_pct').eq('id', hotelId).maybeSingle(),
-        staysQuery(`${BASE_COLUMNS}, group_id`),
+        staysQuery(`${BASE_COLUMNS}, group_id, departure_transfer, departure_transfer_time`),
         supabase.from('partner_hotel_payments').select('id, hotel_id, date, amount_mzn, direction, notes')
           .eq('hotel_id', hotelId).order('date', { ascending: false }),
       ])
-      // group_id came with 2026-10-08b. Should the page ship before that
-      // migration, read without it rather than show nothing: each night is
-      // then its own reservation.
+      // group_id (2026-10-08b) and the drop-off (2026-10-08c) came later.
+      // Should the page ship before those migrations, read without them rather
+      // than show nothing: each night is then its own reservation, no drop-off.
       let sRes = sFirst
+      if (sRes.error && ['42703', '42501'].includes(sRes.error.code)) sRes = await staysQuery(`${BASE_COLUMNS}, group_id`)
       if (sRes.error && ['42703', '42501'].includes(sRes.error.code)) sRes = await staysQuery(BASE_COLUMNS)
 
       const err = hRes.error ?? sRes.error ?? pRes.error
       if (err) { console.error('PartnerHotelSharePage:', err.message); setFailed(true) }
       setName((hRes.data as { name: string } | null)?.name ?? null)
-      setStays(((sRes.data ?? []) as unknown as PartnerHotelStay[]).map(s => ({ ...s, group_id: s.group_id ?? null })))
+      setStays(((sRes.data ?? []) as unknown as PartnerHotelStay[]).map(s => ({
+        ...s,
+        group_id: s.group_id ?? null,
+        departure_transfer: s.departure_transfer ?? false,
+        departure_transfer_time: s.departure_transfer_time ?? null,
+      })))
       setPayments((pRes.data ?? []) as PartnerHotelPayment[])
       setLoading(false)
     }
