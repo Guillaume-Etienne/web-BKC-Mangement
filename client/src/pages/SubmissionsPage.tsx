@@ -6,7 +6,7 @@ import { useClients } from '../hooks/useClients'
 import { useTaxiTrips } from '../hooks/useTaxis'
 import type { Booking, Client, Enquiry, FormSubmission, FormSubmissionStatus, Lang, TaxiPricingDefaults, TaxiTrip } from '../types/database'
 import { activityCountColumns } from '../utils/bookingActivity'
-import { blanksToFill, findExistingClient } from '../utils/clientIdentity'
+import { blanksToFill, findExistingClient, normEmail } from '../utils/clientIdentity'
 import { addDaysISO as addDays, fmtDate } from '../utils/dates'
 import { findCandidateEnquiries, fmtArrivalMonth } from '../utils/enquiries'
 import { splitName } from '../utils/names'
@@ -33,6 +33,12 @@ interface DetailProps { s: FormSubmission; onDone: () => void; enquiries: Enquir
 function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }: DetailProps) {
   const p = s.payload
   const targetBooking = p.target_booking_id ? bookings.find(b => b.id === p.target_booking_id) : null
+  // The Update Form link is forwardable: a travel companion can fill it with their own
+  // email. Then the form is NOT the booker — it must not rename or re-contact the
+  // booking's client, nor wipe the crew list (this wiped booking #21 on 2026-10-08).
+  const targetClient = targetBooking ? clients.find(c => c.id === targetBooking.client_id) : null
+  const fromOtherPerson = !!targetClient && !!normEmail(targetClient.email) && !!normEmail(p.email)
+    && normEmail(targetClient.email) !== normEmail(p.email)
   const candidates = useMemo(
     () => findCandidateEnquiries({ email: p.email, name: p.reference_name }, enquiries),
     [p.email, p.reference_name, enquiries])
@@ -279,18 +285,21 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
     setError(null)
 
     // 1. Client — same person, update in place rather than creating a new row.
-    const { first, last } = splitName(p.reference_name)
-    const { error: cErr } = await supabase.from('clients').update({
-      first_name: first || p.reference_name || 'Unknown',
-      last_name: last || '',
-      email: p.email || null,
-      phone: p.phone || null,
-      emergency_contact_name: p.emergency_contact_name || null,
-      emergency_contact_phone: p.emergency_contact_phone || null,
-      emergency_contact_email: p.emergency_contact_email || null,
-      emergency_contact_relation: p.emergency_contact_relation || null,
-    }).eq('id', targetBooking.client_id)
-    if (cErr) { setError('Client: ' + cErr.message); setBusy(false); return }
+    //    Skipped when the form comes from someone else (fromOtherPerson): the booker stays.
+    if (!fromOtherPerson) {
+      const { first, last } = splitName(p.reference_name)
+      const { error: cErr } = await supabase.from('clients').update({
+        first_name: first || p.reference_name || 'Unknown',
+        last_name: last || '',
+        email: p.email || null,
+        phone: p.phone || null,
+        emergency_contact_name: p.emergency_contact_name || null,
+        emergency_contact_phone: p.emergency_contact_phone || null,
+        emergency_contact_email: p.emergency_contact_email || null,
+        emergency_contact_relation: p.emergency_contact_relation || null,
+      }).eq('id', targetBooking.client_id)
+      if (cErr) { setError('Client: ' + cErr.message); setBusy(false); return }
+    }
 
     // 2. Booking — only the fields this form actually asks about.
     const formTravelers = (p.travelers ?? []).filter(t => t.first_name.trim())
@@ -309,20 +318,38 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
       waiver_accepted_at: p.waiver_accepted ? s.submitted_at : null,
       waiver_version: p.waiver_accepted ? p.waiver_version : null,
       referral_source: p.referral_source || null,
-      emergency_contact_name: p.emergency_contact_name || null,
-      emergency_contact_phone: p.emergency_contact_phone || null,
-      emergency_contact_email: p.emergency_contact_email || null,
+      ...(fromOtherPerson ? {} : {
+        emergency_contact_name: p.emergency_contact_name || null,
+        emergency_contact_phone: p.emergency_contact_phone || null,
+        emergency_contact_email: p.emergency_contact_email || null,
+      }),
     }).eq('id', targetBooking.id)
     if (bErr) { setError('Booking: ' + bErr.message); setBusy(false); return }
 
     // 3. Participants — delete-all-then-reinsert, same idiom the wizard already
     //    uses for external stays: the form is the new source of truth for the
     //    crew list, not something to reconcile row by row against the old one.
-    const { error: delErr } = await supabase.from('booking_participants').delete().eq('booking_id', targetBooking.id)
-    if (delErr) { setError('Participants: ' + delErr.message); setBusy(false); return }
-    if (formTravelers.length > 0) {
+    //    A form from someone else (fromOtherPerson) only ADDS its travelers: the
+    //    people already on the booking are kept (matched by passport, else name).
+    let toInsert = formTravelers
+    if (fromOtherPerson) {
+      const { data: existing, error: exErr } = await supabase.from('booking_participants')
+        .select('first_name,last_name,passport_number').eq('booking_id', targetBooking.id)
+      if (exErr) { setError('Participants: ' + exErr.message); setBusy(false); return }
+      const key = (f: string, l: string | null) => `${f}|${l ?? ''}`.trim().toLowerCase()
+      const havePassport = new Set((existing ?? []).map(e => (e.passport_number ?? '').trim().toLowerCase()).filter(Boolean))
+      const haveName = new Set((existing ?? []).map(e => key(e.first_name, e.last_name)))
+      toInsert = formTravelers.filter(t => {
+        const pp = t.passport_number.trim().toLowerCase()
+        return !(pp && havePassport.has(pp)) && !haveName.has(key(t.first_name.trim(), t.last_name.trim() || null))
+      })
+    } else {
+      const { error: delErr } = await supabase.from('booking_participants').delete().eq('booking_id', targetBooking.id)
+      if (delErr) { setError('Participants: ' + delErr.message); setBusy(false); return }
+    }
+    if (toInsert.length > 0) {
       const { error: pErr } = await supabase.from('booking_participants').insert(
-        formTravelers.map(t => ({
+        toInsert.map(t => ({
           booking_id: targetBooking.id,
           first_name: t.first_name.trim(),
           last_name: t.last_name.trim() || null,
@@ -530,6 +557,12 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
             Sent from an existing booking — applying updates <strong>#{String(targetBooking.booking_number).padStart(3, '0')}</strong> in
             place (visa dates, transfer times, passport numbers, emergency contact). Room dates and price are never touched.
           </p>
+          {fromOtherPerson && targetClient && (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              ⚠️ This form's email ({p.email}) is not the booker's ({targetClient.first_name} {targetClient.last_name}, {targetClient.email}).
+              Applying will only add its travelers and update the trip details — the booker's name, contact and emergency contact stay untouched.
+            </p>
+          )}
           {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
           {confirmAction === 'reject' ? (
             <div className="flex items-center gap-3 pt-1">
