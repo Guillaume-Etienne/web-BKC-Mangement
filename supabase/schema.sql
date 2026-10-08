@@ -581,7 +581,8 @@ CREATE TABLE activity_bookings (
   provider_id      UUID NOT NULL REFERENCES activity_providers(id) ON DELETE CASCADE,
   booking_id       UUID REFERENCES bookings(id) ON DELETE SET NULL,
   date             DATE NOT NULL,
-  label            TEXT NOT NULL,
+  end_date         DATE CHECK (end_date IS NULL OR end_date >= date),  -- multi-day (safari), 2026-10-08
+  label           TEXT NOT NULL,
   nb_persons       INTEGER NOT NULL DEFAULT 1,
   participant_ids  UUID[] NOT NULL DEFAULT '{}',  -- booking_participants.id[]
   price_client     NUMERIC(8,2) NOT NULL DEFAULT 0,   -- ce que paie le client au centre

@@ -7,6 +7,7 @@ import {
   usePartnerHotels, usePartnerHotelStays, usePartnerHotelPayments,
 } from '../hooks/useActivities'
 import PartnerHotelTab, { type HotelBookingRef } from '../components/activities/PartnerHotelTab'
+import SafariTab from '../components/activities/SafariTab'
 import { useBookingParticipants } from '../hooks/useBookings'
 import { useTable } from '../hooks/useSupabase'
 import type {
@@ -140,6 +141,7 @@ function BookingForm({ initial, providers, bookingRefs, allParticipants, onSave,
   const [providerId,   setProviderId]   = useState(initial?.provider_id   ?? providers[0]?.id ?? '')
   const [bookingId,    setBookingId]    = useState(initial?.booking_id    ?? '')
   const [date,         setDate]         = useState(initial?.date          ?? today())
+  const [endDate,      setEndDate]      = useState(initial?.end_date      ?? '')
   const [label,        setLabel]        = useState(initial?.label         ?? '')
   const [nbPersons,    setNbPersons]    = useState(String(initial?.nb_persons ?? 1))
   const [participantIds, setParticipantIds] = useState<string[]>(initial?.participant_ids ?? [])
@@ -162,6 +164,7 @@ function BookingForm({ initial, providers, bookingRefs, allParticipants, onSave,
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (endDate && endDate < date) { alert('The end date is before the start date.'); return }
     onSave({
       provider_id:     providerId,
       booking_id:      bookingId || null,
@@ -172,13 +175,16 @@ function BookingForm({ initial, providers, bookingRefs, allParticipants, onSave,
       price_provider:  parseFloat(priceProvider) || 0,
       payment_flow:    paymentFlow,
       notes:           notes || null,
+      // Only named once set (or already stored): a column not migrated yet
+      // must not break saving an activity that has no end date.
+      ...(endDate || (initial && 'end_date' in initial) ? { end_date: endDate || null } : {}),
     })
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <div>
+        <div className="col-span-2">
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Provider *</label>
           <select required value={providerId} onChange={e => setProviderId(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
@@ -188,6 +194,11 @@ function BookingForm({ initial, providers, bookingRefs, allParticipants, onSave,
         <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date *</label>
           <input type="date" required value={date} onChange={e => setDate(e.target.value)}
+            className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">End date (multi-day, e.g. safari)</label>
+          <input type="date" min={date} value={endDate} onChange={e => setEndDate(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div className="col-span-2">
@@ -653,6 +664,9 @@ export default function ActivitiesPage() {
   const [editingProvider,  setEditingProvider]  = useState<ActivityProvider | null>(null)
   const [filterProvider,   setFilterProvider]   = useState<string>('all')
   const [editingBookingAll, setEditingBookingAll] = useState<ActivityBooking | null>(null)
+  const [safariForm, setSafariForm] = useState<{ initial?: ActivityBooking } | null>(null)
+  const safariProviders   = providers.filter(p => p.type === 'safari')
+  const safariProviderIds = new Set(safariProviders.map(p => p.id))
 
   // Each write below is followed by a refresh, so the screen always ends up
   // showing what the database really holds — but a refused write used to look
@@ -768,6 +782,10 @@ export default function ActivitiesPage() {
               {t === 'providers' ? `🏕️ ${i18n.activities.section_providers[lang]}` : `📋 ${i18n.activities.tab_all_bookings[lang]}`}
             </button>
           ))}
+          <button onClick={() => setTab('safaris')}
+            className={`px-4 py-2 font-medium transition-colors ${tab === 'safaris' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
+            🦁 Safaris
+          </button>
           {activeHotels.map(h => (
             <button key={h.id} onClick={() => setTab(`hotel:${h.id}`)}
               className={`px-4 py-2 font-medium transition-colors ${tab === `hotel:${h.id}` ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
@@ -775,6 +793,44 @@ export default function ActivitiesPage() {
             </button>
           ))}
         </div>
+
+        {/* ── Safaris tab ── */}
+        {tab === 'safaris' && (
+          <div className="space-y-4">
+            {safariForm && (
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+                <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-4">{safariForm.initial ? 'Edit safari' : 'New safari'}</h3>
+                {safariProviders.length === 0 ? (
+                  <p className="text-sm text-gray-500">No provider of type Safari yet — create one in the Providers tab first.</p>
+                ) : (
+                  <BookingForm
+                    key={safariForm.initial?.id ?? 'new'}
+                    initial={safariForm.initial}
+                    providers={safariProviders}
+                    bookingRefs={bookingRefs}
+                    allParticipants={allParticipants}
+                    onSave={async (b) => {
+                      if (safariForm.initial) await editBooking({ ...safariForm.initial, ...b })
+                      else await addBooking(b)
+                      setSafariForm(null)
+                    }}
+                    onCancel={() => setSafariForm(null)}
+                  />
+                )}
+              </div>
+            )}
+            <SafariTab
+              safaris={bookings.filter(b => safariProviderIds.has(b.provider_id))}
+              providers={providers}
+              stays={hotelStays}
+              hotels={hotels}
+              bookingRefs={bookingRefs}
+              onAdd={() => setSafariForm({})}
+              onEdit={b => setSafariForm({ initial: b })}
+              onDelete={deleteBooking}
+            />
+          </div>
+        )}
 
         {/* ── Partner hotel tabs ── */}
         {activeHotels.filter(h => tab === `hotel:${h.id}`).map(h => (
@@ -923,7 +979,7 @@ export default function ActivitiesPage() {
                   <tbody>
                     {filteredBookings.sort((a, b) => b.date.localeCompare(a.date)).map(b => (
                       <tr key={b.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(b.date)}</td>
+                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(b.date)}{b.end_date && b.end_date !== b.date && ` → ${fmtDate(b.end_date)}`}</td>
                         <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{providerName(b.provider_id)}</td>
                         <td className="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">{b.label}</td>
                         <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{clientName(b)}</td>

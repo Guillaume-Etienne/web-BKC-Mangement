@@ -480,6 +480,7 @@ export interface ActivityBooking {
   provider_id:     string
   booking_id:      string | null
   date:            string
+  end_date?:       string | null   // last day of a multi-day activity (safari), 2026-10-08
   label:           string
   nb_persons:      number
   participant_ids: string[]

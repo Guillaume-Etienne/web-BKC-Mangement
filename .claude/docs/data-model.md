@@ -363,6 +363,7 @@
 | provider_id | string (FK) | |
 | booking_id | string \| null (FK → bookings) | Lien optionnel |
 | date | string (ISO date) | |
+| end_date | string \| null (optionnel en TS) | Dernier jour d'une activité de plusieurs jours (safari). NULL = un jour. Migration `2026-10-08_activity_end_date.sql`. Le form ne nomme la colonne que si remplie/déjà stockée |
 | label | string | e.g. "Whale shark tour" |
 | nb_persons | number | |
 | participant_ids | string[] | booking_participants.id[] |
@@ -408,6 +409,11 @@ total × pct. Guest → hôtel : l'hôtel nous doit la commission. Guest → nou
 commission. **Dû seulement si `guests_paid`** ; solde hôtel = Σ dû − règlements hotel_to_us +
 règlements us_to_hotel. **Compta** : `SeasonTotals.partnerHotelRev` = commission de tous les
 séjours actifs (payés ou non) / `eur_mzn_rate` courant, dans `totalRevenue` (ligne « Partner hotels (≈) »).
+**Onglet 🦁 Safaris** (`components/activities/SafariTab.tsx`, logique `utils/safariChain.ts` testée) :
+les `activity_bookings` des prestataires `type='safari'`, croisés par `booking_id` avec les
+séjours partner hotel. Chaîne attendue : séjour avant `check_out = date`, séjour après
+`check_in = end_date ?? date`. Alertes : nuit manquante avant/après, nuits non couvertes (trou),
+séjour qui chevauche le safari. Signale, ne corrige jamais.
 ⚠️ Si le guest NOUS paie l'hôtel, ce paiement n'est pas relié à `payments` du booking : à ne pas
 saisir comme paiement de la résa (sinon solde client faux).
 
