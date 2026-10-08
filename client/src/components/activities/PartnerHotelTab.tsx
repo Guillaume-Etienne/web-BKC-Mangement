@@ -499,7 +499,7 @@ export default function PartnerHotelTab({
                 <th className="px-3 py-3 font-medium">Rooms</th>
                 <th className="px-3 py-3 font-medium">Airport transfer</th>
                 <th className="px-3 py-3 font-medium text-center">Big bags</th>
-                <th className="px-3 py-3 font-medium text-center">CasaMoz confirmed?</th>
+                <th className="px-3 py-3 font-medium text-center">{hotel.name.replace(/^Hotel\s+/i, '')} confirmed?</th>
                 <th className="px-3 py-3 font-medium text-center">Guests paid?</th>
                 <th className="px-3 py-3 font-medium text-right">Total</th>
                 <th className="px-3 py-3 font-medium text-right">Our share</th>
