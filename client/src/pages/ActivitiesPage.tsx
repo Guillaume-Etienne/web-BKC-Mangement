@@ -840,6 +840,7 @@ export default function ActivitiesPage() {
             payments={hotelPayments.filter(p => p.hotel_id === h.id)}
             bookings={hotelBookings.filter(b => b.status !== 'cancelled')}
             participantCounts={participantCounts}
+            safaris={bookings.filter(b => safariProviderIds.has(b.provider_id))}
             shareLink={sharedLinksData.find(l => l.type === 'partner_hotel' && l.is_active && l.params?.hotel_id === h.id)}
             eurMznRate={eurMznRate}
             onStaysChanged={refreshHotelStays}

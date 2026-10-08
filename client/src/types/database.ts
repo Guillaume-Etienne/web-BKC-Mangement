@@ -524,6 +524,7 @@ export interface PartnerHotelStay {
   id:               string
   hotel_id:         string
   booking_id:       string | null
+  group_id:         string | null   // the nights of one reservation share it (2026-10-08b); null = own id
   display_name:     string
   check_in:         string
   check_out:        string

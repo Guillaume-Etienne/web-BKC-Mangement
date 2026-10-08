@@ -1,20 +1,23 @@
 // One tab of /activities per partner hotel (Hotel CasaMoz, Maputo).
-// Stays the hotel hosts for our guests, the money each one moves, and the
-// settlements between the hotel and us. Design: .claude/docs/data-model.md
-// § Partner hotels. Money logic (tested): utils/partnerHotel.ts.
+// Reservations the hotel hosts for our guests — most often two separate
+// nights around a safari, one row each, tied by `group_id` — the money each
+// one moves, and the settlements between the hotel and us.
+// Design: .claude/docs/data-model.md § Partner hotels. Logic (tested):
+// utils/partnerHotel.ts.
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type {
-  PartnerHotel, PartnerHotelStay, PartnerHotelPayment, PartnerHotelRoom,
+  ActivityBooking, PartnerHotel, PartnerHotelStay, PartnerHotelPayment, PartnerHotelRoom,
   PartnerHotelPaidBy, PartnerHotelDirection, SharedLink,
 } from '../../types/database'
 import { todayISO, addDaysISO, fmtDate } from '../../utils/dates'
 import {
   stayNights, stayTotalMzn, stayCommissionMzn, stayExpectedMzn,
-  hotelBalanceMzn, commissionEur, fmtMzn,
+  hotelBalanceMzn, commissionEur, fmtMzn, groupStays, stayGroupKey, nightsAroundSafari,
 } from '../../utils/partnerHotel'
+import { safariEnd } from '../../utils/safariChain'
 
-/** A booking as this tab needs it: enough to prefill a stay. */
+/** A booking as this tab needs it: enough to prefill a reservation. */
 export interface HotelBookingRef {
   id:             string
   booking_number: number
@@ -27,13 +30,40 @@ export interface HotelBookingRef {
   client?: { first_name: string; last_name: string } | null
 }
 
-type StayDraft = Omit<PartnerHotelStay, 'id' | 'created_at'>
+/** What every night of a reservation shares. */
+type Common = Pick<PartnerHotelStay,
+  'booking_id' | 'display_name' | 'nb_persons' | 'couples_count' | 'children_count' | 'rooms'
+  | 'commission_pct' | 'paid_by' | 'guests_paid' | 'notes' | 'internal_notes'>
+
+/** What is proper to one night (its own dates, transfer, confirmation). */
+interface Night {
+  id?:              string   // set = an existing row
+  check_in:         string
+  check_out:        string
+  airport_transfer: boolean
+  transfer_time:    string | null
+  big_bags:         number
+  hotel_confirmed:  boolean
+}
+
+interface Draft { groupId: string | null; common: Common; nights: Night[] }
 
 const input = 'w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400'
 const labelCls = 'block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1'
 
+const blankNight = (): Night => ({
+  check_in: '', check_out: '', airport_transfer: false, transfer_time: null, big_bags: 0, hotel_confirmed: false,
+})
+
 function bookingName(b: HotelBookingRef): string {
   return b.client ? `${b.client.first_name} ${b.client.last_name}`.trim() : `#${b.booking_number}`
+}
+
+function nightLabel(i: number, count: number): string {
+  if (count === 1) return 'Night(s)'
+  if (i === 0) return 'Arrival'
+  if (i === count - 1) return 'Return'
+  return `Stay ${i + 1}`
 }
 
 function report(action: string, error: { message: string } | null): boolean {
@@ -43,62 +73,99 @@ function report(action: string, error: { message: string } | null): boolean {
   return false
 }
 
-// ── Stay form ──────────────────────────────────────────────────────────────────
+function paxLabel(s: Pick<PartnerHotelStay, 'nb_persons' | 'couples_count' | 'children_count'>): string {
+  const extra = [
+    s.couples_count > 0 && `${s.couples_count} couple${s.couples_count > 1 ? 's' : ''}`,
+    s.children_count > 0 && `${s.children_count} child${s.children_count > 1 ? 'ren' : ''}`,
+  ].filter(Boolean).join(', ')
+  return `${s.nb_persons} pax${extra ? ` (${extra})` : ''}`
+}
 
-interface StayFormProps {
+// ── Reservation form ───────────────────────────────────────────────────────────
+
+interface FormProps {
   hotel:             PartnerHotel
-  initial:           StayDraft
+  initial:           Draft
   bookings:          HotelBookingRef[]
   participantCounts: Record<string, number>
-  onSave:            (s: StayDraft) => Promise<void>
+  safaris:           ActivityBooking[]
+  onSave:            (d: Draft) => Promise<void>
   onCancel:          () => void
 }
 
-function StayForm({ hotel, initial, bookings, participantCounts, onSave, onCancel }: StayFormProps) {
-  const [s, setS] = useState<StayDraft>(initial)
-  const set = <K extends keyof StayDraft>(k: K, v: StayDraft[K]) => setS(prev => ({ ...prev, [k]: v }))
+function ReservationForm({ hotel, initial, bookings, participantCounts, safaris, onSave, onCancel }: FormProps) {
+  const [c, setC] = useState<Common>(initial.common)
+  const [nights, setNights] = useState<Night[]>(initial.nights)
+  const setCommon = <K extends keyof Common>(k: K, v: Common[K]) => setC(prev => ({ ...prev, [k]: v }))
 
-  // Picking a booking prefills what the booking already knows; every field
-  // stays editable — not all the group necessarily goes through Maputo.
+  // A booking prefills what it already knows — and, when it has a safari, the
+  // nights around it. Everything stays editable.
   function pickBooking(id: string) {
     const b = bookings.find(x => x.id === id)
-    if (!b) { set('booking_id', null); return }
-    setS(prev => ({
+    if (!b) { setCommon('booking_id', null); return }
+    setC(prev => ({
       ...prev,
       booking_id:     b.id,
       display_name:   bookingName(b),
       nb_persons:     participantCounts[b.id] || prev.nb_persons,
       couples_count:  b.couples_count ?? 0,
       children_count: b.children_count ?? 0,
-      big_bags:       b.boardbag_count ?? 0,
+    }))
+    const safari = safaris.filter(s => s.booking_id === b.id).sort((x, y) => x.date.localeCompare(y.date))[0]
+    setNights(prev => {
+      const next = prev.map(n => ({ ...n }))
+      if (next[0] && !next[0].big_bags) next[0].big_bags = b.boardbag_count ?? 0
+      if (safari && next.length === 2 && next.every(n => !n.check_in && !n.check_out)) {
+        const s = nightsAroundSafari(safari.date, safariEnd(safari))
+        Object.assign(next[0], s.arrival)
+        Object.assign(next[1], s.ret)
+      }
+      return next
+    })
+  }
+
+  function setNight(i: number, patch: Partial<Night>) {
+    setNights(prev => prev.map((n, j) => {
+      if (j !== i) return n
+      const next = { ...n, ...patch }
+      // One night by default: a check-in pushes the check-out to the next day.
+      if (patch.check_in && (!next.check_out || next.check_out <= patch.check_in)) {
+        next.check_out = addDaysISO(patch.check_in, 1)
+      }
+      return next
     }))
   }
 
   function setRoom(i: number, patch: Partial<PartnerHotelRoom>) {
-    set('rooms', s.rooms.map((r, j) => j === i ? { ...r, ...patch } : r))
+    setCommon('rooms', c.rooms.map((r, j) => j === i ? { ...r, ...patch } : r))
   }
 
-  const nights = s.check_in && s.check_out ? stayNights(s) : 0
-  const total = stayTotalMzn(s)
+  const nightly = c.rooms.reduce((s, r) => s + (Number(r.rate_mzn) || 0), 0)
+  const totalNights = nights.reduce((s, n) => s + (n.check_in && n.check_out ? stayNights(n) : 0), 0)
+  const total = nightly * totalNights
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (s.check_out <= s.check_in) { alert('Check-out must be after check-in.'); return }
+    if (nights.length === 0) { alert('Add at least one night.'); return }
+    for (const n of nights) {
+      if (!n.check_in || !n.check_out || n.check_out <= n.check_in) {
+        alert('Each night needs a check-in and a later check-out.'); return
+      }
+    }
     await onSave({
-      ...s,
-      display_name:  s.display_name.trim(),
-      transfer_time: s.airport_transfer ? (s.transfer_time || null) : null,
-      notes:          s.notes?.trim() || null,
-      internal_notes: s.internal_notes?.trim() || null,
+      groupId: initial.groupId,
+      common: { ...c, display_name: c.display_name.trim(), notes: c.notes?.trim() || null, internal_notes: c.internal_notes?.trim() || null },
+      nights: nights.map(n => ({ ...n, transfer_time: n.airport_transfer ? (n.transfer_time || null) : null })),
     })
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="space-y-5">
+      {/* Who */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="col-span-2">
           <label className={labelCls}>Booking</label>
-          <select value={s.booking_id ?? ''} onChange={e => pickBooking(e.target.value)} className={input}>
+          <select value={c.booking_id ?? ''} onChange={e => pickBooking(e.target.value)} className={input}>
             <option value="">— None —</option>
             {bookings.map(b => (
               <option key={b.id} value={b.id}>#{b.booking_number} {bookingName(b)} · {fmtDate(b.check_in)}</option>
@@ -107,97 +174,105 @@ function StayForm({ hotel, initial, bookings, participantCounts, onSave, onCance
         </div>
         <div className="col-span-2">
           <label className={labelCls}>Name shown to the hotel *</label>
-          <input required value={s.display_name} onChange={e => set('display_name', e.target.value)} className={input} />
-        </div>
-        <div>
-          <label className={labelCls}>Check-in *</label>
-          <input type="date" required value={s.check_in} onChange={e => set('check_in', e.target.value)} className={input} />
-        </div>
-        <div>
-          <label className={labelCls}>Check-out *</label>
-          <input type="date" required value={s.check_out} onChange={e => set('check_out', e.target.value)} className={input} />
+          <input required value={c.display_name} onChange={e => setCommon('display_name', e.target.value)} className={input} />
         </div>
         <div>
           <label className={labelCls}>Persons</label>
-          <input type="number" min={0} value={s.nb_persons} onChange={e => set('nb_persons', Number(e.target.value))} className={input} />
+          <input type="number" min={0} value={c.nb_persons} onChange={e => setCommon('nb_persons', Number(e.target.value))} className={input} />
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className={labelCls}>Couples</label>
-            <input type="number" min={0} value={s.couples_count} onChange={e => set('couples_count', Number(e.target.value))} className={input} />
-          </div>
-          <div>
-            <label className={labelCls}>Children</label>
-            <input type="number" min={0} value={s.children_count} onChange={e => set('children_count', Number(e.target.value))} className={input} />
-          </div>
+        <div>
+          <label className={labelCls}>Couples</label>
+          <input type="number" min={0} value={c.couples_count} onChange={e => setCommon('couples_count', Number(e.target.value))} className={input} />
         </div>
+        <div>
+          <label className={labelCls}>Children</label>
+          <input type="number" min={0} value={c.children_count} onChange={e => setCommon('children_count', Number(e.target.value))} className={input} />
+        </div>
+      </div>
+
+      {/* Nights */}
+      <div>
+        <label className={labelCls}>Nights at the hotel</label>
+        <div className="space-y-2">
+          {nights.map((n, i) => (
+            <div key={i} className="grid grid-cols-2 md:grid-cols-[6rem_1fr_1fr_auto_8rem_5rem_auto_auto] gap-2 items-center bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2">
+              <span className="col-span-2 md:col-span-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                {nightLabel(i, nights.length)}{n.check_in && n.check_out && n.check_out > n.check_in ? ` · ${stayNights(n)}n` : ''}
+              </span>
+              <input type="date" aria-label="Check-in" value={n.check_in} onChange={e => setNight(i, { check_in: e.target.value })} className={input} />
+              <input type="date" aria-label="Check-out" min={n.check_in || undefined} value={n.check_out} onChange={e => setNight(i, { check_out: e.target.value })} className={input} />
+              <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 cursor-pointer whitespace-nowrap">
+                <input type="checkbox" checked={n.airport_transfer} onChange={e => setNight(i, { airport_transfer: e.target.checked })} className="w-4 h-4 rounded" />
+                ✈️ Transfer
+              </label>
+              <input type="time" aria-label="Transfer time" disabled={!n.airport_transfer} value={n.transfer_time ?? ''}
+                onChange={e => setNight(i, { transfer_time: e.target.value })} className={`${input} disabled:opacity-40`} />
+              <input type="number" min={0} aria-label="Big bags" title="Big bags" placeholder="🧳" value={n.big_bags}
+                onChange={e => setNight(i, { big_bags: Number(e.target.value) })} className={input} />
+              <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 cursor-pointer whitespace-nowrap">
+                <input type="checkbox" checked={n.hotel_confirmed} onChange={e => setNight(i, { hotel_confirmed: e.target.checked })} className="w-4 h-4 rounded" />
+                Confirmed
+              </label>
+              <button type="button" disabled={nights.length === 1} title="Remove this night"
+                onClick={() => setNights(nights.filter((_, j) => j !== i))}
+                className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-2 disabled:opacity-20">✕</button>
+            </div>
+          ))}
+          <button type="button" onClick={() => setNights([...nights, blankNight()])}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline">+ Add a night</button>
+        </div>
+        <p className="text-[11px] text-gray-400 mt-1">Columns: dates · airport transfer and time · big bags · confirmed by the hotel.</p>
       </div>
 
       {/* Rooms */}
       <div>
-        <label className={labelCls}>Rooms (price per night, MZN)</label>
+        <label className={labelCls}>Rooms (price per night, MZN) — same for every night</label>
         <div className="space-y-2">
-          {s.rooms.map((r, i) => (
+          {c.rooms.map((r, i) => (
             <div key={i} className="flex gap-2 items-center">
               <input placeholder="Room (e.g. Double)" value={r.label} onChange={e => setRoom(i, { label: e.target.value })} className={input} />
               <input type="number" min={0} value={r.rate_mzn} onChange={e => setRoom(i, { rate_mzn: Number(e.target.value) })} className={`${input} max-w-[9rem]`} />
-              <button type="button" onClick={() => set('rooms', s.rooms.filter((_, j) => j !== i))}
+              <button type="button" onClick={() => setCommon('rooms', c.rooms.filter((_, j) => j !== i))}
                 className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-2">✕</button>
             </div>
           ))}
           <button type="button"
-            onClick={() => set('rooms', [...s.rooms, { label: '', rate_mzn: hotel.default_room_rate_mzn }])}
+            onClick={() => setCommon('rooms', [...c.rooms, { label: '', rate_mzn: hotel.default_room_rate_mzn }])}
             className="text-sm text-blue-600 dark:text-blue-400 hover:underline">+ Add a room</button>
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-          {nights} night{nights === 1 ? '' : 's'} · total {fmtMzn(total)} · our {s.commission_pct}% = {fmtMzn(stayCommissionMzn(s))}
+          {totalNights} night{totalNights === 1 ? '' : 's'} · total {fmtMzn(total)} · our {c.commission_pct}% = {fmtMzn(Math.round(total * c.commission_pct / 100))}
         </p>
       </div>
 
+      {/* Money */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-          <input type="checkbox" checked={s.airport_transfer} onChange={e => set('airport_transfer', e.target.checked)} className="w-4 h-4 rounded" />
-          Airport transfer
-        </label>
-        <div>
-          <label className={labelCls}>Transfer time</label>
-          <input type="time" disabled={!s.airport_transfer} value={s.transfer_time ?? ''}
-            onChange={e => set('transfer_time', e.target.value)} className={`${input} disabled:opacity-40`} />
-        </div>
-        <div>
-          <label className={labelCls}>Big bags</label>
-          <input type="number" min={0} value={s.big_bags} onChange={e => set('big_bags', Number(e.target.value))} className={input} />
-        </div>
         <div>
           <label className={labelCls}>Guests pay</label>
-          <select value={s.paid_by} onChange={e => set('paid_by', e.target.value as PartnerHotelPaidBy)} className={input}>
+          <select value={c.paid_by} onChange={e => setCommon('paid_by', e.target.value as PartnerHotelPaidBy)} className={input}>
             <option value="guest_to_hotel">The hotel</option>
             <option value="guest_to_us">Us</option>
           </select>
         </div>
         <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-          <input type="checkbox" checked={s.hotel_confirmed} onChange={e => set('hotel_confirmed', e.target.checked)} className="w-4 h-4 rounded" />
-          Confirmed by the hotel
-        </label>
-        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-          <input type="checkbox" checked={s.guests_paid} onChange={e => set('guests_paid', e.target.checked)} className="w-4 h-4 rounded" />
+          <input type="checkbox" checked={c.guests_paid} onChange={e => setCommon('guests_paid', e.target.checked)} className="w-4 h-4 rounded" />
           Guests have paid
         </label>
         <div>
           <label className={labelCls}>Commission %</label>
-          <input type="number" min={0} max={100} step="0.5" value={s.commission_pct}
-            onChange={e => set('commission_pct', Number(e.target.value))} className={input} />
+          <input type="number" min={0} max={100} step="0.5" value={c.commission_pct}
+            onChange={e => setCommon('commission_pct', Number(e.target.value))} className={input} />
         </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Notes (visible to the hotel)</label>
-          <textarea rows={2} value={s.notes ?? ''} onChange={e => set('notes', e.target.value)} className={input} />
+          <textarea rows={2} value={c.notes ?? ''} onChange={e => setCommon('notes', e.target.value)} className={input} />
         </div>
         <div>
           <label className={labelCls}>Internal notes (never shown to the hotel)</label>
-          <textarea rows={2} value={s.internal_notes ?? ''} onChange={e => set('internal_notes', e.target.value)} className={input} />
+          <textarea rows={2} value={c.internal_notes ?? ''} onChange={e => setCommon('internal_notes', e.target.value)} className={input} />
         </div>
       </div>
 
@@ -269,6 +344,7 @@ interface Props {
   payments:          PartnerHotelPayment[]  // this hotel's only
   bookings:          HotelBookingRef[]
   participantCounts: Record<string, number>
+  safaris:           ActivityBooking[]      // to prefill the nights around a safari
   shareLink:         SharedLink | undefined
   eurMznRate:        number
   onStaysChanged:    () => void
@@ -280,11 +356,11 @@ interface Props {
 type Period = 'upcoming' | 'past' | 'all'
 
 export default function PartnerHotelTab({
-  hotel, stays, payments, bookings, participantCounts, shareLink, eurMznRate,
+  hotel, stays, payments, bookings, participantCounts, safaris, shareLink, eurMznRate,
   onStaysChanged, onPaymentsChanged, onHotelChanged, onLinksChanged,
 }: Props) {
   const [period,      setPeriod]      = useState<Period>('upcoming')
-  const [editing,     setEditing]     = useState<{ id: string | null; draft: StayDraft } | null>(null)
+  const [editing,     setEditing]     = useState<{ key: string; draft: Draft } | null>(null)
   const [showPayment, setShowPayment] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [rate,        setRate]        = useState(String(hotel.default_room_rate_mzn))
@@ -292,47 +368,72 @@ export default function PartnerHotelTab({
   const [copied,      setCopied]      = useState(false)
 
   const today = todayISO()
-  const visible = stays
-    .filter(s => period === 'all' || (period === 'upcoming' ? s.check_out >= today : s.check_out < today))
-    .sort((a, b) => period === 'past' ? b.check_in.localeCompare(a.check_in) : a.check_in.localeCompare(b.check_in))
-
-  // Group the stays of one booking together (before / after the safari),
-  // ordered by the first stay of each group.
-  const groups: PartnerHotelStay[][] = []
-  for (const s of visible) {
-    const key = s.booking_id ?? `solo-${s.id}`
-    const g = groups.find(g => (g[0].booking_id ?? `solo-${g[0].id}`) === key)
-    if (g) g.push(s); else groups.push([s])
-  }
+  const groups = groupStays(stays)
+    .filter(g => period === 'all' || (period === 'upcoming' ? g.end >= today : g.end < today))
+  if (period === 'past') groups.reverse()
+  const visibleStays = groups.flatMap(g => g.stays)
 
   const balance = hotelBalanceMzn(stays, payments)
-  const visibleCommission = visible.reduce((s, st) => s + stayCommissionMzn(st), 0)
+  const visibleCommission = groups.reduce((s, g) => s + g.commissionMzn, 0)
 
-  function blankDraft(): StayDraft {
+  function newDraft(): Draft {
     return {
-      hotel_id: hotel.id, booking_id: null, display_name: '',
-      check_in: '', check_out: '',
-      nb_persons: 2, couples_count: 0, children_count: 0,
-      rooms: [{ label: '', rate_mzn: hotel.default_room_rate_mzn }],
-      commission_pct: hotel.commission_pct,
-      airport_transfer: false, transfer_time: null, big_bags: 0,
-      hotel_confirmed: false, guests_paid: false, paid_by: 'guest_to_hotel',
-      notes: null, internal_notes: null,
+      groupId: null,
+      common: {
+        booking_id: null, display_name: '', nb_persons: 2, couples_count: 0, children_count: 0,
+        rooms: [{ label: '', rate_mzn: hotel.default_room_rate_mzn }],
+        commission_pct: hotel.commission_pct, paid_by: 'guest_to_hotel', guests_paid: false,
+        notes: null, internal_notes: null,
+      },
+      // The usual case: arrival night, safari, return night.
+      nights: [blankNight(), blankNight()],
     }
   }
 
-  function draftOf(s: PartnerHotelStay): StayDraft {
-    const { id: _id, created_at: _c, ...rest } = s
-    return rest
+  function draftOf(groupStays: PartnerHotelStay[]): Draft {
+    const f = groupStays[0]
+    return {
+      groupId: stayGroupKey(f),
+      common: {
+        booking_id: f.booking_id, display_name: f.display_name,
+        nb_persons: f.nb_persons, couples_count: f.couples_count, children_count: f.children_count,
+        rooms: f.rooms, commission_pct: f.commission_pct, paid_by: f.paid_by,
+        guests_paid: groupStays.every(s => s.guests_paid),
+        notes: f.notes, internal_notes: f.internal_notes,
+      },
+      nights: groupStays.map(s => ({
+        id: s.id, check_in: s.check_in, check_out: s.check_out,
+        airport_transfer: s.airport_transfer, transfer_time: s.transfer_time,
+        big_bags: s.big_bags, hotel_confirmed: s.hotel_confirmed,
+      })),
+    }
   }
 
-  async function saveStay(d: StayDraft) {
-    const { error } = editing?.id
-      ? await supabase.from('partner_hotel_stays').update(d).eq('id', editing.id)
-      : await supabase.from('partner_hotel_stays').insert([d])
-    if (!report('save the stay', error)) return
-    setEditing(null)
+  // One reservation = one row per night, all carrying the shared fields and
+  // the same group_id. Existing nights are updated, new ones inserted, removed
+  // ones deleted; every failure is reported together.
+  async function saveReservation(d: Draft) {
+    const groupId = d.groupId ?? crypto.randomUUID()
+    const before = editing ? stays.filter(s => stayGroupKey(s) === editing.key) : []
+    const keptIds = new Set(d.nights.map(n => n.id).filter(Boolean))
+    const errors: string[] = []
+
+    for (const n of d.nights) {
+      const { id, ...night } = n
+      const row = { ...d.common, ...night, hotel_id: hotel.id, group_id: groupId }
+      const { error } = id
+        ? await supabase.from('partner_hotel_stays').update(row).eq('id', id)
+        : await supabase.from('partner_hotel_stays').insert([row])
+      if (error) errors.push(error.message)
+    }
+    for (const s of before.filter(s => !keptIds.has(s.id))) {
+      const { error } = await supabase.from('partner_hotel_stays').delete().eq('id', s.id)
+      if (error) errors.push(error.message)
+    }
+
     onStaysChanged()
+    if (errors.length) { report('save the whole reservation', { message: errors.join('\n') }); return }
+    setEditing(null)
   }
 
   async function toggle(s: PartnerHotelStay, field: 'hotel_confirmed' | 'guests_paid') {
@@ -341,10 +442,10 @@ export default function PartnerHotelTab({
     onStaysChanged()
   }
 
-  async function deleteStay(id: string) {
-    if (!confirm('Delete this stay?')) return
-    const { error } = await supabase.from('partner_hotel_stays').delete().eq('id', id)
-    report('delete the stay', error)
+  async function deleteStays(ids: string[], what: string) {
+    if (!confirm(`Delete ${what}?`)) return
+    const { error } = await supabase.from('partner_hotel_stays').delete().in('id', ids)
+    report(`delete ${what}`, error)
     onStaysChanged()
   }
 
@@ -394,6 +495,8 @@ export default function PartnerHotelTab({
     setCopied(true); setTimeout(() => setCopied(false), 1500)
   }
 
+  const shortName = hotel.name.replace(/^Hotel\s+/i, '')
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -416,8 +519,8 @@ export default function PartnerHotelTab({
             🔗 Create hotel link
           </button>
         )}
-        <button onClick={() => setEditing({ id: null, draft: blankDraft() })}
-          className="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold text-sm">+ Add stay</button>
+        <button onClick={() => setEditing({ key: 'new', draft: newDraft() })}
+          className="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold text-sm">+ Add reservation</button>
       </div>
 
       {showSettings && (
@@ -431,7 +534,7 @@ export default function PartnerHotelTab({
             <input type="number" min={0} max={100} step="0.5" value={pct} onChange={e => setPct(e.target.value)} className={input} />
           </div>
           <button onClick={saveSettings} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Save</button>
-          <p className="text-xs text-gray-500 dark:text-gray-400 basis-full">Applies to new stays only — existing stays keep their own prices and commission.</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 basis-full">Applies to new reservations only — existing ones keep their own prices and commission.</p>
         </div>
       )}
 
@@ -440,7 +543,7 @@ export default function PartnerHotelTab({
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
           <p className="text-xs text-gray-500 dark:text-gray-400">Our commission ({period})</p>
           <p className="text-lg font-bold text-gray-800 dark:text-gray-200">{fmtMzn(visibleCommission)}</p>
-          <p className="text-xs text-gray-400">≈ {commissionEur(visible, eurMznRate)} €</p>
+          <p className="text-xs text-gray-400">≈ {commissionEur(visibleStays, eurMznRate)} €</p>
         </div>
         <div className={`rounded-xl border p-4 ${balance > 0
           ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
@@ -453,9 +556,9 @@ export default function PartnerHotelTab({
           <button onClick={() => setShowPayment(true)} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">+ Record a payment</button>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Waiting for hotel confirmation</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Nights waiting for hotel confirmation</p>
           <p className="text-lg font-bold text-gray-800 dark:text-gray-200">
-            {stays.filter(s => !s.hotel_confirmed && s.check_out >= today).length} stay(s)
+            {stays.filter(s => !s.hotel_confirmed && s.check_out >= today).length}
           </p>
         </div>
       </div>
@@ -467,14 +570,14 @@ export default function PartnerHotelTab({
 
       {editing && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-          <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-4">{editing.id ? 'Edit stay' : 'New stay'}</h3>
-          <StayForm key={editing.id ?? JSON.stringify(editing.draft)} hotel={hotel} initial={editing.draft}
-            bookings={bookings} participantCounts={participantCounts}
-            onSave={saveStay} onCancel={() => setEditing(null)} />
+          <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-4">{editing.draft.groupId ? 'Edit reservation' : 'New reservation'}</h3>
+          <ReservationForm key={editing.key} hotel={hotel} initial={editing.draft}
+            bookings={bookings} participantCounts={participantCounts} safaris={safaris}
+            onSave={saveReservation} onCancel={() => setEditing(null)} />
         </div>
       )}
 
-      {/* Stays */}
+      {/* Reservations */}
       <div className="flex gap-2">
         {(['upcoming', 'past', 'all'] as const).map(p => (
           <button key={p} onClick={() => setPeriod(p)}
@@ -486,20 +589,18 @@ export default function PartnerHotelTab({
       </div>
 
       {groups.length === 0 ? (
-        <p className="text-sm text-gray-400 italic py-8 text-center">No stays.</p>
+        <p className="text-sm text-gray-400 italic py-8 text-center">No reservations.</p>
       ) : (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-xs text-left whitespace-nowrap">
-                <th className="px-3 py-3 font-medium">Booking</th>
-                <th className="px-3 py-3 font-medium">Pax</th>
+                <th className="px-3 py-3 font-medium">Night</th>
                 <th className="px-3 py-3 font-medium">Dates</th>
                 <th className="px-3 py-3 font-medium text-center">Nights</th>
-                <th className="px-3 py-3 font-medium">Rooms</th>
                 <th className="px-3 py-3 font-medium">Airport transfer</th>
                 <th className="px-3 py-3 font-medium text-center">Big bags</th>
-                <th className="px-3 py-3 font-medium text-center">{hotel.name.replace(/^Hotel\s+/i, '')} confirmed?</th>
+                <th className="px-3 py-3 font-medium text-center">{shortName} confirmed?</th>
                 <th className="px-3 py-3 font-medium text-center">Guests paid?</th>
                 <th className="px-3 py-3 font-medium text-right">Total</th>
                 <th className="px-3 py-3 font-medium text-right">Our share</th>
@@ -508,82 +609,91 @@ export default function PartnerHotelTab({
               </tr>
             </thead>
             <tbody>
-              {groups.map(g => g.map((s, i) => {
-                const expected = stayExpectedMzn(s)
-                return (
-                  <tr key={s.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${i === g.length - 1 ? 'border-b' : ''}`}>
-                    <td className="px-3 py-2 align-top">
-                      {i === 0 && (
-                        <>
-                          <div className="font-medium text-gray-800 dark:text-gray-200">{s.display_name}</div>
-                          {s.booking_id && (
-                            <div className="text-xs text-gray-400">#{bookings.find(b => b.id === s.booking_id)?.booking_number ?? '?'}</div>
-                          )}
-                        </>
-                      )}
+              {groups.map(g => {
+                const f = g.first
+                const owed = g.stays.reduce((s, st) => s + stayExpectedMzn(st), 0)
+                const bookingNo = f.booking_id ? bookings.find(b => b.id === f.booking_id)?.booking_number : null
+                return [
+                  // Reservation header: what every night shares.
+                  <tr key={g.key} className="bg-sky-50/60 dark:bg-sky-900/10 border-t-2 border-gray-200 dark:border-gray-700">
+                    <td colSpan={7} className="px-3 py-2">
+                      <span className="font-semibold text-gray-800 dark:text-gray-200">{f.display_name}</span>
+                      {bookingNo != null && <span className="text-xs text-gray-400 ml-2">#{bookingNo}</span>}
+                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-3">{paxLabel(f)}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-3">
+                        {f.rooms.map(r => `${r.label || 'Room'} ${fmtMzn(r.rate_mzn)}`).join(' + ') || 'no room'}
+                      </span>
+                      <span className="text-xs text-gray-400 ml-3">guests pay {f.paid_by === 'guest_to_hotel' ? 'the hotel' : 'us'}</span>
                     </td>
-                    <td className="px-3 py-2 text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                      {s.nb_persons}
-                      {(s.couples_count > 0 || s.children_count > 0) && (
-                        <span className="text-xs text-gray-400"> ({[
-                          s.couples_count > 0 && `${s.couples_count} couple${s.couples_count > 1 ? 's' : ''}`,
-                          s.children_count > 0 && `${s.children_count} child${s.children_count > 1 ? 'ren' : ''}`,
-                        ].filter(Boolean).join(', ')})</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(s.check_in)} → {fmtDate(s.check_out)}</td>
-                    <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{stayNights(s)}</td>
-                    <td className="px-3 py-2 text-xs text-gray-600 dark:text-gray-400">
-                      {s.rooms.map((r, j) => <div key={j}>{r.label || 'Room'} · {fmtMzn(r.rate_mzn)}</div>)}
-                    </td>
-                    <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                      {s.airport_transfer ? `✈️ ${s.transfer_time ?? 'time?'}` : '–'}
-                    </td>
-                    <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{s.big_bags || '–'}</td>
-                    <td className="px-3 py-2 text-center">
-                      <button onClick={() => toggle(s, 'hotel_confirmed')}
-                        className={`px-2 py-0.5 rounded text-xs font-medium ${s.hotel_confirmed
-                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                          : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'}`}>
-                        {s.hotel_confirmed ? '✓ Yes' : 'Pending'}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <button onClick={() => toggle(s, 'guests_paid')}
-                        className={`px-2 py-0.5 rounded text-xs font-medium ${s.guests_paid
-                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
-                        {s.guests_paid ? '✓ Paid' : 'No'}
-                      </button>
-                      <div className="text-[10px] text-gray-400 mt-0.5">{s.paid_by === 'guest_to_hotel' ? 'to the hotel' : 'to us'}</div>
-                    </td>
-                    <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtMzn(stayTotalMzn(s))}</td>
-                    <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                      {fmtMzn(stayCommissionMzn(s))}
-                      <div className="text-[10px] text-gray-400">{s.commission_pct}%</div>
-                    </td>
-                    <td className={`px-3 py-2 text-right whitespace-nowrap text-xs ${s.guests_paid ? 'font-semibold' : 'text-gray-400 italic'} ${
-                      expected > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-orange-700 dark:text-orange-400'}`}>
-                      {expected > 0 ? `Hotel → us ${fmtMzn(expected)}` : `Us → hotel ${fmtMzn(-expected)}`}
-                      {!s.guests_paid && <div>(once paid)</div>}
+                    <td className="px-3 py-2 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">{fmtMzn(g.totalMzn)}</td>
+                    <td className="px-3 py-2 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">{fmtMzn(g.commissionMzn)}</td>
+                    <td className={`px-3 py-2 text-right text-xs font-semibold whitespace-nowrap ${owed > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-orange-700 dark:text-orange-400'}`}>
+                      {owed > 0 ? `Hotel → us ${fmtMzn(owed)}` : `Us → hotel ${fmtMzn(-owed)}`}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <div className="flex gap-1 justify-end">
-                        <button title="Edit" onClick={() => setEditing({ id: s.id, draft: draftOf(s) })}
+                        <button title="Edit the reservation" onClick={() => setEditing({ key: g.key, draft: draftOf(g.stays) })}
                           className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 px-1">✏️</button>
-                        <button title="Add the next stay of this booking (after the safari)"
-                          onClick={() => setEditing({ id: null, draft: {
-                            ...draftOf(s), check_in: '', check_out: '',
-                            hotel_confirmed: false, guests_paid: false, airport_transfer: false, transfer_time: null,
-                          } })}
-                          className="text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 px-1">⧉</button>
-                        <button title="Delete" onClick={() => deleteStay(s.id)}
+                        <button title="Delete the whole reservation" onClick={() => deleteStays(g.stays.map(s => s.id), 'this reservation (all its nights)')}
                           className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-1">✕</button>
                       </div>
                     </td>
-                  </tr>
-                )
-              }))}
+                  </tr>,
+                  ...g.stays.flatMap((s, i) => {
+                    const expected = stayExpectedMzn(s)
+                    const absence = i > 0 ? g.absences.find(a => a.to === s.check_in) : undefined
+                    return [
+                      ...(absence ? [
+                        <tr key={`${s.id}-away`}>
+                          <td colSpan={11} className="px-3 py-1 text-xs text-gray-400 italic text-center">
+                            — away {fmtDate(absence.from)} → {fmtDate(absence.to)} (safari) —
+                          </td>
+                        </tr>,
+                      ] : []),
+                      <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <td className="px-3 py-2 pl-6 text-xs font-medium text-gray-500 dark:text-gray-400">{nightLabel(i, g.stays.length)}</td>
+                        <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(s.check_in)} → {fmtDate(s.check_out)}</td>
+                        <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{stayNights(s)}</td>
+                        <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                          {s.airport_transfer ? `✈️ ${s.transfer_time ?? 'time?'}` : '–'}
+                        </td>
+                        <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{s.big_bags || '–'}</td>
+                        <td className="px-3 py-2 text-center">
+                          <button onClick={() => toggle(s, 'hotel_confirmed')}
+                            className={`px-2 py-0.5 rounded text-xs font-medium ${s.hotel_confirmed
+                              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                              : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'}`}>
+                            {s.hotel_confirmed ? '✓ Yes' : 'Pending'}
+                          </button>
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <button onClick={() => toggle(s, 'guests_paid')}
+                            className={`px-2 py-0.5 rounded text-xs font-medium ${s.guests_paid
+                              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
+                            {s.guests_paid ? '✓ Paid' : 'No'}
+                          </button>
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-600 dark:text-gray-400 whitespace-nowrap text-xs">{fmtMzn(stayTotalMzn(s))}</td>
+                        <td className="px-3 py-2 text-right text-gray-600 dark:text-gray-400 whitespace-nowrap text-xs">
+                          {fmtMzn(stayCommissionMzn(s))} <span className="text-[10px] text-gray-400">({s.commission_pct}%)</span>
+                        </td>
+                        <td className={`px-3 py-2 text-right whitespace-nowrap text-xs ${s.guests_paid ? '' : 'text-gray-400 italic'} ${
+                          expected > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-orange-700 dark:text-orange-400'}`}>
+                          {expected > 0 ? `+${fmtMzn(expected)}` : `−${fmtMzn(-expected)}`}
+                          {!s.guests_paid && <div>(once paid)</div>}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {g.stays.length > 1 && (
+                            <button title="Delete this night only" onClick={() => deleteStays([s.id], 'this night')}
+                              className="text-gray-300 dark:text-gray-600 hover:text-red-600 dark:hover:text-red-400 px-1 text-xs">✕</button>
+                          )}
+                        </td>
+                      </tr>,
+                    ]
+                  }),
+                ]
+              })}
             </tbody>
           </table>
         </div>

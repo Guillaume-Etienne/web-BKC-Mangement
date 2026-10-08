@@ -43,7 +43,7 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 | `instructors` | 🟢 **identité only** (id, prénom, nom) — `rate_*` = **paie**, révoqué depuis `2026-07-29_lesson_pricing.sql` | ClientSharePage / Forecast |
 | `lesson_rate_overrides` | ⛔ **non exposée** — exception sur la paie d'un moniteur (révoquée le 2026-07-29) | — |
 | `activity_providers`, `activity_bookings`, `activity_payments` | 🟠 activités + finances | ActivityProviderSharePage |
-| `partner_hotels`, `partner_hotel_stays`, `partner_hotel_payments` | 🟠 séjours Maputo + finances (décision gui 2026-10-07 : l'hôtel voit la compta). Token `partner_hotel` scopé à `params.hotel_id`, GRANT par colonne : jamais `internal_notes`, `booking_id`, `partner_hotels.notes` / tarif par défaut | PartnerHotelSharePage |
+| `partner_hotels`, `partner_hotel_stays`, `partner_hotel_payments` | 🟠 séjours Maputo + finances (décision gui 2026-10-07 : l'hôtel voit la compta). Token `partner_hotel` scopé à `params.hotel_id`, GRANT par colonne : jamais `internal_notes`, `booking_id`, `partner_hotels.notes` / tarif par défaut. `group_id` accordé (2026-10-08b, UUID sans signification, sert à regrouper les nuits) | PartnerHotelSharePage (vues « By reservation » / « Day by day ») |
 | `equipment` | 🟢 référentiel matériel | ClientSharePage / Forecast |
 | `equipment_rentals` | 🟢 locations + **prix rédigé** (`share_price`) — `price` brut et `notes` **bloqués** depuis `2026-08-18c` | ClientSharePage / Forecast |
 | `dining_events` | 🟡 repas | ClientSharePage |

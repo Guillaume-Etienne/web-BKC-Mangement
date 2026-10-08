@@ -7,7 +7,7 @@ import {
 
 function stay(over: Partial<PartnerHotelStay> = {}): PartnerHotelStay {
   return {
-    id: 's1', hotel_id: 'h1', booking_id: null, display_name: 'Doe',
+    id: 's1', hotel_id: 'h1', booking_id: null, group_id: null, display_name: 'Doe',
     check_in: '2026-11-12', check_out: '2026-11-14',
     nb_persons: 2, couples_count: 1, children_count: 0,
     rooms: [{ label: 'Double', rate_mzn: 3500 }],
@@ -89,5 +89,58 @@ describe('partner hotels in the season totals', () => {
     const t = computeSeasonTotals(data)
     expect(t.partnerHotelRev).toBe(20)
     expect(t.totalRevenue).toBeGreaterThanOrEqual(20)
+  })
+})
+
+describe('groupStays', () => {
+  it('one reservation, two nights around an absence', async () => {
+    const { groupStays } = await import('./partnerHotel')
+    const g = groupStays([
+      stay({ id: 'b', group_id: 'g', check_in: '2026-11-17', check_out: '2026-11-18' }),
+      stay({ id: 'a', group_id: 'g', check_in: '2026-11-12', check_out: '2026-11-13' }),
+      stay({ id: 'x', check_in: '2026-11-01', check_out: '2026-11-02' }),   // ungrouped: alone
+    ])
+    expect(g.map(x => x.key)).toEqual(['x', 'g'])
+    expect(g[1].stays.map(s => s.id)).toEqual(['a', 'b'])
+    expect(g[1].nights).toBe(2)
+    expect(g[1].totalMzn).toBe(7000)
+    expect(g[1].absences).toEqual([{ from: '2026-11-13', to: '2026-11-17' }])
+    expect(g[1].end).toBe('2026-11-18')
+  })
+
+  it('back-to-back nights make no absence', async () => {
+    const { groupStays } = await import('./partnerHotel')
+    const g = groupStays([
+      stay({ id: 'a', group_id: 'g', check_in: '2026-11-12', check_out: '2026-11-13' }),
+      stay({ id: 'b', group_id: 'g', check_in: '2026-11-13', check_out: '2026-11-14' }),
+    ])
+    expect(g[0].absences).toEqual([])
+  })
+})
+
+describe('nightsAroundSafari', () => {
+  it('eve of the safari, then its last day', async () => {
+    const { nightsAroundSafari } = await import('./partnerHotel')
+    expect(nightsAroundSafari('2026-11-14', '2026-11-17')).toEqual({
+      arrival: { check_in: '2026-11-13', check_out: '2026-11-14' },
+      ret:     { check_in: '2026-11-17', check_out: '2026-11-18' },
+    })
+  })
+})
+
+describe('hotelDays', () => {
+  it('lists arrivals, departures and guests staying, skipping empty days', async () => {
+    const { hotelDays } = await import('./partnerHotel')
+    const a = stay({ id: 'a', check_in: '2026-11-12', check_out: '2026-11-14' })
+    const b = stay({ id: 'b', check_in: '2026-11-17', check_out: '2026-11-18' })
+    const days = hotelDays([a, b], '2026-11-10')
+    expect(days.map(d => d.date)).toEqual(['2026-11-12', '2026-11-13', '2026-11-14', '2026-11-17', '2026-11-18'])
+    expect(days[1].staying.map(s => s.id)).toEqual(['a'])
+    expect(days[2].departures.map(s => s.id)).toEqual(['a'])
+  })
+
+  it('starts from the given day, past stays dropped', async () => {
+    const { hotelDays } = await import('./partnerHotel')
+    expect(hotelDays([stay({ check_in: '2026-01-01', check_out: '2026-01-02' })], '2026-11-01')).toEqual([])
   })
 })

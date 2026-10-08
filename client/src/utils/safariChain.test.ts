@@ -13,7 +13,7 @@ function safari(over: Partial<ActivityBooking> = {}): ActivityBooking {
 
 function stay(id: string, check_in: string, check_out: string, booking_id: string | null = 'b1'): PartnerHotelStay {
   return {
-    id, hotel_id: 'h1', booking_id, display_name: 'Doe', check_in, check_out,
+    id, hotel_id: 'h1', booking_id, group_id: null, display_name: 'Doe', check_in, check_out,
     nb_persons: 2, couples_count: 1, children_count: 0, rooms: [], commission_pct: 10,
     airport_transfer: false, transfer_time: null, big_bags: 0, hotel_confirmed: false,
     guests_paid: false, paid_by: 'guest_to_hotel', notes: null, internal_notes: null, created_at: '',

@@ -624,6 +624,7 @@ CREATE TABLE partner_hotel_stays (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   hotel_id         UUID NOT NULL REFERENCES partner_hotels(id) ON DELETE CASCADE,
   booking_id       UUID REFERENCES bookings(id) ON DELETE SET NULL,
+  group_id         UUID,                          -- nights of one reservation (2026-10-08b), granted to anon
   display_name     TEXT NOT NULL,
   check_in         DATE NOT NULL,
   check_out        DATE NOT NULL,

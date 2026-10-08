@@ -395,8 +395,12 @@ actif dans /activities (`components/activities/PartnerHotelTab.tsx`), lien publi
 `partner_hotel` (`PartnerHotelSharePage`, `params.hotel_id`). Migration `2026-10-07b_partner_hotels.sql`.
 
 - `partner_hotels` : name, `default_room_rate_mzn` (3500), `commission_pct` (10), is_active, notes (interne).
-- `partner_hotel_stays` : **une ligne par séjour** (avant ET après le safari = 2 lignes, même `booking_id`
-  nullable). `display_name` = ce que lit l'hôtel (pré-rempli du nom du booking, modifiable).
+- `partner_hotel_stays` : **une ligne par nuit/séjour** (avant ET après le safari = 2 lignes, même `booking_id`
+  nullable). **`group_id`** (2026-10-08b) relie les nuits d'une même RÉSERVATION (arrivée, absence,
+  retour) : l'admin saisit/modifie la résa en une fois (`ReservationForm` : champs communs écrits
+  sur chaque ligne, dates/transfert/bags/confirmé par nuit ; dates pré-remplies depuis le safari du
+  booking via `nightsAroundSafari`), l'affichage groupe par `stayGroupKey` = `group_id ?? id`
+  (`groupStays`, absences calculées). UUID dédié accordé à anon, car `booking_id` reste fermé. `display_name` = ce que lit l'hôtel (pré-rempli du nom du booking, modifiable).
   nb_persons/couples_count/children_count (pré-remplis de la résa), `rooms` JSONB
   `[{label, rate_mzn}]` (prix / chambre / nuit), `commission_pct` **figé** à la création,
   airport_transfer + transfer_time (transfert fait par l'hôtel), big_bags (pré-rempli de

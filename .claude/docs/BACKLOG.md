@@ -6,6 +6,13 @@
 
 ## 🚨 Migrations SQL — registre
 
+⬜ **`2026-10-08b_partner_hotel_stay_group.sql`** (TEST ⬜ / PROD ⬜) — `partner_hotel_stays.group_id
+UUID` (relie les nuits d'une même résa CasaMoz) + backfill (même hôtel + booking = même groupe,
+sinon `id`) + `GRANT SELECT (group_id) … TO anon`. **Strictement additive.** ⚠️ **À passer AVANT
+de pousser le code** : sinon enregistrer une résa échoue (alerte), la page de l'hôtel se rabat
+sur une lecture sans `group_id` (chaque nuit = une résa) et ne casse pas. Vérif : curl anon
+`partner_hotel_stays?select=id,group_id` → `[]` 200 (pas 42501/42703) ; `select=booking_id` → 42501.
+
 ✅ **`2026-10-08_activity_end_date.sql`** (TEST ✅ / PROD ✅, passée par gui, **curl anon vérifié le 2026-10-08** : `select=id,end_date` → 200 sur les deux, témoin colonne absente → 42703) — `activity_bookings.end_date DATE`
 nullable + CHECK `end_date >= date` (safaris de plusieurs jours, onglet 🦁 Safaris).
 **Strictement additive**, indépendante des migrations partner hotel. Table non restreinte par
