@@ -50,7 +50,8 @@ interface Night {
 
 interface Draft { groupId: string | null; common: Common; nights: Night[] }
 
-const input = 'w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400'
+const field = 'text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400'
+const input = `w-full ${field}`
 const labelCls = 'block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1'
 
 const blankNight = (): Night => ({
@@ -167,7 +168,7 @@ function ReservationForm({ hotel, initial, bookings, participantCounts, safaris,
   }
 
   return (
-    <form onSubmit={submit} className="space-y-5">
+    <form onSubmit={submit} className="space-y-5 max-w-4xl">
       {/* Who */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="col-span-2">
@@ -211,11 +212,11 @@ function ReservationForm({ hotel, initial, bookings, participantCounts, safaris,
                     <span className="font-normal text-gray-400"> · {stayNights(n)} night{stayNights(n) > 1 ? 's' : ''}</span>
                   )}
                 </span>
-                <div className="flex-1 min-w-[9rem]">
+                <div className="w-40">
                   <label className={labelCls}>Check-in</label>
                   <input type="date" value={n.check_in} onChange={e => setNight(i, { check_in: e.target.value })} className={input} />
                 </div>
-                <div className="flex-1 min-w-[9rem]">
+                <div className="w-40">
                   <label className={labelCls}>Check-out</label>
                   <input type="date" min={n.check_in || undefined} value={n.check_out} onChange={e => setNight(i, { check_out: e.target.value })} className={input} />
                 </div>
@@ -236,7 +237,7 @@ function ReservationForm({ hotel, initial, bookings, participantCounts, safaris,
                     🛬 Airport pick-up
                   </label>
                   <input type="time" aria-label="Pick-up time" disabled={!n.airport_transfer} value={n.transfer_time ?? ''}
-                    onChange={e => setNight(i, { transfer_time: e.target.value })} className={`${input} w-28 disabled:opacity-40`} />
+                    onChange={e => setNight(i, { transfer_time: e.target.value })} className={`${field} w-28 disabled:opacity-40`} />
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer whitespace-nowrap"
@@ -245,12 +246,12 @@ function ReservationForm({ hotel, initial, bookings, participantCounts, safaris,
                     🛫 Airport drop-off
                   </label>
                   <input type="time" aria-label="Drop-off time" disabled={!n.departure_transfer} value={n.departure_transfer_time ?? ''}
-                    onChange={e => setNight(i, { departure_transfer_time: e.target.value })} className={`${input} w-28 disabled:opacity-40`} />
+                    onChange={e => setNight(i, { departure_transfer_time: e.target.value })} className={`${field} w-28 disabled:opacity-40`} />
                 </div>
                 <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
                   🧳 Big bags
                   <input type="number" min={0} value={n.big_bags}
-                    onChange={e => setNight(i, { big_bags: Number(e.target.value) })} className={`${input} w-20`} />
+                    onChange={e => setNight(i, { big_bags: Number(e.target.value) })} className={`${field} w-20`} />
                 </label>
               </div>
             </div>
@@ -268,7 +269,7 @@ function ReservationForm({ hotel, initial, bookings, participantCounts, safaris,
           {c.rooms.map((r, i) => (
             <div key={i} className="flex gap-2 items-center">
               <input placeholder="Room (e.g. Double)" value={r.label} onChange={e => setRoom(i, { label: e.target.value })} className={input} />
-              <input type="number" min={0} value={r.rate_mzn} onChange={e => setRoom(i, { rate_mzn: Number(e.target.value) })} className={`${input} max-w-[9rem]`} />
+              <input type="number" min={0} value={r.rate_mzn} onChange={e => setRoom(i, { rate_mzn: Number(e.target.value) })} className={`${field} w-36`} />
               <button type="button" onClick={() => setCommon('rooms', c.rooms.filter((_, j) => j !== i))}
                 className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-2">✕</button>
             </div>
@@ -291,7 +292,7 @@ function ReservationForm({ hotel, initial, bookings, participantCounts, safaris,
             <option value="guest_to_us">Us</option>
           </select>
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer pb-2">
           <input type="checkbox" checked={c.guests_paid} onChange={e => setCommon('guests_paid', e.target.checked)} className="w-4 h-4 rounded" />
           Guests have paid
         </label>
