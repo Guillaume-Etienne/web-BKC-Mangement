@@ -26,12 +26,12 @@ function bookingLabel(b: BookingRef): string {
 }
 
 const TRIP_TYPE_LABELS: Record<string, string> = {
-  'aero-to-center': '✈️ Airport → Centre',
-  'center-to-aero': '🏠 Centre → Airport',
+  'aero-to-center': '✈️ Airport → Bilene',
+  'center-to-aero': '🏠 Bilene → Airport',
   'aero-to-spot':   '✈️ Airport → Spot',
   'spot-to-aero':   '🏄 Spot → Airport',
-  'center-to-town': '🏠 Centre → Town',
-  'town-to-center': '🏢 Town → Centre',
+  'center-to-town': '🏠 Bilene → Town',
+  'town-to-center': '🏢 Town → Bilene',
   'other':          '❓ Other',
 }
 

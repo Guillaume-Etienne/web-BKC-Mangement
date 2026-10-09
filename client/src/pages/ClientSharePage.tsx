@@ -106,12 +106,12 @@ const METHOD_LABELS: Record<string, string> = {
 }
 
 const TAXI_TYPE_LABELS: Record<string, string> = {
-  'aero-to-center': 'Airport → Center',
-  'center-to-aero': 'Center → Airport',
+  'aero-to-center': 'Airport → Bilene',
+  'center-to-aero': 'Bilene → Airport',
   'aero-to-spot':   'Airport → Spot',
   'spot-to-aero':   'Spot → Airport',
-  'center-to-town': 'Center → Town',
-  'town-to-center': 'Town → Center',
+  'center-to-town': 'Bilene → Town',
+  'town-to-center': 'Town → Bilene',
   'other':          'Other',
 }
 

@@ -5,12 +5,12 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 
 const TRIP_TYPE_LABELS: Record<string, string> = {
-  'aero-to-center':  'Airport → Center',
-  'center-to-aero':  'Center → Airport',
+  'aero-to-center':  'Airport → Bilene',
+  'center-to-aero':  'Bilene → Airport',
   'aero-to-spot':    'Airport → Spot',
   'spot-to-aero':    'Spot → Airport',
-  'center-to-town':  'Center → Town',
-  'town-to-center':  'Town → Center',
+  'center-to-town':  'Bilene → Town',
+  'town-to-center':  'Town → Bilene',
   'other':           'Other',
 }
 

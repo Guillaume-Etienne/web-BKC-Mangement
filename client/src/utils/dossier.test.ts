@@ -137,7 +137,7 @@ describe('buildDossier', () => {
       price_eur: 0, price_driver_mzn: 0, margin_manager_mzn: 0,
     } as TaxiTrip
     const [ev] = buildDossier({ ...EMPTY, taxiTrips: [trip] })
-    expect(ev.title).toBe('Airport → center')
+    expect(ev.title).toBe('Airport → Bilene')
     expect(ev.detail).toContain('needs details')
     expect(ev.tone).toBe('warn')
   })

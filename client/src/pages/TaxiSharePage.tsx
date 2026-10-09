@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { useTable } from '../hooks/useSupabase'
 import type { TaxiTrip, TaxiDriver, Booking, Client } from '../types/database'
 import {
-  tr, TAXI_LANGS, tripTypeLabel, fmt, formatTripDate,
+  tr, TAXI_LANGS, tripTypeLabel, fmt, formatTripDate, bagsLabel,
   type TaxiLang, type DateMode,
 } from '../data/taxiShareI18n'
 import { usePref, Segmented } from './taxiShareUI'
-import { todayISO, fmtDate } from '../utils/dates'
+import { todayISO } from '../utils/dates'
 
 export default function TaxiSharePage() {
   const today = todayISO()
@@ -44,7 +44,7 @@ export default function TaxiSharePage() {
   const filtered = allTrips
     .filter(t => showPast || t.date >= today)
     .filter(t => filterDriver === 'all' || t.taxi_driver_id === filterDriver)
-    .sort((a, b) => `${fmtDate(a.date)}${a.start_time}`.localeCompare(`${fmtDate(b.date)}${b.start_time}`))
+    .sort((a, b) => `${a.date}${a.start_time}`.localeCompare(`${b.date}${b.start_time}`))
 
   // Group by date
   const byDate: Record<string, typeof filtered> = {}
@@ -173,8 +173,7 @@ export default function TaxiSharePage() {
                           )}
                           <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                             👥 {trip.nb_persons} {tr.unit_pax[lang]}
-                            {trip.nb_luggage > 0 && ` · 🧳 ${trip.nb_luggage}`}
-                            {trip.nb_boardbags > 0 && ` · 🏄 ${trip.nb_boardbags}`}
+                            {(trip.nb_luggage > 0 || trip.nb_boardbags > 0) && ` · 🧳 ${bagsLabel(trip.nb_luggage, trip.nb_boardbags, lang)}`}
                           </div>
                           {/* Free seats (— until a driver is assigned) */}
                           <div className="text-xs font-medium mt-0.5 text-emerald-700 dark:text-emerald-400">

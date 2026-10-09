@@ -83,17 +83,38 @@ export const tr = {
   no_upcoming:      { pt: 'Nenhuma viagem prevista', en: 'No upcoming trips' },
   seats_free:       { pt: '{n} lugares livres', en: '{n} seats free' },
   seats_full:       { pt: 'Lotado', en: 'Full' },
+
+  // Luggage: "Malas" = bags; "Normal" = regular bag, "Comprida" = boardbag (long)
+  bags_title:     { pt: 'Malas',     en: 'Bags' },
+  bag_normal:     { pt: 'Normal',    en: 'Normal' },
+  bag_long:       { pt: 'Comprida',  en: 'Long (boardbag)' },
+  bags_none:      { pt: 'Sem malas', en: 'No bags' },
+  clients_prefix: { pt: 'Clientes',  en: 'Clients' },
+
+  // Driver page tabs + money tab
+  tab_trips:       { pt: '🚕 Viagens',  en: '🚕 Trips' },
+  tab_money:       { pt: '💰 Dinheiro', en: '💰 Money' },
+  money_earned:    { pt: 'Já ganho',            en: 'Earned so far' },
+  money_upcoming:  { pt: 'Ainda a ganhar',      en: 'Still to earn' },
+  money_total:     { pt: 'Total previsto',      en: 'Expected total' },
+  money_progress:  { pt: '{pct}% já ganho',     en: '{pct}% earned' },
+  money_first:     { pt: 'Primeira viagem',     en: 'First trip' },
+  money_last:      { pt: 'Última viagem feita', en: 'Last completed trip' },
+  money_next:      { pt: 'Próxima viagem',      en: 'Next trip' },
+  money_by_month:  { pt: 'Por mês',             en: 'By month' },
+  money_done_list: { pt: 'Viagens feitas — o que já ganhaste',   en: 'Completed trips — what you earned' },
+  money_up_list:   { pt: 'Viagens marcadas — o que vais ganhar', en: 'Upcoming trips — what you will earn' },
 } satisfies Record<string, Tr>
 
 // ── Enum label helpers ────────────────────────────────────────────────────────
 
 const TRIP_TYPE: Record<TaxiTripType, Tr> = {
-  'aero-to-center': { pt: 'Aeroporto → Centro', en: 'Airport → Center' },
-  'center-to-aero': { pt: 'Centro → Aeroporto', en: 'Center → Airport' },
+  'aero-to-center': { pt: 'Aeroporto → Bilene', en: 'Airport → Bilene' },
+  'center-to-aero': { pt: 'Bilene → Aeroporto', en: 'Bilene → Airport' },
   'aero-to-spot':   { pt: 'Aeroporto → Spot',   en: 'Airport → Spot' },
   'spot-to-aero':   { pt: 'Spot → Aeroporto',   en: 'Spot → Airport' },
-  'center-to-town': { pt: 'Centro → Vila',      en: 'Center → Town' },
-  'town-to-center': { pt: 'Vila → Centro',      en: 'Town → Center' },
+  'center-to-town': { pt: 'Bilene → Vila',      en: 'Bilene → Town' },
+  'town-to-center': { pt: 'Vila → Bilene',      en: 'Town → Bilene' },
   'other':          { pt: 'Outro',              en: 'Other' },
 }
 
@@ -135,4 +156,19 @@ export function formatTripDate(iso: string, lang: TaxiLang, mode: DateMode): str
   const dd = String(d.getDate()).padStart(2, '0')
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   return `${wd} ${dd}/${mm}`
+}
+
+/** Luggage as "Malas: 2 Normal · 1 Comprida" (PT) / "Bags: 2 Normal · 1 Long (boardbag)" (EN). */
+export function bagsLabel(luggage: number, boardbags: number, lang: TaxiLang): string {
+  const parts: string[] = []
+  if (luggage   > 0) parts.push(`${luggage} ${tr.bag_normal[lang]}`)
+  if (boardbags > 0) parts.push(`${boardbags} ${tr.bag_long[lang]}`)
+  return parts.length ? `${tr.bags_title[lang]}: ${parts.join(' · ')}` : tr.bags_none[lang]
+}
+
+/** ISO date → "outubro de 2026" / "October 2026". */
+export function formatMonth(iso: string, lang: TaxiLang): string {
+  const d = new Date(`${iso}T00:00:00`)
+  if (isNaN(d.getTime())) return iso
+  return d.toLocaleDateString(lang === 'pt' ? 'pt-PT' : 'en-GB', { month: 'long', year: 'numeric' })
 }

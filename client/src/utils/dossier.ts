@@ -70,12 +70,12 @@ const EMAIL_LABEL: Record<EmailLogType, string> = {
 }
 
 const TAXI_LABEL: Record<string, string> = {
-  'aero-to-center': 'Airport → center',
-  'center-to-aero': 'Center → airport',
+  'aero-to-center': 'Airport → Bilene',
+  'center-to-aero': 'Bilene → airport',
   'aero-to-spot': 'Airport → spot',
   'spot-to-aero': 'Spot → airport',
-  'center-to-town': 'Center → town',
-  'town-to-center': 'Town → center',
+  'center-to-town': 'Bilene → town',
+  'town-to-center': 'Town → Bilene',
   other: 'Transfer',
 }
 
