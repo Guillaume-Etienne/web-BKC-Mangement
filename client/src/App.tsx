@@ -13,6 +13,9 @@ import type { EnquirySubmission } from './utils/enquiries'
 import { isSettled, isQualified, lastSignOfEnquiry, silenceDays, submissionsByEnquiry, SILENCE_WARN_DAYS } from './utils/enquiries'
 import { computeFollowUps } from './utils/followUps'
 import type { FollowUp } from './utils/followUps'
+import { computeMovements } from './utils/movements'
+import type { DayMovements, MovementTaxi } from './utils/movements'
+import { todayISO } from './utils/dates'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { DataErrorsProvider } from './contexts/DataErrorsContext'
 import DataErrorBanner from './components/layout/DataErrorBanner'
@@ -91,6 +94,8 @@ function App() {
   // classements ne bouge qu'ici, quand on clique.
   const [dismissals, setDismissals] = useState<Dismissal[]>([])
   const [followUps, setFollowUps] = useState<FollowUp[]>([])
+  // Today → +6 days: who arrives, who leaves, which taxis run (Home).
+  const [movements, setMovements] = useState<DayMovements[]>([])
 
   // ⌘K / Ctrl-K opens the palette from anywhere. Bound on the window rather
   // than on a field so it works while a list is scrolled or a drawer is open.
@@ -125,7 +130,7 @@ function App() {
     Promise.all([
       supabase.from('bookings').select('*, client:clients(first_name, last_name)'),
       supabase.from('payments').select('id, booking_id, date, is_verified, is_discount'),
-      supabase.from('taxi_trips').select('booking_id'),
+      supabase.from('taxi_trips').select('id, booking_id, date, start_time, type, status, taxi_driver_id, nb_persons'),
       // Rows, not a head count: the same read now answers two questions — how
       // many forms are waiting, and which enquiry each one came from. Without
       // the second, a person who filled the whole form yesterday still showed up
@@ -143,6 +148,7 @@ function App() {
       const subs = (submissions ?? []) as EnquirySubmission[]
       const formByEnquiry = submissionsByEnquiry(subs)
       const unlinked = (taxis ?? []).filter((t: { booking_id: string | null }) => !t.booking_id).length
+      setMovements(computeMovements({ bookings: bkgs, taxis: (taxis ?? []) as MovementTaxi[] }, todayISO(), 7))
       const open = enqs.filter(e => !isSettled(e.status))
       setPendingActions(computePendingActions({
         bookings: bkgs, payments: pmts,
@@ -298,6 +304,7 @@ function App() {
                   onCloseAction={closeAction}
                   onReopenAction={reopenAction}
                   followUps={followUps}
+                  movements={movements}
                   onOpenFollowUp={(f) => {
                     if (f.kind === 'enquiry') { setPendingEnquiryId(f.targetId); setCurrentPage('requests') }
                     else { setPendingEditBookingId(f.targetId); setCurrentPage('bookings') }

@@ -4,6 +4,8 @@ import { i18n } from '../data/i18n'
 import type { PendingAction, Page } from '../components/pending/pendingActions'
 import type { FollowUp } from '../utils/followUps'
 import type { Lang } from '../types/database'
+import type { DayMovements } from '../utils/movements'
+import MovementsPanel from '../components/home/MovementsPanel'
 
 function getPriorityStyles(lang: Lang): Record<string, { bg: string; border: string; dot: string; label: string }> {
   return {
@@ -27,6 +29,8 @@ interface HomePageProps {
   followUps?: FollowUp[]
   /** Opens the person's file / the booking, rather than dropping gui on a list. */
   onOpenFollowUp?: (f: FollowUp) => void
+  /** Today + the next 6 days, index 1 = tomorrow — see utils/movements.ts. */
+  movements?: DayMovements[]
 }
 
 interface Shortcut {
@@ -47,7 +51,7 @@ function getShortcuts(lang: Lang): Shortcut[] {
   ]
 }
 
-export default function HomePage({ onNavigate, pendingActions = [], closedActions = [], onCloseAction, onReopenAction, followUps = [], onOpenFollowUp }: HomePageProps) {
+export default function HomePage({ onNavigate, pendingActions = [], closedActions = [], onCloseAction, onReopenAction, followUps = [], onOpenFollowUp, movements = [] }: HomePageProps) {
   const { lang } = useLanguage()
   const PRIORITY_STYLES = getPriorityStyles(lang)
   const SHORTCUTS = getShortcuts(lang)
@@ -68,6 +72,8 @@ export default function HomePage({ onNavigate, pendingActions = [], closedAction
             Manage everything from here: reservations, planning, clients and more!
           </p>
         </div>
+
+        <MovementsPanel days={movements} onOpenTaxis={() => onNavigate('taxis')} />
 
         {/* Ce qui reste à faire — et ce qui n'en est plus.
             Une ligne peut être vraie dans les données et fausse pour gui : le
