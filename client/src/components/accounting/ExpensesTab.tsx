@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, Fragment } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { Expense, ExpenseCategory } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
@@ -471,21 +471,41 @@ export default function ExpensesTab({ data, handlers }: Props) {
             </p>
             {detailToggle}
           </div>
-          {Object.entries(allByCat).sort((a, b) => b[1] - a[1]).map(([catId, val]) => (
-            <div key={catId} className="flex items-center gap-3">
-              <button onClick={() => setFilterCat(filterCat === catId ? 'all' : catId)}
-                className={`w-32 text-left text-xs px-2 py-0.5 rounded-full font-semibold truncate transition-all ${
-                  filterCat === catId ? 'ring-2 ring-offset-1' : 'opacity-70 hover:opacity-100'
-                }`}
-                style={{ backgroundColor: colorOf(catId) + '33', color: colorOf(catId) }}>
-                {pathOf(catId)}
-              </button>
-              <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-3 overflow-hidden">
-                <div className="h-full rounded-full" style={{ width: `${(val / allTotal) * 100}%`, backgroundColor: colorOf(catId) }} />
-              </div>
-              <p className="w-24 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">{fmtEur(val)}</p>
-            </div>
-          ))}
+          {/* One grid for every row: the label column grows to the longest path
+              ("Transport · Pièces détachées") instead of a fixed width that cut it. */}
+          <div className="grid grid-cols-[max-content_1fr_auto] items-center gap-x-3 gap-y-3">
+            {Object.entries(allByCat).sort((a, b) => b[1] - a[1]).map(([catId, val]) => (
+              <Fragment key={catId}>
+                <button onClick={() => setFilterCat(filterCat === catId ? 'all' : catId)}
+                  className={`justify-self-start max-w-[16rem] text-left text-xs px-2 py-0.5 rounded-full font-semibold truncate transition-all ${
+                    filterCat === catId ? 'ring-2 ring-offset-1' : 'opacity-70 hover:opacity-100'
+                  }`}
+                  style={{ backgroundColor: colorOf(catId) + '33', color: colorOf(catId) }}>
+                  {pathOf(catId)}
+                </button>
+                <div className="bg-gray-100 dark:bg-gray-800 rounded-full h-3 overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${(val / allTotal) * 100}%`, backgroundColor: colorOf(catId) }} />
+                </div>
+                <p className="text-right text-sm font-semibold text-gray-700 dark:text-gray-300 tabular-nums">{fmtEur(val)}</p>
+              </Fragment>
+            ))}
+            {/* House rentals live in `house_rentals`, not `expenses`: shown dashed and
+                outside the total, same convention as the summary table's last column. */}
+            {housePeriodTotal > 0 && (
+              <Fragment>
+                <span className="justify-self-start text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400"
+                  title={i18n.accounting.ex_house_rentals_note[lang]}>
+                  🏠 {i18n.accounting.ex_house_rentals[lang]}
+                </span>
+                <div className="bg-gray-100 dark:bg-gray-800 rounded-full h-3 overflow-hidden">
+                  <div className="h-full rounded-full bg-gray-300 dark:bg-gray-600"
+                    style={{ width: `${Math.min(100, (housePeriodTotal / Math.max(allTotal, housePeriodTotal)) * 100)}%` }} />
+                </div>
+                <p className="text-right text-sm font-semibold text-gray-400 dark:text-gray-500 tabular-nums"
+                  title={i18n.accounting.ex_house_rentals_excluded[lang]}>{fmtEur(housePeriodTotal)}</p>
+              </Fragment>
+            )}
+          </div>
         </div>
 
         {/* Filters */}
