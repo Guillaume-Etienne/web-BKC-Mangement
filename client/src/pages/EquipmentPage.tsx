@@ -237,7 +237,7 @@ export default function EquipmentPage() {
   ).sort()
 
   // ── Sorting ────────────────────────────────────────────────────────────────────
-  type SortField = 'name' | 'size' | 'condition' | 'purchase_price' | 'purchase_date'
+  type SortField = 'name' | 'category' | 'size' | 'condition' | 'uses' | 'hours' | 'purchase_price' | 'purchase_date'
   const [inventorySortField, setInventorySortField] = useState<SortField | null>(null)
   const [inventorySortAsc, setInventorySortAsc] = useState(true)
   const [assetSortField, setAssetSortField] = useState<SortField | null>(null)
@@ -256,9 +256,18 @@ export default function EquipmentPage() {
 
   function sortInventoryItems(items: Equipment[]): Equipment[] {
     if (!inventorySortField) return items
+    // Computed columns (category label, uses, hours) aren't Equipment fields
+    const sortValue = (eq: Equipment): any => {
+      switch (inventorySortField) {
+        case 'category': return getCategoryLabel(eq.category, lang)
+        case 'uses':     return getUseCount(eq, rentals, lessons)
+        case 'hours':    return getUseHours(eq, rentals, lessons)
+        default:         return eq[inventorySortField as keyof Equipment]
+      }
+    }
     const sorted = [...items].sort((a, b) => {
-      let aVal: any = a[inventorySortField as keyof Equipment]
-      let bVal: any = b[inventorySortField as keyof Equipment]
+      let aVal: any = sortValue(a)
+      let bVal: any = sortValue(b)
       if (aVal == null) aVal = ''
       if (bVal == null) bVal = ''
 
@@ -702,7 +711,19 @@ export default function EquipmentPage() {
                     >
                       Nom {inventorySortField === 'name' && (inventorySortAsc ? '↑' : '↓')}
                     </th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Catégorie</th>
+                    <th
+                      onClick={() => {
+                        if (inventorySortField === 'category') {
+                          setInventorySortAsc(!inventorySortAsc)
+                        } else {
+                          setInventorySortField('category')
+                          setInventorySortAsc(true)
+                        }
+                      }}
+                      className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                    >
+                      Catégorie {inventorySortField === 'category' && (inventorySortAsc ? '↑' : '↓')}
+                    </th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Marque</th>
                     <th
                       onClick={() => {
@@ -730,8 +751,32 @@ export default function EquipmentPage() {
                     >
                       {i18n.equipment.label_condition[lang]} {inventorySortField === 'condition' && (inventorySortAsc ? '↑' : '↓')}
                     </th>
-                    <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">Sorties</th>
-                    <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">≈ Heures</th>
+                    <th
+                      onClick={() => {
+                        if (inventorySortField === 'uses') {
+                          setInventorySortAsc(!inventorySortAsc)
+                        } else {
+                          setInventorySortField('uses')
+                          setInventorySortAsc(true)
+                        }
+                      }}
+                      className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                    >
+                      Sorties {inventorySortField === 'uses' && (inventorySortAsc ? '↑' : '↓')}
+                    </th>
+                    <th
+                      onClick={() => {
+                        if (inventorySortField === 'hours') {
+                          setInventorySortAsc(!inventorySortAsc)
+                        } else {
+                          setInventorySortField('hours')
+                          setInventorySortAsc(true)
+                        }
+                      }}
+                      className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                    >
+                      ≈ Heures {inventorySortField === 'hours' && (inventorySortAsc ? '↑' : '↓')}
+                    </th>
                     <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.label_active[lang]}</th>
                     <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Actions</th>
                   </tr>
