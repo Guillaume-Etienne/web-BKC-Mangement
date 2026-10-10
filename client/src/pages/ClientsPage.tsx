@@ -7,9 +7,9 @@ import { useClients } from '../hooks/useClients'
 import { useBookings, useBookingParticipants } from '../hooks/useBookings'
 import { useLessons } from '../hooks/useLessons'
 import { useClientDossier } from '../hooks/useClientDossier'
-import type { Client, Booking, KiteLevel, Season, Lang, ClientRelationshipFlag } from '../types/database'
+import type { Client, Booking, KiteLevel, Season, Lang, ClientRelationshipFlag, SharedLink } from '../types/database'
 import { relationshipFlagLabels, relationshipFlagIcons, relationshipFlagColors } from '../utils/clientRelationshipFlag'
-import { fmtDate } from '../utils/dates'
+import { fmtDate, todayISO, addDaysISO } from '../utils/dates'
 import { readLocal, writeLocal } from '../utils/safeStorage'
 import { daysSinceLastTouch, dossierMoney } from '../utils/dossier'
 import ClientTimeline from '../components/clients/ClientTimeline'
@@ -71,6 +71,34 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
   const { data: bookingParticipants } = useBookingParticipants()
   const { data: lessons } = useLessons()
   const { data: seasons } = useTable<Season>('seasons', { order: 'start_date', ascending: false })
+  const { data: sharedLinks, refresh: refreshSharedLinks } = useTable<SharedLink>('shared_links')
+  const [linkCopiedFor, setLinkCopiedFor] = useState<string | null>(null)
+
+  /** The client's public "my visits" page (type `walkin`): one stable link for all
+   *  of his day-visitor visits. Reuses the active one, else creates it; either way
+   *  the URL ends up in the clipboard. */
+  async function copyWalkInLink(c: Client) {
+    let link = sharedLinks.find(l => l.type === 'walkin' && l.is_active && l.params?.client_id === c.id)
+    if (!link) {
+      const row = {
+        token: `walkin_${crypto.randomUUID()}`,
+        type: 'walkin' as const,
+        label: `Walk-in – ${c.first_name} ${c.last_name}`.trim(),
+        params: { client_id: c.id },
+        created_at: todayISO(),
+        expires_at: addDaysISO(todayISO(), 365),
+        is_active: true,
+      }
+      const { error } = await supabase.from('shared_links').insert([row])
+      if (error) { alert('Could not create the link: ' + error.message); return }
+      refreshSharedLinks()
+      link = row as unknown as SharedLink
+    }
+    const url = `${window.location.protocol}//${window.location.host}/?share=${link.token}`
+    navigator.clipboard.writeText(url).catch(() => {})
+    setLinkCopiedFor(c.id)
+    setTimeout(() => setLinkCopiedFor(null), 2500)
+  }
 
   /** Lifetime hours, private and group separately — never reset per stay or
    *  season (decision gui, 2026-08-16), the same rule the tiered pricing uses
@@ -600,6 +628,10 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                         <p className="text-gray-800 dark:text-gray-200">
                           {visitsOf(bookings, selectedClient.id).length} · last on {fmtDate(visitsOf(bookings, selectedClient.id)[0].check_in)}
                         </p>
+                        <button type="button" onClick={() => copyWalkInLink(selectedClient)}
+                          className="mt-1.5 text-xs px-2.5 py-1 rounded-lg border border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40">
+                          {linkCopiedFor === selectedClient.id ? '✓ Link copied' : '🔗 Copy "my visits" link'}
+                        </button>
                       </div>
                     )}
                     <div>

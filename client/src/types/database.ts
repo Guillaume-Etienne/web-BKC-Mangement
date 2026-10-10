@@ -557,7 +557,7 @@ export interface PartnerHotelPayment {
 }
 
 // Shared public links
-export type SharedLinkType = 'forecast' | 'taxi' | 'client' | 'driver' | 'taxi_manager' | 'activity_provider' | 'booking_form' | 'restaurant' | 'enquiry_form' | 'partner_hotel' | 'instructor'
+export type SharedLinkType = 'forecast' | 'taxi' | 'client' | 'driver' | 'taxi_manager' | 'activity_provider' | 'booking_form' | 'restaurant' | 'enquiry_form' | 'partner_hotel' | 'instructor' | 'walkin'
 
 export interface SharedLink {
   id: string

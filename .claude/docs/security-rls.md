@@ -58,6 +58,7 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 - `planned_lessons` / `planned_rentals` (2026-10-10c) : le plan du Forecast, lisibles par le token `forecast`
   seul, colonnes limitées (aucun `booking_id`, aucun `exported_at`). `booking_participants` s'ouvre aussi au
   token `forecast` (anon ne reçoit que id, booking_id, first_name, last_name) pour résoudre les noms.
+- Token `walkin` (2026-10-10f) → `params.client_id` : sa fiche (identité), SES résas `kind='day_visitor'` (jamais ses séjours), et les `lessons` / `equipment_rentals` / `payments` de ces venues. Le périmètre passe par `share_walkin_booking_ids()` (SECURITY DEFINER). `payments` n'a pas de GRANT colonne (comme pour le token `client`) : `notes`/`method` sont lisibles de ce porteur.
 - `lessons` : token `instructor` → uniquement les cours de `params.instructor_id` (2026-10-10b). Les colonnes de paie restent révoquées : la page moniteur ne compte que des heures.
 - Tables **non exposées** (donc privées) : `expenses`, `expense_categories` (REVOKE anon explicite, 2026-09-19), `instructor_debts/payments`, `palmeiras_*`, `email_logs`, `seasons`, `house_rentals`, `price_items`, `day_activities`, `taxi_pricing_defaults`, `document_templates` (REVOKE anon explicite), `lesson_rate_overrides` (depuis 2026-07-29), `form_submissions` (lecture).
 - `room_rates` : **exception depuis le 2026-07-30** (C3). Un token `client` lit `room_id` +

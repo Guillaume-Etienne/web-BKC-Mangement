@@ -96,6 +96,7 @@ const LINK_TYPE_LABELS: Record<SharedLinkType, { icon: string; label: string }> 
   enquiry_form:      { icon: '📣', label: 'Website Enquiry Form (iframe)' },
   partner_hotel:     { icon: '🏨', label: 'Partner Hotel (Maputo)' },
   instructor:        { icon: '🏄', label: 'Instructor Hours' },
+  walkin:            { icon: '🚶', label: 'Walk-in Client Visits' },
 }
 
 function generateToken(type: SharedLinkType) {
@@ -192,6 +193,10 @@ export default function ManagementPage() {
 
   // Resolve the client name behind a 'client' shared link (via its booking_number param)
   const clientNameForLink = (link: SharedLink): string | null => {
+    if (link.type === 'walkin') {
+      const c = allBookings.find(b => b.client_id === link.params?.client_id)?.client
+      return c ? `${c.first_name} ${c.last_name}` : null
+    }
     if (link.type !== 'client') return null
     const num = parseInt(link.params?.booking_number ?? '')
     const b = allBookings.find(b => b.booking_number === num)
@@ -893,7 +898,7 @@ export default function ManagementPage() {
                   <select value={linkFormData.type}
                     onChange={e => setLinkFormData(d => ({ ...d, type: e.target.value as SharedLinkType }))}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    {(Object.entries(LINK_TYPE_LABELS) as [SharedLinkType, { icon: string; label: string }][]).filter(([k]) => k !== 'activity_provider' && k !== 'partner_hotel').map(([k, v]) => (
+                    {(Object.entries(LINK_TYPE_LABELS) as [SharedLinkType, { icon: string; label: string }][]).filter(([k]) => k !== 'activity_provider' && k !== 'partner_hotel' && k !== 'walkin').map(([k, v]) => (
                       <option key={k} value={k}>{v.icon} {v.label}</option>
                     ))}
                   </select>

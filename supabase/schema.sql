@@ -15,7 +15,7 @@ CREATE TYPE day_slot                        AS ENUM ('morning', 'afternoon', 'ev
 CREATE TYPE price_category                  AS ENUM ('lesson', 'activity', 'rental', 'meal', 'center_access');
 CREATE TYPE taxi_trip_type                  AS ENUM ('aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other');
 CREATE TYPE taxi_trip_status                AS ENUM ('confirmed', 'needs_details', 'done');
-CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form', 'restaurant', 'enquiry_form', 'partner_hotel', 'instructor');
+CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form', 'restaurant', 'enquiry_form', 'partner_hotel', 'instructor', 'walkin');
 CREATE TYPE equipment_category              AS ENUM ('kite', 'board', 'surfboard', 'foilboard');
 -- Tout ce que l'app facture automatiquement : une valeur = un tarif (index unique sur
 -- price_items). Brancher un nouveau poste = ajouter une valeur, pas une colonne.
@@ -1141,6 +1141,18 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
    WHERE br.booking_id = share_booking_id();
 $$;
 
+-- Les venues day-visitor du client porté par un token 'walkin' (2026-10-10f). SECURITY
+-- DEFINER : une sous-requête dans la policy relirait bookings avec les droits d'anon.
+CREATE OR REPLACE FUNCTION share_walkin_booking_ids() RETURNS SETOF uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $
+  SELECT b.id FROM bookings b
+   WHERE (share_ctx()).type = 'walkin'
+     AND b.kind = 'day_visitor'
+     AND b.client_id = ((share_ctx()).params->>'client_id')::uuid;
+$;
+REVOKE EXECUTE ON FUNCTION share_walkin_booking_ids() FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION share_walkin_booking_ids() TO anon, authenticated;
+
 REVOKE EXECUTE ON FUNCTION share_ctx(), share_type(), share_param(TEXT),
                            share_booking_id(), share_client_id(), share_room_keys() FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION share_ctx(), share_type(), share_param(TEXT),
@@ -1151,10 +1163,12 @@ GRANT  EXECUTE ON FUNCTION share_ctx(), share_type(), share_param(TEXT),
 CREATE POLICY "anon_read_bookings" ON bookings FOR SELECT TO anon USING (
   share_type() IN ('taxi', 'driver', 'taxi_manager', 'restaurant')
   OR (share_type() = 'client' AND id = share_booking_id())
+  OR (share_type() = 'walkin' AND id IN (SELECT share_walkin_booking_ids()))
 );
 CREATE POLICY "anon_read_clients" ON clients FOR SELECT TO anon USING (
   share_type() IN ('forecast', 'taxi', 'driver', 'taxi_manager', 'restaurant')
   OR (share_type() = 'client' AND id = share_client_id())
+  OR (share_type() = 'walkin' AND id = share_param('client_id')::uuid)
 );
 -- forecast : la page publique résout les noms des participants (id, booking_id,
 -- first_name, last_name seulement — cf. GRANT colonne plus bas).
@@ -1168,7 +1182,10 @@ CREATE POLICY "anon_read_booking_rooms" ON booking_rooms
 CREATE POLICY "anon_read_booking_room_prices" ON booking_room_prices
   FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());
 CREATE POLICY "anon_read_payments" ON payments
-  FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());
+  FOR SELECT TO anon USING (
+    (share_type() = 'client' AND booking_id = share_booking_id())
+    OR (share_type() = 'walkin' AND booking_id IN (SELECT share_walkin_booking_ids()))
+  );
 CREATE POLICY "anon_read_ext_accom_bookings" ON external_accommodation_bookings
   FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());
 
@@ -1178,10 +1195,12 @@ CREATE POLICY "anon_read_lessons" ON lessons FOR SELECT TO anon USING (
   share_type() = 'forecast'
   OR (share_type() = 'client' AND booking_id = share_booking_id())
   OR (share_type() = 'instructor' AND instructor_id = share_param('instructor_id')::uuid)
+  OR (share_type() = 'walkin' AND booking_id IN (SELECT share_walkin_booking_ids()))
 );
 CREATE POLICY "anon_read_equipment_rentals" ON equipment_rentals FOR SELECT TO anon USING (
   share_type() = 'forecast'
   OR (share_type() = 'client' AND booking_id = share_booking_id())
+  OR (share_type() = 'walkin' AND booking_id IN (SELECT share_walkin_booking_ids()))
 );
 -- Plan du Forecast (2026-10-10c) : seul le token `forecast` le lit, colonnes limitées.
 REVOKE ALL ON planned_lessons, planned_rentals FROM anon;
@@ -1272,7 +1291,7 @@ GRANT  SELECT (id, booking_id, first_name, last_name) ON booking_participants TO
 -- never emergency contacts, notes, amount_paid, visa dates, waiver, referral.
 REVOKE SELECT ON bookings FROM anon;
 GRANT  SELECT (id, booking_number, check_in, check_out, status, client_id,
-               num_center_access, center_access_rate)
+               num_center_access, center_access_rate, kind)
   ON bookings TO anon;
 -- Lot C (2026-07-06) puis resserré le 2026-07-29 : instructors → IDENTITÉ SEULE.
 -- Les rate_* sont devenus de la paie (le prix client vient de price_items et est figé

@@ -49,6 +49,7 @@ const EnquiryFormPage           = lazy(() => import('./pages/EnquiryFormPage'))
 const RestaurantSharePage       = lazy(() => import('./pages/RestaurantSharePage'))
 const PartnerHotelSharePage     = lazy(() => import('./pages/PartnerHotelSharePage'))
 const InstructorSharePage       = lazy(() => import('./pages/InstructorSharePage'))
+const WalkInSharePage           = lazy(() => import('./pages/WalkInSharePage'))
 // Not lazy: ⌘K must answer instantly, and a chunk fetched on first keystroke
 // would make the palette feel broken on a bad connection.
 import GlobalSearch from './components/common/GlobalSearch'
@@ -258,6 +259,7 @@ function App() {
       sharedLink.type === 'restaurant'        ? <RestaurantSharePage /> :
       sharedLink.type === 'partner_hotel'     ? <PartnerHotelSharePage hotelId={sharedLink.params?.hotel_id ?? ''} /> :
       sharedLink.type === 'instructor'        ? <InstructorSharePage instructorId={sharedLink.params?.instructor_id ?? ''} /> :
+      sharedLink.type === 'walkin'            ? <WalkInSharePage clientId={sharedLink.params?.client_id ?? ''} /> :
       null
     // An unknown type falls through to the normal app, exactly as before.
     // The credit footer goes under every share page except the enquiry form: that

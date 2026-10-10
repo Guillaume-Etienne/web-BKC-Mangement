@@ -13,6 +13,13 @@ Strictement additif. ⚠️ **Avant le push** : sans elle l'onglet Forecast affi
 ne peut rien enregistrer ; la page publique Forecast reste vide. Vérif curl anon : `planned_lessons?select=id`
 sans token → `[]` 200 ; `select=booking_id` → 42501 ; avec un token `forecast` → les lignes du plan.
 
+⬜ **`2026-10-10e_walkin_link_type.sql` (enum, SEUL) PUIS `2026-10-10f_walkin_share_policy.sql`** (TEST ⬜ / PROD ⬜) —
+lien public d'un walk-in (`type='walkin'`, param `client_id`) : fonction `share_walkin_booking_ids()` +
+policies anon (bookings/clients/lessons/equipment_rentals/payments) limitées à SES venues day-visitor.
+⚠️ **Avant le push** : sans 10e l'insert du lien échoue (enum) ; sans 10f la page s'ouvre vide. Vérif curl
+anon (header `x-share-token` d'un lien walkin du client A) : `bookings?select=id,kind` → ses venues seules ;
+`bookings?client_id=eq.<B>` → `[]` ; `lessons?select=instructor_rate` → 42501 ; sans token → `[]`.
+
 ⬜ **`2026-10-10d_planned_walkin_client.sql`** (TEST ⬜ / PROD ⬜) — le plan peut viser un **client existant**
 (walk-in) : colonne `client_id` nullable sur `planned_lessons` + `planned_rentals`. Additif, un fichier, pas de
 GRANT anon (la page publique ne lit pas ces colonnes). ⚠️ Sans elle, **tout enregistrement du plan échoue**
