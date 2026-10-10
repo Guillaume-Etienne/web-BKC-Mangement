@@ -1090,17 +1090,18 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
           <ForecastView
             lessons={lessons}
             instructors={instructors}
+            clients={clients}
+            equipment={equipment}
+            rentals={rentals}
             bookings={resolvedBookings}
             agencies={agencies}
             agencyBillingLines={agencyBillingLines}
             bookingParticipants={bookingParticipants}
-            // Same `lessons` rows as Daily: the Forecast only looks, Daily edits.
-            // Land on that one day (1-day view) so the card clicked is on screen.
-            onOpenInDaily={iso => {
-              setDayCount(1)
-              setFocusedDay(fromISODate(iso))
-              handleTabChange('lessons')
-            }}
+            onAddLesson={onAddLesson}
+            onUpdateLesson={onUpdateLesson}
+            onDeleteLesson={onDeleteLesson}
+            onAddRental={onAddRental}
+            onDeleteRental={onDeleteRental}
           />
         )}
 
