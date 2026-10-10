@@ -97,13 +97,25 @@ export default function WalkInSharePage({ clientId }: Props) {
     load()
   }, [clientId])
 
+  // Only what belongs to this client's visits. For an anonymous visitor RLS already
+  // guarantees it; but an admin previewing the link carries a session that sees the
+  // whole database, and the totals must not silently add up everybody's lessons.
+  const mine = useMemo(() => {
+    const ids = new Set(visits.map(v => v.id))
+    return {
+      lessons:  lessons.filter(l => ids.has(l.booking_id)),
+      rentals:  rentals.filter(r => r.booking_id && ids.has(r.booking_id)),
+      payments: payments.filter(p => ids.has(p.booking_id)),
+    }
+  }, [visits, lessons, rentals, payments])
+
   const totals = useMemo(() => {
-    const hours = lessons.reduce((s, l) => s + l.duration_hours, 0)
-    const billed = lessons.reduce((s, l) => s + lessonCost(l), 0) + rentals.reduce((s, r) => s + (r.share_price ?? 0), 0)
-    const paid = payments.filter(p => !p.is_discount).reduce((s, p) => s + p.amount, 0)
-    const discounts = payments.filter(p => p.is_discount).reduce((s, p) => s + p.amount, 0)
+    const hours = mine.lessons.reduce((s, l) => s + l.duration_hours, 0)
+    const billed = mine.lessons.reduce((s, l) => s + lessonCost(l), 0) + mine.rentals.reduce((s, r) => s + (r.share_price ?? 0), 0)
+    const paid = mine.payments.filter(p => !p.is_discount).reduce((s, p) => s + p.amount, 0)
+    const discounts = mine.payments.filter(p => p.is_discount).reduce((s, p) => s + p.amount, 0)
     return { hours, billed, paid, due: billed - paid - discounts }
-  }, [lessons, rentals, payments])
+  }, [mine])
 
   if (loading) {
     return <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center text-gray-500 dark:text-gray-400">{tr.loading[lang]}</div>
@@ -134,7 +146,7 @@ export default function WalkInSharePage({ clientId }: Props) {
           <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3">
             <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{tr.hours[lang]}</p>
             <p className="mt-1 text-xl font-bold text-gray-900 dark:text-gray-100">{fmtH(totals.hours)} h</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{visits.length} {tr.visits[lang].toLowerCase()}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{tr.visits[lang]}: {visits.length}</p>
           </div>
           <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3">
             <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{tr.total[lang]}</p>
@@ -161,9 +173,9 @@ export default function WalkInSharePage({ clientId }: Props) {
 
         {/* One card per visit, newest first */}
         {visits.map(v => {
-          const vl = lessons.filter(l => l.booking_id === v.id).sort((a, b) => a.start_time.localeCompare(b.start_time))
-          const vr = rentals.filter(r => r.booking_id === v.id)
-          const vp = payments.filter(p => p.booking_id === v.id)
+          const vl = mine.lessons.filter(l => l.booking_id === v.id).sort((a, b) => a.start_time.localeCompare(b.start_time))
+          const vr = mine.rentals.filter(r => r.booking_id === v.id)
+          const vp = mine.payments.filter(p => p.booking_id === v.id)
           const billed = vl.reduce((s, l) => s + lessonCost(l), 0) + vr.reduce((s, r) => s + (r.share_price ?? 0), 0)
           const paid = vp.filter(p => !p.is_discount).reduce((s, p) => s + p.amount, 0)
           const disc = vp.filter(p => p.is_discount).reduce((s, p) => s + p.amount, 0)
