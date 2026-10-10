@@ -94,6 +94,12 @@ export function fmtDateShort(iso: ISODate | null | undefined): string {
   return parts ? `${parts[3]}/${parts[2]}` : iso
 }
 
+/** BCP-47 tag for the UI language, so day and month names follow the screen
+ *  (`toLocaleDateString(localeTag(lang), …)`) instead of being hardcoded in English. */
+export function localeTag(lang: 'fr' | 'en' | 'es'): string {
+  return lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : 'en-GB'
+}
+
 /** Whole days from `from` to `to` (negative if `to` is earlier).
  *  Both ends are read at local midnight, so the result is a count of nights,
  *  never 0.96 of one because the clocks moved. */

@@ -9,7 +9,7 @@ import NowView from './NowView'
 import ForecastView from './ForecastView'
 import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental, PriceItem, BookingParticipant, Room, Accommodation, AccommodationType, Season, Lang } from '../../types/database'
 import { seasonWindowAt, seasonOffsetBounds, monthColumns } from '../../utils/seasonWindow'
-import { toISODate, fromISODate } from '../../utils/dates'
+import { toISODate, fromISODate, localeTag } from '../../utils/dates'
 import { stayBookings } from '../../utils/dayVisitor'
 import { saveWalkIn, type WalkInRequest } from './walkInSave'
 import { useBookingDrag, CELL_W, type DragMode } from '../../hooks/useBookingDrag'
@@ -413,9 +413,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     return d
   })
   const weekEnd = weekDays[6]
-  const weekLabel = weekStart.getMonth() === weekEnd.getMonth()
-    ? `${weekStart.getDate()} to ${weekEnd.getDate()} ${MONTH_SHORT[weekEnd.getMonth()]} ${weekEnd.getFullYear()}`
-    : `${weekStart.getDate()} ${MONTH_SHORT[weekStart.getMonth()]} – ${weekEnd.getDate()} ${MONTH_SHORT[weekEnd.getMonth()]} ${weekEnd.getFullYear()}`
+  const weekLabel = `${weekStart.toLocaleDateString(localeTag(lang), { day: 'numeric', month: 'short' })} – ${weekEnd.toLocaleDateString(localeTag(lang), { day: 'numeric', month: 'short', year: 'numeric' })}`
 
   const prevWeek = () => setWeekStart(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 7); return nd })
   const nextWeek = () => setWeekStart(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 7); return nd })
@@ -430,7 +428,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   const [focusedDay, setFocusedDay] = useState<Date>(todayMidnight)
   // en-GB, not en-US: "Fri, 31 Jul" reads day-then-month like every other date
   // in the app, where en-US would put "Fri, Jul 31".
-  const focusedDayLabel = focusedDay.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+  const focusedDayLabel = focusedDay.toLocaleDateString(localeTag(lang), { weekday: 'short', day: 'numeric', month: 'short' })
   const prevDay = () => setFocusedDay(d => shiftDate(d, -1))
   const nextDay = () => setFocusedDay(d => shiftDate(d, 1))
   const goToTodayDay = () => setFocusedDay(todayMidnight())
@@ -892,7 +890,8 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 md:gap-2 mb-3 md:mb-6 border-b overflow-x-auto">
+        {/* Wraps on phones so every tab stays visible (no hidden "Prévisions") */}
+        <div className="flex flex-wrap gap-1 md:gap-2 mb-3 md:mb-6 border-b">
           <button
             onClick={() => handleTabChange('accommodations')}
             className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'accommodations' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
@@ -1110,7 +1109,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
           <>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
               {dayCount === 7 ? (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 max-w-full">
                   <button onClick={prevWeek} className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">←</button>
                   <span className="text-base font-semibold min-w-[220px] text-center text-gray-800 dark:text-gray-200">
                     {i18n.pages.label_week_of[lang]} {weekLabel}
@@ -1128,7 +1127,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                   />
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 max-w-full">
                   <button onClick={prevDay} className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">←</button>
                   <span className="text-base font-semibold min-w-[130px] text-center text-gray-800 dark:text-gray-200">
                     {focusedDayLabel}

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
-import type { Lesson, LessonType, EquipmentRental, Instructor, Client, Equipment, Booking, Agency, AgencyBillingLine } from '../../types/database'
+import type { Lesson, LessonType, EquipmentRental, Instructor, Client, Equipment, Booking, Agency, AgencyBillingLine, Lang } from '../../types/database'
 import { currentInstructorRate, reFreezeInstructorRate, agencyMarker } from '../accounting/utils'
-import { toISODate as dateToISO, addDays } from '../../utils/dates'
+import { toISODate as dateToISO, addDays, localeTag } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 
@@ -41,8 +41,8 @@ function slotToTime(slot: number, startHour: number): string {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
 
-function formatDate(d: Date): string {
-  return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+function formatDate(d: Date, lang: Lang): string {
+  return d.toLocaleDateString(localeTag(lang), { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
 // ─── Top-level modal: Add lesson ─────────────────────────────────────────────
@@ -554,7 +554,7 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
         <div className="flex items-center gap-2">
           <button onClick={() => setSelectedDate(d => addDays(d, -1))}
             className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold">←</button>
-          <span className="text-base font-semibold min-w-[200px] text-center text-gray-800 dark:text-gray-200">{formatDate(selectedDate)}</span>
+          <span className="text-base font-semibold min-w-[200px] text-center text-gray-800 dark:text-gray-200">{formatDate(selectedDate, lang)}</span>
           <button onClick={() => setSelectedDate(d => addDays(d, 1))}
             className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold">→</button>
           <button onClick={() => setSelectedDate(addDays(today, 1))}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { Lesson, DayActivity, DaySlot, LessonType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine, Lang } from '../../types/database'
 import { rentalBillable } from '../../types/database'
 import { currentInstructorRate, reFreezeInstructorRate, resolveLessonRate, agencyMarker } from '../accounting/utils'
-import { toISODate as dateToISO } from '../../utils/dates'
+import { toISODate as dateToISO, localeTag } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import { RENTAL_TYPES, type RentalKind } from './rentalTypes'
@@ -33,8 +33,6 @@ function lessonTypeCfg(lang: Lang): Record<LessonType, { label: string; icon: st
   }
 }
 
-const DAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DURATION_OPTIONS = [0.5, 1, 1.5, 2, 2.5, 3]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -583,10 +581,10 @@ export default function LessonWeekView({
                 isToday ? 'bg-blue-600 text-white' : isWeekend ? 'bg-blue-50 dark:bg-blue-950/40' : 'bg-gray-50 dark:bg-gray-800'
               }`}>
                 <div className={`text-xs font-medium ${isToday ? 'text-blue-100 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`}>
-                  {DAY_FULL[day.getDay()]}
+                  {day.toLocaleDateString(localeTag(lang), { weekday: 'long' })}
                 </div>
                 <div className={`text-lg font-bold leading-tight ${isToday ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>
-                  {day.getDate()} {MONTH_SHORT[day.getMonth()]}
+                  {day.toLocaleDateString(localeTag(lang), { day: 'numeric', month: 'short' })}
                 </div>
               </div>
 
