@@ -1619,48 +1619,64 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       .update({ source_id: chosenSourceId }).eq('id', bookingId)
     if (sourceErr) problems.push(`the "how did you hear about us" answer was not recorded (${sourceErr.message})`)
 
-    // 3. Guests — delete all + re-insert to booking_participants
-    const { error: delErr } = await supabase.from('booking_participants').delete().eq('booking_id', bookingId)
-    if (delErr) console.error('booking_participants delete error:', delErr)
+    // 3. Guests — reconcile, never wipe. lessons, equipment_rentals and
+    //    agency_billing_lines point to booking_participants.id, so deleting and
+    //    re-inserting every guest on each save orphaned those links (empty names,
+    //    silently). Kept guests are updated in place (same id), new ones inserted,
+    //    and only the guests removed in the form are deleted.
+    const guestRow = (p: ParticipantData) => ({
+      first_name: p.first_name.trim(),
+      last_name: p.last_name.trim() || null,
+      passport_number: p.passport_number.trim() || null,
+      kite_level: p.kite_level || null,
+      client_id: p.client_id || null,
+      does_kite: p.does_kite, brings_own_gear: p.brings_own_gear, needs_storage: p.needs_storage,
+      wants_kite_lessons: p.wants_kite_lessons, wants_kite_rental: p.wants_kite_rental, wants_wing_lessons: p.wants_wing_lessons,
+    })
 
     // If no participants entered, auto-add the main client
     const named = data.participants.filter(p => p.first_name.trim())
-    const autoList = named.length === 0 ? (() => {
+    const autoList: ParticipantData[] = named.length === 0 ? (() => {
       const firstName = data.new_client_first_name || clients.find(c => c.id === clientId)?.first_name || ''
       const lastName  = data.new_client_last_name  || clients.find(c => c.id === clientId)?.last_name  || ''
-      return firstName ? [{ first_name: firstName, last_name: lastName }] : []
+      return firstName ? [{ ...EMPTY_ACTIVITY, id: 'auto', first_name: firstName, last_name: lastName, passport_number: '', kite_level: '', client_id: '' }] : []
     })() : []
-    const participantsToInsert = [
-      ...named.map(p => ({ first_name: p.first_name.trim(), last_name: p.last_name.trim() || null, passport_number: p.passport_number.trim() || null, kite_level: p.kite_level || null, client_id: p.client_id || null,
-        does_kite: p.does_kite, brings_own_gear: p.brings_own_gear, needs_storage: p.needs_storage,
-        wants_kite_lessons: p.wants_kite_lessons, wants_kite_rental: p.wants_kite_rental, wants_wing_lessons: p.wants_wing_lessons })),
-      ...autoList.map(p => ({ ...p, passport_number: null, kite_level: null, client_id: null, ...EMPTY_ACTIVITY })),
-    ]
-    if (participantsToInsert.length > 0) {
-      const { data: inserted, error: insErr } = await supabase.from('booking_participants').insert(
-        participantsToInsert.map(p => ({
-          booking_id: bookingId,
-          first_name: p.first_name,
-          last_name: p.last_name || null,
-          passport_number: p.passport_number || null,
-          kite_level: p.kite_level || null,
-          client_id: p.client_id || null,
-          does_kite: p.does_kite, brings_own_gear: p.brings_own_gear, needs_storage: p.needs_storage,
-          wants_kite_lessons: p.wants_kite_lessons, wants_kite_rental: p.wants_kite_rental, wants_wing_lessons: p.wants_wing_lessons,
-          notes: null,
-        }))
-      ).select()
-      if (insErr) {
-        console.error('booking_participants insert error:', insErr)
-        alert('Error saving guests: ' + insErr.message)
-      } else if (inserted) {
+    const guests = named.length > 0 ? named : autoList
+
+    const { data: dbRows, error: selErr } = await supabase.from('booking_participants').select('id').eq('booking_id', bookingId)
+    if (selErr) {
+      problems.push(`the guest list could not be read, so guests were left unchanged (${selErr.message})`)
+    } else {
+      const dbIds = new Set((dbRows ?? []).map(r => r.id as string))
+      const keptGuests = guests.filter(p => dbIds.has(p.id))
+      const newGuests  = guests.filter(p => !dbIds.has(p.id))
+      const removedIds = [...dbIds].filter(id => !keptGuests.some(p => p.id === id))
+
+      if (removedIds.length > 0) {
+        const { error } = await supabase.from('booking_participants').delete().in('id', removedIds)
+        if (error) problems.push(`removed guests could not be deleted (${error.message})`)
+      }
+      for (const p of keptGuests) {
+        const { error } = await supabase.from('booking_participants').update(guestRow(p)).eq('id', p.id)
+        if (error) problems.push(`guest ${p.first_name} could not be updated (${error.message})`)
+      }
+      if (newGuests.length > 0) {
+        const { error } = await supabase.from('booking_participants').insert(
+          newGuests.map(p => ({ booking_id: bookingId, ...guestRow(p), notes: null }))
+        )
+        if (error) problems.push(`new guests could not be saved (${error.message})`)
+      }
+
+      // Reload this booking's guests so every screen sees the real ids
+      const { data: fresh, error: freshErr } = await supabase.from('booking_participants').select('*').eq('booking_id', bookingId)
+      if (freshErr) {
+        problems.push(`the guest list could not be reloaded (${freshErr.message})`)
+      } else {
         setBookingParticipants(prev => [
           ...prev.filter(p => p.booking_id !== bookingId),
-          ...(inserted as BookingParticipant[]),
+          ...((fresh ?? []) as BookingParticipant[]),
         ])
       }
-    } else {
-      setBookingParticipants(prev => prev.filter(p => p.booking_id !== bookingId))
     }
 
     // 4. Booking rooms (delete all + re-insert)

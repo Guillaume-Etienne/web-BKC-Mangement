@@ -227,11 +227,11 @@
   comme vide**. Les cartes mobiles rendent la liste des manques en toutes lettres — elles
   n'affichaient **aucun** ⚠️ avant le 2026-09-04.
 - **Step 2 (Stay) :** Bandeau rouge si `check_in >= check_out` (Next désactivé). **Full house** = ligne de prix unique (défaut 100€, split 50/50 entre les 2 chambres en interne).
-- **Step 3 (Guests) :** Gère `booking_participants` — delete-all + re-insert au save. Auto-ajoute le client principal si aucun participant saisi (nouveaux bookings).
+- **Step 3 (Guests) :** Gère `booking_participants` — réconciliation au save (update en place des voyageurs gardés, insert des nouveaux, delete seulement des retirés : les ids restent stables, les cours/locations pointent dessus). Auto-ajoute le client principal si aucun participant saisi (nouveaux bookings).
 - **Step 4 (Transport) :** Si taxi arrivée/départ coché → sélecteur **chauffeur optionnel** (`taxi_driver_id`). Pré-assigne le chauffeur + ses `default_*` aux trajets auto-créés. Nouveaux bookings uniquement.
 - **Step 5 (KiteCenter) :** Si `num_center_access > 0` → champ **tarif center access** (`center_access_rate`, €/jour, défaut 5).
 - **Save (nouveaux bookings, isNew=true) :**
-  1. Upsert client → upsert booking → delete+insert `booking_participants` → delete+insert booking_rooms → delete+insert booking_room_prices
+  1. Upsert client → upsert booking → réconciliation `booking_participants` (ids stables) → delete+insert booking_rooms → delete+insert booking_room_prices
   2. Si `amount_paid > 0` → insert `payments` (`method:'transfer'`, `is_verified:false`, note "Auto-created…")
   3. Trajets taxi : si chauffeur pré-assigné → trajets avec ses tarifs + statut `confirmed` ; sinon prix 0 + statut `needs_details`. `taxi_arrival` → `aero-to-center`@check_in ; `taxi_departure` → `center-to-aero`@check_out
 
