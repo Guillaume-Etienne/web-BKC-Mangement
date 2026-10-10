@@ -47,6 +47,8 @@ export const planningI18n = {
   label_present_today: { fr: 'Présents aujourd\'hui :', en: 'Present today:', es: 'Presentes hoy:' },
   msg_no_event_selected: { fr: 'Aucun événement sélectionné', en: 'No event selected', es: 'Ningún evento seleccionado' },
   btn_new_event:   { fr: '+ Nouvel événement', en: '+ New Event', es: '+ Nuevo evento' },
+  agenda_title:    { fr: 'La journée — tous les moniteurs', en: 'The day — all instructors', es: 'El día — todos los instructores' },
+  agenda_empty:    { fr: 'Rien de prévu ce jour.', en: 'Nothing planned this day.', es: 'Nada previsto este día.' },
   btn_duplicate:   { fr: '⧉ Dupliquer', en: '⧉ Duplicate', es: '⧉ Duplicar' },
   msg_confirm_delete_event: { fr: 'Supprimer cet événement ?', en: 'Delete this event?', es: '¿Eliminar este evento?' },
   label_person_attending:  { fr: 'personne présente',  en: 'person attending',  es: 'persona asistiendo' },

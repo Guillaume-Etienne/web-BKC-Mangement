@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import type { Lesson, LessonType, EquipmentRental, Instructor, Client, Equipment, Booking, Agency, AgencyBillingLine, Lang } from '../../types/database'
+import type { Lesson, LessonType, EquipmentRental, RentalSlot, Instructor, Client, Equipment, Booking, Agency, AgencyBillingLine, Lang } from '../../types/database'
 import { currentInstructorRate, reFreezeInstructorRate, agencyMarker } from '../accounting/utils'
 import { toISODate as dateToISO, addDays, localeTag } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -440,6 +440,137 @@ interface ForecastViewProps {
   onDeleteRental: (id: string) => void
 }
 
+// ─── Mobile: the whole day, every instructor, one time-sorted list ─────────────
+// Phone-sized: initials for instructors, first name + last initial for clients,
+// colour = what kind of slot it is (same palette as the desktop cards).
+
+type AgendaKind = LessonType | 'rental'
+
+const AGENDA_STYLE: Record<AgendaKind, { bar: string; text: string }> = {
+  private:     { bar: 'border-purple-500', text: 'text-purple-700 dark:text-purple-400' },
+  group:       { bar: 'border-green-500',  text: 'text-green-700 dark:text-green-400'   },
+  supervision: { bar: 'border-blue-500',   text: 'text-blue-700 dark:text-blue-400'     },
+  rental:      { bar: 'border-amber-500',  text: 'text-amber-700 dark:text-amber-400'   },
+}
+
+// Rental slots have no real start time: morning/full day from 08:00, afternoon from 13:00.
+const RENTAL_SLOT_START: Record<RentalSlot, string> = { morning: '08:00', afternoon: '13:00', full_day: '08:00' }
+
+function lessonTypeLabel(t: AgendaKind, lang: Lang): string {
+  const labels: Record<AgendaKind, string> = {
+    private:     i18n.planning.lesson_type_private[lang],
+    group:       i18n.planning.lesson_type_group[lang],
+    supervision: i18n.planning.lesson_type_supervision[lang],
+    rental:      i18n.planning.section_rentals[lang],
+  }
+  return labels[t]
+}
+
+function slotLabel(s: RentalSlot, lang: Lang): string {
+  const labels: Record<RentalSlot, string> = {
+    morning:   i18n.planning.slot_morning[lang],
+    afternoon: i18n.planning.slot_afternoon[lang],
+    full_day:  i18n.planning.slot_full_day[lang],
+  }
+  return labels[s]
+}
+
+function initialsOf(first?: string | null, last?: string | null): string {
+  return `${first?.charAt(0) ?? ''}${last?.charAt(0) ?? ''}`.toUpperCase()
+}
+
+function shortClientName(c: Client | undefined): string {
+  if (!c) return '—'
+  return `${c.first_name} ${c.last_name ? c.last_name.charAt(0) + '.' : ''}`.trim()
+}
+
+interface MobileDayAgendaProps {
+  lessons: Lesson[]
+  rentals: EquipmentRental[]
+  instructors: Instructor[]
+  clients: Client[]
+  equipment: Equipment[]
+  lang: Lang
+  onOpenLesson: (lesson: Lesson) => void
+}
+
+function MobileDayAgenda({ lessons, rentals, instructors, clients, equipment, lang, onOpenLesson }: MobileDayAgendaProps) {
+  const lessonRows = lessons.map(l => {
+    const names = l.participant_ids.map(id => clients.find(c => c.id === id))
+    const shown = names.slice(0, 2).map(shortClientName).join(', ')
+    const more = names.length > 2 ? ` +${names.length - 2}` : ''
+    const instr = instructors.find(i => i.id === l.instructor_id)
+    return {
+      key: l.id,
+      time: l.start_time.slice(0, 5),
+      kind: l.type as AgendaKind,
+      typeLabel: lessonTypeLabel(l.type, lang),
+      who: instr ? initialsOf(instr.first_name, instr.last_name) : '',
+      clients: names.length ? shown + more : '—',
+      detail: `${l.duration_hours}h`,
+      lesson: l,
+    }
+  })
+
+  const rentalRows = rentals.map(r => {
+    const eq = equipment.find(e => e.id === r.equipment_id)
+    const client = clients.find(c => c.id === r.participant_id)
+    return {
+      key: r.id,
+      time: RENTAL_SLOT_START[r.slot],
+      kind: 'rental' as AgendaKind,
+      typeLabel: lessonTypeLabel('rental', lang),
+      who: '',
+      clients: shortClientName(client),
+      detail: `${eq?.name ?? '—'} · ${slotLabel(r.slot, lang)}`,
+      lesson: undefined as Lesson | undefined,
+    }
+  })
+
+  const rows = [...lessonRows, ...rentalRows].sort((a, b) => a.time.localeCompare(b.time))
+
+  const legend: AgendaKind[] = ['private', 'group', 'supervision', 'rental']
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        {legend.map(k => (
+          <span key={k} className="flex items-center gap-1 text-[11px] text-gray-600 dark:text-gray-400">
+            <span className={`inline-block w-2.5 h-2.5 rounded-sm border-l-4 ${AGENDA_STYLE[k].bar}`} />
+            {lessonTypeLabel(k, lang)}
+          </span>
+        ))}
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="text-sm text-gray-500 dark:text-gray-400 italic text-center py-6">{i18n.planning.agenda_empty[lang]}</p>
+      ) : (
+        <ul className="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900 overflow-hidden">
+          {rows.map(row => (
+            <li key={row.key}>
+              <button
+                type="button"
+                onClick={row.lesson ? () => onOpenLesson(row.lesson!) : undefined}
+                className={`w-full text-left flex items-stretch gap-3 py-2.5 pr-3 pl-2 border-l-4 ${AGENDA_STYLE[row.kind].bar} ${row.lesson ? 'active:bg-gray-100 dark:active:bg-gray-800' : ''}`}
+              >
+                <div className="w-11 shrink-0 text-sm font-semibold tabular-nums text-gray-800 dark:text-gray-200">{row.time}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 text-sm">
+                    {row.who && <span className="font-bold text-gray-900 dark:text-gray-100">{row.who}</span>}
+                    <span className={`text-xs font-medium ${AGENDA_STYLE[row.kind].text}`}>{row.typeLabel}</span>
+                  </div>
+                  <div className="text-sm text-gray-700 dark:text-gray-300 truncate">{row.clients}</div>
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{row.detail}</div>
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export default function ForecastView({ lessons, instructors, clients, equipment, rentals, bookings, agencies, agencyBillingLines, onAddLesson, onUpdateLesson, onDeleteLesson, onAddRental, onDeleteRental }: ForecastViewProps) {
   const { lang } = useLanguage()
   const today = new Date()
@@ -591,6 +722,20 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
             </button>
           )}
         </div>
+      </div>
+
+      {/* Mobile: the whole day for everyone. The instructor selector below stays for editing one column at a time. */}
+      <div className="md:hidden space-y-2">
+        <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200">{i18n.planning.agenda_title[lang]}</h2>
+        <MobileDayAgenda
+          lessons={dayLessons}
+          rentals={dayRentals}
+          instructors={instructors}
+          clients={clients}
+          equipment={equipment}
+          lang={lang}
+          onOpenLesson={l => setEditModal(l)}
+        />
       </div>
 
       {/* Mobile: instructor selector */}
