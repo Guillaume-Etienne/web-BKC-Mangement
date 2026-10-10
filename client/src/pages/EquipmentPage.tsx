@@ -709,7 +709,7 @@ export default function EquipmentPage() {
                       }}
                       className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50"
                     >
-                      Nom {inventorySortField === 'name' && (inventorySortAsc ? '↑' : '↓')}
+                      {i18n.common.label_name[lang]} {inventorySortField === 'name' && (inventorySortAsc ? '↑' : '↓')}
                     </th>
                     <th
                       onClick={() => {
@@ -722,9 +722,9 @@ export default function EquipmentPage() {
                       }}
                       className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50"
                     >
-                      Catégorie {inventorySortField === 'category' && (inventorySortAsc ? '↑' : '↓')}
+                      {i18n.equipment.label_category[lang]} {inventorySortField === 'category' && (inventorySortAsc ? '↑' : '↓')}
                     </th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Marque</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.label_brand[lang]}</th>
                     <th
                       onClick={() => {
                         if (inventorySortField === 'size') {
@@ -736,7 +736,7 @@ export default function EquipmentPage() {
                       }}
                       className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50"
                     >
-                      Taille {inventorySortField === 'size' && (inventorySortAsc ? '↑' : '↓')}
+                      {i18n.equipment.label_size[lang]} {inventorySortField === 'size' && (inventorySortAsc ? '↑' : '↓')}
                     </th>
                     <th
                       onClick={() => {
@@ -762,7 +762,7 @@ export default function EquipmentPage() {
                       }}
                       className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50"
                     >
-                      Sorties {inventorySortField === 'uses' && (inventorySortAsc ? '↑' : '↓')}
+                      {i18n.equipment.label_uses[lang]} {inventorySortField === 'uses' && (inventorySortAsc ? '↑' : '↓')}
                     </th>
                     <th
                       onClick={() => {
@@ -775,10 +775,10 @@ export default function EquipmentPage() {
                       }}
                       className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50"
                     >
-                      ≈ Heures {inventorySortField === 'hours' && (inventorySortAsc ? '↑' : '↓')}
+                      ≈ {i18n.equipment.label_use_hours[lang]} {inventorySortField === 'hours' && (inventorySortAsc ? '↑' : '↓')}
                     </th>
                     <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.label_active[lang]}</th>
-                    <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Actions</th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.label_actions[lang]}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -1454,7 +1454,7 @@ export default function EquipmentPage() {
                         {i18n.common.label_date[lang]} {assetSortField === 'purchase_date' && (assetSortAsc ? '↑' : '↓')}
                       </button>
                     </th>
-                    <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Actions</th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">{i18n.equipment.label_actions[lang]}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-800">

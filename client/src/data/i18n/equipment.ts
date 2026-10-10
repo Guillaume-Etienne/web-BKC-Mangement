@@ -57,6 +57,9 @@ export const equipmentI18n = {
   label_uses:      { fr: 'Sorties',         en: 'Uses',          es: 'Usos' },
   label_use_hours: { fr: "Heures d'utilisation", en: 'Usage hours', es: 'Horas de uso' },
   label_brand:     { fr: 'Marque',          en: 'Brand',         es: 'Marca' },
+  label_category:  { fr: 'Catégorie',       en: 'Category',      es: 'Categoría' },
+  label_size:      { fr: 'Taille',          en: 'Size',          es: 'Talla' },
+  label_actions:   { fr: 'Actions',         en: 'Actions',       es: 'Acciones' },
   label_active:    { fr: 'Actif',           en: 'Active',        es: 'Activo' },
   label_condition: { fr: 'État',            en: 'Condition',     es: 'Estado' },
 
