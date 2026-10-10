@@ -1,12 +1,13 @@
 import { useMemo, useRef, useState } from 'react'
 import type {
-  Lesson, LessonType, EquipmentRental, RentalSlot, Instructor, Equipment, Booking, BookingParticipant,
+  Lesson, LessonType, EquipmentRental, RentalSlot, Instructor, Equipment, Booking, BookingParticipant, Client,
   Agency, AgencyBillingLine, PriceItem, PriceTier, PlannedLesson, PlannedRental, RentalType, Lang,
 } from '../../types/database'
 import { rentalBillable } from '../../types/database'
 import { currentInstructorRate, resolveLessonRate, agencyMarker } from '../accounting/utils'
 import { toISODate as dateToISO, addDays, localeTag } from '../../utils/dates'
-import { isOnSiteOn } from '../../utils/dayVisitor'
+import { isOnSiteOn, searchClients, suggestedLessonRate } from '../../utils/dayVisitor'
+import type { WalkInRequest } from './walkInSave'
 import { readLocal, writeLocal } from '../../utils/safeStorage'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useTable } from '../../hooks/useSupabase'
@@ -143,6 +144,54 @@ function GuestPicker({ participants, bookings, selectedIds, multi, hoursByPartic
   )
 }
 
+// ─── Walk-in client picker ────────────────────────────────────────────────────
+// A walk-in is an ordinary client; their visit (a day-visitor booking) is only
+// created when the plan is exported, by the same code as Daily's 🚶 button.
+
+interface WalkInPickerProps {
+  clients: Client[]
+  value: string | null
+  onChange: (id: string | null) => void
+}
+
+function WalkInClientPicker({ clients, value, onChange }: WalkInPickerProps) {
+  const [q, setQ] = useState('')
+  const picked = value ? clients.find(c => c.id === value) : undefined
+  const found = useMemo(() => (q.trim().length >= 2 ? searchClients(clients, q) : []), [clients, q])
+  const field = 'w-full text-sm border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100'
+
+  if (picked) {
+    return (
+      <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 text-sm">
+        <span className="font-medium text-emerald-900 dark:text-emerald-300 truncate">
+          🚶 {picked.first_name} {picked.last_name}
+          {picked.custom_lesson_rate != null && <span className="ml-2 text-xs font-normal">{picked.custom_lesson_rate} €/h</span>}
+        </span>
+        <button type="button" onClick={() => onChange(null)} className="text-gray-500 hover:text-red-600 dark:hover:text-red-400" title="Remove">✕</button>
+      </div>
+    )
+  }
+  return (
+    <div>
+      <input type="text" value={q} onChange={e => setQ(e.target.value)} className={field}
+        placeholder="🚶 Walk-in: search a client (2+ letters)" />
+      {q.trim().length >= 2 && (
+        <div className="mt-1 max-h-36 overflow-y-auto rounded border border-gray-200 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
+          {found.length === 0
+            ? <p className="px-2 py-1.5 text-xs italic text-gray-400">No client found. Create them from Daily's 🚶 Walk-in, or put the name in the notes.</p>
+            : found.map(c => (
+              <button key={c.id} type="button" onClick={() => { onChange(c.id); setQ('') }}
+                className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-800 dark:text-gray-200">
+                {c.first_name} {c.last_name}
+                {c.phone && <span className="ml-2 text-xs text-gray-400">{c.phone}</span>}
+              </button>
+            ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Lesson modal (add + edit) ────────────────────────────────────────────────
 
 interface LessonModalProps {
@@ -155,6 +204,7 @@ interface LessonModalProps {
   instructors: Instructor[]
   bookings: Booking[]
   bookingParticipants: BookingParticipant[]
+  clients: Client[]
   hoursByParticipant: Map<string, number>
   onSave: (draft: Omit<PlannedLesson, 'id' | 'exported_at' | 'booking_id'>, id: string | null) => void
   onDelete: (id: string) => void
@@ -164,7 +214,7 @@ interface LessonModalProps {
 
 function LessonModal({
   lesson, date, startHour, totalSlots, initialInstructorId, initialSlot, instructors, bookings,
-  bookingParticipants, hoursByParticipant, onSave, onDelete, onExport, onClose,
+  bookingParticipants, clients, hoursByParticipant, onSave, onDelete, onExport, onClose,
 }: LessonModalProps) {
   const { lang } = useLanguage()
   const [type, setType]       = useState<LessonType>(lesson?.type ?? 'private')
@@ -174,6 +224,7 @@ function LessonModal({
   const [dur, setDur]         = useState(lesson?.duration_hours ?? 1)
   const [notes, setNotes]     = useState(lesson?.notes ?? '')
   const [showAll, setShowAll] = useState(false)
+  const [clientId, setClientId] = useState<string | null>(lesson?.client_id ?? null)
 
   const exported = !!lesson?.exported_at
 
@@ -186,6 +237,7 @@ function LessonModal({
   }, [showAll, bookings, bookingParticipants, date, ids])
 
   function toggle(id: string) {
+    setClientId(null)   // a lesson is for booked guests OR for a walk-in client
     if (type !== 'group') { setIds(cur => (cur[0] === id ? [] : [id])); return }
     setIds(cur => cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id])
   }
@@ -197,7 +249,7 @@ function LessonModal({
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    onSave({ date, start_time: time, duration_hours: dur, type, instructor_id: instrId, participant_ids: ids, notes: notes.trim() || null }, lesson?.id ?? null)
+    onSave({ date, start_time: time, duration_hours: dur, type, instructor_id: instrId, participant_ids: ids, client_id: clientId, notes: notes.trim() || null }, lesson?.id ?? null)
   }
 
   const field = 'w-full text-sm border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100'
@@ -267,8 +319,14 @@ function LessonModal({
               </div>
               <GuestPicker participants={candidates} bookings={bookings} selectedIds={ids}
                 multi={type === 'group'} hoursByParticipant={hoursByParticipant} onToggle={toggle} />
-              {ids.length === 0 && (
+              {ids.length === 0 && !clientId && (
                 <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-400">No guest yet — fine for a plan, but it can't be exported to Daily without one.</p>
+              )}
+              {type !== 'group' && (
+                <div className="mt-2">
+                  <WalkInClientPicker clients={clients} value={clientId}
+                    onChange={id => { setClientId(id); if (id) setIds([]) }} />
+                </div>
               )}
             </div>
 
@@ -310,16 +368,18 @@ interface RentalsPanelProps {
   equipment: Equipment[]
   bookings: Booking[]
   bookingParticipants: BookingParticipant[]
+  clients: Client[]
   onAdd: (r: Omit<PlannedRental, 'id' | 'exported_at' | 'booking_id'>) => void
   onDelete: (id: string) => void
   onExport: (r: PlannedRental) => void
 }
 
-function RentalsPanel({ date, plan, actual, showActual, equipment, bookings, bookingParticipants, onAdd, onDelete, onExport }: RentalsPanelProps) {
+function RentalsPanel({ date, plan, actual, showActual, equipment, bookings, bookingParticipants, clients, onAdd, onDelete, onExport }: RentalsPanelProps) {
   const { lang } = useLanguage()
   const [showForm, setShowForm]   = useState(false)
   const [showAll, setShowAll]     = useState(false)
   const [participantId, setPid]   = useState('')
+  const [clientId, setClientId]   = useState<string | null>(null)
   const [type, setType]           = useState<RentalKind>('kite')
   const [slot, setSlot]           = useState<RentalSlot>('full_day')
   const [equipmentId, setEquip]   = useState('')
@@ -346,6 +406,10 @@ function RentalsPanel({ date, plan, actual, showActual, equipment, bookings, boo
     { key: 'full_day',  label: i18n.planning.slot_full_day[lang] },
   ]
   const nameOf = (id: string | null) => shortName(bookingParticipants.find(p => p.id === id))
+  const walkInName = (id: string | null) => {
+    const c = id ? clients.find(x => x.id === id) : undefined
+    return c ? `🚶 ${c.first_name} ${c.last_name ? c.last_name.charAt(0) + '.' : ''}`.trim() : '—'
+  }
   const gearName = (id: string | null) => equipment.find(e => e.id === id)?.name
 
   function submit(e: React.FormEvent) {
@@ -354,9 +418,10 @@ function RentalsPanel({ date, plan, actual, showActual, equipment, bookings, boo
       date, slot, rental_type: type as PlannedRental['rental_type'],
       equipment_id: type === 'free' || type === 'full' ? null : (equipmentId || null),
       participant_id: participantId || null,
+      client_id: participantId ? null : clientId,
       notes: notes.trim() || null,
     })
-    setNotes(''); setEquip(''); setShowForm(false)
+    setNotes(''); setEquip(''); setClientId(null); setShowForm(false)
   }
 
   const field = 'w-full text-xs border border-gray-300 dark:border-gray-700 rounded px-1.5 py-1 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100'
@@ -373,7 +438,7 @@ function RentalsPanel({ date, plan, actual, showActual, equipment, bookings, boo
 
       {showForm && (
         <form onSubmit={submit} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-2 space-y-1.5">
-          <select value={participantId} onChange={e => setPid(e.target.value)} className={field}>
+          <select value={participantId} onChange={e => { setPid(e.target.value); if (e.target.value) setClientId(null) }} className={field}>
             <option value="">— guest (optional) —</option>
             {groups.map(({ booking, ps }) => (
               <optgroup key={booking?.id ?? ps[0].booking_id} label={bookingLabel(booking)}>
@@ -384,6 +449,7 @@ function RentalsPanel({ date, plan, actual, showActual, equipment, bookings, boo
           <label className="flex items-center gap-1 text-[11px] text-gray-600 dark:text-gray-400 cursor-pointer">
             <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} /> Show all guests
           </label>
+          {!participantId && <WalkInClientPicker clients={clients} value={clientId} onChange={setClientId} />}
           <select value={type} onChange={e => { setType(e.target.value as RentalKind); setEquip('') }} className={field}>
             {RENTAL_TYPES.map(r => <option key={r.key} value={r.key}>{r.icon} {r.label}</option>)}
           </select>
@@ -419,7 +485,7 @@ function RentalsPanel({ date, plan, actual, showActual, equipment, bookings, boo
                       {RENTAL_ICON[r.rental_type] ?? '📦'} {RENTAL_LABEL[r.rental_type] ?? r.rental_type}
                       {r.exported_at && <span className="ml-1 text-emerald-700 dark:text-emerald-400">✓ Daily</span>}
                     </div>
-                    <div className="text-amber-700 dark:text-amber-400 truncate">{r.participant_id ? nameOf(r.participant_id) : '—'}</div>
+                    <div className="text-amber-700 dark:text-amber-400 truncate">{r.participant_id ? nameOf(r.participant_id) : r.client_id ? walkInName(r.client_id) : '—'}</div>
                     {gearName(r.equipment_id) && <div className="text-[10px] text-amber-700/80 dark:text-amber-400/80 truncate">{gearName(r.equipment_id)}</div>}
                     {r.notes && <div className="text-[10px] italic text-amber-800 dark:text-amber-400 truncate">{r.notes}</div>}
                   </div>
@@ -475,16 +541,23 @@ interface ForecastViewProps {
   bookingParticipants: BookingParticipant[]
   priceItems: PriceItem[]
   priceTiers: PriceTier[]
+  clients: Client[]
   /** Resolve true once saved — the plan row is stamped exported only then. */
   onAddLesson: (l: Omit<Lesson, 'id'>) => Promise<boolean>
   onAddRental: (r: Omit<EquipmentRental, 'id'>) => Promise<boolean>
+  /** Walk-in path: client → visit → lesson/rental, the same handler as Daily's 🚶 button. */
+  onAddWalkIn: (req: WalkInRequest) => Promise<boolean>
 }
+
+/** A stand-in participant: lets `resolveLessonRate` count a regular's past visits
+ *  toward the tier thresholds before this visit exists (same trick as WalkInForm). */
+const PROBE_PARTICIPANT = '__walkin_probe__'
 
 type Clip = { from: string; lessons: Omit<PlannedLesson, 'id' | 'exported_at' | 'date'>[]; rentals: Omit<PlannedRental, 'id' | 'exported_at' | 'date'>[] }
 
 export default function ForecastView({
   lessons, rentals, instructors, equipment, bookings, agencies, agencyBillingLines,
-  bookingParticipants, priceItems, priceTiers, onAddLesson, onAddRental,
+  bookingParticipants, priceItems, priceTiers, clients, onAddLesson, onAddRental, onAddWalkIn,
 }: ForecastViewProps) {
   const { lang } = useLanguage()
   const today = new Date()
@@ -539,6 +612,10 @@ export default function ForecastView({
   }, [dayPlan, dayActual])
 
   const namesOf = (ids: string[]) => ids.map(id => bookingParticipants.find(p => p.id === id))
+  const walkInName = (id: string | null) => {
+    const c = id ? clients.find(x => x.id === id) : undefined
+    return c ? `🚶 ${c.first_name} ${c.last_name ? c.last_name.charAt(0) + '.' : ''}`.trim() : '—'
+  }
   const bookingOf = (ids: string[]) => bookingParticipants.find(p => p.id === ids[0])?.booking_id ?? null
   const offSite = (ids: string[]) => ids.some(id => !onSiteParticipantIds.has(id))
   const marker = (l: Lesson) => agencyMarker(l, { agencies, bookings, agencyBillingLines })
@@ -588,6 +665,41 @@ export default function ForecastView({
 
   async function exportLesson(p: PlannedLesson): Promise<string | null> {
     if (p.exported_at) return 'already exported'
+    const instrW = instructors.find(i => i.id === p.instructor_id)
+
+    // Walk-in: no participant yet — the visit is created (or the day's one reused)
+    // by the same handler as Daily's 🚶 button, price = personal rate else tiers.
+    if (p.client_id && p.participant_ids.length === 0) {
+      const client = clients.find(c => c.id === p.client_id)
+      if (!client) return 'client not found'
+      const sameClient = (l: Lesson) =>
+        l.participant_ids.some(id => bookingParticipants.find(bp => bp.id === id)?.client_id === client.id)
+      if (lessons.some(l => l.date === p.date && l.instructor_id === p.instructor_id &&
+          l.start_time.slice(0, 5) === p.start_time.slice(0, 5) && sameClient(l))) return 'already in Daily'
+      const official = resolveLessonRate(
+        { id: '', type: p.type, participant_ids: [PROBE_PARTICIPANT], price_per_hour: null },
+        priceItems,
+        { tiers: priceTiers, allLessons: lessons,
+          bookingParticipants: [...bookingParticipants, { id: PROBE_PARTICIPANT, booking_id: '', client_id: client.id } as BookingParticipant] },
+      )
+      const okW = await onAddWalkIn({
+        date: p.date,
+        client: { kind: 'existing', id: client.id },
+        waiverSigned: false,
+        lesson: {
+          type: p.type, instructor_id: p.instructor_id, start_time: p.start_time,
+          duration_hours: p.duration_hours,
+          price_per_hour: suggestedLessonRate(client, official),
+          instructor_rate: instrW ? currentInstructorRate({ type: p.type }, instrW) : null,
+          notes: p.notes, kite_id: null, board_id: null,
+        },
+      })
+      if (!okW) return 'could not be saved'
+      const { error: errW } = await supabase.from('planned_lessons').update({ exported_at: new Date().toISOString() }).eq('id', p.id)
+      if (errW) return 'exported, but the plan could not be marked'
+      return null
+    }
+
     const bookingId = p.booking_id ?? bookingOf(p.participant_ids)
     if (!bookingId) return 'no guest picked'
     const duplicate = lessons.some(l =>
@@ -632,6 +744,21 @@ export default function ForecastView({
     if (duplicate) return 'already in Daily'
     const price = kind === 'free' ? 0
       : priceItems.find(pi => pi.billable_type === rentalBillable(kind as RentalType))?.price ?? 0
+
+    if (p.client_id && !p.participant_id) {
+      if (!clients.some(c => c.id === p.client_id)) return 'client not found'
+      const okW = await onAddWalkIn({
+        date: p.date,
+        client: { kind: 'existing', id: p.client_id },
+        waiverSigned: false,
+        rental: { equipment_id: equipmentId, slot: p.slot, price, notes: p.notes },
+      })
+      if (!okW) return 'could not be saved'
+      const { error: errW } = await supabase.from('planned_rentals').update({ exported_at: new Date().toISOString() }).eq('id', p.id)
+      if (errW) return 'exported, but the plan could not be marked'
+      return null
+    }
+
     const ok = await onAddRental({
       equipment_id: equipmentId,
       booking_id: p.booking_id,
@@ -711,14 +838,14 @@ export default function ForecastView({
       from: iso,
       lessons: dayActual.map(l => ({
         start_time: l.start_time, duration_hours: l.duration_hours, type: l.type, instructor_id: l.instructor_id,
-        participant_ids: l.participant_ids, booking_id: l.booking_id, notes: l.notes,
+        participant_ids: l.participant_ids, booking_id: l.booking_id, client_id: null, notes: l.notes,
       })),
       rentals: dayActualRent.map(r => {
         const cat = equipment.find(e => e.id === r.equipment_id)?.category
         return {
           slot: r.slot,
           rental_type: (cat && RENTAL_KINDS.includes(cat) ? cat : 'free') as PlannedRental['rental_type'],
-          equipment_id: r.equipment_id, participant_id: r.participant_id, booking_id: r.booking_id, notes: r.notes,
+          equipment_id: r.equipment_id, participant_id: r.participant_id, booking_id: r.booking_id, client_id: null, notes: r.notes,
         }
       }),
     })
@@ -907,7 +1034,7 @@ export default function ForecastView({
                             {offSite(l.participant_ids) && <span title="A guest is not on site that day">⚠️</span>}
                           </div>
                           <div className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                            {names.length ? names.slice(0, 2).map(shortName).join(', ') + (names.length > 2 ? ` +${names.length - 2}` : '') : '—'}
+                            {names.length ? names.slice(0, 2).map(shortName).join(', ') + (names.length > 2 ? ` +${names.length - 2}` : '') : l.client_id ? walkInName(l.client_id) : '—'}
                           </div>
                           {l.notes && <div className="text-xs italic text-amber-800 dark:text-amber-400 truncate">{l.notes}</div>}
                         </div>
@@ -1020,7 +1147,9 @@ export default function ForecastView({
                             </div>
                             {height >= SLOT_H * 2 && (
                               <div className="text-xs font-semibold truncate">
-                                {lesson.participant_ids.length ? shortName(names[0]) : <span className="italic opacity-60">no guest</span>}
+                                {lesson.participant_ids.length ? shortName(names[0])
+                                  : lesson.client_id ? walkInName(lesson.client_id)
+                                  : <span className="italic opacity-60">no guest</span>}
                                 {names.length > 1 && <span className="ml-1 font-normal opacity-70">+{names.length - 1}</span>}
                               </div>
                             )}
@@ -1089,6 +1218,7 @@ export default function ForecastView({
           equipment={equipment}
           bookings={bookings}
           bookingParticipants={bookingParticipants}
+          clients={clients}
           onAdd={addPlanRental}
           onDelete={deletePlanRental}
           onExport={exportOneRental}
@@ -1111,6 +1241,7 @@ export default function ForecastView({
           instructors={instructors}
           bookings={bookings}
           bookingParticipants={bookingParticipants}
+          clients={clients}
           hoursByParticipant={hoursByParticipant}
           onSave={async (draft, id) => { setModal(null); await savePlanLesson(draft, id) }}
           onDelete={async id => { setModal(null); await deletePlanLesson(id) }}

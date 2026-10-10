@@ -674,6 +674,7 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 | id, date, notes, exported_at | ✔ | ✔ |
 | start_time, duration_hours, type, instructor_id, participant_ids[] | ✔ | — |
 | slot, rental_type, equipment_id (optionnel), participant_id | — | ✔ |
+| client_id (**2026-10-10d**) — walk-in : un `Client.id` existant, sans participant ; la venue day-visitor n'est créée qu'à l'export (`saveWalkIn`) | ✔ | ✔ |
 
 ### `expense_categories` → `ExpenseCategory` (**depuis 2026-09-19**)
 | Field | Type | Notes |

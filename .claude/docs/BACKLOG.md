@@ -13,6 +13,13 @@ Strictement additif. ⚠️ **Avant le push** : sans elle l'onglet Forecast affi
 ne peut rien enregistrer ; la page publique Forecast reste vide. Vérif curl anon : `planned_lessons?select=id`
 sans token → `[]` 200 ; `select=booking_id` → 42501 ; avec un token `forecast` → les lignes du plan.
 
+⬜ **`2026-10-10d_planned_walkin_client.sql`** (TEST ⬜ / PROD ⬜) — le plan peut viser un **client existant**
+(walk-in) : colonne `client_id` nullable sur `planned_lessons` + `planned_rentals`. Additif, un fichier, pas de
+GRANT anon (la page publique ne lit pas ces colonnes). ⚠️ Sans elle, **tout enregistrement du plan échoue**
+(l'insert envoie `client_id`). Vérif curl : `planned_lessons?select=client_id` avec un token forecast → 42501.
+Export → `saveWalkIn` (même code que 🚶 du Daily : même client/jour = même venue). Reste : lien public PAR CLIENT
+(toutes ses venues) — non fait, voir `taxi-and-shares.md`.
+
 ⬜ **`2026-10-10a_instructor_link_type.sql` PUIS `2026-10-10b_instructor_share_policy.sql`** (TEST ⬜ / PROD ⬜) —
 page « Instructor Hours » (type de lien `instructor`). **Deux fichiers, dans cet ordre** (enum seul, puis
 policy `lessons`). Strictement additif. ⚠️ **Avant le push** : sans le (a) la création du lien échoue

@@ -719,6 +719,7 @@ export interface PlannedLesson {
   instructor_id: string
   participant_ids: string[]      // BookingParticipant.id[] — never Client.id
   booking_id: string | null      // derived from the first participant
+  client_id: string | null       // walk-in: an existing Client.id (no participant yet — the visit is created at export)
   notes: string | null
   exported_at: string | null
 }
@@ -731,6 +732,7 @@ export interface PlannedRental {
   equipment_id: string | null    // optional: null = "any available"
   participant_id: string | null  // BookingParticipant.id
   booking_id: string | null
+  client_id: string | null       // walk-in: an existing Client.id
   notes: string | null
   exported_at: string | null
 }

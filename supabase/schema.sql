@@ -448,6 +448,7 @@ CREATE TABLE planned_lessons (
   instructor_id   UUID NOT NULL REFERENCES instructors(id) ON DELETE CASCADE,
   participant_ids UUID[] NOT NULL DEFAULT '{}',  -- booking_participants.id[]
   booking_id      UUID REFERENCES bookings(id) ON DELETE SET NULL,
+  client_id       UUID REFERENCES clients(id) ON DELETE SET NULL,  -- walk-in (2026-10-10d)
   notes           TEXT,
   exported_at     TIMESTAMPTZ,
   created_at      TIMESTAMPTZ DEFAULT now()
@@ -462,6 +463,7 @@ CREATE TABLE planned_rentals (
   equipment_id    UUID REFERENCES equipment(id) ON DELETE SET NULL,
   participant_id  UUID REFERENCES booking_participants(id) ON DELETE SET NULL,
   booking_id      UUID REFERENCES bookings(id) ON DELETE SET NULL,
+  client_id       UUID REFERENCES clients(id) ON DELETE SET NULL,  -- walk-in (2026-10-10d)
   notes           TEXT,
   exported_at     TIMESTAMPTZ,
   created_at      TIMESTAMPTZ DEFAULT now()

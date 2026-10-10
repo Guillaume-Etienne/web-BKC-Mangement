@@ -1104,9 +1104,11 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             bookingParticipants={bookingParticipants}
             priceItems={priceItems}
             priceTiers={priceTiers}
-            // Forecast keeps its own plan; these two are only used by "Export to Daily".
+            clients={clients}
+            // Forecast keeps its own plan; these are only used by "Export to Daily".
             onAddLesson={onAddLesson}
             onAddRental={onAddRental}
+            onAddWalkIn={onAddWalkIn}
           />
         )}
 
