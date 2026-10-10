@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import type { Lesson, LessonType, EquipmentRental, RentalSlot, Instructor, Client, Equipment, Booking, Agency, AgencyBillingLine, Lang } from '../../types/database'
+import type { Lesson, LessonType, EquipmentRental, RentalSlot, Instructor, Client, Equipment, Booking, BookingParticipant, Agency, AgencyBillingLine, Lang } from '../../types/database'
 import { currentInstructorRate, reFreezeInstructorRate, agencyMarker } from '../accounting/utils'
 import { toISODate as dateToISO, addDays, localeTag } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -433,6 +433,7 @@ interface ForecastViewProps {
   bookings: Booking[]
   agencies: Agency[]
   agencyBillingLines: AgencyBillingLine[]
+  bookingParticipants: BookingParticipant[]
   onAddLesson: (l: Omit<Lesson, 'id'>) => void
   onUpdateLesson: (l: Lesson) => void
   onDeleteLesson: (id: string) => void
@@ -479,24 +480,26 @@ function initialsOf(first?: string | null, last?: string | null): string {
   return `${first?.charAt(0) ?? ''}${last?.charAt(0) ?? ''}`.toUpperCase()
 }
 
-function shortClientName(c: Client | undefined): string {
-  if (!c) return '—'
-  return `${c.first_name} ${c.last_name ? c.last_name.charAt(0) + '.' : ''}`.trim()
+// Lesson.participant_ids and EquipmentRental.participant_id both point to
+// BookingParticipant rows, not to Client rows (see the Lesson type).
+function shortClientName(p: BookingParticipant | undefined): string {
+  if (!p) return '—'
+  return `${p.first_name} ${p.last_name ? p.last_name.charAt(0) + '.' : ''}`.trim()
 }
 
 interface MobileDayAgendaProps {
   lessons: Lesson[]
   rentals: EquipmentRental[]
   instructors: Instructor[]
-  clients: Client[]
+  bookingParticipants: BookingParticipant[]
   equipment: Equipment[]
   lang: Lang
   onOpenLesson: (lesson: Lesson) => void
 }
 
-function MobileDayAgenda({ lessons, rentals, instructors, clients, equipment, lang, onOpenLesson }: MobileDayAgendaProps) {
+function MobileDayAgenda({ lessons, rentals, instructors, bookingParticipants, equipment, lang, onOpenLesson }: MobileDayAgendaProps) {
   const lessonRows = lessons.map(l => {
-    const names = l.participant_ids.map(id => clients.find(c => c.id === id))
+    const names = l.participant_ids.map(id => bookingParticipants.find(p => p.id === id))
     const shown = names.slice(0, 2).map(shortClientName).join(', ')
     const more = names.length > 2 ? ` +${names.length - 2}` : ''
     const instr = instructors.find(i => i.id === l.instructor_id)
@@ -514,7 +517,7 @@ function MobileDayAgenda({ lessons, rentals, instructors, clients, equipment, la
 
   const rentalRows = rentals.map(r => {
     const eq = equipment.find(e => e.id === r.equipment_id)
-    const client = clients.find(c => c.id === r.participant_id)
+    const client = bookingParticipants.find(p => p.id === r.participant_id)
     return {
       key: r.id,
       time: RENTAL_SLOT_START[r.slot],
@@ -571,7 +574,7 @@ function MobileDayAgenda({ lessons, rentals, instructors, clients, equipment, la
   )
 }
 
-export default function ForecastView({ lessons, instructors, clients, equipment, rentals, bookings, agencies, agencyBillingLines, onAddLesson, onUpdateLesson, onDeleteLesson, onAddRental, onDeleteRental }: ForecastViewProps) {
+export default function ForecastView({ lessons, instructors, clients, equipment, rentals, bookings, agencies, agencyBillingLines, bookingParticipants, onAddLesson, onUpdateLesson, onDeleteLesson, onAddRental, onDeleteRental }: ForecastViewProps) {
   const { lang } = useLanguage()
   const today = new Date()
 
@@ -731,7 +734,7 @@ export default function ForecastView({ lessons, instructors, clients, equipment,
           lessons={dayLessons}
           rentals={dayRentals}
           instructors={instructors}
-          clients={clients}
+          bookingParticipants={bookingParticipants}
           equipment={equipment}
           lang={lang}
           onOpenLesson={l => setEditModal(l)}

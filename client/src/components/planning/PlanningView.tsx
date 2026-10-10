@@ -1096,6 +1096,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             bookings={resolvedBookings}
             agencies={agencies}
             agencyBillingLines={agencyBillingLines}
+            bookingParticipants={bookingParticipants}
             onAddLesson={onAddLesson}
             onUpdateLesson={onUpdateLesson}
             onDeleteLesson={onDeleteLesson}
