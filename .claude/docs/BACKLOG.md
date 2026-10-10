@@ -6,6 +6,13 @@
 
 ## 🚨 Migrations SQL — registre
 
+⬜ **`2026-10-10a_instructor_link_type.sql` PUIS `2026-10-10b_instructor_share_policy.sql`** (TEST ⬜ / PROD ⬜) —
+page « Instructor Hours » (type de lien `instructor`). **Deux fichiers, dans cet ordre** (enum seul, puis
+policy `lessons`). Strictement additif. ⚠️ **Avant le push** : sans le (a) la création du lien échoue
+(enum) ; sans le (b) la page s'ouvre mais reste vide. Vérif : curl anon + `x-share-token` d'un lien
+instructor → seulement ses cours ; `select=instructor_rate` → 42501. Reste **ouvert, volontairement** :
+avances/paiements moniteur non exposés (gui, 2026-10-10 : « plus tard »).
+
 ⬜ **`2026-10-08c_partner_hotel_departure_transfer.sql`** (TEST ⬜ / PROD ⬜) — drop-off aéroport
 le jour du DÉPART : `departure_transfer boolean NOT NULL DEFAULT false` + `departure_transfer_time
 text` + GRANT anon des deux. Le transfert existant (`airport_transfer`/`transfer_time`) devient le

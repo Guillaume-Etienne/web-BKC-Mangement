@@ -48,6 +48,7 @@ const BookingFormPage           = lazy(() => import('./pages/BookingFormPage'))
 const EnquiryFormPage           = lazy(() => import('./pages/EnquiryFormPage'))
 const RestaurantSharePage       = lazy(() => import('./pages/RestaurantSharePage'))
 const PartnerHotelSharePage     = lazy(() => import('./pages/PartnerHotelSharePage'))
+const InstructorSharePage       = lazy(() => import('./pages/InstructorSharePage'))
 // Not lazy: ⌘K must answer instantly, and a chunk fetched on first keystroke
 // would make the palette feel broken on a bad connection.
 import GlobalSearch from './components/common/GlobalSearch'
@@ -255,6 +256,7 @@ function App() {
       sharedLink.type === 'enquiry_form'      ? <EnquiryFormPage /> :
       sharedLink.type === 'restaurant'        ? <RestaurantSharePage /> :
       sharedLink.type === 'partner_hotel'     ? <PartnerHotelSharePage hotelId={sharedLink.params?.hotel_id ?? ''} /> :
+      sharedLink.type === 'instructor'        ? <InstructorSharePage instructorId={sharedLink.params?.instructor_id ?? ''} /> :
       null
     // An unknown type falls through to the normal app, exactly as before.
     if (sharePage) return (

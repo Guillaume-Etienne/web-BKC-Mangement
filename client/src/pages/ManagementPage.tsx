@@ -95,6 +95,7 @@ const LINK_TYPE_LABELS: Record<SharedLinkType, { icon: string; label: string }> 
   restaurant:        { icon: '🍽️', label: 'Hotel Restaurant Planning' },
   enquiry_form:      { icon: '📣', label: 'Website Enquiry Form (iframe)' },
   partner_hotel:     { icon: '🏨', label: 'Partner Hotel (Maputo)' },
+  instructor:        { icon: '🏄', label: 'Instructor Hours' },
 }
 
 function generateToken(type: SharedLinkType) {
@@ -178,8 +179,8 @@ export default function ManagementPage() {
   const { data: taxiDriversData } = useTable<TaxiDriver>('taxi_drivers')
   const [sharedLinks, setSharedLinks] = useState<SharedLink[]>([])
   const [showLinkForm, setShowLinkForm] = useState(false)
-  const [linkFormData, setLinkFormData] = useState<{ label: string; type: SharedLinkType; expires_at: string; booking_number: string; driver_id: string }>({
-    label: '', type: 'forecast', expires_at: addDaysISO(todayISO(), 365), booking_number: '', driver_id: '',
+  const [linkFormData, setLinkFormData] = useState<{ label: string; type: SharedLinkType; expires_at: string; booking_number: string; driver_id: string; instructor_id: string }>({
+    label: '', type: 'forecast', expires_at: addDaysISO(todayISO(), 365), booking_number: '', driver_id: '', instructor_id: '',
   })
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [collapsedLinkTypes, setCollapsedLinkTypes] = useState<Set<string>>(new Set())
@@ -324,12 +325,17 @@ export default function ManagementPage() {
       params.booking_number = linkFormData.booking_number
     if (linkFormData.type === 'driver' && linkFormData.driver_id)
       params.driver_id = linkFormData.driver_id
+    if (linkFormData.type === 'instructor' && linkFormData.instructor_id)
+      params.instructor_id = linkFormData.instructor_id
 
-    // Default label: for a driver link, include the driver name so links are distinguishable.
+    // Default label: for a driver / instructor link, include the name so links are distinguishable.
     const driverName = taxiDriversData.find(d => d.id === linkFormData.driver_id)?.name
+    const instructor = instructorsData.find(i => i.id === linkFormData.instructor_id)
     const defaultLabel = linkFormData.type === 'driver' && driverName
       ? `Driver – ${driverName}`
-      : LINK_TYPE_LABELS[linkFormData.type].label
+      : linkFormData.type === 'instructor' && instructor
+        ? `Instructor – ${instructor.first_name} ${instructor.last_name}`.trim()
+        : LINK_TYPE_LABELS[linkFormData.type].label
 
     const { error } = await supabase.from('shared_links').insert([{
       token:      generateToken(linkFormData.type),
@@ -343,7 +349,7 @@ export default function ManagementPage() {
     if (error) { alert('Error: ' + error.message); return }
     refreshSharedLinks()
     setShowLinkForm(false)
-    setLinkFormData({ label: '', type: 'forecast', expires_at: addDaysISO(todayISO(), 365), booking_number: '', driver_id: '' })
+    setLinkFormData({ label: '', type: 'forecast', expires_at: addDaysISO(todayISO(), 365), booking_number: '', driver_id: '', instructor_id: '' })
   }
 
   const toggleLinkActive = async (id: string) => {
@@ -928,6 +934,18 @@ export default function ManagementPage() {
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900">
                       <option value="">— Select a driver —</option>
                       {taxiDriversData.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                )}
+                {linkFormData.type === 'instructor' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instructor *</label>
+                    <select value={linkFormData.instructor_id}
+                      onChange={e => setLinkFormData(d => ({ ...d, instructor_id: e.target.value }))}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900">
+                      <option value="">— Select an instructor —</option>
+                      {instructorsData.map(i => <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>)}
                     </select>
                   </div>
                 )}

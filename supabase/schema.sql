@@ -15,7 +15,7 @@ CREATE TYPE day_slot                        AS ENUM ('morning', 'afternoon', 'ev
 CREATE TYPE price_category                  AS ENUM ('lesson', 'activity', 'rental', 'meal', 'center_access');
 CREATE TYPE taxi_trip_type                  AS ENUM ('aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other');
 CREATE TYPE taxi_trip_status                AS ENUM ('confirmed', 'needs_details', 'done');
-CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form', 'restaurant', 'enquiry_form', 'partner_hotel');
+CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form', 'restaurant', 'enquiry_form', 'partner_hotel', 'instructor');
 CREATE TYPE equipment_category              AS ENUM ('kite', 'board', 'surfboard', 'foilboard');
 -- Tout ce que l'app facture automatiquement : une valeur = un tarif (index unique sur
 -- price_items). Brancher un nouveau poste = ajouter une valeur, pas une colonne.
@@ -1132,10 +1132,12 @@ CREATE POLICY "anon_read_payments" ON payments
 CREATE POLICY "anon_read_ext_accom_bookings" ON external_accommodation_bookings
   FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());
 
--- Cours & matériel : client → son booking ; forecast → tout (raison d'être de la page).
+-- Cours & matériel : client → son booking ; forecast → tout (raison d'être de la page) ;
+-- instructor → uniquement SES cours (page « mes heures », 2026-10-10).
 CREATE POLICY "anon_read_lessons" ON lessons FOR SELECT TO anon USING (
   share_type() = 'forecast'
   OR (share_type() = 'client' AND booking_id = share_booking_id())
+  OR (share_type() = 'instructor' AND instructor_id = share_param('instructor_id')::uuid)
 );
 CREATE POLICY "anon_read_equipment_rentals" ON equipment_rentals FOR SELECT TO anon USING (
   share_type() = 'forecast'
