@@ -52,6 +52,7 @@ const InstructorSharePage       = lazy(() => import('./pages/InstructorSharePage
 // Not lazy: ⌘K must answer instantly, and a chunk fetched on first keystroke
 // would make the palette feel broken on a bad connection.
 import GlobalSearch from './components/common/GlobalSearch'
+import SharedFooter from './components/common/SharedFooter'
 import type { SharedLink } from './types/database'
 
 /** Shown while a page's chunk is on its way. Same look as the session check,
@@ -259,9 +260,17 @@ function App() {
       sharedLink.type === 'instructor'        ? <InstructorSharePage instructorId={sharedLink.params?.instructor_id ?? ''} /> :
       null
     // An unknown type falls through to the normal app, exactly as before.
+    // The credit footer goes under every share page except the enquiry form: that
+    // one is an iframe inside the centre's own website, where a third-party
+    // credit would sit in the middle of someone else's page.
+    // `[&>div]:min-h-…` shrinks the page's own `min-h-screen` by the footer's 3rem
+    // so the footer is on screen without scrolling when the page is short.
     if (sharePage) return (
       <RecoveryBoundary>
-        <Suspense fallback={<PageLoading />}>{sharePage}</Suspense>
+        <div className="[&>div]:min-h-[calc(100vh-3rem)]">
+          <Suspense fallback={<PageLoading />}>{sharePage}</Suspense>
+        </div>
+        {sharedLink.type !== 'enquiry_form' && <SharedFooter />}
       </RecoveryBoundary>
     )
   }
