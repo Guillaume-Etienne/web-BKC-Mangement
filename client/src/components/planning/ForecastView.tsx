@@ -909,6 +909,7 @@ export default function ForecastView({
                           <div className="text-sm text-gray-700 dark:text-gray-300 truncate">
                             {names.length ? names.slice(0, 2).map(shortName).join(', ') + (names.length > 2 ? ` +${names.length - 2}` : '') : '—'}
                           </div>
+                          {l.notes && <div className="text-xs italic text-amber-800 dark:text-amber-400 truncate">{l.notes}</div>}
                         </div>
                       </button>
                     </li>
@@ -1015,6 +1016,7 @@ export default function ForecastView({
                               </span>
                               {done && <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400">✓</span>}
                               {offSite(lesson.participant_ids) && <span className="text-[10px]" title="A guest is not on site that day">⚠️</span>}
+                              {height < SLOT_H * 2 && lesson.notes && <span className="text-[10px] italic opacity-80 truncate pr-5" title={lesson.notes}>{lesson.notes}</span>}
                             </div>
                             {height >= SLOT_H * 2 && (
                               <div className="text-xs font-semibold truncate">
@@ -1022,7 +1024,7 @@ export default function ForecastView({
                                 {names.length > 1 && <span className="ml-1 font-normal opacity-70">+{names.length - 1}</span>}
                               </div>
                             )}
-                            {height >= SLOT_H * 3 && lesson.notes && <div className="text-[10px] opacity-60 truncate">{lesson.notes}</div>}
+                            {height >= SLOT_H * 2 && lesson.notes && <div className="text-[10px] italic opacity-80 leading-tight line-clamp-2" title={lesson.notes}>{lesson.notes}</div>}
                             {!done && (
                               <>
                                 <button type="button" title="Export to Daily"

@@ -233,8 +233,8 @@ export default function ForecastSharePage() {
                                 {lessonClients.length > 1 && <span className="ml-1 font-normal opacity-70">+{lessonClients.length - 1}</span>}
                               </div>
                             )}
-                            {height >= SLOT_H * 3 && lesson.notes && (
-                              <div className="text-[10px] opacity-60 truncate">{lesson.notes}</div>
+                            {height >= SLOT_H * 2 && lesson.notes && (
+                              <div className="text-[10px] italic opacity-80 leading-tight line-clamp-2">{lesson.notes}</div>
                             )}
                           </div>
                         )
