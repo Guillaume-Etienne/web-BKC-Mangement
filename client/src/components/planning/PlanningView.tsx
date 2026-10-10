@@ -698,7 +698,9 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   }, [])
 
   // ── Lesson / Activity / Rental mutations ─────────────────────────
-  const onAddLesson = useCallback(async (lesson: Omit<Lesson, 'id'>) => {
+  // Resolves true once the row is saved. The Forecast's "Export to Daily" stamps its
+  // plan row only on true — a failed insert must leave the plan exportable.
+  const onAddLesson = useCallback(async (lesson: Omit<Lesson, 'id'>): Promise<boolean> => {
     const id = crypto.randomUUID()
     const l = { ...lesson, id }
     setLessons(prev => [...prev, l])
@@ -709,7 +711,9 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       console.error('Lesson save error:', error.message)
       setLessons(prev => prev.filter(x => x.id !== id))
       alert('Error saving lesson: ' + error.message)
+      return false
     }
+    return true
   }, [])
 
   const onUpdateLesson = useCallback(async (lesson: Lesson) => {
@@ -777,7 +781,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     }
   }, [])
 
-  const onAddRental = useCallback(async (rental: Omit<EquipmentRental, 'id'>) => {
+  const onAddRental = useCallback(async (rental: Omit<EquipmentRental, 'id'>): Promise<boolean> => {
     const id = crypto.randomUUID()
     const r = { ...rental, id }
     setRentals(prev => [...prev, r])
@@ -786,7 +790,9 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       console.error('Rental save error:', error.message)
       setRentals(prev => prev.filter(x => x.id !== id))
       alert('Error saving rental: ' + error.message)
+      return false
     }
+    return true
   }, [])
 
   const onUpdateRental = useCallback(async (rental: EquipmentRental) => {
@@ -1089,19 +1095,18 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
         {planningTab === 'forecast' && (
           <ForecastView
             lessons={lessons}
-            instructors={instructors}
-            clients={clients}
-            equipment={equipment}
             rentals={rentals}
+            instructors={instructors}
+            equipment={equipment}
             bookings={resolvedBookings}
             agencies={agencies}
             agencyBillingLines={agencyBillingLines}
             bookingParticipants={bookingParticipants}
+            priceItems={priceItems}
+            priceTiers={priceTiers}
+            // Forecast keeps its own plan; these two are only used by "Export to Daily".
             onAddLesson={onAddLesson}
-            onUpdateLesson={onUpdateLesson}
-            onDeleteLesson={onDeleteLesson}
             onAddRental={onAddRental}
-            onDeleteRental={onDeleteRental}
           />
         )}
 

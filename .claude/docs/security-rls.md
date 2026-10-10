@@ -55,6 +55,9 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 - `shared_links` : **aucune lecture anon directe** (depuis Lot A 2026-07-02) — résolution via la RPC `resolve_share_token(token)` (SECURITY DEFINER, token exact + actif + non expiré requis) → plus d'énumération possible des tokens.
 - `get_db_stats()` : EXECUTE révoqué pour PUBLIC/anon (Lot A 2026-07-02), admin only.
 - `form_submissions` : `anon` peut **INSÉRER** uniquement en `status = 'pending'`, et **ne peut rien lire** (les soumissions ne fuient pas).
+- `planned_lessons` / `planned_rentals` (2026-10-10c) : le plan du Forecast, lisibles par le token `forecast`
+  seul, colonnes limitées (aucun `booking_id`, aucun `exported_at`). `booking_participants` s'ouvre aussi au
+  token `forecast` (anon ne reçoit que id, booking_id, first_name, last_name) pour résoudre les noms.
 - `lessons` : token `instructor` → uniquement les cours de `params.instructor_id` (2026-10-10b). Les colonnes de paie restent révoquées : la page moniteur ne compte que des heures.
 - Tables **non exposées** (donc privées) : `expenses`, `expense_categories` (REVOKE anon explicite, 2026-09-19), `instructor_debts/payments`, `palmeiras_*`, `email_logs`, `seasons`, `house_rentals`, `price_items`, `day_activities`, `taxi_pricing_defaults`, `document_templates` (REVOKE anon explicite), `lesson_rate_overrides` (depuis 2026-07-29), `form_submissions` (lecture).
 - `room_rates` : **exception depuis le 2026-07-30** (C3). Un token `client` lit `room_id` +

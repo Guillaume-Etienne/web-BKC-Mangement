@@ -436,6 +436,38 @@ CREATE TABLE equipment_rentals (
 CREATE INDEX idx_rentals_date    ON equipment_rentals(date);
 CREATE INDEX idx_rentals_booking ON equipment_rentals(booking_id);
 
+-- Plan du Forecast (2026-10-10c) : le brouillon d'organisation, SÉPARÉ de la compta.
+-- `lessons` / `equipment_rentals` restent la vérité de ce qui a eu lieu ; rien ici n'est
+-- compté. `exported_at` non NULL = copié dans Daily (prix et paie gelés à ce moment-là).
+CREATE TABLE planned_lessons (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date            DATE NOT NULL,
+  start_time      TEXT NOT NULL,
+  duration_hours  NUMERIC(4,2) NOT NULL DEFAULT 1,
+  type            lesson_type NOT NULL,
+  instructor_id   UUID NOT NULL REFERENCES instructors(id) ON DELETE CASCADE,
+  participant_ids UUID[] NOT NULL DEFAULT '{}',  -- booking_participants.id[]
+  booking_id      UUID REFERENCES bookings(id) ON DELETE SET NULL,
+  notes           TEXT,
+  exported_at     TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX idx_planned_lessons_date ON planned_lessons(date);
+
+CREATE TABLE planned_rentals (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date            DATE NOT NULL,
+  slot            rental_slot NOT NULL,
+  rental_type     TEXT NOT NULL,            -- kite | board | full | surfboard | foilboard | free
+  equipment_id    UUID REFERENCES equipment(id) ON DELETE SET NULL,
+  participant_id  UUID REFERENCES booking_participants(id) ON DELETE SET NULL,
+  booking_id      UUID REFERENCES bookings(id) ON DELETE SET NULL,
+  notes           TEXT,
+  exported_at     TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX idx_planned_rentals_date ON planned_rentals(date);
+
 -- A lesson never bills gear separately, so the "value" a kite/board brings to a
 -- lesson is estimated from the lesson's real margin (client price − instructor
 -- pay). These three knobs tune that estimate — see EquipmentPage's revenue tab.
@@ -1010,7 +1042,8 @@ BEGIN
     'email_logs', 'document_templates',
     'enquiry_sources', 'enquiries', 'enquiry_notes', 'client_notes',
     'agencies', 'agency_rate_items', 'agency_billing_lines', 'agency_invoices',
-    'price_tiers'
+    'price_tiers',
+    'planned_lessons', 'planned_rentals'
   ]) LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format(
@@ -1121,8 +1154,13 @@ CREATE POLICY "anon_read_clients" ON clients FOR SELECT TO anon USING (
   share_type() IN ('forecast', 'taxi', 'driver', 'taxi_manager', 'restaurant')
   OR (share_type() = 'client' AND id = share_client_id())
 );
+-- forecast : la page publique résout les noms des participants (id, booking_id,
+-- first_name, last_name seulement — cf. GRANT colonne plus bas).
 CREATE POLICY "anon_read_booking_participants" ON booking_participants
-  FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());
+  FOR SELECT TO anon USING (
+    (share_type() = 'client' AND booking_id = share_booking_id())
+    OR share_type() = 'forecast'
+  );
 CREATE POLICY "anon_read_booking_rooms" ON booking_rooms
   FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());
 CREATE POLICY "anon_read_booking_room_prices" ON booking_room_prices
@@ -1143,6 +1181,16 @@ CREATE POLICY "anon_read_equipment_rentals" ON equipment_rentals FOR SELECT TO a
   share_type() = 'forecast'
   OR (share_type() = 'client' AND booking_id = share_booking_id())
 );
+-- Plan du Forecast (2026-10-10c) : seul le token `forecast` le lit, colonnes limitées.
+REVOKE ALL ON planned_lessons, planned_rentals FROM anon;
+GRANT SELECT (id, date, start_time, duration_hours, type, instructor_id, participant_ids, notes)
+  ON planned_lessons TO anon;
+GRANT SELECT (id, date, slot, rental_type, equipment_id, participant_id, notes)
+  ON planned_rentals TO anon;
+CREATE POLICY "anon_read_planned_lessons" ON planned_lessons
+  FOR SELECT TO anon USING (share_type() = 'forecast');
+CREATE POLICY "anon_read_planned_rentals" ON planned_rentals
+  FOR SELECT TO anon USING (share_type() = 'forecast');
 -- (lesson_rate_overrides : plus AUCUNE policy anon depuis le 2026-07-29 — c'est de la
 --  paie moniteur. La page client lit lessons.price_per_hour, pas les overrides.)
 -- Repas : uniquement ceux où participe un participant du booking (match JSONB attendees).

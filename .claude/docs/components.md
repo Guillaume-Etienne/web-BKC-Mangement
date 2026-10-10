@@ -93,10 +93,18 @@ en croyant agir sur le planning. À supprimer un jour, décision de gui.
 - ⚠️ Formulaires au **scope module**
 
 ### `ForecastView` — `planning/ForecastView.tsx`
-*(Props : données des hooks + callbacks mutations)*
-- Grille horaire instructeurs (même layout que ForecastSharePage mais éditable)
-- Sélecteur de date, colonnes instructeurs, blocs de leçons (couleur par type)
-- Modal add/edit leçon
+*(Props : lessons/rentals Daily en lecture, + `onAddLesson`/`onAddRental` qui ne servent qu'à l'export)*
+- **= le PLAN (bac à sable d'organisation), pas la compta.** Lit/écrit `planned_lessons` /
+  `planned_rentals` (migration 2026-10-10c) ; `lessons` / `equipment_rentals` (Daily) = la vérité de ce
+  qui a eu lieu. Rien dans la compta, la paie ou la page Instructor Hours ne lit le plan.
+- Grille horaire par moniteur, glisser/redimensionner, clic = ajouter ; modale avec pastilles de
+  voyageurs groupées par résa (présents ce jour-là, « Show all guests » pour sortir de la liste) ;
+  `booking_id` déduit du 1er participant (jamais de `''`, jamais de Client.id).
+- Locations prévues (panneau de droite), copier-coller d'un jour (plan ou « From Daily »).
+- Interrupteur **Show Daily** : cours/locs réels en voie de droite, non éditables (localStorage).
+- **Export → Daily** (carte, modale, ou « Export day ») : crée la vraie ligne via `onAddLesson` /
+  `onAddRental`, prix client (`resolveLessonRate`) et paie moniteur gelés à cet instant, détecte les
+  doublons, n'estampille `exported_at` que si l'insert a réussi. Une carte exportée n'est plus éditable.
 
 ---
 

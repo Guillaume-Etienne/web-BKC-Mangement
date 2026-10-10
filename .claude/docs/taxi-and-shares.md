@@ -8,7 +8,7 @@
 
 | type | Page (`App.tsx` dispatch) | `params` | Label UI (`LINK_TYPE_LABELS`) |
 |------|---------------------------|----------|-------------------------------|
-| `forecast` | `ForecastSharePage` | — | Forecast Lesson/Rent |
+| `forecast` | `ForecastSharePage` | — | Forecast Lesson/Rent — montre le **plan** (`planned_lessons`/`planned_rentals`, migration 2026-10-10c), plus Daily |
 | `taxi` | `TaxiSharePage` | — | **Public Taxi Schedule** |
 | `client` | `ClientSharePage` | `booking_number` | Client Account |
 | `driver` | `DriverSharePage` | `driver_id` | **Taxi Driver Schedule** |

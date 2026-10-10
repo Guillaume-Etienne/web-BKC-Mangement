@@ -35,8 +35,9 @@
 
 ### `ForecastSharePage`
 - **Accès :** `?share=<forecast_token>`
-- **But :** Planning instructeurs + locations en lecture seule pour une date donnée
-- **Hooks :** `useTable` pour lessons, rentals, instructors, clients, equipment
+- **But :** le PLAN (onglet Forecast) des instructeurs + locations, en lecture seule, pour une date
+- **Hooks :** `useTable` pour `planned_lessons`, `planned_rentals`, instructors, booking_participants
+  (noms : les ids de participants ne sont PAS des Client.id), equipment. Pas de prix : le plan n'en a pas.
 - **State :** `selectedDate` (défaut : demain), `mobileInstrIdx`
 - **Layout :** Grille horaire 8:00–19:00 (30 min/slot, 36px), colonnes instructeurs, panel locations
 

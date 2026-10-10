@@ -6,6 +6,13 @@
 
 ## 🚨 Migrations SQL — registre
 
+⬜ **`2026-10-10c_forecast_plan.sql`** (TEST ⬜ / PROD ⬜) — le Forecast devient un PLAN séparé de Daily :
+tables `planned_lessons` + `planned_rentals` (admin_all, anon = GRANT colonne + token `forecast`), et
+`anon_read_booking_participants` élargie au token `forecast`. **Un seul fichier** (pas d'enum).
+Strictement additif. ⚠️ **Avant le push** : sans elle l'onglet Forecast affiche une erreur de lecture et
+ne peut rien enregistrer ; la page publique Forecast reste vide. Vérif curl anon : `planned_lessons?select=id`
+sans token → `[]` 200 ; `select=booking_id` → 42501 ; avec un token `forecast` → les lignes du plan.
+
 ⬜ **`2026-10-10a_instructor_link_type.sql` PUIS `2026-10-10b_instructor_share_policy.sql`** (TEST ⬜ / PROD ⬜) —
 page « Instructor Hours » (type de lien `instructor`). **Deux fichiers, dans cet ordre** (enum seul, puis
 policy `lessons`). Strictement additif. ⚠️ **Avant le push** : sans le (a) la création du lien échoue

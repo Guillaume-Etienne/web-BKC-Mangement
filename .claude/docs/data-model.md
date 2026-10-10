@@ -664,6 +664,17 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 | rate | number (EUR/h) |
 | note | string (requis) |
 
+### `planned_lessons` → `PlannedLesson` / `planned_rentals` → `PlannedRental` (**depuis 2026-10-10c**)
+> Le PLAN du Forecast — séparé de la compta. `lessons` / `equipment_rentals` restent la vérité de ce qui a
+> eu lieu ; **rien n'est compté ici** et aucun prix ni taux de paie n'y vit (gelés à l'export).
+> `exported_at` non NULL = déjà copié dans Daily. `participant_ids` / `participant_id` = `BookingParticipant.id`.
+> `booking_id` déduit du 1er participant, nullable (un plan peut être posé avant de savoir pour qui).
+| Field | `planned_lessons` | `planned_rentals` |
+|---|---|---|
+| id, date, notes, exported_at | ✔ | ✔ |
+| start_time, duration_hours, type, instructor_id, participant_ids[] | ✔ | — |
+| slot, rental_type, equipment_id (optionnel), participant_id | — | ✔ |
+
 ### `expense_categories` → `ExpenseCategory` (**depuis 2026-09-19**)
 | Field | Type | Notes |
 |-------|------|-------|

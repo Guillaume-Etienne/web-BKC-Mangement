@@ -706,6 +706,35 @@ export interface EquipmentRental {
   agency_billing_line_id?: string | null  // 2026-08-16, foundations only — see AgencyBillingLine
 }
 
+// Forecast PLAN (2026-10-10c) — the organising sandbox, NOT accounting. Nothing in
+// accounting, payroll or the share pages that count hours reads these two tables;
+// "Export to Daily" copies a row into `lessons` / `equipment_rentals` and stamps
+// `exported_at`. No price and no pay rate lives here: both are frozen at export.
+export interface PlannedLesson {
+  id: string
+  date: string
+  start_time: string
+  duration_hours: number
+  type: LessonType
+  instructor_id: string
+  participant_ids: string[]      // BookingParticipant.id[] — never Client.id
+  booking_id: string | null      // derived from the first participant
+  notes: string | null
+  exported_at: string | null
+}
+
+export interface PlannedRental {
+  id: string
+  date: string
+  slot: RentalSlot
+  rental_type: RentalType | 'free'
+  equipment_id: string | null    // optional: null = "any available"
+  participant_id: string | null  // BookingParticipant.id
+  booking_id: string | null
+  notes: string | null
+  exported_at: string | null
+}
+
 /** Tuning knobs for the Equipment page's "CA" tab — how much of a lesson's
  *  margin is estimated as the kite/board's contribution. Single row. */
 export interface EquipmentPricingDefaults {

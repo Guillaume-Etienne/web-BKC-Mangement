@@ -1,21 +1,23 @@
 import { useState } from 'react'
-import type { Lesson, LessonType, EquipmentRental, Instructor, Client, Equipment } from '../types/database'
+import type { PlannedLesson, PlannedRental, LessonType, Instructor, BookingParticipant, Equipment } from '../types/database'
 import { useTable } from '../hooks/useSupabase'
 import { toISODate as dateToISO, addDays } from '../utils/dates'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-// The shapes anon is actually served (column-level GRANT — see security-rls.md).
-// Typing them narrow keeps the compiler on the side of the GRANT: reaching for
-// the client price or the instructor payout no longer compiles here.
-type ForecastLesson = Pick<Lesson,
-  'id' | 'booking_id' | 'instructor_id' | 'participant_ids' | 'date' | 'start_time' |
+// This page shows the PLAN (Planning › Forecast), not what was counted in Daily:
+// the plan tables hold no price and no pay at all, so there is nothing to redact.
+// The shapes are the column-level GRANT anon is served (see security-rls.md) —
+// typing them narrow keeps the compiler on the side of the GRANT.
+type ForecastLesson = Pick<PlannedLesson,
+  'id' | 'instructor_id' | 'participant_ids' | 'date' | 'start_time' |
   'duration_hours' | 'type' | 'notes'>
 
-// `price` is the redacted mirror: null when the rental is billed to an agency.
-type ForecastRental = Pick<EquipmentRental,
-  'id' | 'equipment_id' | 'booking_id' | 'participant_id' | 'date' | 'slot'>
-  & { price: number | null }
+type ForecastRental = Pick<PlannedRental,
+  'id' | 'equipment_id' | 'participant_id' | 'date' | 'slot' | 'rental_type' | 'notes'>
+
+// Anon gets identity only from booking_participants (id, first/last name).
+type ForecastGuest = Pick<BookingParticipant, 'id' | 'first_name' | 'last_name'>
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -64,26 +66,24 @@ export default function ForecastSharePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(() => addDays(today, 1))
   const [mobileInstrIdx, setMobileInstrIdx] = useState(0)
 
-  // Column-restricted for anon since 2026-08-18c, same trap as the instructors
-  // below: `*` returns 42501 and empties the page. This view shows who teaches
-  // what and when, so it never asks for the lesson's client price at all — and
-  // `lessons.instructor_rate` (payroll) is now revoked, not merely unused.
-  const { data: lessons } = useTable<ForecastLesson>('lessons', {
-    select: 'id, booking_id, instructor_id, participant_ids, date, start_time, duration_hours, type, notes',
+  // Column-restricted for anon: `*` returns 42501 and empties the page. These
+  // two tables are the Forecast plan (2026-10-10c) — a token of type `forecast`
+  // is the only one that can read them.
+  const { data: lessons } = useTable<ForecastLesson>('planned_lessons', {
+    select: 'id, instructor_id, participant_ids, date, start_time, duration_hours, type, notes',
     order: 'date',
   })
-  // Rentals DO show a price here (they always have), so this one reads the
-  // redacted mirror: a rental billed to a partner agency arrives as null.
-  const { data: rentals } = useTable<ForecastRental>('equipment_rentals', {
-    select: 'id, equipment_id, booking_id, participant_id, date, slot, price:share_price',
+  const { data: rentals } = useTable<ForecastRental>('planned_rentals', {
+    select: 'id, equipment_id, participant_id, date, slot, rental_type, notes',
     order: 'date',
   })
   // Column-restricted for anon: identity ONLY. rate_* is instructor payroll and is
   // revoked from anon (2026-07-29_lesson_pricing.sql) — asking for it returns 42501
   // and empties the whole page. This view never needed them.
   const { data: instructors } = useTable<Instructor>('instructors', { select: 'id, first_name, last_name', order: 'last_name' })
-  // Anon only gets identity columns from clients (no email/phone/passport/etc — see security-rls.md)
-  const { data: clients } = useTable<Client>('clients', { select: 'id, first_name, last_name', order: 'last_name' })
+  // Lesson / rental participant ids are BookingParticipant ids, not Client ids —
+  // looking them up in `clients` is what used to leave every name blank here.
+  const { data: guests } = useTable<ForecastGuest>('booking_participants', { select: 'id, first_name, last_name' })
   const { data: equipment } = useTable<Equipment>('equipment', { order: 'name' })
 
   const iso = dateToISO(selectedDate)
@@ -101,7 +101,7 @@ export default function ForecastSharePage() {
         <div className="flex items-center gap-3">
           <span className="text-xl font-bold text-blue-600 dark:text-blue-400">🏄 Kitesurf Center</span>
           <span className="text-xs px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full font-medium">
-            📋 Forecast — Read-only
+            📋 Forecast
           </span>
         </div>
       </div>
@@ -212,7 +212,7 @@ export default function ForecastSharePage() {
                         const top = slot * SLOT_H
                         const height = dur * SLOT_H
                         const cfg = LESSON_CFG[lesson.type]
-                        const lessonClients = lesson.participant_ids.map(id => clients.find(c => c.id === id)).filter(Boolean)
+                        const lessonClients = lesson.participant_ids.map(id => guests.find(c => c.id === id)).filter(Boolean)
                         const firstClient = lessonClients[0]
 
                         return (
@@ -258,19 +258,16 @@ export default function ForecastSharePage() {
                   <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{slotLabel}</div>
                   <div className="space-y-1">
                     {items.map(r => {
-                      const client = clients.find(c => c.id === r.participant_id)
+                      const client = guests.find(c => c.id === r.participant_id)
                       const equip = equipment.find(e => e.id === r.equipment_id)
-                      const rt = RENTAL_TYPE_LABELS[equip?.category ?? r.equipment_id ?? ''] ?? RENTAL_TYPE_LABELS.free
+                      const rt = RENTAL_TYPE_LABELS[r.rental_type] ?? RENTAL_TYPE_LABELS.free
                       return (
                         <div key={r.id} className="flex items-start justify-between bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded px-2 py-1.5 text-xs">
                           <div>
                             <div className="font-semibold text-amber-900 dark:text-amber-400">{rt.icon} {rt.label}</div>
                             <div className="text-amber-700 dark:text-amber-400 truncate">{client?.first_name} {client?.last_name}</div>
-                            {/* null = billed to a partner agency, so there is no
-                                price to show here — "€" alone would read as a bug. */}
-                            <div className="text-amber-600 dark:text-amber-400 font-medium">
-                              {r.price != null ? `€${r.price}` : '—'}
-                            </div>
+                            {equip && <div className="text-[10px] text-amber-700/80 dark:text-amber-400/80 truncate">{equip.name}</div>}
+                            {r.notes && <div className="text-[10px] italic text-amber-800 dark:text-amber-400 truncate">{r.notes}</div>}
                           </div>
                         </div>
                       )
