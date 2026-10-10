@@ -340,9 +340,6 @@ export default function PartnerHotelSharePage({ hotelId }: Props) {
           </aside>
         </div>
 
-        <p className="text-center text-xs text-gray-300 dark:text-gray-500">
-          Read-only page · Updated {new Date().toLocaleDateString('en-GB')}
-        </p>
       </div>
     </div>
   )

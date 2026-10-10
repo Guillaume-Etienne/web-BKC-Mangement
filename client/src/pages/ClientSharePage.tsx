@@ -828,7 +828,6 @@ export default function ClientSharePage({ bookingNumber }: Props) {
           </div>
         </section>
 
-        <p className="text-center text-xs text-gray-300 dark:text-gray-500 pb-4">Read-only view · Kitesurf Center Management</p>
       </div>
     </div>
   )
