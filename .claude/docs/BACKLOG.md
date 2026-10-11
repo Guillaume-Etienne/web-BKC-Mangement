@@ -260,9 +260,14 @@ décisions : `.claude/docs/ENQUIRIES.md` § 4.
 foil** — écart réel, jamais tranché, à clarifier avec elle. `utils/intentGap.ts` ne le montre que
 dans le wizard, donc il est passé inaperçu à la création.
 
-### 🔓 EN PAUSE (gui, 2026-09-07) — le dépôt GitHub est PUBLIC avec des données clients
+### 🔓 TRANCHÉ (gui, 2026-10-11) — le dépôt GitHub est PUBLIC avec des données clients
 
-**Rien n'est résolu. Mis de côté par gui pour y revenir plus tard, pas clos.**
+**Décision gui 2026-10-11 : l'ancien historique reste tel quel (ni réécriture ni passage en privé),
+« tant qu'on ne propulse pas de nouveau ».** Contrôlé ce jour : `temp/` est ignoré, plus aucun
+csv / xlsx / pdf suivi, aucun `.env` suivi. L'historique contient, outre le CSV ci-dessous :
+`test-import.csv` (mêmes colonnes), le formulaire FR, une facture agence `.xlsx`, `Boris.pdf`,
+`signature.png`. Règle pour la suite : aucun fichier de données réelles dans le dépôt, et dans les
+docs une résa se désigne par son numéro. Le reste de cette section = historique du sujet.
 
 `Guillaume-Etienne/web-BKC-Mangement` est public. `temp/` a été committé pendant des mois ;
 le `.gitignore` posé le 2026-09-05 (`d3d8ff8`) empêche la suite mais **ne retire rien de
