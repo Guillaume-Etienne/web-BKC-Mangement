@@ -11,34 +11,34 @@
 participants de SES cours). Un fichier, additif. Sans elle : la page marche, sans les noms. Vérif curl anon
 avec un token instructor : `booking_participants?select=id,first_name,last_name` → ses élèves ; sans token → `[]`.
 
-⬜ **`2026-10-10g_forecast_walkin_names.sql`** (TEST ⬜ / PROD ⬜) — le Forecast public affiche le NOM d'un walk-in du plan :
+⬜ **`2026-10-10g_forecast_walkin_names.sql`** (TEST ⬜ / PROD ⬜ — **contrôlé en base le 2026-10-11 : PAS passée, ni TEST ni PROD**, `client_id` absent des GRANT anon) — le Forecast public affiche le NOM d'un walk-in du plan :
 `GRANT SELECT (client_id)` anon sur `planned_lessons` + `planned_rentals`. Un fichier, additif, pas d'enum. Aucune fuite nouvelle
 (un token forecast lit déjà les noms). **Sans elle rien ne casse** : la colonne est lue par une requête à part, erreurs
 avalées — le nom n'apparaît simplement pas. Vérif curl (token forecast) : `select=id,client_id` → lignes ;
 `select=booking_id` → 42501.
 
-⬜ **`2026-10-10c_forecast_plan.sql`** (passée par gui TEST+PROD le 2026-10-10 ; vérif écran TEST ✅ ; curl lignes ✅ TEST, **colonnes fermées à refaire sur PROD** — TEST est plus ouvert) — le Forecast devient un PLAN séparé de Daily :
+✅ **`2026-10-10c_forecast_plan.sql`** (✅ **CLOS 2026-10-11** — présente dans TEST **et** PROD, contrôlé en base : enum, colonnes, fonction, texte des policies identiques ; colonnes fermées ✅ PROD au curl ; lignes ✅ TEST au curl + écran) — le Forecast devient un PLAN séparé de Daily :
 tables `planned_lessons` + `planned_rentals` (admin_all, anon = GRANT colonne + token `forecast`), et
 `anon_read_booking_participants` élargie au token `forecast`. **Un seul fichier** (pas d'enum).
 Strictement additif. ⚠️ **Avant le push** : sans elle l'onglet Forecast affiche une erreur de lecture et
 ne peut rien enregistrer ; la page publique Forecast reste vide. Vérif curl anon : `planned_lessons?select=id`
 sans token → `[]` 200 ; `select=booking_id` → 42501 ; avec un token `forecast` → les lignes du plan.
 
-⬜ **`2026-10-10e_walkin_link_type.sql` (enum, SEUL) PUIS `2026-10-10f_walkin_share_policy.sql`** (passée par gui TEST+PROD le 2026-10-10 ; vérif écran TEST ✅ ; curl lignes ✅ TEST, **colonnes fermées à refaire sur PROD** — TEST est plus ouvert) —
+✅ **`2026-10-10e_walkin_link_type.sql` (enum, SEUL) PUIS `2026-10-10f_walkin_share_policy.sql`** (✅ **CLOS 2026-10-11** — présente dans TEST **et** PROD, contrôlé en base : enum, colonnes, fonction, texte des policies identiques ; colonnes fermées ✅ PROD au curl ; lignes ✅ TEST au curl + écran) —
 lien public d'un walk-in (`type='walkin'`, param `client_id`) : fonction `share_walkin_booking_ids()` +
 policies anon (bookings/clients/lessons/equipment_rentals/payments) limitées à SES venues day-visitor.
 ⚠️ **Avant le push** : sans 10e l'insert du lien échoue (enum) ; sans 10f la page s'ouvre vide. Vérif curl
 anon (header `x-share-token` d'un lien walkin du client A) : `bookings?select=id,kind` → ses venues seules ;
 `bookings?client_id=eq.<B>` → `[]` ; `lessons?select=instructor_rate` → 42501 ; sans token → `[]`.
 
-⬜ **`2026-10-10d_planned_walkin_client.sql`** (passée par gui TEST+PROD le 2026-10-10 ; vérif écran TEST ✅ ; curl lignes ✅ TEST, **colonnes fermées à refaire sur PROD** — TEST est plus ouvert) — le plan peut viser un **client existant**
+✅ **`2026-10-10d_planned_walkin_client.sql`** (✅ **CLOS 2026-10-11** — présente dans TEST **et** PROD, contrôlé en base : enum, colonnes, fonction, texte des policies identiques ; colonnes fermées ✅ PROD au curl ; lignes ✅ TEST au curl + écran) — le plan peut viser un **client existant**
 (walk-in) : colonne `client_id` nullable sur `planned_lessons` + `planned_rentals`. Additif, un fichier, pas de
 GRANT anon (la page publique ne lit pas ces colonnes). ⚠️ Sans elle, **tout enregistrement du plan échoue**
 (l'insert envoie `client_id`). Vérif curl : `planned_lessons?select=client_id` avec un token forecast → 42501.
 Export → `saveWalkIn` (même code que 🚶 du Daily : même client/jour = même venue). Reste : lien public PAR CLIENT
 (toutes ses venues) — non fait, voir `taxi-and-shares.md`.
 
-⬜ **`2026-10-10a_instructor_link_type.sql` PUIS `2026-10-10b_instructor_share_policy.sql`** (passée par gui TEST+PROD le 2026-10-10 ; vérif écran TEST ✅ ; curl lignes ✅ TEST, **colonnes fermées à refaire sur PROD** — TEST est plus ouvert) —
+✅ **`2026-10-10a_instructor_link_type.sql` PUIS `2026-10-10b_instructor_share_policy.sql`** (✅ **CLOS 2026-10-11** — présente dans TEST **et** PROD, contrôlé en base : enum, colonnes, fonction, texte des policies identiques ; colonnes fermées ✅ PROD au curl ; lignes ✅ TEST au curl + écran) —
 page « Instructor Hours » (type de lien `instructor`). **Deux fichiers, dans cet ordre** (enum seul, puis
 policy `lessons`). Strictement additif. ⚠️ **Avant le push** : sans le (a) la création du lien échoue
 (enum) ; sans le (b) la page s'ouvre mais reste vide. Vérif : curl anon + `x-share-token` d'un lien
