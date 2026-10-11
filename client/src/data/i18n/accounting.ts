@@ -212,7 +212,10 @@ export const accountingI18n = {
   dash_vol_guests_detail: { fr: 'personnes inscrites sur ces séjours', en: 'people listed on those stays', es: 'personas inscritas en esas estancias' },
   dash_vol_guests_missing: { fr: '⚠ {count} réservation(s) sans liste de voyageurs', en: '⚠ {count} booking{s} with no guest list', es: '⚠ {count} reserva(s) sin lista de viajeros' },
   dash_vol_nights:        { fr: 'Nuits vendues', en: 'Nights sold', es: 'Noches vendidas' },
-  dash_vol_nights_detail: { fr: 'nuitées (personnes × nuits)', en: 'guest-nights (people × nights)', es: 'noches por persona (personas × noches)' },
+  dash_vol_nights_detail: { fr: 'chambres × nuits, à Bilene', en: 'rooms × nights, in Bilene', es: 'habitaciones × noches, en Bilene' },
+  dash_vol_nights_missing: { fr: '⚠ {count} séjour(s) sans chambre', en: '⚠ {count} stay{s} with no room', es: '⚠ {count} estancia(s) sin habitación' },
+  dash_vol_maputo:        { fr: 'Nuits à Maputo', en: 'Nights in Maputo', es: 'Noches en Maputo' },
+  dash_vol_maputo_detail: { fr: 'hôtels partenaires · chambres × nuits', en: 'partner hotels · rooms × nights', es: 'hoteles asociados · habitaciones × noches' },
   dash_vol_transfers:     { fr: 'Transferts taxi', en: 'Taxi transfers', es: 'Traslados en taxi' },
   dash_vol_transfers_detail: { fr: '{count} sans réservation', en: '{count} without a booking', es: '{count} sin reserva' },
 

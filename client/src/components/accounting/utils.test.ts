@@ -1746,28 +1746,44 @@ describe('computeVolumeTotals', () => {
     expect(v.taxiTransfers).toBe(2)
   })
 
-  it('counts guest-nights as guests x nights, per booking', () => {
-    // bk1: 2 guests x 7 nights = 14 · bk2: 1 x 3 = 3
-    expect(computeVolumeTotals(volumeData()).guestNights).toBe(17)
+  it('counts one night per ROOM per night, whoever sleeps in it', () => {
+    // bk1: a couple in ONE room for 7 nights = 7, not 14.
+    const data = { ...volumeData(), bookingRooms: [mkBookingRoom({ booking_id: 'bk1', room_id: 'roomF' })] }
+    expect(computeVolumeTotals(data).roomNights).toBe(7)
+  })
+
+  it('counts two rooms (a whole house) twice', () => {
+    const data = {
+      ...volumeData(),
+      bookingRooms: [
+        mkBookingRoom({ booking_id: 'bk1', room_id: 'roomF' }),
+        mkBookingRoom({ booking_id: 'bk1', room_id: 'roomB' }),
+        mkBookingRoom({ booking_id: 'bk2', room_id: 'roomBu' }),
+      ],
+    }
+    expect(computeVolumeTotals(data).roomNights).toBe(7 * 2 + 3)
   })
 
   it('leaves the cancelled booking out of every counter', () => {
-    const v = computeVolumeTotals(volumeData())
-    expect(v.guests).toBe(3)        // Dan is not counted
-    expect(v.guestNights).toBe(17)  // its 10 nights are not counted
+    const data = { ...volumeData(), bookingRooms: [mkBookingRoom({ booking_id: 'bk3', room_id: 'roomF' })] }
+    const v = computeVolumeTotals(data)
+    expect(v.guests).toBe(3)       // Dan is not counted
+    expect(v.roomNights).toBe(0)   // its 10 nights are not counted
     expect(v.bookingsWithoutGuestList).toBe(0)
   })
 
-  it('reports bookings nobody is listed on rather than guessing one guest', () => {
+  it('counts a room with nobody listed on the booking — the night was still sold', () => {
     const data = mkData({
       bookings: [mkBooking({ id: 'bk1', check_in: '2026-11-01', check_out: '2026-11-08' })],
+      bookingRooms: [mkBookingRoom({ booking_id: 'bk1' })],
       bookingParticipants: [],
     })
     const v = computeVolumeTotals(data)
     expect(v.bookings).toBe(1)
     expect(v.guests).toBe(0)
-    expect(v.guestNights).toBe(0)
+    expect(v.roomNights).toBe(7)
     expect(v.bookingsWithoutGuestList).toBe(1)
+    expect(v.bookingsWithoutRoom).toBe(0)
   })
 
   it('ignores a participant row left blank by a form', () => {
@@ -1778,23 +1794,68 @@ describe('computeVolumeTotals', () => {
         mkParticipant({ id: 'p2', booking_id: 'bk1', first_name: '  ' }),
       ],
     })
-    const v = computeVolumeTotals(data)
-    expect(v.guests).toBe(1)
-    expect(v.guestNights).toBe(2)
+    expect(computeVolumeTotals(data).guests).toBe(1)
   })
 
-  it('counts a stay with no room assigned — it was still sold', () => {
+  it('reports a stay with no room instead of counting it', () => {
     const data = mkData({
       bookings: [mkBooking({ id: 'bk1', check_in: '2026-09-28', check_out: '2026-12-27' })],
       bookingRooms: [],
       bookingParticipants: [mkParticipant({ id: 'p1', booking_id: 'bk1', first_name: 'Remi' })],
     })
-    expect(computeVolumeTotals(data).guestNights).toBe(90)
+    const v = computeVolumeTotals(data)
+    expect(v.roomNights).toBe(0)
+    expect(v.bookingsWithoutRoom).toBe(1)
+  })
+
+  it('counts an external stay (Bilene too) on its own dates, 1 per night', () => {
+    const data = mkData({
+      bookings: [mkBooking({ id: 'bk1', check_in: '2026-11-01', check_out: '2026-11-08' })],
+      bookingRooms: [],
+      externalAccommodationBkgs: [mkExternalBooking({ booking_id: 'bk1', check_in: '2026-11-01', check_out: '2026-11-05' })],
+    })
+    const v = computeVolumeTotals(data)
+    expect(v.roomNights).toBe(4)
+    expect(v.bookingsWithoutRoom).toBe(0)   // it does have somewhere to sleep
+  })
+
+  it('keeps walk-ins out of bookings, guests and nights', () => {
+    const data = mkData({
+      bookings: [
+        mkBooking({ id: 'bk1', check_in: '2026-11-01', check_out: '2026-11-08' }),
+        mkBooking({ id: 'v1', kind: 'day_visitor', check_in: '2026-11-03', check_out: '2026-11-04' }),
+      ],
+      bookingRooms: [mkBookingRoom({ booking_id: 'bk1' })],
+      bookingParticipants: [
+        mkParticipant({ id: 'p1', booking_id: 'bk1', first_name: 'Alice' }),
+        mkParticipant({ id: 'p2', booking_id: 'v1', first_name: 'Joao' }),
+      ],
+    })
+    const v = computeVolumeTotals(data)
+    expect(v.bookings).toBe(1)
+    expect(v.guests).toBe(1)
+    expect(v.roomNights).toBe(7)
+    expect(v.bookingsWithoutRoom).toBe(0)   // a visit is not a stay missing its room
+  })
+
+  it('counts the Maputo stop-overs apart, rooms x nights', () => {
+    const data = mkData({
+      bookings: [mkBooking({ id: 'bk1' }), mkBooking({ id: 'bk3', status: 'cancelled' })],
+      partnerHotelStays: [
+        { id: 'h1', booking_id: 'bk1', check_in: '2026-10-30', check_out: '2026-11-01', rooms: [{}, {}] },  // 2 rooms x 2 nights
+        { id: 'h2', booking_id: null,  check_in: '2026-11-08', check_out: '2026-11-09', rooms: [] },        // no room typed → 1
+        { id: 'h3', booking_id: 'bk3', check_in: '2026-11-01', check_out: '2026-11-04', rooms: [{}] },      // cancelled booking
+      ] as never,
+    })
+    const v = computeVolumeTotals(data)
+    expect(v.maputoNights).toBe(4 + 1)
+    expect(v.roomNights).toBe(0)   // never mixed with the nights at the centre
   })
 
   it('returns zeros on an empty dataset', () => {
     expect(computeVolumeTotals(mkData())).toEqual({
-      bookings: 0, guests: 0, guestNights: 0, taxiTransfers: 0, bookingsWithoutGuestList: 0,
+      bookings: 0, guests: 0, roomNights: 0, maputoNights: 0, taxiTransfers: 0,
+      bookingsWithoutGuestList: 0, bookingsWithoutRoom: 0,
     })
   })
 })

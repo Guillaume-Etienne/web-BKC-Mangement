@@ -3,6 +3,7 @@ import { lessonBillable } from '../../types/database'
 import type { SharedAccountingData } from './types'
 import { getBaseNightlyRate } from '../../utils/roomPricing'
 import { commissionEur } from '../../utils/partnerHotel'
+import { isDayVisitor } from '../../utils/dayVisitor'
 
 /** An accounting dataset with every collection empty.
  *  Spread a partial on top when a caller only needs a few slices — that keeps the
@@ -750,49 +751,80 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
 
 /** The activity behind the money: how much was actually sold, in units.
  *
- *  Same period and same perimeter as every euro figure on the dashboard —
- *  cancelled bookings are out, standalone taxi trips are in — so a reader can
- *  divide one by the other without wondering whether they cover the same rows.
+ *  The question these answer (gui, 2026-10-11): "how many people did we manage
+ *  to bring to Mozambique, and how many nights did we fill?" — NOT "what did we
+ *  cash in ourselves". So a night sent by a partner agency, or paid straight to
+ *  the bungalow owner, counts like any other: the people came.
  *
- *  `guests` and `guestNights` are both read off `booking_participants`, the
- *  source of truth for who travels (decision gui, 2026-09-19: the occupancy
- *  figure counts people, not rooms). A booking nobody has been listed on
- *  therefore weighs 0 on both, and lands in `bookingsWithoutGuestList` so the
- *  screen can say so instead of quietly under-reporting.
+ *  Perimeter: cancelled bookings out, and walk-ins (day visitors) out of every
+ *  counter but the transfers — they are locals passing by, nobody we brought,
+ *  and their booking only has a "night" because the dates constraint needs one.
+ *
+ *  `roomNights` = one per ROOM per night, whoever sleeps in it: a couple in one
+ *  room for 7 nights is 7, two rooms (a whole house) is 14. External stays are
+ *  in Bilene too (San Martinho…): they carry no rooms, only dates, so each one
+ *  counts 1 per night of its own dates. A stay with neither a room nor an
+ *  external stay weighs 0 and lands in `bookingsWithoutRoom`, so the screen can
+ *  say so instead of quietly under-reporting.
+ *
+ *  `maputoNights` = the partner-hotel stop-overs, counted apart with the same
+ *  rule (rooms x nights) — they are nights we sold, not nights at the centre.
+ *
+ *  `guests` is read off `booking_participants`, the source of truth for who
+ *  travels; a booking nobody is listed on lands in `bookingsWithoutGuestList`.
  */
 export interface VolumeTotals {
-  bookings: number                  // active bookings (cancelled excluded)
-  guests: number                    // named participants of those bookings
-  guestNights: number               // sum of (guests x nights) — the occupancy figure
+  bookings: number                  // active stays (cancelled and walk-ins excluded)
+  guests: number                    // named participants of those stays
+  roomNights: number                // rooms x nights at Bilene (own rooms + external stays)
+  maputoNights: number              // rooms x nights in the partner hotels
   taxiTransfers: number             // active trips, standalone ones included
-  bookingsWithoutGuestList: number  // active bookings with nobody listed on them
+  bookingsWithoutGuestList: number  // active stays with nobody listed on them
+  bookingsWithoutRoom: number       // active stays with nights but nowhere to sleep on file
 }
 
 export function computeVolumeTotals(data: SharedAccountingData): VolumeTotals {
   const activeBookings = data.bookings.filter(b => b.status !== 'cancelled')
   const activeIds = new Set(activeBookings.map(b => b.id))
+  const stays = activeBookings.filter(b => !isDayVisitor(b))
+  const stayIds = new Set(stays.map(b => b.id))
 
   // A blank first name is an empty row left behind by a form, not a person —
   // BookingsPage counts its `4G` badge the same way.
   const named = data.bookingParticipants.filter(
-    p => p.first_name.trim() !== '' && activeIds.has(p.booking_id)
+    p => p.first_name.trim() !== '' && stayIds.has(p.booking_id)
   )
+  const withGuests = new Set(named.map(p => p.booking_id))
 
-  const perBooking = new Map<string, number>()
-  for (const p of named) perBooking.set(p.booking_id, (perBooking.get(p.booking_id) ?? 0) + 1)
+  const roomsOf = new Map<string, number>()
+  for (const br of data.bookingRooms) {
+    if (stayIds.has(br.booking_id)) roomsOf.set(br.booking_id, (roomsOf.get(br.booking_id) ?? 0) + 1)
+  }
+  const externals = data.externalAccommodationBkgs.filter(e => stayIds.has(e.booking_id))
+  const withExternal = new Set(externals.map(e => e.booking_id))
 
-  // Nights come from the booking, not from the rooms: a stay with no room
-  // assigned yet (the planning's "No room" line) was still sold.
-  const guestNights = activeBookings.reduce(
-    (s, b) => s + (perBooking.get(b.id) ?? 0) * countNights(b.check_in, b.check_out), 0)
+  // Own rooms follow the booking's dates (as the accommodation revenue does);
+  // an external stay follows its own.
+  const ownNights = stays.reduce(
+    (s, b) => s + (roomsOf.get(b.id) ?? 0) * countNights(b.check_in, b.check_out), 0)
+  const externalNights = externals.reduce((s, e) => s + countNights(e.check_in, e.check_out), 0)
+
+  // Same rows as the commission in computeSeasonTotals: a stop-over with no
+  // booking counts, one hanging off a cancelled booking does not.
+  const maputoNights = (data.partnerHotelStays ?? [])
+    .filter(h => h.booking_id === null || activeIds.has(h.booking_id))
+    .reduce((s, h) => s + Math.max(1, (h.rooms ?? []).length) * countNights(h.check_in, h.check_out), 0)
 
   return {
-    bookings: activeBookings.length,
+    bookings: stays.length,
     guests: named.length,
-    guestNights,
+    roomNights: ownNights + externalNights,
+    maputoNights,
     taxiTransfers: data.taxiTrips.filter(
       t => t.booking_id === null || activeIds.has(t.booking_id)).length,
-    bookingsWithoutGuestList: activeBookings.filter(b => !perBooking.has(b.id)).length,
+    bookingsWithoutGuestList: stays.filter(b => !withGuests.has(b.id)).length,
+    bookingsWithoutRoom: stays.filter(b =>
+      countNights(b.check_in, b.check_out) > 0 && !roomsOf.has(b.id) && !withExternal.has(b.id)).length,
   }
 }
 

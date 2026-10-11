@@ -4,6 +4,7 @@ import CollectionsModal from './CollectionsModal'
 import SeasonComparison from './SeasonComparison'
 import { filterDataToSeason } from './seasonFilter'
 import { todayISO, fmtDate } from '../../utils/dates'
+import { isDayVisitor } from '../../utils/dayVisitor'
 import {
   computeSeasonTotals,
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
@@ -105,8 +106,10 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   const topUnpaid = unpaidBookings.slice(0, 6)
 
   // ── Booking counts ─────────────────────────────────────────────────────
-  const confirmed   = bookings.filter(b => b.status === 'confirmed').length
-  const provisional = bookings.filter(b => b.status === 'provisional').length
+  // Stays only: a walk-in's visit is a booking row for accounting's sake, not a
+  // stay somebody confirmed — same perimeter as the Bookings tile above it.
+  const confirmed   = bookings.filter(b => b.status === 'confirmed' && !isDayVisitor(b)).length
+  const provisional = bookings.filter(b => b.status === 'provisional' && !isDayVisitor(b)).length
   const cancelled   = bookings.filter(b => b.status === 'cancelled').length
 
   const fmt = (n: number) => fmtEur(n)
@@ -180,7 +183,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
           The money below is meaningless without it: 4 700 € over 3 stays and
           over 30 is not the same season. Same perimeter as every euro figure
           (cancelled excluded), so the two rows can be divided into each other. */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.dash_vol_bookings[lang]}</p>
           <p className="text-3xl font-bold text-gray-800 dark:text-gray-200">{volume.bookings}</p>
@@ -205,9 +208,23 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
         </div>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.dash_vol_nights[lang]}</p>
-          <p className="text-3xl font-bold text-gray-800 dark:text-gray-200">{volume.guestNights.toLocaleString('fr-FR')}</p>
-          {/* "Nights sold" has three defensible definitions — say which one this is. */}
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{i18n.accounting.dash_vol_nights_detail[lang]}</p>
+          <p className="text-3xl font-bold text-gray-800 dark:text-gray-200">{volume.roomNights.toLocaleString('fr-FR')}</p>
+          {/* "Nights sold" has several defensible definitions — say which one this is.
+              A stay with no room on file weighs 0: say that too, a silent 0 reads like a fact. */}
+          {volume.bookingsWithoutRoom > 0 ? (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              {i18n.accounting.dash_vol_nights_missing[lang]
+                .replace('{count}', String(volume.bookingsWithoutRoom))
+                .replace('{s}', volume.bookingsWithoutRoom !== 1 ? 's' : '')}
+            </p>
+          ) : (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{i18n.accounting.dash_vol_nights_detail[lang]}</p>
+          )}
+        </div>
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.dash_vol_maputo[lang]}</p>
+          <p className="text-3xl font-bold text-gray-800 dark:text-gray-200">{volume.maputoNights.toLocaleString('fr-FR')}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{i18n.accounting.dash_vol_maputo_detail[lang]}</p>
         </div>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.dash_vol_transfers[lang]}</p>
