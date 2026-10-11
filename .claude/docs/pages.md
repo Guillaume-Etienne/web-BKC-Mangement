@@ -38,8 +38,11 @@
 - **But :** le PLAN (onglet Forecast) des instructeurs + locations, en lecture seule, pour une date
 - **Hooks :** `useTable` pour `planned_lessons`, `planned_rentals`, instructors, booking_participants
   (noms : les ids de participants ne sont PAS des Client.id), equipment. Pas de prix : le plan n'en a pas.
-- **State :** `selectedDate` (défaut : demain), `mobileInstrIdx`
-- **Layout :** Grille horaire 8:00–19:00 (30 min/slot, 36px), colonnes instructeurs, panel locations
+- **State :** `selectedDate` (défaut : demain)
+- **Layout :** nav date (←/→, Today, Tomorrow, date picker) + résumé du jour. **Laptop** : grille horaire
+  (30 min = 44px, plage 8–18 élargie au contenu), colonnes = seulement les moniteurs qui donnent cours ce jour,
+  cours qui se chevauchent côte à côte, panel locations sticky à droite. **Mobile** : un bloc par moniteur,
+  cours en liste triée (début → fin, type, tous les noms, notes), puis locations par créneau.
 
 ### `TaxiSharePage`
 - **Accès :** `?share=<taxi_token>`

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { PlannedLesson, PlannedRental, LessonType, Instructor, BookingParticipant, Equipment } from '../types/database'
 import { useTable } from '../hooks/useSupabase'
@@ -22,42 +22,85 @@ type ForecastGuest = Pick<BookingParticipant, 'id' | 'first_name' | 'last_name'>
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const SLOT_H = 36
-const END_HOUR = 19
-const TIME_COL_W = 48
+const SLOT_H = 44          // px per 30 min on the desktop grid
+const TIME_COL_W = 56
+const MIN_START_H = 8
+const MIN_END_H = 18
 
-const LESSON_CFG: Record<LessonType, { bg: string; border: string; text: string; badge: string }> = {
-  private:    { bg: 'bg-purple-100 dark:bg-purple-900/30', border: 'border-purple-400 dark:border-purple-700', text: 'text-purple-900 dark:text-purple-400', badge: 'bg-purple-500 text-white' },
-  group:      { bg: 'bg-green-100 dark:bg-green-900/30',  border: 'border-green-400 dark:border-green-700',  text: 'text-green-900 dark:text-green-400',  badge: 'bg-green-500 text-white'  },
-  supervision:{ bg: 'bg-blue-100 dark:bg-blue-900/30',   border: 'border-blue-400 dark:border-blue-700',   text: 'text-blue-900 dark:text-blue-400',   badge: 'bg-blue-500 text-white'   },
+const LESSON_CFG: Record<LessonType, { label: string; bg: string; border: string; text: string; badge: string }> = {
+  private:     { label: 'Private',     bg: 'bg-purple-100 dark:bg-purple-900/30', border: 'border-purple-500 dark:border-purple-600', text: 'text-purple-900 dark:text-purple-300', badge: 'bg-purple-600 text-white' },
+  group:       { label: 'Group',       bg: 'bg-green-100 dark:bg-green-900/30',   border: 'border-green-500 dark:border-green-600',   text: 'text-green-900 dark:text-green-300',   badge: 'bg-green-600 text-white'  },
+  supervision: { label: 'Supervision', bg: 'bg-blue-100 dark:bg-blue-900/30',     border: 'border-blue-500 dark:border-blue-600',     text: 'text-blue-900 dark:text-blue-300',     badge: 'bg-blue-600 text-white'   },
 }
 
 const RENTAL_TYPE_LABELS: Record<string, { icon: string; label: string }> = {
   kite:      { icon: '🪂', label: 'Kite' },
   board:     { icon: '🏄', label: 'Board' },
-  full:      { icon: '🪂🏄', label: 'Full' },
+  full:      { icon: '🪂🏄', label: 'Full set' },
   surfboard: { icon: '🌊', label: 'Surfboard' },
   foilboard: { icon: '⬆️', label: 'Foilboard' },
   free:      { icon: '📦', label: 'Other' },
 }
+
+const SLOT_SECTIONS = [
+  { key: 'morning',   label: 'Morning',   icon: '🌅' },
+  { key: 'afternoon', label: 'Afternoon', icon: '☀️' },
+  { key: 'full_day',  label: 'Full day',  icon: '📅' },
+] as const
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 // Calendar-day helpers live in utils/dates — never `.toISOString()` on a date
 // the user thinks of as a day (it shifts a day back east of Greenwich).
 
-function timeToSlot(time: string, startHour: number): number {
+function toMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number)
-  return (h - startHour) * 2 + (m >= 30 ? 1 : 0)
+  return h * 60 + (m || 0)
 }
 
-function slotToTime(slot: number, startHour: number): string {
-  const total = startHour * 60 + slot * 30
+function fmtMinutes(total: number): string {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
+function fmtDuration(hours: number): string {
+  return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1).replace(/\.0$/, '')}h`
 }
 
 function formatDate(d: Date): string {
   return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+}
+
+function fromISO(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? '' : 's'}`
+}
+
+/** Side-by-side lanes for one instructor's overlapping lessons. */
+function layoutLanes<T extends { start: number; end: number }>(items: T[]): (T & { lane: number; lanes: number })[] {
+  const sorted = [...items].sort((a, b) => a.start - b.start || a.end - b.end)
+  const out: (T & { lane: number; lanes: number })[] = []
+  let cluster: (T & { lane: number; lanes: number })[] = []
+  let clusterEnd = -1
+  const flush = () => {
+    const lanes = Math.max(1, ...cluster.map(c => c.lane + 1))
+    cluster.forEach(c => { c.lanes = lanes })
+    out.push(...cluster)
+    cluster = []
+  }
+  for (const it of sorted) {
+    if (cluster.length && it.start >= clusterEnd) flush()
+    const used = new Set(cluster.filter(c => c.end > it.start).map(c => c.lane))
+    let lane = 0
+    while (used.has(lane)) lane++
+    cluster.push({ ...it, lane, lanes: 1 })
+    clusterEnd = Math.max(clusterEnd, it.end)
+  }
+  flush()
+  return out
 }
 
 // ─── Main component (read-only) ───────────────────────────────────────────────
@@ -65,7 +108,6 @@ function formatDate(d: Date): string {
 export default function ForecastSharePage() {
   const today = new Date()
   const [selectedDate, setSelectedDate] = useState<Date>(() => addDays(today, 1))
-  const [mobileInstrIdx, setMobileInstrIdx] = useState(0)
 
   // Column-restricted for anon: `*` returns 42501 and empties the page. These
   // two tables are the Forecast plan (2026-10-10c) — a token of type `forecast`
@@ -118,197 +160,251 @@ export default function ForecastSharePage() {
   }, [])
 
   const iso = dateToISO(selectedDate)
-  const startHour = 8
-  const totalSlots = (END_HOUR - startHour) * 2
+  const todayIso = dateToISO(today)
+  const tomorrowIso = dateToISO(addDays(today, 1))
+
+  const guestById = useMemo(() => new Map(guests.map(g => [g.id, g])), [guests])
+  const equipById = useMemo(() => new Map(equipment.map(e => [e.id, e])), [equipment])
+
+  const guestName = (id: string | null | undefined): string | null => {
+    if (!id) return null
+    const g = guestById.get(id)
+    return g ? `${g.first_name} ${g.last_name ?? ''}`.trim() : null
+  }
+
+  // One instructor → their lessons of the day, with computed start/end minutes.
+  const dayLessons = useMemo(() => lessons
+    .filter(l => l.date === iso)
+    .map(l => {
+      const start = toMinutes(l.start_time)
+      const end = start + Math.round(l.duration_hours * 60)
+      const names = l.participant_ids.map(guestName).filter((n): n is string => !!n)
+      if (names.length === 0 && walkInOf[l.id]) names.push(walkInOf[l.id])
+      return { ...l, start, end, names }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    , [lessons, iso, guestById, walkInOf])
+
+  const dayRentals = rentals.filter(r => r.date === iso)
+
+  const teaching = instructors
+    .map(instr => ({ instr, items: dayLessons.filter(l => l.instructor_id === instr.id).sort((a, b) => a.start - b.start) }))
+    .filter(x => x.items.length > 0)
+  const idle = instructors.filter(i => !teaching.some(t => t.instr.id === i.id))
+
+  // Grid range follows the content (never narrower than 8–18).
+  const startHour = Math.min(MIN_START_H, ...dayLessons.map(l => Math.floor(l.start / 60)))
+  const endHour = Math.max(MIN_END_H, ...dayLessons.map(l => Math.ceil(l.end / 60)))
+  const totalSlots = (endHour - startHour) * 2
   const gridHeight = totalSlots * SLOT_H
 
-  const dayLessons = lessons.filter(l => l.date === iso)
-  const dayRentals = rentals.filter(r => r.date === iso)
+  const rentalCard = (r: ForecastRental) => {
+    const rt = RENTAL_TYPE_LABELS[r.rental_type] ?? RENTAL_TYPE_LABELS.free
+    const who = guestName(r.participant_id) ?? walkInOf[r.id]
+    const equip = r.equipment_id ? equipById.get(r.equipment_id) : undefined
+    return (
+      <div key={r.id} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 border-l-4 border-l-amber-500 rounded-md px-3 py-2">
+        <div className="text-sm font-semibold text-amber-900 dark:text-amber-300">{rt.icon} {rt.label}</div>
+        {who && <div className="text-sm text-amber-900 dark:text-amber-200">{who}</div>}
+        {equip && <div className="text-xs text-amber-800/80 dark:text-amber-400/80">{equip.name}</div>}
+        {r.notes && <div className="text-xs italic text-amber-800 dark:text-amber-400 mt-0.5">{r.notes}</div>}
+      </div>
+    )
+  }
+
+  const rentalsPanel = (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+        📦 Rentals
+        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">{dayRentals.length}</span>
+      </h2>
+      {dayRentals.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 italic">No rentals planned</p>}
+      {SLOT_SECTIONS.map(sec => {
+        const items = dayRentals.filter(r => r.slot === sec.key)
+        if (items.length === 0) return null
+        return (
+          <div key={sec.key}>
+            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1.5">{sec.icon} {sec.label}</div>
+            <div className="flex flex-col gap-1.5">{items.map(rentalCard)}</div>
+          </div>
+        )
+      })}
+    </section>
+  )
+
+  const summary = [
+    plural(dayLessons.length, 'lesson'),
+    plural(teaching.length, 'instructor'),
+    plural(dayRentals.length, 'rental'),
+  ].join(' · ')
+
+  const navBtn = 'h-10 w-10 shrink-0 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 text-base font-bold'
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Public header */}
-      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-xl font-bold text-blue-600 dark:text-blue-400">🏄 Kitesurf Center</span>
-          <span className="text-xs px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full font-medium">
-            📋 Forecast
-          </span>
-        </div>
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center gap-3">
+        <span className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400">🏄 Kitesurf Center</span>
+        <span className="text-xs px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full font-medium">
+          📋 Forecast
+        </span>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-6 flex flex-col gap-4 select-none">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6 flex flex-col gap-4">
         {/* Date navigation */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
-            <button onClick={() => setSelectedDate(d => addDays(d, -1))}
-              className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold">←</button>
-            <span className="text-base font-semibold min-w-[200px] text-center">{formatDate(selectedDate)}</span>
-            <button onClick={() => setSelectedDate(d => addDays(d, 1))}
-              className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold">→</button>
-            <button onClick={() => setSelectedDate(addDays(today, 1))}
-              className="px-2.5 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-800">
+            <button aria-label="Previous day" onClick={() => setSelectedDate(d => addDays(d, -1))} className={navBtn}>←</button>
+            <div className="flex-1 min-w-0 text-center">
+              <div className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">{formatDate(selectedDate)}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">{summary}</div>
+            </div>
+            <button aria-label="Next day" onClick={() => setSelectedDate(d => addDays(d, 1))} className={navBtn}>→</button>
+          </div>
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <button onClick={() => setSelectedDate(new Date())}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border ${iso === todayIso
+                ? 'bg-blue-600 border-blue-600 text-white'
+                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+              Today
+            </button>
+            <button onClick={() => setSelectedDate(addDays(new Date(), 1))}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border ${iso === tomorrowIso
+                ? 'bg-blue-600 border-blue-600 text-white'
+                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
               Tomorrow
             </button>
+            <input type="date" value={iso} aria-label="Pick a date"
+              onChange={e => { if (e.target.value) setSelectedDate(fromISO(e.target.value)) }}
+              className="px-2 py-1 rounded-lg text-xs border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300" />
           </div>
         </div>
 
-        {/* Mobile instructor selector */}
-        <div className="flex md:hidden items-center justify-between bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg px-3 py-2">
-          <button
-            onClick={() => setMobileInstrIdx(i => Math.max(0, i - 1))}
-            disabled={mobileInstrIdx === 0}
-            className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 font-bold text-sm"
-          >←</button>
-          <div className="text-center">
-            <div className="font-bold text-gray-800 dark:text-gray-200">{instructors[mobileInstrIdx]?.first_name} {instructors[mobileInstrIdx]?.last_name}</div>
-            {(() => {
-              const count = dayLessons.filter(l => l.instructor_id === instructors[mobileInstrIdx]?.id).length
-              return count > 0 ? <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">{count} lesson{count > 1 ? 's' : ''}</div> : null
-            })()}
-          </div>
-          <button
-            onClick={() => setMobileInstrIdx(i => Math.min(instructors.length - 1, i + 1))}
-            disabled={mobileInstrIdx === instructors.length - 1}
-            className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 font-bold text-sm"
-          >→</button>
-        </div>
-
-        <div className="flex flex-col md:flex-row gap-4 items-start">
-
-          {/* Time grid */}
-          <div className="flex-1 w-full overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
-            {/* Instructor headers — desktop */}
-            <div className="hidden md:flex border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-20">
-              <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200 dark:border-gray-800" />
-              {instructors.map(instr => (
-                <div key={instr.id} className="flex-1 min-w-[130px] px-2 py-2 text-center border-r border-gray-200 dark:border-gray-800 last:border-r-0">
-                  <div className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{instr.first_name}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{instr.last_name}</div>
-                  {(() => {
-                    const count = dayLessons.filter(l => l.instructor_id === instr.id).length
-                    return count > 0 ? (
-                      <div className="mt-1 inline-block px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[10px] font-semibold">
-                        {count} lesson{count > 1 ? 's' : ''}
-                      </div>
-                    ) : null
-                  })()}
-                </div>
-              ))}
-            </div>
-
-            {/* Grid body */}
-            <div className="overflow-y-auto" style={{ maxHeight: 520 }}>
-              <div className="flex" style={{ height: gridHeight }}>
-
-                {/* Time labels */}
-                <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200 dark:border-gray-800 relative bg-gray-50 dark:bg-gray-800">
-                  {Array.from({ length: totalSlots }, (_, i) => {
-                    const isHour = i % 2 === 0
-                    return (
-                      <div key={i}
-                        className={`absolute w-full border-t flex items-start justify-end pr-1.5 ${isHour ? 'border-gray-300 dark:border-gray-700' : 'border-gray-100 dark:border-gray-800'}`}
-                        style={{ top: i * SLOT_H, height: SLOT_H }}
-                      >
-                        {isHour && <span className="text-[10px] text-gray-400 dark:text-gray-400 font-medium -mt-1.5">{slotToTime(i, startHour)}</span>}
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* Instructor columns */}
-                {instructors.map((instr, idx) => {
-                  const isMobileHidden = idx !== mobileInstrIdx
-                  const instrLessons = dayLessons.filter(l => l.instructor_id === instr.id)
-
+        {/* ── Mobile: one block per instructor, lessons in time order ── */}
+        <div className="md:hidden flex flex-col gap-4">
+          {teaching.length === 0 && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 italic text-center py-6">No lessons planned</p>
+          )}
+          {teaching.map(({ instr, items }) => (
+            <section key={instr.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
+              <div className="px-3 py-2 bg-gray-100 dark:bg-gray-800 flex items-center justify-between">
+                <h2 className="font-bold text-gray-900 dark:text-gray-100">{instr.first_name} {instr.last_name}</h2>
+                <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">{plural(items.length, 'lesson')}</span>
+              </div>
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {items.map(l => {
+                  const cfg = LESSON_CFG[l.type]
                   return (
-                    <div
-                      key={instr.id}
-                      className={`relative border-r border-gray-200 dark:border-gray-800 last:border-r-0
-                        ${isMobileHidden ? 'hidden md:block' : ''}
-                        flex-1 min-w-[130px]`}
-                    >
-                      {/* Slot lines */}
-                      {Array.from({ length: totalSlots }, (_, i) => (
-                        <div key={i}
-                          className={`absolute w-full border-t ${i % 2 === 0 ? 'border-gray-200 dark:border-gray-800' : 'border-gray-100 dark:border-gray-800'}`}
-                          style={{ top: i * SLOT_H, height: SLOT_H }}
-                        />
-                      ))}
-
-                      {/* Lesson cards */}
-                      {instrLessons.map(lesson => {
-                        const slot = Math.max(0, timeToSlot(lesson.start_time, startHour))
-                        const dur = lesson.duration_hours * 2
-                        const top = slot * SLOT_H
-                        const height = dur * SLOT_H
-                        const cfg = LESSON_CFG[lesson.type]
-                        const lessonClients = lesson.participant_ids.map(id => guests.find(c => c.id === id)).filter(Boolean)
-                        const firstClient = lessonClients[0]
-
-                        return (
-                          <div key={lesson.id}
-                            className={`absolute left-0.5 right-0.5 rounded border-l-4 px-1.5 py-1 overflow-hidden shadow-sm z-10
-                              ${cfg.bg} ${cfg.border} ${cfg.text}`}
-                            style={{ top: top + 1, height: height - 2 }}
-                          >
-                            <div className="flex items-center gap-1 mb-0.5">
-                              <span className="text-[10px] font-bold">{lesson.start_time}</span>
-                              <span className={`text-[9px] px-1 rounded font-semibold ${cfg.badge}`}>
-                                {lesson.type === 'private' ? 'P' : lesson.type === 'group' ? 'G' : 'S'}
-                              </span>
-                            </div>
-                            {height >= SLOT_H * 2 && (
-                              <div className="text-xs font-semibold truncate">
-                                {firstClient ? <>{firstClient.first_name} {firstClient.last_name}</> : walkInOf[lesson.id]}
-                                {lessonClients.length > 1 && <span className="ml-1 font-normal opacity-70">+{lessonClients.length - 1}</span>}
-                              </div>
-                            )}
-                            {height >= SLOT_H * 2 && lesson.notes && (
-                              <div className="text-[10px] italic opacity-80 leading-tight line-clamp-2">{lesson.notes}</div>
-                            )}
-                          </div>
-                        )
-                      })}
+                    <div key={l.id} className={`flex gap-3 px-3 py-2.5 border-l-4 ${cfg.border}`}>
+                      <div className="w-14 shrink-0 text-center">
+                        <div className="text-sm font-bold text-gray-900 dark:text-gray-100">{fmtMinutes(l.start)}</div>
+                        <div className="text-[11px] text-gray-500 dark:text-gray-400">→ {fmtMinutes(l.end)}</div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className={`text-[11px] px-1.5 py-0.5 rounded font-semibold ${cfg.badge}`}>{cfg.label}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{fmtDuration(l.duration_hours)}</span>
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {l.names.length ? l.names.join(', ') : <span className="italic text-gray-400">No name</span>}
+                        </div>
+                        {l.notes && <div className="text-xs italic text-gray-600 dark:text-gray-400 mt-0.5">{l.notes}</div>}
+                      </div>
                     </div>
                   )
                 })}
               </div>
-            </div>
-          </div>
+            </section>
+          ))}
+          {idle.length > 0 && teaching.length > 0 && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+              No lessons: {idle.map(i => i.first_name).join(', ')}
+            </p>
+          )}
+          {rentalsPanel}
+        </div>
 
-          {/* Rentals panel — read-only */}
-          <div className="w-full md:w-52 md:shrink-0 flex flex-col gap-3">
-            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">📦 Rentals</h3>
-            {(['morning', 'afternoon', 'full_day'] as const).map(slotKey => {
-              const items = dayRentals.filter(r => r.slot === slotKey)
-              if (items.length === 0) return null
-              const slotLabel = slotKey === 'morning' ? 'Morning' : slotKey === 'afternoon' ? 'Afternoon' : 'Full day'
-              return (
-                <div key={slotKey}>
-                  <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{slotLabel}</div>
-                  <div className="space-y-1">
-                    {items.map(r => {
-                      const client = guests.find(c => c.id === r.participant_id)
-                      const equip = equipment.find(e => e.id === r.equipment_id)
-                      const rt = RENTAL_TYPE_LABELS[r.rental_type] ?? RENTAL_TYPE_LABELS.free
-                      return (
-                        <div key={r.id} className="flex items-start justify-between bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded px-2 py-1.5 text-xs">
-                          <div>
-                            <div className="font-semibold text-amber-900 dark:text-amber-400">{rt.icon} {rt.label}</div>
-                            <div className="text-amber-700 dark:text-amber-400 truncate">{client ? <>{client.first_name} {client.last_name}</> : walkInOf[r.id]}</div>
-                            {equip && <div className="text-[10px] text-amber-700/80 dark:text-amber-400/80 truncate">{equip.name}</div>}
-                            {r.notes && <div className="text-[10px] italic text-amber-800 dark:text-amber-400 truncate">{r.notes}</div>}
-                          </div>
+        {/* ── Laptop: time grid (only instructors who teach that day) + rentals ── */}
+        <div className="hidden md:flex gap-5 items-start">
+          <div className="flex-1 min-w-0 flex flex-col gap-2">
+            {teaching.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400 italic text-center py-10 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl">
+                No lessons planned
+              </p>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
+                <div className="min-w-fit">
+                  {/* Instructor headers */}
+                  <div className="flex border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
+                    <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200 dark:border-gray-800" />
+                    {teaching.map(({ instr, items }) => (
+                      <div key={instr.id} className="flex-1 min-w-[170px] px-3 py-2 border-r border-gray-200 dark:border-gray-800 last:border-r-0">
+                        <div className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{instr.first_name} {instr.last_name}</div>
+                        <div className="text-xs text-blue-700 dark:text-blue-400 font-medium">{plural(items.length, 'lesson')}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Grid body */}
+                  <div className="flex" style={{ height: gridHeight }}>
+                    {/* Time labels */}
+                    <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200 dark:border-gray-800 relative bg-gray-50 dark:bg-gray-800/60">
+                      {Array.from({ length: totalSlots }, (_, i) => i % 2 === 0 && (
+                        <div key={i} className="absolute w-full border-t border-gray-300 dark:border-gray-700 pr-2 text-right"
+                          style={{ top: i * SLOT_H }}>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 font-medium relative -top-2 bg-gray-50 dark:bg-gray-800 px-0.5">
+                            {fmtMinutes(startHour * 60 + i * 30)}
+                          </span>
                         </div>
-                      )
-                    })}
+                      ))}
+                    </div>
+
+                    {/* Instructor columns */}
+                    {teaching.map(({ instr, items }) => (
+                      <div key={instr.id} className="relative flex-1 min-w-[170px] border-r border-gray-200 dark:border-gray-800 last:border-r-0">
+                        {Array.from({ length: totalSlots }, (_, i) => (
+                          <div key={i}
+                            className={`absolute w-full border-t ${i % 2 === 0 ? 'border-gray-200 dark:border-gray-700' : 'border-dashed border-gray-100 dark:border-gray-800'}`}
+                            style={{ top: i * SLOT_H }} />
+                        ))}
+
+                        {layoutLanes(items).map(l => {
+                          const cfg = LESSON_CFG[l.type]
+                          const top = ((l.start - startHour * 60) / 30) * SLOT_H
+                          const height = Math.max(((l.end - l.start) / 30) * SLOT_H, SLOT_H)
+                          const widthPct = 100 / l.lanes
+                          const roomy = height >= SLOT_H * 2
+                          return (
+                            <div key={l.id}
+                              className={`absolute rounded-md border-l-4 px-2 py-1 overflow-hidden shadow-sm z-10 ${cfg.bg} ${cfg.border} ${cfg.text}`}
+                              style={{ top: top + 1, height: height - 2, left: `calc(${l.lane * widthPct}% + 2px)`, width: `calc(${widthPct}% - 4px)` }}
+                              title={[`${fmtMinutes(l.start)}–${fmtMinutes(l.end)} ${cfg.label}`, l.names.join(', '), l.notes].filter(Boolean).join('\n')}
+                            >
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-bold">{fmtMinutes(l.start)}–{fmtMinutes(l.end)}</span>
+                                <span className={`text-[10px] px-1 rounded font-semibold ${cfg.badge}`}>{cfg.label}</span>
+                              </div>
+                              <div className={`text-sm font-semibold leading-tight ${roomy ? '' : 'truncate'}`}>
+                                {l.names.length ? l.names.join(', ') : <span className="italic font-normal opacity-60">No name</span>}
+                              </div>
+                              {roomy && l.notes && <div className="text-xs italic opacity-80 leading-tight line-clamp-3 mt-0.5">{l.notes}</div>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              )
-            })}
-            {dayRentals.length === 0 && <p className="text-xs text-gray-400 dark:text-gray-400 italic">No rentals planned</p>}
+              </div>
+            )}
+            {idle.length > 0 && teaching.length > 0 && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">No lessons: {idle.map(i => i.first_name).join(', ')}</p>
+            )}
           </div>
+
+          <aside className="w-64 shrink-0 sticky top-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3">
+            {rentalsPanel}
+          </aside>
         </div>
       </div>
     </div>
