@@ -217,7 +217,7 @@ function RentalForm({ accommodationId, onAdd }: RentalFormProps) {
   return (
     <form onSubmit={handleSubmit} className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg p-3 space-y-3">
       <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Add rental period</p>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Start date</label>
           <input type="date" value={startDate} required
@@ -231,7 +231,7 @@ function RentalForm({ accommodationId, onAdd }: RentalFormProps) {
             className="w-full text-sm border rounded px-2 py-1.5" />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Total cost (€)</label>
           <input type="number" min="0" value={cost} required placeholder="e.g. 2000"
@@ -410,7 +410,7 @@ function RateFields({ accommodation, rooms, values, onChange }: RateFieldsProps)
       </p>
     )
   }
-  const cols = keys.length >= 3 ? 'grid-cols-3' : keys.length === 2 ? 'grid-cols-2' : 'grid-cols-1 max-w-xs'
+  const cols = keys.length >= 3 ? 'grid-cols-1 sm:grid-cols-3' : keys.length === 2 ? 'grid-cols-2' : 'grid-cols-1 max-w-xs'
   return (
     <div className={`grid gap-3 ${cols}`}>
       {keys.map(({ key, label }) => (

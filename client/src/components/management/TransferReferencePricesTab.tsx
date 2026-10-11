@@ -270,7 +270,7 @@ export default function TransferReferencePricesTab({ page }: { page: TransferRef
         </details>
       ))}
 
-      <div className="flex items-end gap-2">
+      <div className="flex flex-wrap items-end gap-2">
         <div>
           <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">New section</label>
           <input value={newSectionName} onChange={e => setNewSectionName(e.target.value)}

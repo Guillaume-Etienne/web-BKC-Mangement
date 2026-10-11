@@ -136,17 +136,17 @@ export default function DatabaseTab() {
         {stats && (
           <>
             {/* Summary cards */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">{stats.db_size}</div>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 sm:p-4 text-center">
+                <div className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-200">{stats.db_size}</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{i18n.management.label_total_db_size[lang]}</div>
               </div>
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">{stats.tables.length}</div>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 sm:p-4 text-center">
+                <div className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-200">{stats.tables.length}</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{i18n.management.label_tables[lang]}</div>
               </div>
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">{totalRows.toLocaleString()}</div>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 sm:p-4 text-center">
+                <div className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-200">{totalRows.toLocaleString()}</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{i18n.management.label_total_rows[lang]}</div>
               </div>
             </div>

@@ -55,7 +55,7 @@ export default function MovementsPanel({ days, onOpenTaxis }: { days: DayMovemen
       {/* This week — the shape */}
       <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
         <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-3">Next 7 days</h2>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto"><table className="w-full text-sm">
           <thead>
             <tr className="text-xs text-gray-500 dark:text-gray-400">
               <th className="text-left font-medium pb-1" />
@@ -74,7 +74,7 @@ export default function MovementsPanel({ days, onOpenTaxis }: { days: DayMovemen
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Red taxi count = a trip has no driver yet.</p>
       </div>
     </div>

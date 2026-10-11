@@ -570,7 +570,7 @@ export default function ManagementPage() {
         {/* ── Pricing Tab ───────────────────────────────────────────────────── */}
         {tab === 'pricing' && (
           <div className="space-y-6">
-            <div className="flex gap-4 border-b border-gray-200 dark:border-gray-800">
+            <div className="flex gap-4 overflow-x-auto whitespace-nowrap border-b border-gray-200 dark:border-gray-800">
               {([['rates', 'Rates'], ['reference', 'Reference info'], ['kruger', 'Kruger & Eswatini']] as const).map(([key, label]) => (
                 <button key={key} onClick={() => setPricingSubTab(key)}
                   className={`pb-2 px-1 text-sm font-medium border-b-2 -mb-px transition-colors ${
@@ -1106,13 +1106,13 @@ export default function ManagementPage() {
       {showInstructorForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white dark:bg-gray-900">
+            <div className="flex justify-between items-center p-4 sm:p-6 border-b sticky top-0 bg-white dark:bg-gray-900">
               <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">{selectedInstructor ? 'Edit instructor' : 'New instructor'}</h2>
               <button onClick={closeInstructorForm} className="text-2xl text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold w-8 h-8 flex items-center justify-center">✕</button>
             </div>
-            <div className="overflow-y-auto flex-1 p-6">
+            <div className="overflow-y-auto flex-1 p-4 sm:p-6">
               <form onSubmit={handleInstructorSubmit} className="space-y-4 flex flex-col h-full">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">First name *</label>
                     <input type="text" value={instructorFormData.first_name || ''}
@@ -1126,7 +1126,7 @@ export default function ManagementPage() {
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
                     <input type="email" value={instructorFormData.email || ''}
@@ -1161,7 +1161,7 @@ export default function ManagementPage() {
                   What this instructor <strong>earns</strong> per hour — 0 is fine for an owner
                   teaching their own guests. What the client pays is set in the Pricing tab.
                 </p>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pay · private €/h</label>
                     <input type="number" value={instructorFormData.rate_private || ''}
@@ -1203,11 +1203,11 @@ export default function ManagementPage() {
       {showPriceForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white dark:bg-gray-900">
+            <div className="flex justify-between items-center p-4 sm:p-6 border-b sticky top-0 bg-white dark:bg-gray-900">
               <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">{priceFormData.id ? 'Edit price' : 'New price'}</h2>
               <button onClick={closePriceForm} className="text-2xl text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold w-8 h-8 flex items-center justify-center">✕</button>
             </div>
-            <div className="overflow-y-auto flex-1 p-6">
+            <div className="overflow-y-auto flex-1 p-4 sm:p-6">
               <form onSubmit={handlePriceSubmit} className="space-y-4 flex flex-col h-full">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
@@ -1230,7 +1230,7 @@ export default function ManagementPage() {
                     onChange={(e) => setPriceFormData({ ...priceFormData, description: e.target.value || null })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price *</label>
                     <input type="number" value={priceFormData.price || ''}

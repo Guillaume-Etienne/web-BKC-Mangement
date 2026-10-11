@@ -72,7 +72,7 @@ export default function AttributionPanel({ data, seasons }: Props) {
           {season ? 'Nothing in this season yet.' : 'Nothing to attribute yet.'}
         </p>
       ) : (
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto"><table className="w-full text-sm">
           <thead>
             <tr className="text-xs text-gray-500 dark:text-gray-400">
               <th className="text-left font-medium pb-1">Source</th>
@@ -96,7 +96,7 @@ export default function AttributionPanel({ data, seasons }: Props) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
 
       {/* Said, not dropped: these are usually the ones nobody has qualified, and

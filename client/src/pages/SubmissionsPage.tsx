@@ -617,7 +617,7 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
       {s.status === 'pending' && !p.target_booking_id && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3">
           <p className="text-xs text-gray-500 dark:text-gray-400">Confirm the Bilene check-in / check-out before creating the booking (defaulted from country entry + nights).</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Check-in (Bilene)</label>
               <input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)}

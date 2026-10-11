@@ -69,7 +69,7 @@ function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_name[lang]} *</label>
           <input required value={name} onChange={e => setName(e.target.value)}
@@ -183,7 +183,7 @@ function BookingForm({ initial, providers, bookingRefs, allParticipants, onSave,
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="col-span-2">
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Provider *</label>
           <select required value={providerId} onChange={e => setProviderId(e.target.value)}
@@ -306,7 +306,7 @@ function PaymentForm({ providerId, onSave, onCancel }: PaymentFormProps) {
   return (
     <form onSubmit={handleSubmit} className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg p-4 space-y-3">
       <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{i18n.activities.btn_add_payment[lang]}</h4>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_date[lang]}</label>
           <input type="date" required value={date} onChange={e => setDate(e.target.value)}
@@ -431,7 +431,7 @@ function ProviderPanel({
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-6 py-4 flex items-start justify-between">
+      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-4 sm:px-6 py-4 flex flex-wrap gap-3 items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-xl font-bold">{provider.name}</h3>
@@ -451,7 +451,7 @@ function ProviderPanel({
         </div>
       </div>
 
-      <div className="p-6 space-y-6">
+      <div className="p-3 sm:p-6 space-y-6">
 
         {/* Share link */}
         <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg px-4 py-3 space-y-2">
@@ -463,7 +463,7 @@ function ProviderPanel({
         </div>
 
         {/* Financial KPIs */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {wePayBookings.length > 0 && (
             <div className={`rounded-lg border px-4 py-3 ${weOwe > 0 ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-900' : 'bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-900'}`}>
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">We owe them</p>
@@ -518,7 +518,7 @@ function ProviderPanel({
             <p className="text-sm text-gray-400 dark:text-gray-400 italic">No bookings yet.</p>
           ) : (
             <div className="rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
-              <table className="w-full text-xs">
+              <div className="overflow-x-auto"><table className="w-full text-xs">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-left">
                     <th className="px-3 py-2 font-medium">Date</th>
@@ -558,7 +558,7 @@ function ProviderPanel({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           )}
         </div>
@@ -583,7 +583,7 @@ function ProviderPanel({
 
           {payments.length > 0 && (
             <div className="rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden mt-3">
-              <table className="w-full text-xs">
+              <div className="overflow-x-auto"><table className="w-full text-xs">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-left">
                     <th className="px-3 py-2 font-medium">Date</th>
@@ -611,7 +611,7 @@ function ProviderPanel({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           )}
         </div>
@@ -962,7 +962,7 @@ export default function ActivitiesPage() {
               <p className="text-sm text-gray-400 dark:text-gray-400 italic py-8 text-center">No bookings found.</p>
             ) : (
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto"><table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-xs text-left">
                       <th className="px-4 py-3 font-medium">Date</th>
@@ -1006,7 +1006,7 @@ export default function ActivitiesPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             )}
           </div>
