@@ -205,7 +205,7 @@ export default function DriverStatementPanel({ driver, trips, driverLink, onGene
         </div>
 
         {/* KPI summary */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 rounded-lg px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">{i18n.taxis.label_completed[lang]}</p>
             <p className="text-2xl font-bold text-green-800 dark:text-green-400 mt-1">{earnedMzn.toLocaleString()}</p>

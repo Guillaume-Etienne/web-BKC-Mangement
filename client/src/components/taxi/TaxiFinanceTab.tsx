@@ -44,7 +44,7 @@ function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden mb-6">
-      <table className="w-full text-sm">
+      <div className="overflow-x-auto"><table className="w-full text-sm">
         <thead>
           <tr className="bg-gray-50 dark:bg-gray-800 border-b text-xs">
             <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400"></th>
@@ -77,7 +77,7 @@ function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
             <td className="px-3 py-2 text-right text-gray-600 dark:text-gray-400">{total.count}</td>
           </tr>
         </tfoot>
-      </table>
+      </table></div>
       <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800">
         Centre margin = Client € − (Driver + Manager MZN → € at global rate {rate})
       </p>
@@ -209,7 +209,7 @@ export default function TaxiFinanceTab({ trips, payments, eurMznRate, onAddPayme
       <div>
         <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">{i18n.taxis.section_payment_history[lang]}</h3>
         <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 dark:bg-gray-800 border-b text-xs">
                 <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.common.label_date[lang]}</th>
@@ -246,7 +246,7 @@ export default function TaxiFinanceTab({ trips, payments, eurMznRate, onAddPayme
                 </tr>
               </tfoot>
             )}
-          </table>
+          </table></div>
         </div>
       </div>
     </div>

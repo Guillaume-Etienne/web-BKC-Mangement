@@ -50,7 +50,7 @@ function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden mb-6">
-      <table className="w-full text-sm">
+      <div className="overflow-x-auto"><table className="w-full text-sm">
         <thead>
           <tr className="bg-gray-50 dark:bg-gray-800 border-b text-xs">
             <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400"></th>
@@ -83,7 +83,7 @@ function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
             <td className="px-3 py-2 text-right text-gray-600 dark:text-gray-400">{total.count}</td>
           </tr>
         </tfoot>
-      </table>
+      </table></div>
     </div>
   )
 }
@@ -347,7 +347,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
             </div>
 
             <form onSubmit={handleSave} className="overflow-y-auto flex-1 p-4 space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date *</label>
                   <input type="date" value={editTrip.date}
@@ -389,7 +389,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Driver</label>
                   <select value={editTrip.taxi_driver_id || ''}
@@ -423,7 +423,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Persons</label>
                   <input type="number" min="1" value={editTrip.nb_persons}
@@ -453,7 +453,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
 
               {/* Financial */}
               <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-800 space-y-3">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-blue-700 dark:text-blue-400 mb-1">Client price (EUR) *</label>
                     <input type="number" min="0" step="1" value={editTrip.price_eur}

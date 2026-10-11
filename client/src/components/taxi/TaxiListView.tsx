@@ -60,7 +60,7 @@ function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden mb-6">
-      <table className="w-full text-sm">
+      <div className="overflow-x-auto"><table className="w-full text-sm">
         <thead>
           <tr className="bg-gray-50 dark:bg-gray-800 border-b text-xs">
             <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400"></th>
@@ -93,7 +93,7 @@ function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
             <td className="px-3 py-2 text-right text-gray-600 dark:text-gray-400">{total.count}</td>
           </tr>
         </tfoot>
-      </table>
+      </table></div>
     </div>
   )
 }
@@ -127,7 +127,7 @@ function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaul
         </div>
 
         <div className="overflow-y-auto flex-1 p-4 space-y-4">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date *</label>
               <input type="date" value={trip.date}
@@ -169,7 +169,7 @@ function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaul
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Driver</label>
               <select value={trip.taxi_driver_id || ''}
@@ -204,7 +204,7 @@ function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaul
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Persons</label>
               <input type="number" min="1" value={trip.nb_persons}
@@ -234,7 +234,7 @@ function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaul
 
           {/* Financial */}
           <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-800 space-y-3">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-blue-700 dark:text-blue-400 mb-1">Client price (EUR) *</label>
                 <input type="number" min="0" step="1" value={trip.price_eur}
@@ -309,6 +309,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
   const [filterDriver, setFilterDriver] = useState<string>('all')
   const [editTrip, setEditTrip]         = useState<TaxiTrip | null>(null)
   const tableContainerRef               = useRef<HTMLDivElement>(null)
+  const cardsRef                        = useRef<HTMLDivElement>(null)
 
   const sortedTrips = [...trips]
     .filter(t => filterDriver === 'all' || t.taxi_driver_id === filterDriver || (filterDriver === 'unassigned' && !t.taxi_driver_id))
@@ -355,10 +356,11 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
 
   function scrollToToday() {
     const today = todayISO()
-    const container = tableContainerRef.current
-    if (!container) return
-    const rows = container.querySelectorAll<HTMLTableRowElement>('tr[data-date]')
-    let target: HTMLTableRowElement | null = null
+    // Table on desktop, cards on a phone: whichever one is on screen.
+    const rows = [tableContainerRef.current, cardsRef.current]
+      .flatMap(c => c ? Array.from(c.querySelectorAll<HTMLElement>('[data-date]')) : [])
+      .filter(el => el.offsetParent !== null)
+    let target: HTMLElement | null = null
     rows.forEach(row => {
       if (!target && (row.getAttribute('data-date') ?? '') >= today) target = row
     })
@@ -411,10 +413,50 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+      {/* Mobile: one card per trip, tap = edit */}
+      <div className="md:hidden space-y-2" ref={cardsRef}>
+        {sortedTrips.length === 0 && (
+          <p className="px-4 py-8 text-center text-gray-500 dark:text-gray-400 italic">{i18n.taxis.msg_no_trips[lang]}</p>
+        )}
+        {sortedTrips.map(trip => {
+          const driver = drivers.find(d => d.id === trip.taxi_driver_id)
+          const sc = STATUS_CONFIG[trip.status]
+          return (
+            <button key={trip.id} type="button" data-date={trip.date} onClick={() => setEditTrip(trip)}
+              className={`w-full text-left rounded-xl border border-gray-200 dark:border-gray-800 p-3 ${sc.row}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-semibold text-gray-900 dark:text-gray-100">{fmtDate(trip.date)} · {trip.start_time}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    {TRIP_TYPE_LABELS[trip.type]}
+                    {trip.margin_manager_mzn === 0 && <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-white">🔒 Private</span>}
+                  </div>
+                </div>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${sc.badge}`}>{sc.label}</span>
+              </div>
+              <div className="mt-1.5 text-sm text-gray-800 dark:text-gray-200">
+                {guestName(trip.booking_id, bookings)}
+                <span className="text-gray-500 dark:text-gray-400"> · {trip.nb_persons}p · {trip.nb_luggage} bag · {trip.nb_boardbags} bb</span>
+              </div>
+              <div className="text-xs text-gray-700 dark:text-gray-300">
+                🚕 {driver?.name ?? <span className="text-red-500 dark:text-red-300 italic">{i18n.taxis.label_unassigned[lang]}</span>}
+              </div>
+              {trip.notes && <div className="text-xs italic text-gray-500 dark:text-gray-400 mt-0.5">{trip.notes}</div>}
+              <div className="mt-2 grid grid-cols-4 gap-1 text-center text-xs">
+                <div><div className="text-[10px] text-blue-700 dark:text-blue-400">EUR</div><div className="font-bold text-blue-900 dark:text-blue-300">{trip.price_eur}€</div></div>
+                <div><div className="text-[10px] text-amber-700 dark:text-amber-400">Driver</div><div className="font-semibold text-amber-900 dark:text-amber-300">{trip.price_driver_mzn.toLocaleString()}</div></div>
+                <div><div className="text-[10px] text-purple-700 dark:text-purple-400">Mgr</div><div className="font-semibold text-purple-900 dark:text-purple-300">{trip.margin_manager_mzn.toLocaleString()}</div></div>
+                <div><div className="text-[10px] text-emerald-700 dark:text-emerald-400">Centre</div><div className="font-semibold text-emerald-900 dark:text-emerald-300">{computeTaxiMarginEur(trip, pricingDefaults.eur_mzn_rate)}€</div></div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
         <div className="overflow-x-auto" ref={tableContainerRef}>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="bg-gray-100 dark:bg-gray-800 border-b sticky top-0">
               <tr>
                 <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">{i18n.common.label_date[lang]}</th>
@@ -476,7 +518,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                 )
               })}
             </tbody>
-          </table>
+          </table></div>
         </div>
       </div>
 
