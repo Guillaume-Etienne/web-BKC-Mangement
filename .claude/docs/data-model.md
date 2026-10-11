@@ -738,6 +738,22 @@ l'écran le 2026-09-19). Le parse ne se fait qu'à la validation.
 > maintenance, transport, staff, admin, other. `equipment` **doit exister** :
 > `EquipmentPage` y range les dépenses d'achat et de revente de matériel.
 
+### Associés — `associates` → `Associate` / `associate_transfers` → `AssociateTransfer` (**2026-10-11b, migration en attente**)
+Comptes des deux associés (Gui, Teresa). « associate » et pas « partner » : « partner » = agences et hôtels.
+- `associates` : `id, name (UNIQUE), sort_order`. Admin seulement.
+- `associate_transfers` : `id, associate_id, date, amount (> 0, EUR), direction ('to_associate' | 'to_centre'), notes`.
+- `payments.received_by_associate_id` (nullable) : le client a payé directement cet associé. NULL = le centre.
+- `expenses.paid_by_associate_id` (nullable) : dépense du centre payée de sa poche. NULL = le centre.
+- **Solde** = paiements clients reçus + virements `to_associate` − virements `to_centre` − dépenses avancées
+  (`components/accounting/associateUtils.ts`, testé). Positif = sorti de la boîte ; négatif = la boîte lui doit.
+- **Décisions gui (2026-10-11)** : ce sont des prélèvements sur le bénéfice, **pas un salaire** → CA, dépenses et
+  résultat net inchangés ; partage **50/50** (d'où la phrase « X has taken N more than Y ») ; tout en **euros**.
+- Les remises (`is_discount`) ne comptent jamais, même taguées. Un paiement non vérifié compte, avec un badge.
+- Filtre saison : les paiements suivent leur résa ; les virements suivent la fenêtre ÉLARGIE des dépenses
+  (`expenseWindow`), sinon un virement d'inter-saison n'appartiendrait à aucune saison.
+- ⚠️ Les deux colonnes sont optionnelles dans les types (`?:`) et ne sont écrites que si `associates` est chargé :
+  un insert qui nomme une colonne non migrée est refusé en entier (cf. mémoire « never select unmigrated column »).
+
 ### Palmeiras
 | Table | Interface | Clé |
 |-------|-----------|-----|

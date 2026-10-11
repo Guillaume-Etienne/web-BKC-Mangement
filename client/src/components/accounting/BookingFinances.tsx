@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
-import type { Payment, PaymentMethod, Booking, EquipmentRental } from '../../types/database'
+import type { Payment, PaymentMethod, Booking, EquipmentRental, Associate } from '../../types/database'
 import { lessonBillable } from '../../types/database'
 import {
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
@@ -222,11 +222,14 @@ interface PaymentFormProps {
   bookingId: string
   initial?: Payment
   suggestedDeposit?: number
+  /** Empty until the associates migration is in: the selector then stays hidden
+   *  and the column is never written. */
+  associates: Associate[]
   onSave: (p: Payment) => void
   onCancel: () => void
 }
 
-function PaymentForm({ bookingId, initial, suggestedDeposit = 0, onSave, onCancel }: PaymentFormProps) {
+function PaymentForm({ bookingId, initial, suggestedDeposit = 0, associates, onSave, onCancel }: PaymentFormProps) {
   const { lang } = useLanguage()
   const [amount,     setAmount]     = useState(initial ? String(initial.amount) : String(suggestedDeposit))
   const [method,     setMethod]     = useState<PaymentMethod>(initial?.method ?? 'transfer')
@@ -234,6 +237,7 @@ function PaymentForm({ bookingId, initial, suggestedDeposit = 0, onSave, onCance
   const [isVerified, setIsVerified] = useState(initial?.is_verified ?? true)
   const [notes,      setNotes]      = useState(initial?.notes ?? '')
   const [date,       setDate]       = useState(initial?.date ?? todayISO())
+  const [receivedBy, setReceivedBy] = useState(initial?.received_by_associate_id ?? '')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -249,6 +253,9 @@ function PaymentForm({ bookingId, initial, suggestedDeposit = 0, onSave, onCance
       is_verified: isVerified,
       is_discount: false,
       notes:       notes || null,
+      // Only named once the column exists — an insert naming an unmigrated
+      // column is refused whole, and the payment would be lost with it.
+      ...(associates.length > 0 ? { received_by_associate_id: receivedBy || null } : {}),
     })
   }
 
@@ -287,6 +294,16 @@ function PaymentForm({ bookingId, initial, suggestedDeposit = 0, onSave, onCance
             className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
       </div>
+      {associates.length > 0 && (
+        <div>
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.as_received_by[lang]}</label>
+          <select value={receivedBy} onChange={e => setReceivedBy(e.target.value)}
+            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-900">
+            <option value="">{i18n.accounting.as_the_centre[lang]}</option>
+            {associates.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        </div>
+      )}
       <div className="flex gap-4">
         <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
           <input type="checkbox" checked={isDeposit} onChange={e => setIsDeposit(e.target.checked)} className="rounded" />
@@ -950,6 +967,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           <PaymentForm
             bookingId={b.id}
             suggestedDeposit={sugDeposit}
+            associates={data.associates}
             onSave={(p) => { handlers.addPayment(p); setShowAddPayment(false) }}
             onCancel={() => setShowAddPayment(false)}
           />
@@ -981,6 +999,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                     <PaymentForm
                       bookingId={b.id}
                       initial={p}
+                      associates={data.associates}
                       onSave={(updated) => { handlers.updatePayment(updated); setEditingPaymentId(null) }}
                       onCancel={() => setEditingPaymentId(null)}
                     />
@@ -998,6 +1017,11 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                       )}
                       {p.is_deposit && (
                         <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">{i18n.accounting.bf_deposit[lang]}</span>
+                      )}
+                      {!p.is_discount && p.received_by_associate_id && (
+                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400">
+                          → {data.associates.find(a => a.id === p.received_by_associate_id)?.name ?? '?'}
+                        </span>
                       )}
                       {!p.is_discount && (
                         p.is_verified

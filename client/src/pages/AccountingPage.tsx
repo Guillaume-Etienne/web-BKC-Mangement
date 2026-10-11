@@ -27,6 +27,7 @@ import ExpensesTab          from '../components/accounting/ExpensesTab'
 import EventsTab            from '../components/accounting/EventsTab'
 import UnverifiedPayments   from '../components/accounting/UnverifiedPayments'
 import AgencyBillingTab     from '../components/accounting/AgencyBillingTab'
+import AssociatesTab        from '../components/accounting/AssociatesTab'
 import type {
   ExternalAccommodationBooking, HouseRental, Season,
   Payment, InstructorDebt, InstructorPayment, LessonRateOverride, EquipmentRental,
@@ -34,9 +35,10 @@ import type {
   TaxiPricingDefaults, TaxiManagerPayment,
   DiningEvent, BookingRoomPrice, RoomRate, PriceItem, Lesson,
   AgencyBillingLine, AgencyInvoice, TaxiTrip, Lang, ActivityBooking,
+  Associate, AssociateTransfer,
 } from '../types/database'
 
-type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'agencies' | 'cashflow' | 'expenses' | 'events' | 'unverified'
+type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'agencies' | 'associates' | 'cashflow' | 'expenses' | 'events' | 'unverified'
 
 function getTabs(lang: Lang): { id: Tab; label: string; icon: string }[] {
   return [
@@ -46,6 +48,7 @@ function getTabs(lang: Lang): { id: Tab; label: string; icon: string }[] {
     { id: 'houses',      label: i18n.accounting.tab_houses[lang],      icon: '🏠' },
     { id: 'palmeiras',   label: i18n.accounting.tab_palmeiras[lang],   icon: '🏨' },
     { id: 'agencies',    label: i18n.accounting.tab_agencies[lang],    icon: '🤝' },
+    { id: 'associates',  label: i18n.accounting.tab_associates[lang],  icon: '👥' },
     { id: 'cashflow',    label: i18n.accounting.tab_cashflow[lang],    icon: '💸' },
     { id: 'expenses',    label: i18n.accounting.tab_expenses[lang],    icon: '🧾' },
     { id: 'events',      label: i18n.accounting.tab_events[lang],      icon: '🍽️' },
@@ -103,6 +106,8 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: palmeirasRentsData }     = useTable<PalmeirasRent>('palmeiras_rents', { order: 'month', ascending: false })
   const { data: palmeirasReversalsData } = useTable<PalmeirasReversal>('palmeiras_reversals', { order: 'month', ascending: false })
   const { data: palmeirasEntriesData }   = useTable<PalmeirasEntry>('palmeiras_entries', { order: 'month', ascending: false })
+  const { data: associates }             = useTable<Associate>('associates', { order: 'sort_order' })
+  const { data: associateTransfersData } = useTable<AssociateTransfer>('associate_transfers', { order: 'date', ascending: false })
 
   const [lessons,            setLessons]            = useState<Lesson[]>([])
   const [taxiTrips,          setTaxiTrips]          = useState<TaxiTrip[]>([])
@@ -119,6 +124,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const [palmeirasReversals, setPalmeirasReversals] = useState<PalmeirasReversal[]>([])
   const [palmeirasEntries,   setPalmeirasEntries]   = useState<PalmeirasEntry[]>([])
   const [activityBookings,   setActivityBookings]   = useState<ActivityBooking[]>([])
+  const [associateTransfers, setAssociateTransfers] = useState<AssociateTransfer[]>([])
 
   useEffect(() => setLessons(lessonsData),                     [lessonsData])
   useEffect(() => setTaxiTrips(taxiTripsData),                 [taxiTripsData])
@@ -136,6 +142,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   useEffect(() => setPalmeirasRents(palmeirasRentsData),       [palmeirasRentsData])
   useEffect(() => setPalmeirasReversals(palmeirasReversalsData),[palmeirasReversalsData])
   useEffect(() => setPalmeirasEntries(palmeirasEntriesData),   [palmeirasEntriesData])
+  useEffect(() => setAssociateTransfers(associateTransfersData), [associateTransfersData])
 
   // ── Shared computed data passed down to tabs ──────────────────────────────
   const sharedData = {
@@ -176,6 +183,8 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     agencyBillingLines,
     agencyInvoices,
     partnerHotelStays,
+    associates,
+    associateTransfers,
   }
 
   // ── Handlers (optimistic local update, rolled back if the DB refuses) ─────
@@ -309,6 +318,19 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       setExpenses(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('expenses').delete().eq('id', id),
         () => setExpenses(before), 'the expense deletion')
+    },
+
+    addAssociateTransfer: (t: AssociateTransfer) => {
+      const before = associateTransfers
+      setAssociateTransfers(prev => [t, ...prev])
+      persist(supabase.from('associate_transfers').insert([t]),
+        () => setAssociateTransfers(before), 'the transfer')
+    },
+    deleteAssociateTransfer: (id: string) => {
+      const before = associateTransfers
+      setAssociateTransfers(prev => prev.filter(x => x.id !== id))
+      persist(supabase.from('associate_transfers').delete().eq('id', id),
+        () => setAssociateTransfers(before), 'the transfer deletion')
     },
 
     // Activities billed from a booking's bill: filed under the in-house provider
@@ -579,6 +601,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         {tab === 'houses'      && <HousesTab            data={sharedData} />}
         {tab === 'palmeiras'   && <PalmeirasTab        data={sharedData} handlers={handlers} />}
         {tab === 'agencies'    && <AgencyBillingTab    data={sharedData} />}
+        {tab === 'associates'  && <AssociatesTab       data={sharedData} handlers={handlers} onOpenBooking={onOpenBooking} />}
         {tab === 'cashflow'    && <CashFlow            data={sharedData} />}
         {tab === 'expenses'    && <ExpensesTab         data={sharedData} handlers={handlers} />}
         {tab === 'events'      && <EventsTab           data={sharedData} />}

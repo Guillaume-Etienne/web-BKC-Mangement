@@ -337,7 +337,12 @@
 ### `AccountingPage`
 - **Route :** `'accounting'`
 - **Hooks :** 21 hooks (useAccommodations, useHouseRentals, useBookings, useBookingParticipants, useClients, useRooms, useBookingRooms, useBookingRoomPrices, useExternalAccommodations, useExternalAccommodationBkgs, useDiningEvents, useLessons, useInstructors, useEquipment, useEquipmentRentals, useTaxiTrips, useActivityBookings, useActivityPayments, useSeasons, usePayments, + états mutables)
-- **State :** `tab: 'dashboard'|'bookings'|'instructors'|'houses'|'palmeiras'|'cashflow'|'expenses'|'events'|'unverified'`
+- **State :** `tab: 'dashboard'|'bookings'|'instructors'|'houses'|'palmeiras'|'agencies'|'associates'|'cashflow'|'expenses'|'events'|'unverified'`
+- **Onglet 👥 Associates (2026-10-11)** — `AssociatesTab.tsx` : une carte par associé (solde au centime, 4 lignes de
+  décomposition, journal daté), phrase d'écart 50/50, période All time / Season, « + Add transfer ». Seuls les
+  virements se suppriment ici ; un paiement client se modifie dans Bookings (« Received by »), une dépense dans
+  Expenses (« Paid by »). Une seule mise en page qui se replie (pas de double rendu tableau/cartes). Tant que la
+  migration 2026-10-11b n'est pas passée : message « run the migration », sélecteurs cachés.
 - **Dashboard — rangée « volume » en tête (2026-09-19)** : réservations, voyageurs,
   nuits vendues, transferts taxi, juste sous le sélecteur de période, **avant** les
   euros. Un seul calcul pur, `computeVolumeTotals` (`utils.ts`, testé), au même

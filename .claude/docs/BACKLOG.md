@@ -6,6 +6,20 @@
 
 ## 🚨 Migrations SQL — registre
 
+⬜ **`2026-10-11b_associate_accounts.sql`** (TEST ⬜ / PROD ⬜) — comptes des associés (Gui, Teresa) :
+tables `associates` (seed des deux) + `associate_transfers`, colonnes `payments.received_by_associate_id` et
+`expenses.paid_by_associate_id` (NULL = le centre). Un fichier, additif, admin seulement (`REVOKE ALL … FROM anon`).
+**Code déployable avant** : les deux sélecteurs restent cachés et la colonne n'est jamais écrite tant que
+`associates` est vide ; l'onglet Accounting → Associates affiche « run the migration » et le bandeau signale la
+lecture refusée ; le MCP tolère les tables absentes. Vérif : `SELECT name FROM associates` → Gui, Teresa ; curl anon
+nu `associates?select=name` → 401/42501 (pas `[]`) ; curl token client `payments?select=id,amount` → 200 inchangé.
+⚠️ Connu, non fermé : anon a un SELECT de table sur `payments`, donc un lien client peut lire l'uuid
+`received_by_associate_id` de SES paiements (la page ne le demande plus). Le fermer = GRANT par colonnes sur
+`payments`, migration à part, APRÈS déploiement — c'est l'offre « resserrer les colonnes anon de payments ».
+**Tranche 2 non faite** (attend la vérif des soldes par gui) : CashFlow (sortir les encaissements reçus par un
+associé et les dépenses avancées, ajouter une colonne virements) + ligne « Taken by associates » au tableau de bord.
+Aujourd'hui CashFlow compte encore ces mouvements comme s'ils passaient par la caisse du centre.
+
 ⬜ **`2026-10-11_instructor_share_students.sql`** (passée par gui 2026-10-11 — **curl anon avec token instructor encore à faire**, vérif écran aussi : aucun lien `instructor` en PROD le 2026-10-11, à créer dans Options → Shared Links ; page refaite en lignes par cours + totaux séparés par type, `1ecc450`, non poussé) — noms des élèves par jour sur la page
 « Instructor Hours » : policy `anon_read_booking_participants` élargie au token `instructor` (seulement les
 participants de SES cours). Un fichier, additif. Sans elle : la page marche, sans les noms. Vérif curl anon

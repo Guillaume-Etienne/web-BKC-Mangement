@@ -818,6 +818,9 @@ export interface Payment {
   is_verified: boolean
   is_discount: boolean
   notes: string | null
+  /** Who actually holds the money: null/absent = the centre, otherwise the
+   *  associate the guest paid directly. Absent until the 2026-10-11b migration. */
+  received_by_associate_id?: string | null
 }
 
 // Instructor payroll — debt (advance on dinner, outing, etc.)
@@ -871,6 +874,29 @@ export interface Expense {
   category_id: string | null
   amount: number
   description: string
+  /** null/absent = paid from the centre's cash; otherwise the associate who
+   *  paid it out of pocket (the centre owes it back to them). */
+  paid_by_associate_id?: string | null
+}
+
+// Associates (the two co-owners) — who took what out of the business
+export interface Associate {
+  id: string
+  name: string
+  sort_order: number
+}
+
+export type AssociateTransferDirection = 'to_associate' | 'to_centre'
+
+// A transfer between the centre's cash and an associate. `amount` is always
+// positive; `direction` carries the sign.
+export interface AssociateTransfer {
+  id: string
+  associate_id: string
+  date: string
+  amount: number                // always in EUR
+  direction: AssociateTransferDirection
+  notes: string | null
 }
 
 // Palmeiras — monthly rent we pay them

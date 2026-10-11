@@ -131,6 +131,9 @@ export function filterDataToSeason(
     // ⚠️ Les dépenses, et elles seules, suivent la fenêtre ÉLARGIE : ce qui a
     // été payé pendant l'inter-saison prépare la saison qui vient.
     expenses:            data.expenses.filter(e => inRange(e.date, expRange)),
+    // Same widened window as the expenses: a transfer made between two seasons
+    // would otherwise belong to none and drop out of every associate balance.
+    associateTransfers:  data.associateTransfers.filter(t => inRange(t.date, expRange)),
     diningEvents:        byOwnDate(data.diningEvents),
     instructorDebts:     byOwnDate(data.instructorDebts),
     instructorPayments:  byOwnDate(data.instructorPayments),

@@ -176,7 +176,11 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         .eq('booking_id', id),
       supabase.from('rooms').select('*'),
       supabase.from('accommodations').select('*'),
-      supabase.from('payments').select('*').eq('booking_id', id).order('date'),
+      // Explicit columns: the guest's page has no business asking which associate
+      // received a payment (`received_by_associate_id`).
+      supabase.from('payments')
+        .select('id, booking_id, date, amount, method, is_deposit, is_verified, is_discount, notes')
+        .eq('booking_id', id).order('date'),
       supabase.from('lessons')
         .select('id, booking_id, instructor_id, participant_ids, date, start_time, duration_hours, type, notes, agency_billing_line_id, price_per_hour:share_price_per_hour')
         .eq('booking_id', id).order('date'),

@@ -1,6 +1,6 @@
 import { useState, useMemo, Fragment } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
-import type { Expense, ExpenseCategory } from '../../types/database'
+import type { Associate, Expense, ExpenseCategory } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
 import {
@@ -82,10 +82,11 @@ function CategorySelect({ categories, value, onChange, allLabel, className, mode
 interface AddFormProps {
   categories: ExpenseCategory[]        // actives seulement
   allCategories: ExpenseCategory[]     // archivées incluses, pour le libellé legacy
+  associates: Associate[]              // vide tant que la migration associés n'est pas passée
   onAdd: (e: Expense) => void
   onCancel: () => void
 }
-function AddExpenseForm({ categories, allCategories, onAdd, onCancel }: AddFormProps) {
+function AddExpenseForm({ categories, allCategories, associates, onAdd, onCancel }: AddFormProps) {
   const { lang } = useLanguage()
   const [date,        setDate]        = useState(todayISO())
   // La première DESTINATION réelle, dans l'ordre de l'arbre : ni un titre, ni
@@ -94,6 +95,7 @@ function AddExpenseForm({ categories, allCategories, onAdd, onCancel }: AddFormP
   const [categoryId,  setCategoryId]  = useState(postableCategories(categories)[0]?.id ?? '')
   const [amount,      setAmount]      = useState('')
   const [description, setDescription] = useState('')
+  const [paidBy,      setPaidBy]      = useState('')
 
   const submit = () => {
     const amt = parseFloat(amount)
@@ -106,13 +108,16 @@ function AddExpenseForm({ categories, allCategories, onAdd, onCancel }: AddFormP
       category: legacyLabel(allCategories, categoryId),
       amount: amt,
       description: description.trim(),
+      // Nommée seulement si la colonne existe : un insert qui cite une colonne
+      // pas encore migrée est refusé en entier.
+      ...(associates.length > 0 ? { paid_by_associate_id: paidBy || null } : {}),
     })
   }
 
   return (
     <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-xl p-5 space-y-4">
       <p className="font-semibold text-blue-800 dark:text-blue-400">{i18n.accounting.ex_new_expense[lang]}</p>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className={`grid grid-cols-2 gap-3 ${associates.length > 0 ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
         <div>
           <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.common.label_date[lang]}</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
@@ -128,6 +133,16 @@ function AddExpenseForm({ categories, allCategories, onAdd, onCancel }: AddFormP
             placeholder="0.00"
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
+        {associates.length > 0 && (
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.as_paid_by[lang]}</label>
+            <select value={paidBy} onChange={e => setPaidBy(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-gray-200">
+              <option value="">{i18n.accounting.as_the_centre[lang]}</option>
+              {associates.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          </div>
+        )}
       </div>
       <div>
         <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.palm_description_col[lang]}</label>
@@ -152,7 +167,7 @@ function AddExpenseForm({ categories, allCategories, onAdd, onCancel }: AddFormP
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ExpensesTab({ data, handlers }: Props) {
   const { lang } = useLanguage()
-  const { expenses, expenseCategories, seasons } = data
+  const { expenses, expenseCategories, seasons, associates } = data
   const currentSeason = seasons[seasons.length - 1]
 
   const [view,        setView]        = useState<View>('list')
@@ -535,6 +550,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
                 {i18n.accounting.ex_no_categories[lang]}
               </p>
             : <AddExpenseForm categories={activeCategories} allCategories={expenseCategories}
+                associates={associates}
                 onAdd={e => { handlers.addExpense(e); setShowAddForm(false) }}
                 onCancel={() => setShowAddForm(false)} />
         )}
@@ -572,6 +588,17 @@ export default function ExpensesTab({ data, handlers }: Props) {
                       onChange={ev => setEditDraft({ ...editDraft, description: ev.target.value })}
                       onKeyDown={ev => { if (ev.key === 'Enter') saveEdit(); if (ev.key === 'Escape') cancelEdit() }}
                       className="w-full px-2 py-1 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-gray-200" />
+                    {associates.length > 0 && (
+                      <label className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        {i18n.accounting.as_paid_by[lang]}
+                        <select value={editDraft.paid_by_associate_id ?? ''}
+                          onChange={ev => setEditDraft({ ...editDraft, paid_by_associate_id: ev.target.value || null })}
+                          className="px-2 py-1 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-gray-200">
+                          <option value="">{i18n.accounting.as_the_centre[lang]}</option>
+                          {associates.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                        </select>
+                      </label>
+                    )}
                   </td>
                   <td className="px-4 py-2 text-right">
                     <input type="number" step="0.01" value={editAmount}
@@ -597,7 +624,14 @@ export default function ExpensesTab({ data, handlers }: Props) {
                       {pathOf(e.category_id)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-800 dark:text-gray-200">{e.description}</td>
+                  <td className="px-4 py-3 text-gray-800 dark:text-gray-200">
+                    {e.description}
+                    {e.paid_by_associate_id && (
+                      <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400">
+                        {i18n.accounting.as_paid_by_name[lang].replace('{name}', associates.find(a => a.id === e.paid_by_associate_id)?.name ?? '?')}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-400">− {fmtEur(e.amount)}</td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     <button onClick={() => startEdit(e)} title={i18n.accounting.ex_edit_expense[lang]}

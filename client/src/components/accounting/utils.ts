@@ -21,6 +21,7 @@ export function emptyAccountingData(): SharedAccountingData {
     activityBookings: [], activityPayments: [],
     agencies: [], agencyRateItems: [], agencyBillingLines: [], agencyInvoices: [],
     partnerHotelStays: [],
+    associates: [], associateTransfers: [],
   }
 }
 
