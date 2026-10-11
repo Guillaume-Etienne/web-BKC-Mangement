@@ -17,6 +17,15 @@ type HourLesson = Pick<Lesson, 'id' | 'date' | 'start_time' | 'duration_hours' |
 // and only those of THIS instructor's lessons (policy 2026-10-11).
 type Student = { id: string; first_name: string; last_name: string }
 
+type DayLesson = { id: string; type: LessonType; hours: number; names: string[]; start: string; end: string }
+
+/** "09:00:00" + 1.5 → "10:30" */
+function addHours(time: string, h: number): string {
+  const [hh, mm] = time.split(':').map(Number)
+  const total = Math.round(hh * 60 + mm + h * 60)
+  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
 type Lang = 'en' | 'fr' | 'pt'
 type Mode = 'month' | 'season'
 
@@ -140,18 +149,21 @@ export default function InstructorSharePage({ instructorId }: Props) {
 
   // Hours per day, in date order.
   const days = useMemo(() => {
-    const m = new Map<string, { hours: Hours; count: number; names: string[] }>()
+    const m = new Map<string, { hours: Hours; items: DayLesson[] }>()
     for (const l of inPeriod) {
-      const d = m.get(l.date) ?? { hours: emptyHours(), count: 0, names: [] }
+      const d = m.get(l.date) ?? { hours: emptyHours(), items: [] }
       d.hours[l.type] += l.duration_hours
-      d.count++
-      for (const pid of l.participant_ids ?? []) {
-        const g = students.get(pid)
-        const name = g ? `${g.first_name} ${g.last_name}`.trim() : ''
-        if (name && !d.names.includes(name)) d.names.push(name)
-      }
+      const names = (l.participant_ids ?? [])
+        .map(pid => students.get(pid))
+        .filter((g): g is Student => !!g)
+        .map(g => `${g.first_name} ${g.last_name}`.trim())
+      d.items.push({
+        id: l.id, type: l.type, hours: l.duration_hours, names,
+        start: l.start_time.slice(0, 5), end: addHours(l.start_time, l.duration_hours),
+      })
       m.set(l.date, d)
     }
+    for (const d of m.values()) d.items.sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end))
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   }, [inPeriod, students])
 
@@ -295,42 +307,27 @@ export default function InstructorSharePage({ instructorId }: Props) {
           {days.length === 0 ? (
             <p className="text-sm text-gray-400 dark:text-gray-400 italic py-6 text-center">{tr.no_hours[lang]}</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 dark:bg-gray-800 border-b text-xs text-gray-500 dark:text-gray-400">
-                  <th className="px-3 py-2 text-left font-medium">{tr.col_date[lang]}</th>
-                  {TYPES.map(t => <th key={t} className="px-2 py-2 text-right font-medium">{tr[t][lang]}</th>)}
-                  <th className="px-3 py-2 text-right font-medium">{tr.total[lang]}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {days.map(([date, d]) => (
-                  <tr key={date} className={`border-b ${date === today ? 'bg-amber-50/60 dark:bg-amber-950/20' : ''}`}>
-                    <td className="px-3 py-2 font-medium capitalize text-gray-800 dark:text-gray-200">
-                      <span className="whitespace-nowrap">{dayLabel(date, lang)}</span>
-                      {d.names.length > 0 && (
-                        <span className="block text-xs font-normal normal-case text-gray-500 dark:text-gray-400">
-                          {tr.students[lang]}: {d.names.join(', ')}
+            <div className="divide-y divide-gray-200 dark:divide-gray-800">
+              {days.map(([date, d]) => (
+                <div key={date} className={date === today ? 'bg-amber-50/60 dark:bg-amber-950/20' : ''}>
+                  <div className="flex items-baseline justify-between px-4 pt-3 pb-1">
+                    <span className="font-bold capitalize text-gray-900 dark:text-gray-100">{dayLabel(date, lang)}</span>
+                    <span className="text-sm font-bold text-gray-700 dark:text-gray-300">{fmtH(sumHours(d.hours))} {tr.hours_unit[lang]}</span>
+                  </div>
+                  <ul className="px-3 pb-3 space-y-1.5">
+                    {d.items.map(it => (
+                      <li key={it.id} className={`rounded-lg border px-3 py-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 ${typeCard[it.type]}`}>
+                        <span className="text-sm font-bold tabular-nums">{it.start}–{it.end}</span>
+                        <span className="text-sm font-semibold">{fmtH(it.hours)} {tr.hours_unit[lang]} · {tr[it.type][lang]}</span>
+                        <span className="text-sm w-full sm:w-auto sm:ml-auto sm:text-right">
+                          {it.names.length > 0 ? it.names.join(', ') : '—'}
                         </span>
-                      )}
-                    </td>
-                    {TYPES.map(t => (
-                      <td key={t} className="px-2 py-2 text-right text-gray-600 dark:text-gray-400">{d.hours[t] ? fmtH(d.hours[t]) : '–'}</td>
+                      </li>
                     ))}
-                    <td className="px-3 py-2 text-right font-bold text-gray-900 dark:text-gray-100">{fmtH(sumHours(d.hours))}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-gray-100 dark:bg-gray-800 border-t-2 border-gray-300 dark:border-gray-700 font-bold">
-                  <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{tr.total[lang]}</td>
-                  {TYPES.map(t => (
-                    <td key={t} className="px-2 py-2 text-right text-gray-700 dark:text-gray-300">{fmtH(totals[t])}</td>
-                  ))}
-                  <td className="px-3 py-2 text-right text-amber-900 dark:text-amber-400">{fmtH(sumHours(totals))}</td>
-                </tr>
-              </tfoot>
-            </table>
+                  </ul>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
