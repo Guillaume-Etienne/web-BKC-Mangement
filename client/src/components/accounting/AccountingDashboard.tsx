@@ -3,6 +3,7 @@ import type { SharedAccountingData } from './types'
 import CollectionsModal from './CollectionsModal'
 import SeasonComparison from './SeasonComparison'
 import { filterDataToSeason } from './seasonFilter'
+import { computeAssociateSummaries, totalDrawn } from './associateUtils'
 import { todayISO, fmtDate } from '../../utils/dates'
 import { isDayVisitor } from '../../utils/dayVisitor'
 import {
@@ -80,6 +81,12 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
 
   // What was sold, in units — same perimeter, same pure-function treatment as the money.
   const volume = computeVolumeTotals(scoped)
+  // Drawings by the two associates, same period as everything else. Shown UNDER
+  // the net result and never subtracted from it: it is a share of the profit,
+  // not a cost (gui, 2026-10-11).
+  const associateSummaries = computeAssociateSummaries(scoped)
+  const drawn = totalDrawn(associateSummaries)
+  const hasAssociateMoves = associateSummaries.some(s => s.entries.length > 0)
 
   const activeTrips     = taxiTrips.filter(t => t.booking_id === null || activeIds.has(t.booking_id))
   const standaloneTrips = activeTrips.filter(t => t.booking_id === null)
@@ -318,6 +325,25 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
         </div>
         <p className={`text-4xl font-bold ${netResult >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>{sign(netResult)}</p>
       </div>
+
+      {/* ── Taken by the associates — only once there is something to show ── */}
+      {hasAssociateMoves && (
+        <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-5 py-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+          <div>
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{i18n.accounting.dash_taken_by_associates[lang]}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              {associateSummaries.map(s => `${s.associate.name} ${fmt(s.balance)}`).join(' · ')}
+              {' — '}{i18n.accounting.dash_taken_detail[lang]}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{fmt(drawn)}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {i18n.accounting.dash_left_in_business[lang].replace('{amount}', fmt(netResult - drawn))}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Two columns ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

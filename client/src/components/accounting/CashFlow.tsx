@@ -78,7 +78,7 @@ export default function CashFlow({ data }: Props) {
           { label: i18n.accounting.label_collected[lang],   value: totals.collected, color: 'text-emerald-700 dark:text-emerald-400', note: i18n.accounting.hint_collected[lang],
             warn: totals.unverified > 0 ? i18n.accounting.dash_still_to_verify[lang].replace('{amount}', fmtEur(totals.unverified)) : null },
           // Must list every outflow `net` subtracts, or this card and the table disagree.
-          { label: i18n.accounting.cf_total_out[lang],   value: -(totals.expenses + totals.rent + totals.instrPaid + totals.taxiOut + totals.providersOut), color: 'text-red-700 dark:text-red-400', note: i18n.accounting.cf_note_total_out[lang] },
+          { label: i18n.accounting.cf_total_out[lang],   value: -(totals.expenses + totals.rent + totals.instrPaid + totals.taxiOut + totals.providersOut + totals.associatesOut), color: 'text-red-700 dark:text-red-400', note: i18n.accounting.cf_note_total_out[lang] },
           { label: i18n.accounting.hint_net_cash[lang],    value: totals.net,       color: totals.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400', note: i18n.accounting.cf_note_net_cash[lang] },
         ].map(k => (
           <div key={k.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 py-4">
@@ -219,7 +219,7 @@ export default function CashFlow({ data }: Props) {
 
       {/* Detailed table */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
-        <table className="w-full text-sm min-w-[900px]">
+        <table className="w-full text-sm min-w-[980px]">
           <thead className="bg-gray-50 dark:bg-gray-800 border-b">
             <tr>
               <th className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 sm:px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.label_month[lang]}</th>
@@ -240,6 +240,10 @@ export default function CashFlow({ data }: Props) {
               <th className="px-2 sm:px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400"
                   title="Activity providers settled this month: cash paid to them minus cash they paid us.">
                 {i18n.accounting.cf_providers_col[lang]}
+              </th>
+              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400"
+                  title={i18n.accounting.cf_associates_hint[lang]}>
+                {i18n.accounting.tab_associates[lang]}
               </th>
               <th className="px-2 sm:px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.hint_net_cash[lang]}</th>
               <th className="px-2 sm:px-4 py-3 text-right font-semibold text-gray-400 dark:text-gray-400">{i18n.accounting.cf_running_col[lang]}</th>
@@ -282,6 +286,11 @@ export default function CashFlow({ data }: Props) {
                   <td className={`px-4 py-3 text-right ${r.providersOut < 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
                     {r.providersOut ? `${r.providersOut < 0 ? '+' : '−'} ${fmtEur(Math.abs(r.providersOut))}` : '–'}
                   </td>
+                  {/* Signed like the providers: a "+" the month an associate advanced
+                      more than they took. */}
+                  <td className={`px-4 py-3 text-right ${r.associatesOut < 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
+                    {r.associatesOut ? `${r.associatesOut < 0 ? '+' : '−'} ${fmtEur(Math.abs(r.associatesOut))}` : '–'}
+                  </td>
                   <td className={`px-4 py-3 text-right font-bold ${r.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
                     {r.net >= 0 ? '+' : ''}{fmtEur(r.net)}
                   </td>
@@ -308,6 +317,9 @@ export default function CashFlow({ data }: Props) {
               <td className={`px-4 py-3 text-right ${totals.providersOut < 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
                 {totals.providersOut < 0 ? '+' : '−'} {fmtEur(Math.abs(totals.providersOut))}
               </td>
+              <td className={`px-4 py-3 text-right ${totals.associatesOut < 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
+                {totals.associatesOut < 0 ? '+' : '−'} {fmtEur(Math.abs(totals.associatesOut))}
+              </td>
               <td className={`px-4 py-3 text-right ${totals.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
                 {totals.net >= 0 ? '+' : ''}{fmtEur(totals.net)}
               </td>
@@ -322,6 +334,7 @@ export default function CashFlow({ data }: Props) {
         <span><strong>Billed</strong> = computed total of active bookings (by check-in month)</span>
         <span><strong>Collected</strong> = actual payments received (by payment date)</span>
         <span><strong>Taxi out</strong> = drivers (paid per done trip) + manager payments, MZN→€ at global rate</span>
+        <span><strong>Associates</strong> = guest payments they received directly + transfers to them − paid back − expenses they paid out of pocket</span>
         <span><strong>Running</strong> = cumulative net cash (oldest → newest)</span>
       </div>
     </div>

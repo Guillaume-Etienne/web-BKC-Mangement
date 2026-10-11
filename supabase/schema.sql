@@ -749,6 +749,33 @@ CREATE TABLE external_accommodation_bookings (
   notes                      TEXT
 );
 
+-- Associés (2026-10-11b) : les deux copropriétaires et leurs comptes.
+-- Solde = paiements clients reçus en direct + virements 'to_associate'
+--         − virements 'to_centre' − dépenses du centre payées de leur poche.
+-- Prélèvements sur le bénéfice, pas un salaire : le résultat net n'en dépend pas.
+CREATE TABLE associates (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT NOT NULL UNIQUE,
+  sort_order  INT  NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE associate_transfers (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  associate_id  UUID NOT NULL REFERENCES associates(id) ON DELETE RESTRICT,
+  date          DATE NOT NULL,
+  amount        NUMERIC(10,2) NOT NULL CHECK (amount > 0),
+  direction     TEXT NOT NULL DEFAULT 'to_associate'
+                CHECK (direction IN ('to_associate', 'to_centre')),
+  notes         TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_associate_transfers_associate ON associate_transfers(associate_id, date DESC);
+
+REVOKE ALL ON associates          FROM anon;  -- admin only
+REVOKE ALL ON associate_transfers FROM anon;
+
 CREATE TABLE payments (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id   UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
@@ -759,10 +786,14 @@ CREATE TABLE payments (
   is_verified  BOOLEAN NOT NULL DEFAULT false,
   is_discount  BOOLEAN NOT NULL DEFAULT false,
   notes        TEXT,
+  -- NULL = encaissé par le centre ; sinon l'associé que le client a payé en direct
+  received_by_associate_id UUID REFERENCES associates(id) ON DELETE RESTRICT,
   created_at   TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE INDEX idx_payments_booking ON payments(booking_id);
+CREATE INDEX idx_payments_received_by_associate
+  ON payments(received_by_associate_id) WHERE received_by_associate_id IS NOT NULL;
 
 CREATE TABLE instructor_debts (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -819,10 +850,14 @@ CREATE TABLE expenses (
   category_id  UUID REFERENCES expense_categories(id) ON DELETE RESTRICT,
   amount       NUMERIC(10,2) NOT NULL,
   description  TEXT NOT NULL,
+  -- NULL = payé par la caisse du centre ; sinon l'associé qui l'a avancée
+  paid_by_associate_id UUID REFERENCES associates(id) ON DELETE RESTRICT,
   created_at   TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE INDEX idx_expenses_date ON expenses(date);
+CREATE INDEX idx_expenses_paid_by_associate
+  ON expenses(paid_by_associate_id) WHERE paid_by_associate_id IS NOT NULL;
 CREATE INDEX idx_expenses_category_id ON expenses(category_id) WHERE category_id IS NOT NULL;
 
 REVOKE ALL ON expense_categories FROM anon;  -- admin only, jamais anon (comme expenses)
@@ -1045,7 +1080,8 @@ BEGIN
     'enquiry_sources', 'enquiries', 'enquiry_notes', 'client_notes',
     'agencies', 'agency_rate_items', 'agency_billing_lines', 'agency_invoices',
     'price_tiers',
-    'planned_lessons', 'planned_rentals'
+    'planned_lessons', 'planned_rentals',
+    'associates', 'associate_transfers'
   ]) LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format(

@@ -1,5 +1,6 @@
 import type { SharedAccountingData } from './types'
 import { computeBookingTotal, computeBookingDiscounts, agencyCommission } from './utils'
+import { computeAssociateSummaries } from './associateUtils'
 
 /** One month of cash movements. Amounts in EUR. */
 export interface MonthRow {
@@ -33,6 +34,17 @@ export interface MonthRow {
    *
    *  Positive is money coming in, like `palmIn` — not an outflow. */
   agenciesIn: number
+  /** Cash that sits with the associates instead of the centre's till this month:
+   *  guest payments they received directly, plus transfers to them, minus what
+   *  they handed back and minus centre expenses they paid out of pocket.
+   *
+   *  It is what makes `net` the TILL and not the business: a guest who pays an
+   *  associate is in `collected` (the booking is settled) and taken back out
+   *  here; an expense an associate advanced is in `expenses` (it is a real cost)
+   *  and given back here. Either way the till did not move, and `net` says so.
+   *  Positive is money out of the till; negative when they advanced more than
+   *  they took. Summed over all time it equals the associates' total balance. */
+  associatesOut: number
   net: number        // collected + palmIn + agenciesIn − every outflow
 }
 
@@ -40,7 +52,7 @@ export type CashFlowTotals = Omit<MonthRow, 'month'>
 
 const EMPTY = (month: string): MonthRow => ({
   month, billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0,
-  instrPaid: 0, taxiOut: 0, providersOut: 0, agenciesIn: 0, net: 0,
+  instrPaid: 0, taxiOut: 0, providersOut: 0, agenciesIn: 0, associatesOut: 0, net: 0,
 })
 
 /** Monthly cash movements, newest month first.
@@ -158,9 +170,16 @@ export function buildCashFlowRows(data: SharedAccountingData): MonthRow[] {
     if (paidAt) ensure(paidAt.slice(0, 7)).agenciesIn += net
   }
 
+  // Associates (2026-10-11). Their ledger is already signed the right way —
+  // positive = money they hold — so each entry lands in its own month as is.
+  for (const s of computeAssociateSummaries(data)) {
+    for (const e of s.entries) ensure(e.date.slice(0, 7)).associatesOut += e.amount
+  }
+
   for (const row of Object.values(idx)) {
     row.net = row.collected + row.palmIn + row.agenciesIn
       - row.expenses - row.rent - row.instrPaid - row.taxiOut - row.providersOut
+      - row.associatesOut
   }
 
   return Object.values(idx).sort((a, b) => b.month.localeCompare(a.month))
@@ -184,9 +203,10 @@ export function sumCashFlowRows(rows: MonthRow[]): CashFlowTotals {
     taxiOut:   acc.taxiOut   + r.taxiOut,
     providersOut: acc.providersOut + r.providersOut,
     agenciesIn: acc.agenciesIn + r.agenciesIn,
+    associatesOut: acc.associatesOut + r.associatesOut,
     net:       acc.net       + r.net,
   }), { billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0,
-        instrPaid: 0, taxiOut: 0, providersOut: 0, agenciesIn: 0, net: 0 })
+        instrPaid: 0, taxiOut: 0, providersOut: 0, agenciesIn: 0, associatesOut: 0, net: 0 })
 }
 
 /** Cumulative net per month, walking oldest → newest. */

@@ -6,19 +6,20 @@
 
 ## 🚨 Migrations SQL — registre
 
-⬜ **`2026-10-11b_associate_accounts.sql`** (TEST ⬜ / PROD ⬜) — comptes des associés (Gui, Teresa) :
-tables `associates` (seed des deux) + `associate_transfers`, colonnes `payments.received_by_associate_id` et
-`expenses.paid_by_associate_id` (NULL = le centre). Un fichier, additif, admin seulement (`REVOKE ALL … FROM anon`).
-**Code déployable avant** : les deux sélecteurs restent cachés et la colonne n'est jamais écrite tant que
-`associates` est vide ; l'onglet Accounting → Associates affiche « run the migration » et le bandeau signale la
-lecture refusée ; le MCP tolère les tables absentes. Vérif : `SELECT name FROM associates` → Gui, Teresa ; curl anon
-nu `associates?select=name` → 401/42501 (pas `[]`) ; curl token client `payments?select=id,amount` → 200 inchangé.
-⚠️ Connu, non fermé : anon a un SELECT de table sur `payments`, donc un lien client peut lire l'uuid
-`received_by_associate_id` de SES paiements (la page ne le demande plus). Le fermer = GRANT par colonnes sur
-`payments`, migration à part, APRÈS déploiement — c'est l'offre « resserrer les colonnes anon de payments ».
-**Tranche 2 non faite** (attend la vérif des soldes par gui) : CashFlow (sortir les encaissements reçus par un
-associé et les dépenses avancées, ajouter une colonne virements) + ligne « Taken by associates » au tableau de bord.
-Aujourd'hui CashFlow compte encore ces mouvements comme s'ils passaient par la caisse du centre.
+✅ **`2026-10-11b_associate_accounts.sql`** (TEST ✅ / PROD ✅, passée par gui le 2026-10-11, **contrôlée en base et
+au curl anon le même jour** sur les deux : `associates` = Gui, Teresa ; les 2 colonnes présentes ; RLS active ;
+curl anon nu `associates` et `associate_transfers` → 401 / 42501 ; `payments` → 200) — comptes des associés :
+tables `associates` + `associate_transfers`, colonnes `payments.received_by_associate_id` et
+`expenses.paid_by_associate_id` (NULL = le centre). Détail : data-model.md § Associés.
+Livré en 2 tranches, **non vérifié à l'écran** : (1) saisie « Received by » / « Paid by » + onglet Accounting →
+Associates ; (2) colonne « Associates » dans Cash Flow (le net redevient la CAISSE du centre), ligne « Taken by
+associates » sous le résultat net du tableau de bord, bloc `associates` dans `get_accounting_summary` (MCP).
+Reste ouvert :
+- ⚠️ anon a un SELECT de table sur `payments` : un lien client peut lire l'uuid `received_by_associate_id` de SES
+  paiements (la page ne le demande plus). Le fermer = GRANT par colonnes, migration à part APRÈS déploiement.
+- « Received by » absent du formulaire walk-in du planning et du paiement auto créé depuis Bookings (tous deux
+  vont au centre ; se corrige ensuite dans Accounting → Bookings).
+- Aucune reprise d'historique (gui : rien à requalifier cette saison).
 
 ⬜ **`2026-10-11_instructor_share_students.sql`** (passée par gui 2026-10-11 — **curl anon avec token instructor encore à faire**, vérif écran aussi : aucun lien `instructor` en PROD le 2026-10-11, à créer dans Options → Shared Links ; page refaite en lignes par cours + totaux séparés par type, `1ecc450`, non poussé) — noms des élèves par jour sur la page
 « Instructor Hours » : policy `anon_read_booking_participants` élargie au token `instructor` (seulement les

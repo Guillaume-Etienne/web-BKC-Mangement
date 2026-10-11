@@ -738,7 +738,7 @@ l'écran le 2026-09-19). Le parse ne se fait qu'à la validation.
 > maintenance, transport, staff, admin, other. `equipment` **doit exister** :
 > `EquipmentPage` y range les dépenses d'achat et de revente de matériel.
 
-### Associés — `associates` → `Associate` / `associate_transfers` → `AssociateTransfer` (**2026-10-11b, migration en attente**)
+### Associés — `associates` → `Associate` / `associate_transfers` → `AssociateTransfer` (**2026-10-11b, TEST + PROD**)
 Comptes des deux associés (Gui, Teresa). « associate » et pas « partner » : « partner » = agences et hôtels.
 - `associates` : `id, name (UNIQUE), sort_order`. Admin seulement.
 - `associate_transfers` : `id, associate_id, date, amount (> 0, EUR), direction ('to_associate' | 'to_centre'), notes`.
@@ -748,6 +748,11 @@ Comptes des deux associés (Gui, Teresa). « associate » et pas « partner » :
   (`components/accounting/associateUtils.ts`, testé). Positif = sorti de la boîte ; négatif = la boîte lui doit.
 - **Décisions gui (2026-10-11)** : ce sont des prélèvements sur le bénéfice, **pas un salaire** → CA, dépenses et
   résultat net inchangés ; partage **50/50** (d'où la phrase « X has taken N more than Y ») ; tout en **euros**.
+- **Cash Flow** : colonne `associatesOut` = somme signée du journal des associés, au mois de chaque mouvement,
+  soustraite du `net`. Un paiement reçu par un associé reste dans `collected` (la résa est soldée) et ressort ici ;
+  une dépense avancée reste dans `expenses` et revient ici. `net` = la caisse du centre. Identité verrouillée par
+  un test : la colonne sommée sur tout l'historique = `totalDrawn`.
+- **Tableau de bord** : « Taken by associates » sous le résultat net, jamais déduit, + « Left in the business ».
 - Les remises (`is_discount`) ne comptent jamais, même taguées. Un paiement non vérifié compte, avec un badge.
 - Filtre saison : les paiements suivent leur résa ; les virements suivent la fenêtre ÉLARGIE des dépenses
   (`expenseWindow`), sinon un virement d'inter-saison n'appartiendrait à aucune saison.

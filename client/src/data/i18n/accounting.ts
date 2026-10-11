@@ -302,7 +302,11 @@ export const accountingI18n = {
   // ── CashFlow ──────────────────────────────────────────────────────────────
   cf_billed:              { fr: 'Facturé', en: 'Billed', es: 'Facturado' },
   cf_total_out:           { fr: 'Total sorties', en: 'Total out', es: 'Total salidas' },
-  cf_note_total_out:      { fr: 'Dépenses + loyer + moniteurs + taxi + prestataires', en: 'Expenses + rent + instructors + taxi + providers', es: 'Gastos + alquiler + instructores + taxi + proveedores' },
+  cf_note_total_out:      { fr: 'Dépenses + loyer + moniteurs + taxi + prestataires + associés', en: 'Expenses + rent + instructors + taxi + providers + associates', es: 'Gastos + alquiler + instructores + taxi + proveedores + socios' },
+  cf_associates_hint:     { fr: "Argent resté chez les associés plutôt que dans la caisse : paiements clients reçus en direct + virements − rendu − dépenses payées de leur poche.", en: 'Cash that sits with the associates instead of the till: guest payments received directly + transfers − paid back − expenses paid out of pocket.', es: 'Dinero que queda con los socios en lugar de la caja: pagos de clientes recibidos directamente + transferencias − devuelto − gastos pagados de su bolsillo.' },
+  dash_taken_by_associates: { fr: 'Sorti par les associés', en: 'Taken by associates', es: 'Sacado por los socios' },
+  dash_taken_detail:      { fr: 'part du bénéfice, non déduite du résultat net', en: 'a share of the profit, not deducted from the net result', es: 'parte del beneficio, no deducida del resultado neto' },
+  dash_left_in_business:  { fr: 'Reste dans la boîte : {amount}', en: 'Left in the business: {amount}', es: 'Queda en el negocio: {amount}' },
   cf_note_net_cash:       { fr: 'Collecté + Palmeiras + agences − toutes les sorties', en: 'Collected + Palmeiras + agencies − all outflows', es: 'Cobrado + Palmeiras + agencias − todas las salidas' },
   cf_monthly_net_cash:    { fr: 'Trésorerie nette mensuelle', en: 'Monthly net cash', es: 'Flujo de caja neto mensual' },
   cf_instructors_col:     { fr: 'Moniteurs', en: 'Instructors', es: 'Instructores' },

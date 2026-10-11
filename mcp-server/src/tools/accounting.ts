@@ -3,6 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { fetchAccountingBundle } from '../data/fetchAccountingBundle.js'
 import { filterDataToSeason } from '../../../client/src/components/accounting/seasonFilter.js'
 import { computeSeasonTotals } from '../../../client/src/components/accounting/utils.js'
+import { computeAssociateSummaries, totalDrawn } from '../../../client/src/components/accounting/associateUtils.js'
 import { seasonWindowAt } from '../../../client/src/utils/seasonWindow.js'
 import { toISODate } from '../../../client/src/utils/dates.js'
 import { jsonResult, errorResult } from '../result.js'
@@ -15,6 +16,8 @@ export function registerAccountingTools(server: McpServer) {
       description:
         'Revenue by category (accommodation, lessons, rentals, taxi, activities, dining, center ' +
         'access), amounts billed/paid/due, instructor costs, and net result — for one season. ' +
+        'Also what each associate (co-owner) has taken out of the business: a share of the profit, ' +
+        'never deducted from the net result. ' +
         'Defaults to the current season (same "which season is current" rule as the app). Same ' +
         'calculation code as the Accounting dashboard, so the numbers always match what the app shows.',
       inputSchema: {
@@ -38,11 +41,20 @@ export function registerAccountingTools(server: McpServer) {
 
       const filtered = filterDataToSeason(bundle, range, bundle.seasons)
       const totals = computeSeasonTotals(filtered)
+      const associates = computeAssociateSummaries(filtered)
 
       return jsonResult({
         season_label: season?.label ?? seasonWindowAt(bundle.seasons, new Date(), 0).label,
         range,
         totals,
+        associates: {
+          totalTaken: totalDrawn(associates),
+          accounts: associates.map(s => ({
+            name: s.associate.name, balance: s.balance,
+            guestPaymentsReceived: s.received, transfersFromCentre: s.transfersOut,
+            paidBackToCentre: s.transfersBack, expensesPaidOutOfPocket: s.expensesAdvanced,
+          })),
+        },
       })
     }
   )

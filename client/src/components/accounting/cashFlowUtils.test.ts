@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { buildCashFlowRows, filterRowsByPeriod, sumCashFlowRows, runningBalances } from './cashFlowUtils'
 import { computeSeasonTotals } from './utils'
 import type { MonthRow } from './cashFlowUtils'
-import type { AgencyInvoice } from '../../types/database'
+import type { AgencyInvoice, Associate } from '../../types/database'
+import { computeAssociateSummaries, totalDrawn } from './associateUtils'
 import {
   mkData, mkBooking, mkBookingRoom, mkBookingRoomPrice, mkHouseSetup,
   mkPayment, mkTaxiTrip, mkActivityBooking, mkInstructorPayment,
@@ -204,7 +205,7 @@ describe('buildCashFlowRows', () => {
 
 /** A month row carrying only the fields a test cares about. */
 const row = (month: string, net = 0): MonthRow =>
-  ({ month, billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, providersOut: 0, agenciesIn: 0, net })
+  ({ month, billed: 0, collected: 0, unverified: 0, palmIn: 0, expenses: 0, rent: 0, instrPaid: 0, taxiOut: 0, providersOut: 0, agenciesIn: 0, associatesOut: 0, net })
 
 describe('filterRowsByPeriod', () => {
   const rows = ['2026-12', '2026-11', '2026-10', '2026-09'].map(m => row(m))
@@ -220,11 +221,11 @@ describe('filterRowsByPeriod', () => {
 describe('sumCashFlowRows', () => {
   it('sums every column', () => {
     const rows: MonthRow[] = [
-      { month: '2026-10', billed: 100, collected: 60, unverified: 20, palmIn: 5, expenses: 10, rent: 20, instrPaid: 8, taxiOut: 2, providersOut: 7, agenciesIn: 30, net: 25 },
-      { month: '2026-11', billed: 200, collected: 40, unverified: 0,  palmIn: 5, expenses: 10, rent: 20, instrPaid: 2, taxiOut: 3, providersOut: -4, agenciesIn: 12, net: 10 },
+      { month: '2026-10', billed: 100, collected: 60, unverified: 20, palmIn: 5, expenses: 10, rent: 20, instrPaid: 8, taxiOut: 2, providersOut: 7, agenciesIn: 30, associatesOut: 4, net: 25 },
+      { month: '2026-11', billed: 200, collected: 40, unverified: 0,  palmIn: 5, expenses: 10, rent: 20, instrPaid: 2, taxiOut: 3, providersOut: -4, agenciesIn: 12, associatesOut: -1, net: 10 },
     ]
     expect(sumCashFlowRows(rows)).toEqual({
-      billed: 300, collected: 100, unverified: 20, palmIn: 10, expenses: 20, rent: 40, instrPaid: 10, taxiOut: 5, providersOut: 3, agenciesIn: 42, net: 35,
+      billed: 300, collected: 100, unverified: 20, palmIn: 10, expenses: 20, rent: 40, instrPaid: 10, taxiOut: 5, providersOut: 3, agenciesIn: 42, associatesOut: 3, net: 35,
     })
   })
 
@@ -445,5 +446,67 @@ describe('buildCashFlowRows — partner agencies', () => {
     expect(month(rows, '2026-12')?.agenciesIn).toBe(360)
     expect(month(rows, '2027-01')?.agenciesIn).toBe(180)
     expect(month(rows, '2026-11')?.billed).toBe(540)
+  })
+})
+
+describe('associates in the cash flow', () => {
+  const gui: Associate    = { id: 'a_gui', name: 'Gui', sort_order: 1 }
+  const teresa: Associate = { id: 'a_ter', name: 'Teresa', sort_order: 2 }
+
+  it('a guest payment received by an associate settles the booking but never reaches the till', () => {
+    const data = mkData({
+      associates: [gui, teresa],
+      payments: [
+        mkPayment({ id: 'p1', date: '2026-11-05', amount: 300, received_by_associate_id: teresa.id }),
+        mkPayment({ id: 'p2', date: '2026-11-06', amount: 200 }),
+      ],
+    })
+    const row = month(buildCashFlowRows(data), '2026-11')
+    expect(row?.collected).toBe(500)       // both guests paid
+    expect(row?.associatesOut).toBe(300)   // one of them paid Teresa
+    expect(row?.net).toBe(200)             // only this reached the till
+  })
+
+  it('an expense advanced by an associate is a cost that did not leave the till', () => {
+    const data = mkData({
+      associates: [gui],
+      expenses: [{ id: 'e1', date: '2026-11-12', category: '', category_id: null, amount: 40, description: 'Petrol', paid_by_associate_id: gui.id }],
+    })
+    const row = month(buildCashFlowRows(data), '2026-11')
+    expect(row?.expenses).toBe(40)
+    expect(row?.associatesOut).toBe(-40)
+    expect(row?.net).toBe(0)
+  })
+
+  it('a transfer leaves the till in its own month, and comes back when returned', () => {
+    const data = mkData({
+      associates: [gui],
+      associateTransfers: [
+        { id: 't1', associate_id: gui.id, date: '2026-11-10', amount: 500, direction: 'to_associate', notes: null },
+        { id: 't2', associate_id: gui.id, date: '2026-12-02', amount: 60, direction: 'to_centre', notes: null },
+      ],
+    })
+    const rows = buildCashFlowRows(data)
+    expect(month(rows, '2026-11')?.net).toBe(-500)
+    expect(month(rows, '2026-12')?.net).toBe(60)
+  })
+
+  it('the column, summed over all time, is what the associates have drawn', () => {
+    const data = mkData({
+      associates: [gui, teresa],
+      payments: [mkPayment({ id: 'p1', date: '2026-10-05', amount: 300, received_by_associate_id: teresa.id })],
+      expenses: [{ id: 'e1', date: '2026-11-12', category: '', category_id: null, amount: 40, description: 'Petrol', paid_by_associate_id: gui.id }],
+      associateTransfers: [{ id: 't1', associate_id: gui.id, date: '2026-12-10', amount: 500, direction: 'to_associate', notes: null }],
+    })
+    const total = sumCashFlowRows(buildCashFlowRows(data)).associatesOut
+    expect(total).toBe(760)
+    expect(total).toBe(totalDrawn(computeAssociateSummaries(data)))
+  })
+
+  it('changes nothing while no associate is involved', () => {
+    const data = mkData({ payments: [mkPayment({ date: '2026-11-05', amount: 300 })] })
+    const row = month(buildCashFlowRows(data), '2026-11')
+    expect(row?.associatesOut).toBe(0)
+    expect(row?.net).toBe(300)
   })
 })

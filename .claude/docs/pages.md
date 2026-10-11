@@ -343,6 +343,7 @@
   virements se suppriment ici ; un paiement client se modifie dans Bookings (« Received by »), une dépense dans
   Expenses (« Paid by »). Une seule mise en page qui se replie (pas de double rendu tableau/cartes). Tant que la
   migration 2026-10-11b n'est pas passée : message « run the migration », sélecteurs cachés.
+  Cash Flow a une colonne « Associates » ; le Dashboard une ligne « Taken by associates » (masquée sans mouvement).
 - **Dashboard — rangée « volume » en tête (2026-09-19)** : réservations, voyageurs,
   nuits vendues, transferts taxi, juste sous le sélecteur de période, **avant** les
   euros. Un seul calcul pur, `computeVolumeTotals` (`utils.ts`, testé), au même
