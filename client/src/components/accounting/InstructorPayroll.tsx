@@ -42,9 +42,9 @@ function AddDebtForm({ instructorId, onAdd, onCancel }: AddDebtFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-4 space-y-3">
+    <form onSubmit={handleSubmit} className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-3 sm:p-4 space-y-3">
       <p className="text-sm font-semibold text-red-800 dark:text-red-400">{i18n.accounting.ip_add_debt_advance[lang]}</p>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.common.label_date[lang]}</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
@@ -93,9 +93,9 @@ function AddPaymentForm({ instructorId, suggestedAmount, onAdd, onCancel }: AddP
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-lg p-4 space-y-3">
+    <form onSubmit={handleSubmit} className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-lg p-3 sm:p-4 space-y-3">
       <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-400">{i18n.accounting.ip_pay_instructor[lang]}</p>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.common.label_date[lang]}</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
@@ -107,7 +107,7 @@ function AddPaymentForm({ instructorId, suggestedAmount, onAdd, onCancel }: AddP
             className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.ip_method[lang]}</label>
           <select value={method} onChange={e => setMethod(e.target.value as PaymentMethod)}
@@ -155,7 +155,7 @@ function OverrideForm({ lessonId, currentRate, onSave, onRemove, onCancel, hasOv
 
   return (
     <form onSubmit={handleSubmit} className="mt-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-3 space-y-2">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.ip_rate_per_hour[lang]}</label>
           <input type="number" min="0" step="0.5" value={rate} onChange={e => setRate(e.target.value)}
@@ -209,18 +209,18 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
     .sort((a, b) => a.date.localeCompare(b.date))
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-6">
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-3 sm:p-6 space-y-5 sm:space-y-6">
 
       {/* Balance header */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
         {[
           { label: i18n.accounting.ip_lessons_earned[lang],  value: earned,   color: 'text-emerald-700 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40' },
           { label: i18n.accounting.ip_debts_advances[lang], value: -debts,  color: 'text-red-700 dark:text-red-400',     bg: 'bg-red-50 dark:bg-red-950/40' },
           { label: i18n.accounting.ip_dining_charges[lang],  value: -dining,  color: 'text-rose-700 dark:text-rose-400',    bg: 'bg-rose-50 dark:bg-rose-950/40' },
           { label: i18n.accounting.ip_already_paid[lang],    value: -paid,    color: 'text-red-700 dark:text-red-400',     bg: 'bg-red-50 dark:bg-red-950/40' },
           { label: i18n.accounting.ip_to_pay[lang],          value: balance,  color: balance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400', bg: balance >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'bg-red-50 dark:bg-red-950/40' },
-        ].map(kpi => (
-          <div key={kpi.label} className={`${kpi.bg} rounded-lg p-3 text-center`}>
+        ].map((kpi, idx) => (
+          <div key={kpi.label} className={`${kpi.bg} ${idx === 4 ? "col-span-2 sm:col-span-1" : ""} rounded-lg p-3 text-center`}>
             <p className="text-xs text-gray-400 dark:text-gray-400 mb-1">{kpi.label}</p>
             <p className={`text-lg font-bold ${kpi.color}`}>
               {kpi.value >= 0 ? '+' : ''}{fmtEur(kpi.value)}
@@ -251,7 +251,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
 
               return (
                 <div key={l.id} className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 sm:px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800">
                     <div className="flex items-center gap-3 text-sm flex-wrap">
                       <span className="text-gray-400 dark:text-gray-400 text-xs w-24 flex-shrink-0">{fmtDate(l.date)}</span>
                       <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
@@ -287,7 +287,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
                     </div>
                   </div>
                   {isOverriding && (
-                    <div className="px-4 pb-3">
+                    <div className="px-3 sm:px-4 pb-3">
                       <OverrideForm
                         lessonId={l.id}
                         currentRate={effectiveRate}
@@ -332,15 +332,15 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
         ) : (
           <div className="space-y-1 mt-2">
             {iDebts.map(d => (
-              <div key={d.id} className="flex items-center justify-between bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2 text-sm">
-                <div className="flex items-center gap-3">
+              <div key={d.id} className="flex items-center justify-between gap-2 bg-red-50 dark:bg-red-950/40 rounded-lg px-3 sm:px-4 py-2 text-sm">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 min-w-0">
                   <span className="text-gray-400 dark:text-gray-400 text-xs">{fmtDate(d.date)}</span>
                   <span className="text-gray-700 dark:text-gray-300">{d.description}</span>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 shrink-0">
                   <span className="font-semibold text-red-700 dark:text-red-400">− {fmtEur(d.amount)}</span>
                   <button onClick={() => handlers.deleteInstructorDebt(d.id)}
-                    className="text-gray-300 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 text-xs">✕</button>
+                    className="p-1 -m-1 text-gray-300 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 text-xs">✕</button>
                 </div>
               </div>
             ))}
@@ -366,8 +366,8 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
               )
               const evCharge = attending.reduce((s, a) => s + (a.price_override ?? ev.price_per_person), 0)
               return (
-                <div key={ev.id} className="flex items-center justify-between bg-rose-50 dark:bg-rose-950/40 rounded-lg px-4 py-2 text-sm">
-                  <div className="flex items-center gap-3">
+                <div key={ev.id} className="flex items-center justify-between gap-2 bg-rose-50 dark:bg-rose-950/40 rounded-lg px-3 sm:px-4 py-2 text-sm">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 min-w-0">
                     <span className="text-gray-400 dark:text-gray-400 text-xs">{fmtDate(ev.date)}</span>
                     <span className="text-gray-700 dark:text-gray-300">{ev.name || '(unnamed)'}</span>
                   </div>
@@ -413,18 +413,18 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
         ) : (
           <div className="space-y-1 mt-2">
             {iPayments.map(p => (
-              <div key={p.id} className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 rounded-lg px-4 py-2 text-sm">
-                <div className="flex items-center gap-3">
+              <div key={p.id} className="flex items-center justify-between gap-2 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg px-3 sm:px-4 py-2 text-sm">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 min-w-0">
                   <span className="text-gray-400 dark:text-gray-400 text-xs">{fmtDate(p.date)}</span>
                   <span className="px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
                     {methodLabels(lang)[p.method]}
                   </span>
                   {p.notes && <span className="text-gray-400 dark:text-gray-400 text-xs italic">{p.notes}</span>}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 shrink-0">
                   <span className="font-semibold text-emerald-700 dark:text-emerald-400">− {fmtEur(p.amount)}</span>
                   <button onClick={() => handlers.deleteInstructorPayment(p.id)}
-                    className="text-gray-300 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 text-xs">✕</button>
+                    className="p-1 -m-1 text-gray-300 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 text-xs">✕</button>
                 </div>
               </div>
             ))}
@@ -437,7 +437,7 @@ function InstructorDetailPanel({ instructor, data, handlers }: DetailPanelProps)
       </div>
 
       {/* Final balance */}
-      <div className={`flex justify-between items-center px-5 py-3 rounded-xl text-base font-bold ${
+      <div className={`flex justify-between items-center px-4 sm:px-5 py-3 rounded-xl text-base font-bold ${
         balance >= 0 ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
       }`}>
         <span>{i18n.accounting.ip_balance_to_pay[lang]}</span>
@@ -472,18 +472,18 @@ export default function InstructorPayroll({ data, handlers }: Props) {
   return (
     <div className="space-y-4">
       {/* Summary KPIs */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 py-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-3 sm:px-5 py-3 sm:py-4">
           <p className="text-xs text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1">{i18n.accounting.ip_total_lessons_kpi[lang]}</p>
-          <p className="text-xl font-bold text-gray-800 dark:text-gray-200">{fmtEur(rows.reduce((s, r) => s + r.earned, 0))}</p>
+          <p className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-200">{fmtEur(rows.reduce((s, r) => s + r.earned, 0))}</p>
         </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 py-4">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-3 sm:px-5 py-3 sm:py-4">
           <p className="text-xs text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1">{i18n.accounting.ip_already_paid[lang]}</p>
-          <p className="text-xl font-bold text-gray-800 dark:text-gray-200">{fmtEur(rows.reduce((s, r) => s + r.paid, 0))}</p>
+          <p className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-200">{fmtEur(rows.reduce((s, r) => s + r.paid, 0))}</p>
         </div>
-        <div className="bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900 px-5 py-4">
+        <div className="bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900 px-3 sm:px-5 py-3 sm:py-4">
           <p className="text-xs text-amber-500 dark:text-amber-400 uppercase tracking-wide mb-1">{i18n.accounting.ip_to_pay_total[lang]}</p>
-          <p className="text-xl font-bold text-amber-700 dark:text-amber-400">{fmtEur(totalOwed)}</p>
+          <p className="text-base sm:text-xl font-bold text-amber-700 dark:text-amber-400">{fmtEur(totalOwed)}</p>
         </div>
       </div>
 

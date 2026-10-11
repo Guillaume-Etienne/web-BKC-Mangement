@@ -32,9 +32,9 @@ function RentForm({ existing, onSave, onCancel }: { existing?: PalmeirasRent; on
     onSave({ id: existing?.id ?? crypto.randomUUID(), month, amount: parsed, notes: notes || null })
   }
   return (
-    <form onSubmit={submit} className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-4 space-y-3">
+    <form onSubmit={submit} className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-3 sm:p-4 space-y-3">
       <p className="text-sm font-semibold text-red-800 dark:text-red-400">{existing ? i18n.accounting.palm_edit_rent[lang] : i18n.accounting.palm_add_rent[lang]}</p>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.label_month[lang]}</label>
           <MonthInput value={month} onChange={setMonth} className="w-full" focusRing="focus:ring-red-300" />
@@ -73,9 +73,9 @@ function ReversalForm({ existing, onSave, onCancel }: { existing?: PalmeirasReve
     onSave({ id: existing?.id ?? crypto.randomUUID(), month, gross_amount: grossNum, percent: pctNum, net_amount: netAmount, notes: notes || null })
   }
   return (
-    <form onSubmit={submit} className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-lg p-4 space-y-3">
+    <form onSubmit={submit} className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-lg p-3 sm:p-4 space-y-3">
       <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-400">{existing ? i18n.accounting.palm_edit_reversal[lang] : i18n.accounting.palm_add_reversal[lang]}</p>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.label_month[lang]}</label>
           <MonthInput value={month} onChange={setMonth} className="w-full" focusRing="focus:ring-emerald-400" />
@@ -383,7 +383,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
 
       {/* Monthly table */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-        <div className="flex flex-wrap justify-between items-center px-5 py-4 border-b gap-2">
+        <div className="flex flex-wrap justify-between items-center px-3 sm:px-5 py-3 sm:py-4 border-b gap-2">
           <h2 className="font-semibold text-gray-800 dark:text-gray-200">{i18n.accounting.palm_monthly_breakdown[lang]}</h2>
           <div className="flex gap-2 flex-wrap">
             <button onClick={() => { closeAll(); setShowAddRent(true) }}
@@ -400,7 +400,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
         </div>
 
         {(anyForm || addingEntry) && (
-          <div className="px-5 py-4 border-b bg-gray-50 dark:bg-gray-800 space-y-3">
+          <div className="px-3 sm:px-5 py-3 sm:py-4 border-b bg-gray-50 dark:bg-gray-800 space-y-3">
             {showAddRent      && <RentForm     onSave={r => { handlers.addPalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
             {showAddReversal  && <ReversalForm onSave={r => { handlers.addPalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
             {editingRent      && <RentForm     existing={editingRent}     onSave={r => { handlers.updatePalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
@@ -416,7 +416,57 @@ export default function PalmeirasTab({ data, handlers }: Props) {
           </div>
         )}
 
-        <table className="w-full text-sm min-w-[700px]">
+        {/* Mobile: one card per month */}
+        <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+          {allMonths.length === 0 && (
+            <p className="px-4 py-8 text-center text-gray-400 dark:text-gray-400 text-sm">{i18n.accounting.palm_no_data_period[lang]}</p>
+          )}
+          {allMonths.map(month => {
+            const rent       = filteredRents.find(r => r.month === month)
+            const reversal   = filteredReversals.find(r => r.month === month)
+            const bungMargin = filteredBungalows.filter(b => b.month === month).reduce((s, b) => s + b.margin, 0)
+            const mEntries   = filteredEntries.filter(e => e.month === month)
+            const mInc       = mEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
+            const mExp       = mEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
+            const monthNet   = (reversal?.net_amount ?? 0) + bungMargin + mInc - (rent?.amount ?? 0) - mExp
+            const hasAny     = !!(rent || reversal || bungMargin || mInc || mExp)
+            const line = (label: string, value: React.ReactNode) => (
+              <div className="flex justify-between gap-3 text-sm py-0.5">
+                <span className="text-gray-500 dark:text-gray-400">{label}</span>
+                <span>{value}</span>
+              </div>
+            )
+            return (
+              <div key={month} className="px-3 py-3">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="font-semibold text-gray-800 dark:text-gray-200">{fmtMonth(month)}</span>
+                  <div className="flex items-center gap-1">
+                    {rent     && <button onClick={() => { closeAll(); setEditingRent(rent) }}     title={i18n.accounting.palm_edit_rent[lang]}     className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-red-500 text-sm">✏ {i18n.accounting.palm_rent[lang]}</button>}
+                    {reversal && <button onClick={() => { closeAll(); setEditingReversal(reversal) }} title={i18n.accounting.palm_edit_reversal[lang]} className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-emerald-600 text-sm">✏ {i18n.accounting.palm_reversal_col[lang]}</button>}
+                    <span className={`font-bold ${monthNet > 0 ? 'text-emerald-700 dark:text-emerald-400' : monthNet < 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-400 dark:text-gray-400'}`}>
+                      {hasAny ? `${monthNet >= 0 ? '+' : ''}${fmtEur(monthNet)}` : '–'}
+                    </span>
+                  </div>
+                </div>
+                {rent && line(i18n.accounting.palm_rent[lang], <span className="text-red-600 dark:text-red-400 font-medium">− {fmtEur(rent.amount)}</span>)}
+                {reversal && line(
+                  `${i18n.accounting.palm_reversal_col[lang]} (${reversal.percent}% of ${fmtEur(reversal.gross_amount)})`,
+                  <span className="text-emerald-700 dark:text-emerald-400 font-medium">+ {fmtEur(reversal.net_amount)}</span>)}
+                {bungMargin > 0 && line(i18n.accounting.label_bungalows[lang], <span className="text-blue-700 dark:text-blue-400 font-medium">+ {fmtEur(bungMargin)}</span>)}
+                {mInc > 0 && line(i18n.accounting.palm_free_plus_col[lang], <span className="text-emerald-600 dark:text-emerald-400 font-medium">+ {fmtEur(mInc)}</span>)}
+                {mExp > 0 && line(i18n.accounting.palm_free_minus_col[lang], <span className="text-orange-600 dark:text-orange-400 font-medium">− {fmtEur(mExp)}</span>)}
+              </div>
+            )
+          })}
+          {allMonths.length > 0 && (
+            <div className="px-3 py-3 bg-gray-50 dark:bg-gray-800 flex justify-between items-center">
+              <span className="font-semibold text-gray-700 dark:text-gray-300">{i18n.common.label_total[lang]}</span>
+              <span className={`font-bold ${net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>{net >= 0 ? '+' : ''}{fmtEur(net)}</span>
+            </div>
+          )}
+        </div>
+
+        <table className="hidden md:table w-full text-sm min-w-[700px]">
           <thead className="bg-gray-50 dark:bg-gray-800 border-b">
             <tr>
               <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.label_month[lang]}</th>
@@ -497,7 +547,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
       {/* Bungalow bookings detail (auto-computed) */}
       {filteredBungalows.length > 0 && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-          <div className="px-5 py-4 border-b">
+          <div className="px-3 sm:px-5 py-3 sm:py-4 border-b">
             <h2 className="font-semibold text-gray-800 dark:text-gray-200">{i18n.accounting.palm_bungalow_detail[lang]}</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Auto-calculated from bookings assigned to bungalow accommodations</p>
             {/* What guests paid Palmeiras directly — the base of our commission,
@@ -515,7 +565,35 @@ export default function PalmeirasTab({ data, handlers }: Props) {
               )
             })()}
           </div>
-          <table className="w-full text-sm min-w-[700px]">
+          {/* Mobile: one card per stay */}
+          <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+            {[...filteredBungalows].sort((a, b) => b.checkIn.localeCompare(a.checkIn)).map((b, i) => (
+              <div key={i} className="px-3 py-3 text-sm">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-800 dark:text-gray-200">{b.bungalow}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{b.checkIn} → {b.checkOut} · {b.nights} {i18n.accounting.palm_nights_col[lang]}</div>
+                    {b.bookingRef && <div className="text-xs text-gray-400 dark:text-gray-400">{b.bookingRef}</div>}
+                  </div>
+                  {b.paidToOwner ? (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400 shrink-0">
+                      {i18n.accounting.palm_paid_direct_badge[lang]}
+                    </span>
+                  ) : (
+                    <span className={`font-semibold shrink-0 ${b.margin >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'}`}>
+                      {b.margin >= 0 ? '+' : ''}{fmtEur(b.margin)}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 flex gap-4 text-xs">
+                  <span className="text-red-500 dark:text-red-400">{i18n.accounting.palm_cost_col[lang]} {b.paidToOwner ? '–' : fmtEur(b.costRate)}</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">{i18n.accounting.palm_sell_col[lang]} {fmtEur(b.sellRate)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <table className="hidden md:table w-full text-sm min-w-[700px]">
             <thead className="bg-gray-50 dark:bg-gray-800 border-b">
               <tr>
                 <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.label_bungalows[lang]}</th>
@@ -557,10 +635,31 @@ export default function PalmeirasTab({ data, handlers }: Props) {
       {/* Free entries detail */}
       {filteredEntries.length > 0 && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-          <div className="px-5 py-4 border-b">
+          <div className="px-3 sm:px-5 py-3 sm:py-4 border-b">
             <h2 className="font-semibold text-gray-800 dark:text-gray-200">{i18n.accounting.palm_free_entries_detail[lang]}</h2>
           </div>
-          <table className="w-full text-sm">
+          {/* Mobile: one line per entry */}
+          <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+            {[...filteredEntries].sort((a, b) => b.month.localeCompare(a.month)).map(e => (
+              <div key={e.id} className="flex items-start justify-between gap-3 px-3 py-3 text-sm">
+                <div className="min-w-0">
+                  <div className="text-gray-800 dark:text-gray-200">{e.description}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {fmtMonth(e.month)} · {e.type === 'income' ? i18n.accounting.palm_income_badge[lang] : i18n.accounting.palm_expense_badge[lang]}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`font-semibold ${e.type === 'income' ? 'text-emerald-700 dark:text-emerald-400' : 'text-orange-700 dark:text-orange-400'}`}>
+                    {e.type === 'income' ? '+ ' : '− '}{fmtEur(e.amount)}
+                  </span>
+                  <button onClick={() => handlers.deletePalmeirasEntry(e.id)} aria-label="Delete"
+                    className="p-1.5 text-gray-400 dark:text-gray-400 hover:text-red-500 text-lg leading-none">×</button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <table className="hidden md:table w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-800 border-b">
               <tr>
                 <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.label_month[lang]}</th>
