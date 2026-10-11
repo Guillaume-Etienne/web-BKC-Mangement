@@ -11,7 +11,7 @@ au curl anon le même jour** sur les deux : `associates` = Gui, Teresa ; les 2 c
 curl anon nu `associates` et `associate_transfers` → 401 / 42501 ; `payments` → 200) — comptes des associés :
 tables `associates` + `associate_transfers`, colonnes `payments.received_by_associate_id` et
 `expenses.paid_by_associate_id` (NULL = le centre). Détail : data-model.md § Associés.
-Livré en 2 tranches, **non vérifié à l'écran** : (1) saisie « Received by » / « Paid by » + onglet Accounting →
+Livré en 2 tranches, **affichage vérifié à l'écran sur TEST le 2026-10-11** (onglet, colonne Cash Flow, sélecteurs « Reçu par » et « Payé par », aucune erreur console) — **aucune écriture réelle testée** (ajout d'un virement, paiement reçu par un associé, dépense avancée : à faire par gui) : (1) saisie « Received by » / « Paid by » + onglet Accounting →
 Associates ; (2) colonne « Associates » dans Cash Flow (le net redevient la CAISSE du centre), ligne « Taken by
 associates » sous le résultat net du tableau de bord, bloc `associates` dans `get_accounting_summary` (MCP).
 Reste ouvert :
