@@ -241,7 +241,7 @@ describe('submissionsByEnquiry / lastSignOfEnquiry', () => {
     expect(lastSignOfEnquiry(e, undefined)).toBe('2026-09-01T09:23:10Z')
   })
 
-  // The case that started this: Sibel wrote on 01/09, filled the whole booking
+  // The case that started this: a guest wrote on 01/09, filled the whole booking
   // form on 11/09, and the Requests list still called her 11 days silent.
   it('silence is counted from the form, not from the first message', () => {
     const e = mkEnquiry({ last_contact_at: '2026-09-01T09:23:10Z' })

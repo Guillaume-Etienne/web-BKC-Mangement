@@ -23,7 +23,7 @@ function mkBooking(over: Partial<Booking> = {}): Booking {
 
 function mkGuest(over: Partial<BookingParticipant> = {}): BookingParticipant {
   return {
-    id: 'p1', booking_id: 'b1', first_name: 'Michel', last_name: 'Rulliat',
+    id: 'p1', booking_id: 'b1', first_name: 'Paul', last_name: 'Durand',
     passport_number: '19FR12345', client_id: null, kite_level: null,
     does_kite: true, brings_own_gear: false, needs_storage: false,
     wants_kite_lessons: false, wants_kite_rental: false, wants_wing_lessons: false,

@@ -3,10 +3,10 @@ import { searchEverything, EMPTY_INDEX, type SearchIndex } from './globalSearch'
 
 const index: SearchIndex = {
   clients: [
-    { id: 'c1', first_name: 'Michel', last_name: 'Rulliat', email: 'fatmichel62@gmail.com', phone: '+33766756887' },
-    { id: 'c2', first_name: 'Élisabeth', last_name: 'Bouteiller', email: 'babeth@orange.fr', phone: null,
+    { id: 'c1', first_name: 'Paul', last_name: 'Durand', email: 'pdkite62@example.com', phone: '+33600000101' },
+    { id: 'c2', first_name: 'Hélène', last_name: 'Moreau', email: 'helene@example.com', phone: null,
       notes: 'Vient toujours en février avec Laurent' },
-    { id: 'c3', first_name: 'Loic', last_name: 'Sene', email: null, phone: null, passport_number: '19FR88112' },
+    { id: 'c3', first_name: 'Marc', last_name: 'Leroy', email: null, phone: null, passport_number: '19FR88112' },
   ],
   bookings: [
     { id: 'b1', booking_number: 23, client_id: 'c1', check_in: '2026-11-07', check_out: '2026-11-21', status: 'provisional' },
@@ -31,16 +31,16 @@ describe('searchEverything', () => {
   })
 
   it('finds nothing in an empty index', () => {
-    expect(searchEverything(EMPTY_INDEX, 'michel')).toEqual([])
+    expect(searchEverything(EMPTY_INDEX, 'paul')).toEqual([])
   })
 
   it('finds a client by the start of either name', () => {
-    expect(searchEverything(index, 'rull')[0].targetId).toBe('c1')
-    expect(searchEverything(index, 'mich')[0].targetId).toBe('c1')
+    expect(searchEverything(index, 'dura')[0].targetId).toBe('c1')
+    expect(searchEverything(index, 'paul')[0].targetId).toBe('c1')
   })
 
   it('ignores accents in both directions', () => {
-    expect(searchEverything(index, 'elisabeth')[0].targetId).toBe('c2')
+    expect(searchEverything(index, 'helene')[0].targetId).toBe('c2')
     expect(searchEverything(index, 'fevrier').some(h => h.targetId === 'c2')).toBe(true)
   })
 
@@ -52,7 +52,7 @@ describe('searchEverything', () => {
   })
 
   it('puts the client above their own booking on a name match', () => {
-    const hits = searchEverything(index, 'rulliat')
+    const hits = searchEverything(index, 'durand')
     expect(hits[0].kind).toBe('client')
     expect(hits[1].kind).toBe('booking')
   })
@@ -86,7 +86,7 @@ describe('searchEverything', () => {
 
   it('works on an index with no client notes at all (migration not applied)', () => {
     const { notesByClient: _omitted, ...withoutClientNotes } = index
-    expect(searchEverything(withoutClientNotes, 'rulliat')[0].targetId).toBe('c1')
+    expect(searchEverything(withoutClientNotes, 'durand')[0].targetId).toBe('c1')
     expect(searchEverything(withoutClientNotes, 'quiet room')).toEqual([])
   })
 
@@ -97,8 +97,8 @@ describe('searchEverything', () => {
   })
 
   it('finds someone by email, phone or passport', () => {
-    expect(searchEverything(index, 'fatmichel')[0].targetId).toBe('c1')
-    expect(searchEverything(index, '766756887')[0].targetId).toBe('c1')
+    expect(searchEverything(index, 'pdkite')[0].targetId).toBe('c1')
+    expect(searchEverything(index, '600000101')[0].targetId).toBe('c1')
     expect(searchEverything(index, '19fr88')[0].targetId).toBe('c3')
   })
 

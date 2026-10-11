@@ -1409,8 +1409,8 @@ describe('buildAgencyInvoiceRows', () => {
   function setup() {
     return mkData({
       bookings: [mkBooking({ id: 'bk1', booking_number: 22, client_id: 'cli1' })],
-      clients: [mkClient({ id: 'cli1', first_name: 'Loic', last_name: 'SENE' })],
-      bookingParticipants: [mkParticipant({ id: 'p1', booking_id: 'bk1', first_name: 'Loic', last_name: 'SENE' })],
+      clients: [mkClient({ id: 'cli1', first_name: 'Marc', last_name: 'LEROY' })],
+      bookingParticipants: [mkParticipant({ id: 'p1', booking_id: 'bk1', first_name: 'Marc', last_name: 'LEROY' })],
       agencies: [mkAgency()],
       agencyRateItems: [mkAgencyRateItem()],
       agencyBillingLines: [mkAgencyLine()],
@@ -1426,7 +1426,7 @@ describe('buildAgencyInvoiceRows', () => {
     const [row] = buildAgencyInvoiceRows(setup())
     expect(row.agencyName).toBe('Fun & Fly')
     expect(row.bookingNumber).toBe(22)
-    expect(row.guestName).toBe('Loic SENE')
+    expect(row.guestName).toBe('Marc LEROY')
     expect(row.label).toBe('Pack cours Privé 10x2h')
   })
 
@@ -1443,7 +1443,7 @@ describe('buildAgencyInvoiceRows', () => {
   it('falls back to the booking client when no traveller is named', () => {
     const data = setup()
     data.agencyBillingLines = [mkAgencyLine({ participant_id: null })]
-    expect(buildAgencyInvoiceRows(data)[0].guestName).toBe('Loic SENE')
+    expect(buildAgencyInvoiceRows(data)[0].guestName).toBe('Marc LEROY')
   })
 
   it('falls back to the note, then a placeholder, for a custom line', () => {
@@ -1612,9 +1612,9 @@ describe('agencyInvoiceLineLabel', () => {
   })
 
   it('prefers the line note over the rate card, since the note exists for that', () => {
-    const line = mkAgencyLine({ notes: 'Pack cours Privé 10x 2h — Loic' })
+    const line = mkAgencyLine({ notes: 'Pack cours Privé 10x 2h — Marc' })
     expect(agencyInvoiceLineLabel(line, { taxiTrips: [], agencyRateItems: rateItems }))
-      .toBe('Pack cours Privé 10x 2h — Loic')
+      .toBe('Pack cours Privé 10x 2h — Marc')
   })
 
   it('falls back to the rate card label', () => {
@@ -1634,7 +1634,7 @@ describe('buildAgencyInvoiceDoc', () => {
   const realCase = () => mkData({
     agencies: [mkAgency({ id: 'ag1', name: 'Fun & Fly', commission_percent: 20, short_code: 'FF' })],
     bookings: [mkBooking({ id: 'bk1', booking_number: 22, client_id: 'cl1' })],
-    clients: [mkClient({ id: 'cl1', first_name: 'Loic', last_name: 'SENE' })],
+    clients: [mkClient({ id: 'cl1', first_name: 'Marc', last_name: 'LEROY' })],
     agencyRateItems: [
       mkAgencyRateItem({ id: 'ari1', label: 'Pack cours Privé 10h', price: 450, unit_hours: 10 }),
       mkAgencyRateItem({ id: 'ari2', label: 'Transfert Maputo ↔ Bilene', price: 220, unit_hours: null }),
@@ -1681,7 +1681,7 @@ describe('buildAgencyInvoiceDoc', () => {
     expect(doc.invoice.invoice_number).toBe('20260819')
     expect(doc.invoice.agency_ref).toBe('134606')
     expect(doc.bookingNumber).toBe(22)
-    expect(doc.guestName).toBe('Loic SENE')
+    expect(doc.guestName).toBe('Marc LEROY')
   })
 
   it('leaves out the lines of another invoice', () => {

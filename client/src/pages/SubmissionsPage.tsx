@@ -48,7 +48,7 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
 
   /** Who this submission will be filed under — computed here rather than inside
    *  the click handler so the panel can *say* it before gui presses the button.
-   *  Finding out afterwards that a second "Michel Rulliat" was created is how
+   *  Finding out afterwards that a second "Paul Durand" was created is how
    *  the client list rots. */
   const clientMatch = useMemo(
     () => findExistingClient(clients, { linkedClientId: linkedEnquiry?.client_id, email: p.email }),

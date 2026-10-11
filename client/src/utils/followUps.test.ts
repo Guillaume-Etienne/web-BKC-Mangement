@@ -35,7 +35,7 @@ function mkBooking(over: Partial<Booking> = {}): Booking {
     has_travel_insurance: false, waiver_accepted_at: null, waiver_version: null,
     referral_source: null,
     created_at: '2026-09-01T10:00:00Z',
-    client: { first_name: 'Michel', last_name: 'Rulliat' } as Booking['client'],
+    client: { first_name: 'Paul', last_name: 'Durand' } as Booking['client'],
     ...over,
   } as Booking
 }
@@ -84,7 +84,7 @@ describe('computeFollowUps', () => {
     const quiet = mkBooking({ created_at: '2026-08-10T10:00:00Z' })
     const [row] = computeFollowUps({ ...base, bookings: [quiet] }, NOW)
     expect(row.kind).toBe('booking')
-    expect(row.name).toBe('Michel Rulliat')
+    expect(row.name).toBe('Paul Durand')
     expect(row.silenceDays).toBe(24)
     expect(row.wants).toContain('2 lessons')
   })

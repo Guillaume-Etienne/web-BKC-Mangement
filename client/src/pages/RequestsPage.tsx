@@ -58,7 +58,7 @@ export default function RequestsPage({ initialEnquiryId, onEnquiryOpened }: Prop
           {i18n.pages.desc_requests[lang]}
         </p>
 
-        <div className="flex gap-1 md:gap-2 mt-6 border-b border-gray-200 dark:border-gray-800">
+        <div className="flex gap-1 md:gap-2 mt-6 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
           {tabs.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`relative shrink-0 px-3 py-2 md:px-4 text-sm md:text-base font-medium transition-colors ${

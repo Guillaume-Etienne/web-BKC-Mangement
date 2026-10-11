@@ -82,7 +82,7 @@ const BODY = 20
 function nameScore(name: string, q: string): number {
   const n = norm(name)
   if (n.startsWith(q)) return NAME_PREFIX
-  // Also a prefix when it starts a word: "rull" should find "Michel Rulliat".
+  // Also a prefix when it starts a word: "dura" should find "Paul Durand".
   if (n.split(/\s+/).some(w => w.startsWith(q))) return NAME_PREFIX - 5
   if (n.includes(q)) return NAME_PART
   return 0

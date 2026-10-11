@@ -153,7 +153,7 @@ export interface Agency {
   id: string
   name: string
   commission_percent: number   // flat %, retained by the agency on the gross billed amount
-  /** Badge shown beside the client name across the app — "(FF) Loic SENE".
+  /** Badge shown beside the client name across the app — "(FF) Paul Durand".
    *  null/empty = no badge; never derived from the name (see agencyMarker). */
   short_code: string | null
   notes: string | null

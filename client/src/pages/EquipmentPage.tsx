@@ -543,10 +543,10 @@ export default function EquipmentPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-800">
+      <div className="flex gap-2 mb-6 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
         <button
           onClick={() => setActiveTab('inventory')}
-          className={`px-4 py-3 font-medium border-b-2 transition-colors ${
+          className={`shrink-0 whitespace-nowrap px-4 py-3 font-medium border-b-2 transition-colors ${
             activeTab === 'inventory'
               ? 'border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400'
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
@@ -556,7 +556,7 @@ export default function EquipmentPage() {
         </button>
         <button
           onClick={() => setActiveTab('rentals')}
-          className={`px-4 py-3 font-medium border-b-2 transition-colors ${
+          className={`shrink-0 whitespace-nowrap px-4 py-3 font-medium border-b-2 transition-colors ${
             activeTab === 'rentals'
               ? 'border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400'
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
@@ -566,7 +566,7 @@ export default function EquipmentPage() {
         </button>
         <button
           onClick={() => setActiveTab('revenue')}
-          className={`px-4 py-3 font-medium border-b-2 transition-colors ${
+          className={`shrink-0 whitespace-nowrap px-4 py-3 font-medium border-b-2 transition-colors ${
             activeTab === 'revenue'
               ? 'border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400'
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
@@ -576,7 +576,7 @@ export default function EquipmentPage() {
         </button>
         <button
           onClick={() => setActiveTab('assets')}
-          className={`px-4 py-3 font-medium border-b-2 transition-colors ${
+          className={`shrink-0 whitespace-nowrap px-4 py-3 font-medium border-b-2 transition-colors ${
             activeTab === 'assets'
               ? 'border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400'
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'

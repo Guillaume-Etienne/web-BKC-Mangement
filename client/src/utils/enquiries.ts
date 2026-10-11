@@ -183,7 +183,7 @@ export interface EnquirySubmission {
  *  the submission is turned into a booking. Between "she filled the whole form"
  *  and "gui pressed Create booking" the enquiry knows nothing about it — so the
  *  Silence column kept counting from the first message and called the most
- *  advanced file of the season the quietest one (Sibel, 2026-09-12: form in on
+ *  advanced file of the season the quietest one (booking #031, 2026-09-12: form in on
  *  the 11th, still displayed as 11 days of silence).
  *
  *  Rejected submissions are skipped: gui looked and said no, which is an answer,

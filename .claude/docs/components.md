@@ -324,7 +324,7 @@ et **rien du tout** si la résa n'a pas d'`agency_id`.
 
 ### `printAgencyInvoice` — `utils/printAgencyInvoice.ts`
 Le document **en français**, reproduit du modèle réel que Fun & Fly attend
-(`temp/Factu BKC 2025 FFLY Famille Brunet.xlsx`). Page imprimable (même moule que la lettre de
+(`temp/Factu BKC 2025 FFLY ….xlsx`). Page imprimable (même moule que la lettre de
 visa) : **rien n'est envoyé**, gui relit avant d'expédier.
 - **Émetteur = Moçambique Action Sport Lda.** (l'entité légale, comme la lettre de visa) et
   logo `logo-mas.png` — pas la marque BKC.
@@ -439,3 +439,11 @@ App
     ├── DriverSharePage           (public)
     └── ActivityProviderSharePage (public)
 ```
+
+## Règles mobile (audit du 2026-10-11)
+
+- **Une liste d'enregistrements = deux rendus** : tableau `hidden md:block` + cartes `md:hidden` (le piège : un ajout dans l'un doit être répété dans l'autre). Un vrai tableau de chiffres (CashFlow, matrice Documents) reste un tableau défilant.
+- **Tout `<table>` vit dans un `overflow-x-auto`** — jamais seulement dans `overflow-hidden` (rogne le contenu sans erreur).
+- **Grilles de formulaire** : `grid-cols-1 sm:grid-cols-N`, jamais `grid-cols-2/3` nu ; paddings de panneau `p-3 sm:p-6`.
+- **Barres d'onglets** : `overflow-x-auto` sur le conteneur + `shrink-0 whitespace-nowrap` sur les boutons (sinon la page entière défile en latéral).
+- **Vérifier en 390 px** sans extension de fenêtre : iframe de 390 px dans la page dev, puis mesurer `documentElement.scrollWidth` (≤ 390 = pas de débordement).

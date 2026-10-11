@@ -775,20 +775,20 @@ export default function ActivitiesPage() {
         <p className="text-gray-500 dark:text-gray-400 mt-1">Manage external activity providers and bookings</p>
 
         {/* Tabs */}
-        <div className="flex gap-4 mt-8 mb-8 border-b">
+        <div className="flex gap-4 mt-8 mb-8 overflow-x-auto border-b">
           {(['providers', 'bookings'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2 font-medium transition-colors ${tab === t ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
+              className={`shrink-0 whitespace-nowrap px-4 py-2 font-medium transition-colors ${tab === t ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
               {t === 'providers' ? `🏕️ ${i18n.activities.section_providers[lang]}` : `📋 ${i18n.activities.tab_all_bookings[lang]}`}
             </button>
           ))}
           <button onClick={() => setTab('safaris')}
-            className={`px-4 py-2 font-medium transition-colors ${tab === 'safaris' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
+            className={`shrink-0 whitespace-nowrap px-4 py-2 font-medium transition-colors ${tab === 'safaris' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
             🦁 Safaris
           </button>
           {activeHotels.map(h => (
             <button key={h.id} onClick={() => setTab(`hotel:${h.id}`)}
-              className={`px-4 py-2 font-medium transition-colors ${tab === `hotel:${h.id}` ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
+              className={`shrink-0 whitespace-nowrap px-4 py-2 font-medium transition-colors ${tab === `hotel:${h.id}` ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
               🏨 {h.name}
             </button>
           ))}

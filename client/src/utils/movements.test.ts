@@ -7,7 +7,7 @@ function mkBooking(over: Partial<Booking> = {}): Booking {
     id: 'b1', booking_number: 23, client_id: 'c1',
     check_in: '2026-11-07', check_out: '2026-11-21', status: 'confirmed',
     arrival_time: null, departure_time: null,
-    client: { first_name: 'Michel', last_name: 'Rulliat' },
+    client: { first_name: 'Paul', last_name: 'Durand' },
     ...over,
   } as Booking
 }
@@ -29,7 +29,7 @@ describe('computeMovements', () => {
     expect(d.arrivals.map(a => a.number)).toEqual([23])
     expect(d.arrivals[0].time).toBe('13:30')
     expect(d.departures.map(a => a.number)).toEqual([24])
-    expect(d.taxis[0]).toMatchObject({ time: '14:00', direction: 'arrival', name: 'Michel Rulliat', noDriver: false })
+    expect(d.taxis[0]).toMatchObject({ time: '14:00', direction: 'arrival', name: 'Paul Durand', noDriver: false })
   })
 
   it('skips cancelled bookings and day visitors, keeps provisional flagged', () => {

@@ -72,8 +72,8 @@ function AgencyForm({ initial, title, onSave, onClose }: AgencyFormProps) {
               className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
               Shown beside the client’s name across the app — {shortCode.trim()
-                ? <span className="font-medium text-gray-600 dark:text-gray-400">({shortCode.trim()}) Loic SENE</span>
-                : 'e.g. (FF) Loic SENE'}. Leave empty for no badge. Keep it short: it has
+                ? <span className="font-medium text-gray-600 dark:text-gray-400">({shortCode.trim()}) Paul Durand</span>
+                : 'e.g. (FF) Paul Durand'}. Leave empty for no badge. Keep it short: it has
               to fit inside a planning bar.
             </p>
           </div>

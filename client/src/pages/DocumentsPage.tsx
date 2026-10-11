@@ -933,10 +933,10 @@ export default function DocumentsPage() {
       <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">📄 {i18n.pages.page_documents[uiLang]}</h1>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-800">
+      <div className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${
+            className={`shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${
               tab === t.id
                 ? 'bg-white dark:bg-gray-900 border border-b-white border-gray-200 dark:border-gray-800 text-blue-700 dark:text-blue-400 -mb-px'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
