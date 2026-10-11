@@ -82,25 +82,25 @@ function BookingTable({ bookings, showPrices }: { bookings: ActivityBooking[]; s
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-xs text-left">
-            <th className="px-4 py-2 font-medium">Date</th>
-            <th className="px-4 py-2 font-medium">Activity</th>
-            <th className="px-4 py-2 font-medium text-center">Pax</th>
-            {showPrices && <th className="px-4 py-2 font-medium text-right">Amount (€)</th>}
-            <th className="px-4 py-2 font-medium">Notes</th>
+            <th className="px-2 sm:px-4 py-2 font-medium">Date</th>
+            <th className="px-2 sm:px-4 py-2 font-medium">Activity</th>
+            <th className="px-2 sm:px-4 py-2 font-medium text-center">Pax</th>
+            {showPrices && <th className="px-2 sm:px-4 py-2 font-medium text-right">Amount (€)</th>}
+            <th className="px-2 sm:px-4 py-2 font-medium">Notes</th>
           </tr>
         </thead>
         <tbody>
           {bookings.map(b => (
             <tr key={b.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{fmtDate(b.date)}</td>
-              <td className="px-4 py-2 text-gray-800 dark:text-gray-200 font-medium">{b.label}</td>
-              <td className="px-4 py-2 text-center text-gray-600 dark:text-gray-400">{b.nb_persons}</td>
+              <td className="px-2 sm:px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{fmtDate(b.date)}</td>
+              <td className="px-2 sm:px-4 py-2 text-gray-800 dark:text-gray-200 font-medium">{b.label}</td>
+              <td className="px-2 sm:px-4 py-2 text-center text-gray-600 dark:text-gray-400">{b.nb_persons}</td>
               {showPrices && (
-                <td className="px-4 py-2 text-right font-semibold text-emerald-800 dark:text-emerald-400 whitespace-nowrap">
+                <td className="px-2 sm:px-4 py-2 text-right font-semibold text-emerald-800 dark:text-emerald-400 whitespace-nowrap">
                   {b.price_provider > 0 ? `${b.price_provider.toFixed(2)} €` : '–'}
                 </td>
               )}
-              <td className="px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{b.notes ?? ''}</td>
+              <td className="px-2 sm:px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{b.notes ?? ''}</td>
             </tr>
           ))}
         </tbody>
@@ -191,21 +191,21 @@ function AccountingTab({
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-xs text-left">
-                  <th className="px-4 py-2 font-medium">Date</th>
-                  <th className="px-4 py-2 font-medium">Activity</th>
-                  <th className="px-4 py-2 font-medium text-center">Pax</th>
-                  <th className="px-4 py-2 font-medium">Flow</th>
-                  <th className="px-4 py-2 font-medium text-right">Amount (€)</th>
-                  <th className="px-4 py-2 font-medium">Notes</th>
+                  <th className="px-2 sm:px-4 py-2 font-medium">Date</th>
+                  <th className="px-2 sm:px-4 py-2 font-medium">Activity</th>
+                  <th className="px-2 sm:px-4 py-2 font-medium text-center">Pax</th>
+                  <th className="px-2 sm:px-4 py-2 font-medium">Flow</th>
+                  <th className="px-2 sm:px-4 py-2 font-medium text-right">Amount (€)</th>
+                  <th className="px-2 sm:px-4 py-2 font-medium">Notes</th>
                 </tr>
               </thead>
               <tbody>
                 {[...filteredBookings].sort((a, b) => b.date.localeCompare(a.date)).map(b => (
                   <tr key={b.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(b.date)}</td>
-                    <td className="px-4 py-2 text-gray-800 dark:text-gray-200 font-medium">{b.label}</td>
-                    <td className="px-4 py-2 text-center text-gray-600 dark:text-gray-400">{b.nb_persons}</td>
-                    <td className="px-4 py-2">
+                    <td className="px-2 sm:px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(b.date)}</td>
+                    <td className="px-2 sm:px-4 py-2 text-gray-800 dark:text-gray-200 font-medium">{b.label}</td>
+                    <td className="px-2 sm:px-4 py-2 text-center text-gray-600 dark:text-gray-400">{b.nb_persons}</td>
+                    <td className="px-2 sm:px-4 py-2">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                         b.payment_flow === 'we_pay_provider'
                           ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
@@ -214,10 +214,10 @@ function AccountingTab({
                         {b.payment_flow === 'we_pay_provider' ? 'Center pays you' : 'You pay center'}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-right font-semibold text-gray-800 dark:text-gray-200">
+                    <td className="px-2 sm:px-4 py-2 text-right font-semibold text-gray-800 dark:text-gray-200">
                       {b.price_provider > 0 ? `${b.price_provider.toFixed(2)} €` : '–'}
                     </td>
-                    <td className="px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{b.notes ?? ''}</td>
+                    <td className="px-2 sm:px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{b.notes ?? ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -238,17 +238,17 @@ function AccountingTab({
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-xs text-left">
-                  <th className="px-4 py-2 font-medium">Date</th>
-                  <th className="px-4 py-2 font-medium">Direction</th>
-                  <th className="px-4 py-2 font-medium text-right">Amount (€)</th>
-                  <th className="px-4 py-2 font-medium">Notes</th>
+                  <th className="px-2 sm:px-4 py-2 font-medium">Date</th>
+                  <th className="px-2 sm:px-4 py-2 font-medium">Direction</th>
+                  <th className="px-2 sm:px-4 py-2 font-medium text-right">Amount (€)</th>
+                  <th className="px-2 sm:px-4 py-2 font-medium">Notes</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedPayments.map(p => (
                   <tr key={p.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{fmtDate(p.date)}</td>
-                    <td className="px-4 py-2">
+                    <td className="px-2 sm:px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{fmtDate(p.date)}</td>
+                    <td className="px-2 sm:px-4 py-2">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                         p.direction === 'to_provider'
                           ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
@@ -257,29 +257,29 @@ function AccountingTab({
                         {p.direction === 'to_provider' ? 'Center paid you' : 'You paid center'}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-right font-semibold text-gray-800 dark:text-gray-200">
+                    <td className="px-2 sm:px-4 py-2 text-right font-semibold text-gray-800 dark:text-gray-200">
                       {p.amount.toFixed(2)} €
                     </td>
-                    <td className="px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{p.notes ?? ''}</td>
+                    <td className="px-2 sm:px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{p.notes ?? ''}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="bg-gray-100 dark:bg-gray-800 border-t-2 border-gray-300 dark:border-gray-700">
-                  <td colSpan={2} className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">
+                  <td colSpan={2} className="px-2 sm:px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">
                     Paid to you
                   </td>
-                  <td className="px-4 py-2 text-right font-bold text-green-800 dark:text-green-400">
+                  <td className="px-2 sm:px-4 py-2 text-right font-bold text-green-800 dark:text-green-400">
                     {wePaid.toFixed(2)} €
                   </td>
                   <td />
                 </tr>
                 {theyPaid > 0 && (
                   <tr className="bg-gray-100 dark:bg-gray-800">
-                    <td colSpan={2} className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">
+                    <td colSpan={2} className="px-2 sm:px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">
                       Received from you
                     </td>
-                    <td className="px-4 py-2 text-right font-bold text-blue-800 dark:text-blue-400">
+                    <td className="px-2 sm:px-4 py-2 text-right font-bold text-blue-800 dark:text-blue-400">
                       {theyPaid.toFixed(2)} €
                     </td>
                     <td />

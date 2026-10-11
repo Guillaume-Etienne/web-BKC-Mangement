@@ -411,71 +411,71 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         {/* Accommodation */}
         {(billedAccomRows.length > 0 || extAccomRows.length > 0) && (
           <Section title="Accommodation" icon="🛏️">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Room</th>
-                  <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Nights</th>
-                  <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Per night</th>
-                  <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Room</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Nights</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Per night</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {billedAccomRows.map((row, i) => (
                   <tr key={i} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-5 py-3 font-medium text-gray-800 dark:text-gray-200">
+                    <td className="px-2.5 sm:px-5 py-3 font-medium text-gray-800 dark:text-gray-200">
                       {row.label}
                       {row.note && <span className="ml-2 text-xs text-gray-400 dark:text-gray-400 italic">{row.note}</span>}
                     </td>
-                    <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">{row.nights}</td>
-                    <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">{fmtEur(row.pricePerNight)}</td>
-                    <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(row.total)}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{row.nights}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{fmtEur(row.pricePerNight)}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(row.total)}</td>
                   </tr>
                 ))}
                 {extAccomRows.map((row, i) => (
                   <tr key={`ext-${i}`} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-5 py-3 font-medium text-gray-800 dark:text-gray-200">{row.label}</td>
-                    <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">{row.nights}</td>
-                    <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">
+                    <td className="px-2.5 sm:px-5 py-3 font-medium text-gray-800 dark:text-gray-200">{row.label}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{row.nights}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">
                       {row.pricePerNight != null ? fmtEur(row.pricePerNight) : '—'}
                     </td>
-                    <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(row.total)}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(row.total)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal accommodation</td>
-                  <td className="px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(accomTotal)}</td>
+                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal accommodation</td>
+                  <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(accomTotal)}</td>
                 </tr>
               </tfoot>
-            </table>
+            </table></div>
           </Section>
         )}
 
         {/* Lessons */}
         {lessonRows.length > 0 && (
           <Section title="Kite lessons" icon="🏄">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Type</th>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Guest</th>
-                  <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Duration</th>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Instructor</th>
-                  <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Type</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Guest</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Duration</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Instructor</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {lessonRows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400 capitalize">{r.type}</td>
-                    <td className="px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
-                    <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">{r.duration}h</td>
-                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400">{r.instructor}</td>
-                    <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 capitalize">{r.type}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{r.duration}h</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.instructor}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
                       {r.total == null ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(r.total)}
                     </td>
                   </tr>
@@ -483,33 +483,33 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td colSpan={5} className="px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal lessons</td>
-                  <td className="px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(lessonsTotal)}</td>
+                  <td colSpan={5} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal lessons</td>
+                  <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(lessonsTotal)}</td>
                 </tr>
               </tfoot>
-            </table>
+            </table></div>
           </Section>
         )}
 
         {/* Equipment rentals */}
         {rentals.length > 0 && (
           <Section title="Equipment rentals" icon="🎿">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Guest</th>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Slot</th>
-                  <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Price</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Guest</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Slot</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Price</th>
                 </tr>
               </thead>
               <tbody>
                 {rentals.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td className="px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.participant_id ? partName(r.participant_id) ?? '' : ''}</td>
-                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400 capitalize">{r.slot.replace('_', ' ')}</td>
-                    <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.participant_id ? partName(r.participant_id) ?? '' : ''}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 capitalize">{r.slot.replace('_', ' ')}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
                       {coveredByAgency(r) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(r.price ?? 0)}
                     </td>
                   </tr>
@@ -517,33 +517,33 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal rentals</td>
-                  <td className="px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(rentalsTotal)}</td>
+                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal rentals</td>
+                  <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(rentalsTotal)}</td>
                 </tr>
               </tfoot>
-            </table>
+            </table></div>
           </Section>
         )}
 
         {/* Taxis */}
         {taxis.length > 0 && (
           <Section title="Taxi transfers" icon="🚕">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Route</th>
-                  <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Pax</th>
-                  <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Price</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Route</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Pax</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Price</th>
                 </tr>
               </thead>
               <tbody>
                 {taxis.map(t => (
                   <tr key={t.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(t.date)}</td>
-                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400">{TAXI_TYPE_LABELS[t.type] ?? t.type}</td>
-                    <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">{t.nb_persons}</td>
-                    <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(t.date)}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{TAXI_TYPE_LABELS[t.type] ?? t.type}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{t.nb_persons}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
                       {coveredByAgency(t) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(t.price_eur ?? 0)}
                     </td>
                   </tr>
@@ -551,100 +551,100 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal taxis</td>
-                  <td className="px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(taxiTotal)}</td>
+                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal taxis</td>
+                  <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(taxiTotal)}</td>
                 </tr>
               </tfoot>
-            </table>
+            </table></div>
           </Section>
         )}
 
         {/* Dining events */}
         {diningRows.length > 0 && (
           <Section title="Dining" icon="🍽️">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Event</th>
-                  <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Detail</th>
-                  <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Event</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Detail</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {diningRows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400">{r.name}</td>
-                    <td className="px-5 py-3 text-right text-gray-500 dark:text-gray-400">
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.name}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right text-gray-500 dark:text-gray-400">
                       {r.count}p @ {fmtEur(r.pricePerPerson)}
                       {r.guests && <span className="ml-1 text-blue-400 dark:text-blue-300 text-xs">({r.guests})</span>}
                     </td>
-                    <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal dining</td>
-                  <td className="px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(diningTotal)}</td>
+                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal dining</td>
+                  <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(diningTotal)}</td>
                 </tr>
               </tfoot>
-            </table>
+            </table></div>
           </Section>
         )}
 
         {/* Activities */}
         {activityRows.length > 0 && (
           <Section title="Activities" icon="🎯">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Activity</th>
-                  <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Guests</th>
-                  <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Activity</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Guests</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {activityRows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400">{r.label}</td>
-                    <td className="px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
-                    <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.label}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal activities</td>
-                  <td className="px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(activityTotal)}</td>
+                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal activities</td>
+                  <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(activityTotal)}</td>
                 </tr>
               </tfoot>
-            </table>
+            </table></div>
           </Section>
         )}
 
         {/* Center access */}
         {centerAccessTotal > 0 && (
           <Section title="Center access" icon="🏖️">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
               <tbody>
                 <tr className="border-b border-gray-50 dark:border-gray-800">
-                  <td className="px-5 py-3 text-gray-600 dark:text-gray-400">
+                  <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">
                     {booking.num_center_access} person{booking.num_center_access > 1 ? 's' : ''} × {nights} night{nights !== 1 ? 's' : ''} @ {fmtEur(booking.center_access_rate ?? 0)}/day
                   </td>
-                  <td className="px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(centerAccessTotal)}</td>
+                  <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(centerAccessTotal)}</td>
                 </tr>
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td className="px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal center access</td>
-                  <td className="px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(centerAccessTotal)}</td>
+                  <td className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal center access</td>
+                  <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(centerAccessTotal)}</td>
                 </tr>
               </tfoot>
-            </table>
+            </table></div>
           </Section>
         )}
 
@@ -740,20 +740,20 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             <p className="px-5 py-4 text-sm text-gray-400 dark:text-gray-400 italic">No payments recorded yet.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto"><table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                   <tr>
-                    <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                    <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Method</th>
-                    <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Note</th>
-                    <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Amount</th>
+                    <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
+                    <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Method</th>
+                    <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Note</th>
+                    <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {payments.map(p => (
                     <tr key={p.id} className={`border-b border-gray-50 dark:border-gray-800 ${p.is_discount ? 'bg-purple-50 dark:bg-purple-950/40' : ''}`}>
-                      <td className="px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(p.date)}</td>
-                      <td className="px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                      <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(p.date)}</td>
+                      <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
                         {p.is_discount ? (
                           <span className="text-xs px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full font-medium">Discount</span>
                         ) : (
@@ -763,8 +763,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                           </>
                         )}
                       </td>
-                      <td className="px-5 py-3 text-gray-400 dark:text-gray-400 text-xs italic">{p.notes ?? ''}</td>
-                      <td className={`px-5 py-3 text-right font-semibold ${p.is_discount ? 'text-purple-700 dark:text-purple-400' : 'text-green-700 dark:text-green-400'}`}>
+                      <td className="px-2.5 sm:px-5 py-3 text-gray-400 dark:text-gray-400 text-xs italic">{p.notes ?? ''}</td>
+                      <td className={`px-2.5 sm:px-5 py-3 text-right font-semibold ${p.is_discount ? 'text-purple-700 dark:text-purple-400' : 'text-green-700 dark:text-green-400'}`}>
                         {p.is_discount ? '-' : ''}{fmtEur(p.amount)}
                       </td>
                     </tr>
@@ -773,16 +773,16 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                   {totalDiscounts > 0 && (
                     <tr>
-                      <td colSpan={3} className="px-5 py-2 text-sm font-semibold text-purple-600 dark:text-purple-400">Total discounts</td>
-                      <td className="px-5 py-2 text-right font-bold text-purple-700 dark:text-purple-400">-{fmtEur(totalDiscounts)}</td>
+                      <td colSpan={3} className="px-2.5 sm:px-5 py-2 text-sm font-semibold text-purple-600 dark:text-purple-400">Total discounts</td>
+                      <td className="px-2.5 sm:px-5 py-2 text-right font-bold text-purple-700 dark:text-purple-400">-{fmtEur(totalDiscounts)}</td>
                     </tr>
                   )}
                   <tr>
-                    <td colSpan={3} className="px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Total paid</td>
-                    <td className="px-5 py-3 text-right font-bold text-green-700 dark:text-green-400">{fmtEur(totalPaid)}</td>
+                    <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Total paid</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-green-700 dark:text-green-400">{fmtEur(totalPaid)}</td>
                   </tr>
                 </tfoot>
-              </table>
+              </table></div>
             </div>
           )}
         </section>

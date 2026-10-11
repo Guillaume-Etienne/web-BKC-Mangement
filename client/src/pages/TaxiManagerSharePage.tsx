@@ -61,32 +61,32 @@ function TripList({ trips, driverName, lang, dateMode, view }: {
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-xs text-left">
-            <th className="px-4 py-2 font-medium">{tr.col_date[lang]}</th>
-            <th className="px-4 py-2 font-medium">{tr.col_time[lang]}</th>
-            <th className="px-4 py-2 font-medium">{tr.col_driver[lang]}</th>
-            <th className="px-4 py-2 font-medium">{tr.col_route[lang]}</th>
-            <th className="px-4 py-2 font-medium">{tr.col_client[lang]}</th>
-            <th className="px-4 py-2 font-medium">{tr.col_notes[lang]}</th>
-            <th className="px-4 py-2 font-medium text-right">{tr.col_amount[lang]}</th>
+            <th className="px-2 sm:px-4 py-2 font-medium">{tr.col_date[lang]}</th>
+            <th className="px-2 sm:px-4 py-2 font-medium">{tr.col_time[lang]}</th>
+            <th className="px-2 sm:px-4 py-2 font-medium">{tr.col_driver[lang]}</th>
+            <th className="px-2 sm:px-4 py-2 font-medium">{tr.col_route[lang]}</th>
+            <th className="px-2 sm:px-4 py-2 font-medium">{tr.col_client[lang]}</th>
+            <th className="px-2 sm:px-4 py-2 font-medium">{tr.col_notes[lang]}</th>
+            <th className="px-2 sm:px-4 py-2 font-medium text-right">{tr.col_amount[lang]}</th>
           </tr>
         </thead>
         <tbody>
           {trips.map(t => (
             <tr key={t.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{formatTripDate(t.date, lang, dateMode)}</td>
-              <td className="px-4 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">{t.start_time}</td>
-              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{driverName(t.taxi_driver_id)}</td>
-              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{tripTypeLabel(t.type, lang)}</td>
-              <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{clientName(t)}</td>
-              <td className="px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{t.notes ?? ''}</td>
-              <td className="px-4 py-2 text-right font-semibold text-purple-800 dark:text-purple-400 whitespace-nowrap">{mzn(t.margin_manager_mzn)}</td>
+              <td className="px-2 sm:px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{formatTripDate(t.date, lang, dateMode)}</td>
+              <td className="px-2 sm:px-4 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">{t.start_time}</td>
+              <td className="px-2 sm:px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{driverName(t.taxi_driver_id)}</td>
+              <td className="px-2 sm:px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{tripTypeLabel(t.type, lang)}</td>
+              <td className="px-2 sm:px-4 py-2 text-gray-700 dark:text-gray-300">{clientName(t)}</td>
+              <td className="px-2 sm:px-4 py-2 text-gray-400 dark:text-gray-400 italic text-xs">{t.notes ?? ''}</td>
+              <td className="px-2 sm:px-4 py-2 text-right font-semibold text-purple-800 dark:text-purple-400 whitespace-nowrap">{mzn(t.margin_manager_mzn)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="bg-gray-100 dark:bg-gray-800 border-t-2 border-gray-300 dark:border-gray-700 font-bold">
-            <td colSpan={6} className="px-4 py-2 text-right text-gray-700 dark:text-gray-300 text-sm">{tr.total[lang]}</td>
-            <td className="px-4 py-2 text-right text-purple-900 dark:text-purple-400">{mzn(total)}</td>
+            <td colSpan={6} className="px-2 sm:px-4 py-2 text-right text-gray-700 dark:text-gray-300 text-sm">{tr.total[lang]}</td>
+            <td className="px-2 sm:px-4 py-2 text-right text-purple-900 dark:text-purple-400">{mzn(total)}</td>
           </tr>
         </tfoot>
       </table>
@@ -253,17 +253,17 @@ export default function TaxiManagerSharePage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-xs text-left">
-                  <th className="px-4 py-2 font-medium">{tr.col_date[lang]}</th>
-                  <th className="px-4 py-2 font-medium">{tr.col_reason[lang]}</th>
-                  <th className="px-4 py-2 font-medium text-right">{tr.col_amount[lang]}</th>
+                  <th className="px-2 sm:px-4 py-2 font-medium">{tr.col_date[lang]}</th>
+                  <th className="px-2 sm:px-4 py-2 font-medium">{tr.col_reason[lang]}</th>
+                  <th className="px-2 sm:px-4 py-2 font-medium text-right">{tr.col_amount[lang]}</th>
                 </tr>
               </thead>
               <tbody>
                 {payments.map(p => (
                   <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{formatTripDate(p.date, lang, dateMode)}</td>
-                    <td className="px-4 py-2 text-gray-500 dark:text-gray-400">{p.notes ?? ''}</td>
-                    <td className="px-4 py-2 text-right font-semibold text-blue-900 dark:text-blue-400 whitespace-nowrap">{mzn(p.amount_mzn)}</td>
+                    <td className="px-2 sm:px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{formatTripDate(p.date, lang, dateMode)}</td>
+                    <td className="px-2 sm:px-4 py-2 text-gray-500 dark:text-gray-400">{p.notes ?? ''}</td>
+                    <td className="px-2 sm:px-4 py-2 text-right font-semibold text-blue-900 dark:text-blue-400 whitespace-nowrap">{mzn(p.amount_mzn)}</td>
                   </tr>
                 ))}
               </tbody>

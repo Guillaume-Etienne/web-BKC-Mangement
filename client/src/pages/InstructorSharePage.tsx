@@ -278,7 +278,7 @@ export default function InstructorSharePage({ instructorId }: Props) {
             <div className="px-5 py-3 border-b bg-gray-50 dark:bg-gray-800">
               <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.by_month[lang]}</h2>
             </div>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-800 border-b text-xs text-gray-500 dark:text-gray-400">
                   <th className="px-3 py-2 text-left font-medium">{tr.col_month[lang]}</th>
@@ -296,7 +296,7 @@ export default function InstructorSharePage({ instructorId }: Props) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
         )}
 

@@ -747,7 +747,7 @@ export default function PartnerHotelTab({
           <p className="text-sm text-gray-400 italic">No payment recorded yet.</p>
         ) : (
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
               <tbody>
                 {payments.map(p => (
                   <tr key={p.id} className="border-b last:border-0">
@@ -767,7 +767,7 @@ export default function PartnerHotelTab({
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
         )}
       </div>

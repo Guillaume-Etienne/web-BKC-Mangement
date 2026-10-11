@@ -239,7 +239,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
             <label className={labelCls}>{i18n.enquiries.ep_label_name[lang]}</label>
             <input value={form.name} onChange={e => set('name', e.target.value)} className={inputCls} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>{i18n.common.label_email[lang]}</label>
               <input value={form.email} onChange={e => set('email', e.target.value)} className={inputCls} />
@@ -257,7 +257,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
               placeholder={isNew ? i18n.enquiries.ep_placeholder_message[lang] : ''}
               className={`${inputCls} font-normal leading-relaxed`} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>{i18n.enquiries.ep_label_heard_via[lang]}</label>
               <select value={form.source_id} onChange={e => set('source_id', e.target.value)} className={inputCls}>
@@ -275,7 +275,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
 
         {/* ── Right: the four fields that turn prose into a row ───────────── */}
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>{i18n.enquiries.ep_label_how_many[lang]}</label>
               <input type="number" min="1" value={form.party_size}
