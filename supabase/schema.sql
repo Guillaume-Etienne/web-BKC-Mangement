@@ -1207,9 +1207,10 @@ CREATE POLICY "anon_read_equipment_rentals" ON equipment_rentals FOR SELECT TO a
 );
 -- Plan du Forecast (2026-10-10c) : seul le token `forecast` le lit, colonnes limitées.
 REVOKE ALL ON planned_lessons, planned_rentals FROM anon;
-GRANT SELECT (id, date, start_time, duration_hours, type, instructor_id, participant_ids, notes)
+-- client_id (2026-10-10g) : le nom d'un walk-in placé dans le plan ; booking_id reste fermé.
+GRANT SELECT (id, date, start_time, duration_hours, type, instructor_id, participant_ids, notes, client_id)
   ON planned_lessons TO anon;
-GRANT SELECT (id, date, slot, rental_type, equipment_id, participant_id, notes)
+GRANT SELECT (id, date, slot, rental_type, equipment_id, participant_id, notes, client_id)
   ON planned_rentals TO anon;
 CREATE POLICY "anon_read_planned_lessons" ON planned_lessons
   FOR SELECT TO anon USING (share_type() = 'forecast');

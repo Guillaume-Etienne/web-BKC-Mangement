@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Lesson, DayActivity, DaySlot, LessonType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine, Lang } from '../../types/database'
 import { rentalBillable } from '../../types/database'
-import { currentInstructorRate, reFreezeInstructorRate, resolveLessonRate, agencyMarker } from '../accounting/utils'
+import { currentInstructorRate, reFreezeInstructorRate, resolveLessonRate, agencyMarker, getLessonClientRate, isAgencyBilled } from '../accounting/utils'
 import { toISODate as dateToISO, localeTag } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
@@ -1068,15 +1068,17 @@ export default function LessonWeekView({
               {(() => {
                 const dayLessons = lessons.filter(l => l.date === iso)
                 const dayRentals = rentals.filter(r => r.date === iso)
-                const lessonTotal = dayLessons.reduce((sum, l) => {
-                  const instr = instructors.find(i => i.id === l.instructor_id)
-                  const rate = l.type === 'private' ? (instr?.rate_private ?? 0)
-                             : l.type === 'group'   ? (instr?.rate_group ?? 0)
-                             : (instr?.rate_supervision ?? 0)
-                  return sum + rate * l.duration_hours
+                // What the CLIENTS owe for the day — the same rule as accounting
+                // (computeLessonsRevenue): frozen client price, group billed per
+                // head, lines owed by a partner agency left out. It used to sum the
+                // instructors' PAY rates, which is a different number altogether.
+                const tierCtx = { tiers: priceTiers, allLessons: lessons, bookingParticipants }
+                const lessonTotal = dayLessons.filter(l => !isAgencyBilled(l)).reduce((sum, l) => {
+                  const base = getLessonClientRate(l, priceItems, tierCtx) * l.duration_hours
+                  return sum + (l.type === 'group' ? base * l.participant_ids.length : base)
                 }, 0)
-                const rentalTotal = dayRentals.reduce((sum, r) => sum + r.price, 0)
-                const total = lessonTotal + rentalTotal
+                const rentalTotal = dayRentals.filter(r => !isAgencyBilled(r)).reduce((sum, r) => sum + r.price, 0)
+                const total = Math.round((lessonTotal + rentalTotal) * 100) / 100
                 if (total === 0 && dayLessons.length === 0) return null
                 return (
                   <div className="border-t px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-b-lg flex items-center justify-between">

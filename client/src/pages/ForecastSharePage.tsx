@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
 import type { PlannedLesson, PlannedRental, LessonType, Instructor, BookingParticipant, Equipment } from '../types/database'
 import { useTable } from '../hooks/useSupabase'
 import { toISODate as dateToISO, addDays } from '../utils/dates'
@@ -85,6 +86,36 @@ export default function ForecastSharePage() {
   // looking them up in `clients` is what used to leave every name blank here.
   const { data: guests } = useTable<ForecastGuest>('booking_participants', { select: 'id, first_name, last_name' })
   const { data: equipment } = useTable<Equipment>('equipment', { order: 'name' })
+
+  // Walk-ins placed in the plan carry a `client_id` and no participant (2026-10-10d).
+  // That column is granted to anon by a LATER migration (10g): it is therefore read by
+  // its own requests, errors swallowed — naming it in the selects above would turn a
+  // missing GRANT into 42501 and empty the whole page. Without 10g: no name, nothing breaks.
+  const [walkInOf, setWalkInOf] = useState<Record<string, string>>({})   // plan row id → "🚶 First L."
+  useEffect(() => {
+    let alive = true
+    async function load() {
+      const [l, r, c] = await Promise.all([
+        supabase.from('planned_lessons').select('id, client_id'),
+        supabase.from('planned_rentals').select('id, client_id'),
+        supabase.from('clients').select('id, first_name, last_name'),
+      ])
+      if (!alive || c.error) return
+      const names = new Map(((c.data ?? []) as { id: string; first_name: string; last_name: string | null }[])
+        .map(x => [x.id, `🚶 ${x.first_name} ${x.last_name ? x.last_name.charAt(0) + '.' : ''}`.trim()]))
+      const out: Record<string, string> = {}
+      for (const res of [l, r]) {
+        if (res.error) continue
+        for (const row of (res.data ?? []) as { id: string; client_id: string | null }[]) {
+          const n = row.client_id ? names.get(row.client_id) : undefined
+          if (n) out[row.id] = n
+        }
+      }
+      setWalkInOf(out)
+    }
+    load()
+    return () => { alive = false }
+  }, [])
 
   const iso = dateToISO(selectedDate)
   const startHour = 8
@@ -229,7 +260,7 @@ export default function ForecastSharePage() {
                             </div>
                             {height >= SLOT_H * 2 && (
                               <div className="text-xs font-semibold truncate">
-                                {firstClient?.first_name} {firstClient?.last_name}
+                                {firstClient ? <>{firstClient.first_name} {firstClient.last_name}</> : walkInOf[lesson.id]}
                                 {lessonClients.length > 1 && <span className="ml-1 font-normal opacity-70">+{lessonClients.length - 1}</span>}
                               </div>
                             )}
@@ -265,7 +296,7 @@ export default function ForecastSharePage() {
                         <div key={r.id} className="flex items-start justify-between bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded px-2 py-1.5 text-xs">
                           <div>
                             <div className="font-semibold text-amber-900 dark:text-amber-400">{rt.icon} {rt.label}</div>
-                            <div className="text-amber-700 dark:text-amber-400 truncate">{client?.first_name} {client?.last_name}</div>
+                            <div className="text-amber-700 dark:text-amber-400 truncate">{client ? <>{client.first_name} {client.last_name}</> : walkInOf[r.id]}</div>
                             {equip && <div className="text-[10px] text-amber-700/80 dark:text-amber-400/80 truncate">{equip.name}</div>}
                             {r.notes && <div className="text-[10px] italic text-amber-800 dark:text-amber-400 truncate">{r.notes}</div>}
                           </div>
