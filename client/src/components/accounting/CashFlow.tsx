@@ -219,30 +219,30 @@ export default function CashFlow({ data }: Props) {
 
       {/* Detailed table */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
-        <table className="w-full text-sm min-w-[980px]">
+        <table className="w-full text-sm min-w-[900px]">
           <thead className="bg-gray-50 dark:bg-gray-800 border-b">
             <tr>
               <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.label_month[lang]}</th>
               <th className="px-4 py-3 text-right font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.cf_billed[lang]}</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.label_collected[lang]}</th>
-              <th className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400"
+              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.label_collected[lang]}</th>
+              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400"
                   title="Reversals owed to us + free income − free expenses. Rent is the next column.">
                 {i18n.accounting.dash_palmeiras_net[lang]}
               </th>
-              <th className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400"
+              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400"
                   title="Cash received from partner agencies this month, net of their commission — booked on the date the invoice was settled, not the date it was sent.">
                 {i18n.accounting.rev_agencies[lang]}
               </th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">{i18n.accounting.dash_expenses[lang]}</th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">{i18n.accounting.palm_rent[lang]}</th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">{i18n.accounting.cf_instructors_col[lang]}</th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">{i18n.accounting.cf_taxi_out_col[lang]}</th>
-              <th className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400"
+              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">{i18n.accounting.dash_expenses[lang]}</th>
+              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">{i18n.accounting.palm_rent[lang]}</th>
+              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">{i18n.accounting.cf_instructors_col[lang]}</th>
+              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">{i18n.accounting.cf_taxi_out_col[lang]}</th>
+              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400"
                   title="Activity providers settled this month: cash paid to them minus cash they paid us.">
                 {i18n.accounting.cf_providers_col[lang]}
               </th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.hint_net_cash[lang]}</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-400 dark:text-gray-400">{i18n.accounting.cf_running_col[lang]}</th>
+              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.hint_net_cash[lang]}</th>
+              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-gray-400 dark:text-gray-400">{i18n.accounting.cf_running_col[lang]}</th>
             </tr>
           </thead>
           <tbody>
@@ -250,9 +250,9 @@ export default function CashFlow({ data }: Props) {
               const running = runningBalance[r.month]
               return (
                 <tr key={r.month} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{fmtMonth(r.month)}</td>
-                  <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-400">{r.billed ? fmtEur(r.billed) : '–'}</td>
-                  <td className="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400 font-medium">
+                  <td className="sticky left-0 z-10 bg-white dark:bg-gray-900 px-2 sm:px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{fmtMonth(r.month)}</td>
+                  <td className="px-2 sm:px-4 py-3 text-right text-gray-400 dark:text-gray-400">{r.billed ? fmtEur(r.billed) : '–'}</td>
+                  <td className="px-2 sm:px-4 py-3 text-right text-emerald-700 dark:text-emerald-400 font-medium">
                     {r.collected ? `+ ${fmtEur(r.collected)}` : '–'}
                   </td>
                   {/* Now a net (reversals + free income − free expenses), so it can
@@ -262,19 +262,19 @@ export default function CashFlow({ data }: Props) {
                   </td>
                   {/* Always an inflow: an agency either settled this month or it did
                       not. A commission is never billed back to us, so no sign flip. */}
-                  <td className="px-4 py-3 text-right text-blue-600 dark:text-blue-400">
+                  <td className="px-2 sm:px-4 py-3 text-right text-blue-600 dark:text-blue-400">
                     {r.agenciesIn ? `+ ${fmtEur(r.agenciesIn)}` : '–'}
                   </td>
-                  <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">
+                  <td className="px-2 sm:px-4 py-3 text-right text-red-500 dark:text-red-400">
                     {r.expenses ? `− ${fmtEur(r.expenses)}` : '–'}
                   </td>
-                  <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">
+                  <td className="px-2 sm:px-4 py-3 text-right text-red-500 dark:text-red-400">
                     {r.rent ? `− ${fmtEur(r.rent)}` : '–'}
                   </td>
-                  <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">
+                  <td className="px-2 sm:px-4 py-3 text-right text-red-500 dark:text-red-400">
                     {r.instrPaid ? `− ${fmtEur(r.instrPaid)}` : '–'}
                   </td>
-                  <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">
+                  <td className="px-2 sm:px-4 py-3 text-right text-red-500 dark:text-red-400">
                     {r.taxiOut ? `− ${fmtEur(r.taxiOut)}` : '–'}
                   </td>
                   {/* Net of both directions, so it flips to a "+" on a provider who
@@ -294,17 +294,17 @@ export default function CashFlow({ data }: Props) {
           </tbody>
           <tfoot className="bg-gray-50 dark:bg-gray-800 border-t">
             <tr className="font-semibold">
-              <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{i18n.common.label_total[lang]}</td>
-              <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-400">{fmtEur(totals.billed)}</td>
-              <td className="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">+ {fmtEur(totals.collected)}</td>
+              <td className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 sm:px-4 py-3 text-gray-700 dark:text-gray-300">{i18n.common.label_total[lang]}</td>
+              <td className="px-2 sm:px-4 py-3 text-right text-gray-400 dark:text-gray-400">{fmtEur(totals.billed)}</td>
+              <td className="px-2 sm:px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">+ {fmtEur(totals.collected)}</td>
               <td className={`px-4 py-3 text-right ${totals.palmIn < 0 ? 'text-red-500 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
                 {totals.palmIn < 0 ? '−' : '+'} {fmtEur(Math.abs(totals.palmIn))}
               </td>
-              <td className="px-4 py-3 text-right text-blue-600 dark:text-blue-400">+ {fmtEur(totals.agenciesIn)}</td>
-              <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.expenses)}</td>
-              <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.rent)}</td>
-              <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.instrPaid)}</td>
-              <td className="px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.taxiOut)}</td>
+              <td className="px-2 sm:px-4 py-3 text-right text-blue-600 dark:text-blue-400">+ {fmtEur(totals.agenciesIn)}</td>
+              <td className="px-2 sm:px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.expenses)}</td>
+              <td className="px-2 sm:px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.rent)}</td>
+              <td className="px-2 sm:px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.instrPaid)}</td>
+              <td className="px-2 sm:px-4 py-3 text-right text-red-500 dark:text-red-400">− {fmtEur(totals.taxiOut)}</td>
               <td className={`px-4 py-3 text-right ${totals.providersOut < 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
                 {totals.providersOut < 0 ? '+' : '−'} {fmtEur(Math.abs(totals.providersOut))}
               </td>
