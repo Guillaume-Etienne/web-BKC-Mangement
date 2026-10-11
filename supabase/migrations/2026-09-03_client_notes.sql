@@ -166,5 +166,5 @@ COMMIT;
 --   -- attendu : 0
 --   SELECT c.first_name, c.last_name, n.body
 --     FROM client_notes n JOIN clients c ON c.id = n.client_id;
---   -- attendu en PROD : au moins « contacté via Whatsapp aussi » (E. BOUTEILLER)
+--   -- attendu en PROD : au moins « contacté via Whatsapp aussi » (client de la #25)
 -- ════════════════════════════════════════════════════════════════════════════

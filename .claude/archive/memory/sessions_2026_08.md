@@ -43,7 +43,7 @@ dans `.claude/docs/BACKLOG.md`. **Le reste-à-faire ne vit PAS ici** : source de
 - Secrets tournés (clé Brevo + `NOTIFY_ENQUIRY_SECRET`) — clos, ne plus remonter.
 - Bug Firefox corrigé : `<input type="month">` non implémenté → `MonthInput` (2 `<select>`),
   9 endroits, commit `42e769d`.
-- Conversion réelle d'une enquête Fun&Fly en résa (`#022`, Loïc SENE), à la main, étape par
+- Conversion réelle d'une enquête Fun&Fly en résa (`#022`), à la main, étape par
   étape — a révélé San Martinho sans `external_billing` coché en PROD malgré le chantier du
   12 août, corrigé — [[reference-feature-delivered-not-applied]].
 - **Ping mensuel Brevo** codé et vérifié TEST+PROD (`brevo-ping` + `pg_cron`,

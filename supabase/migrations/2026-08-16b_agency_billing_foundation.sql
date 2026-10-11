@@ -6,7 +6,7 @@
 -- client — à un tarif catalogue propre à chaque agence, moins une commission
 -- qu'elle retient. Repéré le 2026-08-16 en convertissant une vraie demande
 -- Fun&Fly en réservation, confirmé sur une facture réelle fournie par gui
--- (temp/Factu BKC 2025 FFLY Famille Brunet.xlsx) : catalogue fixe par agence
+-- (temp/Factu BKC 2025 FFLY ….xlsx) : catalogue fixe par agence
 -- (ex. "Pack cours Privé 10x 2h" = 450€), commission % retenue sur le total
 -- (20% chez Fun&Fly), facturation au fil de l'eau revue avec gui avant envoi.
 --
@@ -30,7 +30,7 @@
 --   ligne de facture, même quand un forfait de 10×2h se traduit par 10
 --   séances dans le planning. Découplé des leçons individuelles exprès.
 --   `participant_id` nullable : un forfait est attaché à une personne
---   précise (la facture Brunet a 3 lignes "Pack Privé" identiques, une par
+--   précise (la facture Fun & Fly 2025 a 3 lignes "Pack Privé" identiques, une par
 --   membre de la famille — chacun son propre compteur), mais reste
 --   optionnel pour les lignes qui ne concernent pas un participant précis.
 --   `price`/`unit_hours` figés à la création — même logique que

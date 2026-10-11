@@ -455,7 +455,7 @@ valeur d'enum**, pas une colonne — c'est pour ça que `lesson_type` et `rental
 Facturation aux agences partenaires (Fun&Fly & co.) : elles envoient des clients, le centre
 rend le service, mais c'est l'**agence** qui doit être facturée — à un tarif catalogue propre
 à chaque agence, moins une commission qu'elle retient. Conçu et confirmé sur une vraie facture
-Fun&Fly (`temp/Factu BKC 2025 FFLY Famille Brunet.xlsx`). **Migration
+Fun&Fly (`temp/Factu BKC 2025 FFLY ….xlsx`). **Migration
 `2026-08-16b_agency_billing_foundation.sql` : schéma + écran Options → 🤝 Agencies
 (`AgenciesTab.tsx`) seulement.** Rien n'écrit encore dans `agency_billing_lines` — le wizard,
 le planning et la page client ne connaissent pas encore la notion. Roadmap complète :
@@ -467,7 +467,7 @@ le planning et la page client ne connaissent pas encore la notion. Roadmap compl
 | id | string (UUID) | |
 | name | string | |
 | commission_percent | number | % retenu par l'agence sur le total facturé (20 chez Fun&Fly) |
-| short_code | string \| null | Badge affiché à côté du nom du client partout dans l'app : `(FF) Loic SENE`. **NULL/vide = aucun badge**, jamais un badge déduit du nom (migration `2026-08-18`). Saisi dans Options → 🤝 Agencies. Codes réels : Fun & Fly = `FF`, Adekua = `Adek`, Decathlon = `Decat`. ⚠️ **Pas ouvert à anon** : `agencies` est admin-only et le planning Forecast partagé afficherait sinon le nom commercial des partenaires à qui détient le lien. |
+| short_code | string \| null | Badge affiché à côté du nom du client partout dans l'app : `(FF) Paul Durand`. **NULL/vide = aucun badge**, jamais un badge déduit du nom (migration `2026-08-18`). Saisi dans Options → 🤝 Agencies. Codes réels : Fun & Fly = `FF`, Adekua = `Adek`, Decathlon = `Decat`. ⚠️ **Pas ouvert à anon** : `agencies` est admin-only et le planning Forecast partagé afficherait sinon le nom commercial des partenaires à qui détient le lien. |
 | notes | string \| null | coordonnées de facturation, en texte libre — pas de PDF généré |
 | is_active | boolean | |
 
@@ -490,7 +490,7 @@ consommé en 10 séances dans le planning).
 | id | string (UUID) | |
 | booking_id | string (UUID) | |
 | agency_id | string (UUID) | |
-| participant_id | string \| null (FK → booking_participants) | un forfait appartient à un voyageur précis (facture Brunet : 3 personnes, 3 lignes) |
+| participant_id | string \| null (FK → booking_participants) | un forfait appartient à un voyageur précis (facture Fun & Fly 2025 : 3 personnes, 3 lignes) |
 | agency_rate_item_id | string \| null | quelle ligne de catalogue |
 | price | number | **figé à la création**, même logique que `lessons.price_per_hour` |
 | unit_hours | number \| null | figé à la création, forfaits cours seulement |

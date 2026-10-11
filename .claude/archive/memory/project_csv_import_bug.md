@@ -13,7 +13,7 @@ originSessionId: f1496f4c-483d-4c6a-b540-1102486c552b
 - `isDataRow(row)` → `row[0]` = toute la ligne → ne matche pas `TIMESTAMP_RE` → `dataRows = []`
 - `detectLanguage(headerRow)` → `headerRow[13]` = `undefined` → retourne `'unknown'`
 
-**Fichier test :** `./temp/test-import.csv` (ligne de data : Christophe Sassolas, 4 voyageurs, arrivée 04/11/2026)
+**Fichier test :** `./temp/test-import.csv` (une ligne de data réelle, 4 voyageurs)
 
 ## Fix nécessaire — partie 1 : unwrap des lignes outer-quoted
 
@@ -34,10 +34,10 @@ const allRows = parseCSV(csvText).map(row => {
 Après unwrap, `headerRow[13]` = "How did you know us?" → langue = 'en' ✓
 
 Mais `COL_EN.traveler1Start = 20` est probablement incorrect pour cette version du formulaire. Dans les données réelles :
-- Index 13 = Christophe (prénom voyageur 1)
-- Index 25 = Sylvie Pernodet (contact urgence name ?)
-- Index 26 = +33 6 86 87 27 24 (emergency phone)
-- Index 27 = sylviecezariat@orange.fr (emergency email)
+- Index 13 = prénom du voyageur 1
+- Index 25 = nom du contact d’urgence (?)
+- Index 26 = téléphone du contact d’urgence
+- Index 27 = email du contact d’urgence
 - Index 28 = Ami (emergency relation)
 - Index 31 = www.bilenekite.com (how did you know us)
 

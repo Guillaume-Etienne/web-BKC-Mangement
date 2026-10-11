@@ -4,7 +4,7 @@
    de synthèse renvoyée à l'agence. Décisions de gui le 2026-09-07 :
 
      - Les prix de la fiche sont la BASE DE FACTURE, marge F&Fly incluse — même
-       modèle que la facture Brunet 2025 (2450 € facturés, 490 de commission,
+       modèle que la facture Fun & Fly 2025 (2450 € facturés, 490 de commission,
        1960 payés). Ils vont donc tels quels dans agency_rate_items.price, et
        computeSeasonTotals en récupère 80 % en agencyRev.
      - Transfert : deux véhicules, deux prix. La ligne unique à 168 € était

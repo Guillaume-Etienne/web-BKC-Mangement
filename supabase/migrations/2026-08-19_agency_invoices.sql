@@ -5,7 +5,7 @@
 -- invoice by hand from an Excel template. This adds the missing entity so the app
 -- can produce that document.
 --
--- Modelled on the real template (`temp/Factu BKC 2025 FFLY Famille Brunet.xlsx`),
+-- Modelled on the real template (`temp/Factu BKC 2025 FFLY ….xlsx`),
 -- which carries TWO numbers, and they must not be confused:
 --   * `invoice_number` — OURS, "20251029" in the template: the issue date as
 --     YYYYMMDD. Two invoices on one day get "-2", "-3"… (gui: "pas grave on

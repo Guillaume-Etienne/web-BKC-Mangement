@@ -1,5 +1,5 @@
 -- Short marker shown next to a client's name wherever a booking comes from a
--- partner agency: "(FF) Loic SENE" in the planning bars, the Daily and Forecast
+-- partner agency: "(FF) Paul Durand" in the planning bars, the Daily and Forecast
 -- cards, the Bookings list and the accounting tables.
 --
 -- Why a column rather than a lookup in the code: the codes gui wants (FF for

@@ -37,7 +37,7 @@ Constaté en vérifiant ci-dessus. `client_errors`, **`payments`**, **`email_log
 `42501`.
 
 **Aucune fuite aujourd'hui** — vérifié avec des tables qu'on sait non vides (`payments` contient
-les 100 € de Sassolas, `email_logs` alimente la grille Documents) : elles renvoient bien `[]`,
+les 100 € d'un client, `email_logs` alimente la grille Documents) : elles renvoient bien `[]`,
 donc la RLS mord. Mais c'est une couche au lieu de deux, et le jour où quelqu'un ajoute une
 policy `FOR ALL` un peu large sur `payments`, il n'y a plus de filet. Un `2026-09-05c` d'une ligne
 par table le refermerait. **Ne pas le faire à moitié** : soit les quatre, soit aucune — harmoniser
@@ -48,11 +48,11 @@ par table le refermerait. **Ne pas le faire à moitié** : soit les quatre, soit
 **La migration `2026-09-03_client_notes.sql` est passée sur TEST et sur PROD** (vérifié en curl
 anon : `client_notes` et `bookings.source_id` répondent `42501 permission denied` au lieu de
 `PGRST205` / `42703` — la table et la colonne existent, et anon n'y a aucun accès, c'est ce que
-la migration voulait). Tout est poussé. **Bruno était bien une faute de frappe** : la demande est
+la migration voulait). Tout est poussé. **« Bruno » était bien une faute de frappe** : la demande est
 en Jan **2027**.
 
 Il reste **deux choses à trancher**, aucune bloquante :
-- **résa #025 (ELISABETH BOUTEILLER) sans aucune chambre**, alors que la demande portait sur
+- **résa #025 sans aucune chambre**, alors que la demande portait sur
   l'hébergement ;
 - **5 résas sur 8 restent « Unknown »** dans « Where they came from ». La reprise d'historique a
   rempli ce qu'elle pouvait ; le reste a été saisi à la main avant que la question existe et rien
@@ -162,7 +162,7 @@ que l'app doit survivre. `utils/supabaseErrors.ts` porte les deux détections
 | 2 | **Pousser** les commits (Claude ne pousse jamais) | — |
 | 3 | **Relancer le serveur MCP** (process `tsx` démarré en début de session) pour voir les nouveaux outils | Non |
 | 4 | Regarder **Requests → Archive → « Where they came from »** et décider si la question « comment nous avez-vous connus » doit devenir obligatoire quelque part | Non |
-| 5 | **Trancher deux vraies données que les nouveaux écrans ont sorties** : la résa **#025 (Babeth) sans aucune chambre**, et la demande **Bruno annoncée en « Jan 2026 »** (vraie demande périmée, ou janvier prochain mal saisi ?) | Non |
+| 5 | **Trancher deux vraies données que les nouveaux écrans ont sorties** : la résa **#025 sans aucune chambre**, et la demande **Bruno annoncée en « Jan 2026 »** (vraie demande périmée, ou janvier prochain mal saisi ?) | Non |
 
 ### 2. Ce qui a été livré (tout est commité, rien n'est poussé)
 
@@ -185,7 +185,7 @@ H — la clôture de saison · + la doc de Documents → Overview, qui n’exist
 4. **5 clients sur 8 sans origine** : le wizard ne posait jamais la question. Ajoutée.
 5. **Deux endroits pour noter sur un client** (`clients.notes` en bloc + la frise datée) —
    c'est-à-dire le doublon que ce chantier était censé supprimer. Fermé, voir § Parcours F.
-6. 🔎 **Pas un bug de code, une vraie donnée à regarder : la résa #025 (Babeth) n'a aucune
+6. 🔎 **Pas un bug de code, une vraie donnée à regarder : la résa #025 n'a aucune
    chambre** alors que la demande portait sur l'hébergement. Trouvé par l'écart d'intention
    (§ Parcours G) dès sa mise en service. **À vérifier avec gui.**
 
@@ -263,7 +263,7 @@ qui sait dire « qui attend quoi » (Enquiries) **jette la personne dès qu'elle
    `payments`, et **sépare l'argent non vérifié** au lieu de l'additionner au reste.
 
 **Vérifié au navigateur sur PROD le 2026-09-03** (lecture seule) : « Waiting on you » avec les
-6 vrais dossiers · frise de Michel Rulliat et de Loïc SENE (transferts, séjour, lettre de visa
+6 vrais dossiers · frise des résas #23 et #022 (transferts, séjour, lettre de visa
 envoyée, résa créée, demande + message d'origine) · ⌘K sur « mozambique » → les 2 demandes dont
 **le message** contient le mot, Entrée ouvre la bonne fiche · pastilles 📣 sur les 4 résas issues
 d'une demande · panneau d'origine en tête du wizard.
@@ -381,7 +381,7 @@ ce travail visait à supprimer.
   l'écran avant d'être arrivé dans la frise.
 - ⚠️ **⌘K indexe désormais `client_notes`** (app **et** MCP `search_everything`) : sans ça, la
   migration aurait discrètement coûté une recherche. Une table absente n'empêche pas la palette
-  de s'ouvrir. En PROD la note d'E. BOUTEILLER (« contacté via Whatsapp aussi ») est le cas réel.
+  de s'ouvrir. En PROD la note du client de la #25 (« contacté via Whatsapp aussi ») est le cas réel.
 
 ### ✅ G. « Ce qu'ils veulent » — le dernier constat de l'audit, fermé le 2026-09-03
 
@@ -399,7 +399,7 @@ précisément ce qu'on ne va pas chercher.
 - **Seuls les manques sont signalés.** Une résa qui a **plus** que la demande, c'est le cas
   normal et heureux : les gens ajoutent des choses une fois qu'ils vous parlent.
 - **L'écart se recalcule à la frappe** : l'alerte s'éteint quand gui remplit l'étape 3.
-- Trouvé en PROD dès l'ouverture : **la résa #025 (Babeth) n'a aucune chambre** alors que la
+- Trouvé en PROD dès l'ouverture : **la résa #025 n'a aucune chambre** alors que la
   demande portait sur l'hébergement.
 
 ### ✅ H. La clôture de saison — livrée le 2026-09-03
@@ -732,7 +732,7 @@ Repéré le 2026-08-16 en traitant une demande venue de **Fun&Fly** : le centre 
 (cours, location, transfert, parfois hébergement en maison/bungalow) mais c'est l'**agence**
 qui doit être facturée, pas le client — à un tarif catalogue propre à chaque agence, moins une
 commission qu'elle retient. gui dit qu'il y a **plusieurs agences comme ça**. Confirmé sur une
-vraie facture Fun&Fly (`temp/Factu BKC 2025 FFLY Famille Brunet.xlsx` : catalogue fixe par
+vraie facture Fun&Fly (`temp/Factu BKC 2025 FFLY ….xlsx` : catalogue fixe par
 agence, ex. "Pack cours Privé 10x 2h" = 450€, commission 20% retenue sur le total). Ne pas
 confondre avec `enquiry_sources` (« comment nous avez-vous trouvé », lecture seule côté
 visiteur) — une agence partenaire réserve activement, ce n'est pas un canal statistique.
@@ -767,7 +767,7 @@ client — liste les agences actives, "— direct booking —" par défaut, hint
 change pas la facturation, tague juste la résa"). Champ `agency_id` sur `WizardData`, transmis
 par `bookingToWizard`/`bookingFields` dans les deux sens. `npm run build`/`test` OK, 283 tests.
 ✅ **Vérifié au navigateur sur PROD** : "Fun & Fly" listée dans le sélecteur ; résa réelle
-**#022 (Loïc SENE) reliée à Fun & Fly** — celle-là même qui a motivé ce chantier — et
+**#022 reliée à Fun & Fly** — celle-là même qui a motivé ce chantier — et
 `agency_id` confirmé en base par requête directe. Aucune régression sur les résas existantes
 (#021, #023 rouvertes en édition, "— direct booking —" par défaut comme attendu).
 **Toujours pas de changement de facturation** à ce stade : c'était juste le tag. *(La
@@ -852,7 +852,7 @@ Le programme convenu vit dans les **notes de la réservation** (« 10h privatif 
 privatif 25-26/10 ») — c'est là qu'il doit rester jusqu'à la veille.
 **→ Ne jamais saisir de leçons à l'avance « pour compléter » une résa.** Ce qui reste à faire
 le moment venu : gui saisit les cours au jour le jour, puis la ligne « Pack cours Privé 10x2h »
-(450 €, 20h) est créée pour Loïc SENE et les leçons s'y rattachent **au fil de l'eau** — la
+(450 €, 20h) est créée pour le voyageur de la #022 et les leçons s'y rattachent **au fil de l'eau** — la
 ligne de facture peut d'ailleurs être créée dès maintenant, elle ne dépend pas des cours.
 *(PROD contient bien l'agence Fun & Fly, ses 3 lignes de grille et les 4 paliers de prix.)*
 
@@ -951,9 +951,9 @@ Martinho comme une chambre normale à 0 €/nuit au lieu du bloc We pay/Charged.
 **Corrigé au navigateur (Options → Accommodations → San Martinho → coché la case → Save)**,
 confirmé revenu à « per-stay pricing · 1 spot » sans badge. Aucune donnée existante touchée.
 
-### ✅ 7. Réservation #022 (Loïc SENE / Fun&Fly) — cours détaillés dans le planning (2026-08-16)
+### ✅ 7. Réservation #022 (Fun&Fly) — cours détaillés dans le planning (2026-08-16)
 
-Créée le 2026-08-16 (conversion enquête → résa) : Loïc SENE + Julie LE FOULER, 19→28/10/2026,
+Créée le 2026-08-16 (conversion enquête → résa) : 2 voyageurs, 19→28/10/2026,
 San Martinho (0€/0€, per-stay, rien facturé), statut **Provisional**, 0€ payé. Les deux blocs
 de cours (stage privatif **10h du 20 au 24/10**, puis privatif **4h du 25 au 26/10**, Loïc
 uniquement) sont désormais saisis dans le planning par gui. Enquête d'origine marquée **Won**
@@ -1513,7 +1513,7 @@ cycle de relève. Ne plus le proposer.
 ## 🧾 À FAIRE AVEC GUI — la première vraie facture Fun & Fly (demandé le 2026-08-19)
 
 Premier passage à l'acte du chantier agences : facturer réellement Fun & Fly pour la résa **#022**
-(Loic SENE + Julie LE FOULER, 19→28/10/2026). **Écran : Accounting → Bookings → #022 → panneau
+(2 voyageurs, 19→28/10/2026). **Écran : Accounting → Bookings → #022 → panneau
 🤝 Agency billing.** L'écran n'envoie rien — il enregistre ce qui est sorti et ce qui est rentré,
 la facture part à la main, relue (décision gui).
 
@@ -1550,7 +1550,7 @@ Prix client 120 €, chauffeur 6 000 MZN, manager 1 000 MZN — les défauts de 
 **3 lignes de facture Fun & Fly** (Accounting → Bookings → #022 → 🤝 Agency billing) :
 | Ligne | Brut | Commission 20 % | Net |
 |---|---|---|---|
-| Pack cours Privé 10h — Loic SENE | 450 € | −90 € | **360 €** |
+| Pack cours Privé 10h — voyageur #022 | 450 € | −90 € | **360 €** |
 | Transfert Maputo ↔ Bilene *(arrivée 19/10)* | 220 € | −44 € | **176 €** |
 | Transfert Maputo ↔ Bilene *(départ 28/10)* | 220 € | −44 € | **176 €** |
 | **Total** | **890 €** | **−178 €** | **712 €** |
@@ -1566,7 +1566,7 @@ Les deux lignes de transfert portent une **note** (« Arrival transfer 19/10 »,
 gui demandait « on a fait la partie génération de facture ? » — **non**, jusqu'ici l'app savait ce
 qui était **dû** mais n'avait aucune notion de facture (ni numéro, ni référence, ni document) ;
 les boutons « Invoice/Paid » n'étaient que des tampons de date. Conçu à partir du **vrai modèle**
-qu'attend Fun & Fly, décodé depuis `temp/Factu BKC 2025 FFLY Famille Brunet.xlsx`.
+qu'attend Fun & Fly, décodé depuis `temp/Factu BKC 2025 FFLY ….xlsx`.
 
 **Ce que le modèle a appris** (et confirmé indépendamment) : les 2 transferts y sont facturés
 **220 € chacun** → la réponse de gui du 19/08 (« par trajet ») est prouvée par sa propre facture

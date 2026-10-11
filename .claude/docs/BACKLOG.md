@@ -245,7 +245,7 @@ panneau Submissions affiche enfin « Came from the enquiry of X ». 562 tests, b
 décisions : `.claude/docs/ENQUIRIES.md` § 4.
 
 **Vérif écran faite** (Claude in Chrome) :
-- **PROD** — non-régression seulement : le cas Sibel s'était refermé entre-temps (gui a créé la
+- **PROD** — non-régression seulement : le cas de la #031 s'était refermé entre-temps (gui a créé la
   résa **#031** le 12/09, `form_submission_id` posé, demande passée `won`), et **aucune soumission
   n'est en `pending`**. Donc rien à y prouver, rien de cassé non plus.
 - **TEST** — preuve réelle, sur deux lignes créées puis **supprimées** (base revenue à son état
@@ -255,7 +255,7 @@ décisions : `.claude/docs/ENQUIRIES.md` § 4.
   booking »* sont là, et côté Submissions le bandeau **« 📩 Came from the enquiry of … · asked
   about Feb 2027 »** s'affiche.
 
-⬜ **Reste pour gui** : la résa **#031 (Sibel Darmar)** attend son **email de confirmation**.
+⬜ **Reste pour gui** : la résa **#031** attend son **email de confirmation**.
 ⚠️ Et son formulaire la déclare **« no kite »** alors que sa demande parlait d'un **stage de wing
 foil** — écart réel, jamais tranché, à clarifier avec elle. `utils/intentGap.ts` ne le montre que
 dans le wizard, donc il est passé inaperçu à la création.
@@ -309,8 +309,8 @@ la seule action qui coupe l'accès immédiatement.**
 ### 🗓️ Planning — ligne « No room » : ✅ livrée et vérifiée à l'écran (2026-09-06)
 
 Commits **`a5e9b8e` + `44cc10d`, poussés** (confirmé `origin/master`). Les résas sans chambre
-n'apparaissaient nulle part dans le planning — 4 des 10 résas de PROD (#30 Lindquist, #29 Dubos,
-#23 Rulliat, #25 Bouteiller), parce que **seul `BookingsPage` écrit `booking_rooms`** : tout ce qui
+n'apparaissaient nulle part dans le planning — 4 des 10 résas de PROD (#30, #29,
+#23, #25), parce que **seul `BookingsPage` écrit `booking_rooms`** : tout ce qui
 vient du formulaire public arrive sans chambre. Livré : `UnassignedRow.tsx`, `dropTarget?: boolean`
 sur `PlanningRow`, 5 edits dans `PlanningView.tsx`, 3 clés i18n, `components.md`. Build vert, 551
 tests verts.
@@ -336,7 +336,7 @@ et seule la RLS empêche les lignes de sortir. `client_notes` et `enquiries` ont
 (`REVOKE ALL … FROM anon` explicite) et répondent `42501`.
 
 **Aucune fuite aujourd'hui** — vérifié sur des tables qu'on sait non vides (`payments` contient les
-100 € de Sassolas, `email_logs` alimente la grille Documents) : elles renvoient bien `[]`, la RLS
+100 € d'un client, `email_logs` alimente la grille Documents) : elles renvoient bien `[]`, la RLS
 mord. Mais c'est une couche au lieu de deux : le jour où quelqu'un pose une policy `FOR ALL` un peu
 large sur `payments`, il n'y a plus de filet. Un `2026-09-05c` d'une ligne par table le
 refermerait. **Ne pas le faire à moitié** : les quatre ou aucune.
@@ -374,7 +374,7 @@ refermerait. **Ne pas le faire à moitié** : les quatre ou aucune.
 
 La fiche de synthèse renvoyée à F&Fly (`temp/2026-27 grille de prix détaillée…xlsx`, gitignoré)
 a été confrontée au catalogue en base. **Décision de gui : les prix de la fiche sont la base de
-facture, marge de 20 % incluse** — même modèle que la facture Brunet 2025. Le catalogue disait
+facture, marge de 20 % incluse** — même modèle que la facture Fun & Fly 2025. Le catalogue disait
 encore 200/472,50 là où la fiche annonce 240/600 : toute facture générée aurait **sous-facturé
 l'agence de 127,50 € par pack 10h**. Migration écrite, voir le registre en tête.
 
@@ -411,12 +411,12 @@ erreur. Deux trous du même tonneau, à traiter ensemble :
 
 ---
 
-## 🧾 EN COURS — résa SCHETTINI (Fun & Fly, 19→31/10/2026)
+## 🧾 EN COURS — résa #26 (Fun & Fly, 19→31/10/2026)
 
-**Résa #26 créée** (`d39da6b7-318d-492a-a6dd-f3e281cb9db7`) : SCHETTINI Eric, provisional,
-San Martinho **SM-2**, agence Fun & Fly, `center_access_rate: 0`, 3 voyageurs (Sonia
-PODGORSKI ép. SCHETTINI 23/04/1974 · Eric 06/09/1964 · **Luca 11 ans** 21/01/2015),
-tél. commun +33 641679034. Vols : **arrivée MPM 19/10 06:45** (TAP 281) · **départ 31/10 09:25**
+**Résa #26 créée** (`d39da6b7-318d-492a-a6dd-f3e281cb9db7`) : provisional,
+San Martinho **SM-2**, agence Fun & Fly, `center_access_rate: 0`, 3 voyageurs (2 adultes
+et **un enfant de 11 ans** — identités, naissances et téléphone : dans la fiche de la résa).
+Vols : **arrivée MPM 19/10 06:45** (TAP 281) · **départ 31/10 09:25**
 (TAP 282). **2 transferts créés** (Ruiz, 3 pax, 168 €/trajet) : `b100d3a3-…` (19/10 06:45) et
 `760ec72c-…` (31/10 04:25) — `payment_summary.billed` = 336 €.
 
@@ -454,7 +454,7 @@ offres distinctes.
 ⚠️ Les factures déjà émises gardent leurs **prix figés** : #022 reste à 160 €/transfert malgré la
 grille à 168 €. C'est voulu — un prix figé ne se refacture pas.
 
-**⬜ Facture #022 (SENE), émise, pas encore envoyée** (`invoiced_at` nul) — 970 € brut,
+**⬜ Facture #022, émise, pas encore envoyée** (`invoiced_at` nul) — 970 € brut,
 commission 20 %, **776 € à payer**, facture `20260819`, réf F&Fly `142018`.
 Reste : **comparer l'impression au modèle Excel** et dire ce qui cloche (la fenêtre d'impression
 s'ouvre hors du groupe piloté par l'extension : **Claude ne peut pas la voir**, seul gui peut
