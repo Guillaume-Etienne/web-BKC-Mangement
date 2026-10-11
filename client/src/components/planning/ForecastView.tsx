@@ -70,6 +70,35 @@ function initialsOf(first?: string | null, last?: string | null): string {
 /** 1.5 → "1.5", 2 → "2": no trailing zeros, no float noise. */
 const fmtH = (n: number) => `${Number(n.toFixed(2))}`
 
+/** Side-by-side lanes for lessons that overlap in time (a supervision next to a
+ *  private lesson, say) — without it the later card hides the earlier one. */
+function lanesFor<T extends { start_time: string; duration_hours: number }>(items: T[]) {
+  const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + (m || 0) }
+  type Out = { item: T; start: number; end: number; lane: number; lanes: number }
+  const sorted = [...items].sort((a, b) => toMin(a.start_time) - toMin(b.start_time))
+  const out: Out[] = []
+  let cluster: Out[] = []
+  let clusterEnd = -1
+  const flush = () => {
+    const n = Math.max(1, ...cluster.map(c => c.lane + 1))
+    cluster.forEach(c => { c.lanes = n })
+    out.push(...cluster)
+    cluster = []
+  }
+  for (const item of sorted) {
+    const start = toMin(item.start_time)
+    const end = start + Math.round(item.duration_hours * 60)
+    if (cluster.length && start >= clusterEnd) flush()
+    const used = new Set(cluster.filter(c => c.end > start).map(c => c.lane))
+    let lane = 0
+    while (used.has(lane)) lane++
+    cluster.push({ item, start, end, lane, lanes: 1 })
+    clusterEnd = cluster.length === 1 ? end : Math.max(clusterEnd, end)
+  }
+  flush()
+  return out
+}
+
 /** Lesson.participant_ids and rental participant ids point to BookingParticipant
  *  rows, not to Client rows (see the Lesson type). */
 function shortName(p: BookingParticipant | undefined): string {
@@ -201,6 +230,9 @@ interface LessonModalProps {
   totalSlots: number
   initialInstructorId: string
   initialSlot: number
+  /** New lesson only: pre-picked type / duration (the "+ supervision" shortcut). */
+  initialType?: LessonType
+  initialDuration?: number
   instructors: Instructor[]
   bookings: Booking[]
   bookingParticipants: BookingParticipant[]
@@ -213,15 +245,15 @@ interface LessonModalProps {
 }
 
 function LessonModal({
-  lesson, date, startHour, totalSlots, initialInstructorId, initialSlot, instructors, bookings,
+  lesson, date, startHour, totalSlots, initialInstructorId, initialSlot, initialType, initialDuration, instructors, bookings,
   bookingParticipants, clients, hoursByParticipant, onSave, onDelete, onExport, onClose,
 }: LessonModalProps) {
   const { lang } = useLanguage()
-  const [type, setType]       = useState<LessonType>(lesson?.type ?? 'private')
+  const [type, setType]       = useState<LessonType>(lesson?.type ?? initialType ?? 'private')
   const [ids, setIds]         = useState<string[]>(lesson?.participant_ids ?? [])
   const [instrId, setInstrId] = useState(lesson?.instructor_id ?? initialInstructorId)
   const [time, setTime]       = useState(lesson ? lesson.start_time.slice(0, 5) : slotToTime(Math.max(0, Math.min(totalSlots - 1, initialSlot)), startHour))
-  const [dur, setDur]         = useState(lesson?.duration_hours ?? 1)
+  const [dur, setDur]         = useState(lesson?.duration_hours ?? initialDuration ?? 1)
   const [notes, setNotes]     = useState(lesson?.notes ?? '')
   const [showAll, setShowAll] = useState(false)
   const [clientId, setClientId] = useState<string | null>(lesson?.client_id ?? null)
@@ -585,7 +617,11 @@ function ForecastDay({
   const [busy, setBusy]                 = useState(false)
 
   // Modals
-  const [modal, setModal] = useState<{ lesson: PlannedLesson | null; instructorId: string; slot: number } | null>(null)
+  const [modal, setModal] = useState<{
+    lesson: PlannedLesson | null; instructorId: string; slot: number
+    /** "+ supervision" on a card: a new lesson at the same time, same instructor */
+    preset?: { type: LessonType; duration: number }
+  } | null>(null)
 
   // Drag state (plan cards only)
   const [dragLesson, setDragLesson]   = useState<PlannedLesson | null>(null)
@@ -1150,7 +1186,7 @@ function ForecastDay({
                         const slot = Math.max(0, Math.min(totalSlots - 1, Math.floor((e.clientY - rect.top) / SLOT_H)))
                         setModal({ lesson: null, instructorId: instr.id, slot })
                       }}>
-                      {dayPlan.filter(l => l.instructor_id === instr.id).map(lesson => {
+                      {lanesFor(dayPlan.filter(l => l.instructor_id === instr.id)).map(({ item: lesson, lane, lanes }) => {
                         const isDragging = dragLesson?.id === lesson.id
                         const rawSlot = Math.max(0, timeToSlot(lesson.start_time, startHour))
                         const slot = isDragging && dragPreview?.instructorId === instr.id ? dragPreview.startSlot : rawSlot
@@ -1162,11 +1198,11 @@ function ForecastDay({
                         const done = !!lesson.exported_at
                         return (
                           <div key={lesson.id}
-                            className={`absolute left-0.5 right-0.5 rounded border-l-4 px-1.5 py-1 overflow-hidden z-10
+                            className={`absolute rounded border-l-4 px-1.5 py-1 overflow-hidden z-10
                               ${cfg.bg} ${cfg.border} ${cfg.text}
                               ${done ? 'opacity-50' : 'cursor-grab active:cursor-grabbing'}
                               ${isDragging ? 'opacity-70 shadow-lg ring-2 ring-blue-400' : 'shadow-sm hover:shadow-md'}`}
-                            style={{ top: slot * SLOT_H + 1, height: height - 2 }}
+                            style={{ top: slot * SLOT_H + 1, height: height - 2, left: `calc(${lane * 100 / lanes}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}
                             onClick={e => { e.stopPropagation(); setModal({ lesson, instructorId: lesson.instructor_id, slot: rawSlot }) }}
                             onPointerDown={e => startDrag(e, lesson, 'move')}>
                             <div className="flex items-center gap-1 mb-0.5">
@@ -1193,6 +1229,18 @@ function ForecastDay({
                                   onClick={e => { e.stopPropagation(); exportOneLesson(lesson) }}
                                   onPointerDown={e => e.stopPropagation()}
                                   className="absolute top-0.5 right-0.5 w-5 h-5 rounded bg-white/70 dark:bg-gray-900/70 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold leading-none hover:bg-white dark:hover:bg-gray-900">→</button>
+                                {lesson.type !== 'supervision' && (
+                                  <button type="button" title="Add a supervision at the same time"
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      setModal({
+                                        lesson: null, instructorId: lesson.instructor_id, slot: rawSlot,
+                                        preset: { type: 'supervision', duration: lesson.duration_hours },
+                                      })
+                                    }}
+                                    onPointerDown={e => e.stopPropagation()}
+                                    className="absolute top-0.5 right-6 h-5 px-1 rounded bg-white/70 dark:bg-gray-900/70 text-blue-700 dark:text-blue-400 text-[10px] font-bold leading-none hover:bg-white dark:hover:bg-gray-900">+S</button>
+                                )}
                                 <div className="absolute bottom-0 left-0 right-0 h-3 cursor-s-resize flex items-center justify-center opacity-0 hover:opacity-100 active:opacity-100"
                                   onPointerDown={e => { e.stopPropagation(); startDrag(e, lesson, 'resize') }}>
                                   <div className="w-8 h-0.5 bg-current rounded opacity-40" />
@@ -1212,15 +1260,15 @@ function ForecastDay({
                     {/* Daily lane — what really happened; look, don't touch */}
                     {showActual && (
                       <div className="absolute inset-y-0 right-0 w-1/2 border-l border-dashed border-gray-300 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/30">
-                        {dayActual.filter(l => l.instructor_id === instr.id).map(l => {
+                        {lanesFor(dayActual.filter(l => l.instructor_id === instr.id)).map(({ item: l, lane, lanes }) => {
                           const slot = Math.max(0, timeToSlot(l.start_time, startHour))
                           const height = l.duration_hours * 2 * SLOT_H
                           const cfg = LESSON_CFG[l.type]
                           const names = namesOf(l.participant_ids)
                           return (
                             <div key={l.id} title="In Daily"
-                              className={`absolute left-0.5 right-0.5 rounded border border-dashed border-l-4 px-1.5 py-1 overflow-hidden opacity-80 ${cfg.bg} ${cfg.border} ${cfg.text}`}
-                              style={{ top: slot * SLOT_H + 1, height: height - 2 }}>
+                              className={`absolute rounded border border-dashed border-l-4 px-1.5 py-1 overflow-hidden opacity-80 ${cfg.bg} ${cfg.border} ${cfg.text}`}
+                              style={{ top: slot * SLOT_H + 1, height: height - 2, left: `calc(${lane * 100 / lanes}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}>
                               <div className="flex items-center gap-1 mb-0.5">
                                 <span className="text-[10px] font-bold">{l.start_time.slice(0, 5)}</span>
                                 <span className={`text-[9px] px-1 rounded font-semibold ${cfg.badge}`}>{l.type === 'private' ? 'P' : l.type === 'group' ? 'G' : 'S'}</span>
@@ -1265,13 +1313,15 @@ function ForecastDay({
 
       {modal && (
         <LessonModal
-          key={modal.lesson?.id ?? `new-${modal.instructorId}-${modal.slot}`}
+          key={modal.lesson?.id ?? `new-${modal.instructorId}-${modal.slot}-${modal.preset?.type ?? ''}`}
           lesson={modal.lesson}
           date={iso}
           startHour={startHour}
           totalSlots={totalSlots}
           initialInstructorId={modal.instructorId}
           initialSlot={modal.slot}
+          initialType={modal.preset?.type}
+          initialDuration={modal.preset?.duration}
           instructors={instructors}
           bookings={bookings}
           bookingParticipants={bookingParticipants}
