@@ -6,7 +6,7 @@
 
 ## 🚨 Migrations SQL — registre
 
-⬜ **`2026-10-11_instructor_share_students.sql`** (TEST ⬜ / PROD ⬜) — noms des élèves par jour sur la page
+⬜ **`2026-10-11_instructor_share_students.sql`** (passée par gui 2026-10-11 — **curl anon avec token instructor encore à faire**, vérif écran aussi) — noms des élèves par jour sur la page
 « Instructor Hours » : policy `anon_read_booking_participants` élargie au token `instructor` (seulement les
 participants de SES cours). Un fichier, additif. Sans elle : la page marche, sans les noms. Vérif curl anon
 avec un token instructor : `booking_participants?select=id,first_name,last_name` → ses élèves ; sans token → `[]`.
