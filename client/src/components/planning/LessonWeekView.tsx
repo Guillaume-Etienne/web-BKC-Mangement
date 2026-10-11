@@ -482,7 +482,14 @@ export default function LessonWeekView({
     // see reFreezeInstructorRate. The client price is deliberately NOT touched:
     // it can be overridden by hand from Accounting, and recomputing it here
     // would quietly undo that decision.
-    onUpdateLesson(reFreezeInstructorRate({ ...editLesson, ...editData } as Lesson, editLesson, instructors))
+    const merged = { ...editLesson, ...editData } as Lesson
+    // A lesson belongs to its guests' booking, exactly as when it is created
+    // (see the add handler). Changing the guests has to move it with them —
+    // otherwise it stays on the old booking: billed and shown in the accounting
+    // under someone else, and absent from the guests' own booking.
+    const firstGuestId = merged.participant_ids?.[0]
+    const bookingId = (firstGuestId && bookingForParticipant(firstGuestId)) || editLesson.booking_id
+    onUpdateLesson(reFreezeInstructorRate({ ...merged, booking_id: bookingId }, editLesson, instructors))
     setEditLesson(null)
   }
 
