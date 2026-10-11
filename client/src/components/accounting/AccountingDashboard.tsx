@@ -323,7 +323,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Revenue breakdown */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 sm:p-6">
           <h2 className="text-base font-bold text-gray-800 dark:text-gray-200 mb-4">{i18n.accounting.dash_revenue_breakdown[lang]}</h2>
           <div className="space-y-3">
             {[
@@ -368,7 +368,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
         </div>
 
         {/* Bookings status */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 sm:p-6">
           <h2 className="text-base font-bold text-gray-800 dark:text-gray-200 mb-4">{i18n.accounting.dash_bookings_header[lang]}</h2>
           <div className="grid grid-cols-3 gap-3 text-center mb-6">
             <div className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400 rounded-lg py-3">
@@ -406,7 +406,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
 
       {/* ── Instructor balances ── */}
       {instrBalances.length > 0 && (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 sm:p-6">
           <h2 className="text-base font-bold text-gray-800 dark:text-gray-200 mb-1">{i18n.accounting.dash_instructor_balances[lang]}</h2>
           <p className="text-xs text-gray-400 dark:text-gray-400 mb-4">{i18n.accounting.dash_earned_minus[lang]}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -440,7 +440,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
 
       {/* ── Unpaid bookings ── */}
       {topUnpaid.length > 0 && (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 sm:p-6">
           <h2 className="text-base font-bold text-gray-800 dark:text-gray-200 mb-1">{i18n.accounting.dash_outstanding_payments[lang]}</h2>
           <p className="text-xs text-gray-400 dark:text-gray-400 mb-4">{i18n.accounting.dash_top_n_of[lang].replace('{n}', String(topUnpaid.length)).replace('{total}', String(unpaidBookings.length)).replace('{s}', unpaidBookings.length !== 1 ? 's' : '')}</p>
           <div className="overflow-x-auto">

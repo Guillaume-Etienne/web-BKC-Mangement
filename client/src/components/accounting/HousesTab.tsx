@@ -172,26 +172,26 @@ export default function HousesTab({ data }: Props) {
                     {rentals.length === 0 ? (
                       <p className="px-4 py-6 text-gray-400 dark:text-gray-400 text-sm text-center">{i18n.accounting.ht_no_rental_periods[lang].replace('{season}', period === 'season' ? i18n.accounting.ht_this_season[lang] : '')}</p>
                     ) : (
-                      <table className="w-full text-sm">
+                      <div className="overflow-x-auto"><table className="w-full text-sm">
                         <thead className="bg-gray-50 dark:bg-gray-800 border-b">
                           <tr>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.ht_from_col[lang]}</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.ht_to_col[lang]}</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold text-red-400 dark:text-red-300">{i18n.accounting.ht_cost_eur_col[lang]}</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-400 dark:text-gray-400">{i18n.common.label_notes[lang]}</th>
+                            <th className="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.ht_from_col[lang]}</th>
+                            <th className="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.ht_to_col[lang]}</th>
+                            <th className="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-red-400 dark:text-red-300">{i18n.accounting.ht_cost_eur_col[lang]}</th>
+                            <th className="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-gray-400 dark:text-gray-400">{i18n.common.label_notes[lang]}</th>
                           </tr>
                         </thead>
                         <tbody>
                           {[...rentals].sort((a, b) => b.start_date.localeCompare(a.start_date)).map(r => (
                             <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800">
-                              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(r.start_date)}</td>
-                              <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(r.end_date)}</td>
-                              <td className="px-4 py-2 text-right text-red-600 dark:text-red-400 font-medium">− {fmtEur(r.total_cost)}</td>
-                              <td className="px-4 py-2 text-gray-400 dark:text-gray-400 text-xs truncate max-w-[120px]">{r.notes ?? ''}</td>
+                              <td className="px-2 sm:px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(r.start_date)}</td>
+                              <td className="px-2 sm:px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(r.end_date)}</td>
+                              <td className="px-2 sm:px-4 py-2 text-right text-red-600 dark:text-red-400 font-medium">− {fmtEur(r.total_cost)}</td>
+                              <td className="px-2 sm:px-4 py-2 text-gray-400 dark:text-gray-400 text-xs truncate max-w-[120px]">{r.notes ?? ''}</td>
                             </tr>
                           ))}
                         </tbody>
-                      </table>
+                      </table></div>
                     )}
                   </div>
                   {/* Booking revenue */}
@@ -202,28 +202,28 @@ export default function HousesTab({ data }: Props) {
                     {bookingLines.length === 0 ? (
                       <p className="px-4 py-6 text-gray-400 dark:text-gray-400 text-sm text-center">{i18n.accounting.ht_no_bookings[lang].replace('{season}', period === 'season' ? i18n.accounting.ht_this_season[lang] : '')}</p>
                     ) : (
-                      <table className="w-full text-sm">
+                      <div className="overflow-x-auto"><table className="w-full text-sm">
                         <thead className="bg-gray-50 dark:bg-gray-800 border-b">
                           <tr>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.ht_room_col[lang]}</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.palm_period_col[lang]}</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-400">{i18n.accounting.palm_nights_col[lang]}</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-400">{i18n.accounting.ht_rate_col[lang]}</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold text-emerald-500 dark:text-emerald-400">{i18n.accounting.ht_revenue_col[lang]}</th>
+                            <th className="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.ht_room_col[lang]}</th>
+                            <th className="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.palm_period_col[lang]}</th>
+                            <th className="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-400">{i18n.accounting.palm_nights_col[lang]}</th>
+                            <th className="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-400">{i18n.accounting.ht_rate_col[lang]}</th>
+                            <th className="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-emerald-500 dark:text-emerald-400">{i18n.accounting.ht_revenue_col[lang]}</th>
                           </tr>
                         </thead>
                         <tbody>
                           {bookingLines.map((line, i) => (
                             <tr key={`${line.bookingId}-${line.roomId}-${i}`} className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800">
-                              <td className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">{line.roomName}</td>
-                              <td className="px-4 py-2 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{line.checkIn} → {line.checkOut}</td>
-                              <td className="px-4 py-2 text-right text-gray-500 dark:text-gray-400">{line.nights}</td>
-                              <td className="px-4 py-2 text-right text-gray-400 dark:text-gray-400 text-xs">{fmtEur(line.rate)}/n</td>
-                              <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400 font-medium">+ {fmtEur(line.revenue)}</td>
+                              <td className="px-2 sm:px-4 py-2 font-medium text-gray-700 dark:text-gray-300">{line.roomName}</td>
+                              <td className="px-2 sm:px-4 py-2 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{line.checkIn} → {line.checkOut}</td>
+                              <td className="px-2 sm:px-4 py-2 text-right text-gray-500 dark:text-gray-400">{line.nights}</td>
+                              <td className="px-2 sm:px-4 py-2 text-right text-gray-400 dark:text-gray-400 text-xs">{fmtEur(line.rate)}/n</td>
+                              <td className="px-2 sm:px-4 py-2 text-right text-emerald-700 dark:text-emerald-400 font-medium">+ {fmtEur(line.revenue)}</td>
                             </tr>
                           ))}
                         </tbody>
-                      </table>
+                      </table></div>
                     )}
                   </div>
                 </div>
@@ -257,32 +257,32 @@ export default function HousesTab({ data }: Props) {
                 {bookingLines.length === 0 ? (
                   <p className="px-4 py-6 text-gray-400 dark:text-gray-400 text-sm text-center">{i18n.accounting.ht_no_bookings[lang].replace('{season}', period === 'season' ? i18n.accounting.ht_this_season[lang] : '')}</p>
                 ) : (
-                  <table className="w-full text-sm">
+                  <div className="overflow-x-auto"><table className="w-full text-sm">
                     <thead className="bg-gray-50 dark:bg-gray-800 border-b">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.palm_client_col[lang]}</th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.palm_period_col[lang]}</th>
-                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-400">{i18n.accounting.palm_nights_col[lang]}</th>
-                        <th className="px-4 py-2 text-right text-xs font-semibold text-red-400 dark:text-red-300">{i18n.accounting.palm_cost_col[lang]}</th>
-                        <th className="px-4 py-2 text-right text-xs font-semibold text-emerald-500 dark:text-emerald-400">{i18n.accounting.palm_sell_col[lang]}</th>
-                        <th className="px-4 py-2 text-right text-xs font-semibold text-blue-500 dark:text-blue-400">{i18n.accounting.palm_margin_col[lang]}</th>
+                        <th className="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.palm_client_col[lang]}</th>
+                        <th className="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.palm_period_col[lang]}</th>
+                        <th className="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-gray-400 dark:text-gray-400">{i18n.accounting.palm_nights_col[lang]}</th>
+                        <th className="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-red-400 dark:text-red-300">{i18n.accounting.palm_cost_col[lang]}</th>
+                        <th className="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-emerald-500 dark:text-emerald-400">{i18n.accounting.palm_sell_col[lang]}</th>
+                        <th className="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-blue-500 dark:text-blue-400">{i18n.accounting.palm_margin_col[lang]}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {bookingLines.map((line, i) => (
                         <tr key={`${line.bookingId}-${i}`} className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <td className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">{line.clientName}</td>
-                          <td className="px-4 py-2 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{line.checkIn} → {line.checkOut}</td>
-                          <td className="px-4 py-2 text-right text-gray-500 dark:text-gray-400">{line.nights}</td>
-                          <td className="px-4 py-2 text-right text-red-500 dark:text-red-400">{fmtEur(costRate)}</td>
-                          <td className="px-4 py-2 text-right text-emerald-600 dark:text-emerald-400">{fmtEur(line.sellRate)}</td>
+                          <td className="px-2 sm:px-4 py-2 font-medium text-gray-700 dark:text-gray-300">{line.clientName}</td>
+                          <td className="px-2 sm:px-4 py-2 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{line.checkIn} → {line.checkOut}</td>
+                          <td className="px-2 sm:px-4 py-2 text-right text-gray-500 dark:text-gray-400">{line.nights}</td>
+                          <td className="px-2 sm:px-4 py-2 text-right text-red-500 dark:text-red-400">{fmtEur(costRate)}</td>
+                          <td className="px-2 sm:px-4 py-2 text-right text-emerald-600 dark:text-emerald-400">{fmtEur(line.sellRate)}</td>
                           <td className={`px-4 py-2 text-right font-semibold ${line.margin >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'}`}>
                             {line.margin >= 0 ? '+' : ''}{fmtEur(line.margin)}
                           </td>
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 )}
               </div>
             ))}
