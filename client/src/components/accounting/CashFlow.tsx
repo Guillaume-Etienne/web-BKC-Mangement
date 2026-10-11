@@ -222,8 +222,8 @@ export default function CashFlow({ data }: Props) {
         <table className="w-full text-sm min-w-[900px]">
           <thead className="bg-gray-50 dark:bg-gray-800 border-b">
             <tr>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.label_month[lang]}</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.cf_billed[lang]}</th>
+              <th className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 sm:px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.label_month[lang]}</th>
+              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-gray-500 dark:text-gray-400">{i18n.accounting.cf_billed[lang]}</th>
               <th className="px-2 sm:px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.accounting.label_collected[lang]}</th>
               <th className="px-2 sm:px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400"
                   title="Reversals owed to us + free income − free expenses. Rent is the next column.">
