@@ -65,7 +65,6 @@ const TYPES: LessonType[] = ['private', 'group', 'supervision']
 
 type Hours = Record<LessonType, number>
 const emptyHours = (): Hours => ({ private: 0, group: 0, supervision: 0 })
-const sumHours = (h: Hours) => h.private + h.group + h.supervision
 
 /** 1.5 → "1.5", 2 → "2", 0.333 → "0.33": no trailing zeros, no float noise. */
 const fmtH = (n: number) => `${Number(n.toFixed(2))}`
@@ -178,6 +177,12 @@ export default function InstructorSharePage({ instructorId }: Props) {
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   }, [inPeriod])
 
+  const counts = useMemo(() => {
+    const c = emptyHours()
+    for (const l of inPeriod) c[l.type]++
+    return c
+  }, [inPeriod])
+
   const totals = useMemo(() => {
     const t = emptyHours()
     for (const l of inPeriod) t[l.type] += l.duration_hours
@@ -254,16 +259,14 @@ export default function InstructorSharePage({ instructorId }: Props) {
 
         {/* Totals */}
         <div className="space-y-3">
-          <div className="rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 px-5 py-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400 capitalize">{periodTitle}</p>
-            <p className="mt-1 text-3xl font-bold text-amber-900 dark:text-amber-300">{fmtH(sumHours(totals))} {tr.hours_unit[lang]}</p>
-            <p className="text-sm text-amber-700 dark:text-amber-400">{inPeriod.length} {tr.lessons[lang]}</p>
-          </div>
+          {/* No grand total on purpose: private / group / supervision are paid at different rates. */}
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 capitalize">{periodTitle}</p>
           <div className="grid grid-cols-3 gap-3">
             {TYPES.map(t => (
-              <div key={t} className={`rounded-xl border px-3 py-3 ${typeCard[t]}`}>
+              <div key={t} className={`rounded-xl border px-3 py-4 ${typeCard[t]}`}>
                 <p className="text-xs font-medium uppercase tracking-wide opacity-80">{tr[t][lang]}</p>
-                <p className="mt-1 text-xl md:text-2xl font-bold">{fmtH(totals[t])} {tr.hours_unit[lang]}</p>
+                <p className="mt-1 text-2xl md:text-3xl font-bold">{fmtH(totals[t])} {tr.hours_unit[lang]}</p>
+                <p className="text-xs opacity-80">{counts[t]} {tr.lessons[lang]}</p>
               </div>
             ))}
           </div>
@@ -280,7 +283,6 @@ export default function InstructorSharePage({ instructorId }: Props) {
                 <tr className="bg-gray-50 dark:bg-gray-800 border-b text-xs text-gray-500 dark:text-gray-400">
                   <th className="px-3 py-2 text-left font-medium">{tr.col_month[lang]}</th>
                   {TYPES.map(t => <th key={t} className="px-2 py-2 text-right font-medium">{tr[t][lang]}</th>)}
-                  <th className="px-3 py-2 text-right font-medium">{tr.total[lang]}</th>
                 </tr>
               </thead>
               <tbody>
@@ -291,7 +293,6 @@ export default function InstructorSharePage({ instructorId }: Props) {
                     {TYPES.map(t => (
                       <td key={t} className="px-2 py-2 text-right text-gray-600 dark:text-gray-400">{h[t] ? fmtH(h[t]) : '–'}</td>
                     ))}
-                    <td className="px-3 py-2 text-right font-bold text-gray-900 dark:text-gray-100">{fmtH(sumHours(h))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -312,7 +313,13 @@ export default function InstructorSharePage({ instructorId }: Props) {
                 <div key={date} className={date === today ? 'bg-amber-50/60 dark:bg-amber-950/20' : ''}>
                   <div className="flex items-baseline justify-between px-4 pt-3 pb-1">
                     <span className="font-bold capitalize text-gray-900 dark:text-gray-100">{dayLabel(date, lang)}</span>
-                    <span className="text-sm font-bold text-gray-700 dark:text-gray-300">{fmtH(sumHours(d.hours))} {tr.hours_unit[lang]}</span>
+                    <span className="flex gap-2 text-xs font-bold">
+                      {TYPES.filter(t => d.hours[t] > 0).map(t => (
+                        <span key={t} className={`rounded-full border px-2 py-0.5 ${typeCard[t]}`}>
+                          {tr[t][lang]} {fmtH(d.hours[t])} {tr.hours_unit[lang]}
+                        </span>
+                      ))}
+                    </span>
                   </div>
                   <ul className="px-3 pb-3 space-y-1.5">
                     {d.items.map(it => (
