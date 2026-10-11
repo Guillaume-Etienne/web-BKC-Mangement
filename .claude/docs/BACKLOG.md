@@ -6,6 +6,11 @@
 
 ## 🚨 Migrations SQL — registre
 
+⬜ **`2026-10-11_instructor_share_students.sql`** (TEST ⬜ / PROD ⬜) — noms des élèves par jour sur la page
+« Instructor Hours » : policy `anon_read_booking_participants` élargie au token `instructor` (seulement les
+participants de SES cours). Un fichier, additif. Sans elle : la page marche, sans les noms. Vérif curl anon
+avec un token instructor : `booking_participants?select=id,first_name,last_name` → ses élèves ; sans token → `[]`.
+
 ⬜ **`2026-10-10c_forecast_plan.sql`** (TEST ⬜ / PROD ⬜) — le Forecast devient un PLAN séparé de Daily :
 tables `planned_lessons` + `planned_rentals` (admin_all, anon = GRANT colonne + token `forecast`), et
 `anon_read_booking_participants` élargie au token `forecast`. **Un seul fichier** (pas d'enum).

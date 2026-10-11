@@ -1176,6 +1176,9 @@ CREATE POLICY "anon_read_booking_participants" ON booking_participants
   FOR SELECT TO anon USING (
     (share_type() = 'client' AND booking_id = share_booking_id())
     OR share_type() = 'forecast'
+    OR (share_type() = 'instructor' AND id IN (
+          SELECT unnest(l.participant_ids) FROM lessons l
+          WHERE l.instructor_id = share_param('instructor_id')::uuid))
   );
 CREATE POLICY "anon_read_booking_rooms" ON booking_rooms
   FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());

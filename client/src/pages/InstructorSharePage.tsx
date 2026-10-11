@@ -11,7 +11,11 @@ interface Props { instructorId: string }
 // pay columns (`instructor_rate`, client price) are revoked for anon, so this
 // page can only ever count hours: leaving them out of the type keeps a future
 // edit from reaching for them.
-type HourLesson = Pick<Lesson, 'id' | 'date' | 'start_time' | 'duration_hours' | 'type'>
+type HourLesson = Pick<Lesson, 'id' | 'date' | 'start_time' | 'duration_hours' | 'type' | 'participant_ids'>
+
+// Students: anon only gets identity (id, first/last name) from booking_participants,
+// and only those of THIS instructor's lessons (policy 2026-10-11).
+type Student = { id: string; first_name: string; last_name: string }
 
 type Lang = 'en' | 'fr' | 'pt'
 type Mode = 'month' | 'season'
@@ -37,6 +41,7 @@ const tr = {
   supervision:  { en: 'Supervision',         fr: 'Supervision',          pt: 'Supervisão' },
   by_day:       { en: 'Day by day',          fr: 'Jour par jour',        pt: 'Dia a dia' },
   by_month:     { en: 'Month by month',      fr: 'Mois par mois',        pt: 'Mês a mês' },
+  students:     { en: 'Students',            fr: 'Élèves',               pt: 'Alunos' },
   col_date:     { en: 'Date',                fr: 'Date',                 pt: 'Data' },
   col_month:    { en: 'Month',               fr: 'Mois',                 pt: 'Mês' },
   no_hours:     { en: 'No hours for this period.', fr: 'Aucune heure sur cette période.', pt: 'Sem horas neste período.' },
@@ -87,6 +92,7 @@ function dayLabel(iso: string, lang: Lang): string {
 export default function InstructorSharePage({ instructorId }: Props) {
   const [instructor, setInstructor] = useState<Pick<Instructor, 'id' | 'first_name' | 'last_name'> | null>(null)
   const [lessons,    setLessons]    = useState<HourLesson[]>([])
+  const [students,   setStudents]   = useState<Map<string, Student>>(new Map())
   const [loading,    setLoading]    = useState(true)
 
   const [lang, setLang] = usePref<Lang>('instructor_share_lang', 'en')
@@ -105,12 +111,15 @@ export default function InstructorSharePage({ instructorId }: Props) {
         // this to the token's instructor; the filter is for the reader, not the guard.
         supabase
           .from('lessons')
-          .select('id, date, start_time, duration_hours, type')
+          .select('id, date, start_time, duration_hours, type, participant_ids')
           .eq('instructor_id', instructorId)
           .order('date', { ascending: true }),
       ])
       setInstructor((instrRes.data ?? null) as typeof instructor)
       setLessons((lessonsRes.data ?? []) as HourLesson[])
+      // Names are a bonus: if this read fails (policy not applied yet), the hours still show.
+      const { data: guests } = await supabase.from('booking_participants').select('id, first_name, last_name')
+      setStudents(new Map(((guests ?? []) as Student[]).map(g => [g.id, g])))
       setLoading(false)
     }
     load()
@@ -131,15 +140,20 @@ export default function InstructorSharePage({ instructorId }: Props) {
 
   // Hours per day, in date order.
   const days = useMemo(() => {
-    const m = new Map<string, { hours: Hours; count: number }>()
+    const m = new Map<string, { hours: Hours; count: number; names: string[] }>()
     for (const l of inPeriod) {
-      const d = m.get(l.date) ?? { hours: emptyHours(), count: 0 }
+      const d = m.get(l.date) ?? { hours: emptyHours(), count: 0, names: [] }
       d.hours[l.type] += l.duration_hours
       d.count++
+      for (const pid of l.participant_ids ?? []) {
+        const g = students.get(pid)
+        const name = g ? `${g.first_name} ${g.last_name}`.trim() : ''
+        if (name && !d.names.includes(name)) d.names.push(name)
+      }
       m.set(l.date, d)
     }
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-  }, [inPeriod])
+  }, [inPeriod, students])
 
   // Hours per month (season view).
   const months = useMemo(() => {
@@ -292,7 +306,14 @@ export default function InstructorSharePage({ instructorId }: Props) {
               <tbody>
                 {days.map(([date, d]) => (
                   <tr key={date} className={`border-b ${date === today ? 'bg-amber-50/60 dark:bg-amber-950/20' : ''}`}>
-                    <td className="px-3 py-2 font-medium whitespace-nowrap capitalize text-gray-800 dark:text-gray-200">{dayLabel(date, lang)}</td>
+                    <td className="px-3 py-2 font-medium capitalize text-gray-800 dark:text-gray-200">
+                      <span className="whitespace-nowrap">{dayLabel(date, lang)}</span>
+                      {d.names.length > 0 && (
+                        <span className="block text-xs font-normal normal-case text-gray-500 dark:text-gray-400">
+                          {tr.students[lang]}: {d.names.join(', ')}
+                        </span>
+                      )}
+                    </td>
                     {TYPES.map(t => (
                       <td key={t} className="px-2 py-2 text-right text-gray-600 dark:text-gray-400">{d.hours[t] ? fmtH(d.hours[t]) : '–'}</td>
                     ))}
