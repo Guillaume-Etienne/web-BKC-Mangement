@@ -94,6 +94,11 @@ en croyant agir sur le planning. À supprimer un jour, décision de gui.
 
 ### `ForecastView` — `planning/ForecastView.tsx`
 *(Props : lessons/rentals Daily en lecture, + `onAddLesson`/`onAddRental` qui ne servent qu'à l'export)*
+- **3 jours (laptop ≥ 1024px, défaut ; localStorage `forecast_days`)** : l'export par défaut est un wrapper
+  qui monte 3 `ForecastDay` (veille · jour · lendemain, chacun éditable) ; le composant d'un jour est
+  `ForecastDay` (props `fixedDate`, `compact`, `showActualOverride`, `clipCtl` posées par le wrapper →
+  Show Daily et presse-papier copy/paste partagés entre les 3 jours). En dessous de `lg` ou en « 1 day » :
+  une seule vue, comme avant.
 - **= le PLAN (bac à sable d'organisation), pas la compta.** Lit/écrit `planned_lessons` /
   `planned_rentals` (migration 2026-10-10c) ; `lessons` / `equipment_rentals` (Daily) = la vérité de ce
   qui a eu lieu. Rien dans la compta, la paie ou la page Instructor Hours ne lit le plan.

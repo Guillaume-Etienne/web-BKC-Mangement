@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
   Lesson, LessonType, EquipmentRental, RentalSlot, Instructor, Equipment, Booking, BookingParticipant, Client,
   Agency, AgencyBillingLine, PriceItem, PriceTier, PlannedLesson, PlannedRental, RentalType, Lang,
@@ -372,9 +372,11 @@ interface RentalsPanelProps {
   onAdd: (r: Omit<PlannedRental, 'id' | 'exported_at' | 'booking_id'>) => void
   onDelete: (id: string) => void
   onExport: (r: PlannedRental) => void
+  /** 3-day view: the panel sits under its day's grid instead of beside it. */
+  compact?: boolean
 }
 
-function RentalsPanel({ date, plan, actual, showActual, equipment, bookings, bookingParticipants, clients, onAdd, onDelete, onExport }: RentalsPanelProps) {
+function RentalsPanel({ date, plan, actual, showActual, equipment, bookings, bookingParticipants, clients, onAdd, onDelete, onExport, compact }: RentalsPanelProps) {
   const { lang } = useLanguage()
   const [showForm, setShowForm]   = useState(false)
   const [showAll, setShowAll]     = useState(false)
@@ -427,7 +429,7 @@ function RentalsPanel({ date, plan, actual, showActual, equipment, bookings, boo
   const field = 'w-full text-xs border border-gray-300 dark:border-gray-700 rounded px-1.5 py-1 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100'
 
   return (
-    <div className="w-full md:w-60 md:shrink-0 flex flex-col gap-3">
+    <div className={`${compact ? 'w-full' : 'w-full md:w-60 md:shrink-0'} flex flex-col gap-3`}>
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">📦 {i18n.planning.section_rentals[lang]}</h3>
         <button onClick={() => setShowForm(v => !v)}
@@ -547,6 +549,15 @@ interface ForecastViewProps {
   onAddRental: (r: Omit<EquipmentRental, 'id'>) => Promise<boolean>
   /** Walk-in path: client → visit → lesson/rental, the same handler as Daily's 🚶 button. */
   onAddWalkIn: (req: WalkInRequest) => Promise<boolean>
+  // ── 3-day view (set by `ForecastView` below, never by the caller) ──
+  /** Pins the day: the component shows it without its own date navigation. */
+  fixedDate?: Date
+  /** One column of the 3-day view: narrower columns, rentals under the grid, no banner. */
+  compact?: boolean
+  /** Owned by the 3-day header, so the toggle is shared by the three days. */
+  showActualOverride?: boolean
+  /** Shared clipboard: copy on one day, paste on another. */
+  clipCtl?: { clip: Clip | null; setClip: (c: Clip | null) => void }
 }
 
 /** A stand-in participant: lets `resolveLessonRate` count a regular's past visits
@@ -555,17 +566,22 @@ const PROBE_PARTICIPANT = '__walkin_probe__'
 
 type Clip = { from: string; lessons: Omit<PlannedLesson, 'id' | 'exported_at' | 'date'>[]; rentals: Omit<PlannedRental, 'id' | 'exported_at' | 'date'>[] }
 
-export default function ForecastView({
+function ForecastDay({
   lessons, rentals, instructors, equipment, bookings, agencies, agencyBillingLines,
   bookingParticipants, priceItems, priceTiers, clients, onAddLesson, onAddRental, onAddWalkIn,
+  fixedDate, compact = false, showActualOverride, clipCtl,
 }: ForecastViewProps) {
   const { lang } = useLanguage()
   const today = new Date()
 
-  const [selectedDate, setSelectedDate] = useState<Date>(() => addDays(today, 1))
+  const [ownDate, setSelectedDate]      = useState<Date>(() => addDays(today, 1))
+  const selectedDate                    = fixedDate ?? ownDate
   const [startHour, setStartHour]       = useState(8)
-  const [showActual, setShowActual]     = useState(() => readLocal(SHOW_ACTUAL_KEY) === '1')
-  const [clip, setClip]                 = useState<Clip | null>(null)
+  const [ownShowActual, setShowActual]  = useState(() => readLocal(SHOW_ACTUAL_KEY) === '1')
+  const showActual                      = showActualOverride ?? ownShowActual
+  const [ownClip, setOwnClip]           = useState<Clip | null>(null)
+  const clip                            = clipCtl ? clipCtl.clip : ownClip
+  const setClip                         = clipCtl ? clipCtl.setClip : setOwnClip
   const [busy, setBusy]                 = useState(false)
 
   // Modals
@@ -927,18 +943,32 @@ export default function ForecastView({
   const agenda = [...dayPlan].sort((a, b) => a.start_time.localeCompare(b.start_time))
   const actualAgenda = [...dayActual].sort((a, b) => a.start_time.localeCompare(b.start_time))
   const pendingCount = dayPlan.filter(l => !l.exported_at).length + dayPlanRent.filter(r => !r.exported_at).length
-  const btn = 'px-3 py-1.5 rounded text-sm font-medium'
+  const btn = `${compact ? 'px-2 py-1' : 'px-3 py-1.5'} rounded text-sm font-medium`
+  // Three days share the width, so a column gets narrower (the grid scrolls sideways if it must).
+  const colMinW = compact
+    ? (showActual ? 'min-w-[110px]' : 'min-w-[72px]')
+    : (showActual ? 'min-w-[190px]' : 'min-w-[130px]')
 
   return (
     <div className="flex flex-col gap-4 select-none" onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
-      {/* Plan banner: this is not the accounting view */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-xs text-blue-800 dark:text-blue-300">
-        <span className="font-bold">📝 Plan</span>
-        <span>Organising sandbox — nothing here is counted. What really happened is in <b>Daily</b>; use “→ Daily” to turn a plan into a real lesson.</span>
-      </div>
+      {/* Plan banner: this is not the accounting view (the 3-day header shows it once) */}
+      {!compact && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-xs text-blue-800 dark:text-blue-300">
+          <span className="font-bold">📝 Plan</span>
+          <span>Organising sandbox — nothing here is counted. What really happened is in <b>Daily</b>; use “→ Daily” to turn a plan into a real lesson.</span>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3">
+        {fixedDate ? (
+          <div className={`w-full text-center rounded-lg py-1.5 text-sm font-bold capitalize ${
+            iso === dateToISO(today)
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200'}`}>
+            {formatDate(selectedDate, lang)}
+          </div>
+        ) : (
         <div className="flex items-center gap-2">
           <button onClick={() => setSelectedDate(d => addDays(d, -1))}
             className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold">←</button>
@@ -950,7 +980,9 @@ export default function ForecastView({
             {i18n.planning.btn_tomorrow[lang]}
           </button>
         </div>
+        )}
 
+        {!compact && (<>
         <div className="hidden md:flex items-center gap-1.5">
           <span className="text-xs text-gray-500 dark:text-gray-400">{i18n.planning.label_start[lang]}</span>
           <select value={startHour} onChange={e => setStartHour(+e.target.value)}
@@ -968,6 +1000,7 @@ export default function ForecastView({
           </span>
           <span onClick={() => toggleShowActual(!showActual)}>Show Daily</span>
         </label>
+        </>)}
       </div>
 
       {/* Actions + plan vs Daily */}
@@ -1000,7 +1033,7 @@ export default function ForecastView({
         <span className={`${actualHours > 0 ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
           Daily {fmtH(actualHours)} h · {dayActual.length}
         </span>
-        {TYPES.map(t => (
+        {!compact && TYPES.map(t => (
           <span key={t} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
             <span className={`inline-block w-2.5 h-2.5 rounded-sm border-l-4 ${LESSON_CFG[t].bar}`} />
             {lessonTypeLabel(t, lang)}
@@ -1008,7 +1041,7 @@ export default function ForecastView({
         ))}
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 items-start">
+      <div className={`flex flex-col ${compact ? '' : 'md:flex-row'} gap-4 items-start`}>
         <div className="flex-1 w-full min-w-0">
 
           {/* Mobile: whole day as a list; tap = edit */}
@@ -1067,7 +1100,7 @@ export default function ForecastView({
                 const mine = dayPlan.filter(l => l.instructor_id === instr.id)
                 const hours = mine.reduce((s, l) => s + l.duration_hours, 0)
                 return (
-                  <div key={instr.id} className={`flex-1 ${showActual ? 'min-w-[190px]' : 'min-w-[130px]'} px-2 py-2 text-center border-r border-gray-200 dark:border-gray-800 last:border-r-0`}>
+                  <div key={instr.id} className={`flex-1 ${colMinW} px-2 py-2 text-center border-r border-gray-200 dark:border-gray-800 last:border-r-0`}>
                     <div className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{instr.first_name}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{instr.last_name}</div>
                     {mine.length > 0 && (
@@ -1102,7 +1135,7 @@ export default function ForecastView({
 
                 {instructors.map(instr => (
                   <div key={instr.id} data-instructor-id={instr.id}
-                    className={`relative flex-1 ${showActual ? 'min-w-[190px]' : 'min-w-[130px]'} border-r border-gray-200 dark:border-gray-800 last:border-r-0`}>
+                    className={`relative flex-1 ${colMinW} border-r border-gray-200 dark:border-gray-800 last:border-r-0`}>
                     {Array.from({ length: totalSlots }, (_, i) => (
                       <div key={i}
                         className={`absolute w-full border-t ${i % 2 === 0 ? 'border-gray-200 dark:border-gray-800' : 'border-gray-100 dark:border-gray-800'}`}
@@ -1222,12 +1255,13 @@ export default function ForecastView({
           onAdd={addPlanRental}
           onDelete={deletePlanRental}
           onExport={exportOneRental}
+          compact={compact}
         />
       </div>
 
       {/* Mobile: the grid is desktop-only, so adding goes through a button */}
-      <button onClick={() => setModal({ lesson: null, instructorId: instructors[0]?.id ?? '', slot: 2 })}
-        className="md:hidden fixed bottom-4 right-4 z-30 px-4 py-3 rounded-full bg-blue-600 text-white font-semibold shadow-lg">+ Lesson</button>
+      {!compact && <button onClick={() => setModal({ lesson: null, instructorId: instructors[0]?.id ?? '', slot: 2 })}
+        className="md:hidden fixed bottom-4 right-4 z-30 px-4 py-3 rounded-full bg-blue-600 text-white font-semibold shadow-lg">+ Lesson</button>}
 
       {modal && (
         <LessonModal
@@ -1249,6 +1283,113 @@ export default function ForecastView({
           onClose={() => setModal(null)}
         />
       )}
+    </div>
+  )
+}
+
+// ─── Three days side by side (laptop) ─────────────────────────────────────────
+// Yesterday · today · tomorrow, each one a full, editable `ForecastDay`. The window
+// follows the arrows one day at a time. Below `lg` (and when the user picks "1 day")
+// the single-day view is the page, exactly as before.
+
+const DAYS_KEY = 'forecast_days'   // '1' = single day; anything else = 3 days
+
+function useWideScreen(minPx = 1024): boolean {
+  const query = `(min-width: ${minPx}px)`
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const on = () => setWide(mq.matches)
+    on()
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [query])
+  return wide
+}
+
+export default function ForecastView(props: ForecastViewProps) {
+  const { lang } = useLanguage()
+  const wide = useWideScreen()
+  const [threeDays, setThreeDays]   = useState(() => readLocal(DAYS_KEY) !== '1')
+  const [center, setCenter]         = useState<Date>(() => new Date())
+  const [showActual, setShowActual] = useState(() => readLocal(SHOW_ACTUAL_KEY) === '1')
+  const [clip, setClip]             = useState<Clip | null>(null)
+
+  const pill = 'px-2.5 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+
+  function pickDays(three: boolean) {
+    setThreeDays(three)
+    writeLocal(DAYS_KEY, three ? '3' : '1')
+  }
+  function toggleShowActual(v: boolean) {
+    setShowActual(v)
+    writeLocal(SHOW_ACTUAL_KEY, v ? '1' : '0')
+  }
+
+  if (!wide || !threeDays) {
+    return (
+      <div className="flex flex-col gap-3">
+        {wide && (
+          <div className="flex justify-end">
+            <button onClick={() => pickDays(true)} className={pill}>◧ 3 days</button>
+          </div>
+        )}
+        <ForecastDay {...props} />
+      </div>
+    )
+  }
+
+  const days = [-1, 0, 1].map(o => addDays(center, o))
+  const todayIso = dateToISO(new Date())
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-xs text-blue-800 dark:text-blue-300">
+        <span className="font-bold">📝 Plan</span>
+        <span className="flex-1 min-w-[240px]">Organising sandbox — nothing here is counted. What really happened is in <b>Daily</b>; use “→ Daily” to turn a plan into a real lesson.</span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setCenter(d => addDays(d, -1))} aria-label="Previous day"
+            className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold">←</button>
+          <button onClick={() => setCenter(new Date())}
+            className="px-2.5 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-800">
+            {dateToISO(center) === todayIso ? 'Yesterday · Today · Tomorrow' : 'Back to today'}
+          </button>
+          <button onClick={() => setCenter(d => addDays(d, 1))} aria-label="Next day"
+            className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold">→</button>
+        </div>
+
+        <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300">
+          <span role="switch" aria-checked={showActual}
+            onClick={() => toggleShowActual(!showActual)}
+            className={`relative inline-block w-9 h-5 rounded-full transition-colors ${showActual ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
+            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${showActual ? 'left-[18px]' : 'left-0.5'}`} />
+          </span>
+          <span onClick={() => toggleShowActual(!showActual)}>Show Daily</span>
+        </label>
+
+        {TYPES.map(t => (
+          <span key={t} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+            <span className={`inline-block w-2.5 h-2.5 rounded-sm border-l-4 ${LESSON_CFG[t].bar}`} />
+            {lessonTypeLabel(t, lang)}
+          </span>
+        ))}
+
+        <button onClick={() => pickDays(false)} className={`${pill} ml-auto`}>▭ 1 day</button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 items-start">
+        {days.map(d => (
+          <div key={dateToISO(d)} className="min-w-0 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2">
+            <ForecastDay {...props}
+              fixedDate={d} compact
+              showActualOverride={showActual}
+              clipCtl={{ clip, setClip }} />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

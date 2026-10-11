@@ -38,7 +38,8 @@
 - **But :** le PLAN (onglet Forecast) des instructeurs + locations, en lecture seule, pour une date
 - **Hooks :** `useTable` pour `planned_lessons`, `planned_rentals`, instructors, booking_participants
   (noms : les ids de participants ne sont PAS des Client.id), equipment. Pas de prix : le plan n'en a pas.
-- **State :** `selectedDate` (défaut : demain)
+- **State :** `selectedDate` (défaut : aujourd'hui en laptop 3 jours, demain sinon), `threeDays` (localStorage `forecast_share_days`)
+- **3 jours (laptop ≥ 1024px, défaut) :** veille · jour · lendemain en 3 colonnes, locations sous chaque grille ; bouton « 1 day » pour revenir à un jour
 - **Layout :** nav date (←/→, Today, Tomorrow, date picker) + résumé du jour. **Laptop** : grille horaire
   (30 min = 44px, plage 8–18 élargie au contenu), colonnes = seulement les moniteurs qui donnent cours ce jour,
   cours qui se chevauchent côte à côte, panel locations sticky à droite. **Mobile** : un bloc par moniteur,

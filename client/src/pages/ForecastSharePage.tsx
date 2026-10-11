@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { PlannedLesson, PlannedRental, LessonType, Instructor, BookingParticipant, Equipment } from '../types/database'
 import { useTable } from '../hooks/useSupabase'
 import { toISODate as dateToISO, addDays } from '../utils/dates'
+import { readLocal, writeLocal } from '../utils/safeStorage'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -105,9 +106,34 @@ function layoutLanes<T extends { start: number; end: number }>(items: T[]): (T &
 
 // ─── Main component (read-only) ───────────────────────────────────────────────
 
+const DAYS_KEY = 'forecast_share_days'   // '1' = single day; anything else = 3 days
+
+function useWideScreen(minPx = 1024): boolean {
+  const query = `(min-width: ${minPx}px)`
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const on = () => setWide(mq.matches)
+    on()
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [query])
+  return wide
+}
+
 export default function ForecastSharePage() {
   const today = new Date()
-  const [selectedDate, setSelectedDate] = useState<Date>(() => addDays(today, 1))
+  const wide = useWideScreen()
+  const [threeDays, setThreeDays] = useState(() => readLocal(DAYS_KEY) !== '1')
+  // Laptop (3 days): centred on today → yesterday · today · tomorrow.
+  // Phone / 1 day: the page is mostly opened to see tomorrow's plan.
+  const [selectedDate, setSelectedDate] = useState<Date>(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches && readLocal(DAYS_KEY) !== '1'
+      ? today : addDays(today, 1))
+  function pickDays(three: boolean) {
+    setThreeDays(three)
+    writeLocal(DAYS_KEY, three ? '3' : '1')
+  }
 
   // Column-restricted for anon: `*` returns 42501 and empties the page. These
   // two tables are the Forecast plan (2026-10-10c) — a token of type `forecast`
@@ -159,9 +185,12 @@ export default function ForecastSharePage() {
     return () => { alive = false }
   }, [])
 
-  const iso = dateToISO(selectedDate)
   const todayIso = dateToISO(today)
   const tomorrowIso = dateToISO(addDays(today, 1))
+  const iso = dateToISO(selectedDate)
+  // Laptop with "3 days": the day before, the selected day, the day after — side by side.
+  const multi = wide && threeDays
+  const shownDates = multi ? [-1, 0, 1].map(o => addDays(selectedDate, o)) : [selectedDate]
 
   const guestById = useMemo(() => new Map(guests.map(g => [g.id, g])), [guests])
   const equipById = useMemo(() => new Map(equipment.map(e => [e.id, e])), [equipment])
@@ -172,31 +201,34 @@ export default function ForecastSharePage() {
     return g ? `${g.first_name} ${g.last_name ?? ''}`.trim() : null
   }
 
-  // One instructor → their lessons of the day, with computed start/end minutes.
-  const dayLessons = useMemo(() => lessons
-    .filter(l => l.date === iso)
-    .map(l => {
-      const start = toMinutes(l.start_time)
-      const end = start + Math.round(l.duration_hours * 60)
-      const names = l.participant_ids.map(guestName).filter((n): n is string => !!n)
-      if (names.length === 0 && walkInOf[l.id]) names.push(walkInOf[l.id])
-      return { ...l, start, end, names }
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    , [lessons, iso, guestById, walkInOf])
+  // Everything one day needs, computed from the plan rows of that day.
+  function dayData(dayIso: string) {
+    const dayLessons = lessons
+      .filter(l => l.date === dayIso)
+      .map(l => {
+        const start = toMinutes(l.start_time)
+        const end = start + Math.round(l.duration_hours * 60)
+        const names = l.participant_ids.map(guestName).filter((n): n is string => !!n)
+        if (names.length === 0 && walkInOf[l.id]) names.push(walkInOf[l.id])
+        return { ...l, start, end, names }
+      })
+    const dayRentals = rentals.filter(r => r.date === dayIso)
+    const teaching = instructors
+      .map(instr => ({ instr, items: dayLessons.filter(l => l.instructor_id === instr.id).sort((a, b) => a.start - b.start) }))
+      .filter(x => x.items.length > 0)
+    const idle = instructors.filter(i => !teaching.some(t => t.instr.id === i.id))
+    // Grid range follows the content (never narrower than 8–18).
+    const startHour = Math.min(MIN_START_H, ...dayLessons.map(l => Math.floor(l.start / 60)))
+    const endHour = Math.max(MIN_END_H, ...dayLessons.map(l => Math.ceil(l.end / 60)))
+    return { dayLessons, dayRentals, teaching, idle, startHour, endHour }
+  }
+  type DayData = ReturnType<typeof dayData>
 
-  const dayRentals = rentals.filter(r => r.date === iso)
-
-  const teaching = instructors
-    .map(instr => ({ instr, items: dayLessons.filter(l => l.instructor_id === instr.id).sort((a, b) => a.start - b.start) }))
-    .filter(x => x.items.length > 0)
-  const idle = instructors.filter(i => !teaching.some(t => t.instr.id === i.id))
-
-  // Grid range follows the content (never narrower than 8–18).
-  const startHour = Math.min(MIN_START_H, ...dayLessons.map(l => Math.floor(l.start / 60)))
-  const endHour = Math.max(MIN_END_H, ...dayLessons.map(l => Math.ceil(l.end / 60)))
-  const totalSlots = (endHour - startHour) * 2
-  const gridHeight = totalSlots * SLOT_H
+  const summaryOf = (d: DayData) => [
+    plural(d.dayLessons.length, 'lesson'),
+    plural(d.teaching.length, 'instructor'),
+    plural(d.dayRentals.length, 'rental'),
+  ].join(' · ')
 
   const rentalCard = (r: ForecastRental) => {
     const rt = RENTAL_TYPE_LABELS[r.rental_type] ?? RENTAL_TYPE_LABELS.free
@@ -212,15 +244,15 @@ export default function ForecastSharePage() {
     )
   }
 
-  const rentalsPanel = (
+  const rentalsPanel = (d: DayData) => (
     <section className="flex flex-col gap-3">
       <h2 className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
         📦 Rentals
-        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">{dayRentals.length}</span>
+        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">{d.dayRentals.length}</span>
       </h2>
-      {dayRentals.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 italic">No rentals planned</p>}
+      {d.dayRentals.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 italic">No rentals planned</p>}
       {SLOT_SECTIONS.map(sec => {
-        const items = dayRentals.filter(r => r.slot === sec.key)
+        const items = d.dayRentals.filter(r => r.slot === sec.key)
         if (items.length === 0) return null
         return (
           <div key={sec.key}>
@@ -232,13 +264,97 @@ export default function ForecastSharePage() {
     </section>
   )
 
-  const summary = [
-    plural(dayLessons.length, 'lesson'),
-    plural(teaching.length, 'instructor'),
-    plural(dayRentals.length, 'rental'),
-  ].join(' · ')
+  /** Time grid of one day. `narrow` = one of three columns. */
+  const dayGrid = (d: DayData, narrow: boolean) => {
+    const totalSlots = (d.endHour - d.startHour) * 2
+    const gridHeight = totalSlots * SLOT_H
+    const colMin = narrow ? 'min-w-[104px]' : 'min-w-[170px]'
+    if (d.teaching.length === 0) {
+      return (
+        <p className="text-sm text-gray-500 dark:text-gray-400 italic text-center py-10 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl">
+          No lessons planned
+        </p>
+      )
+    }
+    return (
+      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
+        <div className="min-w-fit">
+          {/* Instructor headers */}
+          <div className="flex border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
+            <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200 dark:border-gray-800" />
+            {d.teaching.map(({ instr, items }) => (
+              <div key={instr.id} className={`flex-1 ${colMin} px-2 py-2 border-r border-gray-200 dark:border-gray-800 last:border-r-0`}>
+                <div className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{narrow ? instr.first_name : `${instr.first_name} ${instr.last_name}`}</div>
+                <div className="text-xs text-blue-700 dark:text-blue-400 font-medium">{plural(items.length, 'lesson')}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Grid body */}
+          <div className="flex" style={{ height: gridHeight }}>
+            {/* Time labels */}
+            <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200 dark:border-gray-800 relative bg-gray-50 dark:bg-gray-800/60">
+              {Array.from({ length: totalSlots }, (_, i) => i % 2 === 0 && (
+                <div key={i} className="absolute w-full border-t border-gray-300 dark:border-gray-700 pr-2 text-right"
+                  style={{ top: i * SLOT_H }}>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium relative -top-2 bg-gray-50 dark:bg-gray-800 px-0.5">
+                    {fmtMinutes(d.startHour * 60 + i * 30)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Instructor columns */}
+            {d.teaching.map(({ instr, items }) => (
+              <div key={instr.id} className={`relative flex-1 ${colMin} border-r border-gray-200 dark:border-gray-800 last:border-r-0`}>
+                {Array.from({ length: totalSlots }, (_, i) => (
+                  <div key={i}
+                    className={`absolute w-full border-t ${i % 2 === 0 ? 'border-gray-200 dark:border-gray-700' : 'border-dashed border-gray-100 dark:border-gray-800'}`}
+                    style={{ top: i * SLOT_H }} />
+                ))}
+
+                {layoutLanes(items).map(l => {
+                  const cfg = LESSON_CFG[l.type]
+                  const top = ((l.start - d.startHour * 60) / 30) * SLOT_H
+                  const height = Math.max(((l.end - l.start) / 30) * SLOT_H, SLOT_H)
+                  const widthPct = 100 / l.lanes
+                  const roomy = height >= SLOT_H * 2
+                  return (
+                    <div key={l.id}
+                      className={`absolute rounded-md border-l-4 px-2 py-1 overflow-hidden shadow-sm z-10 ${cfg.bg} ${cfg.border} ${cfg.text}`}
+                      style={{ top: top + 1, height: height - 2, left: `calc(${l.lane * widthPct}% + 2px)`, width: `calc(${widthPct}% - 4px)` }}
+                      title={[`${fmtMinutes(l.start)}–${fmtMinutes(l.end)} ${cfg.label}`, l.names.join(', '), l.notes].filter(Boolean).join('\n')}
+                    >
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold">{narrow ? fmtMinutes(l.start) : `${fmtMinutes(l.start)}–${fmtMinutes(l.end)}`}</span>
+                        <span className={`text-[10px] px-1 rounded font-semibold ${cfg.badge}`}>{narrow ? cfg.label.charAt(0) : cfg.label}</span>
+                      </div>
+                      <div className={`text-sm font-semibold leading-tight ${roomy ? '' : 'truncate'}`}>
+                        {l.names.length ? l.names.join(', ') : <span className="italic font-normal opacity-60">No name</span>}
+                      </div>
+                      {roomy && l.notes && <div className="text-xs italic opacity-80 leading-tight line-clamp-3 mt-0.5">{l.notes}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const idleLine = (d: DayData) => d.idle.length > 0 && d.teaching.length > 0 && (
+    <p className="text-xs text-gray-500 dark:text-gray-400">No lessons: {d.idle.map(i => i.first_name).join(', ')}</p>
+  )
 
   const navBtn = 'h-10 w-10 shrink-0 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 text-base font-bold'
+  const chip = (on: boolean) => `px-3 py-1.5 rounded-full text-xs font-medium border ${on
+    ? 'bg-blue-600 border-blue-600 text-white'
+    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`
+
+  const selectedDay = dayData(iso)
+  const shortDate = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -250,42 +366,45 @@ export default function ForecastSharePage() {
         </span>
       </div>
 
-      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6 flex flex-col gap-4">
+      <div className={`${multi ? 'max-w-[1800px]' : 'max-w-6xl'} mx-auto px-3 sm:px-4 py-4 sm:py-6 flex flex-col gap-4`}>
         {/* Date navigation */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <button aria-label="Previous day" onClick={() => setSelectedDate(d => addDays(d, -1))} className={navBtn}>←</button>
             <div className="flex-1 min-w-0 text-center">
-              <div className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">{formatDate(selectedDate)}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{summary}</div>
+              {multi ? (
+                <div className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">
+                  {shortDate(shownDates[0])} – {shortDate(shownDates[2])}
+                </div>
+              ) : (
+                <>
+                  <div className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">{formatDate(selectedDate)}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{summaryOf(selectedDay)}</div>
+                </>
+              )}
             </div>
             <button aria-label="Next day" onClick={() => setSelectedDate(d => addDays(d, 1))} className={navBtn}>→</button>
           </div>
           <div className="flex items-center justify-center gap-2 flex-wrap">
-            <button onClick={() => setSelectedDate(new Date())}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border ${iso === todayIso
-                ? 'bg-blue-600 border-blue-600 text-white'
-                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-              Today
-            </button>
-            <button onClick={() => setSelectedDate(addDays(new Date(), 1))}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border ${iso === tomorrowIso
-                ? 'bg-blue-600 border-blue-600 text-white'
-                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-              Tomorrow
-            </button>
+            <button onClick={() => setSelectedDate(new Date())} className={chip(iso === todayIso)}>Today</button>
+            <button onClick={() => setSelectedDate(addDays(new Date(), 1))} className={chip(iso === tomorrowIso)}>Tomorrow</button>
             <input type="date" value={iso} aria-label="Pick a date"
               onChange={e => { if (e.target.value) setSelectedDate(fromISO(e.target.value)) }}
               className="px-2 py-1 rounded-lg text-xs border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300" />
+            {wide && (
+              <button onClick={() => pickDays(!threeDays)} className={chip(false)}>
+                {threeDays ? '▭ 1 day' : '◧ 3 days'}
+              </button>
+            )}
           </div>
         </div>
 
         {/* ── Mobile: one block per instructor, lessons in time order ── */}
         <div className="md:hidden flex flex-col gap-4">
-          {teaching.length === 0 && (
+          {selectedDay.teaching.length === 0 && (
             <p className="text-sm text-gray-500 dark:text-gray-400 italic text-center py-6">No lessons planned</p>
           )}
-          {teaching.map(({ instr, items }) => (
+          {selectedDay.teaching.map(({ instr, items }) => (
             <section key={instr.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
               <div className="px-3 py-2 bg-gray-100 dark:bg-gray-800 flex items-center justify-between">
                 <h2 className="font-bold text-gray-900 dark:text-gray-100">{instr.first_name} {instr.last_name}</h2>
@@ -316,96 +435,43 @@ export default function ForecastSharePage() {
               </div>
             </section>
           ))}
-          {idle.length > 0 && teaching.length > 0 && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-              No lessons: {idle.map(i => i.first_name).join(', ')}
-            </p>
-          )}
-          {rentalsPanel}
+          {idleLine(selectedDay)}
+          {rentalsPanel(selectedDay)}
         </div>
 
-        {/* ── Laptop: time grid (only instructors who teach that day) + rentals ── */}
-        <div className="hidden md:flex gap-5 items-start">
-          <div className="flex-1 min-w-0 flex flex-col gap-2">
-            {teaching.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400 italic text-center py-10 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl">
-                No lessons planned
-              </p>
-            ) : (
-              <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
-                <div className="min-w-fit">
-                  {/* Instructor headers */}
-                  <div className="flex border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
-                    <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200 dark:border-gray-800" />
-                    {teaching.map(({ instr, items }) => (
-                      <div key={instr.id} className="flex-1 min-w-[170px] px-3 py-2 border-r border-gray-200 dark:border-gray-800 last:border-r-0">
-                        <div className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{instr.first_name} {instr.last_name}</div>
-                        <div className="text-xs text-blue-700 dark:text-blue-400 font-medium">{plural(items.length, 'lesson')}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Grid body */}
-                  <div className="flex" style={{ height: gridHeight }}>
-                    {/* Time labels */}
-                    <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200 dark:border-gray-800 relative bg-gray-50 dark:bg-gray-800/60">
-                      {Array.from({ length: totalSlots }, (_, i) => i % 2 === 0 && (
-                        <div key={i} className="absolute w-full border-t border-gray-300 dark:border-gray-700 pr-2 text-right"
-                          style={{ top: i * SLOT_H }}>
-                          <span className="text-xs text-gray-500 dark:text-gray-400 font-medium relative -top-2 bg-gray-50 dark:bg-gray-800 px-0.5">
-                            {fmtMinutes(startHour * 60 + i * 30)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Instructor columns */}
-                    {teaching.map(({ instr, items }) => (
-                      <div key={instr.id} className="relative flex-1 min-w-[170px] border-r border-gray-200 dark:border-gray-800 last:border-r-0">
-                        {Array.from({ length: totalSlots }, (_, i) => (
-                          <div key={i}
-                            className={`absolute w-full border-t ${i % 2 === 0 ? 'border-gray-200 dark:border-gray-700' : 'border-dashed border-gray-100 dark:border-gray-800'}`}
-                            style={{ top: i * SLOT_H }} />
-                        ))}
-
-                        {layoutLanes(items).map(l => {
-                          const cfg = LESSON_CFG[l.type]
-                          const top = ((l.start - startHour * 60) / 30) * SLOT_H
-                          const height = Math.max(((l.end - l.start) / 30) * SLOT_H, SLOT_H)
-                          const widthPct = 100 / l.lanes
-                          const roomy = height >= SLOT_H * 2
-                          return (
-                            <div key={l.id}
-                              className={`absolute rounded-md border-l-4 px-2 py-1 overflow-hidden shadow-sm z-10 ${cfg.bg} ${cfg.border} ${cfg.text}`}
-                              style={{ top: top + 1, height: height - 2, left: `calc(${l.lane * widthPct}% + 2px)`, width: `calc(${widthPct}% - 4px)` }}
-                              title={[`${fmtMinutes(l.start)}–${fmtMinutes(l.end)} ${cfg.label}`, l.names.join(', '), l.notes].filter(Boolean).join('\n')}
-                            >
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-bold">{fmtMinutes(l.start)}–{fmtMinutes(l.end)}</span>
-                                <span className={`text-[10px] px-1 rounded font-semibold ${cfg.badge}`}>{cfg.label}</span>
-                              </div>
-                              <div className={`text-sm font-semibold leading-tight ${roomy ? '' : 'truncate'}`}>
-                                {l.names.length ? l.names.join(', ') : <span className="italic font-normal opacity-60">No name</span>}
-                              </div>
-                              {roomy && l.notes && <div className="text-xs italic opacity-80 leading-tight line-clamp-3 mt-0.5">{l.notes}</div>}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ))}
+        {/* ── Laptop: time grid(s) (only instructors who teach that day) + rentals ── */}
+        {multi ? (
+          <div className="hidden md:grid grid-cols-3 gap-4 items-start">
+            {shownDates.map(date => {
+              const dIso = dateToISO(date)
+              const d = dayData(dIso)
+              return (
+                <div key={dIso} className="min-w-0 flex flex-col gap-2">
+                  <button onClick={() => setSelectedDate(date)}
+                    className={`text-center rounded-lg px-2 py-1.5 ${dIso === todayIso ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100'}`}>
+                    <div className="text-sm font-bold">{formatDate(date)}</div>
+                    <div className={`text-[11px] ${dIso === todayIso ? 'text-blue-100' : 'text-gray-600 dark:text-gray-400'}`}>{summaryOf(d)}</div>
+                  </button>
+                  {dayGrid(d, true)}
+                  {idleLine(d)}
+                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3">
+                    {rentalsPanel(d)}
                   </div>
                 </div>
-              </div>
-            )}
-            {idle.length > 0 && teaching.length > 0 && (
-              <p className="text-xs text-gray-500 dark:text-gray-400">No lessons: {idle.map(i => i.first_name).join(', ')}</p>
-            )}
+              )
+            })}
           </div>
-
-          <aside className="w-64 shrink-0 sticky top-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3">
-            {rentalsPanel}
-          </aside>
-        </div>
+        ) : (
+          <div className="hidden md:flex gap-5 items-start">
+            <div className="flex-1 min-w-0 flex flex-col gap-2">
+              {dayGrid(selectedDay, false)}
+              {idleLine(selectedDay)}
+            </div>
+            <aside className="w-64 shrink-0 sticky top-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3">
+              {rentalsPanel(selectedDay)}
+            </aside>
+          </div>
+        )}
       </div>
     </div>
   )
