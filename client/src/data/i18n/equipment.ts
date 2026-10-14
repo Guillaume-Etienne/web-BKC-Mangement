@@ -38,6 +38,7 @@ export const equipmentI18n = {
   category_surfboard: { fr: 'Surfboard',    en: 'Surfboard',     es: 'Tabla de surf' },
   category_foilboard: { fr: 'Foilboard',    en: 'Foilboard',     es: 'Tabla de foil' },
   category_bar:    { fr: 'Barre',           en: 'Bar',           es: 'Barra' },
+  category_wing:   { fr: 'Aile (wing)',     en: 'Wing',          es: 'Ala (wing)' },
   label_all_categories: { fr: 'Toutes catégories', en: 'All categories', es: 'Todas las categorías' },
 
   // Equipment conditions (EquipmentCondition: new | good | fair | damaged | retired)

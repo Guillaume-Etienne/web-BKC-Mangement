@@ -71,6 +71,9 @@ function Avatar({ id, first_name, last_name }: { id: string; first_name: string;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+/** One rider's kite (or wing sail) and board in a lesson. */
+type GearPick = { kite_id: string | null; board_id: string | null }
+
 interface AddForm {
   date: string
   slot: Slot
@@ -85,6 +88,7 @@ interface AddForm {
   notes: string
   kite_id: string | null
   board_id: string | null
+  rider_gear: Record<string, GearPick>   // per rider, group lessons only (key = participant id)
   // activity fields
   name: string
   actNotes: string
@@ -157,7 +161,7 @@ export default function LessonWeekView({
     return {
     date, slot, kind,
     type: 'private', discipline: 'kite', participant_ids: [firstParticipant], instructor_id: instructors[0]?.id ?? '',
-    start_time: SLOT_CONFIG[slot].defaultTime, duration_hours: 1, notes: '', kite_id: null, board_id: null,
+    start_time: SLOT_CONFIG[slot].defaultTime, duration_hours: 1, notes: '', kite_id: null, board_id: null, rider_gear: {},
     name: '', actNotes: '', act_bill: false, act_participant_ids: [], act_price_pp: '', act_cost: '',
     rental_participant_id: firstParticipant,
     rental_slot: slot === 'morning' ? 'morning' : slot === 'afternoon' ? 'afternoon' : 'full_day',
@@ -178,6 +182,7 @@ export default function LessonWeekView({
   // ── Edit modal ─────────────────────────────────────────────────────────────
   const [editLesson, setEditLesson] = useState<Lesson | null>(null)
   const [editData, setEditData] = useState<Partial<Lesson>>({})
+  const [editRiderGear, setEditRiderGear] = useState<Record<string, GearPick>>({})
   // Same escape hatch as the add-form's, reset on each open — see candidatesForEdit.
   const [showAllGuestsEditLesson, setShowAllGuestsEditLesson] = useState(false)
 
@@ -211,6 +216,82 @@ export default function LessonWeekView({
   function rentalPrice(type: RentalKind): number | null {
     if (type === 'free') return 0
     return priceItems.find(p => p.billable_type === rentalBillable(type))?.price ?? null
+  }
+
+  /** Gear lists follow the lesson's discipline: a wing lesson offers wing sails,
+   *  every other one kites. Boards are the same family either way (a foilboard
+   *  is also used for kitefoil). Bars have no slot on a lesson. */
+  function gearOptions(discipline: LessonDiscipline) {
+    const sailCategory = discipline === 'kite' ? 'kite' : 'wing'
+    return {
+      sails: equipment.filter(e => e.category === sailCategory && e.is_active),
+      boards: equipment.filter(e => (e.category === 'board' || e.category === 'surfboard' || e.category === 'foilboard') && e.is_active),
+    }
+  }
+
+  /** The equipment pickers of the lesson forms. One pair for the lesson, or one
+   *  pair PER RIDER when a group lesson has several riders. */
+  function renderGearSection(o: {
+    compact: boolean
+    type: LessonType
+    discipline: LessonDiscipline
+    participantIds: string[]
+    solo: GearPick
+    riders: Record<string, GearPick>
+    onSolo: (g: GearPick) => void
+    onRider: (participantId: string, g: GearPick) => void
+  }) {
+    const { sails, boards } = gearOptions(o.discipline)
+    const wing = o.discipline !== 'kite'
+    const selCls = o.compact
+      ? 'w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1'
+      : 'w-full text-sm border rounded px-2 py-1.5'
+    const pair = (value: GearPick, onChange: (g: GearPick) => void) => (
+      <>
+        <select value={value.kite_id || ''} onChange={e => onChange({ ...value, kite_id: e.target.value || null })} className={selCls}>
+          <option value="">{wing ? 'No wing' : 'No kite'}</option>
+          {sails.map(e => <option key={e.id} value={e.id}>{wing ? '🌬️' : '🪂'} {e.name}</option>)}
+        </select>
+        <select value={value.board_id || ''} onChange={e => onChange({ ...value, board_id: e.target.value || null })} className={selCls}>
+          <option value="">No board</option>
+          {boards.map(e => <option key={e.id} value={e.id}>🏄 {e.name}</option>)}
+        </select>
+      </>
+    )
+    const perRider = o.type === 'group' && o.participantIds.length > 1
+    return (
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+          {perRider ? 'Equipment per rider (optional)' : 'Equipment (optional)'}
+        </label>
+        {perRider
+          ? o.participantIds.map(pid => {
+              const person = bookingParticipants.find(bp => bp.id === pid)
+              // A legacy group lesson holds ONE kite/board on the lesson itself: show it
+              // on the first rider until the lesson is saved with per-rider rows.
+              const value = o.riders[pid] ?? (pid === o.participantIds[0] ? o.solo : { kite_id: null, board_id: null })
+              return (
+                <div key={pid} className="rounded border border-gray-200 dark:border-gray-800 p-1.5 space-y-1">
+                  <div className="text-xs font-medium text-gray-700 dark:text-gray-300">{person?.first_name} {person?.last_name}</div>
+                  {pair(value, g => o.onRider(pid, g))}
+                </div>
+              )
+            })
+          : pair(o.solo, o.onSolo)}
+      </div>
+    )
+  }
+
+  /** Per-rider rows to save, from the form's picks. Empty when the lesson is not a
+   *  multi-rider group (then the lesson's own kite_id/board_id are the whole story). */
+  function riderGearRows(type: LessonType, participantIds: string[], riders: Record<string, GearPick>, solo: GearPick) {
+    if (!(type === 'group' && participantIds.length > 1)) return []
+    return participantIds.flatMap(pid => {
+      const g = riders[pid] ?? (pid === participantIds[0] ? solo : undefined)
+      return g && (g.kite_id || g.board_id)
+        ? [{ lesson_id: '', participant_id: pid, kite_id: g.kite_id, board_id: g.board_id }]
+        : []
+    })
   }
 
   /** The Wing / Discovery boxes of the lesson forms. Hidden for supervision (no wing rate).
@@ -436,6 +517,8 @@ export default function LessonWeekView({
     if (addForm.kind === 'lesson') {
       // Supervision has no wing rate, so it stays a kite row whatever the box says.
       const discipline: LessonDiscipline = addForm.type === 'supervision' ? 'kite' : addForm.discipline
+      const gearRows = riderGearRows(addForm.type, addForm.participant_ids, addForm.rider_gear, { kite_id: addForm.kite_id, board_id: addForm.board_id })
+      const perRider = addForm.type === 'group' && addForm.participant_ids.length > 1
       onAddLesson({
         booking_id: bookingForParticipant(addForm.participant_ids[0] ?? ''),
         instructor_id: addForm.instructor_id,
@@ -448,8 +531,11 @@ export default function LessonWeekView({
         // keeps working on a database the migration has not reached yet.
         ...(discipline !== 'kite' && { discipline }),
         notes: addForm.notes || null,
-        kite_id: addForm.kite_id,
-        board_id: addForm.board_id,
+        // With per-rider rows the lesson keeps the FIRST rider's gear, so any screen
+        // that only reads these two columns stays coherent.
+        kite_id: perRider ? (gearRows[0]?.kite_id ?? null) : addForm.kite_id,
+        board_id: perRider ? (gearRows[0]?.board_id ?? null) : addForm.board_id,
+        ...(gearRows.length > 0 && { rider_gear: gearRows }),
         // Freeze BOTH of today's scales: changing the price list or someone's pay
         // later must not reprice this lesson (same rule as booking_room_prices).
         price_per_hour: lessonPrice(addForm.type, addForm.participant_ids, discipline),
@@ -498,6 +584,7 @@ export default function LessonWeekView({
   function openEdit(lesson: Lesson) {
     setEditLesson(lesson)
     setEditData({ ...lesson })
+    setEditRiderGear(Object.fromEntries((lesson.rider_gear ?? []).map(g => [g.participant_id, { kite_id: g.kite_id, board_id: g.board_id }])))
     setShowAllGuestsEditLesson(false)
   }
 
@@ -519,8 +606,13 @@ export default function LessonWeekView({
     // unlike every other edit it re-freezes the client price at the new rate.
     const disciplineNow: LessonDiscipline = merged.type === 'supervision' ? 'kite' : lessonDiscipline(merged)
     const disciplineChanged = disciplineNow !== lessonDiscipline(editLesson)
+    const gearRows = riderGearRows(merged.type, merged.participant_ids, editRiderGear, { kite_id: merged.kite_id, board_id: merged.board_id })
+    const perRider = merged.type === 'group' && merged.participant_ids.length > 1
     const withDiscipline: Lesson = {
       ...merged, booking_id: bookingId,
+      kite_id: perRider ? (gearRows[0]?.kite_id ?? null) : merged.kite_id,
+      board_id: perRider ? (gearRows[0]?.board_id ?? null) : merged.board_id,
+      rider_gear: gearRows,
       ...(disciplineChanged && {
         discipline: disciplineNow,
         price_per_hour: lessonPrice(merged.type, merged.participant_ids, disciplineNow),
@@ -978,29 +1070,16 @@ export default function LessonWeekView({
                                 onChange={e => setAddForm(f => f && { ...f, notes: e.target.value })}
                                 className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                               />
-                              <div className="space-y-1">
-                                <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Equipment (optional)</label>
-                                <select
-                                  value={addForm?.kite_id || ''}
-                                  onChange={e => setAddForm(f => f && { ...f, kite_id: e.target.value || null })}
-                                  className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
-                                >
-                                  <option value="">No kite</option>
-                                  {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
-                                    <option key={e.id} value={e.id}>🪂 {e.name}</option>
-                                  ))}
-                                </select>
-                                <select
-                                  value={addForm?.board_id || ''}
-                                  onChange={e => setAddForm(f => f && { ...f, board_id: e.target.value || null })}
-                                  className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
-                                >
-                                  <option value="">No board</option>
-                                  {equipment.filter(e => e.category !== 'kite' && e.is_active).map(e => (
-                                    <option key={e.id} value={e.id}>🏄 {e.name}</option>
-                                  ))}
-                                </select>
-                              </div>
+                              {renderGearSection({
+                                compact: true,
+                                type: addForm?.type ?? 'private',
+                                discipline: addForm?.discipline ?? 'kite',
+                                participantIds: addForm?.participant_ids ?? [],
+                                solo: { kite_id: addForm?.kite_id ?? null, board_id: addForm?.board_id ?? null },
+                                riders: addForm?.rider_gear ?? {},
+                                onSolo: g => setAddForm(f => f && { ...f, ...g }),
+                                onRider: (pid, g) => setAddForm(f => f && { ...f, rider_gear: { ...f.rider_gear, [pid]: g } }),
+                              })}
                             </>
                           ) : (
                             <>
@@ -1299,32 +1378,16 @@ export default function LessonWeekView({
                   className="w-full text-sm border rounded px-2 py-1.5"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Kite (optional)</label>
-                <select
-                  value={editData.kite_id || ''}
-                  onChange={e => setEditData(d => ({ ...d, kite_id: e.target.value || null }))}
-                  className="w-full text-sm border rounded px-2 py-1.5"
-                >
-                  <option value="">None</option>
-                  {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
-                    <option key={e.id} value={e.id}>🪂 {e.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Board (optional)</label>
-                <select
-                  value={editData.board_id || ''}
-                  onChange={e => setEditData(d => ({ ...d, board_id: e.target.value || null }))}
-                  className="w-full text-sm border rounded px-2 py-1.5"
-                >
-                  <option value="">None</option>
-                  {equipment.filter(e => e.category !== 'kite' && e.is_active).map(e => (
-                    <option key={e.id} value={e.id}>🏄 {e.name}</option>
-                  ))}
-                </select>
-              </div>
+              {renderGearSection({
+                compact: false,
+                type: editData.type ?? editLesson.type,
+                discipline: lessonDiscipline(editData),
+                participantIds: editData.participant_ids ?? editLesson.participant_ids,
+                solo: { kite_id: editData.kite_id ?? null, board_id: editData.board_id ?? null },
+                riders: editRiderGear,
+                onSolo: g => setEditData(d => ({ ...d, ...g })),
+                onRider: (pid, g) => setEditRiderGear(r => ({ ...r, [pid]: g })),
+              })}
               <div className="flex gap-2 pt-2 border-t">
                 <button
                   type="button"

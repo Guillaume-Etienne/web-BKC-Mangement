@@ -6,11 +6,12 @@
 
 ## 🚨 Migrations SQL — registre
 
-⏳ **`2026-10-14_wing_enum_values.sql` PUIS `2026-10-14b_wing_lessons.sql`** (2 fichiers, dans l'ordre, TEST puis PROD — **à passer par gui**) — cours de wing :
-4 postes `lesson_wing_[discovery_]private/group` (55 / 42,50 / 50 / 40 €/h), `lessons.discipline`, catégorie matériel `wing`. Code livré (case Wing + Discovery dans le formulaire de leçon).
-Vérif : `SELECT billable_type, price FROM price_items WHERE billable_type::text LIKE 'lesson_wing%'` (4 lignes), `SELECT discipline, count(*) FROM lessons GROUP BY 1` (tout `kite`).
+✅ **`2026-10-14_wing_enum_values.sql` + `2026-10-14b_wing_lessons.sql`** (TEST ✅ / PROD ✅, passées par gui le 2026-10-14, **vérifiées en base sur les deux** : 4 tarifs wing 55 / 42,5 / 50 / 40, 10 leçons PROD et 1 TEST toutes en `kite`, enum `equipment_category` avec `wing`) — cours de wing (case Wing + Discovery, `lessons.discipline`).
 Décisions gui 2026-10-14 : discovery = case à la saisie (défaut décoché = normal) ; pas de rétroactif ; moniteur à son taux horaire ; F&Fly hors périmètre ; kitefoil = kite.
-**Étape 2 à faire** : matériel par rider en groupe (table `lesson_participant_gear`, listes filtrées par discipline, revenu matériel ÷ nb de riders).
+⏳ **`2026-10-14c_lesson_participant_gear.sql`** (**à passer par gui, TEST puis PROD, AVANT de pousser le code**) — matériel par rider en groupe : table `lesson_participant_gear`
+(lesson_id, participant_id, kite_id, board_id), `admin_all` + `REVOKE anon`. Code livré : sélecteurs par rider dans le formulaire de leçon (groupe ≥ 2 riders), listes filtrées
+par discipline (aile pour le wing, kite sinon ; planches = board/surfboard/foilboard), page Équipement : chaque rider crédite SON matériel, marge de la leçon ÷ nb de riders.
+Vérif : `SELECT count(*) FROM lesson_participant_gear` = 0 ; curl anon nu → 401/42501. Sans ligne par rider, `lessons.kite_id/board_id` s'appliquent comme avant.
 
 ✅ **`2026-10-11b_associate_accounts.sql`** (TEST ✅ / PROD ✅, passée par gui le 2026-10-11, **contrôlée en base et
 au curl anon le même jour** sur les deux : `associates` = Gui, Teresa ; les 2 colonnes présentes ; RLS active ;

@@ -288,6 +288,15 @@ export interface Instructor {
   notes: string | null
 }
 
+/** One rider's gear in one group lesson (table lesson_participant_gear). `kite_id`
+ *  holds the kite OR the wing sail, like lessons.kite_id. */
+export interface LessonRiderGear {
+  lesson_id: string
+  participant_id: string
+  kite_id: string | null
+  board_id: string | null
+}
+
 export interface Lesson {
   id: string
   booking_id: string
@@ -303,6 +312,9 @@ export interface Lesson {
   /** Optional: rows fetched before the 2026-10-14 migration come back without it,
    *  and every lesson created before wing is a kite lesson. Read via `lessonDiscipline`. */
   discipline?: LessonDiscipline
+  /** Virtual: joined client-side from lesson_participant_gear by `useLessons`,
+   *  never a column. Empty/absent -> the lesson's own kite_id/board_id apply. */
+  rider_gear?: LessonRiderGear[]
   /** Client price €/h, snapshotted at creation from price_items so that changing
    *  a rate never reprices past lessons. Editable per lesson. null → fall back
    *  to the current price_items rate. Distinct from what the instructor is paid. */
@@ -682,7 +694,7 @@ export interface FormSubmission {
 }
 
 // Equipment
-export type EquipmentCategory = 'kite' | 'board' | 'surfboard' | 'foilboard' | 'bar'
+export type EquipmentCategory = 'kite' | 'board' | 'surfboard' | 'foilboard' | 'bar' | 'wing'
 export type EquipmentCondition = 'new' | 'good' | 'fair' | 'damaged' | 'retired'
 export type RentalSlot = 'morning' | 'afternoon' | 'full_day'
 

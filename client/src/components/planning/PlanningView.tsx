@@ -702,16 +702,24 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   // plan row only on true — a failed insert must leave the plan exportable.
   const onAddLesson = useCallback(async (lesson: Omit<Lesson, 'id'>): Promise<boolean> => {
     const id = crypto.randomUUID()
-    const l = { ...lesson, id }
+    const l = { ...lesson, id, rider_gear: lesson.rider_gear?.map(g => ({ ...g, lesson_id: id })) }
     setLessons(prev => [...prev, l])
     // Strip virtual/relation fields before sending to DB
-    const { instructor: _i, clients: _c, ...row } = l
+    const { instructor: _i, clients: _c, rider_gear, ...row } = l
     const { error } = await supabase.from('lessons').insert([row])
     if (error) {
       console.error('Lesson save error:', error.message)
       setLessons(prev => prev.filter(x => x.id !== id))
       alert('Error saving lesson: ' + error.message)
       return false
+    }
+    // After the lesson row (FK), in the same handler so the order is guaranteed.
+    if (rider_gear?.length) {
+      const { error: gearError } = await supabase.from('lesson_participant_gear').insert(rider_gear)
+      if (gearError) {
+        console.error('Rider gear save error:', gearError.message)
+        alert('Lesson saved, but the gear per rider was not: ' + gearError.message)
+      }
     }
     return true
   }, [])
@@ -722,13 +730,29 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     // share_price_per_hour is a GENERATED column (redacted mirror for shared
     // links) — Postgres rejects any write to it, even the same value
     // round-tripped from select('*'), which silently failed the WHOLE update.
-    const { id, instructor: _i, clients: _c, share_price_per_hour: _sp, ...fields } =
+    const { id, instructor: _i, clients: _c, rider_gear, share_price_per_hour: _sp, ...fields } =
       lesson as Lesson & { share_price_per_hour?: number | null }
     const { error } = await supabase.from('lessons').update(fields).eq('id', id)
     if (error) {
       console.error('Lesson update error:', error.message)
       setLessons(before)
       alert('Error updating lesson: ' + error.message)
+      return
+    }
+    // Gear per rider: rewrite only when it actually changed (a move or a price
+    // edit carries it along untouched). Delete then insert, in this one handler.
+    const norm = (g?: Lesson['rider_gear']) => JSON.stringify((g ?? []).map(x => [x.participant_id, x.kite_id, x.board_id]).sort())
+    const previous = before.find(x => x.id === id)?.rider_gear
+    if (norm(previous) !== norm(rider_gear)) {
+      const { error: delError } = await supabase.from('lesson_participant_gear').delete().eq('lesson_id', id)
+      const rows = (rider_gear ?? []).map(g => ({ lesson_id: id, participant_id: g.participant_id, kite_id: g.kite_id, board_id: g.board_id }))
+      const { error: insError } = delError || rows.length === 0 ? { error: null } : await supabase.from('lesson_participant_gear').insert(rows)
+      if (delError || insError) {
+        const msg = (delError ?? insError)!.message
+        console.error('Rider gear update error:', msg)
+        setLessons(before)
+        alert('Gear per rider not saved: ' + msg)
+      }
     }
   }, [lessons])
 

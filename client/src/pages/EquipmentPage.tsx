@@ -31,10 +31,28 @@ const DEFAULT_KITE_BOARD_RATIO = 2     // kite weighs ~2× a board in the split
 // piggyback on the board slot, but a bar has no slot at all: it stays out of the
 // per-lesson revenue estimate entirely (decision gui, 2026-09-07 — see
 // migration 2026-09-07_equipment_category_bar.sql).
+// A wing sail sits in the kite slot (kite_id) of a lesson, like a kite does.
+const isSail = (eq: Equipment) => eq.category === 'kite' || eq.category === 'wing'
+
+// Group lessons can carry one pair of gear PER RIDER (rider_gear). Without any,
+// the lesson's own kite_id/board_id apply, exactly as before.
 function lessonsFor(eq: Equipment, lessons: Lesson[]): Lesson[] {
   if (eq.category === 'bar') return []
-  const field = eq.category === 'kite' ? 'kite_id' : 'board_id'
-  return lessons.filter(l => l[field] === eq.id)
+  const field = isSail(eq) ? 'kite_id' : 'board_id'
+  return lessons.filter(l => l.rider_gear?.length
+    ? l.rider_gear.some(g => g[field] === eq.id)
+    : l[field] === eq.id)
+}
+
+/** How many riders of this lesson used this piece, and how many riders share the
+ *  lesson's margin. A lesson with no per-rider rows is 1 of 1, as before. */
+function riderShare(eq: Equipment, lesson: Lesson): { used: number; riders: number } {
+  if (!lesson.rider_gear?.length) return { used: 1, riders: 1 }
+  const field = isSail(eq) ? 'kite_id' : 'board_id'
+  return {
+    used: lesson.rider_gear.filter(g => g[field] === eq.id).length,
+    riders: Math.max(1, lesson.participant_ids.length),
+  }
 }
 
 function getUseCount(eq: Equipment, rentals: EquipmentRental[], lessons: Lesson[]): number {
@@ -79,7 +97,10 @@ function getEquipmentRevenue(
   const real = rentals.filter(r => r.equipment_id === eq.id).reduce((sum, r) => sum + r.price, 0)
   const est = lessonsFor(eq, lessons).reduce((sum, l) => {
     const rates = lessonEquipmentRates(l, instructors, priceItems, overrides, model)
-    return sum + (eq.category === 'kite' ? rates.kite : rates.board) * l.duration_hours
+    // With gear per rider the lesson's margin is split between its riders, so a
+    // group of three does not credit each kite with the whole lesson.
+    const { used, riders } = riderShare(eq, l)
+    return sum + (isSail(eq) ? rates.kite : rates.board) * l.duration_hours * used / riders
   }, 0)
   const hours = getUseHours(eq, rentals, lessons)
   return { real, est, total: real + est, hours, perHour: hours > 0 ? (real + est) / hours : 0 }
@@ -129,12 +150,13 @@ function getCategoryLabel(category: EquipmentCategory, lang: Lang): string {
     surfboard: i18n.equipment.category_surfboard[lang],
     foilboard: i18n.equipment.category_foilboard[lang],
     bar:       i18n.equipment.category_bar[lang],
+    wing:      i18n.equipment.category_wing[lang],
   }
   return labels[category]
 }
 
 const CATEGORY_ICON: Record<EquipmentCategory, string> = {
-  kite: '🪂', board: '🏄', surfboard: '🌊', foilboard: '🦈', bar: '🕹️',
+  kite: '🪂', board: '🏄', surfboard: '🌊', foilboard: '🦈', bar: '🕹️', wing: '🌬️',
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -465,7 +487,7 @@ export default function EquipmentPage() {
   const revenueTotalHours = revenueRows.reduce((sum, r) => sum + r.hours, 0)
   const revenueMaxTotal   = revenueRows.reduce((max, r) => Math.max(max, r.total), 1)
 
-  const revenueCategories: EquipmentCategory[] = ['kite', 'board', 'surfboard', 'foilboard', 'bar']
+  const revenueCategories: EquipmentCategory[] = ['kite', 'wing', 'board', 'surfboard', 'foilboard', 'bar']
   const revenueByCategory = revenueCategories.map(cat => {
     const rows = revenueRows.filter(r => r.eq.category === cat)
     return {
@@ -608,6 +630,7 @@ export default function EquipmentPage() {
                     <option value="surfboard">{i18n.equipment.category_surfboard[lang]}</option>
                     <option value="foilboard">{i18n.equipment.category_foilboard[lang]}</option>
                     <option value="bar">{i18n.equipment.category_bar[lang]}</option>
+                    <option value="wing">{i18n.equipment.category_wing[lang]}</option>
                   </select>
                   <button
                     onClick={() => { setCategoryFilter('kite'); setSizeFilter('') }}
@@ -976,6 +999,7 @@ export default function EquipmentPage() {
                 <option value="surfboard">{i18n.equipment.category_surfboard[lang]}</option>
                 <option value="foilboard">{i18n.equipment.category_foilboard[lang]}</option>
                 <option value="bar">{i18n.equipment.category_bar[lang]}</option>
+                <option value="wing">{i18n.equipment.category_wing[lang]}</option>
               </select>
               <button
                 onClick={() => { setRentalCategoryFilter('kite'); setRentalSizeFilter('') }}
@@ -1318,6 +1342,7 @@ export default function EquipmentPage() {
                   <option value="surfboard">{i18n.equipment.category_surfboard[lang]}</option>
                   <option value="foilboard">{i18n.equipment.category_foilboard[lang]}</option>
                   <option value="bar">{i18n.equipment.category_bar[lang]}</option>
+                  <option value="wing">{i18n.equipment.category_wing[lang]}</option>
                 </select>
                 <button
                   onClick={() => { setCategoryFilter('kite'); setAssetSizeFilter('') }}
