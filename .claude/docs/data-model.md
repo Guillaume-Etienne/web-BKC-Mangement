@@ -208,6 +208,7 @@
 | duration_hours | number | |
 | type | LessonType | |
 | price_per_hour | number \| null | 2026-07-29. Prix **client** €/h figé à la création depuis `price_items`, éditable leçon par leçon. `NULL` → repli sur le tarif courant. |
+| discipline | 'kite' / 'wing' / 'wing_discovery' | 2026-10-14, défaut `kite` (tout l'existant). Choisit le poste de prix : `lesson_wing_[discovery_]private/group`. **Le kitefoil n'est pas une discipline** (tarif kite). Pas de paliers dégressifs en wing, ses heures ne comptent pas dans les paliers kite. Supervision l'ignore. Paie moniteur inchangée (taux horaire). Changer la discipline à l'édition re-fige le prix client. |
 | instructor_rate | number \| null | 2026-07-30. **Paie** moniteur €/h figée à la création depuis `instructors.rate_*` — l'autre barème. Sans elle, augmenter un tarif augmentait ce qu'on devait pour le passé. `NULL` → repli sur le tarif courant ; un `lesson_rate_overrides` sur cette leçon reste prioritaire (décision explicite). |
 | notes | string \| null | |
 | kite_id | string \| null (FK → equipment) | |

@@ -63,6 +63,10 @@ const BILLABLE_LABELS: Record<BillableType, string> = {
   lesson_private:     'Private lessons',
   lesson_group:       'Group lessons (per student)',
   lesson_supervision: 'Supervision',
+  lesson_wing_private:           'Wing lessons — private',
+  lesson_wing_group:             'Wing lessons — group (per student)',
+  lesson_wing_discovery_private: 'Wing discovery (no foil board) — private',
+  lesson_wing_discovery_group:   'Wing discovery (no foil board) — group (per student)',
   rental_kite:        'Kite',
   rental_board:       'Board',
   rental_full:        'Full (kite + board)',
@@ -75,7 +79,9 @@ const BILLABLE_LABELS: Record<BillableType, string> = {
 /** Which posts belong to which section of the screen. Mirrors the CHECK in
  *  2026-07-30_billable_types.sql — the two must stay in step. */
 const CATEGORY_BILLABLES: Partial<Record<PriceCategory, BillableType[]>> = {
-  lesson:        ['lesson_private', 'lesson_group', 'lesson_supervision'],
+  lesson:        ['lesson_private', 'lesson_group', 'lesson_supervision',
+                  'lesson_wing_private', 'lesson_wing_group',
+                  'lesson_wing_discovery_private', 'lesson_wing_discovery_group'],
   rental:        ['rental_kite', 'rental_board', 'rental_full', 'rental_surfboard', 'rental_foilboard'],
   center_access: ['center_access'],
   meal:          ['meal'],

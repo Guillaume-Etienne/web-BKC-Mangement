@@ -6,6 +6,12 @@
 
 ## 🚨 Migrations SQL — registre
 
+⏳ **`2026-10-14_wing_enum_values.sql` PUIS `2026-10-14b_wing_lessons.sql`** (2 fichiers, dans l'ordre, TEST puis PROD — **à passer par gui**) — cours de wing :
+4 postes `lesson_wing_[discovery_]private/group` (55 / 42,50 / 50 / 40 €/h), `lessons.discipline`, catégorie matériel `wing`. Code livré (case Wing + Discovery dans le formulaire de leçon).
+Vérif : `SELECT billable_type, price FROM price_items WHERE billable_type::text LIKE 'lesson_wing%'` (4 lignes), `SELECT discipline, count(*) FROM lessons GROUP BY 1` (tout `kite`).
+Décisions gui 2026-10-14 : discovery = case à la saisie (défaut décoché = normal) ; pas de rétroactif ; moniteur à son taux horaire ; F&Fly hors périmètre ; kitefoil = kite.
+**Étape 2 à faire** : matériel par rider en groupe (table `lesson_participant_gear`, listes filtrées par discipline, revenu matériel ÷ nb de riders).
+
 ✅ **`2026-10-11b_associate_accounts.sql`** (TEST ✅ / PROD ✅, passée par gui le 2026-10-11, **contrôlée en base et
 au curl anon le même jour** sur les deux : `associates` = Gui, Teresa ; les 2 colonnes présentes ; RLS active ;
 curl anon nu `associates` et `associate_transfers` → 401 / 42501 ; `payments` → 200) — comptes des associés :

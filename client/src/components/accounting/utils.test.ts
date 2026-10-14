@@ -1859,3 +1859,66 @@ describe('computeVolumeTotals', () => {
     })
   })
 })
+
+// ─── Wing lessons (2026-10-14) ──────────────────────────────────────────────
+
+describe('wing lesson pricing', () => {
+  const prices = [
+    ...mkLessonPrices({ private: 60, group: 36 }),
+    mkPrice('lesson_wing_private', 55),
+    mkPrice('lesson_wing_group', 42.5),
+    mkPrice('lesson_wing_discovery_private', 50),
+    mkPrice('lesson_wing_discovery_group', 40),
+  ]
+
+  it('bills the wing rate for a wing lesson, the kite rate otherwise', () => {
+    expect(getLessonClientRate(mkLesson({ discipline: 'wing' }), prices)).toBe(55)
+    expect(getLessonClientRate(mkLesson({ discipline: 'kite' }), prices)).toBe(60)
+    // A row from before the migration has no discipline at all: it is kite.
+    expect(getLessonClientRate(mkLesson(), prices)).toBe(60)
+  })
+
+  it('bills the discovery rate when the foil board is not used', () => {
+    expect(getLessonClientRate(mkLesson({ discipline: 'wing_discovery' }), prices)).toBe(50)
+    expect(getLessonClientRate(mkLesson({ type: 'group', discipline: 'wing_discovery' }), prices)).toBe(40)
+  })
+
+  it('has no wing rate for supervision', () => {
+    expect(getLessonClientRate(mkLesson({ type: 'supervision', discipline: 'wing' }), prices)).toBe(40)
+  })
+
+  it('prefers the frozen snapshot over any configured rate', () => {
+    expect(getLessonClientRate(mkLesson({ discipline: 'wing', price_per_hour: 50 }), prices)).toBe(50)
+  })
+
+  it('is unresolved (null), not zero, when no wing rate is configured yet', () => {
+    expect(resolveLessonRate(mkLesson({ discipline: 'wing' }), mkLessonPrices())).toBeNull()
+  })
+
+  it('totals a 2h wing group lesson per head: discovery 2 × 2h × 40, normal 2 × 2h × 42.5', () => {
+    const booking = mkBooking({ id: 'bk1' })
+    const total = (discipline: 'wing' | 'wing_discovery') => computeLessonsRevenue(booking, mkData({
+      bookings: [booking], priceItems: prices,
+      bookingParticipants: [mkParticipant({ id: 'p1' }), mkParticipant({ id: 'p2' })],
+      lessons: [mkLesson({ type: 'group', participant_ids: ['p1', 'p2'], duration_hours: 2, discipline })],
+    }))
+    expect(total('wing_discovery')).toBe(160)
+    expect(total('wing')).toBe(170)
+  })
+
+  it('keeps wing hours out of the kite volume tiers, and the reverse', () => {
+    const ids = new Set(['p1'])
+    const lessons = [
+      mkLesson({ id: 'w1', date: '2026-11-02', participant_ids: ['p1'], duration_hours: 6, discipline: 'wing' }),
+      mkLesson({ id: 'k1', date: '2026-11-03', participant_ids: ['p1'], duration_hours: 3 }),
+      mkLesson({ id: 'k2', date: '2026-11-04', participant_ids: ['p1'], duration_hours: 2 }),
+    ]
+    expect(cumulativeHoursBefore(ids, 'private', lessons, 'k2')).toBe(3)   // not 9
+
+    // And a wing lesson never takes a kite tier, even past the threshold.
+    const tiers = [mkPriceTier({ billable_type: 'lesson_private', min_hours: 2, price_per_hour: 25 })]
+    const ctx = { tiers, allLessons: lessons, bookingParticipants: [mkParticipant({ id: 'p1' })] }
+    expect(resolveLessonRate(mkLesson({ id: 'w2', date: '2026-11-09', discipline: 'wing' }), prices, ctx)).toBe(55)
+    expect(resolveLessonRate(mkLesson({ id: 'k3', date: '2026-11-09' }), prices, ctx)).toBe(25)
+  })
+})

@@ -269,6 +269,12 @@ export interface RoomWithBookings extends Room {
 // Instructors & Lessons
 export type LessonType = 'private' | 'group' | 'supervision'
 
+/** What a lesson teaches, as far as the PRICE goes. 'kite' is everything that
+ *  predates wing (kitefoil is sold at the kite rate, so it is not a discipline).
+ *  'wing_discovery' = wing without the foil board, a cheaper hourly rate.
+ *  Only private/group lessons have wing rates; supervision ignores it. */
+export type LessonDiscipline = 'kite' | 'wing' | 'wing_discovery'
+
 export interface Instructor {
   id: string
   first_name: string
@@ -294,6 +300,9 @@ export interface Lesson {
   notes: string | null
   kite_id: string | null
   board_id: string | null
+  /** Optional: rows fetched before the 2026-10-14 migration come back without it,
+   *  and every lesson created before wing is a kite lesson. Read via `lessonDiscipline`. */
+  discipline?: LessonDiscipline
   /** Client price €/h, snapshotted at creation from price_items so that changing
    *  a rate never reprices past lessons. Editable per lesson. null → fall back
    *  to the current price_items rate. Distinct from what the instructor is paid. */
@@ -375,6 +384,8 @@ export interface TransferReferencePrice {
  *  so adding a billable post later is one enum value, not one more column. */
 export type BillableType =
   | 'lesson_private' | 'lesson_group' | 'lesson_supervision'
+  | 'lesson_wing_private' | 'lesson_wing_group'
+  | 'lesson_wing_discovery_private' | 'lesson_wing_discovery_group'
   | 'rental_kite' | 'rental_board' | 'rental_full' | 'rental_surfboard' | 'rental_foilboard'
   | 'center_access' | 'meal'
 
@@ -383,7 +394,13 @@ export type RentalType = 'kite' | 'board' | 'full' | 'surfboard' | 'foilboard'
 
 /** The rate row a lesson / a rental is billed with. Keeps the enum values in one
  *  place so no screen has to build the string itself. */
-export const lessonBillable = (t: LessonType): BillableType => `lesson_${t}` as BillableType
+export const lessonBillable = (t: LessonType, discipline: LessonDiscipline = 'kite'): BillableType => {
+  // Supervision has no wing rate: a supervised session is one price whatever the sport.
+  if (t === 'supervision' || discipline === 'kite') return `lesson_${t}` as BillableType
+  return (discipline === 'wing' ? `lesson_wing_${t}` : `lesson_wing_discovery_${t}`) as BillableType
+}
+/** A lesson's discipline, 'kite' when the column is absent or null. */
+export const lessonDiscipline = (l: { discipline?: LessonDiscipline | null }): LessonDiscipline => l.discipline ?? 'kite'
 export const rentalBillable = (t: RentalType): BillableType => `rental_${t}` as BillableType
 
 // Taxis

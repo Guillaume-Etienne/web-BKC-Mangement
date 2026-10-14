@@ -1,5 +1,5 @@
 import type { Booking, BookingParticipant, Payment, Lesson, LessonType, Instructor, LessonRateOverride, DiningEvent, PriceItem, BillableType, PriceTier, Agency, AgencyBillingLine, AgencyInvoice } from '../../types/database'
-import { lessonBillable } from '../../types/database'
+import { lessonBillable, lessonDiscipline } from '../../types/database'
 import type { SharedAccountingData } from './types'
 import { getBaseNightlyRate } from '../../utils/roomPricing'
 import { commissionEur } from '../../utils/partnerHotel'
@@ -293,8 +293,11 @@ export function cumulativeHoursBefore(
   allLessons: Lesson[],
   excludeLessonId?: string
 ): number {
+  // Kite hours only: wing is sold flat (no volume tiers), and its hours must not
+  // push a rider into a kite tier.
   const chronological = allLessons
-    .filter(l => l.type === lessonType && l.participant_ids.some(id => participantIds.has(id)))
+    .filter(l => l.type === lessonType && lessonDiscipline(l) === 'kite'
+      && l.participant_ids.some(id => participantIds.has(id)))
     .sort((a, b) => (a.date + a.start_time + a.id).localeCompare(b.date + b.start_time + b.id))
   let sum = 0
   for (const l of chronological) {
@@ -329,12 +332,14 @@ export interface TierContext {
  *  the lesson still applies (same "unresolved, not zero" contract the flat
  *  lookup already had before tiers existed). `getLessonClientRate` below is
  *  the display-friendly version that collapses this to a number. */
-export function resolveLessonRate(lesson: Pick<Lesson, 'id' | 'type' | 'participant_ids' | 'price_per_hour'>, priceItems: PriceItem[], tierCtx?: TierContext): number | null {
+export function resolveLessonRate(lesson: Pick<Lesson, 'id' | 'type' | 'participant_ids' | 'price_per_hour'> & { discipline?: Lesson['discipline'] }, priceItems: PriceItem[], tierCtx?: TierContext): number | null {
   // Loose != on purpose: before the migration lands, rows come back without the
   // column at all, and `undefined !== null` would return undefined → NaN amounts.
   if (lesson.price_per_hour != null) return lesson.price_per_hour
 
-  if (tierCtx && (lesson.type === 'private' || lesson.type === 'group')) {
+  const discipline = lessonDiscipline(lesson)
+  // Volume tiers are a kite thing: wing lessons never enter them.
+  if (tierCtx && discipline === 'kite' && (lesson.type === 'private' || lesson.type === 'group')) {
     // A group lesson bills one rate for everyone (unchanged), based on the
     // FIRST participant's own history — not individualised per head. Decision
     // gui: simplest, doesn't restructure group billing for a mixed-level edge
@@ -353,7 +358,7 @@ export function resolveLessonRate(lesson: Pick<Lesson, 'id' | 'type' | 'particip
     }
   }
 
-  return getConfiguredRate(priceItems, lessonBillable(lesson.type))
+  return getConfiguredRate(priceItems, lessonBillable(lesson.type, discipline))
 }
 
 /** Client price €/h for a lesson — same resolution as `resolveLessonRate`, but

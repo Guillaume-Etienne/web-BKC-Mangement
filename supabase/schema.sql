@@ -16,12 +16,13 @@ CREATE TYPE price_category                  AS ENUM ('lesson', 'activity', 'rent
 CREATE TYPE taxi_trip_type                  AS ENUM ('aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other');
 CREATE TYPE taxi_trip_status                AS ENUM ('confirmed', 'needs_details', 'done');
 CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form', 'restaurant', 'enquiry_form', 'partner_hotel', 'instructor', 'walkin');
-CREATE TYPE equipment_category              AS ENUM ('kite', 'board', 'surfboard', 'foilboard');
+CREATE TYPE equipment_category              AS ENUM ('kite', 'board', 'surfboard', 'foilboard', 'bar', 'wing');  -- 'bar' 2026-09-07, 'wing' 2026-10-14
 -- Tout ce que l'app facture automatiquement : une valeur = un tarif (index unique sur
 -- price_items). Brancher un nouveau poste = ajouter une valeur, pas une colonne.
 -- ('free'/« Other » en location n'y est pas : 0 par définition.)
 CREATE TYPE billable_type                   AS ENUM (
   'lesson_private', 'lesson_group', 'lesson_supervision',
+  'lesson_wing_private', 'lesson_wing_group', 'lesson_wing_discovery_private', 'lesson_wing_discovery_group',  -- 2026-10-14
   'rental_kite', 'rental_board', 'rental_full', 'rental_surfboard', 'rental_foilboard',
   'center_access', 'meal'
 );
@@ -307,6 +308,10 @@ CREATE TABLE lessons (
   start_time       TEXT NOT NULL,   -- HH:MM
   duration_hours   NUMERIC(4,2) NOT NULL DEFAULT 1,
   type             lesson_type NOT NULL,
+  -- 2026-10-14 : ce que le cours enseigne, pour le PRIX seulement. Le kitefoil se vend
+  -- au tarif kite, ce n'est donc pas une discipline. Pas de paliers dégressifs en wing.
+  discipline       TEXT NOT NULL DEFAULT 'kite' CONSTRAINT lessons_discipline_chk
+                   CHECK (discipline IN ('kite', 'wing', 'wing_discovery')),
   -- Deux barèmes distincts, tous deux figés à la création (comme booking_room_prices :
   -- changer un tarif ne refacture pas le passé). NULL → repli sur le tarif courant.
   price_per_hour   NUMERIC(8,2),   -- prix CLIENT €/h (source : price_items)
@@ -371,7 +376,9 @@ CREATE TABLE price_items (
   -- dans les leçons. Le front duplique cette table (CATEGORY_BILLABLES).
   CONSTRAINT price_items_billable_category_chk CHECK (
     billable_type IS NULL OR category = (CASE
-      WHEN billable_type IN ('lesson_private', 'lesson_group', 'lesson_supervision') THEN 'lesson'
+      WHEN billable_type IN ('lesson_private', 'lesson_group', 'lesson_supervision',
+                             'lesson_wing_private', 'lesson_wing_group',
+                             'lesson_wing_discovery_private', 'lesson_wing_discovery_group') THEN 'lesson'
       WHEN billable_type IN ('rental_kite', 'rental_board', 'rental_full',
                              'rental_surfboard', 'rental_foilboard')                 THEN 'rental'
       WHEN billable_type = 'center_access'                                           THEN 'center_access'

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import type { Lesson, DayActivity, DaySlot, LessonType, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine, Lang } from '../../types/database'
-import { rentalBillable } from '../../types/database'
+import type { Lesson, DayActivity, DaySlot, LessonType, LessonDiscipline, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine, Lang } from '../../types/database'
+import { rentalBillable, lessonDiscipline } from '../../types/database'
 import { currentInstructorRate, reFreezeInstructorRate, resolveLessonRate, agencyMarker, getLessonClientRate, isAgencyBilled } from '../accounting/utils'
 import { toISODate as dateToISO, localeTag } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -77,6 +77,7 @@ interface AddForm {
   kind: 'lesson' | 'activity' | 'rental'
   // lesson fields
   type: LessonType
+  discipline: LessonDiscipline   // 'kite' unless the Wing box is ticked
   participant_ids: string[]
   instructor_id: string
   start_time: string
@@ -155,7 +156,7 @@ export default function LessonWeekView({
     const firstParticipant = activeParticipantsForDate(date)[0]?.id ?? ''
     return {
     date, slot, kind,
-    type: 'private', participant_ids: [firstParticipant], instructor_id: instructors[0]?.id ?? '',
+    type: 'private', discipline: 'kite', participant_ids: [firstParticipant], instructor_id: instructors[0]?.id ?? '',
     start_time: SLOT_CONFIG[slot].defaultTime, duration_hours: 1, notes: '', kite_id: null, board_id: null,
     name: '', actNotes: '', act_bill: false, act_participant_ids: [], act_price_pp: '', act_cost: '',
     rental_participant_id: firstParticipant,
@@ -212,6 +213,26 @@ export default function LessonWeekView({
     return priceItems.find(p => p.billable_type === rentalBillable(type))?.price ?? null
   }
 
+  /** The Wing / Discovery boxes of the lesson forms. Hidden for supervision (no wing rate).
+   *  Discovery = wing without the foil board: a cheaper hourly rate. */
+  function renderWingToggle(type: LessonType, discipline: LessonDiscipline, onChange: (d: LessonDiscipline) => void) {
+    if (type === 'supervision') return null
+    return (
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm md:text-xs text-gray-700 dark:text-gray-300">
+        <label className="flex items-center gap-1.5">
+          <input type="checkbox" checked={discipline !== 'kite'} onChange={e => onChange(e.target.checked ? 'wing' : 'kite')} />
+          Wing
+        </label>
+        {discipline !== 'kite' && (
+          <label className="flex items-center gap-1.5">
+            <input type="checkbox" checked={discipline === 'wing_discovery'} onChange={e => onChange(e.target.checked ? 'wing_discovery' : 'wing')} />
+            Discovery (no foil board)
+          </label>
+        )}
+      </div>
+    )
+  }
+
   /** What the instructor is paid, frozen onto the lesson at creation. A different
    *  scale from what the client pays — Options → Instructors, not Pricing. */
   function instructorPay(instructorId: string, type: LessonType): number | null {
@@ -224,9 +245,9 @@ export default function LessonWeekView({
    *  reach a configured threshold (see resolveLessonRate). `null` when nothing
    *  is configured at all, so the lesson freezes with an unresolved price
    *  rather than a wrong zero. */
-  function lessonPrice(type: LessonType, participantIds: string[]): number | null {
+  function lessonPrice(type: LessonType, participantIds: string[], discipline: LessonDiscipline = 'kite'): number | null {
     return resolveLessonRate(
-      { id: '', type, participant_ids: participantIds, price_per_hour: null },
+      { id: '', type, discipline, participant_ids: participantIds, price_per_hour: null },
       priceItems,
       { tiers: priceTiers, allLessons: lessons, bookingParticipants }
     )
@@ -413,6 +434,8 @@ export default function LessonWeekView({
   function submitAdd() {
     if (!addForm) return
     if (addForm.kind === 'lesson') {
+      // Supervision has no wing rate, so it stays a kite row whatever the box says.
+      const discipline: LessonDiscipline = addForm.type === 'supervision' ? 'kite' : addForm.discipline
       onAddLesson({
         booking_id: bookingForParticipant(addForm.participant_ids[0] ?? ''),
         instructor_id: addForm.instructor_id,
@@ -421,12 +444,15 @@ export default function LessonWeekView({
         start_time: addForm.start_time,
         duration_hours: addForm.duration_hours,
         type: addForm.type,
+        // Only sent for wing: a kite row omits the column, so saving a kite lesson
+        // keeps working on a database the migration has not reached yet.
+        ...(discipline !== 'kite' && { discipline }),
         notes: addForm.notes || null,
         kite_id: addForm.kite_id,
         board_id: addForm.board_id,
         // Freeze BOTH of today's scales: changing the price list or someone's pay
         // later must not reprice this lesson (same rule as booking_room_prices).
-        price_per_hour: lessonPrice(addForm.type, addForm.participant_ids),
+        price_per_hour: lessonPrice(addForm.type, addForm.participant_ids, discipline),
         instructor_rate: instructorPay(addForm.instructor_id, addForm.type),
       })
     } else if (addForm.kind === 'activity') {
@@ -489,7 +515,18 @@ export default function LessonWeekView({
     // under someone else, and absent from the guests' own booking.
     const firstGuestId = merged.participant_ids?.[0]
     const bookingId = (firstGuestId && bookingForParticipant(firstGuestId)) || editLesson.booking_id
-    onUpdateLesson(reFreezeInstructorRate({ ...merged, booking_id: bookingId }, editLesson, instructors))
+    // Switching kite ↔ wing ↔ discovery is a deliberate change of product, so
+    // unlike every other edit it re-freezes the client price at the new rate.
+    const disciplineNow: LessonDiscipline = merged.type === 'supervision' ? 'kite' : lessonDiscipline(merged)
+    const disciplineChanged = disciplineNow !== lessonDiscipline(editLesson)
+    const withDiscipline: Lesson = {
+      ...merged, booking_id: bookingId,
+      ...(disciplineChanged && {
+        discipline: disciplineNow,
+        price_per_hour: lessonPrice(merged.type, merged.participant_ids, disciplineNow),
+      }),
+    }
+    onUpdateLesson(reFreezeInstructorRate(withDiscipline, editLesson, instructors))
     setEditLesson(null)
   }
 
@@ -665,6 +702,11 @@ export default function LessonWeekView({
                               <span className="font-bold">{lesson.start_time}</span>
                               <div className="flex items-center gap-1">
                                 <span className="opacity-60">{lesson.duration_hours}h</span>
+                                {lessonDiscipline(lesson) !== 'kite' && (
+                                  <span className="px-1 rounded text-xs font-medium bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300">
+                                    {lessonDiscipline(lesson) === 'wing_discovery' ? 'Wing · Discovery' : 'Wing'}
+                                  </span>
+                                )}
                                 <span className={`px-1 rounded text-xs font-medium ${tc.badge}`}>{tc.label}</span>
                               </div>
                             </div>
@@ -880,6 +922,7 @@ export default function LessonWeekView({
                                   </button>
                                 ))}
                               </div>
+                              {renderWingToggle(addForm?.type ?? 'private', addForm?.discipline ?? 'kite', d => setAddForm(f => f && { ...f, discipline: d }))}
                               {/* Participant(s) — single for private/supervision, multi-toggle for group */}
                               {renderParticipantChips({
                                 candidates: showAllGuests ? bookingParticipants : activeParticipantsForDate(addForm?.date ?? ''),
@@ -1174,6 +1217,7 @@ export default function LessonWeekView({
                   ))}
                 </div>
               </div>
+              {renderWingToggle(editData.type ?? editLesson.type, lessonDiscipline(editData), d => setEditData(prev => ({ ...prev, discipline: d })))}
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date</label>
                 <input
