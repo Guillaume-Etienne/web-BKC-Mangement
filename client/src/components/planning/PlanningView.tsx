@@ -269,6 +269,11 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     Math.round((seasonEnd.getTime() - seasonStart.getTime()) / 86400000) + 1
   , [seasonStart, seasonEnd])
 
+  // Column of today in the season grid (outside the window → no highlight).
+  const todayIndex = Math.round(
+    (new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - seasonStart.getTime()) / 86400000
+  )
+
   // Month groups for the two-row header, clipped to the window: a season typed
   // by hand can start or end mid-month, unlike the Sep 1 → Mar 31 it replaces.
   const monthGroups = useMemo(
@@ -1012,6 +1017,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                     const d = new Date(seasonStart.getFullYear(), seasonStart.getMonth(), seasonStart.getDate() + i)
                     const dow = d.getDay()
                     const isWeekend = dow === 0 || dow === 6
+                    const isToday = i === todayIndex
                     return (
                       <div
                         key={i}
@@ -1020,8 +1026,8 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                         } ${isWeekend ? 'bg-blue-50 dark:bg-blue-950/40 font-semibold' : ''}`}
                         style={{ width: CELL_W }}
                       >
-                        <div className="text-gray-400 dark:text-gray-400 hidden md:block leading-none">{DAY_NAMES[dow]}</div>
-                        <div>{d.getDate()}</div>
+                        <div className={`hidden md:block leading-none ${isToday ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-gray-400 dark:text-gray-400'}`}>{DAY_NAMES[dow]}</div>
+                        <div className={isToday ? 'mx-auto w-5 h-5 leading-5 rounded-full bg-blue-600 text-white font-bold' : ''}>{d.getDate()}</div>
                       </div>
                     )
                   })}
@@ -1029,7 +1035,15 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
               </div>
 
               {/* Rows */}
-              <div ref={gridRef}>
+              <div ref={gridRef} className="relative">
+                {/* Today column: light tint + left edge, over the whole grid.
+                    80 = the w-20 sticky label column. */}
+                {todayIndex >= 0 && todayIndex < totalDays && (
+                  <div
+                    className="absolute top-0 bottom-0 pointer-events-none bg-blue-500/10 dark:bg-blue-400/10 border-l-2 border-blue-600 dark:border-blue-400"
+                    style={{ left: 80 + todayIndex * CELL_W, width: CELL_W }}
+                  />
+                )}
                 {/* No-room section, above the accommodations: what has no place
                     to sleep is read before what already has one. It disappears
                     entirely once every booking of the season is assigned. */}
