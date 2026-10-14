@@ -31,27 +31,33 @@ const DEFAULT_KITE_BOARD_RATIO = 2     // kite weighs ~2× a board in the split
 // piggyback on the board slot, but a bar has no slot at all: it stays out of the
 // per-lesson revenue estimate entirely (decision gui, 2026-09-07 — see
 // migration 2026-09-07_equipment_category_bar.sql).
-// A wing sail sits in the kite slot (kite_id) of a lesson, like a kite does.
-const isSail = (eq: Equipment) => eq.category === 'kite' || eq.category === 'wing'
+// Category 'wing' = everything wing-specific (sails, foilboards, paddles): in a wing
+// lesson it can sit in EITHER slot, so it is looked up in both. A kite is the kite
+// slot, every other board is the board slot.
+type GearSlot = 'kite_id' | 'board_id'
+const slotsFor = (eq: Equipment): GearSlot[] =>
+  eq.category === 'kite' ? ['kite_id'] : eq.category === 'wing' ? ['kite_id', 'board_id'] : ['board_id']
 
 // Group lessons can carry one pair of gear PER RIDER (rider_gear). Without any,
 // the lesson's own kite_id/board_id apply, exactly as before.
 function lessonsFor(eq: Equipment, lessons: Lesson[]): Lesson[] {
   if (eq.category === 'bar') return []
-  const field = isSail(eq) ? 'kite_id' : 'board_id'
+  const slots = slotsFor(eq)
   return lessons.filter(l => l.rider_gear?.length
-    ? l.rider_gear.some(g => g[field] === eq.id)
-    : l[field] === eq.id)
+    ? l.rider_gear.some(g => slots.some(s => g[s] === eq.id))
+    : slots.some(s => l[s] === eq.id))
 }
 
 /** How many riders of this lesson used this piece, and how many riders share the
  *  lesson's margin. A lesson with no per-rider rows is 1 of 1, as before. */
-function riderShare(eq: Equipment, lesson: Lesson): { used: number; riders: number } {
-  if (!lesson.rider_gear?.length) return { used: 1, riders: 1 }
-  const field = isSail(eq) ? 'kite_id' : 'board_id'
+function riderShare(eq: Equipment, lesson: Lesson): { kiteUsed: number; boardUsed: number; riders: number } {
+  const count = (slot: GearSlot) => !slotsFor(eq).includes(slot) ? 0
+    : lesson.rider_gear?.length ? lesson.rider_gear.filter(g => g[slot] === eq.id).length
+    : lesson[slot] === eq.id ? 1 : 0
   return {
-    used: lesson.rider_gear.filter(g => g[field] === eq.id).length,
-    riders: Math.max(1, lesson.participant_ids.length),
+    kiteUsed: count('kite_id'),
+    boardUsed: count('board_id'),
+    riders: lesson.rider_gear?.length ? Math.max(1, lesson.participant_ids.length) : 1,
   }
 }
 
@@ -99,8 +105,9 @@ function getEquipmentRevenue(
     const rates = lessonEquipmentRates(l, instructors, priceItems, overrides, model)
     // With gear per rider the lesson's margin is split between its riders, so a
     // group of three does not credit each kite with the whole lesson.
-    const { used, riders } = riderShare(eq, l)
-    return sum + (isSail(eq) ? rates.kite : rates.board) * l.duration_hours * used / riders
+    // The kite share goes to what sat in the kite slot, the board share to the board slot.
+    const { kiteUsed, boardUsed, riders } = riderShare(eq, l)
+    return sum + (rates.kite * kiteUsed + rates.board * boardUsed) * l.duration_hours / riders
   }, 0)
   const hours = getUseHours(eq, rentals, lessons)
   return { real, est, total: real + est, hours, perHour: hours > 0 ? (real + est) / hours : 0 }

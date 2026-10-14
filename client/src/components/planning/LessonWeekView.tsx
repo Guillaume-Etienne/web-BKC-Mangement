@@ -218,14 +218,19 @@ export default function LessonWeekView({
     return priceItems.find(p => p.billable_type === rentalBillable(type))?.price ?? null
   }
 
-  /** Gear lists follow the lesson's discipline: a wing lesson offers wing sails,
-   *  every other one kites. Boards are the same family either way (a foilboard
-   *  is also used for kitefoil). Bars have no slot on a lesson. */
+  /** Gear lists follow the lesson's discipline, so there is less to sort through:
+   *  a wing lesson offers only wing-category gear (sails, foilboards, paddles) in
+   *  both slots; every other lesson offers kites and the regular boards. Bars have
+   *  no slot on a lesson. */
   function gearOptions(discipline: LessonDiscipline) {
-    const sailCategory = discipline === 'kite' ? 'kite' : 'wing'
+    const active = equipment.filter(e => e.is_active)
+    if (discipline !== 'kite') {
+      const wing = active.filter(e => e.category === 'wing')
+      return { sails: wing, boards: wing }
+    }
     return {
-      sails: equipment.filter(e => e.category === sailCategory && e.is_active),
-      boards: equipment.filter(e => (e.category === 'board' || e.category === 'surfboard' || e.category === 'foilboard') && e.is_active),
+      sails: active.filter(e => e.category === 'kite'),
+      boards: active.filter(e => e.category === 'board' || e.category === 'surfboard' || e.category === 'foilboard'),
     }
   }
 
