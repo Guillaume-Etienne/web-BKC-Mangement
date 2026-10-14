@@ -1040,7 +1040,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                     80 = the w-20 sticky label column. */}
                 {todayIndex >= 0 && todayIndex < totalDays && (
                   <div
-                    className="absolute top-0 bottom-0 pointer-events-none bg-blue-500/10 dark:bg-blue-400/10 border-l-2 border-blue-600 dark:border-blue-400"
+                    className="absolute top-0 bottom-0 z-[5] pointer-events-none bg-blue-500/10 dark:bg-blue-400/10 border-l-2 border-blue-600 dark:border-blue-400"
                     style={{ left: 80 + todayIndex * CELL_W, width: CELL_W }}
                   />
                 )}
