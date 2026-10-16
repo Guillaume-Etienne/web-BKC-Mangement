@@ -218,7 +218,7 @@ reverifier par curl anon.
 
 ## 🔴 Ouvert
 
-### 🟠 Cours de groupe mixte (riders de 2 résas) — facturé par tête à la résa du participant (2026-10-16)
+### ✅ Cours de groupe mixte (riders de 2 résas) — facturé par tête à la résa du participant — LIVRÉ et vérifié PROD le 2026-10-16 (`5a35cec`, `442ba2b`, migration 2026-10-16b passée TEST+PROD)
 
 Cause : `computeLessonsRevenue` facturait TOUTES les têtes au propriétaire (`lessons.booking_id`). Cas réel : cours
 15/10 sur #051 (Robin + copine de Tit de #052) → #051 = 180 €, #052 = 0 € ; seul cas sur PROD. Corrigé côté admin :
