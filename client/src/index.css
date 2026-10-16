@@ -26,12 +26,3 @@ body {
 .dark {
   color-scheme: dark;
 }
-
-/* LoadingBar: a green segment sliding left → right while requests are in flight. */
-@keyframes loading-bar-slide {
-  from { transform: translateX(-100%); }
-  to   { transform: translateX(300%); }
-}
-.loading-bar-slide {
-  animation: loading-bar-slide 1.1s ease-in-out infinite;
-}
