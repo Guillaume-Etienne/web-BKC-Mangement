@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { whatBlocksDelete, deleteErrorMessage } from '../utils/deleteGuard'
 import { supabase } from '../lib/supabase'
 import { useLanguage } from '../contexts/LanguageContext'
 import { i18n } from '../data/i18n'
@@ -243,9 +244,11 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
   }
 
   const handleDelete = async (id: string) => {
+    const blocked = await whatBlocksDelete('clients', id)
+    if (blocked) { alert(`This client can't be deleted: ${blocked}. Their bookings and lessons are kept on purpose.`); return }
     if (!confirm('Delete this client?')) return
     const { error: err } = await supabase.from('clients').delete().eq('id', id)
-    if (err) { alert('Delete error: ' + err.message); return }
+    if (err) { alert('Delete error: ' + deleteErrorMessage(err)); return }
     setSelectedClient(null)
     refreshClients()
   }

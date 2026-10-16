@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { whatBlocksDelete, deleteErrorMessage } from '../../utils/deleteGuard'
 import { supabase } from '../../lib/supabase'
 import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
 import { useTable } from '../../hooks/useSupabase'
@@ -543,9 +544,11 @@ export default function AccommodationsTab() {
   }
 
   async function handleDelete(acc: Accommodation) {
-    if (!confirm(`Delete ${acc.name} and all associated data? Existing bookings will be kept.`)) return
+    const blocked = await whatBlocksDelete('accommodations', acc.id)
+    if (blocked) { alert(`${acc.name} can't be deleted: ${blocked}. Move those bookings elsewhere first, or mark it inactive.`); return }
+    if (!confirm(`Delete ${acc.name} and its rooms? No booking uses it.`)) return
     const { error } = await supabase.from('accommodations').delete().eq('id', acc.id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { alert('Error: ' + deleteErrorMessage(error)); return }
     if (selected?.id === acc.id) setSelected(null)
     refreshAccommodations()
     refreshRooms()

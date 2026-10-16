@@ -6,6 +6,11 @@
 
 ## 🚨 Migrations SQL — registre
 
+⏳ **`2026-10-16d_delete_protections.sql`** (⬜ TEST ⬜ PROD — à passer par gui ; l'app protège DÉJÀ côté client, la migration verrouille la base) — 17 FK passent en
+`ON DELETE RESTRICT` : client → résas/cours ; résa → paiements/cours/facturation agence ; chambre occupée → hébergement ; moniteur → dettes/paiements ;
+provider/hôtel partenaire → résas/règlements ; agence → résas (était SET NULL). Seeds TEST adaptés (agency_billing_lines/invoices vidées avant bookings).
+Vérif : la requête en pied de fichier → 17 lignes `r`. Incident d'origine : voyageurs effacés #028/#025 (restaurés le 2026-10-16 depuis TEST).
+
 ✅ **`2026-10-14_wing_enum_values.sql` + `2026-10-14b_wing_lessons.sql`** (TEST ✅ / PROD ✅, passées par gui le 2026-10-14, **vérifiées en base sur les deux** : 4 tarifs wing 55 / 42,5 / 50 / 40, 10 leçons PROD et 1 TEST toutes en `kite`, enum `equipment_category` avec `wing`) — cours de wing (case Wing + Discovery, `lessons.discipline`).
 Décisions gui 2026-10-14 : discovery = case à la saisie (défaut décoché = normal) ; pas de rétroactif ; moniteur à son taux horaire ; F&Fly hors périmètre ; kitefoil = kite.
 ⏳ **`2026-10-14c_lesson_participant_gear.sql`** (**à passer par gui, TEST puis PROD, AVANT de pousser le code**) — matériel par rider en groupe : table `lesson_participant_gear`

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { whatBlocksDelete, deleteErrorMessage } from '../utils/deleteGuard'
 import { supabase } from '../lib/supabase'
 import { useInstructors } from '../hooks/useInstructors'
 import { useLessons } from '../hooks/useLessons'
@@ -264,9 +265,11 @@ export default function ManagementPage() {
   }
 
   const handleDeleteInstructor = async (id: string) => {
+    const blocked = await whatBlocksDelete('instructors', id)
+    if (blocked) { alert(`This instructor can't be deleted: ${blocked}. Their lessons and pay history are kept on purpose.`); return }
     if (confirm('Delete this instructor?')) {
       const { error } = await supabase.from('instructors').delete().eq('id', id)
-      if (error) { alert('Error: ' + error.message); return }
+      if (error) { alert('Error: ' + deleteErrorMessage(error)); return }
       setSelectedInstructor(null)
       refreshInstructors()
     }

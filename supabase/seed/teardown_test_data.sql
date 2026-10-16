@@ -19,6 +19,9 @@ DELETE FROM activity_payments;
 DELETE FROM activity_bookings;
 DELETE FROM taxi_trips;
 DELETE FROM taxi_manager_payments;
+-- RESTRICT depuis 2026-10-16d : à vider avant bookings
+DELETE FROM agency_billing_lines;
+DELETE FROM agency_invoices;
 DELETE FROM payments;
 DELETE FROM booking_room_prices;
 DELETE FROM external_accommodation_bookings;

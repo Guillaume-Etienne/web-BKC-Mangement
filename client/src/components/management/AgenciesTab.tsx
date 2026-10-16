@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { whatBlocksDelete, deleteErrorMessage } from '../../utils/deleteGuard'
 import { supabase } from '../../lib/supabase'
 import { useAgencies, useAgencyRateItems } from '../../hooks/useAgencies'
 import type { Agency, AgencyRateItem, AgencyRateCategory } from '../../types/database'
@@ -364,9 +365,11 @@ export default function AgenciesTab() {
   }
 
   async function handleDelete(agency: Agency) {
+    const blocked = await whatBlocksDelete('agencies', agency.id)
+    if (blocked) { alert(`${agency.name} can't be deleted: ${blocked}. Those bookings would silently become billed to the client.`); return }
     if (!confirm(`Delete ${agency.name} and its rate card?`)) return
     const { error } = await supabase.from('agencies').delete().eq('id', agency.id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { alert('Error: ' + deleteErrorMessage(error)); return }
     if (selected?.id === agency.id) setSelected(null)
     refreshAgencies()
     refreshRateItems()

@@ -1,4 +1,5 @@
 import { Fragment, useState, useEffect } from 'react'
+import { whatBlocksDelete, deleteErrorMessage } from '../utils/deleteGuard'
 import { supabase } from '../lib/supabase'
 import { useLanguage } from '../contexts/LanguageContext'
 import { i18n } from '../data/i18n'
@@ -1916,9 +1917,11 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this booking?')) return
+    const blocked = await whatBlocksDelete('bookings', id)
+    if (blocked) { alert(`This booking can't be deleted: ${blocked}. Set its status to Cancelled instead.`); return }
+    if (!confirm('Delete this booking? Its guests, rooms and frozen prices go with it.')) return
     const { error: err } = await supabase.from('bookings').delete().eq('id', id)
-    if (err) { alert('Delete error: ' + err.message); return }
+    if (err) { alert('Delete error: ' + deleteErrorMessage(err)); return }
     refreshBookings()
     refreshBookingRooms()
   }

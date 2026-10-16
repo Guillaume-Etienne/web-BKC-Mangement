@@ -326,44 +326,71 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
     }).eq('id', targetBooking.id)
     if (bErr) { setError('Booking: ' + bErr.message); setBusy(false); return }
 
-    // 3. Participants — delete-all-then-reinsert, same idiom the wizard already
-    //    uses for external stays: the form is the new source of truth for the
-    //    crew list, not something to reconcile row by row against the old one.
-    //    A form from someone else (fromOtherPerson) only ADDS its travelers: the
-    //    people already on the booking are kept (matched by passport, else name).
-    let toInsert = formTravelers
-    if (fromOtherPerson) {
-      const { data: existing, error: exErr } = await supabase.from('booking_participants')
-        .select('first_name,last_name,passport_number').eq('booking_id', targetBooking.id)
-      if (exErr) { setError('Participants: ' + exErr.message); setBusy(false); return }
-      const key = (f: string, l: string | null) => `${f}|${l ?? ''}`.trim().toLowerCase()
-      const havePassport = new Set((existing ?? []).map(e => (e.passport_number ?? '').trim().toLowerCase()).filter(Boolean))
-      const haveName = new Set((existing ?? []).map(e => key(e.first_name, e.last_name)))
-      toInsert = formTravelers.filter(t => {
-        const pp = t.passport_number.trim().toLowerCase()
-        return !(pp && havePassport.has(pp)) && !haveName.has(key(t.first_name.trim(), t.last_name.trim() || null))
-      })
-    } else {
-      const { error: delErr } = await supabase.from('booking_participants').delete().eq('booking_id', targetBooking.id)
-      if (delErr) { setError('Participants: ' + delErr.message); setBusy(false); return }
+    // 3. Participants — the form is the new source of truth for the crew list,
+    //    but rows are matched, not recreated: a traveller already on the booking
+    //    (same passport, else same name) is UPDATED in place and keeps its id.
+    //    Delete-all-then-reinsert used to hand every traveller a new id, so the
+    //    lessons and rentals pointing at the old ones lost their riders without
+    //    a word (same bug the wizard had, fixed 2026-10-10).
+    //    A form from someone else (fromOtherPerson) only ADDS its travelers.
+    //    A traveller absent from the form is removed — unless a lesson or a
+    //    rental still points at them: that one stays, and we say so.
+    const { data: existing, error: exErr } = await supabase.from('booking_participants')
+      .select('id,first_name,last_name,passport_number').eq('booking_id', targetBooking.id)
+    if (exErr) { setError('Participants: ' + exErr.message); setBusy(false); return }
+    const key = (f: string, l: string | null) => `${f}|${l ?? ''}`.trim().toLowerCase()
+    const pp = (v: string | null) => (v ?? '').trim().toLowerCase()
+    const unmatched = [...(existing ?? [])]
+    const matches: { id: string; t: typeof formTravelers[number] }[] = []
+    const toInsert: typeof formTravelers = []
+    for (const t of formTravelers) {
+      const tp = pp(t.passport_number)
+      const tk = key(t.first_name.trim(), t.last_name.trim() || null)
+      const i = unmatched.findIndex(e => (tp && pp(e.passport_number) === tp) || key(e.first_name, e.last_name) === tk)
+      if (i >= 0) matches.push({ id: unmatched.splice(i, 1)[0].id, t })
+      else toInsert.push(t)
+    }
+    const row = (t: typeof formTravelers[number]) => ({
+      first_name: t.first_name.trim(),
+      last_name: t.last_name.trim() || null,
+      passport_number: t.passport_number.trim() || null,
+      kite_level: t.does_kite ? (t.kite_level ?? null) : null,
+      does_kite: !!t.does_kite,
+      brings_own_gear: !!t.brings_own_gear,
+      needs_storage: !!t.needs_storage,
+      wants_kite_lessons: !!t.wants_kite_lessons,
+      wants_kite_rental: !!t.wants_kite_rental,
+      wants_wing_lessons: !!t.wants_wing_lessons,
+    })
+    if (!fromOtherPerson) {
+      for (const m of matches) {
+        const { error: uErr } = await supabase.from('booking_participants').update(row(m.t)).eq('id', m.id)
+        if (uErr) { setError('Participants: ' + uErr.message); setBusy(false); return }
+      }
+      if (unmatched.length > 0) {
+        const [{ data: refLessons, error: lErr }, { data: refRentals, error: rErr }] = await Promise.all([
+          supabase.from('lessons').select('participant_ids').eq('booking_id', targetBooking.id),
+          supabase.from('equipment_rentals').select('participant_id').eq('booking_id', targetBooking.id),
+        ])
+        if (lErr || rErr) { setError('Participants: ' + (lErr ?? rErr)!.message); setBusy(false); return }
+        const referenced = new Set<string>([
+          ...(refLessons ?? []).flatMap(l => (l.participant_ids as string[] | null) ?? []),
+          ...(refRentals ?? []).map(r => r.participant_id as string | null).filter((x): x is string => !!x),
+        ])
+        const removable = unmatched.filter(e => !referenced.has(e.id))
+        const kept = unmatched.filter(e => referenced.has(e.id))
+        if (removable.length > 0) {
+          const { error: delErr } = await supabase.from('booking_participants').delete().in('id', removable.map(e => e.id))
+          if (delErr) { setError('Participants: ' + delErr.message); setBusy(false); return }
+        }
+        if (kept.length > 0) {
+          alert(`Kept on the booking although not on the form, because lessons or rentals point to them: ${kept.map(e => `${e.first_name} ${e.last_name ?? ''}`.trim()).join(', ')}. Remove them from the booking by hand if they are really not coming.`)
+        }
+      }
     }
     if (toInsert.length > 0) {
       const { error: pErr } = await supabase.from('booking_participants').insert(
-        toInsert.map(t => ({
-          booking_id: targetBooking.id,
-          first_name: t.first_name.trim(),
-          last_name: t.last_name.trim() || null,
-          passport_number: t.passport_number.trim() || null,
-          kite_level: t.does_kite ? (t.kite_level ?? null) : null,
-          does_kite: !!t.does_kite,
-          brings_own_gear: !!t.brings_own_gear,
-          needs_storage: !!t.needs_storage,
-          wants_kite_lessons: !!t.wants_kite_lessons,
-          wants_kite_rental: !!t.wants_kite_rental,
-          wants_wing_lessons: !!t.wants_wing_lessons,
-          client_id: null,
-          notes: null,
-        }))
+        toInsert.map(t => ({ booking_id: targetBooking.id, ...row(t), client_id: null, notes: null }))
       )
       if (pErr) { setError('Participants: ' + pErr.message); setBusy(false); return }
     }

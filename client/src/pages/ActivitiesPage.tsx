@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { whatBlocksDelete, deleteErrorMessage } from '../utils/deleteGuard'
 import { supabase } from '../lib/supabase'
 import { useLanguage } from '../contexts/LanguageContext'
 import { i18n } from '../data/i18n'
@@ -691,9 +692,11 @@ export default function ActivitiesPage() {
   }
 
   async function deleteProvider(id: string) {
-    if (!confirm('Delete this provider? All their bookings will also be deleted.')) return
+    const blocked = await whatBlocksDelete('activity_providers', id)
+    if (blocked) { alert(`This provider can't be deleted: ${blocked}. Their bookings and payments are kept on purpose.`); return }
+    if (!confirm('Delete this provider?')) return
     const { error } = await supabase.from('activity_providers').delete().eq('id', id)
-    if (!report('delete the provider', error)) return
+    if (!report('delete the provider', error && { message: deleteErrorMessage(error) })) return
     refreshProviders(); setViewingId(null)
   }
 
