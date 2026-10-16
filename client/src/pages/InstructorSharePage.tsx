@@ -78,6 +78,11 @@ const tr = {
   prepaid:      { en: 'Prepaid',             fr: 'Prépayées',            pt: 'Pré-pagas' },
   done:         { en: 'Done',                fr: 'Faites',               pt: 'Feitas' },
   left:         { en: 'Left',                fr: 'Reste',                pt: 'Restam' },
+  tab_hours:    { en: 'Hours',              fr: 'Heures',              pt: 'Horas' },
+  tab_outlook:  { en: 'Outlook',            fr: 'Perspectives',        pt: 'Perspetivas' },
+  in_test:      { en: 'testing',            fr: 'en test',             pt: 'em teste' },
+  test_note:    { en: 'new view, still being tried. Planned hours only — your Hours tab is unchanged.', fr: 'nouvelle vue en cours d’essai. Heures prévues seulement — ton onglet Heures n’est pas modifié.', pt: 'nova vista em teste. Apenas horas previstas — o separador Horas não mudou.' },
+  no_outlook_data: { en: 'Nothing planned for you yet.', fr: 'Rien de prévu pour toi pour l’instant.', pt: 'Ainda nada previsto para ti.' },
   team_load:    { en: 'Team load (planned hours)', fr: 'Charge de l’équipe (heures prévues)', pt: 'Carga da equipa (horas previstas)' },
   unassigned:   { en: 'Unassigned',          fr: 'Non assigné',          pt: 'Sem instrutor' },
   no_outlook:   { en: 'No students planned for this period.', fr: 'Aucun élève prévu sur cette période.', pt: 'Sem alunos previstos neste período.' },
@@ -136,6 +141,9 @@ export default function InstructorSharePage({ instructorId }: Props) {
 
   const [lang, setLang] = usePref<Lang>('instructor_share_lang', 'en')
   const [mode, setMode] = useState<Mode>('month')
+  // Hours = the page that has always been here. Outlook = new, still being tried (en test).
+  const [tab, setTab] = useState<'hours' | 'outlook'>('hours')
+  const [outlookLoaded, setOutlookLoaded] = useState(false)
 
   const today = todayISO()
   const [month,  setMonth]  = useState(monthOf(today))
@@ -159,38 +167,48 @@ export default function InstructorSharePage({ instructorId }: Props) {
       // Names are a bonus: if this read fails (policy not applied yet), the hours still show.
       const { data: guests } = await supabase.from('booking_participants').select('id, first_name, last_name')
       setStudents(new Map(((guests ?? []) as Student[]).map(g => [g.id, g])))
-      // Outlook is a bonus too, and each read is separate: a column or function that is not
-      // migrated yet must never take the hours above down with it (42501 kills a whole select).
-      const [intRes, datesRes, discRes] = await Promise.all([
-        supabase.from('lesson_intents')
-          .select('id, booking_id, participant_id, kind, planned_hours, prepaid_hours, window_start, window_end')
-          .eq('instructor_id', instructorId),
-        supabase.rpc('instructor_outlook_bookings'),
-        supabase.from('lessons').select('id, discipline').eq('instructor_id', instructorId),
-      ])
-      if (!intRes.error) setIntents((intRes.data ?? []) as Intent[])
-      if (!datesRes.error) {
-        setStayDates(new Map(((datesRes.data ?? []) as { booking_id: string; check_in: string; check_out: string }[])
-          .map(b => [b.booking_id, { check_in: b.check_in, check_out: b.check_out }])))
-      }
-      const [loadRes, namesRes] = await Promise.all([
-        supabase.rpc('instructor_load', { p_from: todayISO(), p_to: addDaysISO(todayISO(), 240) }),
-        supabase.from('instructors').select('id, first_name'),
-      ])
-      if (!loadRes.error) {
-        setTeamLoad(((loadRes.data ?? []) as { day: string; kind: 'kite' | 'wing'; instructor_id: string | null; hours: number | string }[])
-          .map(r => ({ ...r, hours: Number(r.hours) })))
-      }
-      if (!namesRes.error) {
-        setTeamNames(new Map(((namesRes.data ?? []) as { id: string; first_name: string }[]).map(i => [i.id, i.first_name])))
-      }
-      if (!discRes.error) {
-        setDiscipline(new Map(((discRes.data ?? []) as { id: string; discipline: string }[]).map(l => [l.id, l.discipline])))
-      }
       setLoading(false)
     }
     load()
   }, [instructorId])
+
+
+  // Outlook (en test) loads ONLY when its tab is opened, and each read is separate: a column or
+  // function that is not migrated yet must never touch the hours tab (42501 kills a whole select).
+  useEffect(() => {
+    if (tab !== 'outlook' || outlookLoaded) return
+    setOutlookLoaded(true)
+    async function loadOutlook() {
+        const [intRes, datesRes, discRes] = await Promise.all([
+          supabase.from('lesson_intents')
+            .select('id, booking_id, participant_id, kind, planned_hours, prepaid_hours, window_start, window_end')
+            .eq('instructor_id', instructorId),
+          supabase.rpc('instructor_outlook_bookings'),
+          supabase.from('lessons').select('id, discipline').eq('instructor_id', instructorId),
+        ])
+        if (!intRes.error) setIntents((intRes.data ?? []) as Intent[])
+        if (!datesRes.error) {
+          setStayDates(new Map(((datesRes.data ?? []) as { booking_id: string; check_in: string; check_out: string }[])
+            .map(b => [b.booking_id, { check_in: b.check_in, check_out: b.check_out }])))
+        }
+        const [loadRes, namesRes] = await Promise.all([
+          supabase.rpc('instructor_load', { p_from: todayISO(), p_to: addDaysISO(todayISO(), 240) }),
+          supabase.from('instructors').select('id, first_name'),
+        ])
+        if (!loadRes.error) {
+          setTeamLoad(((loadRes.data ?? []) as { day: string; kind: 'kite' | 'wing'; instructor_id: string | null; hours: number | string }[])
+            .map(r => ({ ...r, hours: Number(r.hours) })))
+        }
+        if (!namesRes.error) {
+          setTeamNames(new Map(((namesRes.data ?? []) as { id: string; first_name: string }[]).map(i => [i.id, i.first_name])))
+        }
+        if (!discRes.error) {
+          setDiscipline(new Map(((discRes.data ?? []) as { id: string; discipline: string }[]).map(l => [l.id, l.discipline])))
+        }
+
+    }
+    loadOutlook()
+  }, [tab, outlookLoaded, instructorId])
 
   // Seasons the instructor has hours in, plus the current one, newest first.
   const seasonOptions = useMemo(() => {
@@ -345,12 +363,23 @@ export default function InstructorSharePage({ instructorId }: Props) {
             <Segmented value={lang} onChange={setLang}
               options={LANGS.map(l => ({ v: l.code, label: `${l.flag} ${l.code.toUpperCase()}` }))} />
           </div>
-          <div className="mt-4">
-            <Segmented value={mode} onChange={setMode}
-              options={[{ v: 'month', label: `📅 ${tr.month[lang]}` }, { v: 'season', label: `🌊 ${tr.season[lang]}` }]} />
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Segmented value={tab} onChange={setTab}
+              options={[{ v: 'hours', label: `⏱️ ${tr.tab_hours[lang]}` }, { v: 'outlook', label: `🔭 ${tr.tab_outlook[lang]} · ${tr.in_test[lang]}` }]} />
+            {tab === 'hours' && (
+              <Segmented value={mode} onChange={setMode}
+                options={[{ v: 'month', label: `📅 ${tr.month[lang]}` }, { v: 'season', label: `🌊 ${tr.season[lang]}` }]} />
+            )}
           </div>
         </div>
 
+        {tab === 'outlook' && (<>
+        <div className="rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+          🧪 <b>{tr.in_test[lang]}</b> — {tr.test_note[lang]}
+        </div>
+        {!outlookLoaded || (intents.length === 0 && stayDates.size === 0 && !team.any) ? (
+          <p className="text-sm text-gray-400 dark:text-gray-400 italic py-6 text-center">{outlookLoaded ? tr.no_outlook_data[lang] : tr.loading[lang]}</p>
+        ) : null}
         {/* Outlook — my upcoming students (read-only) */}
         {(intents.length > 0 || stayDates.size > 0) && (
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -444,6 +473,9 @@ export default function InstructorSharePage({ instructorId }: Props) {
           </div>
         )}
 
+        </>)}
+
+        {tab === 'hours' && (<>
         {/* Period picker */}
         {mode === 'month' ? (
           <div className="flex items-center justify-between gap-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-3 py-2">
@@ -548,6 +580,8 @@ export default function InstructorSharePage({ instructorId }: Props) {
             </div>
           )}
         </div>
+
+        </>)}
 
         <p className="text-center text-xs text-gray-300 dark:text-gray-500">
           Bilene Kite Center · {tr.footer[lang]} {new Date().toLocaleDateString(LOCALE[lang])}
