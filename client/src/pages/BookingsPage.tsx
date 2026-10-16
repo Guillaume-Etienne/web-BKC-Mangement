@@ -811,10 +811,11 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                               const accRoomIds = accRooms.map(r => r.id)
                               const allSelected = accRoomIds.every(id => d.room_ids.includes(id))
                               const availability = isHouse ? isHouseAvailable(acc.id) : null
+                              const hasSelection = accRoomIds.some(id => d.room_ids.includes(id))
                               return (
                                 <div key={acc.id} className={`rounded-lg border px-2 py-1.5
-                                  ${accRoomIds.some(id => d.room_ids.includes(id)) ? 'border-blue-300 dark:border-blue-800' : 'border-gray-200 dark:border-gray-800'}
-                                  ${availability === false ? 'opacity-60' : ''}`}>
+                                  ${hasSelection ? 'border-blue-300 dark:border-blue-800' : 'border-gray-200 dark:border-gray-800'}
+                                  ${availability === false && !hasSelection ? 'opacity-60' : ''}`}>
                                   <div className="flex items-center gap-1.5 mb-1">
                                     <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 truncate">{acc.name}</p>
                                     {isHouse && availability === false && (
