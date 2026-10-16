@@ -78,6 +78,8 @@ const tr = {
   prepaid:      { en: 'Prepaid',             fr: 'Prépayées',            pt: 'Pré-pagas' },
   done:         { en: 'Done',                fr: 'Faites',               pt: 'Feitas' },
   left:         { en: 'Left',                fr: 'Reste',                pt: 'Restam' },
+  team_load:    { en: 'Team load (planned hours)', fr: 'Charge de l’équipe (heures prévues)', pt: 'Carga da equipa (horas previstas)' },
+  unassigned:   { en: 'Unassigned',          fr: 'Non assigné',          pt: 'Sem instrutor' },
   no_outlook:   { en: 'No students planned for this period.', fr: 'Aucun élève prévu sur cette période.', pt: 'Sem alunos previstos neste período.' },
 } as const
 
@@ -127,6 +129,9 @@ export default function InstructorSharePage({ instructorId }: Props) {
   const [intents,    setIntents]    = useState<Intent[]>([])
   const [stayDates,  setStayDates]  = useState<Map<string, { check_in: string; check_out: string }>>(new Map())
   const [discipline, setDiscipline] = useState<Map<string, string>>(new Map())
+  // Team load (2026-10-16c): TOTALS only — no booking or student id ever reaches this page.
+  const [teamLoad,   setTeamLoad]   = useState<{ day: string; kind: 'kite' | 'wing'; instructor_id: string | null; hours: number }[]>([])
+  const [teamNames,  setTeamNames]  = useState<Map<string, string>>(new Map())
   const [horizon, setHorizon] = usePref<Horizon>('instructor_outlook_horizon', '2w')
 
   const [lang, setLang] = usePref<Lang>('instructor_share_lang', 'en')
@@ -167,6 +172,17 @@ export default function InstructorSharePage({ instructorId }: Props) {
       if (!datesRes.error) {
         setStayDates(new Map(((datesRes.data ?? []) as { booking_id: string; check_in: string; check_out: string }[])
           .map(b => [b.booking_id, { check_in: b.check_in, check_out: b.check_out }])))
+      }
+      const [loadRes, namesRes] = await Promise.all([
+        supabase.rpc('instructor_load', { p_from: todayISO(), p_to: addDaysISO(todayISO(), 240) }),
+        supabase.from('instructors').select('id, first_name'),
+      ])
+      if (!loadRes.error) {
+        setTeamLoad(((loadRes.data ?? []) as { day: string; kind: 'kite' | 'wing'; instructor_id: string | null; hours: number | string }[])
+          .map(r => ({ ...r, hours: Number(r.hours) })))
+      }
+      if (!namesRes.error) {
+        setTeamNames(new Map(((namesRes.data ?? []) as { id: string; first_name: string }[]).map(i => [i.id, i.first_name])))
       }
       if (!discRes.error) {
         setDiscipline(new Map(((discRes.data ?? []) as { id: string; discipline: string }[]).map(l => [l.id, l.discipline])))
@@ -259,6 +275,32 @@ export default function InstructorSharePage({ instructorId }: Props) {
     return { rows, kite: sum('kite'), wing: sum('wing') }
   }, [intents, stayDates, discipline, lessons, students, horizon, today])
 
+  // ── Team load: everybody's planned hours, bucketed by day (week in season mode) ──
+  const team = useMemo(() => {
+    const endIso = horizon === '1w' ? addDaysISO(today, 6) : horizon === '2w' ? addDaysISO(today, 13)
+      : horizon === '1m' ? addDaysISO(today, 30) : addDaysISO(today, 240)
+    const step = horizon === 'season' ? 7 : 1
+    const buckets: { from: string; to: string; kite: number; wing: number; unassigned: number }[] = []
+    for (let d = today; d <= endIso; d = addDaysISO(d, step)) {
+      const to = addDaysISO(d, step - 1)
+      buckets.push({ from: d, to: to > endIso ? endIso : to, kite: 0, wing: 0, unassigned: 0 })
+    }
+    const perInstructor = new Map<string, number>()
+    let unassignedTotal = 0
+    for (const r of teamLoad) {
+      if (r.day > endIso) continue
+      const b = buckets.find(x => r.day >= x.from && r.day <= x.to)
+      if (!b) continue
+      b[r.kind] += r.hours
+      if (r.instructor_id) perInstructor.set(r.instructor_id, (perInstructor.get(r.instructor_id) ?? 0) + r.hours)
+      else { b.unassigned += r.hours; unassignedTotal += r.hours }
+    }
+    const people = [...perInstructor.entries()]
+      .map(([id, h]) => ({ id, h, name: teamNames.get(id) ?? '—' }))
+      .sort((a, b) => b.h - a.h)
+    return { buckets, people, unassignedTotal, any: teamLoad.length > 0 }
+  }, [teamLoad, teamNames, horizon, today])
+
   const horizons: { v: Horizon; label: string }[] = [
     { v: '1w', label: tr.h_1w[lang] }, { v: '2w', label: tr.h_2w[lang] },
     { v: '1m', label: tr.h_1m[lang] }, { v: 'season', label: tr.h_season[lang] },
@@ -349,6 +391,56 @@ export default function InstructorSharePage({ instructorId }: Props) {
                 </ul>
               </>
             )}
+          </div>
+        )}
+
+        {/* Team load — totals for everybody, never students (read-only) */}
+        {team.any && (
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+            <div className="px-5 py-3 border-b bg-purple-50 dark:bg-purple-950/40">
+              <h2 className="text-sm font-bold text-purple-800 dark:text-purple-400">{tr.team_load[lang]}</h2>
+            </div>
+            <div className="px-5 pt-3 flex flex-wrap gap-1.5">
+              {team.people.map(p => (
+                <span key={p.id} className={`text-xs font-bold rounded-full border px-2 py-0.5 ${p.id === instructorId
+                  ? 'border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300'
+                  : 'border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300'}`}>
+                  {p.name} {fmtH(p.h)} {tr.hours_unit[lang]}
+                </span>
+              ))}
+              {team.unassignedTotal > 0 && (
+                <span className="text-xs font-bold rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300 px-2 py-0.5">
+                  {tr.unassigned[lang]} {fmtH(team.unassignedTotal)} {tr.hours_unit[lang]}
+                </span>
+              )}
+            </div>
+            <div className="overflow-x-auto p-3">
+              <table className="text-xs w-full">
+                <thead>
+                  <tr className="text-gray-500 dark:text-gray-400">
+                    <th className="sticky left-0 bg-white dark:bg-gray-900"></th>
+                    {team.buckets.map(b => (
+                      <th key={b.from} className="font-medium px-2 py-1 whitespace-nowrap">
+                        {b.from === b.to ? short(b.from) : `${short(b.from)}–${short(b.to)}`}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {([['kite', 'text-blue-700 dark:text-blue-300'], ['wing', 'text-teal-700 dark:text-teal-300'],
+                     ['unassigned', 'text-red-600 dark:text-red-400 font-bold']] as const).map(([k, cls]) => (
+                    <tr key={k}>
+                      <td className={`px-2 py-1 sticky left-0 bg-white dark:bg-gray-900 whitespace-nowrap ${k === 'unassigned' ? cls : 'text-gray-700 dark:text-gray-300'}`}>
+                        {k === 'unassigned' ? `⚠ ${tr.unassigned[lang]}` : tr[k][lang]}
+                      </td>
+                      {team.buckets.map(b => (
+                        <td key={b.from} className={`text-center px-2 py-1 ${cls}`}>{b[k] > 0.04 ? fmtH(b[k]) : ''}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

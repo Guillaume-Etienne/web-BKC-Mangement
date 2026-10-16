@@ -1305,6 +1305,30 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
 $$;
 REVOKE EXECUTE ON FUNCTION instructor_outlook_bookings() FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION instructor_outlook_bookings() TO anon, authenticated;
+-- 2026-10-16c : charge globale AGRÉGÉE (jour, kite|wing, moniteur, heures) — aucun id de résa/participant.
+CREATE OR REPLACE FUNCTION instructor_load(p_from date, p_to date)
+RETURNS TABLE (day date, kind text, instructor_id uuid, hours numeric)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT d::date, i.kind, i.instructor_id,
+         sum(i.planned_hours / ((w.we - w.ws) + 1))
+    FROM lesson_intents i
+    JOIN bookings b ON b.id = i.booking_id
+    CROSS JOIN LATERAL (SELECT COALESCE(i.window_start, b.check_in)  AS ws,
+                               COALESCE(i.window_end,   b.check_out) AS we) w
+    CROSS JOIN LATERAL generate_series(GREATEST(w.ws, p_from)::timestamp,
+                                       LEAST(w.we, p_to)::timestamp,
+                                       interval '1 day') d
+   WHERE (share_ctx()).type = 'instructor'
+     AND p_to >= p_from AND p_to - p_from <= 366
+     AND i.kind IN ('kite', 'wing')
+     AND i.planned_hours > 0
+     AND b.status <> 'cancelled'
+     AND b.kind = 'stay'
+     AND w.we >= w.ws
+   GROUP BY 1, 2, 3;
+$$;
+REVOKE EXECUTE ON FUNCTION instructor_load(date, date) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION instructor_load(date, date) TO anon, authenticated;
 -- client_id (2026-10-10g) : le nom d'un walk-in placé dans le plan ; booking_id reste fermé.
 GRANT SELECT (id, date, start_time, duration_hours, type, instructor_id, participant_ids, notes, client_id)
   ON planned_lessons TO anon;
