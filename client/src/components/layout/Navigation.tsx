@@ -4,6 +4,7 @@ import { useTheme } from '../../hooks/useTheme'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import type { Page } from '../pending/pendingActions'
+import LoadingBar from './LoadingBar'
 
 interface NavigationProps {
   currentPage: Page
@@ -162,6 +163,7 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
             </div>
           )}
         </div>
+        <LoadingBar />
       </nav>
     </>
   )

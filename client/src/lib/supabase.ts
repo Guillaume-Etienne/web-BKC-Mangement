@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { trackedFetch } from './loadingTracker'
 
 export type SupabaseEnv = 'prod' | 'test'
 
@@ -35,6 +36,10 @@ const key = currentEnv === 'test' ? testKey! : prodKey
 // de header → policies authenticated inchangées.
 const shareToken = new URLSearchParams(window.location.search).get('share')
 
+// trackedFetch feeds the green loading bar under the navigation.
 export const supabase = createClient(url, key, {
-  ...(shareToken ? { global: { headers: { 'x-share-token': shareToken } } } : {}),
+  global: {
+    fetch: trackedFetch,
+    ...(shareToken ? { headers: { 'x-share-token': shareToken } } : {}),
+  },
 })

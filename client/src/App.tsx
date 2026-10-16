@@ -20,6 +20,7 @@ import { LanguageProvider } from './contexts/LanguageContext'
 import { DataErrorsProvider } from './contexts/DataErrorsContext'
 import DataErrorBanner from './components/layout/DataErrorBanner'
 import { useAdminLang } from './hooks/useAdminLang'
+import { startLoading, stopLoading } from './lib/loadingTracker'
 
 // Everything past the first screen is fetched when it is actually opened.
 // Before this, one bundle held the whole app: a guest opening a taxi or client
@@ -59,6 +60,8 @@ import type { SharedLink } from './types/database'
 /** Shown while a page's chunk is on its way. Same look as the session check,
  *  so a slow connection reads as "still loading" rather than "broken". */
 function PageLoading() {
+  // A lazy chunk on its way counts as loading for the green bar too.
+  useEffect(() => { startLoading(); return stopLoading }, [])
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
       <div className="text-gray-400 dark:text-gray-400 text-lg">Loading…</div>
