@@ -791,7 +791,7 @@ export default function ManagementPage() {
                   <div className="text-center py-4 space-y-3">
                     <p className="text-sm text-gray-500 dark:text-gray-400">No taxi pricing defaults found.</p>
                     <button onClick={async () => {
-                      const defaults = { default_price_eur: 120, default_driver_mzn: 6000, default_manager_mzn: 1000, eur_mzn_rate: 65.0, updated_at: new Date().toISOString() }
+                      const defaults = { default_price_eur: 120, default_driver_mzn: 6500, default_manager_mzn: 1000, eur_mzn_rate: 65.0, updated_at: new Date().toISOString() }
                       const { data, error } = await supabase.from('taxi_pricing_defaults').insert([defaults]).select().single()
                       if (error) { alert('Error: ' + error.message); return }
                       setTaxiPricingDefaults(data)

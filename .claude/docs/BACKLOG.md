@@ -6,6 +6,9 @@
 
 ## 🚨 Migrations SQL — registre
 
+⬜ **`2026-10-16e_taxi_driver_6500.sql`** (TEST ⬜ / PROD ⬜, données seulement) — chauffeur Aéroport ↔ Bilene 6000 → 6500 MZN (manager 1000, client 120 € inchangés) :
+défauts, chauffeur au tarif standard (Ruiz), trajets à venir à 120/6000/1000. Vérif : le SELECT de fin → plus aucune ligne à 6000. Code déjà à 6500 (fallbacks).
+
 ✅ **`2026-10-16d_delete_protections.sql`** (TEST ✅ / PROD ✅ passée par gui 2026-10-16, vérifiée en base : 17/17 `r` sur les deux) — 17 FK passent en
 `ON DELETE RESTRICT` : client → résas/cours ; résa → paiements/cours/facturation agence ; chambre occupée → hébergement ; moniteur → dettes/paiements ;
 provider/hôtel partenaire → résas/règlements ; agence → résas (était SET NULL). Seeds TEST adaptés (agency_billing_lines/invoices vidées avant bookings).

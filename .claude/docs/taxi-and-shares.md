@@ -45,6 +45,8 @@ Toutes en **PT par défaut + toggle EN** (chauffeurs/manager mozambicains), via 
 
 - **Taxi privé** : `margin_manager_mzn === 0` ⟹ trajet hors-manager (Geraldo ne touche rien, ne le voit pas). Décidé **par trajet**, pas de flag. Badge « 🔒 Private » dans les vues admin List/Kanban. Détail sur le champ `TaxiTrip.margin_manager_mzn` (`types/database.ts`) et [[security_anon_rls_exposure]] non concerné.
 - **`taxi_drivers.seats`** : capacité du véhicule (défaut 3), éditable dans le form chauffeur (onglet Drivers). Sert aux « places libres » de la Public Taxi Schedule.
+- **Filtres du Planning** (2026-10-16, `components/taxi/TaxiTripFilters.tsx`) : état dans `TaxiPage`, commun à la Liste et au Kanban (période Today/Tomorrow/This week/Upcoming par défaut/All/jour/plage, statut, type, recherche client·n° résa·chauffeur·notes, « To handle » = à venir sans chauffeur / needs details / 0 € hors agence, privés, facturés agence). Le récap de la Liste suit les filtres. Filtre chauffeur : Liste seulement.
+- **Tarif standard Aéroport ↔ Bilene** (2026-10-16) : 120 € client / 6500 MZN chauffeur / 1000 MZN manager → centre 900 MZN.
 - **Tarifs nouveau trajet** : hérités de `taxi_pricing_defaults` (singleton ; les requêtes trient `updated_at desc` pour éviter les doublons → bug prix 8000€, cf. [[bug_taxi_trip_price]]).
 - **Modèle financier** : client paie `price_eur` (EUR), chauffeur `price_driver_mzn`, manager `margin_manager_mzn` (MZN). Taux global `taxi_pricing_defaults.eur_mzn_rate`. Marge centre = `computeTaxiMarginEur`.
 

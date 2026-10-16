@@ -3,6 +3,7 @@ import TaxiKanbanView from '../components/taxi/TaxiKanbanView'
 import TaxiListView from '../components/taxi/TaxiListView'
 import TaxiFinanceTab from '../components/taxi/TaxiFinanceTab'
 import DriverStatementPanel from '../components/taxi/DriverStatementPanel'
+import TaxiTripFilters, { DEFAULT_TAXI_FILTERS, applyTaxiFilters, type TaxiFilters } from '../components/taxi/TaxiTripFilters'
 import { useLanguage } from '../contexts/LanguageContext'
 import { i18n } from '../data/i18n'
 import { useTaxiDrivers, useTaxiTrips } from '../hooks/useTaxis'
@@ -35,6 +36,7 @@ export default function TaxiPage() {
 
   const [tab, setTab]               = useState<'planning' | 'finance' | 'drivers'>('planning')
   const [planningView, setPlanningView] = useState<'kanban' | 'list'>('list')
+  const [tripFilters, setTripFilters] = useState<TaxiFilters>(DEFAULT_TAXI_FILTERS)
   const [selectedDriver, setSelectedDriver] = useState<TaxiDriver | null>(null)
   const [viewingDriverId, setViewingDriverId] = useState<string | null>(null)
   const [showDriverForm, setShowDriverForm] = useState(false)
@@ -91,7 +93,7 @@ export default function TaxiPage() {
   // ── Driver handlers ───────────────────────────────────────────────────────
 
   function openDriverForm(driver?: TaxiDriver) {
-    setDriverFormData(driver ?? { name: '', phone: null, email: null, vehicle: null, seats: 3, notes: null, margin_percent: 30, default_price_eur: 120, default_driver_mzn: 6000, default_manager_mzn: 1000 })
+    setDriverFormData(driver ?? { name: '', phone: null, email: null, vehicle: null, seats: 3, notes: null, margin_percent: 30, default_price_eur: 120, default_driver_mzn: 6500, default_manager_mzn: 1000 })
     setSelectedDriver(driver ?? null)
     setShowDriverForm(true)
   }
@@ -118,7 +120,7 @@ export default function TaxiPage() {
         notes:          driverFormData.notes ?? null,
         margin_percent: driverFormData.margin_percent ?? 30,
         default_price_eur:   driverFormData.default_price_eur ?? 120,
-        default_driver_mzn:  driverFormData.default_driver_mzn ?? 6000,
+        default_driver_mzn:  driverFormData.default_driver_mzn ?? 6500,
         default_manager_mzn: driverFormData.default_manager_mzn ?? 1000,
       }])
       if (error) alert('Error: ' + error.message)
@@ -157,6 +159,7 @@ export default function TaxiPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   const loading = tripsLoading || driversLoading
+  const filteredTrips = applyTaxiFilters(trips, tripFilters, drivers, bookings)
   const error   = tripsError ?? driversError
 
   return (
@@ -198,18 +201,20 @@ export default function TaxiPage() {
               </div>
             </div>
 
+            <TaxiTripFilters filters={tripFilters} onChange={setTripFilters} shown={filteredTrips.length} total={trips.length} />
+
             {loading && trips.length === 0 ? (
               <div className="text-center py-16 text-gray-400 dark:text-gray-400">{i18n.common.msg_loading[lang]}</div>
             ) : planningView === 'list' ? (
               <TaxiListView
-                trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings} bookingParticipants={bookingParticipants}
+                trips={filteredTrips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings} bookingParticipants={bookingParticipants}
                 onAddTrip={addTrip}
                 onUpdateTrip={updateTrip}
                 onDeleteTrip={deleteTrip}
               />
             ) : (
               <TaxiKanbanView
-                trips={trips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings} bookingParticipants={bookingParticipants}
+                trips={filteredTrips} drivers={drivers} pricingDefaults={pricingDefaults} bookings={bookings} bookingParticipants={bookingParticipants}
                 onAddTrip={addTrip}
                 onUpdateTrip={updateTrip}
                 onDeleteTrip={deleteTrip}
@@ -357,7 +362,7 @@ export default function TaxiPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-amber-700 dark:text-amber-400 mb-1">Driver (MZN)</label>
-                    <input type="number" min="0" value={driverFormData.default_driver_mzn ?? 6000}
+                    <input type="number" min="0" value={driverFormData.default_driver_mzn ?? 6500}
                       onChange={e => setDriverFormData(d => ({ ...d, default_driver_mzn: parseInt(e.target.value) || 0 }))}
                       className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>

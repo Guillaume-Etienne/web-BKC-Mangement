@@ -4,7 +4,7 @@ import type { TaxiPricingDefaults } from '../types/database'
 export const FALLBACK_TAXI_PRICING: TaxiPricingDefaults = {
   id: '',
   default_price_eur:    120,
-  default_driver_mzn:   6000,
+  default_driver_mzn:   6500,
   default_manager_mzn:  1000,
   eur_mzn_rate:         65,
   updated_at:           new Date().toISOString(),
