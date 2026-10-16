@@ -6,7 +6,7 @@ import {
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
   computeAccommodationRevenue, computeExternalAccommodationCost, computeLessonsRevenue, computeRentalsRevenue,
   computeTaxiRevenue, computeActivityRevenueForBooking, computeCenterAccessRevenue,
-  computeDiningForBooking, getLessonClientRate, getConfiguredRate, computeStandaloneTaxiRevenue, agencyMarker,
+  computeDiningForBooking, getLessonClientRate, lessonHeadsFor, lessonsForBooking, getConfiguredRate, computeStandaloneTaxiRevenue, agencyMarker,
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate,
 } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
@@ -455,7 +455,8 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
   const extAccomm = data.externalAccommodationBkgs.filter(e => e.booking_id === b.id)
 
   // Lessons detail
-  const bkLessons = data.lessons.filter(l => l.booking_id === b.id)
+  // Own lessons + group lessons where one of this booking's riders sits (billed per head)
+  const bkLessons = lessonsForBooking(b.id, data.lessons, data.bookingParticipants)
 
   // Rental detail
   const bkRentals = data.equipmentRentals.filter(r => r.booking_id === b.id)
@@ -625,7 +626,9 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                   const rate = getLessonClientRate(l, data.priceItems, { tiers: data.priceTiers, allLessons: data.lessons, bookingParticipants: data.bookingParticipants })
                   const listRate = getConfiguredRate(data.priceItems, lessonBillable(l.type, lessonDiscipline(l))) ?? 0
                   const isCustom = l.price_per_hour !== null && l.price_per_hour !== listRate
-                  const heads = l.type === 'group' ? l.participant_ids.length : 1
+                  const heads = l.type === 'group' ? lessonHeadsFor(l, b.id, data.bookingParticipants) : 1
+                  const isShared = l.booking_id !== b.id
+                  const ownerNr = isShared ? data.bookings.find(x => x.id === l.booking_id)?.booking_number : undefined
                   const isEditing = editingLessonPriceId === l.id
                   return (
                     <div key={l.id} className="text-xs text-gray-500 dark:text-gray-400">
@@ -633,6 +636,11 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                         <span>
                           {l.type} · {l.duration_hours}h · {fmtDate(l.date)}{instr ? ` (${instr.first_name})` : ''}
                           {l.type === 'group' && <span className="ml-1">× {heads}</span>}
+                          {isShared && (
+                            <span className="ml-1 italic text-gray-400 dark:text-gray-500">
+                              (shared lesson, booked on #{ownerNr !== undefined ? String(ownerNr).padStart(3, '0') : '?'})
+                            </span>
+                          )}
                           {l.participant_ids.length > 0 && (
                             <span className="ml-1 text-blue-400 dark:text-blue-300">— {partNames(l.participant_ids)}</span>
                           )}
@@ -643,8 +651,11 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                         </span>
                         <div className="flex items-center gap-2">
                           <span>{fmtEur(rate * l.duration_hours * heads)}</span>
-                          <button onClick={() => setEditingLessonPriceId(isEditing ? null : l.id)}
-                            className={`p-1 -m-1 transition-colors ${isCustom ? 'text-amber-400 dark:text-amber-300 hover:text-amber-600 dark:hover:text-amber-400' : 'text-gray-300 dark:text-gray-500 hover:text-amber-500 dark:hover:text-amber-400'}`}>✏️</button>
+                          {/* The price is edited on the booking that owns the lesson, so it never moves under the other account */}
+                          {!isShared && (
+                            <button onClick={() => setEditingLessonPriceId(isEditing ? null : l.id)}
+                              className={`p-1 -m-1 transition-colors ${isCustom ? 'text-amber-400 dark:text-amber-300 hover:text-amber-600 dark:hover:text-amber-400' : 'text-gray-300 dark:text-gray-500 hover:text-amber-500 dark:hover:text-amber-400'}`}>✏️</button>
+                          )}
                         </div>
                       </div>
                       {isEditing && (

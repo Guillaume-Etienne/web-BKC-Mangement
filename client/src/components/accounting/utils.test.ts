@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   countNights, getRoomNightlyRate, computeAccommodationRevenue, computeExternalAccommodationCost,
-  computeLessonsRevenue, getLessonClientRate, resolveLessonRate, getInstructorRate, getConfiguredRate, computeRentalsRevenue,
+  computeLessonsRevenue, lessonHeadsFor, lessonsForBooking, getLessonClientRate, resolveLessonRate, getInstructorRate, getConfiguredRate, computeRentalsRevenue,
   computeTaxiRevenue, computeStandaloneTaxiRevenue, computeTaxiMarginEur,
   computeActivityRevenueForBooking, computeCenterAccessRevenue,
   computeDiningForBooking, computeDiningRevenue, computeInstructorDiningCharges,
@@ -285,6 +285,56 @@ describe('computeLessonsRevenue', () => {
       lessons: [mkLesson({ type: 'group', duration_hours: 2, participant_ids: ['p1', 'p2', 'p3'] })],
     })
     expect(computeLessonsRevenue(booking, data)).toBe(216) // 36 × 2 × 3
+  })
+
+  describe('group lesson shared between two bookings (#051 / #052, 2026-10-15)', () => {
+    const owner = mkBooking({ id: 'bk51' })
+    const other = mkBooking({ id: 'bk52' })
+    const participants = [
+      mkParticipant({ id: 'robin', booking_id: 'bk51' }),
+      mkParticipant({ id: 'tit_gf', booking_id: 'bk52' }),
+    ]
+    const shared = mkLesson({ booking_id: 'bk51', type: 'group', duration_hours: 2, price_per_hour: 45, participant_ids: ['robin', 'tit_gf'] })
+    const data = mkData({ priceItems, instructors: [instructor], bookingParticipants: participants, lessons: [shared] })
+
+    it('bills each booking only its own heads', () => {
+      expect(computeLessonsRevenue(owner, data)).toBe(90) // 45 × 2 × 1, was 180
+      expect(computeLessonsRevenue(other, data)).toBe(90) // was 0
+    })
+
+    it('keeps the total unchanged', () => {
+      expect(computeLessonsRevenue(owner, data) + computeLessonsRevenue(other, data)).toBe(180)
+    })
+
+    it('lists the lesson on both bookings, and counts the heads of each', () => {
+      expect(lessonsForBooking('bk51', data.lessons, participants)).toHaveLength(1)
+      expect(lessonsForBooking('bk52', data.lessons, participants)).toHaveLength(1)
+      expect(lessonHeadsFor(shared, 'bk51', participants)).toBe(1)
+      expect(lessonHeadsFor(shared, 'bk52', participants)).toBe(1)
+    })
+
+    it('does not list it on an unrelated booking', () => {
+      expect(lessonsForBooking('bk99', data.lessons, participants)).toHaveLength(0)
+      expect(computeLessonsRevenue(mkBooking({ id: 'bk99' }), data)).toBe(0)
+    })
+
+    it('bills a head whose participant cannot be found to the owner', () => {
+      const orphan = mkData({ priceItems, bookingParticipants: participants, lessons: [{ ...shared, participant_ids: ['robin', 'ghost'] }] })
+      expect(computeLessonsRevenue(owner, orphan)).toBe(180)
+      expect(computeLessonsRevenue(other, orphan)).toBe(0)
+    })
+
+    it('bills a private lesson whole to its owner', () => {
+      const priv = mkData({ priceItems, bookingParticipants: participants, lessons: [mkLesson({ booking_id: 'bk51', type: 'private', duration_hours: 1, participant_ids: ['robin', 'tit_gf'] })] })
+      expect(computeLessonsRevenue(owner, priv)).toBe(60)
+      expect(computeLessonsRevenue(other, priv)).toBe(0)
+    })
+
+    it('leaves the owner at 0 when all the riders sit on another booking', () => {
+      const all = mkData({ priceItems, bookingParticipants: participants, lessons: [{ ...shared, participant_ids: ['tit_gf'] }] })
+      expect(computeLessonsRevenue(owner, all)).toBe(0)
+      expect(computeLessonsRevenue(other, all)).toBe(90)
+    })
   })
 
   it('never bills the client at the instructor payout rate', () => {

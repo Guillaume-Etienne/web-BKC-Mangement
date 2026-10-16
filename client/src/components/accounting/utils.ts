@@ -377,16 +377,44 @@ export function getConfiguredRate(priceItems: PriceItem[], type: BillableType): 
   return priceItems.find(p => p.billable_type === type)?.price ?? null
 }
 
+/** How many heads of a lesson are billed to `bookingId`.
+ *  A group lesson belongs to ONE booking (`lessons.booking_id`) but its riders can
+ *  come from several: each head is owed by the booking its participant sits on.
+ *  A participant we cannot find falls back to the owner, so a half-loaded dataset
+ *  never loses an euro. A non-group lesson is the owner's, whole. */
+export function lessonHeadsFor(
+  lesson: Pick<Lesson, 'booking_id' | 'type' | 'participant_ids'>,
+  bookingId: string,
+  participants: BookingParticipant[]
+): number {
+  if (lesson.type !== 'group') return lesson.booking_id === bookingId ? 1 : 0
+  const bookingOf = new Map(participants.map(p => [p.id, p.booking_id]))
+  return lesson.participant_ids.filter(id => (bookingOf.get(id) ?? lesson.booking_id) === bookingId).length
+}
+
+/** Lessons shown and billed on a booking: the ones it owns, plus the group lessons
+ *  where one of its participants rides (see lessonHeadsFor). */
+export function lessonsForBooking(
+  bookingId: string,
+  lessons: Lesson[],
+  participants: BookingParticipant[]
+): Lesson[] {
+  return lessons.filter(l =>
+    l.booking_id === bookingId
+    || (l.type === 'group' && lessonHeadsFor(l, bookingId, participants) > 0)
+  )
+}
+
 /** Lessons revenue for a booking, as owed BY THE CLIENT — lessons billed to a
  *  partner agency are left out (see isAgencyBilled).
- *  Group lessons are priced per head, so multiply by participant count. */
+ *  Group lessons are priced per head: only the heads sitting on THIS booking. */
 export function computeLessonsRevenue(booking: Booking, data: SharedAccountingData): number {
   const tierCtx = { tiers: data.priceTiers, allLessons: data.lessons, bookingParticipants: data.bookingParticipants }
-  return data.lessons
-    .filter(l => l.booking_id === booking.id && !isAgencyBilled(l))
+  return lessonsForBooking(booking.id, data.lessons, data.bookingParticipants)
+    .filter(l => !isAgencyBilled(l))
     .reduce((sum, l) => {
       const base = getLessonClientRate(l, data.priceItems, tierCtx) * l.duration_hours
-      return sum + (l.type === 'group' ? base * l.participant_ids.length : base)
+      return sum + base * (l.type === 'group' ? lessonHeadsFor(l, booking.id, data.bookingParticipants) : 1)
     }, 0)
 }
 

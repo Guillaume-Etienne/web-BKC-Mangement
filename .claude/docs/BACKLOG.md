@@ -218,6 +218,16 @@ reverifier par curl anon.
 
 ## 🔴 Ouvert
 
+### 🟠 Cours de groupe mixte (riders de 2 résas) — facturé par tête à la résa du participant (2026-10-16)
+
+Cause : `computeLessonsRevenue` facturait TOUTES les têtes au propriétaire (`lessons.booking_id`). Cas réel : cours
+15/10 sur #051 (Robin + copine de Tit de #052) → #051 = 180 €, #052 = 0 € ; seul cas sur PROD. Corrigé côté admin :
+`lessonHeadsFor` / `lessonsForBooking` (`accounting/utils.ts`) → #051 = 90 €, #052 = 90 € (attendu 277→187 / 50→140).
+Paie moniteur inchangée (à plat par cours, 40 €). Prix du cours éditable sur la résa propriétaire seulement.
+**Reste** : `ClientSharePage` (l.183 `.eq('booking_id', id)` + l.328 `participant_ids.length`) — le lien d'Andy affiche encore 180 €
+et celui de Tit ne voit pas le cours. Demande une migration : policy `anon_read_lessons` (token client) élargie aux cours
+dont un participant est de la résa, SANS exposer les identités des autres. Lire `security-rls.md` d'abord.
+
 ### ✅ Activités facturées depuis le Daily / la note — livré le 2026-09-28 (`fb34d4d`), vérifié à l'écran par gui
 
 Daily → + Activity → « Bill to guests » (participants, prix/pers., coût facultatif) : une ligne
