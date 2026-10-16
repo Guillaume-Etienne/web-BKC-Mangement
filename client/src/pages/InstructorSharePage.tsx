@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Instructor, Lesson, LessonType } from '../types/database'
 import { usePref, Segmented } from './taxiShareUI'
-import { todayISO, fromISODate } from '../utils/dates'
+import { todayISO, fromISODate, addDaysISO } from '../utils/dates'
 import { legacySeasonYear } from '../utils/seasonWindow'
 
 interface Props { instructorId: string }
@@ -16,6 +16,15 @@ type HourLesson = Pick<Lesson, 'id' | 'date' | 'start_time' | 'duration_hours' |
 // Students: anon only gets identity (id, first/last name) from booking_participants,
 // and only those of THIS instructor's lessons (policy 2026-10-11).
 type Student = { id: string; first_name: string; last_name: string }
+
+// Outlook intentions assigned to THIS instructor (lesson_intents, policy 2026-10-16b): only
+// kite/wing rows, no notes, no rentals — those columns are not granted to anon.
+type Intent = {
+  id: string; booking_id: string; participant_id: string; kind: 'kite' | 'wing'
+  planned_hours: number | null; prepaid_hours: number | null
+  window_start: string | null; window_end: string | null
+}
+type Horizon = '1w' | '2w' | '1m' | 'season'
 
 type DayLesson = { id: string; type: LessonType; hours: number; names: string[]; start: string; end: string }
 
@@ -57,6 +66,19 @@ const tr = {
   hours_unit:   { en: 'h',                   fr: 'h',                    pt: 'h' },
   lessons:      { en: 'lessons',             fr: 'cours',                pt: 'aulas' },
   footer:       { en: 'Updated',             fr: 'Mis à jour',           pt: 'Atualizado' },
+  // Outlook (upcoming students)
+  outlook:      { en: 'My upcoming students', fr: 'Mes prochains élèves', pt: 'Os meus próximos alunos' },
+  h_1w:         { en: '1 week',              fr: '1 semaine',            pt: '1 semana' },
+  h_2w:         { en: '2 weeks',             fr: '2 semaines',           pt: '2 semanas' },
+  h_1m:         { en: '1 month',             fr: '1 mois',               pt: '1 mês' },
+  h_season:     { en: 'Season',              fr: 'Saison',               pt: 'Época' },
+  kite:         { en: 'Kite',                fr: 'Kite',                 pt: 'Kite' },
+  wing:         { en: 'Wing',                fr: 'Wing',                 pt: 'Wing' },
+  planned:      { en: 'Planned',             fr: 'Prévues',              pt: 'Previstas' },
+  prepaid:      { en: 'Prepaid',             fr: 'Prépayées',            pt: 'Pré-pagas' },
+  done:         { en: 'Done',                fr: 'Faites',               pt: 'Feitas' },
+  left:         { en: 'Left',                fr: 'Reste',                pt: 'Restam' },
+  no_outlook:   { en: 'No students planned for this period.', fr: 'Aucun élève prévu sur cette période.', pt: 'Sem alunos previstos neste período.' },
 } as const
 
 const LOCALE: Record<Lang, string> = { en: 'en-GB', fr: 'fr-FR', pt: 'pt-PT' }
@@ -102,6 +124,10 @@ export default function InstructorSharePage({ instructorId }: Props) {
   const [lessons,    setLessons]    = useState<HourLesson[]>([])
   const [students,   setStudents]   = useState<Map<string, Student>>(new Map())
   const [loading,    setLoading]    = useState(true)
+  const [intents,    setIntents]    = useState<Intent[]>([])
+  const [stayDates,  setStayDates]  = useState<Map<string, { check_in: string; check_out: string }>>(new Map())
+  const [discipline, setDiscipline] = useState<Map<string, string>>(new Map())
+  const [horizon, setHorizon] = usePref<Horizon>('instructor_outlook_horizon', '2w')
 
   const [lang, setLang] = usePref<Lang>('instructor_share_lang', 'en')
   const [mode, setMode] = useState<Mode>('month')
@@ -128,6 +154,23 @@ export default function InstructorSharePage({ instructorId }: Props) {
       // Names are a bonus: if this read fails (policy not applied yet), the hours still show.
       const { data: guests } = await supabase.from('booking_participants').select('id, first_name, last_name')
       setStudents(new Map(((guests ?? []) as Student[]).map(g => [g.id, g])))
+      // Outlook is a bonus too, and each read is separate: a column or function that is not
+      // migrated yet must never take the hours above down with it (42501 kills a whole select).
+      const [intRes, datesRes, discRes] = await Promise.all([
+        supabase.from('lesson_intents')
+          .select('id, booking_id, participant_id, kind, planned_hours, prepaid_hours, window_start, window_end')
+          .eq('instructor_id', instructorId),
+        supabase.rpc('instructor_outlook_bookings'),
+        supabase.from('lessons').select('id, discipline').eq('instructor_id', instructorId),
+      ])
+      if (!intRes.error) setIntents((intRes.data ?? []) as Intent[])
+      if (!datesRes.error) {
+        setStayDates(new Map(((datesRes.data ?? []) as { booking_id: string; check_in: string; check_out: string }[])
+          .map(b => [b.booking_id, { check_in: b.check_in, check_out: b.check_out }])))
+      }
+      if (!discRes.error) {
+        setDiscipline(new Map(((discRes.data ?? []) as { id: string; discipline: string }[]).map(l => [l.id, l.discipline])))
+      }
       setLoading(false)
     }
     load()
@@ -189,6 +232,39 @@ export default function InstructorSharePage({ instructorId }: Props) {
     return t
   }, [inPeriod])
 
+  // ── Outlook: my upcoming students inside the chosen horizon ───────────────────
+  const outlook = useMemo(() => {
+    const end = horizon === '1w' ? addDaysISO(today, 6) : horizon === '2w' ? addDaysISO(today, 13)
+      : horizon === '1m' ? addDaysISO(today, 30) : addDaysISO(today, 240)
+    // Hours given so far per student and discipline (a lesson with no discipline is a kite lesson).
+    const doneBy = new Map<string, number>()
+    for (const l of lessons) {
+      const kind = (discipline.get(l.id) ?? 'kite') === 'kite' ? 'kite' : 'wing'
+      for (const pid of l.participant_ids ?? []) {
+        const k = `${pid}|${kind}`
+        doneBy.set(k, (doneBy.get(k) ?? 0) + l.duration_hours)
+      }
+    }
+    const rows = intents.flatMap(i => {
+      const stay = stayDates.get(i.booking_id)         // absent = cancelled, over, or not a stay
+      if (!stay) return []
+      const from = i.window_start ?? stay.check_in
+      const to = i.window_end ?? stay.check_out
+      if (to < today || from > end) return []
+      const done = doneBy.get(`${i.participant_id}|${i.kind}`) ?? 0
+      const g = students.get(i.participant_id)
+      return [{ ...i, from, to, done, name: g ? `${g.first_name} ${g.last_name}`.trim() : '—' }]
+    }).sort((a, b) => a.from.localeCompare(b.from) || a.name.localeCompare(b.name))
+    const sum = (k: 'kite' | 'wing') => rows.filter(r => r.kind === k).reduce((s, r) => s + (r.planned_hours ?? 0), 0)
+    return { rows, kite: sum('kite'), wing: sum('wing') }
+  }, [intents, stayDates, discipline, lessons, students, horizon, today])
+
+  const horizons: { v: Horizon; label: string }[] = [
+    { v: '1w', label: tr.h_1w[lang] }, { v: '2w', label: tr.h_2w[lang] },
+    { v: '1m', label: tr.h_1m[lang] }, { v: 'season', label: tr.h_season[lang] },
+  ]
+  const short = (iso: string) => fromISODate(iso).toLocaleDateString(LOCALE[lang], { day: '2-digit', month: '2-digit' })
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
@@ -232,6 +308,49 @@ export default function InstructorSharePage({ instructorId }: Props) {
               options={[{ v: 'month', label: `📅 ${tr.month[lang]}` }, { v: 'season', label: `🌊 ${tr.season[lang]}` }]} />
           </div>
         </div>
+
+        {/* Outlook — my upcoming students (read-only) */}
+        {(intents.length > 0 || stayDates.size > 0) && (
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+            <div className="px-5 py-3 border-b bg-emerald-50 dark:bg-emerald-950/40 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-bold text-emerald-800 dark:text-emerald-400">{tr.outlook[lang]}</h2>
+              <Segmented value={horizon} onChange={setHorizon} options={horizons} />
+            </div>
+            {outlook.rows.length === 0 ? (
+              <p className="text-sm text-gray-400 dark:text-gray-400 italic py-6 text-center">{tr.no_outlook[lang]}</p>
+            ) : (
+              <>
+                <p className="px-5 pt-3 text-xs font-bold text-gray-600 dark:text-gray-400">
+                  {tr.planned[lang]}: {tr.kite[lang]} {fmtH(outlook.kite)} {tr.hours_unit[lang]} · {tr.wing[lang]} {fmtH(outlook.wing)} {tr.hours_unit[lang]}
+                </p>
+                <ul className="p-3 space-y-1.5">
+                  {outlook.rows.map(r => {
+                    const left = r.prepaid_hours != null ? r.prepaid_hours - r.done : null
+                    return (
+                      <li key={r.id} className="rounded-lg border border-gray-200 dark:border-gray-800 px-3 py-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                        <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{r.name}</span>
+                        <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${r.kind === 'kite'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+                          : 'bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300'}`}>
+                          {tr[r.kind][lang]}
+                        </span>
+                        <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400">{short(r.from)} → {short(r.to)}</span>
+                        <span className="text-xs text-gray-600 dark:text-gray-300 w-full sm:w-auto sm:ml-auto sm:text-right">
+                          {tr.planned[lang]} {r.planned_hours != null ? `${fmtH(r.planned_hours)} ${tr.hours_unit[lang]}` : '—'}
+                          {' · '}{tr.done[lang]} {fmtH(r.done)} {tr.hours_unit[lang]}
+                          {r.prepaid_hours != null && (
+                            <> · {tr.prepaid[lang]} {fmtH(r.prepaid_hours)} {tr.hours_unit[lang]}
+                              {left != null && <> · <b>{tr.left[lang]} {fmtH(left)} {tr.hours_unit[lang]}</b></>}</>
+                          )}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Period picker */}
         {mode === 'month' ? (

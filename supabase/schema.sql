@@ -1244,9 +1244,12 @@ CREATE POLICY "anon_read_booking_participants" ON booking_participants
   FOR SELECT TO anon USING (
     (share_type() = 'client' AND booking_id = share_booking_id())
     OR share_type() = 'forecast'
-    OR (share_type() = 'instructor' AND id IN (
-          SELECT unnest(l.participant_ids) FROM lessons l
-          WHERE l.instructor_id = share_param('instructor_id')::uuid))
+    OR (share_type() = 'instructor' AND (
+          id IN (SELECT unnest(l.participant_ids) FROM lessons l
+                 WHERE l.instructor_id = share_param('instructor_id')::uuid)
+          OR id IN (SELECT i.participant_id FROM lesson_intents i              -- 2026-10-16b
+                    WHERE i.instructor_id = share_param('instructor_id')::uuid
+                      AND i.kind IN ('kite', 'wing'))))
   );
 CREATE POLICY "anon_read_booking_rooms" ON booking_rooms
   FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());
@@ -1275,7 +1278,33 @@ CREATE POLICY "anon_read_equipment_rentals" ON equipment_rentals FOR SELECT TO a
 );
 -- Plan du Forecast (2026-10-10c) : seul le token `forecast` le lit, colonnes limitées.
 REVOKE ALL ON planned_lessons, planned_rentals FROM anon;
-REVOKE ALL ON lesson_intents FROM anon;  -- Outlook (2026-10-16) : admin seulement, étapes 2/3 = migrations à part
+REVOKE ALL ON lesson_intents FROM anon;  -- Outlook (2026-10-16) : admin seulement, sauf 2026-10-16b ci-dessous
+-- 2026-10-16b : « ma vue » du moniteur — SES lignes kite/wing, sans notes ni locations.
+GRANT SELECT (id, booking_id, participant_id, kind, instructor_id, planned_hours, prepaid_hours, window_start, window_end)
+  ON lesson_intents TO anon;
+CREATE POLICY "anon_read_lesson_intents" ON lesson_intents FOR SELECT TO anon USING (
+  share_type() = 'instructor'
+  AND instructor_id = share_param('instructor_id')::uuid
+  AND kind IN ('kite', 'wing')
+);
+GRANT SELECT (discipline) ON lessons TO anon;
+-- Dates des séjours où CE moniteur a une intention — pas d'accès à bookings (center_access_rate = un prix).
+CREATE OR REPLACE FUNCTION instructor_outlook_bookings()
+RETURNS TABLE (booking_id uuid, check_in date, check_out date)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT b.id, b.check_in, b.check_out FROM bookings b
+   WHERE (share_ctx()).type = 'instructor'
+     AND b.status <> 'cancelled'
+     AND b.kind = 'stay'
+     AND b.check_out >= current_date
+     AND EXISTS (
+       SELECT 1 FROM lesson_intents i
+        WHERE i.booking_id = b.id
+          AND i.kind IN ('kite', 'wing')
+          AND i.instructor_id = ((share_ctx()).params->>'instructor_id')::uuid);
+$$;
+REVOKE EXECUTE ON FUNCTION instructor_outlook_bookings() FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION instructor_outlook_bookings() TO anon, authenticated;
 -- client_id (2026-10-10g) : le nom d'un walk-in placé dans le plan ; booking_id reste fermé.
 GRANT SELECT (id, date, start_time, duration_hours, type, instructor_id, participant_ids, notes, client_id)
   ON planned_lessons TO anon;
