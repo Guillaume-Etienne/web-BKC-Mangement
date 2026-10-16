@@ -6,7 +6,7 @@
 
 ## 🚨 Migrations SQL — registre
 
-⏳ **`2026-10-16d_delete_protections.sql`** (⬜ TEST ⬜ PROD — à passer par gui ; l'app protège DÉJÀ côté client, la migration verrouille la base) — 17 FK passent en
+✅ **`2026-10-16d_delete_protections.sql`** (TEST ✅ / PROD ✅ passée par gui 2026-10-16, vérifiée en base : 17/17 `r` sur les deux) — 17 FK passent en
 `ON DELETE RESTRICT` : client → résas/cours ; résa → paiements/cours/facturation agence ; chambre occupée → hébergement ; moniteur → dettes/paiements ;
 provider/hôtel partenaire → résas/règlements ; agence → résas (était SET NULL). Seeds TEST adaptés (agency_billing_lines/invoices vidées avant bookings).
 Vérif : la requête en pied de fichier → 17 lignes `r`. Incident d'origine : voyageurs effacés #028/#025 (restaurés le 2026-10-16 depuis TEST).
