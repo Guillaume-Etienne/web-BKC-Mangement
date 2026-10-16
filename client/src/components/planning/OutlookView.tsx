@@ -422,7 +422,7 @@ function IntentRow({ row, instructors, done, suggested, onSave, onRemove }: {
           <label className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
             {t.outlook_prepaid[lang]}
             <input type="number" min={0} step={0.5} defaultValue={row.prepaid_hours ?? ''}
-              placeholder={t.outlook_prepaid_unset[lang]} className={`${inputCls} w-24`}
+              placeholder={t.outlook_prepaid_unset[lang]} className={`${inputCls} w-32`}
               // key forces the uncontrolled input to follow a value saved from the suggestion chip
               key={`pp-${row.prepaid_hours ?? 'x'}`}
               onBlur={e => { const v = num(e.target.value); if (v !== row.prepaid_hours) onSave({ prepaid_hours: v }) }} />
