@@ -387,6 +387,21 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
   const [d, setD] = useState<WizardData>(initial)
   const [creatingClient, setCreatingClient] = useState(false)
   const [clientSearch, setClientSearch] = useState('')
+  // Rooms step: one accordion per accommodation type. Opens the types that already
+  // hold a selected room (edit), Houses otherwise.
+  const [openRoomTypes, setOpenRoomTypes] = useState<Set<string>>(() => {
+    const types = new Set(initial.room_ids
+      .map(rid => accommodations.find(a => a.id === rooms.find(r => r.id === rid)?.accommodation_id)?.type)
+      .filter((t): t is NonNullable<typeof t> => !!t))
+    return types.size > 0 ? types : new Set(['house'])
+  })
+  function toggleRoomType(type: string) {
+    setOpenRoomTypes(prev => {
+      const next = new Set(prev)
+      if (next.has(type)) next.delete(type); else next.add(type)
+      return next
+    })
+  }
 
   function update(patch: Partial<WizardData>) { setD(prev => ({ ...prev, ...patch })) }
 
@@ -747,64 +762,98 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
               </div>
 
               <Field label="Rooms" hint="Optional — can be assigned later in the planning view">
-                <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
-                  {d.room_ids.length === 0 && (
-                    <p className="text-xs text-gray-400 dark:text-gray-400 italic px-1">No room selected — click to assign.</p>
+                <div className="space-y-2">
+                  {/* Selection summary — removable chips, visible whatever accordion is open */}
+                  {d.room_ids.length === 0 ? (
+                    <p className="text-xs text-gray-400 dark:text-gray-400 italic px-1">No room selected — open a category below to assign.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {d.room_ids.map(rid => {
+                        const r = rooms.find(x => x.id === rid)
+                        const a = accommodations.find(x => x.id === r?.accommodation_id)
+                        return (
+                          <button key={rid} type="button" onClick={() => toggleRoom(rid)} title="Remove"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:border-red-300 dark:hover:border-red-800">
+                            {a?.name} / {r?.name}<span className="text-gray-400 dark:text-gray-400">×</span>
+                          </button>
+                        )
+                      })}
+                    </div>
                   )}
                   {(['house', 'bungalow', 'other'] as const).map(type => {
                     const typeAccos = roomsByAcco.filter(g => g.acc.type === type)
                     if (typeAccos.length === 0) return null
                     const typeLabel = type === 'house' ? '🏠 Houses' : type === 'bungalow' ? '🏡 Bungalows' : '🏨 Other'
+                    const typeRooms = typeAccos.flatMap(g => g.rooms)
+                    const selectedCount = typeRooms.filter(r => d.room_ids.includes(r.id)).length
+                    const datesSet = !!(d.check_in && d.check_out)
+                    const freeCount = typeAccos.reduce((n, g) =>
+                      g.acc.type === 'house' && isHouseAvailable(g.acc.id) === false ? n
+                        : n + g.rooms.filter(r => !isRoomConflicted(r.id)).length, 0)
+                    const open = openRoomTypes.has(type)
                     return (
-                      <div key={type}>
-                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-400 uppercase tracking-widest px-1 mb-1 mt-1">{typeLabel}</p>
-                        {typeAccos.map(({ acc, rooms: accRooms }) => {
-                          const isHouse = acc.type === 'house'
-                          const accRoomIds = accRooms.map(r => r.id)
-                          const allSelected = accRoomIds.every(id => d.room_ids.includes(id))
-                          const availability = isHouse ? isHouseAvailable(acc.id) : null
-                          return (
-                            <div key={acc.id} className="mb-2">
-                              <div className="flex items-center gap-2 px-1 mb-1">
-                                <p className="text-xs font-semibold text-gray-400 dark:text-gray-400 uppercase tracking-wide">{acc.name}</p>
-                                {isHouse && availability === false && (
-                                  <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-1.5 py-0.5 rounded font-medium">Not rented</span>
-                                )}
-                                {isHouse && availability === true && (
-                                  <span className="text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded font-medium">Available</span>
-                                )}
-                              </div>
-                              <div className="space-y-1">
-                                {isHouse && accRooms.length === 2 && (
-                                  <button type="button" onClick={() => toggleFullHouse(acc.id, accRoomIds)}
-                                    className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors font-medium
-                                      ${allSelected ? 'border-purple-500 dark:border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-400' : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 text-gray-700 dark:text-gray-300'}`}>
-                                    🏠 Full house (F + B)
-                                  </button>
-                                )}
-                                {accRooms.map(r => {
-                                  const conflicted = isRoomConflicted(r.id)
-                                  const selected = d.room_ids.includes(r.id)
-                                  return (
-                                    <button key={r.id} type="button" onClick={() => toggleRoom(r.id)}
-                                      className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors flex items-center justify-between
-                                        ${selected ? 'border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-400 font-medium'
-                                          : conflicted ? 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 text-gray-700 dark:text-gray-300'
-                                          : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 text-gray-700 dark:text-gray-300'}`}>
-                                      <span>
-                                        {acc.name} / {r.name}
-                                        <span className="text-xs text-gray-400 dark:text-gray-400 ml-2">capacity {r.capacity}</span>
-                                      </span>
-                                      {conflicted && !selected && (
-                                        <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-1.5 py-0.5 rounded font-medium shrink-0">⚠ Booked</span>
-                                      )}
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )
-                        })}
+                      <div key={type} className="border border-gray-200 dark:border-gray-800 rounded-lg">
+                        <button type="button" onClick={() => toggleRoomType(type)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg">
+                          <span className="text-gray-400 dark:text-gray-400 text-xs w-3">{open ? '▾' : '▸'}</span>
+                          <span>{typeLabel}</span>
+                          {selectedCount > 0 && (
+                            <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded font-medium">{selectedCount} selected</span>
+                          )}
+                          <span className="ml-auto text-xs font-normal text-gray-400 dark:text-gray-400">
+                            {datesSet ? `${freeCount}/${typeRooms.length} free` : `${typeRooms.length} rooms`}
+                          </span>
+                        </button>
+                        {open && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2 pt-0">
+                            {typeAccos.map(({ acc, rooms: accRooms }) => {
+                              const isHouse = acc.type === 'house'
+                              const accRoomIds = accRooms.map(r => r.id)
+                              const allSelected = accRoomIds.every(id => d.room_ids.includes(id))
+                              const availability = isHouse ? isHouseAvailable(acc.id) : null
+                              return (
+                                <div key={acc.id} className={`rounded-lg border px-2 py-1.5
+                                  ${accRoomIds.some(id => d.room_ids.includes(id)) ? 'border-blue-300 dark:border-blue-800' : 'border-gray-200 dark:border-gray-800'}
+                                  ${availability === false ? 'opacity-60' : ''}`}>
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 truncate">{acc.name}</p>
+                                    {isHouse && availability === false && (
+                                      <span className="text-[10px] bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-1 py-0.5 rounded font-medium shrink-0">Not rented</span>
+                                    )}
+                                    {isHouse && availability === true && (
+                                      <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1 py-0.5 rounded font-medium shrink-0">Available</span>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {accRooms.map(r => {
+                                      const conflicted = isRoomConflicted(r.id)
+                                      const selected = d.room_ids.includes(r.id)
+                                      return (
+                                        <button key={r.id} type="button" onClick={() => toggleRoom(r.id)}
+                                          title={`${acc.name} / ${r.name} — capacity ${r.capacity}${conflicted ? ' — already booked on these dates' : ''}`}
+                                          className={`px-2 py-1 rounded-md border text-xs transition-colors
+                                            ${selected ? 'border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-400 font-medium'
+                                              : conflicted ? 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400'
+                                              : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 text-gray-700 dark:text-gray-300'}`}>
+                                          {conflicted && !selected && '⚠ '}{r.name}
+                                          <span className="text-gray-400 dark:text-gray-400 ml-1">{r.capacity}p</span>
+                                        </button>
+                                      )
+                                    })}
+                                    {isHouse && accRooms.length === 2 && (
+                                      <button type="button" onClick={() => toggleFullHouse(acc.id, accRoomIds)}
+                                        title="Both rooms at the full-house rate"
+                                        className={`px-2 py-1 rounded-md border text-xs transition-colors font-medium
+                                          ${allSelected ? 'border-purple-500 dark:border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-400' : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 text-gray-700 dark:text-gray-300'}`}>
+                                        🏠 Full
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
                     )
                   })}
