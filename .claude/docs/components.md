@@ -115,7 +115,8 @@ en croyant agir sur le planning. À supprimer un jour, décision de gui.
 ### `OutlookView` — `planning/OutlookView.tsx` (sous-onglet « Outlook », 2026-10-16)
 - **Intentions à long terme par participant** (horizon 1 sem / 2 sem / 1 mois / saison, localStorage `outlook_horizon`), lues sur les résas à venir. Table `lesson_intents` (admin seulement) : kite | wing | rental, moniteur (NULL = non assigné), heures prévues, **heures prépayées SAISIES** (jamais déduites ; suggestion agence = `agency_billing_lines.unit_hours`, appliquée seulement au clic), fenêtre de dates, location = type + jours estimés. Heures **faites** = `lessons` (Daily), jamais stockées.
 - Lignes **déduites** des cases du participant (`wants_*`) tant qu’elles n’existent pas ; créées à la première édition (pas de trigger). Bandeau de charge par jour/semaine : heures réparties à parts égales sur la fenêtre ; « non assigné » en rouge.
-- ⏳ Étape 2 : « ma vue » moniteur (lecture seule, lien perso). Étape 3 : charge globale agrégée. Voir security-rls.md.
+- **Refonte visuelle (2026-10-16)** : grille **moniteurs × jours** en tête (jour ≤ 2 sem, semaine = 1 mois, mois = saison ; case = heures · élèves · ≈ cours à 2 h `TYPICAL_LESSON_H`, barre kite/wing, teinte rouge > 8 h/j `OVERLOAD_H_PER_DAY`), ligne Total + locations ; clic sur une case = panneau de détail éditable ; séjours en lignes compactes dépliables. **Sans moniteur = compté pour le moniteur par défaut** (préférence navigateur `outlook_default_instructor`, pré-remplie Rémi) : affichage seulement, rien n’est écrit, ⚠ dans la case.
+- Étapes 2/3 livrées côté page moniteur (onglet « Outlook · en test »). Voir security-rls.md.
 ---
 
 ## Taxi
