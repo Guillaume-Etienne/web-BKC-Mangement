@@ -1064,12 +1064,28 @@ export default function BookingFinances({ data, handlers }: Props) {
   const [presentOnly, setPresentOnly] = useState(false)
   const [maxNights, setMaxNights] = useState('')  // "under x days"
   const [minNights, setMinNights] = useState('')  // "over y days"
+  const [search, setSearch] = useState('')
 
   const standaloneTrips = data.taxiTrips.filter(t => t.booking_id === null)
   const standaloneRev   = computeStandaloneTaxiRevenue(data)
 
+  // Accent- and case-insensitive; matches the booker, any guest on the booking,
+  // or the booking number ("47", "#047").
+  const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  const q = norm(search.trim().replace(/^#/, ''))
+
   const rows = bookings
     .filter(b => showCancelled || b.status !== 'cancelled')
+    .filter(b => {
+      if (!q) return true
+      const client = clients.find(c => c.id === b.client_id)
+      const names = [
+        client ? `${client.first_name} ${client.last_name ?? ''}` : '',
+        ...data.bookingParticipants.filter(p => p.booking_id === b.id).map(p => `${p.first_name} ${p.last_name ?? ''}`),
+        String(b.booking_number).padStart(3, '0'),
+      ]
+      return names.some(n => norm(n).includes(q))
+    })
     .filter(b => {
       if (presentOnly) {
         const today = todayISO()
@@ -1112,6 +1128,9 @@ export default function BookingFinances({ data, handlers }: Props) {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
+        <input type="search" value={search} onChange={e => setSearch(e.target.value)}
+          placeholder={i18n.accounting.bf_filter_search_ph[lang]}
+          className="w-full sm:w-56 px-3 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400" />
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={presentOnly} onChange={e => setPresentOnly(e.target.checked)} className="rounded" />
           {i18n.accounting.bf_filter_present[lang]}

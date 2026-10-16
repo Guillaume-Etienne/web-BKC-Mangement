@@ -153,6 +153,7 @@ export const accountingI18n = {
   bf_filter_under:        { fr: 'Séjour de moins de', en: 'Stay under', es: 'Estancia de menos de' },
   bf_filter_over:         { fr: 'Séjour de plus de', en: 'Stay over', es: 'Estancia de más de' },
   bf_filter_days:         { fr: 'jours', en: 'days', es: 'días' },
+  bf_filter_search_ph:    { fr: 'Rechercher un nom ou un n°…', en: 'Search a name or #…', es: 'Buscar un nombre o n.º…' },
   bf_unlinked_taxi_trips:{ fr: 'Trajets taxi non liés', en: 'Unlinked taxi trips', es: 'Viajes en taxi no vinculados' },
   bf_not_attached:        { fr: 'Non attaché à une réservation', en: 'Not attached to any booking', es: 'No adjunto a ninguna reserva' },
   bf_type:                { fr: 'Type', en: 'Type', es: 'Tipo' },
