@@ -66,6 +66,9 @@ interface WizardData {
   status: BookingStatus
   // Step 3 – Guests
   participants: ParticipantData[]
+  /** Ids of the guests the form was opened with. Saving only ever deletes among
+   *  these: a guest row the form never saw is not the user's to remove. */
+  loaded_participant_ids: string[]
   couples_count: number
   children_count: number
   // Step 4 – Transport
@@ -91,7 +94,7 @@ const EMPTY_WIZARD: WizardData = {
   agency_id: '', linked_booking_id: '', source_id: '', referral_source: '',
   check_in: '', check_out: '', visa_entry_date: '', visa_exit_date: '', room_ids: [], room_prices: {},
   external_stays: {}, status: 'provisional',
-  participants: [], couples_count: 0, children_count: 0,
+  participants: [], loaded_participant_ids: [], couples_count: 0, children_count: 0,
   arrival_time: '', departure_time: '',
   taxi_arrival: false, taxi_departure: false, taxi_driver_id: null,
   luggage_count: 0, boardbag_count: 0,
@@ -1444,11 +1447,15 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   const FILTERS = getFilters(lang)
   const statusLabel = getStatusLabel(lang)
   const { data: bookings, loading, error, refresh: refreshBookings } = useBookings()
-  const { data: clients, loading: clientsLoading, refresh: refreshClients } = useClients()
-  const { data: bookingRooms, refresh: refreshBookingRooms } = useBookingRooms()
-  const { data: bookingRoomPricesData } = useBookingRoomPrices()
-  const { data: rooms } = useRooms()
-  const { data: accommodations } = useAccommodations()
+  const { data: clients, loading: clientsLoading, error: clientsError, refresh: refreshClients } = useClients()
+  const bookingRoomsQ = useBookingRooms()
+  const { data: bookingRooms, refresh: refreshBookingRooms } = bookingRoomsQ
+  const bookingRoomPricesQ = useBookingRoomPrices()
+  const bookingRoomPricesData = bookingRoomPricesQ.data
+  const roomsQ = useRooms()
+  const rooms = roomsQ.data
+  const accommodationsQ = useAccommodations()
+  const accommodations = accommodationsQ.data
   const { data: agencies } = useAgencies()
   const { data: houseRentals } = useTable<HouseRental>('house_rentals')
   // The list only ever marks whole bookings, so no invoice lines are needed:
@@ -1458,16 +1465,18 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   // here writes to enquiries — the conversion already did that.
   const { data: enquiries } = useTable<Enquiry>('enquiries')
   const { data: sources } = useTable<EnquirySource>('enquiry_sources', { order: 'sort_order' })
-  const { data: roomRatesData } = useTable<RoomRate>('room_rates')
-  const { data: externalStaysData, refresh: refreshExternalStays } =
-    useTable<ExternalAccommodationBooking>('external_accommodation_bookings')
+  const roomRatesQ = useTable<RoomRate>('room_rates')
+  const roomRatesData = roomRatesQ.data
+  const externalStaysQ = useTable<ExternalAccommodationBooking>('external_accommodation_bookings')
+  const { data: externalStaysData, refresh: refreshExternalStays } = externalStaysQ
   const { data: priceItemsData } = useTable<PriceItem>('price_items')
   // €/day per own-gear guest, from Options → Pricing. 0 when nothing is configured:
   // the rate is shown and editable on the booking, so a missing one is visible.
   const centerAccessRate = getConfiguredRate(priceItemsData, 'center_access') ?? 0
   const { data: taxiDrivers } = useTaxiDrivers()
   const { data: taxiTrips, refresh: refreshTaxiTrips } = useTaxiTrips()
-  const { data: participantsData } = useBookingParticipants()
+  const participantsQ = useBookingParticipants()
+  const participantsData = participantsQ.data
   const { data: lessonsData } = useTable<Lesson>('lessons')
   const { data: rentalsData } = useTable<EquipmentRental>('equipment_rentals')
   const { data: paymentsData } = useTable<Payment>('payments')
@@ -1475,6 +1484,27 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   useEffect(() => setBookingParticipants(participantsData), [participantsData])
 
   const [wizard, setWizard] = useState<{ open: boolean; editing: Booking | null }>({ open: false, editing: null })
+
+  // The edit form is built from these tables, and saving it REPLACES the guests,
+  // rooms, frozen prices and external stays with whatever the form holds. Opened
+  // before one of them had arrived — or after a read failed, which also leaves
+  // `[]` — the form holds nothing, and saving wipes the real rows. That is how
+  // #028 and #025 lost their travellers in Sept. 2026 (booking opened from the
+  // Planning while the guests were still loading). So the form only mounts once
+  // every source is in, and never on a failed read.
+  const editSources = [
+    { loading, error }, { loading: clientsLoading, error: clientsError },
+    bookingRoomsQ, bookingRoomPricesQ, roomsQ, accommodationsQ, roomRatesQ, externalStaysQ, participantsQ,
+  ]
+  const editDataLoading = editSources.some(q => q.loading)
+  const editDataError = editSources.find(q => q.error)?.error ?? null
+  // Latched once shown: a background refresh flips `loading` back on, and that
+  // must not unmount a form the user is typing in.
+  const [editShown, setEditShown] = useState(false)
+  useEffect(() => {
+    if (!wizard.editing) setEditShown(false)
+    else if (!editDataLoading && !editDataError) setEditShown(true)
+  }, [wizard.editing, editDataLoading, editDataError])
   const [filter, setFilter] = useState<FilterKey>('all')
   const [nameSearch, setNameSearch] = useState('')
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'booking_number', dir: 'desc' })
@@ -1698,34 +1728,43 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       problems.push(`the guest list could not be read, so guests were left unchanged (${selErr.message})`)
     } else {
       const dbIds = new Set((dbRows ?? []).map(r => r.id as string))
-      const keptGuests = guests.filter(p => dbIds.has(p.id))
-      const newGuests  = guests.filter(p => !dbIds.has(p.id))
-      const removedIds = [...dbIds].filter(id => !keptGuests.some(p => p.id === id))
-
-      if (removedIds.length > 0) {
-        const { error } = await supabase.from('booking_participants').delete().in('id', removedIds)
-        if (error) problems.push(`removed guests could not be deleted (${error.message})`)
-      }
-      for (const p of keptGuests) {
-        const { error } = await supabase.from('booking_participants').update(guestRow(p)).eq('id', p.id)
-        if (error) problems.push(`guest ${p.first_name} could not be updated (${error.message})`)
-      }
-      if (newGuests.length > 0) {
-        const { error } = await supabase.from('booking_participants').insert(
-          newGuests.map(p => ({ booking_id: bookingId, ...guestRow(p), notes: null }))
-        )
-        if (error) problems.push(`new guests could not be saved (${error.message})`)
-      }
-
-      // Reload this booking's guests so every screen sees the real ids
-      const { data: fresh, error: freshErr } = await supabase.from('booking_participants').select('*').eq('booking_id', bookingId)
-      if (freshErr) {
-        problems.push(`the guest list could not be reloaded (${freshErr.message})`)
+      const loadedIds = new Set(data.loaded_participant_ids)
+      const unknownIds = [...dbIds].filter(id => !loadedIds.has(id))
+      if (unknownIds.length > 0) {
+        // The database holds guests this form never displayed (it was opened
+        // before they loaded, or someone added them meanwhile). Saving the form's
+        // list would delete them — how #028 lost three travellers. Leave it all.
+        problems.push(`the guest list changed since this booking was opened, so guests were left unchanged — re-open the booking to edit them`)
       } else {
-        setBookingParticipants(prev => [
-          ...prev.filter(p => p.booking_id !== bookingId),
-          ...((fresh ?? []) as BookingParticipant[]),
-        ])
+        const keptGuests = guests.filter(p => dbIds.has(p.id))
+        const newGuests  = guests.filter(p => !dbIds.has(p.id))
+        const removedIds = [...dbIds].filter(id => !keptGuests.some(p => p.id === id))
+
+        if (removedIds.length > 0) {
+          const { error } = await supabase.from('booking_participants').delete().in('id', removedIds)
+          if (error) problems.push(`removed guests could not be deleted (${error.message})`)
+        }
+        for (const p of keptGuests) {
+          const { error } = await supabase.from('booking_participants').update(guestRow(p)).eq('id', p.id)
+          if (error) problems.push(`guest ${p.first_name} could not be updated (${error.message})`)
+        }
+        if (newGuests.length > 0) {
+          const { error } = await supabase.from('booking_participants').insert(
+            newGuests.map(p => ({ booking_id: bookingId, ...guestRow(p), notes: null }))
+          )
+          if (error) problems.push(`new guests could not be saved (${error.message})`)
+        }
+
+        // Reload this booking's guests so every screen sees the real ids
+        const { data: fresh, error: freshErr } = await supabase.from('booking_participants').select('*').eq('booking_id', bookingId)
+        if (freshErr) {
+          problems.push(`the guest list could not be reloaded (${freshErr.message})`)
+        } else {
+          setBookingParticipants(prev => [
+            ...prev.filter(p => p.booking_id !== bookingId),
+            ...((fresh ?? []) as BookingParticipant[]),
+          ])
+        }
       }
     }
 
@@ -1929,6 +1968,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
         const c = clients.find(cl => cl.id === b.client_id)
         return c ? [{ id: `pre_${b.id}`, first_name: c.first_name, last_name: c.last_name, passport_number: c.passport_number ?? '', kite_level: (c.kite_level ?? '') as ParticipantData['kite_level'], client_id: c.id, ...EMPTY_ACTIVITY }] : []
       })(),
+      loaded_participant_ids: bookingParticipants.filter(p => p.booking_id === b.id).map(p => p.id),
       couples_count: b.couples_count, children_count: b.children_count,
       arrival_time: b.arrival_time ?? '', departure_time: b.departure_time ?? '',
       taxi_arrival: b.taxi_arrival, taxi_departure: b.taxi_departure, taxi_driver_id: null,
@@ -2276,7 +2316,22 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       </div>
 
       {/* Wizard */}
-      {wizard.open && (
+      {wizard.open && wizard.editing && !editShown && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg p-6 max-w-sm w-full text-center">
+            {editDataError ? (
+              <>
+                <p className="text-red-600 dark:text-red-400 font-medium">This booking can't be opened safely.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Part of its data failed to load ({editDataError}). Editing it now could erase its guests or rooms. Reload the page and try again.</p>
+              </>
+            ) : (
+              <p className="text-gray-600 dark:text-gray-300">Loading booking…</p>
+            )}
+            <button onClick={closeWizard} className="mt-4 px-4 py-2 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700">Close</button>
+          </div>
+        </div>
+      )}
+      {wizard.open && (!wizard.editing || editShown) && (
         <BookingWizard
           initial={wizard.editing ? bookingToWizard(wizard.editing) : { ...EMPTY_WIZARD, center_access_rate: centerAccessRate }}
           clients={clients}
