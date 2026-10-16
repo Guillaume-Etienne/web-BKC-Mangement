@@ -206,7 +206,7 @@ export function printBookingSummary(
 
   <!-- ── Footer ──────────────────────────────────────────────────── -->
   <div style="margin-top:30px;padding-top:8px;border-top:0.5pt solid #e5e7eb;display:flex;justify-content:space-between;font-size:8.5pt;color:#9ca3af;font-style:italic;">
-    <span>${t.contact}: palmeirasbilene@gmail.com &bull; +258 84 138 8658</span>
+    <span>${t.contact}: contact@bilenekite.com &bull; whatsapp +33 6 51 79 05 40</span>
     <span>${t.generatedOn} ${todayLong(lang)}</span>
   </div>
 
