@@ -677,6 +677,10 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 | slot, rental_type, equipment_id (optionnel), participant_id | — | ✔ |
 | client_id (**2026-10-10d**) — walk-in : un `Client.id` existant, sans participant ; la venue day-visitor n'est créée qu'à l'export (`saveWalkIn`) | ✔ | ✔ |
 
+
+### `lesson_intents` → `LessonIntent` (**depuis 2026-10-16**, Outlook)
+> Intentions long terme par participant, admin seulement (anon : aucun accès). Rien de compté, aucun prix/paie. `kind` = kite|wing|rental (TEXT+CHECK). `prepaid_hours` saisi, NULL = non renseigné. Unicité (participant, kind, rental_type). Lignes créées à la 1re édition, déduites des cases `wants_*` avant.
+
 ### `expense_categories` → `ExpenseCategory` (**depuis 2026-09-19**)
 | Field | Type | Notes |
 |-------|------|-------|

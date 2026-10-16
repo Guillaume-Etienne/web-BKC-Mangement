@@ -7,6 +7,7 @@ import UnassignedRow, { UNASSIGNED_ROOM_ID } from './UnassignedRow'
 import LessonWeekView from './LessonWeekView'
 import NowView from './NowView'
 import ForecastView from './ForecastView'
+import OutlookView from './OutlookView'
 import type { Booking, BookingRoom, Lesson, DayActivity, EquipmentRental, HouseRental, PriceItem, BookingParticipant, Room, Accommodation, AccommodationType, Season, Lang } from '../../types/database'
 import { seasonWindowAt, seasonOffsetBounds, monthColumns } from '../../utils/seasonWindow'
 import { toISODate, fromISODate, localeTag } from '../../utils/dates'
@@ -409,7 +410,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   const [unassignedOpen, setUnassignedOpen] = useState(false)
 
   // ── Tabs / lesson view ───────────────────────────────────────────
-  const [planningTab, setPlanningTab] = useState<'accommodations' | 'lessons' | 'now' | 'forecast'>('accommodations')
+  const [planningTab, setPlanningTab] = useState<'accommodations' | 'lessons' | 'now' | 'forecast' | 'outlook'>('accommodations')
   const [weekStart, setWeekStart] = useState<Date>(() => getMondayOfWeek(new Date()))
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -893,6 +894,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             {planningTab === 'accommodations' ? i18n.pages.planning_title_accommodations[lang]
               : planningTab === 'lessons' ? i18n.pages.planning_title_daily[lang]
               : planningTab === 'forecast' ? i18n.pages.planning_title_forecast[lang]
+              : planningTab === 'outlook' ? i18n.pages.planning_title_outlook[lang]
               : i18n.pages.planning_title_now[lang]}
           </h1>
 
@@ -950,6 +952,12 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'forecast' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
             📋 {i18n.pages.tab_planning_forecast[lang]}
+          </button>
+          <button
+            onClick={() => handleTabChange('outlook')}
+            className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'outlook' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
+          >
+            🔭 {i18n.pages.tab_planning_outlook[lang]}
           </button>
         </div>
 
@@ -1147,6 +1155,19 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             onAddLesson={onAddLesson}
             onAddRental={onAddRental}
             onAddWalkIn={onAddWalkIn}
+          />
+        )}
+
+        {/* ── OUTLOOK TAB ── */}
+        {planningTab === 'outlook' && (
+          <OutlookView
+            bookings={resolvedBookings}
+            bookingParticipants={bookingParticipants}
+            instructors={instructors}
+            lessons={lessons}
+            clients={clients}
+            agencies={agencies}
+            agencyBillingLines={agencyBillingLines}
           />
         )}
 

@@ -28,6 +28,8 @@ Reste ouvert :
   vont au centre ; se corrige ensuite dans Accounting → Bookings).
 - Aucune reprise d'historique (gui : rien à requalifier cette saison).
 
+✅ **`2026-10-16_lesson_intents.sql`** (TEST ✅ / PROD ✅ passée par gui 2026-10-16, curl anon → 42501 sur les 2, attendu : table non exposée) — table `lesson_intents` (Outlook, étape 1 livrée : onglet Planning → Outlook, admin). **Reste : étape 2** « ma vue » moniteur (lecture seule, policy token `instructor` + noms des élèves des intentions) et **étape 3** charge globale agrégée (fonction token-checked, sans identifiants) — migrations séparées. Décisions gui : heures prépayées SAISIES (suggestion agence au clic seulement), moniteurs en lecture seule, locations invisibles aux moniteurs (à reconfirmer).
+
 ⬜ **`2026-10-11_instructor_share_students.sql`** (passée par gui 2026-10-11 — **curl anon avec token instructor encore à faire**, vérif écran aussi : aucun lien `instructor` en PROD le 2026-10-11, à créer dans Options → Shared Links ; page refaite en lignes par cours + totaux séparés par type, `1ecc450`, non poussé) — noms des élèves par jour sur la page
 « Instructor Hours » : policy `anon_read_booking_participants` élargie au token `instructor` (seulement les
 participants de SES cours). Un fichier, additif. Sans elle : la page marche, sans les noms. Vérif curl anon

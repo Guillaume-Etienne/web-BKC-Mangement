@@ -766,6 +766,25 @@ export interface PlannedRental {
   exported_at: string | null
 }
 
+// Outlook INTENTIONS (2026-10-16) — long-term, per traveller, not accounting: no price,
+// no pay rate. `prepaid_hours` is typed by hand, never derived from a package label
+// (NULL = "not set"). "Done" hours are read from `lessons`, never stored here.
+export type IntentKind = 'kite' | 'wing' | 'rental'
+export interface LessonIntent {
+  id: string
+  booking_id: string
+  participant_id: string
+  kind: IntentKind
+  instructor_id: string | null     // null = unassigned
+  planned_hours: number | null     // lessons only
+  prepaid_hours: number | null     // lessons only
+  rental_type: RentalType | 'free' | null  // rentals only
+  estimated_days: number | null    // rentals only
+  window_start: string | null      // null = the booking's dates
+  window_end: string | null
+  notes: string | null
+}
+
 /** Tuning knobs for the Equipment page's "CA" tab — how much of a lesson's
  *  margin is estimated as the kite/board's contribution. Single row. */
 export interface EquipmentPricingDefaults {

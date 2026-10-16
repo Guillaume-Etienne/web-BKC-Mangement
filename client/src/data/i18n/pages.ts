@@ -23,12 +23,14 @@ export const pagesI18n = {
   planning_title_daily:          { fr: 'Planning quotidien', en: 'Daily Planning', es: 'Planificación diaria' },
   planning_title_forecast:       { fr: 'Prévisions', en: 'Forecast', es: 'Previsión' },
   planning_title_now:            { fr: 'Maintenant', en: 'Now', es: 'Ahora' },
+  planning_title_outlook:        { fr: 'Perspectives', en: 'Outlook', es: 'Perspectivas' },
 
   // PlanningView — tabs
   tab_planning_accommodations: { fr: 'Hébergements', en: 'Accommodations', es: 'Alojamientos' },
   tab_planning_daily:          { fr: 'Quotidien',    en: 'Daily',          es: 'Diario' },
   tab_planning_now:            { fr: 'Maintenant',   en: 'Now',            es: 'Ahora' },
   tab_planning_forecast:       { fr: 'Prévisions',   en: 'Forecast',       es: 'Previsión' },
+  tab_planning_outlook:        { fr: 'Perspectives', en: 'Outlook',        es: 'Perspectivas' },
 
   // PlanningView — misc chrome
   btn_now:          { fr: 'Maintenant', en: 'Now', es: 'Ahora' },

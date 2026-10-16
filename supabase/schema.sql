@@ -477,6 +477,31 @@ CREATE TABLE planned_rentals (
 );
 CREATE INDEX idx_planned_rentals_date ON planned_rentals(date);
 
+-- Outlook (2026-10-16) : intentions de cours/locations à long terme. Rien n'est compté ici ;
+-- prepaid_hours est SAISI (jamais déduit). Admin seulement : anon n'a aucun accès.
+CREATE TABLE lesson_intents (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id      UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  participant_id  UUID NOT NULL REFERENCES booking_participants(id) ON DELETE CASCADE,
+  kind            TEXT NOT NULL CHECK (kind IN ('kite', 'wing', 'rental')),
+  instructor_id   UUID REFERENCES instructors(id) ON DELETE SET NULL,
+  planned_hours   NUMERIC(5,2) CHECK (planned_hours >= 0),
+  prepaid_hours   NUMERIC(5,2) CHECK (prepaid_hours >= 0),
+  rental_type     TEXT,
+  estimated_days  INTEGER CHECK (estimated_days >= 0),
+  window_start    DATE,
+  window_end      DATE,
+  notes           TEXT,
+  created_at      TIMESTAMPTZ DEFAULT now(),
+  updated_at      TIMESTAMPTZ DEFAULT now(),
+  CHECK (kind = 'rental' OR (rental_type IS NULL AND estimated_days IS NULL)),
+  CHECK (kind <> 'rental' OR (planned_hours IS NULL AND prepaid_hours IS NULL AND instructor_id IS NULL)),
+  CHECK (window_end IS NULL OR window_start IS NULL OR window_end >= window_start)
+);
+CREATE UNIQUE INDEX uq_lesson_intents_slot ON lesson_intents (participant_id, kind, COALESCE(rental_type, ''));
+CREATE INDEX idx_lesson_intents_booking    ON lesson_intents (booking_id);
+CREATE INDEX idx_lesson_intents_instructor ON lesson_intents (instructor_id);
+
 -- A lesson never bills gear separately, so the "value" a kite/board brings to a
 -- lesson is estimated from the lesson's real margin (client price − instructor
 -- pay). These three knobs tune that estimate — see EquipmentPage's revenue tab.
@@ -1087,7 +1112,7 @@ BEGIN
     'enquiry_sources', 'enquiries', 'enquiry_notes', 'client_notes',
     'agencies', 'agency_rate_items', 'agency_billing_lines', 'agency_invoices',
     'price_tiers',
-    'planned_lessons', 'planned_rentals',
+    'planned_lessons', 'planned_rentals', 'lesson_intents',
     'associates', 'associate_transfers'
   ]) LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
@@ -1250,6 +1275,7 @@ CREATE POLICY "anon_read_equipment_rentals" ON equipment_rentals FOR SELECT TO a
 );
 -- Plan du Forecast (2026-10-10c) : seul le token `forecast` le lit, colonnes limitées.
 REVOKE ALL ON planned_lessons, planned_rentals FROM anon;
+REVOKE ALL ON lesson_intents FROM anon;  -- Outlook (2026-10-16) : admin seulement, étapes 2/3 = migrations à part
 -- client_id (2026-10-10g) : le nom d'un walk-in placé dans le plan ; booking_id reste fermé.
 GRANT SELECT (id, date, start_time, duration_hours, type, instructor_id, participant_ids, notes, client_id)
   ON planned_lessons TO anon;
