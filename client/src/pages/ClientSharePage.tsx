@@ -210,18 +210,25 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       // anon it errors, and folded into the prices query above that error would
       // blank the whole page. Alone, a failure just means "none".
       supabase.from('booking_room_prices').select('room_id, paid_to_owner').eq('booking_id', id),
-    ]).then(([
+    ]).then(async ([
       bkgRoomsRes, pricesRes, roomsRes, acomsRes, paymentsRes,
       lessonsRes, instrRes, rentalsRes, taxisRes,
       diningRes, partRes, extBkgRes, actBkgRes, roomRatesRes, paidToOwnerRes,
     ]) => {
+      // Group lessons booked on ANOTHER reservation where one of our riders sits: we owe
+      // our share of them. Its own query on purpose: before the 2026-10-16b policy lets
+      // anon read them, it simply returns nothing, and the page keeps working.
+      const myPartIds = (partRes.data ?? []).map(p => p.id)
+      const sharedRes = myPartIds.length === 0 ? null : await supabase.from('lessons')
+        .select('id, booking_id, instructor_id, participant_ids, date, start_time, duration_hours, type, notes, agency_billing_line_id, price_per_hour:share_price_per_hour')
+        .eq('type', 'group').neq('booking_id', id).overlaps('participant_ids', myPartIds).order('date')
       setPaidToOwnerIds(new Set((paidToOwnerRes.data ?? []).filter(p => p.paid_to_owner === true).map(p => p.room_id)))
       setBkgRooms(bkgRoomsRes.data ?? [])
       setRoomPrices(pricesRes.data ?? [])
       setRooms(roomsRes.data ?? [])
       setAccoms(acomsRes.data ?? [])
       setPayments(paymentsRes.data ?? [])
-      setLessons(lessonsRes.data ?? [])
+      setLessons([...(lessonsRes.data ?? []), ...(sharedRes?.data ?? [])].sort((a, b) => a.date.localeCompare(b.date)))
       // anon only receives id/first_name/last_name (column-restricted); the page uses only those
       setInstructors((instrRes.data ?? []) as unknown as Instructor[])
       setRentals(rentalsRes.data ?? [])
@@ -317,6 +324,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const partNames = (ids: string[]) => ids.map(partName).filter(Boolean).join(', ')
 
   // Lessons
+  const partIdSet = new Set(participants.map(p => p.id))
   const lessonRows = lessons.map(l => {
     const instr = instructors.find(i => i.id === l.instructor_id)
     const rate = getLessonRate(l)
@@ -327,7 +335,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       duration: l.duration_hours,
       instructor: instr ? instr.first_name : '?',
       guests: partNames(l.participant_ids),
-      total: coveredByAgency(l) ? null : rate * l.duration_hours * (l.type === 'group' ? l.participant_ids.length : 1),
+      // Group: only the heads sitting on THIS booking (a lesson shared with another one is split)
+      total: coveredByAgency(l) ? null : rate * l.duration_hours * (l.type === 'group' ? l.participant_ids.filter(pid => partIdSet.has(pid)).length : 1),
     }
   })
   const lessonsTotal = lessonRows.reduce((s, r) => s + (r.total ?? 0), 0)

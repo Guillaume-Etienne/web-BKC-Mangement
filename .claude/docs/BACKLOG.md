@@ -224,9 +224,12 @@ Cause : `computeLessonsRevenue` facturait TOUTES les têtes au propriétaire (`l
 15/10 sur #051 (Robin + copine de Tit de #052) → #051 = 180 €, #052 = 0 € ; seul cas sur PROD. Corrigé côté admin :
 `lessonHeadsFor` / `lessonsForBooking` (`accounting/utils.ts`) → #051 = 90 €, #052 = 90 € (attendu 277→187 / 50→140).
 Paie moniteur inchangée (à plat par cours, 40 €). Prix du cours éditable sur la résa propriétaire seulement.
-**Reste** : `ClientSharePage` (l.183 `.eq('booking_id', id)` + l.328 `participant_ids.length`) — le lien d'Andy affiche encore 180 €
-et celui de Tit ne voit pas le cours. Demande une migration : policy `anon_read_lessons` (token client) élargie aux cours
-dont un participant est de la résa, SANS exposer les identités des autres. Lire `security-rls.md` d'abord.
+**Page publique** (`ClientSharePage`) : code prêt (cours partagés lus à part, têtes = celles de SA résa) + migration
+`2026-10-16b_client_share_shared_lessons.sql` (fonction `share_client_participant_ids()` + policy `anon_read_lessons`,
+aucun nom d'autre résa exposé). **À passer TEST puis PROD par gui**, puis curl anon avec les vrais tokens de #051/#052
+(voir le bloc de vérification du fichier). Tant que ce n'est pas fait : le lien d'Andy affiche 90 € (OK), celui de Tit
+n'a pas le cours. ⚠️ Écart assumé : un id fantôme dans `participant_ids` (participant supprimé) = facturé au propriétaire
+côté admin, ignoré côté page publique.
 
 ### ✅ Activités facturées depuis le Daily / la note — livré le 2026-09-28 (`fb34d4d`), vérifié à l'écran par gui
 
