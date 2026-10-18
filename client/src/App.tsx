@@ -130,9 +130,18 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Load pending actions — refreshed on login and on every page navigation
+  // Keyed on the user, not on the session object: on startup Supabase hands out
+  // the session three times (storage read, INITIAL_SESSION, SIGNED_IN), each a
+  // new object, and every load hanging off `session` ran three times in a row —
+  // 21 requests instead of 7, slowing each other down (measured 2026-10-18).
+  const userId = session?.user.id ?? null
+
+  // Load pending actions — on login, on coming back to Home, and when the app
+  // is shown again (phone unlocked, tab back in front). Not on every page
+  // change any more: each page loads its own data, and doubling it with these
+  // six reads cost every navigation a second round of requests.
   const refreshPendingActions = useCallback(() => {
-    if (!session) return
+    if (!userId) return
     Promise.all([
       supabase.from('bookings').select('*, client:clients(first_name, last_name)'),
       supabase.from('payments').select('id, booking_id, date, is_verified, is_discount'),
@@ -181,9 +190,16 @@ function App() {
         formByEnquiry,
       }, new Date(), lang))
     })
-  }, [session, lang])
+  }, [userId, lang])
 
   useEffect(() => { refreshPendingActions() }, [refreshPendingActions])
+
+  // The nav badges must not go stale while the app sits in the background.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshPendingActions() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [refreshPendingActions])
 
   // ── Affaire classée ───────────────────────────────────────────────────────
   // Une seule lecture par session : rien d'autre que cet écran n'écrit dans la
@@ -192,10 +208,10 @@ function App() {
   // 2026-09-19b n'est pas passée sur la base, la requête répond une erreur —
   // la page d'accueil doit s'afficher quand même, simplement sans classement.
   const loadDismissals = useCallback(() => {
-    if (!session) return
+    if (!userId) return
     supabase.from('dismissed_actions').select('dismiss_key, up_to_count')
       .then(({ data }) => setDismissals((data ?? []) as Dismissal[]))
-  }, [session])
+  }, [userId])
 
   useEffect(() => { loadDismissals() }, [loadDismissals])
 
@@ -303,7 +319,7 @@ function App() {
   return (
     <LanguageProvider lang={lang} setLang={setLang}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={openActions.filter(a => a.priority === 'urgent').length} submissionsCount={openActions.filter(a => a.id === 'pending-submissions' || a.id === 'unqualified-enquiries').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
+        <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); if (p === 'home') refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={openActions.filter(a => a.priority === 'urgent').length} submissionsCount={openActions.filter(a => a.id === 'pending-submissions' || a.id === 'unqualified-enquiries').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
         {/* Le fournisseur n'enveloppe QUE l'app admin : le bandeau nomme des
             tables et rend le message brut de Postgres. Les pages partagées, plus
             haut dans ce fichier, gardent le contexte inerte par défaut. */}
