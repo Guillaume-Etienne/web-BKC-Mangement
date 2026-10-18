@@ -73,7 +73,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   // are documented on computeSeasonTotals rather than scattered here.
   const {
     accomRev, lessonsRev, rentalsRev, taxiRevGross, taxiCosts, taxiMargin,
-    activitiesRev, eventsRev, centerAccessRev, partnerHotelRev, agencyRev, agencyGross, agencyCommission, totalRevenue,
+    activitiesRev, eventsRev, centerAccessRev, partnerHotelRev, extrasRev, agencyRev, agencyGross, agencyCommission, totalRevenue,
     billedNet, totalPaid, unverifiedPaid, totalDue,
     instructorCosts, activityCosts, houseRentalCosts, bungalowCosts, externalStayCosts, totalExpenses,
     palmeirasNet, netResult,
@@ -369,6 +369,9 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
               // Our commission on Maputo stop-overs, converted from MZN at the
               // current rate — approximate, hence the ≈ in the label.
               ...(partnerHotelRev !== 0 ? [{ key: 'Partner hotels', label: i18n.accounting.rev_partner_hotels[lang], value: partnerHotelRev, color: 'bg-sky-500' }] : []),
+              // Hand-typed extras filed as `other` — the other categories are
+              // already inside Accommodation / Equipment / Events above.
+              ...(extrasRev !== 0 ? [{ key: 'Extras', label: i18n.accounting.rev_extras[lang], value: extrasRev, color: 'bg-gray-400' }] : []),
             ].map(c => (
               <div key={c.key} className="flex items-center gap-3">
                 <div className="w-28 shrink-0">

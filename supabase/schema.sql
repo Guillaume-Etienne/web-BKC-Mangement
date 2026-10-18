@@ -827,6 +827,23 @@ CREATE INDEX idx_payments_booking ON payments(booking_id);
 CREATE INDEX idx_payments_received_by_associate
   ON payments(received_by_associate_id) WHERE received_by_associate_id IS NOT NULL;
 
+-- Extras d'une résa (2026-10-18) : un dû saisi à la main, en €. `accommodation` = des nuits
+-- (comptées dans Nights sold). Jamais dans une facture agence. `notes` interne (pas de GRANT anon).
+CREATE TABLE booking_charges (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id  UUID NOT NULL REFERENCES bookings(id) ON DELETE RESTRICT,
+  date        DATE NOT NULL,
+  label       TEXT NOT NULL CHECK (btrim(label) <> ''),
+  category    TEXT NOT NULL DEFAULT 'other'
+              CHECK (category IN ('accommodation', 'food', 'equipment', 'other')),
+  quantity    NUMERIC(8,2)  NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  unit_price  NUMERIC(10,2) NOT NULL CHECK (unit_price >= 0),
+  notes       TEXT,
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_booking_charges_booking ON booking_charges(booking_id);
+
 CREATE TABLE instructor_debts (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   instructor_id  UUID NOT NULL REFERENCES instructors(id) ON DELETE CASCADE,
@@ -1104,7 +1121,7 @@ BEGIN
     'activity_providers', 'activity_bookings', 'activity_payments',
     'seasons', 'house_rentals', 'room_rates', 'booking_room_prices',
     'external_accommodation_bookings',
-    'payments',
+    'payments', 'booking_charges',
     'instructor_debts', 'instructor_payments', 'lesson_rate_overrides',
     'expenses', 'expense_categories',
     'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries',
@@ -1262,6 +1279,10 @@ CREATE POLICY "anon_read_payments" ON payments
   );
 CREATE POLICY "anon_read_ext_accom_bookings" ON external_accommodation_bookings
   FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());
+CREATE POLICY "anon_read_booking_charges" ON booking_charges                -- 2026-10-18
+  FOR SELECT TO anon USING (share_type() = 'client' AND booking_id = share_booking_id());
+REVOKE ALL ON booking_charges FROM anon;
+GRANT SELECT (id, booking_id, date, label, category, quantity, unit_price) ON booking_charges TO anon;
 
 -- Cours & matériel : client → son booking ; forecast → tout (raison d'être de la page) ;
 -- instructor → uniquement SES cours (page « mes heures », 2026-10-10).

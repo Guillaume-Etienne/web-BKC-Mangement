@@ -2,7 +2,7 @@ import type {
   Accommodation, Booking, BookingParticipant, Client, Room, RoomRate, BookingRoom, BookingRoomPrice,
   ExternalAccommodationBooking,
   HouseRental, Lesson, Instructor, Equipment, EquipmentRental, TaxiTrip, TaxiManagerPayment, Season, PriceItem, PriceTier,
-  Payment, InstructorDebt, InstructorPayment, LessonRateOverride,
+  Payment, BookingCharge, InstructorDebt, InstructorPayment, LessonRateOverride,
   Expense, ExpenseCategory, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   DiningEvent, ActivityBooking, ActivityPayment,
   Agency, AgencyRateItem, AgencyBillingLine, AgencyInvoice,
@@ -33,7 +33,8 @@ export interface SharedAccountingData {
   eurMznRate:                number    // global EUR/MZN rate (taxi_pricing_defaults)
   seasons:                   Season[]
   payments:                  Payment[]
-  instructorDebts:           InstructorDebt[]
+  bookingCharges:            BookingCharge[]      // hand-typed extras, owed by the guest (2026-10-18)
+  instructorDebts:          InstructorDebt[]
   instructorPayments:        InstructorPayment[]
   lessonRateOverrides:       LessonRateOverride[]
   expenses:                  Expense[]
@@ -60,6 +61,9 @@ export interface AccountingHandlers {
   updatePayment:           (p: Payment)            => void
   deletePayment:           (id: string)            => void
   verifyPayment:           (id: string)            => void
+  addBookingCharge:        (c: BookingCharge)      => void
+  updateBookingCharge:     (c: BookingCharge)      => void
+  deleteBookingCharge:     (id: string)            => void
   addInstructorDebt:       (d: InstructorDebt)     => void
   deleteInstructorDebt:    (id: string)            => void
   addInstructorPayment:    (p: InstructorPayment)  => void

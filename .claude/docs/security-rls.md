@@ -36,6 +36,7 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 | `booking_rooms` | 🟠 chambres | ClientSharePage / Forecast |
 | `booking_room_prices` | 🟢 **prix rédigé** (`share_price_per_night`) — `price_per_night` brut **bloqué** depuis `2026-08-18c` | ClientSharePage |
 | `payments` | 🔴 **finances** (montants, paiements) | ClientSharePage |
+| `booking_charges` | 🔴 **finances** (extras saisis à la main, 2026-10-18). Token `client` → sa résa ; GRANT colonnes sans `notes` (interne) | ClientSharePage (section Extras) |
 | `taxi_trips` | 🟠 trajets + **paie chauffeur/manager** (`price_driver_mzn`, `margin_manager_mzn` — lisibles par TOUT token, ⚠️ décision en attente) ; prix client rédigé (`share_price_eur`), `price_eur` brut **bloqué** | Taxi / Driver / Manager / Client share |
 | `taxi_drivers` | 🟢 identité + contact + véhicule | Taxi / Driver share |
 | `taxi_manager_payments` | 🔴 **finances** (commissions, avances) | TaxiManagerSharePage |

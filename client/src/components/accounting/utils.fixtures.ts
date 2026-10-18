@@ -5,7 +5,7 @@ import type {
   Accommodation, ActivityBooking, Booking, BookingParticipant, BookingRoom, BookingRoomPrice, Client,
   DiningEvent, EquipmentRental, EventAttendee, ExternalAccommodationBooking,
   Instructor, InstructorDebt, InstructorPayment, Lesson, LessonRateOverride, LessonType, PriceItem, PriceTier,
-  Payment, Room, RoomRate, TaxiTrip, BillableType,
+  Payment, BookingCharge, Room, RoomRate, TaxiTrip, BillableType,
   Agency, AgencyRateItem, AgencyBillingLine, AgencyInvoice,
 } from '../../types/database'
 import { lessonBillable } from '../../types/database'
@@ -136,6 +136,14 @@ export function mkPayment(over: Partial<Payment> = {}): Payment {
   return {
     id: 'pay1', booking_id: 'bk1', date: '2026-10-01', amount: 300,
     method: 'transfer', is_deposit: false, is_verified: true, is_discount: false, notes: null,
+    ...over,
+  }
+}
+
+export function mkCharge(over: Partial<BookingCharge> = {}): BookingCharge {
+  return {
+    id: 'ch1', booking_id: 'bk1', date: '2026-11-03', label: 'Extra',
+    category: 'other', quantity: 1, unit_price: 10, notes: null,
     ...over,
   }
 }

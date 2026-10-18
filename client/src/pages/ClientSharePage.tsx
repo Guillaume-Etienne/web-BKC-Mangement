@@ -6,7 +6,7 @@ import type {
   EquipmentRental, TaxiTrip,
   DiningEvent, BookingParticipant,
   ExternalAccommodationBooking,
-  ActivityBooking, RoomRate,
+  ActivityBooking, RoomRate, BookingCharge,
 } from '../types/database'
 import { getBaseNightlyRate } from '../utils/roomPricing'
 
@@ -25,6 +25,9 @@ type BookingWithClient = Pick<Booking,
 // longer compiles.
 type SharedExternalStay = Pick<ExternalAccommodationBooking,
   'id' | 'booking_id' | 'accommodation_id' | 'check_in' | 'check_out' | 'total_sell_price'>
+
+// Extras: everything but the internal `notes` (not granted to anon).
+type SharedExtra = Pick<BookingCharge, 'id' | 'date' | 'label' | 'category' | 'quantity' | 'unit_price'>
 
 // The four sources of a guest's bill, Phase 4 (2026-08-18c). `anon` no longer
 // reads the raw client price at all — only the generated `share_price*` mirror,
@@ -138,6 +141,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const [taxis,          setTaxis]          = useState<SharedTaxi[]>([])
   const [diningEvents,   setDiningEvents]   = useState<DiningEvent[]>([])
   const [participants,   setParticipants]   = useState<BookingParticipant[]>([])
+  const [extras,         setExtras]         = useState<SharedExtra[]>([])
   const [extAccomBkgs,   setExtAccomBkgs]   = useState<SharedExternalStay[]>([])
   const [activityBkgs,   setActivityBkgs]   = useState<ActivityBooking[]>([])
   const [loading,        setLoading]        = useState(true)
@@ -222,6 +226,12 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       const sharedRes = myPartIds.length === 0 ? null : await supabase.from('lessons')
         .select('id, booking_id, instructor_id, participant_ids, date, start_time, duration_hours, type, notes, agency_billing_line_id, price_per_hour:share_price_per_hour')
         .eq('type', 'group').neq('booking_id', id).overlaps('participant_ids', myPartIds).order('date')
+      // Extras (2026-10-18). Its own query for the same reason: before the migration
+      // the table does not exist, and a failure here must only mean "no extras".
+      const extrasRes = await supabase.from('booking_charges')
+        .select('id, date, label, category, quantity, unit_price')
+        .eq('booking_id', id).order('date')
+      setExtras(extrasRes.error ? [] : (extrasRes.data ?? []) as SharedExtra[])
       setPaidToOwnerIds(new Set((paidToOwnerRes.data ?? []).filter(p => p.paid_to_owner === true).map(p => p.room_id)))
       setBkgRooms(bkgRoomsRes.data ?? [])
       setRoomPrices(pricesRes.data ?? [])
@@ -380,7 +390,12 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const totalPaid = payments.filter(p => !p.is_discount).reduce((s, p) => s + p.amount, 0)
 
   // Grand totals
+  // Extras — quantity × unit price, rounded to the cent like utils.chargeAmount
+  const extraRows = extras.map(c => ({ ...c, total: Math.round(c.quantity * c.unit_price * 100) / 100 }))
+  const extrasTotal = extraRows.reduce((s, r) => s + r.total, 0)
+
   const totalCharges = accomTotal + lessonsTotal + rentalsTotal + taxiTotal + diningTotal + activityTotal + centerAccessTotal
+    + extrasTotal
   const balance = totalCharges - totalDiscounts - totalPaid
 
   return (
@@ -655,6 +670,38 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 <tr>
                   <td className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal center access</td>
                   <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(centerAccessTotal)}</td>
+                </tr>
+              </tfoot>
+            </table></div>
+          </Section>
+        )}
+
+        {/* Extras */}
+        {extraRows.length > 0 && (
+          <Section title="Extras" icon="➕">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
+                <tr>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Item</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Qty</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {extraRows.map(r => (
+                  <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.label}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{r.quantity} × {fmtEur(r.unit_price)}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
+                <tr>
+                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal extras</td>
+                  <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(extrasTotal)}</td>
                 </tr>
               </tfoot>
             </table></div>

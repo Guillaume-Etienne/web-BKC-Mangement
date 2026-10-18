@@ -6,6 +6,10 @@
 
 ## 🚨 Migrations SQL — registre
 
+⏳ **`2026-10-18_booking_charges.sql`** (**à passer par gui, TEST puis PROD, AVANT de pousser le code**) — lignes « Extras » d'une résa : table `booking_charges`
+(date, libellé, catégorie accommodation/food/equipment/other, quantité × prix unitaire €, note interne), FK RESTRICT vers bookings, `admin_all`, anon = GRANT colonnes
+sans `notes` + policy token `client` scopée à sa résa. Vérif (pied du fichier) : curl anon nu → `[]` ; token client → ses lignes ; `select=notes` → 42501.
+
 ✅ **`2026-10-16e_taxi_driver_6500.sql`** (TEST ✅ / PROD ✅ passée par gui 2026-10-16, vérifiée en base : défauts + Ruiz à 6500, 23 trajets à venir à 6500, 0 restant à 6000 ; 2 trajets à 168 €/6000 laissés tels quels) — chauffeur Aéroport ↔ Bilene 6000 → 6500 MZN (manager 1000, client 120 € inchangés) :
 défauts, chauffeur au tarif standard (Ruiz), trajets à venir à 120/6000/1000. Vérif : le SELECT de fin → plus aucune ligne à 6000. Code déjà à 6500 (fallbacks).
 

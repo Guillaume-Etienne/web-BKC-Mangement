@@ -1,4 +1,4 @@
-import type { Booking, BookingParticipant, Payment, Lesson, LessonType, Instructor, LessonRateOverride, DiningEvent, PriceItem, BillableType, PriceTier, Agency, AgencyBillingLine, AgencyInvoice } from '../../types/database'
+import type { Booking, BookingCharge, BookingChargeCategory, BookingParticipant, Payment, Lesson, LessonType, Instructor, LessonRateOverride, DiningEvent, PriceItem, BillableType, PriceTier, Agency, AgencyBillingLine, AgencyInvoice } from '../../types/database'
 import { lessonBillable, lessonDiscipline } from '../../types/database'
 import type { SharedAccountingData } from './types'
 import { getBaseNightlyRate } from '../../utils/roomPricing'
@@ -16,7 +16,7 @@ export function emptyAccountingData(): SharedAccountingData {
     externalAccommodationBkgs: [], diningEvents: [],
     lessons: [], instructors: [], priceItems: [], priceTiers: [], equipment: [], equipmentRentals: [],
     taxiTrips: [], taxiManagerPayments: [], eurMznRate: 65, seasons: [],
-    payments: [], instructorDebts: [], instructorPayments: [], lessonRateOverrides: [],
+    payments: [], bookingCharges: [], instructorDebts: [], instructorPayments: [], lessonRateOverrides: [],
     expenses: [], expenseCategories: [], palmeirasRents: [], palmeirasReversals: [], palmeirasEntries: [],
     activityBookings: [], activityPayments: [],
     agencies: [], agencyRateItems: [], agencyBillingLines: [], agencyInvoices: [],
@@ -467,6 +467,29 @@ export function computeStandaloneTaxiRevenue(data: SharedAccountingData): number
     .reduce((sum, t) => sum + t.price_eur, 0)
 }
 
+// ── Extras (hand-typed lines, 2026-10-18) ───────────────────────────────────
+//
+// The opposite of a discount: an amount owed that no source computes (a night
+// in a house, a broken fin, drinks). Always owed by the GUEST, even on an agency
+// booking — there is no agency_billing_line_id on them, on purpose. Kept out of
+// computeAccommodationRevenue & co. so each screen can show them in their own
+// "Extras" section; computeSeasonTotals files them back under their category.
+
+/** One extra line's amount, rounded to the cent like a stored price. */
+export function chargeAmount(c: Pick<BookingCharge, 'quantity' | 'unit_price'>): number {
+  return Math.round(c.quantity * c.unit_price * 100) / 100
+}
+
+/** Extras on a booking, optionally restricted to one category. `?? []` because
+ *  a dataset assembled before the table existed has no such collection. */
+export function computeExtrasRevenue(
+  booking: Booking, data: Pick<SharedAccountingData, 'bookingCharges'>, category?: BookingChargeCategory
+): number {
+  return (data.bookingCharges ?? [])
+    .filter(c => c.booking_id === booking.id && (!category || c.category === category))
+    .reduce((sum, c) => sum + chargeAmount(c), 0)
+}
+
 /** Full computed total for a booking (before discounts) */
 export function computeBookingTotal(booking: Booking, data: SharedAccountingData): number {
   return (
@@ -476,7 +499,8 @@ export function computeBookingTotal(booking: Booking, data: SharedAccountingData
     computeTaxiRevenue(booking, data) +
     computeDiningForBooking(booking, data.diningEvents, data.bookingParticipants) +
     computeActivityRevenueForBooking(booking, data) +
-    computeCenterAccessRevenue(booking)
+    computeCenterAccessRevenue(booking) +
+    computeExtrasRevenue(booking, data)
   )
 }
 
@@ -648,6 +672,7 @@ export interface SeasonTotals {
   eventsRev: number
   centerAccessRev: number
   partnerHotelRev: number    // our commission on Maputo stop-overs, MZN → EUR at the current rate (approximate)
+  extrasRev: number          // hand-typed extras filed as `other` (the other categories sit in accom/rentals/events)
   agencyGross: number        // billed to partner agencies, before their commission
   agencyCommission: number   // what they retain
   agencyRev: number          // what reaches us — the part counted in totalRevenue
@@ -687,10 +712,18 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
   const activeBookings = data.bookings.filter(b => b.status !== 'cancelled')
   const activeIds = new Set(activeBookings.map(b => b.id))
 
+  // Extras land in the bucket of their category (a night → accommodation, a
+  // drink → events, a broken fin → rentals); only `other` gets a line of its own.
+  const extras = (category: BookingChargeCategory) =>
+    activeBookings.reduce((s, b) => s + computeExtrasRevenue(b, data, category), 0)
+
   const accomRev        = activeBookings.reduce((s, b) => s + computeAccommodationRevenue(b, data), 0)
+    + extras('accommodation')
   const lessonsRev      = activeBookings.reduce((s, b) => s + computeLessonsRevenue(b, data), 0)
   const rentalsRev      = activeBookings.reduce((s, b) => s + computeRentalsRevenue(b, data), 0)
+    + extras('equipment')
   const centerAccessRev = activeBookings.reduce((s, b) => s + computeCenterAccessRevenue(b), 0)
+  const extrasRev       = extras('other')
 
   const activeTrips  = data.taxiTrips.filter(t => t.booking_id === null || activeIds.has(t.booking_id))
   // Gross counts client-billed trips only — an agency transfer is invoiced on its
@@ -707,7 +740,7 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
   const activitiesRev = activeActs.reduce((s, a) => s + (a.payment_flow === 'we_pay_provider' ? a.price_client : a.price_provider), 0)
   const activityCosts = activeActs.reduce((s, a) => s + (a.payment_flow === 'we_pay_provider' ? a.price_provider : 0), 0)
 
-  const eventsRev    = computeDiningRevenue(data.diningEvents)
+  const eventsRev    = computeDiningRevenue(data.diningEvents) + extras('food')
 
   // Partner hotels (Maputo): only our commission is ours — the room price goes
   // to the hotel whoever collects it. Counted as soon as the stay exists, like
@@ -722,7 +755,7 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
   const agency = computeAgencyTotals(data)
 
   const totalRevenue = accomRev + lessonsRev + rentalsRev + taxiMargin + eventsRev + activitiesRev + centerAccessRev + agency.net
-    + partnerHotelRev
+    + partnerHotelRev + extrasRev
 
   const billedNet = activeBookings.reduce(
     (s, b) => s + computeBookingTotal(b, data) - computeBookingDiscounts(b.id, data.payments), 0)
@@ -773,7 +806,7 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
 
   return {
     accomRev, lessonsRev, rentalsRev, taxiRevGross, taxiCosts, taxiMargin,
-    activitiesRev, eventsRev, centerAccessRev, partnerHotelRev,
+    activitiesRev, eventsRev, centerAccessRev, partnerHotelRev, extrasRev,
     agencyGross: agency.gross, agencyCommission: agency.commission,
     agencyRev: agency.net, agencyOutstanding: agency.outstanding,
     totalRevenue,
@@ -810,7 +843,7 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
 export interface VolumeTotals {
   bookings: number                  // active stays (cancelled and walk-ins excluded)
   guests: number                    // named participants of those stays
-  roomNights: number                // rooms x nights at Bilene (own rooms + external stays)
+  roomNights: number                // rooms x nights at Bilene (own rooms + external stays + `accommodation` extras)
   maputoNights: number              // rooms x nights in the partner hotels
   taxiTransfers: number             // active trips, standalone ones included
   bookingsWithoutGuestList: number  // active stays with nobody listed on them
@@ -843,6 +876,14 @@ export function computeVolumeTotals(data: SharedAccountingData): VolumeTotals {
     (s, b) => s + (roomsOf.get(b.id) ?? 0) * countNights(b.check_in, b.check_out), 0)
   const externalNights = externals.reduce((s, e) => s + countNights(e.check_in, e.check_out), 0)
 
+  // An `accommodation` extra is nights typed by hand ("1 night – House 4"): its
+  // quantity counts as is. Walk-ins included — unlike their placeholder dates,
+  // a night someone typed in was really slept.
+  const nightExtras = (data.bookingCharges ?? [])
+    .filter(c => c.category === 'accommodation' && activeIds.has(c.booking_id))
+  const extraNights = nightExtras.reduce((s, c) => s + c.quantity, 0)
+  const withNightExtra = new Set(nightExtras.map(c => c.booking_id))
+
   // Same rows as the commission in computeSeasonTotals: a stop-over with no
   // booking counts, one hanging off a cancelled booking does not.
   const maputoNights = (data.partnerHotelStays ?? [])
@@ -852,13 +893,14 @@ export function computeVolumeTotals(data: SharedAccountingData): VolumeTotals {
   return {
     bookings: stays.length,
     guests: named.length,
-    roomNights: ownNights + externalNights,
+    roomNights: ownNights + externalNights + extraNights,
     maputoNights,
     taxiTransfers: data.taxiTrips.filter(
       t => t.booking_id === null || activeIds.has(t.booking_id)).length,
     bookingsWithoutGuestList: stays.filter(b => !withGuests.has(b.id)).length,
     bookingsWithoutRoom: stays.filter(b =>
-      countNights(b.check_in, b.check_out) > 0 && !roomsOf.has(b.id) && !withExternal.has(b.id)).length,
+      countNights(b.check_in, b.check_out) > 0 && !roomsOf.has(b.id) && !withExternal.has(b.id)
+      && !withNightExtra.has(b.id)).length,
   }
 }
 

@@ -7,7 +7,7 @@ import type {
   InstructorDebt, InstructorPayment, LessonRateOverride, Expense, ExpenseCategory, PalmeirasRent,
   PalmeirasReversal, PalmeirasEntry, ActivityBooking, ActivityPayment, TaxiPricingDefaults,
   PriceTier, Agency, AgencyRateItem, AgencyBillingLine, AgencyInvoice,
-  PartnerHotelStay, Associate, AssociateTransfer,
+  PartnerHotelStay, Associate, AssociateTransfer, BookingCharge,
 } from '../../../client/src/types/database.js'
 
 /** Every table `SharedAccountingData` needs, fetched in parallel. This is the
@@ -24,7 +24,7 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     expenseCategories,
     palmeirasRents, palmeirasReversals, palmeirasEntries, activityBookings, activityPayments,
     priceTiers, agencies, agencyRateItems, agencyBillingLines, agencyInvoices, partnerHotelStays,
-    associates, associateTransfers,
+    associates, associateTransfers, bookingCharges,
   ] = await Promise.all([
     selectAll<Accommodation>('accommodations'),
     selectAll<BookingParticipant>('booking_participants'),
@@ -75,6 +75,8 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     // Associate accounts, 2026-10-11 — same tolerance until the migration is in.
     selectAll<Associate>('associates').catch(missingTableAsEmpty<Associate>),
     selectAll<AssociateTransfer>('associate_transfers').catch(missingTableAsEmpty<AssociateTransfer>),
+    // Extras, 2026-10-18 — same tolerance until the migration is in.
+    selectAll<BookingCharge>('booking_charges').catch(missingTableAsEmpty<BookingCharge>),
   ])
 
   return {
@@ -86,7 +88,7 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     expenseCategories,
     palmeirasRents, palmeirasReversals, palmeirasEntries, activityBookings, activityPayments,
     priceTiers, agencies, agencyRateItems, agencyBillingLines, agencyInvoices, partnerHotelStays,
-    associates, associateTransfers,
+    associates, associateTransfers, bookingCharges,
   }
 }
 

@@ -871,6 +871,24 @@ export interface Payment {
   received_by_associate_id?: string | null
 }
 
+/** What an extra line is filed under. `accommodation` means the quantity is
+ *  NIGHTS: it counts in Nights sold and in accommodation revenue. */
+export type BookingChargeCategory = 'accommodation' | 'food' | 'equipment' | 'other'
+
+/** A hand-typed amount the guest owes on top of everything computed — the
+ *  opposite of a discount (2026-10-18). Always paid by the guest directly, never
+ *  by a partner agency. Line total = quantity × unit_price, in EUR. */
+export interface BookingCharge {
+  id: string
+  booking_id: string
+  date: string
+  label: string
+  category: BookingChargeCategory
+  quantity: number
+  unit_price: number            // EUR
+  notes: string | null          // internal — not readable from a share link
+}
+
 // Instructor payroll — debt (advance on dinner, outing, etc.)
 export interface InstructorDebt {
   id: string

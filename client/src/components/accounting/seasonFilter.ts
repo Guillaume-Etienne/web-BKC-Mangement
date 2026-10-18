@@ -115,6 +115,7 @@ export function filterDataToSeason(
     bookingRoomPrices:         byBookingId(data.bookingRoomPrices),
     externalAccommodationBkgs: byBookingId(data.externalAccommodationBkgs),
     payments:                  byBookingId(data.payments),
+    bookingCharges:            byBookingId(data.bookingCharges),
     lessons:                   followsBooking(data.lessons),
     equipmentRentals:          followsBooking(data.equipmentRentals),
     taxiTrips:                 followsBooking(data.taxiTrips),

@@ -30,7 +30,7 @@ import AgencyBillingTab     from '../components/accounting/AgencyBillingTab'
 import AssociatesTab        from '../components/accounting/AssociatesTab'
 import type {
   ExternalAccommodationBooking, HouseRental, Season,
-  Payment, InstructorDebt, InstructorPayment, LessonRateOverride, EquipmentRental,
+  Payment, BookingCharge, InstructorDebt, InstructorPayment, LessonRateOverride, EquipmentRental,
   Expense, ExpenseCategory, PalmeirasRent, PalmeirasReversal, PalmeirasEntry,
   TaxiPricingDefaults, TaxiManagerPayment,
   DiningEvent, BookingRoomPrice, RoomRate, PriceItem, Lesson,
@@ -95,6 +95,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
 
   // ── Mutable state (Supabase) ──────────────────────────────────────────────
   const { data: paymentsData }           = usePayments()
+  const { data: bookingChargesData }     = useTable<BookingCharge>('booking_charges', { order: 'date', ascending: true })
   const { data: agencyBillingLinesData } = useAgencyBillingLines()
   const { data: agencyInvoicesData }     = useAgencyInvoices()
   const { data: partnerHotelStays }      = usePartnerHotelStays()
@@ -115,6 +116,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const [agencyInvoices, setAgencyInvoices] = useState<AgencyInvoice[]>([])
   const [bookingRoomPrices,  setBookingRoomPrices]  = useState<BookingRoomPrice[]>([])
   const [payments,           setPayments]           = useState<Payment[]>([])
+  const [bookingCharges,     setBookingCharges]     = useState<BookingCharge[]>([])
   const [instructorDebts,    setInstructorDebts]    = useState<InstructorDebt[]>([])
   const [instructorPayments, setInstructorPayments] = useState<InstructorPayment[]>([])
   const [lessonRateOverrides,setLessonRateOverrides]= useState<LessonRateOverride[]>([])
@@ -133,6 +135,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   useEffect(() => setBookingRoomPrices(bookingRoomPricesData), [bookingRoomPricesData])
   useEffect(() => setEquipmentRentals(equipmentRentalsData),  [equipmentRentalsData])
   useEffect(() => setPayments(paymentsData),                   [paymentsData])
+  useEffect(() => setBookingCharges(bookingChargesData),       [bookingChargesData])
   useEffect(() => setActivityBookings(activityBookingsData),   [activityBookingsData])
   useEffect(() => setInstructorDebts(instructorDebtsData),     [instructorDebtsData])
   useEffect(() => setInstructorPayments(instructorPaymentsData),[instructorPaymentsData])
@@ -168,6 +171,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     eurMznRate: taxiPricingDefaults[0]?.eur_mzn_rate ?? 65,
     seasons,
     payments,
+    bookingCharges,
     instructorDebts,
     instructorPayments,
     lessonRateOverrides,
@@ -242,6 +246,25 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       setPayments(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('payments').delete().eq('id', id),
         () => setPayments(before), 'the payment deletion')
+    },
+    addBookingCharge: (c: BookingCharge) => {
+      const before = bookingCharges
+      setBookingCharges(prev => [...prev, c])
+      persist(supabase.from('booking_charges').insert([c]),
+        () => setBookingCharges(before), 'the extra')
+    },
+    updateBookingCharge: (c: BookingCharge) => {
+      const before = bookingCharges
+      setBookingCharges(prev => prev.map(x => x.id === c.id ? c : x))
+      const { id, ...fields } = c
+      persist(supabase.from('booking_charges').update(fields).eq('id', id),
+        () => setBookingCharges(before), 'the extra')
+    },
+    deleteBookingCharge: (id: string) => {
+      const before = bookingCharges
+      setBookingCharges(prev => prev.filter(x => x.id !== id))
+      persist(supabase.from('booking_charges').delete().eq('id', id),
+        () => setBookingCharges(before), 'the extra deletion')
     },
     verifyPayment: (id: string) => {
       const before = payments

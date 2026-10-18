@@ -257,7 +257,8 @@ Tous les composants accounting partagent :
 ### `BookingFinances` — `accounting/BookingFinances.tsx`
 **Props :** `{ data, handlers }`
 - Liste bookings avec totaux (dû / payé / solde)
-- Clic booking → détail : hébergement, leçons, locations, taxis, dining, activités, **center access**
+- Clic booking → détail : hébergement, leçons, locations, taxis, dining, activités, **center access**, **Extras**
+  (`booking_charges`, toujours affiché : `+ Add extra`, ✏️ / ✕, formulaire `ExtraLineForm`)
 - Liste paiements : add / edit (✏️) / delete (✕) ; badge vérifié ; lignes discount en violet
 - **Formulaires module-scope :** `PaymentForm`, `DiscountForm`, `EditRentalForm`, `LessonRateForm`
 - Boutons `+ Payment` (bleu) et `+ Discount` (violet)

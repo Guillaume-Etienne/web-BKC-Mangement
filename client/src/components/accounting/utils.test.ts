@@ -11,6 +11,7 @@ import {
   clientParticipantIds, cumulativeHoursBefore, getTierRate,
   isAgencyBilled, agencyLineHoursUsed, computeAgencyTotals, reFreezeInstructorRate, buildAgencyInvoiceRows, agencyMarker,
   nextInvoiceNumber, agencyInvoiceLineLabel, buildAgencyInvoiceDoc,
+  chargeAmount, computeExtrasRevenue,
 } from './utils'
 import {
   mkAccommodation, mkActivityBooking, mkAgency, mkAgencyLine, mkAgencyInvoice, mkAgencyRateItem, mkAttendee, mkBooking, mkBookingRoom, mkBookingRoomPrice,
@@ -18,6 +19,7 @@ import {
   mkData, mkDiningEvent, mkExternalBooking, mkHouseSetup,
   mkInstructor, mkInstructorDebt, mkInstructorPayment, mkLesson, mkLessonOverride, mkLessonPrices,
   mkParticipant, mkPayment, mkPrice, mkPriceTier, mkRental, mkRoom, mkRoomRate, mkTaxiTrip,
+  mkCharge,
 } from './utils.fixtures'
 import type { Lesson } from '../../types/database'
 
@@ -1970,5 +1972,84 @@ describe('wing lesson pricing', () => {
     const ctx = { tiers, allLessons: lessons, bookingParticipants: [mkParticipant({ id: 'p1' })] }
     expect(resolveLessonRate(mkLesson({ id: 'w2', date: '2026-11-09', discipline: 'wing' }), prices, ctx)).toBe(55)
     expect(resolveLessonRate(mkLesson({ id: 'k3', date: '2026-11-09' }), prices, ctx)).toBe(25)
+  })
+})
+
+// ─── Extras (hand-typed lines, 2026-10-18) ────────────────────────────────────
+
+describe('booking extras', () => {
+  const night  = mkCharge({ id: 'n', category: 'accommodation', quantity: 1, unit_price: 60 })
+  const drinks = mkCharge({ id: 'd', category: 'food',          quantity: 3, unit_price: 2.5 })
+  const fin    = mkCharge({ id: 'f', category: 'equipment',     quantity: 1, unit_price: 40 })
+  const misc   = mkCharge({ id: 'm', category: 'other',         quantity: 2, unit_price: 5 })
+
+  it('prices a line as quantity × unit price, to the cent', () => {
+    expect(chargeAmount({ quantity: 3, unit_price: 2.5 })).toBe(7.5)
+    expect(chargeAmount({ quantity: 0.333, unit_price: 10 })).toBe(3.33)
+  })
+
+  it('adds every extra to what the guest owes, and only on its own booking', () => {
+    const data = mkData({
+      bookings: [mkBooking({ id: 'bk1' }), mkBooking({ id: 'bk2', booking_number: 2 })],
+      bookingCharges: [night, drinks, fin, misc, mkCharge({ id: 'o', booking_id: 'bk2', unit_price: 99 })],
+    })
+    expect(computeExtrasRevenue(data.bookings[0], data)).toBe(60 + 7.5 + 40 + 10)
+    expect(computeBookingTotal(data.bookings[0], data)).toBe(117.5)
+    expect(computeBookingTotal(data.bookings[1], data)).toBe(99)
+  })
+
+  it('is still owed by the guest on an agency booking', () => {
+    const data = mkData({
+      bookings: [mkBooking({ id: 'bk1', agency_id: 'ag1' })],
+      bookingCharges: [night],
+    })
+    expect(computeBookingTotal(data.bookings[0], data)).toBe(60)
+    expect(computeSeasonTotals(data).billedNet).toBe(60)
+  })
+
+  it('files each category under its revenue line, and counts the total once', () => {
+    const data = mkData({ bookings: [mkBooking({ id: 'bk1' })], bookingCharges: [night, drinks, fin, misc] })
+    const t = computeSeasonTotals(data)
+    expect(t.accomRev).toBe(60)
+    expect(t.eventsRev).toBe(7.5)
+    expect(t.rentalsRev).toBe(40)
+    expect(t.extrasRev).toBe(10)
+    expect(t.totalRevenue).toBe(117.5)
+    expect(t.billedNet).toBe(117.5)
+    expect(t.totalDue).toBe(117.5)
+  })
+
+  it('ignores the extras of a cancelled booking', () => {
+    const data = mkData({ bookings: [mkBooking({ id: 'bk1', status: 'cancelled' })], bookingCharges: [night, misc] })
+    const t = computeSeasonTotals(data)
+    expect(t.totalRevenue).toBe(0)
+    expect(computeVolumeTotals(data).roomNights).toBe(0)
+  })
+
+  it('counts accommodation extras as nights sold, and nothing else', () => {
+    const data = mkData({
+      bookings: [mkBooking({ id: 'bk1', check_in: '2026-11-01', check_out: '2026-11-08' })],
+      bookingRooms: [mkBookingRoom({ booking_id: 'bk1' })],
+      bookingCharges: [mkCharge({ category: 'accommodation', quantity: 2 }), drinks, misc],
+    })
+    expect(computeVolumeTotals(data).roomNights).toBe(7 + 2)
+  })
+
+  it('does not flag a stay as "no room" when its night is an extra', () => {
+    const data = mkData({
+      bookings: [mkBooking({ id: 'bk1' })],
+      bookingCharges: [night],
+    })
+    const v = computeVolumeTotals(data)
+    expect(v.roomNights).toBe(1)
+    expect(v.bookingsWithoutRoom).toBe(0)
+  })
+
+  it('counts a night typed on a walk-in — it was really slept', () => {
+    const data = mkData({
+      bookings: [mkBooking({ id: 'bk1', kind: 'day_visitor', check_in: '2026-11-03', check_out: '2026-11-04' })],
+      bookingCharges: [night],
+    })
+    expect(computeVolumeTotals(data).roomNights).toBe(1)
   })
 })

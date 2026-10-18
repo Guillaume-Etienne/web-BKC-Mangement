@@ -635,6 +635,23 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 > Auto-création : nouveau booking avec `amount_paid > 0` → insert Payment (`method:'transfer'`, `is_verified:false`).
 > Discounts : positif, `is_discount:true`. Réduit outstanding (Total − Paid).
 
+### `booking_charges` → `BookingCharge` (2026-10-18)
+« Extras » : un dû saisi à la main, l'inverse d'un discount (nuit imprévue dans une maison, casse, boissons).
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string (UUID) | |
+| booking_id | string (FK, ON DELETE RESTRICT) | |
+| date | string (ISO date) | |
+| label | string | non vide, visible du client |
+| category | `'accommodation' \| 'food' \| 'equipment' \| 'other'` | TEXT + CHECK |
+| quantity | number (> 0) | pour `accommodation` = des **nuits** |
+| unit_price | number (EUR, ≥ 0) | saisi à la main, € uniquement |
+| notes | string \| null | **interne** (pas de GRANT anon) |
+> Montant = `chargeAmount()` (quantité × prix, arrondi au centime). Toujours dû par le **client**, même sur une résa
+> agence (jamais de ligne agence). Inclus dans `computeBookingTotal`. Dans `computeSeasonTotals` : accommodation →
+> `accomRev`, food → `eventsRev`, equipment → `rentalsRev`, other → `extrasRev`. `accommodation` compte dans
+> Nights sold (`computeVolumeTotals`, walk-ins inclus). **Pas d'affichage au planning** (hors périmètre, décision gui).
+
 ### ~~`participant_consumptions`~~ — SUPPRIMÉE (2026-06-28)
 > Table + type `ParticipantConsumption` + enum `consumption_type` supprimés (orphelins, jamais alimentés). ClientSharePage utilise les tables sources directes (lessons, equipment_rentals, activity_bookings).
 

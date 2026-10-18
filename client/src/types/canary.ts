@@ -31,7 +31,7 @@ import type {
   Accommodation, Room, Client, Booking, BookingRoom, Instructor, Lesson,
   PriceItem, DayActivity, TaxiDriver, TaxiTrip, TaxiPricingDefaults,
   Equipment, EquipmentRental, DiningEvent, SharedLink, Season, RoomRate,
-  BookingRoomPrice, ExternalAccommodationBooking, Payment, InstructorDebt,
+  BookingRoomPrice, ExternalAccommodationBooking, Payment, BookingCharge, InstructorDebt,
   InstructorPayment, LessonRateOverride, Expense, ExpenseCategory, PalmeirasRent,
   PalmeirasReversal, PalmeirasEntry,
 } from './database'
@@ -181,6 +181,11 @@ export const _payment = {
   id: 'x', booking_id: 'x', date: '2026-01-01', amount: 0, method: 'transfer',
   is_deposit: false, is_verified: false, is_discount: false, notes: null,
 } satisfies Payment
+
+export const _bookingCharge = {
+  id: 'x', booking_id: 'x', date: '2026-01-01', label: 'x', category: 'other',
+  quantity: 1, unit_price: 0, notes: null,
+} satisfies BookingCharge
 
 export const _expense = {
   id: 'x', date: '2026-01-01', category: 'x', category_id: null, amount: 0, description: 'x',
