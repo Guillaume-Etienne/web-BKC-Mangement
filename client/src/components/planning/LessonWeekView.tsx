@@ -5,7 +5,7 @@ import { currentInstructorRate, reFreezeInstructorRate, resolveLessonRate, agenc
 import { toISODate as dateToISO, localeTag } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
-import { RENTAL_TYPES, rentalGear, rentalKind, rentalLabel, type RentalKind } from './rentalTypes'
+import { RENTAL_TYPES, boardPickerCategory, rentalGear, rentalKind, rentalLabel, showsKitePicker, type RentalKind } from './rentalTypes'
 import WalkInForm from './WalkInForm'
 import type { WalkInRequest } from './walkInSave'
 import { isDayVisitor, isOnSiteOn } from '../../utils/dayVisitor'
@@ -480,16 +480,15 @@ export default function LessonWeekView({
 
   function openEditRental(r: EquipmentRental) {
     const type = rentalKind(r, equipment) ?? 'free'
-    // Rows from before 2026-10-18 hold a single piece of gear: sort it by category.
-    const legacy = !r.rental_type
-    const isKite = equipment.find(e => e.id === r.equipment_id)?.category === 'kite'
     setEditRental(r)
     setEditRentalPrice(String(r.price))
     setEditRentalSlot(r.slot)
     setEditRentalParticipantId(r.participant_id ?? '')
     setEditRentalType(type)
-    setEditRentalKiteId(legacy ? (isKite ? r.equipment_id : null) : (type === 'board' ? null : r.equipment_id))
-    setEditRentalBoardId(legacy ? (isKite ? null : r.equipment_id) : (type === 'board' ? r.equipment_id : r.board_equipment_id ?? null))
+    // The inverse of rentalGear. Older rows hold one piece of gear and their type
+    // was deduced from its category, so the same rule sorts it into the right slot.
+    setEditRentalKiteId(showsKitePicker(type) ? r.equipment_id : null)
+    setEditRentalBoardId(type === 'full' ? r.board_equipment_id ?? null : boardPickerCategory(type) ? r.equipment_id : null)
     setEditRentalNotes(r.notes ?? '')
     setEditRentalClientNote(r.client_note ?? '')
     setShowAllGuestsEditRental(false)
@@ -934,6 +933,8 @@ export default function LessonWeekView({
                                       ...f,
                                       rental_type: rt.key,
                                       rental_price: rentalPrice(rt.key, f.rental_slot) ?? 0,
+                                      // A board picked for one category is wrong for another.
+                                      rental_board_id: boardPickerCategory(rt.key) === boardPickerCategory(f.rental_type) ? f.rental_board_id : null,
                                     })}
                                     className={`text-sm md:text-xs py-2 px-1 md:py-1 rounded border transition-colors text-center leading-tight ${
                                       addForm?.rental_type === rt.key
@@ -948,7 +949,7 @@ export default function LessonWeekView({
                                 ))}
                               </div>
                               {/* Optional equipment selection */}
-                              {(addForm?.rental_type === 'kite' || addForm?.rental_type === 'full') && (
+                              {addForm && showsKitePicker(addForm.rental_type) && (
                                 <select
                                   value={addForm?.rental_kite_id ?? ''}
                                   onChange={e => setAddForm(f => f && { ...f, rental_kite_id: e.target.value || null })}
@@ -960,14 +961,14 @@ export default function LessonWeekView({
                                   ))}
                                 </select>
                               )}
-                              {(addForm?.rental_type === 'board' || addForm?.rental_type === 'full') && (
+                              {addForm && boardPickerCategory(addForm.rental_type) && (
                                 <select
-                                  value={addForm?.rental_board_id ?? ''}
+                                  value={addForm.rental_board_id ?? ''}
                                   onChange={e => setAddForm(f => f && { ...f, rental_board_id: e.target.value || null })}
                                   className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 >
-                                  <option value="">🏄 Board — not specified</option>
-                                  {equipment.filter(e => e.category === 'board' && e.is_active).map(e => (
+                                  <option value="">🏄 {rentalLabel(addForm.rental_type === 'full' ? 'board' : addForm.rental_type, 'staff')} — not specified</option>
+                                  {equipment.filter(e => e.category === boardPickerCategory(addForm.rental_type) && e.is_active).map(e => (
                                     <option key={e.id} value={e.id}>🏄 {e.name}</option>
                                   ))}
                                 </select>
@@ -1483,6 +1484,7 @@ export default function LessonWeekView({
                         if (editRentalPrice === String(rentalPrice(editRentalType, editRentalSlot) ?? 0)) {
                           setEditRentalPrice(String(rentalPrice(rt.key, editRentalSlot) ?? 0))
                         }
+                        if (boardPickerCategory(rt.key) !== boardPickerCategory(editRentalType)) setEditRentalBoardId(null)
                         setEditRentalType(rt.key)
                       }}
                       className={`text-xs py-1.5 px-1 rounded border text-center leading-tight transition-colors ${editRentalType === rt.key ? 'bg-amber-500 border-amber-600 dark:border-amber-500 text-white font-semibold' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-amber-300 dark:hover:border-amber-800'}`}>
@@ -1493,7 +1495,7 @@ export default function LessonWeekView({
                 </div>
               </div>
               {/* Equipment */}
-              {(editRentalType === 'kite' || editRentalType === 'full') && (
+              {showsKitePicker(editRentalType) && (
                 <select value={editRentalKiteId ?? ''} onChange={e => setEditRentalKiteId(e.target.value || null)}
                   className="w-full text-sm border rounded px-2 py-1.5">
                   <option value="">🪂 Kite — not specified</option>
@@ -1502,11 +1504,11 @@ export default function LessonWeekView({
                   ))}
                 </select>
               )}
-              {(editRentalType === 'board' || editRentalType === 'full') && (
+              {boardPickerCategory(editRentalType) && (
                 <select value={editRentalBoardId ?? ''} onChange={e => setEditRentalBoardId(e.target.value || null)}
                   className="w-full text-sm border rounded px-2 py-1.5">
-                  <option value="">🏄 Board — not specified</option>
-                  {equipment.filter(e => e.category === 'board' && e.is_active).map(e => (
+                  <option value="">🏄 {rentalLabel(editRentalType === 'full' ? 'board' : editRentalType, 'staff')} — not specified</option>
+                  {equipment.filter(e => e.category === boardPickerCategory(editRentalType) && e.is_active).map(e => (
                     <option key={e.id} value={e.id}>🏄 {e.name}</option>
                   ))}
                 </select>

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { rentalBillable } from '../../types/database'
-import { rentalGear, rentalKind, rentalLabel } from './rentalTypes'
+import { boardPickerCategory, rentalGear, rentalKind, rentalLabel, showsKitePicker } from './rentalTypes'
 
 const gear = [
   { id: 'k1', category: 'kite' as const },
@@ -26,6 +26,22 @@ describe('rentalGear', () => {
     expect(rentalGear('kite', 'k1', 'b1')).toEqual({ equipment_id: 'k1', board_equipment_id: null })
     expect(rentalGear('board', 'k1', 'b1')).toEqual({ equipment_id: 'b1', board_equipment_id: null })
     expect(rentalGear('free', 'k1', 'b1')).toEqual({ equipment_id: null, board_equipment_id: null })
+  })
+  it('stores the surfboard / foilboard picked, which used to be dropped', () => {
+    expect(rentalGear('surfboard', null, 's1')).toEqual({ equipment_id: 's1', board_equipment_id: null })
+    expect(rentalGear('foilboard', null, 'f1')).toEqual({ equipment_id: 'f1', board_equipment_id: null })
+  })
+})
+
+describe('gear pickers', () => {
+  it('offers the board list of the type, and a kite list only for kite / full', () => {
+    expect(boardPickerCategory('full')).toBe('board')
+    expect(boardPickerCategory('surfboard')).toBe('surfboard')
+    expect(boardPickerCategory('foilboard')).toBe('foilboard')
+    expect(boardPickerCategory('kite')).toBeNull()
+    expect(boardPickerCategory('free')).toBeNull()
+    expect(showsKitePicker('full')).toBe(true)
+    expect(showsKitePicker('board')).toBe(false)
   })
 })
 

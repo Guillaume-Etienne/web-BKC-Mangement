@@ -97,13 +97,27 @@ function lessonEquipmentRates(
   }
 }
 
+/** What a piece of gear earned from one rental. A Full pays two pieces: its price
+ *  is split between kite and board in the proportion of their own half-day rates,
+ *  so neither is credited the whole. Without a board (or without both rates) the
+ *  rental credits `equipment_id` alone, as it always did. */
+function rentalShare(eq: Equipment, r: EquipmentRental, priceItems: PriceItem[]): number {
+  if (!usesGear(r, eq)) return 0
+  if (!r.board_equipment_id) return r.equipment_id === eq.id ? r.price : 0
+  const rate = (t: 'rental_kite' | 'rental_board') => priceItems.find(p => p.billable_type === t)?.price ?? 0
+  const kite = rate('rental_kite'), board = rate('rental_board')
+  if (kite + board === 0) return r.equipment_id === eq.id ? r.price : 0
+  return (r.equipment_id === eq.id ? kite : 0) * r.price / (kite + board)
+    + (r.board_equipment_id === eq.id ? board : 0) * r.price / (kite + board)
+}
+
 /** Real rental revenue + estimated lesson-attributed value for one piece of gear. */
 function getEquipmentRevenue(
   eq: Equipment, rentals: EquipmentRental[], lessons: Lesson[],
   instructors: Instructor[], priceItems: PriceItem[], overrides: LessonRateOverride[],
   model: EquipmentPricingModel
 ): { real: number; est: number; total: number; hours: number; perHour: number } {
-  const real = rentals.filter(r => r.equipment_id === eq.id).reduce((sum, r) => sum + r.price, 0)
+  const real = rentals.reduce((sum, r) => sum + rentalShare(eq, r, priceItems), 0)
   const est = lessonsFor(eq, lessons).reduce((sum, l) => {
     const rates = lessonEquipmentRates(l, instructors, priceItems, overrides, model)
     // With gear per rider the lesson's margin is split between its riders, so a
@@ -118,7 +132,7 @@ function getEquipmentRevenue(
 
 function getRecentUsage(eq: Equipment, rentals: EquipmentRental[], lessons: Lesson[]): Array<{ date: string; type: 'rental' | 'lesson'; hours: number }> {
   const rentalEvents = rentals
-    .filter(r => r.equipment_id === eq.id)
+    .filter(r => usesGear(r, eq))
     .map(r => ({ date: r.date, type: 'rental' as const, hours: RENTAL_SLOT_HOURS[r.slot] }))
   const lessonEvents = lessonsFor(eq, lessons)
     .map(l => ({ date: l.date, type: 'lesson' as const, hours: l.duration_hours }))
@@ -455,10 +469,10 @@ export default function EquipmentPage() {
   async function addRental() {
     const firstActive = equipment.find(e => e.is_active)
     if (!firstActive) return
+    // No `client_id`: equipment_rentals has no such column, so the whole insert was rejected.
     const { error } = await supabase.from('equipment_rentals').insert([{
       equipment_id: firstActive.id,
       booking_id:   null,
-      client_id:    null,
       date:         todayISO(),
       slot:         'morning',
       price:        25,

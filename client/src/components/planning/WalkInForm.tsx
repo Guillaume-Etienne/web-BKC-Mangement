@@ -5,7 +5,7 @@ import { currentInstructorRate, resolveLessonRate } from '../accounting/utils'
 import { searchClients, suggestedLessonRate, visitsOf, findVisitOn } from '../../utils/dayVisitor'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
-import { RENTAL_TYPES, rentalGear, type RentalKind } from './rentalTypes'
+import { RENTAL_TYPES, boardPickerCategory, rentalGear, rentalLabel, showsKitePicker, type RentalKind } from './rentalTypes'
 import type { WalkInRequest } from './walkInSave'
 
 /** The walk-in form (Daily tab → "🚶 Walk-in"): one screen to go from "a local
@@ -287,7 +287,10 @@ export default function WalkInForm(props: WalkInFormProps) {
                   {RENTAL_TYPES.map(rt => (
                     <button
                       key={rt.key} type="button"
-                      onClick={() => { setRentalType(rt.key); setRentalPriceTyped(null) }}
+                      onClick={() => {
+                        if (boardPickerCategory(rt.key) !== boardPickerCategory(rentalType)) setRentalBoardId(null)
+                        setRentalType(rt.key); setRentalPriceTyped(null)
+                      }}
                       className={`text-xs py-2 px-1 rounded border text-center leading-tight ${rentalType === rt.key
                         ? 'bg-amber-500 border-amber-600 text-white font-semibold'
                         : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}
@@ -296,16 +299,16 @@ export default function WalkInForm(props: WalkInFormProps) {
                     </button>
                   ))}
                 </div>
-                {(rentalType === 'kite' || rentalType === 'full') && (
+                {showsKitePicker(rentalType) && (
                   <select className={inputCls} value={rentalKiteId ?? ''} onChange={e => setRentalKiteId(e.target.value || null)}>
                     <option value="">🪂 Kite — not specified</option>
                     {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => <option key={e.id} value={e.id}>🪂 {e.name}</option>)}
                   </select>
                 )}
-                {(rentalType === 'board' || rentalType === 'full') && (
+                {boardPickerCategory(rentalType) && (
                   <select className={inputCls} value={rentalBoardId ?? ''} onChange={e => setRentalBoardId(e.target.value || null)}>
-                    <option value="">🏄 Board — not specified</option>
-                    {equipment.filter(e => e.category === 'board' && e.is_active).map(e => <option key={e.id} value={e.id}>🏄 {e.name}</option>)}
+                    <option value="">🏄 {rentalLabel(rentalType === 'full' ? 'board' : rentalType, 'staff')} — not specified</option>
+                    {equipment.filter(e => e.category === boardPickerCategory(rentalType) && e.is_active).map(e => <option key={e.id} value={e.id}>🏄 {e.name}</option>)}
                   </select>
                 )}
                 <div className="grid grid-cols-2 gap-2">

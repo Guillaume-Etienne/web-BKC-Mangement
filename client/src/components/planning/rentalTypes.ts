@@ -16,16 +16,24 @@ export const RENTAL_TYPES: { key: RentalKind; label: string; icon: string; sub?:
   { key: 'free',      label: 'Other',           icon: '📦' },
 ]
 
-/** The equipment pair a rental stores for a given type: kite → equipment_id,
- *  board → equipment_id, full → kite in equipment_id + board in board_equipment_id.
- *  Everything stays optional (null = "not specified"). */
+/** Which gear pickers a rental type shows. The board slot takes the category of
+ *  the type (a surfboard rental offers surfboards, not kite boards); 'free' has none. */
+export const showsKitePicker = (type: RentalKind) => type === 'kite' || type === 'full'
+export const boardPickerCategory = (type: RentalKind): 'board' | 'surfboard' | 'foilboard' | null =>
+  type === 'board' || type === 'full' ? 'board'
+  : type === 'surfboard' || type === 'foilboard' ? type
+  : null
+
+/** The equipment a rental stores for a given type: kite → equipment_id; board,
+ *  surfboard, foilboard → equipment_id; full → kite in equipment_id + board in
+ *  board_equipment_id. Everything stays optional (null = "not specified"). */
 export function rentalGear(
   type: RentalKind, kiteId: string | null, boardId: string | null,
 ): { equipment_id: string | null; board_equipment_id: string | null } {
   if (type === 'full') return { equipment_id: kiteId, board_equipment_id: boardId }
   if (type === 'kite') return { equipment_id: kiteId, board_equipment_id: null }
-  if (type === 'board') return { equipment_id: boardId, board_equipment_id: null }
-  return { equipment_id: null, board_equipment_id: null }
+  if (type === 'free') return { equipment_id: null, board_equipment_id: null }
+  return { equipment_id: boardId, board_equipment_id: null }
 }
 
 /** What a rental IS. The stored type wins; rows from before 2026-10-18 have none,
