@@ -1,5 +1,5 @@
 import './index.css'
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import Navigation from './components/layout/Navigation'
@@ -16,6 +16,7 @@ import type { FollowUp } from './utils/followUps'
 import { computeMovements } from './utils/movements'
 import type { DayMovements, MovementTaxi } from './utils/movements'
 import { todayISO } from './utils/dates'
+import { pageFromPath, pathForPage } from './utils/routes'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { DataErrorsProvider } from './contexts/DataErrorsContext'
 import DataErrorBanner from './components/layout/DataErrorBanner'
@@ -83,7 +84,9 @@ function App() {
   // state, passed both ways, rather than two independent copies drifting.
   const { lang, setLang } = useAdminLang()
   const [session,     setSession]     = useState<Session | null | undefined>(undefined)
-  const [currentPage, setCurrentPage] = useState<Page>('home')
+  // Read from the address, so a phone shortcut or a bookmark opens its page
+  // directly (and survives the login screen in between).
+  const [currentPage, setCurrentPage] = useState<Page>(() => pageFromPath(window.location.pathname))
   const [pendingEditBookingId, setPendingEditBookingId] = useState<string | null>(null)
   // Where ⌘K sends you: the page changes AND the row opens, otherwise the
   // palette drops you on a list and the search has to be done twice.
@@ -102,6 +105,21 @@ function App() {
   const [followUps, setFollowUps] = useState<FollowUp[]>([])
   // Today → +6 days: who arrives, who leaves, which taxis run (Home).
   const [movements, setMovements] = useState<DayMovements[]>([])
+
+  // The address follows the page, and Back / Forward follow the address. Every
+  // way of changing page (nav, Home cards, ⌘K, "open booking" links) goes
+  // through setCurrentPage, so syncing here covers them all. Only the path is
+  // compared: a share link lives at `/?share=…` and must keep its query.
+  useEffect(() => {
+    const path = pathForPage(currentPage)
+    if (window.location.pathname !== path) window.history.pushState(null, '', path)
+  }, [currentPage])
+
+  useEffect(() => {
+    const onPop = () => setCurrentPage(pageFromPath(window.location.pathname))
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   // ⌘K / Ctrl-K opens the palette from anywhere. Bound on the window rather
   // than on a field so it works while a list is scrolled or a drawer is open.
@@ -193,6 +211,14 @@ function App() {
   }, [userId, lang])
 
   useEffect(() => { refreshPendingActions() }, [refreshPendingActions])
+
+  // Coming back to Home (nav button, card, or the phone's Back) re-reads it.
+  // The first render is left to the effect above, which already loads it.
+  const prevPage = useRef(currentPage)
+  useEffect(() => {
+    if (currentPage === 'home' && prevPage.current !== 'home') refreshPendingActions()
+    prevPage.current = currentPage
+  }, [currentPage]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // The nav badges must not go stale while the app sits in the background.
   useEffect(() => {
@@ -319,7 +345,7 @@ function App() {
   return (
     <LanguageProvider lang={lang} setLang={setLang}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <Navigation currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); if (p === 'home') refreshPendingActions() }} onLogout={() => supabase.auth.signOut()} urgentCount={openActions.filter(a => a.priority === 'urgent').length} submissionsCount={openActions.filter(a => a.id === 'pending-submissions' || a.id === 'unqualified-enquiries').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
+        <Navigation currentPage={currentPage} onNavigate={setCurrentPage} onLogout={() => supabase.auth.signOut()} urgentCount={openActions.filter(a => a.priority === 'urgent').length} submissionsCount={openActions.filter(a => a.id === 'pending-submissions' || a.id === 'unqualified-enquiries').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
         {/* Le fournisseur n'enveloppe QUE l'app admin : le bandeau nomme des
             tables et rend le message brut de Postgres. Les pages partagées, plus
             haut dans ce fichier, gardent le contexte inerte par défaut. */}
