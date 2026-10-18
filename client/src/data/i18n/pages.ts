@@ -5,6 +5,7 @@ export const pagesI18n = {
   page_home:       { fr: 'Accueil',         en: 'Home',          es: 'Inicio' },
   section_pending: { fr: 'En attente',      en: 'Pending',       es: 'Pendiente' },
   section_follow:  { fr: 'Suivis',          en: 'Follow-ups',    es: 'Seguimientos' },
+  section_to_check: { fr: 'À vérifier',     en: 'To check',      es: 'Por revisar' },
 
   // HomePage — « affaire classée ». Le bouton ne dit pas « fait » : la
   // situation est toujours vraie dans les données, gui la traite ailleurs.

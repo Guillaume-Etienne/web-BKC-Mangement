@@ -55,10 +55,53 @@ export default function HomePage({ onNavigate, pendingActions = [], closedAction
   const { lang } = useLanguage()
   const PRIORITY_STYLES = getPriorityStyles(lang)
   const SHORTCUTS = getShortcuts(lang)
-  const urgentCount = pendingActions.filter(a => a.priority === 'urgent').length
+  // Only the red lines stay in sight. The rest — this week, to monitor, the
+  // closed cases, who is waiting — is what gui checks now and then, so it sits
+  // in one accordion, closed on every visit (2026-10-18). Not a lazy load: the
+  // same six reads feed the movements panel and the nav badges anyway.
+  const urgent = pendingActions.filter(a => a.priority === 'urgent')
+  const toCheck = pendingActions.filter(a => a.priority !== 'urgent')
+  const toCheckCount = toCheck.length + followUps.length
+  const [showToCheck, setShowToCheck] = useState(false)
   // Fermé par défaut, et pas mémorisé : l'accordéon est une archive qu'on va
   // consulter, pas un deuxième écran de travail qui reprendrait la place gagnée.
   const [showClosed, setShowClosed] = useState(false)
+
+  const renderAction = (action: PendingAction) => {
+    const style = PRIORITY_STYLES[action.priority]
+    return (
+      <div
+        key={action.id}
+        className={`flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-3 rounded-lg border ${style.bg} ${style.border}`}
+      >
+        <span className={`flex-shrink-0 w-2.5 h-2.5 rounded-full ${style.dot}`} />
+        <span className="hidden sm:inline flex-shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          {style.label}
+        </span>
+        {action.bookingRef && (
+          <span className="flex-shrink-0 text-sm font-semibold text-gray-700 dark:text-gray-300">{action.bookingRef}</span>
+        )}
+        <span className="flex-1 min-w-0 truncate text-sm text-gray-700 dark:text-gray-300">{action.message}</span>
+        <button
+          onClick={() => onNavigate(action.route)}
+          className="flex-shrink-0 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-400 whitespace-nowrap"
+        >
+          {action.routeLabel} →
+        </button>
+        {onCloseAction && (
+          <button
+            onClick={() => onCloseAction(action)}
+            title={i18n.pages.btn_case_closed[lang]}
+            aria-label={i18n.pages.btn_case_closed[lang]}
+            className="flex-shrink-0 rounded-md border border-gray-300 dark:border-gray-700 bg-white/60 dark:bg-gray-900/60 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-900 hover:text-gray-900 dark:hover:text-gray-200 whitespace-nowrap"
+          >
+            <span className="md:hidden">✓</span>
+            <span className="hidden md:inline">✓ {i18n.pages.btn_case_closed[lang]}</span>
+          </button>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 dark:from-blue-950/40 to-indigo-100 dark:to-indigo-900/30">
@@ -81,57 +124,45 @@ export default function HomePage({ onNavigate, pendingActions = [], closedAction
             « Case closed » ne touche à aucune donnée, elle range la ligne dans
             l'accordéon du bas (table `dismissed_actions`) ; l'alerte remonte
             d'elle-même si le sujet change — voir dismissKey / dismissCount. */}
-        {(pendingActions.length > 0 || closedActions.length > 0) && (
-          <div className="mb-10">
+        {urgent.length > 0 && (
+          <div className="mb-4">
             <div className="flex items-center gap-3 mb-4">
-              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">{i18n.pages.section_pending[lang]}</h2>
-              {urgentCount > 0 && (
-                <span className="bg-red-500 text-white text-sm font-bold rounded-full px-2 py-0.5">
-                  {urgentCount} {i18n.pages.status_urgent[lang]}
-                </span>
-              )}
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">{i18n.pages.status_urgent[lang]}</h2>
+              <span className="bg-red-500 text-white text-sm font-bold rounded-full px-2 py-0.5">{urgent.length}</span>
             </div>
-            <div className="space-y-2">
-              {pendingActions.map(action => {
-                const style = PRIORITY_STYLES[action.priority]
-                return (
-                  <div
-                    key={action.id}
-                    className={`flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-3 rounded-lg border ${style.bg} ${style.border}`}
-                  >
-                    <span className={`flex-shrink-0 w-2.5 h-2.5 rounded-full ${style.dot}`} />
-                    <span className="hidden sm:inline flex-shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                      {style.label}
-                    </span>
-                    {action.bookingRef && (
-                      <span className="flex-shrink-0 text-sm font-semibold text-gray-700 dark:text-gray-300">{action.bookingRef}</span>
-                    )}
-                    <span className="flex-1 min-w-0 truncate text-sm text-gray-700 dark:text-gray-300">{action.message}</span>
-                    <button
-                      onClick={() => onNavigate(action.route)}
-                      className="flex-shrink-0 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-400 whitespace-nowrap"
-                    >
-                      {action.routeLabel} →
-                    </button>
-                    {onCloseAction && (
-                      <button
-                        onClick={() => onCloseAction(action)}
-                        title={i18n.pages.btn_case_closed[lang]}
-                        aria-label={i18n.pages.btn_case_closed[lang]}
-                        className="flex-shrink-0 rounded-md border border-gray-300 dark:border-gray-700 bg-white/60 dark:bg-gray-900/60 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-900 hover:text-gray-900 dark:hover:text-gray-200 whitespace-nowrap"
-                      >
-                        <span className="md:hidden">✓</span>
-                        <span className="hidden md:inline">✓ {i18n.pages.btn_case_closed[lang]}</span>
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+            <div className="space-y-2">{urgent.map(renderAction)}</div>
+          </div>
+        )}
 
-            {/* Tout est classé : le dire, sinon le titre « Pending » surplombe
-                un vide qui ressemble à un écran cassé. */}
-            {pendingActions.length === 0 && (
+        {(toCheckCount > 0 || closedActions.length > 0) && (
+          <div className="mb-10">
+            <button
+              onClick={() => setShowToCheck(v => !v)}
+              aria-expanded={showToCheck}
+              className="w-full flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 px-3 md:px-4 py-2 md:py-3 text-left hover:bg-white dark:hover:bg-gray-900"
+            >
+              <span className="text-xs text-gray-500 dark:text-gray-400">{showToCheck ? '▾' : '▸'}</span>
+              <span className="font-semibold text-gray-800 dark:text-gray-200">{i18n.pages.section_to_check[lang]}</span>
+              {toCheckCount > 0 && (
+                <span className="rounded-full bg-gray-200 dark:bg-gray-800 px-2 py-0.5 text-xs tabular-nums text-gray-700 dark:text-gray-300">{toCheckCount}</span>
+              )}
+              <span className="ml-auto hidden sm:inline text-xs text-gray-500 dark:text-gray-400">
+                {toCheck.length} {i18n.pages.section_pending[lang].toLowerCase()} · {followUps.length} {i18n.pages.section_follow[lang].toLowerCase()}
+              </span>
+            </button>
+
+            {showToCheck && (
+            <div className="mt-4">
+            {toCheck.length > 0 && (
+              <>
+                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">{i18n.pages.section_pending[lang]}</h2>
+                <div className="space-y-2">{toCheck.map(renderAction)}</div>
+              </>
+            )}
+
+            {/* Tout est classé : le dire, sinon l'accordéon s'ouvre sur un vide
+                qui ressemble à un écran cassé. */}
+            {pendingActions.length === 0 && closedActions.length > 0 && (
               <p className="text-sm text-gray-500 dark:text-gray-400">{i18n.pages.msg_all_filed[lang]}</p>
             )}
 
@@ -180,8 +211,6 @@ export default function HomePage({ onNavigate, pendingActions = [], closedAction
                 )}
               </div>
             )}
-          </div>
-        )}
 
         {/* Waiting on you — silence, not deadlines.
             The block above speaks in dates (check-in in N days, visa in N days);
@@ -190,7 +219,7 @@ export default function HomePage({ onNavigate, pendingActions = [], closedAction
             confirmed sit in the same list, because from the person's side there
             is no difference — they are both waiting for gui. */}
         {followUps.length > 0 && (
-          <div className="mb-10">
+          <div className="mt-8">
             <div className="flex items-baseline gap-3 mb-1">
               <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">{i18n.pages.section_follow[lang]}</h2>
               <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -228,6 +257,10 @@ export default function HomePage({ onNavigate, pendingActions = [], closedAction
                 </button>
               ))}
             </div>
+          </div>
+        )}
+            </div>
+            )}
           </div>
         )}
 
