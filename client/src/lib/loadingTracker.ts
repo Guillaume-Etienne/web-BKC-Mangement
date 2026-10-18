@@ -7,6 +7,8 @@
 // A burst only ends after SETTLE_MS of silence, because pages often chain their
 // queries (load bookings, THEN their lessons): ending on the first zero would
 // fill the bar to 100 % and restart it, i.e. claim "done" while it isn't.
+import { invalidateForRequest } from './tableCache'
+
 const SETTLE_MS = 200
 
 let pending = 0
@@ -43,8 +45,17 @@ export function getLoadingProgress() {
   return complete ? 1 : started ? settled / started : 0
 }
 
-/** Drop-in for `fetch`, handed to createClient: each request counts until it settles. */
+/** Drop-in for `fetch`, handed to createClient: each request counts until it
+ *  settles. A write also drops the cached reads of its table, before it leaves
+ *  AND once it lands — a read already in flight when the write started could
+ *  otherwise put the old rows back in the cache (see tableCache.ts). */
 export const trackedFetch: typeof fetch = (input, init) => {
   startLoading()
-  return fetch(input, init).finally(stopLoading)
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+  const method = init?.method ?? (input instanceof Request ? input.method : undefined)
+  invalidateForRequest(url, method)
+  return fetch(input, init).finally(() => {
+    invalidateForRequest(url, method)
+    stopLoading()
+  })
 }

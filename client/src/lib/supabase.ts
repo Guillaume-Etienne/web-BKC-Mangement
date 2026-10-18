@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { trackedFetch } from './loadingTracker'
+import { clearTableCache } from './tableCache'
 
 export type SupabaseEnv = 'prod' | 'test'
 
@@ -43,3 +44,6 @@ export const supabase = createClient(url, key, {
     ...(shareToken ? { headers: { 'x-share-token': shareToken } } : {}),
   },
 })
+
+// Rows read by one admin are not left in memory for whoever signs in next.
+supabase.auth.onAuthStateChange(event => { if (event === 'SIGNED_OUT') clearTableCache() })

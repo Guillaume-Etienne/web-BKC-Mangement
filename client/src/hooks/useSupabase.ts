@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useId } from 'react'
+import { useState, useEffect, useCallback, useId, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { cacheKey, getCached, setCached, readGeneration } from '../lib/tableCache'
 import { useDataErrorReporter } from '../contexts/DataErrorsContext'
 
 export interface QueryState<T> {
@@ -14,10 +15,17 @@ export function useTable<T>(
   table: string,
   options?: { order?: string; ascending?: boolean; select?: string }
 ): QueryState<T> {
-  const [data, setData]       = useState<T[]>([])
-  const [loading, setLoading] = useState(true)
+  // Rows already read this session are shown at once, then re-read in the
+  // background — lib/tableCache.ts, which also drops them on any write.
+  const key = cacheKey(table, options?.select ?? '*', options?.order, options?.ascending)
+  const [data, setData]       = useState<T[]>(() => getCached<T>(key) ?? [])
+  const [loading, setLoading] = useState(() => getCached<T>(key) === undefined)
   const [error, setError]     = useState<string | null>(null)
   const [tick, setTick]       = useState(0)
+  // While rows are on screen, a re-read (background, or a realtime refresh)
+  // must not flip `loading` back on: pages that swap their content for a
+  // spinner on `loading` would blank out over a refresh nobody asked to see.
+  const hasData = useRef(!loading)
 
   // Le `error` ci-dessus existe depuis toujours et *aucun* des 67 appels du
   // repo ne le lisait : une lecture refusée rendait `[]` et l'écran affichait
@@ -31,10 +39,11 @@ export function useTable<T>(
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
+    if (!hasData.current) setLoading(true)
     setError(null)
 
     const run = async () => {
+      const gen = readGeneration(table)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let query: any = supabase.from(table).select(options?.select ?? '*')
       if (options?.order) {
@@ -42,8 +51,16 @@ export function useTable<T>(
       }
       const { data: rows, error: err } = await query
       if (cancelled) return
+      // A write to this table landed while we were reading: these rows predate
+      // it. Read again rather than put them on screen or in the cache.
+      if (!err && gen !== readGeneration(table)) { setTick(t => t + 1); return }
       if (err) { setError(err.message); report(errorKey, { table, message: err.message }) }
-      else { setData((rows ?? []) as T[]); report(errorKey, null) }
+      else {
+        setData((rows ?? []) as T[])
+        setCached(key, rows ?? [])
+        hasData.current = true
+        report(errorKey, null)
+      }
       setLoading(false)
     }
 
