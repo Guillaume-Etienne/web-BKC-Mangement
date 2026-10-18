@@ -6,6 +6,8 @@
 
 ## 🚨 Migrations SQL — registre
 
+⏳ **`2026-10-18b_rental_enum_values.sql` PUIS `2026-10-18c_rental_type.sql`** (**2 fichiers, dans l'ordre, TEST puis PROD, AVANT de pousser le code** — le select de la page client nomme les nouvelles colonnes) — une location enregistre enfin son type (kite/board/full/surf/foil/other) : `equipment_rentals.rental_type`, `board_equipment_id` (planche d'un Full), `list_price` (prix de grille figé → remise visible), `client_note` (seule note lisible par le client ; `notes` = interne) + 5 tarifs « journée » (kite 60 / board 30 / full 80 / surf 40 / foil 70, `rental_*_day`, éditables dans Options → Pricing). Passé non rattrapé (NULL → l'écran retombe sur la catégorie du matériel). Vérif (pied du fichier c) : 5 lignes `rental%_day` ; curl token client `select=rental_type,list_price,client_note` → 200, `select=notes` et `select=board_equipment_id` → 42501.
+
 ⏳ **`2026-10-18_booking_charges.sql`** (**à passer par gui, TEST puis PROD, AVANT de pousser le code**) — lignes « Extras » d'une résa : table `booking_charges`
 (date, libellé, catégorie accommodation/food/equipment/other, quantité × prix unitaire €, note interne), FK RESTRICT vers bookings, `admin_all`, anon = GRANT colonnes
 sans `notes` + policy token `client` scopée à sa résa. Vérif (pied du fichier) : curl anon nu → `[]` ; token client → ses lignes ; `select=notes` → 42501.
@@ -436,7 +438,7 @@ l'agence de 127,50 € par pack 10h**. Migration écrite, voir le registre en t�
 - ⬜ **Ligne 215 de la fiche, « % commission » : toujours vide.** C'est le seul champ qui dit à
   F&Fly que les prix contiennent déjà leur marge. À remplir avant envoi (20).
 
-### 🛟 Location : `full_day` facture le tarif demi-journée (2026-09-07)
+### 🛟 Location : `full_day` facture le tarif demi-journée (2026-09-07) — ✅ `full_day` corrigé 2026-10-18 (tarifs `rental_*_day`, migration 18b/18c en attente) ; reste : wing (plus tard, gui) et `center_access_rate` DEFAULT 5
 
 `rentalPrice()` (`client/src/components/planning/LessonWeekView.tsx:207`) ne regarde que le
 `billable_type`, **jamais le `slot`**. Cocher « journée » facture donc 55 € au lieu des 95 € de la

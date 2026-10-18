@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import type { Lesson, DayActivity, DaySlot, LessonType, LessonDiscipline, Booking, BookingParticipant, EquipmentRental, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine, Lang } from '../../types/database'
+import type { Lesson, DayActivity, DaySlot, LessonType, LessonDiscipline, Booking, BookingParticipant, EquipmentRental, RentalSlot, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine, Lang } from '../../types/database'
 import { rentalBillable, lessonDiscipline } from '../../types/database'
 import { currentInstructorRate, reFreezeInstructorRate, resolveLessonRate, agencyMarker, getLessonClientRate, isAgencyBilled } from '../accounting/utils'
 import { toISODate as dateToISO, localeTag } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
-import { RENTAL_TYPES, type RentalKind } from './rentalTypes'
+import { RENTAL_TYPES, rentalGear, rentalKind, rentalLabel, type RentalKind } from './rentalTypes'
 import WalkInForm from './WalkInForm'
 import type { WalkInRequest } from './walkInSave'
 import { isDayVisitor, isOnSiteOn } from '../../utils/dayVisitor'
@@ -98,12 +98,13 @@ interface AddForm {
   act_cost: string           // € total cost to us, optional
   // rental fields
   rental_participant_id: string
-  rental_slot: 'morning' | 'afternoon' | 'full_day'
+  rental_slot: RentalSlot
   rental_type: RentalKind
   rental_price: number
   rental_kite_id: string | null
   rental_board_id: string | null
-  rental_notes: string
+  rental_notes: string          // internal
+  rental_client_note: string    // the guest can read this one
 }
 
 type MoveItem =
@@ -158,18 +159,20 @@ export default function LessonWeekView({
   // ── Inline add form ────────────────────────────────────────────────────────
   const emptyForm = (date: string, slot: Slot, kind: 'lesson' | 'activity' | 'rental'): AddForm => {
     const firstParticipant = activeParticipantsForDate(date)[0]?.id ?? ''
+    const rentalSlot: RentalSlot = slot === 'morning' ? 'morning' : slot === 'afternoon' ? 'afternoon' : 'full_day'
     return {
     date, slot, kind,
     type: 'private', discipline: 'kite', participant_ids: [firstParticipant], instructor_id: instructors[0]?.id ?? '',
     start_time: SLOT_CONFIG[slot].defaultTime, duration_hours: 1, notes: '', kite_id: null, board_id: null, rider_gear: {},
     name: '', actNotes: '', act_bill: false, act_participant_ids: [], act_price_pp: '', act_cost: '',
     rental_participant_id: firstParticipant,
-    rental_slot: slot === 'morning' ? 'morning' : slot === 'afternoon' ? 'afternoon' : 'full_day',
+    rental_slot: rentalSlot,
     rental_type: 'kite' as RentalKind,
-    rental_price: rentalPrice('kite') ?? 0,
+    rental_price: rentalPrice('kite', rentalSlot) ?? 0,
     rental_kite_id: null,
     rental_board_id: null,
     rental_notes: '',
+    rental_client_note: '',
   }}
 
   const [addForm, setAddForm] = useState<AddForm | null>(null)
@@ -196,6 +199,7 @@ export default function LessonWeekView({
   const [editRentalKiteId, setEditRentalKiteId] = useState<string | null>(null)
   const [editRentalBoardId, setEditRentalBoardId] = useState<string | null>(null)
   const [editRentalNotes, setEditRentalNotes] = useState('')
+  const [editRentalClientNote, setEditRentalClientNote] = useState('')
 
   // ── Clipboard ─────────────────────────────────────────────────────────────
   const [clipboard, setClipboard] = useState<Lesson | null>(null)
@@ -213,9 +217,9 @@ export default function LessonWeekView({
   // ── Pricing lookup ────────────────────────────────────────────────────────
   /** Rate from Options → Pricing, keyed by what it bills (never by name).
    *  null = nothing configured for that type; 'free' is 0 by definition. */
-  function rentalPrice(type: RentalKind): number | null {
+  function rentalPrice(type: RentalKind, slot: RentalSlot): number | null {
     if (type === 'free') return 0
-    return priceItems.find(p => p.billable_type === rentalBillable(type))?.price ?? null
+    return priceItems.find(p => p.billable_type === rentalBillable(type, slot))?.price ?? null
   }
 
   /** Gear lists follow the lesson's discipline, so there is less to sort through:
@@ -475,16 +479,19 @@ export default function LessonWeekView({
   }
 
   function openEditRental(r: EquipmentRental) {
-    const equip = equipment.find(e => e.id === r.equipment_id)
-    const type = (RENTAL_TYPES.find(t => t.key === (equip?.category ?? r.equipment_id))?.key ?? 'free') as RentalKind
+    const type = rentalKind(r, equipment) ?? 'free'
+    // Rows from before 2026-10-18 hold a single piece of gear: sort it by category.
+    const legacy = !r.rental_type
+    const isKite = equipment.find(e => e.id === r.equipment_id)?.category === 'kite'
     setEditRental(r)
     setEditRentalPrice(String(r.price))
-    setEditRentalSlot(r.slot as 'morning' | 'afternoon' | 'full_day')
+    setEditRentalSlot(r.slot)
     setEditRentalParticipantId(r.participant_id ?? '')
     setEditRentalType(type)
-    setEditRentalKiteId(equip?.category === 'kite' ? r.equipment_id : null)
-    setEditRentalBoardId(equip?.category !== 'kite' && equip ? r.equipment_id : null)
+    setEditRentalKiteId(legacy ? (isKite ? r.equipment_id : null) : (type === 'board' ? null : r.equipment_id))
+    setEditRentalBoardId(legacy ? (isKite ? null : r.equipment_id) : (type === 'board' ? r.equipment_id : r.board_equipment_id ?? null))
     setEditRentalNotes(r.notes ?? '')
+    setEditRentalClientNote(r.client_note ?? '')
     setShowAllGuestsEditRental(false)
   }
 
@@ -493,20 +500,20 @@ export default function LessonWeekView({
     if (!editRental) return
     const price = parseFloat(editRentalPrice)
     if (isNaN(price) || price < 0) return
-    const equipId = (
-      editRentalType === 'kite'  ? editRentalKiteId :
-      editRentalType === 'board' ? editRentalBoardId :
-      editRentalType === 'full'  ? (editRentalKiteId ?? editRentalBoardId) :
-      null
-    ) ?? null
+    // The frozen grid price only moves when what is rented changes (or was never
+    // recorded): editing a note or a discount must not re-grid an old rental.
+    const sameProduct = editRental.rental_type === editRentalType && editRental.slot === editRentalSlot
     onUpdateRental({
       ...editRental,
       price,
       slot: editRentalSlot,
       participant_id: editRentalParticipantId || null,
       booking_id: editRentalParticipantId ? bookingForParticipant(editRentalParticipantId) || editRental.booking_id : editRental.booking_id,
-      equipment_id: equipId,
+      ...rentalGear(editRentalType, editRentalKiteId, editRentalBoardId),
+      rental_type: editRentalType,
+      list_price: sameProduct && editRental.list_price != null ? editRental.list_price : rentalPrice(editRentalType, editRentalSlot),
       notes: editRentalNotes || null,
+      client_note: editRentalClientNote || null,
     })
     setEditRental(null)
   }
@@ -565,21 +572,18 @@ export default function LessonWeekView({
         })
       }
     } else {
-      // Use specific equipment id if chosen, otherwise fall back to the type key as virtual id
-      const equipId = (
-        addForm.rental_type === 'kite'  ? addForm.rental_kite_id  :
-        addForm.rental_type === 'board' ? addForm.rental_board_id :
-        addForm.rental_type === 'full'  ? (addForm.rental_kite_id ?? addForm.rental_board_id) :
-        null
-      ) ?? null
       onAddRental({
-        equipment_id: equipId,
+        ...rentalGear(addForm.rental_type, addForm.rental_kite_id, addForm.rental_board_id),
         booking_id: bookingForParticipant(addForm.rental_participant_id) || null,
         participant_id: addForm.rental_participant_id || null,
         date: addForm.date,
         slot: addForm.rental_slot,
+        rental_type: addForm.rental_type,
         price: addForm.rental_price,
+        // Frozen now, like every price: a later grid change must not rewrite it.
+        list_price: rentalPrice(addForm.rental_type, addForm.rental_slot),
         notes: addForm.rental_notes || null,
+        client_note: addForm.rental_client_note || null,
       })
     }
     setAddForm(null)
@@ -849,8 +853,9 @@ export default function LessonWeekView({
                       {slotRentals.map(r => {
                         const client = bookingParticipants.find(p => p.id === r.participant_id) ?? bookingClient(r.booking_id ?? null)
                         const equip = equipment.find(e => e.id === r.equipment_id)
-                        // Resolve display type: specific equip category → rental type key or fallback
-                        const rt = RENTAL_TYPES.find(t => t.key === (equip?.category ?? r.equipment_id))
+                        // What it is comes from the stored type (older rows: the gear's category).
+                        const rt = RENTAL_TYPES.find(t => t.key === rentalKind(r, equipment))
+                        const gearNames = [equip?.name, equipment.find(e => e.id === r.board_equipment_id)?.name].filter(Boolean).join(' + ')
                         return (
                           <div
                             key={r.id}
@@ -881,10 +886,15 @@ export default function LessonWeekView({
                               >✕</button>
                             </div>
                             <div className="flex items-center justify-between pr-9 md:pr-4">
-                              <span className="font-semibold">{rt?.icon ?? '📦'} {rt?.label ?? equip?.name ?? r.equipment_id}</span>
-                              <span className="text-amber-700 dark:text-amber-400 font-semibold">€{r.price}</span>
+                              <span className="font-semibold">{rt?.icon ?? '📦'} {rentalLabel(rt?.key ?? null, 'staff')}</span>
+                              <span className="text-amber-700 dark:text-amber-400 font-semibold">
+                                {r.list_price != null && r.list_price > r.price && (
+                                  <span className="font-normal line-through opacity-60 mr-1" title="Grid price">€{r.list_price}</span>
+                                )}
+                                €{r.price}
+                              </span>
                             </div>
-                            {equip && <div className="text-[11px] opacity-60 truncate">{equip.name}</div>}
+                            {gearNames && <div className="text-[11px] opacity-60 truncate">{gearNames}</div>}
                             <div className="opacity-70 truncate flex items-center gap-1">
                               {client && <Avatar id={client.id} first_name={client.first_name} last_name={client.last_name} />}
                               {isWalkIn(r.booking_id) && (
@@ -923,7 +933,7 @@ export default function LessonWeekView({
                                     onClick={() => setAddForm(f => f && {
                                       ...f,
                                       rental_type: rt.key,
-                                      rental_price: rentalPrice(rt.key) ?? 0,
+                                      rental_price: rentalPrice(rt.key, f.rental_slot) ?? 0,
                                     })}
                                     className={`text-sm md:text-xs py-2 px-1 md:py-1 rounded border transition-colors text-center leading-tight ${
                                       addForm?.rental_type === rt.key
@@ -966,7 +976,13 @@ export default function LessonWeekView({
                               <div className="flex gap-1 items-center">
                                 <select
                                   value={addForm?.rental_slot}
-                                  onChange={e => setAddForm(f => f && { ...f, rental_slot: e.target.value as 'morning' | 'afternoon' | 'full_day' })}
+                                  onChange={e => setAddForm(f => {
+                                    if (!f) return f
+                                    const slot = e.target.value as RentalSlot
+                                    // The price follows the slot's rate unless it was typed by hand.
+                                    const untouched = f.rental_price === (rentalPrice(f.rental_type, f.rental_slot) ?? 0)
+                                    return { ...f, rental_slot: slot, rental_price: untouched ? rentalPrice(f.rental_type, slot) ?? 0 : f.rental_price }
+                                  })}
                                   className="flex-1 text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 >
                                   <option value="morning">{i18n.planning.slot_morning[lang]}</option>
@@ -982,16 +998,28 @@ export default function LessonWeekView({
                                 />
                                 <span className="text-xs text-gray-500 dark:text-gray-400">€</span>
                               </div>
-                              {addForm && rentalPrice(addForm.rental_type) === null && (
+                              {addForm && rentalPrice(addForm.rental_type, addForm.rental_slot) === null && (
                                 <p className="text-[10px] text-red-500 dark:text-red-400 leading-tight">
                                   No rate set for this type — see Options → Pricing. Type the price here to bill this one.
                                 </p>
                               )}
+                              {addForm && (rentalPrice(addForm.rental_type, addForm.rental_slot) ?? 0) > addForm.rental_price && (
+                                <p className="text-[10px] text-amber-600 dark:text-amber-400 leading-tight">
+                                  Discount: grid price is €{rentalPrice(addForm.rental_type, addForm.rental_slot)}.
+                                </p>
+                              )}
                               <input
                                 type="text"
-                                placeholder="Notes (optional)"
+                                placeholder="Note for us (internal)"
                                 value={addForm?.rental_notes}
                                 onChange={e => setAddForm(f => f && { ...f, rental_notes: e.target.value })}
+                                className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
+                              />
+                              <input
+                                type="text"
+                                placeholder="Note for the guest (visible on their page)"
+                                value={addForm?.rental_client_note}
+                                onChange={e => setAddForm(f => f && { ...f, rental_client_note: e.target.value })}
                                 className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                               />
                             </>
@@ -1450,7 +1478,13 @@ export default function LessonWeekView({
                 <div className="grid grid-cols-3 gap-1">
                   {RENTAL_TYPES.map(rt => (
                     <button key={rt.key} type="button"
-                      onClick={() => setEditRentalType(rt.key)}
+                      onClick={() => {
+                        // Same rule as the slot: a price that still equals the old rate follows the new type.
+                        if (editRentalPrice === String(rentalPrice(editRentalType, editRentalSlot) ?? 0)) {
+                          setEditRentalPrice(String(rentalPrice(rt.key, editRentalSlot) ?? 0))
+                        }
+                        setEditRentalType(rt.key)
+                      }}
                       className={`text-xs py-1.5 px-1 rounded border text-center leading-tight transition-colors ${editRentalType === rt.key ? 'bg-amber-500 border-amber-600 dark:border-amber-500 text-white font-semibold' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-amber-300 dark:hover:border-amber-800'}`}>
                       <div>{rt.icon}</div>
                       <div>{rt.label}</div>
@@ -1481,7 +1515,14 @@ export default function LessonWeekView({
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Slot</label>
-                  <select value={editRentalSlot} onChange={e => setEditRentalSlot(e.target.value as 'morning' | 'afternoon' | 'full_day')}
+                  <select value={editRentalSlot} onChange={e => {
+                    const slot = e.target.value as RentalSlot
+                    // The price follows the slot's rate unless it was typed by hand.
+                    if (editRentalPrice === String(rentalPrice(editRentalType, editRentalSlot) ?? 0)) {
+                      setEditRentalPrice(String(rentalPrice(editRentalType, slot) ?? 0))
+                    }
+                    setEditRentalSlot(slot)
+                  }}
                     className="w-full text-sm border rounded px-2 py-1.5">
                     <option value="morning">{i18n.planning.slot_morning[lang]}</option>
                     <option value="afternoon">{i18n.planning.slot_afternoon[lang]}</option>
@@ -1497,8 +1538,13 @@ export default function LessonWeekView({
               </div>
               {/* Notes */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Note for us (internal)</label>
                 <input type="text" value={editRentalNotes} onChange={e => setEditRentalNotes(e.target.value)}
+                  placeholder="Optional" className="w-full text-sm border rounded px-2 py-1.5" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Note for the guest (visible on their page)</label>
+                <input type="text" value={editRentalClientNote} onChange={e => setEditRentalClientNote(e.target.value)}
                   placeholder="Optional" className="w-full text-sm border rounded px-2 py-1.5" />
               </div>
               <div className="flex gap-2 pt-2 border-t">

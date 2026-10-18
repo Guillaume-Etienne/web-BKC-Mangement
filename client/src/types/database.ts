@@ -399,6 +399,7 @@ export type BillableType =
   | 'lesson_wing_private' | 'lesson_wing_group'
   | 'lesson_wing_discovery_private' | 'lesson_wing_discovery_group'
   | 'rental_kite' | 'rental_board' | 'rental_full' | 'rental_surfboard' | 'rental_foilboard'
+  | 'rental_kite_day' | 'rental_board_day' | 'rental_full_day' | 'rental_surfboard_day' | 'rental_foilboard_day'
   | 'center_access' | 'meal'
 
 /** Rental kinds that carry a rate. 'free' is not one: it is 0 by definition. */
@@ -413,7 +414,9 @@ export const lessonBillable = (t: LessonType, discipline: LessonDiscipline = 'ki
 }
 /** A lesson's discipline, 'kite' when the column is absent or null. */
 export const lessonDiscipline = (l: { discipline?: LessonDiscipline | null }): LessonDiscipline => l.discipline ?? 'kite'
-export const rentalBillable = (t: RentalType): BillableType => `rental_${t}` as BillableType
+/** A full-day rental has its own rate per type; every other slot bills the half-day one. */
+export const rentalBillable = (t: RentalType, slot?: RentalSlot): BillableType =>
+  (slot === 'full_day' ? `rental_${t}_day` : `rental_${t}`) as BillableType
 
 // Taxis
 export type TaxiTripType   = 'aero-to-center' | 'center-to-aero' | 'aero-to-spot' | 'spot-to-aero' | 'center-to-town' | 'town-to-center' | 'other'
@@ -731,8 +734,14 @@ export interface EquipmentRental {
   date: string
   slot: RentalSlot
   price: number
-  notes: string | null
+  notes: string | null                    // internal — never reaches a share link
   agency_billing_line_id?: string | null  // 2026-08-16, foundations only — see AgencyBillingLine
+  // 2026-10-18: a rental knows what it is. All optional — rows from before the
+  // migration have none, and the screens fall back to the equipment category.
+  rental_type?: RentalType | 'free' | null
+  board_equipment_id?: string | null      // the board of a 'full' (the kite is equipment_id)
+  list_price?: number | null              // grid price frozen at entry; price < list_price = discount
+  client_note?: string | null             // the only note a client can read
 }
 
 // Forecast PLAN (2026-10-10c) — the organising sandbox, NOT accounting. Nothing in

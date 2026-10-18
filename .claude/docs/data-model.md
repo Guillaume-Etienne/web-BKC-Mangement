@@ -279,7 +279,13 @@
 | date | string (ISO date) |
 | slot | RentalSlot |
 | price | number (EUR) |
-| notes | string \| null |
+| notes | string \| null | note **interne** (jamais lisible par anon) |
+| rental_type | `RentalType \| 'free' \| null` | ce qui est loué (**full = kite + bar + board**, mot interne ; le client lit « Kite + bar + board »). NULL = ligne d'avant 2026-10-18 → `rentalKind()` retombe sur la catégorie du matériel |
+| board_equipment_id | string \| null (FK) | la planche d'un Full (le kite reste dans `equipment_id`). Tout le détail matériel est facultatif |
+| list_price | number \| null | prix de grille **figé** à la saisie ; `price < list_price` = remise (barré sur les écrans) |
+| client_note | string \| null | seule note lisible par le client (GRANT anon) |
+
+> Tarif : `rentalBillable(type, slot)` → `rental_<type>` (demi-journée) ou `rental_<type>_day` si `slot = full_day`. Libellés : `rentalLabel(kind, 'staff' \| 'client')` dans `components/planning/rentalTypes.ts` — le seul endroit où un écran nomme une location.
 
 ---
 

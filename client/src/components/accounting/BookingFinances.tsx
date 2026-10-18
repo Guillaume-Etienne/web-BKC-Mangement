@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { Payment, PaymentMethod, Booking, EquipmentRental, Associate, BookingCharge, BookingChargeCategory } from '../../types/database'
+import { rentalKind, rentalLabel } from '../planning/rentalTypes'
 import { lessonBillable, lessonDiscipline } from '../../types/database'
 import {
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
@@ -770,20 +771,24 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
               </div>
               <div className="px-4 py-2 space-y-1">
                 {bkRentals.map(r => {
-                  const equip = data.equipment.find(e => e.id === r.equipment_id)
-                  const typeLabel = equip ? equip.category : (r.equipment_id ?? 'equipment')
+                  const typeLabel = rentalLabel(rentalKind(r, data.equipment), 'staff')
                   const isEditing = editingRentalId === r.id
                   return (
                     <div key={r.id} className="text-xs text-gray-500 dark:text-gray-400">
                       <div className="flex justify-between items-center">
                         <span>
-                          {fmtDate(r.date)} · <span className="capitalize">{typeLabel}</span> · {r.slot}
+                          {fmtDate(r.date)} · {typeLabel} · {r.slot}
                           {r.participant_id && partName(r.participant_id) && (
                             <span className="ml-1 text-blue-400 dark:text-blue-300">— {partName(r.participant_id)}</span>
                           )}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span>{fmtEur(r.price)}</span>
+                          <span>
+                            {r.list_price != null && r.list_price > r.price && (
+                              <span className="line-through opacity-60 mr-1" title="Grid price">{fmtEur(r.list_price)}</span>
+                            )}
+                            {fmtEur(r.price)}
+                          </span>
                           <button onClick={() => setEditingRentalId(isEditing ? null : r.id)}
                             className="p-1 -m-1 text-gray-300 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">✏️</button>
                         </div>
@@ -1055,8 +1060,9 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           // Rentals assigned to this participant
           for (const r of bkRentals) {
             if (r.participant_id !== part.id) continue
-            const equip = data.equipment.find(e => e.id === r.equipment_id)
-            lines.push({ date: r.date, label: `${equip?.category ?? i18n.accounting.bf_word_rental[lang]} · ${r.slot}`, amount: r.price })
+            // Per-guest breakdown: the guest's wording ("Kite + bar + board"), not our "Full".
+            const kind = rentalKind(r, data.equipment)
+            lines.push({ date: r.date, label: `${kind ? rentalLabel(kind, 'client') : i18n.accounting.bf_word_rental[lang]} · ${r.slot}`, amount: r.price })
           }
 
           // Dining events where this participant attended

@@ -24,6 +24,7 @@ CREATE TYPE billable_type                   AS ENUM (
   'lesson_private', 'lesson_group', 'lesson_supervision',
   'lesson_wing_private', 'lesson_wing_group', 'lesson_wing_discovery_private', 'lesson_wing_discovery_group',  -- 2026-10-14
   'rental_kite', 'rental_board', 'rental_full', 'rental_surfboard', 'rental_foilboard',
+  'rental_kite_day', 'rental_board_day', 'rental_full_day', 'rental_surfboard_day', 'rental_foilboard_day',  -- 2026-10-18 (slot full_day)
   'center_access', 'meal'
 );
 CREATE TYPE equipment_condition             AS ENUM ('new', 'good', 'fair', 'damaged', 'retired');
@@ -380,7 +381,9 @@ CREATE TABLE price_items (
                              'lesson_wing_private', 'lesson_wing_group',
                              'lesson_wing_discovery_private', 'lesson_wing_discovery_group') THEN 'lesson'
       WHEN billable_type IN ('rental_kite', 'rental_board', 'rental_full',
-                             'rental_surfboard', 'rental_foilboard')                 THEN 'rental'
+                             'rental_surfboard', 'rental_foilboard',
+                             'rental_kite_day', 'rental_board_day', 'rental_full_day',
+                             'rental_surfboard_day', 'rental_foilboard_day')         THEN 'rental'
       WHEN billable_type = 'center_access'                                           THEN 'center_access'
       WHEN billable_type = 'meal'                                                    THEN 'meal'
     END)::price_category
@@ -431,7 +434,12 @@ CREATE TABLE equipment_rentals (
   date            DATE NOT NULL,
   slot            rental_slot NOT NULL,
   price           NUMERIC(8,2) NOT NULL DEFAULT 0,
-  notes           TEXT,
+  notes           TEXT,                                       -- interne (jamais lisible par anon)
+  -- 2026-10-18 : une location sait ce qu'elle est. NULL = ligne d'avant (le front retombe sur la catégorie du matériel).
+  rental_type        TEXT CHECK (rental_type IS NULL OR rental_type IN ('kite', 'board', 'full', 'surfboard', 'foilboard', 'free')),
+  board_equipment_id UUID REFERENCES equipment(id),           -- la planche d'un Full (le kite = equipment_id)
+  list_price         NUMERIC(8,2),                            -- prix de grille figé à la saisie ; price < list_price = remise
+  client_note        TEXT,                                    -- seule note lisible par le client
   agency_billing_line_id UUID REFERENCES agency_billing_lines(id) ON DELETE SET NULL,  -- 2026-08-16b, in use since Phases 3+5 (2026-08-17)
   -- Redacted mirror for shared links (Phase 4) — see lessons.share_price_per_hour.
   share_price NUMERIC(8,2) GENERATED ALWAYS AS (
@@ -1487,7 +1495,8 @@ GRANT  SELECT (id, booking_id, instructor_id, participant_ids, date, start_time,
   ON lessons TO anon;
 REVOKE SELECT ON equipment_rentals FROM anon;
 GRANT  SELECT (id, equipment_id, booking_id, participant_id, date, slot,
-               share_price, agency_billing_line_id)
+               share_price, agency_billing_line_id,
+               rental_type, list_price, client_note)   -- 2026-10-18
   ON equipment_rentals TO anon;
 REVOKE SELECT ON taxi_trips FROM anon;
 GRANT  SELECT (id, date, start_time, type, status, taxi_driver_id, booking_id,

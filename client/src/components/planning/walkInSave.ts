@@ -34,9 +34,13 @@ export interface WalkInLesson {
 
 export interface WalkInRental {
   equipment_id: string | null
+  board_equipment_id?: string | null
+  rental_type?: EquipmentRental['rental_type']
   slot: RentalSlot
   price: number
+  list_price?: number | null
   notes: string | null
+  client_note?: string | null
 }
 
 export interface WalkInRequest {

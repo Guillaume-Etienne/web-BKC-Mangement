@@ -61,12 +61,15 @@ function riderShare(eq: Equipment, lesson: Lesson): { kiteUsed: number; boardUse
   }
 }
 
+/** A Full carries two pieces of gear: the kite (equipment_id) and the board. */
+const usesGear = (r: EquipmentRental, eq: Equipment) => r.equipment_id === eq.id || r.board_equipment_id === eq.id
+
 function getUseCount(eq: Equipment, rentals: EquipmentRental[], lessons: Lesson[]): number {
-  return rentals.filter(r => r.equipment_id === eq.id).length + lessonsFor(eq, lessons).length
+  return rentals.filter(r => usesGear(r, eq)).length + lessonsFor(eq, lessons).length
 }
 
 function getUseHours(eq: Equipment, rentals: EquipmentRental[], lessons: Lesson[]): number {
-  const rentalHours = rentals.filter(r => r.equipment_id === eq.id).reduce((sum, r) => sum + RENTAL_SLOT_HOURS[r.slot], 0)
+  const rentalHours = rentals.filter(r => usesGear(r, eq)).reduce((sum, r) => sum + RENTAL_SLOT_HOURS[r.slot], 0)
   const lessonHours = lessonsFor(eq, lessons).reduce((sum, l) => sum + l.duration_hours, 0)
   return rentalHours + lessonHours
 }

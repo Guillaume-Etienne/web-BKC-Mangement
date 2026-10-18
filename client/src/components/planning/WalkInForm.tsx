@@ -5,7 +5,7 @@ import { currentInstructorRate, resolveLessonRate } from '../accounting/utils'
 import { searchClients, suggestedLessonRate, visitsOf, findVisitOn } from '../../utils/dayVisitor'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
-import { RENTAL_TYPES, type RentalKind } from './rentalTypes'
+import { RENTAL_TYPES, rentalGear, type RentalKind } from './rentalTypes'
 import type { WalkInRequest } from './walkInSave'
 
 /** The walk-in form (Daily tab → "🚶 Walk-in"): one screen to go from "a local
@@ -102,11 +102,12 @@ export default function WalkInForm(props: WalkInFormProps) {
   const suggestedRate = suggestedLessonRate({ custom_lesson_rate: mateRate }, officialRate(type))
   const rate = rateTyped !== null ? (parseFloat(rateTyped) || 0) : suggestedRate
 
-  function rentalSuggested(kind: RentalKind): number | null {
+  function rentalSuggested(kind: RentalKind, slot: RentalSlot): number | null {
     if (kind === 'free') return 0
-    return priceItems.find(p => p.billable_type === rentalBillable(kind))?.price ?? null
+    return priceItems.find(p => p.billable_type === rentalBillable(kind, slot))?.price ?? null
   }
-  const rentalPrice = rentalPriceTyped !== null ? (parseFloat(rentalPriceTyped) || 0) : rentalSuggested(rentalType)
+  const rentalGrid = rentalSuggested(rentalType, rentalSlot)
+  const rentalPrice = rentalPriceTyped !== null ? (parseFloat(rentalPriceTyped) || 0) : rentalGrid
 
   const total = what === 'lesson' ? (rate ?? 0) * duration : (rentalPrice ?? 0)
 
@@ -119,12 +120,6 @@ export default function WalkInForm(props: WalkInFormProps) {
     if (!canSave) return
     setSaving(true)
     const instr = instructors.find(i => i.id === instructorId)
-    const rentalEquip = (
-      rentalType === 'kite'  ? rentalKiteId :
-      rentalType === 'board' ? rentalBoardId :
-      rentalType === 'full'  ? (rentalKiteId ?? rentalBoardId) :
-      null
-    ) ?? null
     const ok = await onSubmit({
       date,
       client: creating
@@ -140,7 +135,9 @@ export default function WalkInForm(props: WalkInFormProps) {
         notes: notes.trim() || null, kite_id: kiteId, board_id: boardId,
       } : undefined,
       rental: what === 'rental' ? {
-        equipment_id: rentalEquip, slot: rentalSlot, price: rentalPrice ?? 0, notes: notes.trim() || null,
+        ...rentalGear(rentalType, rentalKiteId, rentalBoardId),
+        rental_type: rentalType, slot: rentalSlot, price: rentalPrice ?? 0, list_price: rentalGrid,
+        notes: notes.trim() || null,
       } : undefined,
       payment: paidNow && total > 0 ? { amount: total, method } : undefined,
     })

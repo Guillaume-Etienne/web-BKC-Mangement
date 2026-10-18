@@ -9,6 +9,7 @@ import type {
   ActivityBooking, RoomRate, BookingCharge,
 } from '../types/database'
 import { getBaseNightlyRate } from '../utils/roomPricing'
+import { rentalLabel, RENTAL_SLOT_LABEL } from '../components/planning/rentalTypes'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,8 +50,13 @@ type SharedLesson = Pick<Lesson,
   'duration_hours' | 'type' | 'notes' | 'price_per_hour' | 'agency_billing_line_id'>
 
 type SharedRental = Pick<EquipmentRental,
-  'id' | 'equipment_id' | 'booking_id' | 'participant_id' | 'date' | 'slot' | 'agency_billing_line_id'>
+  'id' | 'equipment_id' | 'booking_id' | 'participant_id' | 'date' | 'slot' | 'agency_billing_line_id'
+  | 'rental_type' | 'list_price' | 'client_note'>
   & { price: number | null }
+
+/** What the guest reads for a rental. Rows from before 2026-10-18 carry no type. */
+const rentalName = (r: Pick<SharedRental, 'rental_type'>) =>
+  r.rental_type ? rentalLabel(r.rental_type, 'client') : 'Rental'
 
 type SharedTaxi = Pick<TaxiTrip, 'id' | 'date' | 'type' | 'nb_persons' | 'agency_billing_line_id'>
   & { price_eur: number | null }
@@ -192,7 +198,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       // instructor payout scale and are no longer readable from a share link.
       supabase.from('instructors').select('id, first_name, last_name'),
       supabase.from('equipment_rentals')
-        .select('id, equipment_id, booking_id, participant_id, date, slot, agency_billing_line_id, price:share_price')
+        .select('id, equipment_id, booking_id, participant_id, date, slot, agency_billing_line_id, rental_type, list_price, client_note, price:share_price')
         .eq('booking_id', id).order('date'),
       supabase.from('taxi_trips')
         .select('id, date, type, nb_persons, agency_billing_line_id, price_eur:share_price_eur')
@@ -527,7 +533,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 <tr>
                   <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
                   <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Guest</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Slot</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Item</th>
                   <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Price</th>
                 </tr>
               </thead>
@@ -536,9 +542,19 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
                     <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
                     <td className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.participant_id ? partName(r.participant_id) ?? '' : ''}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 capitalize">{r.slot.replace('_', ' ')}</td>
+                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">
+                      {rentalName(r)} · {RENTAL_SLOT_LABEL[r.slot]}
+                      {r.client_note && <div className="text-xs text-gray-400 dark:text-gray-500">{r.client_note}</div>}
+                    </td>
                     <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
-                      {coveredByAgency(r) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(r.price ?? 0)}
+                      {coveredByAgency(r) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : (
+                        <>
+                          {r.list_price != null && r.price != null && r.list_price > r.price && (
+                            <span className="mr-1.5 font-normal text-gray-400 dark:text-gray-500 line-through">{fmtEur(r.list_price)}</span>
+                          )}
+                          {fmtEur(r.price ?? 0)}
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -738,7 +754,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             for (const r of rentals) {
               if (r.participant_id !== part.id) continue
               if (coveredByAgency(r)) continue
-              lines.push({ date: r.date, label: `rental · ${r.slot}`, amount: r.price ?? 0 })
+              lines.push({ date: r.date, label: `${rentalName(r)} · ${r.slot}`, amount: r.price ?? 0 })
             }
 
             for (const ev of diningEvents) {

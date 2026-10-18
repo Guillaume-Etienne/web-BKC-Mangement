@@ -795,7 +795,8 @@ function ForecastDay({
       r.equipment_id === equipmentId && p.participant_id !== null)
     if (duplicate) return 'already in Daily'
     const price = kind === 'free' ? 0
-      : priceItems.find(pi => pi.billable_type === rentalBillable(kind as RentalType))?.price ?? 0
+      : priceItems.find(pi => pi.billable_type === rentalBillable(kind as RentalType, p.slot))?.price ?? 0
+    const typed = { rental_type: kind as RentalKind, list_price: price }
 
     if (p.client_id && !p.participant_id) {
       if (!clients.some(c => c.id === p.client_id)) return 'client not found'
@@ -803,7 +804,7 @@ function ForecastDay({
         date: p.date,
         client: { kind: 'existing', id: p.client_id },
         waiverSigned: false,
-        rental: { equipment_id: equipmentId, slot: p.slot, price, notes: p.notes },
+        rental: { equipment_id: equipmentId, slot: p.slot, price, notes: p.notes, ...typed },
       })
       if (!okW) return 'could not be saved'
       const { error: errW } = await supabase.from('planned_rentals').update({ exported_at: new Date().toISOString() }).eq('id', p.id)
@@ -819,6 +820,7 @@ function ForecastDay({
       slot: p.slot,
       price,
       notes: p.notes,
+      ...typed,
     })
     if (!ok) return 'could not be saved'
     const { error } = await supabase.from('planned_rentals').update({ exported_at: new Date().toISOString() }).eq('id', p.id)

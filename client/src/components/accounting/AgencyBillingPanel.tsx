@@ -7,6 +7,7 @@ import {
   countNights, fmtEur, nextInvoiceNumber, buildAgencyInvoiceDoc,
 } from './utils'
 import { printAgencyInvoice } from '../../utils/printAgencyInvoice'
+import { rentalKind, rentalLabel } from '../planning/rentalTypes'
 import { fmtDateShort, todayISO } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
@@ -90,7 +91,7 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
     ...data.equipmentRentals.filter(r => r.booking_id === b.id).map(r => ({
       key: `rental:${r.id}`,
       icon: '🎿',
-      label: `Rental ${r.slot.replace('_', ' ')}`,
+      label: `${rentalLabel(rentalKind(r, data.equipment), 'staff')} ${r.slot.replace('_', ' ')}`,
       detail: `${fmtDateShort(r.date)} · ${partName(r.participant_id) ?? '—'}`,
       clientAmount: r.price,
       lineId: r.agency_billing_line_id ?? null,
