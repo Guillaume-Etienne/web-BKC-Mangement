@@ -18,6 +18,7 @@
 | **Écrire en base** depuis un écran | vérifier l'erreur, toujours — voir ⚠️ ci-dessous |
 | Ajouter une **page** | `App.tsx` : `lazy(() => import(...))` comme les autres (chargement à la demande) + son id dans `Page` (`pendingActions.ts`) **et** dans `PAGES` de `utils/routes.ts` (sinon son adresse `/<id>` retombe sur l'accueil) |
 | **Adresse d'une page / raccourci Android** | `utils/routes.ts` (`/` = accueil, sinon `/<id>`, ex. `/planning`) ; l'URL suit la page et le bouton retour suit l'URL (`App.tsx`). Raccourcis par appui long : `public/manifest.webmanifest` → `shortcuts` (mêmes chemins). Depuis 2026-10-18 |
+| **Cache des lectures entre pages** | `lib/tableCache.ts` : `useTable` affiche les lignes déjà lues puis relit en fond. Toute écriture passée par `supabase` (REST/RPC/Edge Function) jette le cache de sa table (via `trackedFetch`). ⚠️ Une écriture faite **hors** du client `supabase` (fetch brut) ne l'invaliderait pas. Depuis 2026-10-18 |
 | **Créer un client** depuis un chemin automatique | `utils/clientIdentity.ts` — réutiliser avant d'insérer (lien explicite, puis email exact, **jamais un nom**) |
 | **Voir tout ce qu'on sait d'une personne** | Clients → fiche → onglet **Timeline** (`utils/dossier.ts`) · MCP `get_client_dossier` |
 | **Retrouver quelqu'un sans savoir où il est** | **⌘K / Ctrl-K** dans l'app · MCP `search_everything` |
