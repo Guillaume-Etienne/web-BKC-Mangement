@@ -20,6 +20,7 @@ import type { Booking } from '../types/database'
 import { supabase } from '../lib/supabase'
 import { fmtDate, fmtDateShort, todayISO, addDaysISO } from '../utils/dates'
 import { depositState, askedState, stayState } from '../utils/documentsOverview'
+import { dossierMoney } from '../utils/dossier'
 import { stayBookings } from '../utils/dayVisitor'
 import type { AskedState, DepositState, StayState } from '../utils/documentsOverview'
 
@@ -744,6 +745,9 @@ export default function DocumentsPage() {
     })
   }
 
+  /** What a booking has really paid: verified `payments`, never the stale `bookings.amount_paid`. */
+  const paidOn = (bookingId: string) => dossierMoney(payments.filter(p => p.booking_id === bookingId)).paid
+
   // null = nothing to send (only reachable for 'client_account' if the row's
   // checkbox got selected right as its link was deleted elsewhere — the cell
   // itself never renders a checkbox for a booking with no link).
@@ -756,7 +760,7 @@ export default function DocumentsPage() {
         const roomLabels = getRoomLabels(booking.id, bookingRooms, rooms, accommodations)
         return {
           subject: `Booking confirmation #${booking.booking_number} — ${booking.client?.first_name ?? ''}`,
-          html: emailBookingConfirmation(booking, roomLabels, lang, activeSections, participants),
+          html: emailBookingConfirmation(booking, roomLabels, lang, activeSections, participants, paidOn(booking.id)),
         }
       }
       case 'travel_guide':
@@ -1311,7 +1315,7 @@ export default function DocumentsPage() {
 
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => summaryBooking && printBookingSummary(summaryBooking, summaryRooms, lang, activeSections, bookingParticipants)}
+                onClick={() => summaryBooking && printBookingSummary(summaryBooking, summaryRooms, lang, activeSections, bookingParticipants, paidOn(summaryBooking.id))}
                 disabled={!summaryBooking}
                 className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors">
                 🖨️ {i18n.pages.btn_generate_pdf[uiLang]}
@@ -1325,7 +1329,7 @@ export default function DocumentsPage() {
                 emailValue={summaryEmail}
                 onEmailChange={setSummaryEmail}
                 onSend={() => {
-                  const html = emailBookingConfirmation(summaryBooking, summaryRooms, lang, activeSections, bookingParticipants)
+                  const html = emailBookingConfirmation(summaryBooking, summaryRooms, lang, activeSections, bookingParticipants, paidOn(summaryBooking.id))
                   sendEmail('booking_confirmation', summaryEmail, `Booking confirmation #${summaryBooking.booking_number} — ${summaryBooking.client?.first_name ?? ''}`, html)
                 }}
                 sending={sending === 'booking_confirmation'}

@@ -2,7 +2,8 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { supabase } from '../supabaseClient.js'
 import { fetchAccountingBundle } from '../data/fetchAccountingBundle.js'
-import type { Booking, BookingStatus, Client, BookingParticipant, Enquiry, EnquiryNote, Room } from '../../../client/src/types/database.js'
+import type { Booking, BookingStatus, Client, BookingParticipant, Enquiry, EnquiryNote, Payment, Room } from '../../../client/src/types/database.js'
+import { dossierMoney } from '../../../client/src/utils/dossier.js'
 import {
   computeBookingTotal, computeBookingPaid, computeBookingUnverifiedPaid, computeBookingDiscounts,
 } from '../../../client/src/components/accounting/utils.js'
@@ -38,8 +39,17 @@ export function registerBookingTools(server: McpServer) {
       if (clientsErr) return errorResult(`Loading clients: ${clientsErr.message}`)
       const clientById = new Map(((clientsData ?? []) as Client[]).map(c => [c.id, c]))
 
+      // Money comes from `payments`: bookings.amount_paid is a stale cache (0 on bookings that have paid).
+      const { data: paymentsData, error: paymentsErr } = await supabase.from('payments').select('*').in('booking_id', bookings.map(b => b.id))
+      if (paymentsErr) return errorResult(`Loading payments: ${paymentsErr.message}`)
+      const paymentsByBooking = new Map<string, Payment[]>()
+      for (const p of (paymentsData ?? []) as Payment[]) {
+        paymentsByBooking.set(p.booking_id, [...(paymentsByBooking.get(p.booking_id) ?? []), p])
+      }
+
       let summary = bookings.map(b => {
         const client = clientById.get(b.client_id)
+        const money = dossierMoney(paymentsByBooking.get(b.id) ?? [])
         return {
           id: b.id,
           booking_number: b.booking_number,
@@ -47,7 +57,8 @@ export function registerBookingTools(server: McpServer) {
           check_in: b.check_in,
           check_out: b.check_out,
           status: b.status,
-          amount_paid: b.amount_paid,
+          paid: money.paid,
+          unverified_paid: money.unverified,
         }
       })
 

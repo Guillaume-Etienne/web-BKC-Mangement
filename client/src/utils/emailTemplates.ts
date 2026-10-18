@@ -210,7 +210,10 @@ export function emailBookingConfirmation(
   roomLabels: string[],
   lang: Lang,
   activeSections: TravelGuideSection[],
-  participants: BookingParticipant[]
+  participants: BookingParticipant[],
+  /** Verified money from `payments` (dossierMoney). Never `booking.amount_paid`:
+   *  that column is a stale cache and told clients they had paid €0. */
+  amountPaid: number
 ): string {
   const t = T[lang]
   const client = booking.client
@@ -269,7 +272,7 @@ export function emailBookingConfirmation(
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:2px;">
       <tr>
         <td style="padding:4px 10px;font-size:12px;color:#6b7280;">${t.amountPaid}</td>
-        <td style="padding:4px 10px;font-size:12px;font-weight:bold;text-align:right;">&euro;${booking.amount_paid.toFixed(2)}</td>
+        <td style="padding:4px 10px;font-size:12px;font-weight:bold;text-align:right;">&euro;${amountPaid.toFixed(2)}</td>
       </tr>
     </table>`
 

@@ -92,7 +92,10 @@ export function printBookingSummary(
   roomLabels: string[],
   lang: Lang,
   activeSections: TravelGuideSection[],
-  bookingParticipants: BookingParticipant[] = []
+  bookingParticipants: BookingParticipant[],
+  /** Verified money from `payments` (dossierMoney). Never `booking.amount_paid`:
+   *  that column is a stale cache and told clients they had paid €0. */
+  amountPaid: number
 ): void {
   const t = T[lang]
   const client = booking.client
@@ -153,7 +156,7 @@ export function printBookingSummary(
   const paymentRows = `
     <div style="display:flex;justify-content:space-between;padding:5px 10px;font-size:10pt;border-bottom:0.5pt solid #e5e7eb;">
       <span style="color:#6b7280;">${t.amountPaid}</span>
-      <span style="font-weight:bold;">&euro;${booking.amount_paid.toFixed(2)}</span>
+      <span style="font-weight:bold;">&euro;${amountPaid.toFixed(2)}</span>
     </div>`
 
   // ── Travel guide ──
