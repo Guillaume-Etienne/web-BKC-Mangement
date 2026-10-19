@@ -1481,6 +1481,12 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   const { data: lessonsData } = useTable<Lesson>('lessons')
   const { data: rentalsData } = useTable<EquipmentRental>('equipment_rentals')
   const { data: paymentsData } = useTable<Payment>('payments')
+  // What the accounting holds for a booking. `bookings.amount_paid` is stale
+  // (left at 0 on bookings paid through Accounting), so the wizard's "already
+  // paid" field is filled from, and compared against, this — never the column.
+  const recordedPaidFor = (bookingId: string | undefined) => paymentsData
+    .filter(p => p.booking_id === bookingId && !p.is_discount)
+    .reduce((s, p) => s + p.amount, 0)
   const [bookingParticipants, setBookingParticipants] = useState<BookingParticipant[]>([])
   useEffect(() => setBookingParticipants(participantsData), [participantsData])
 
@@ -1838,7 +1844,9 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     //    New booking → previous is 0. Edit → only the added delta (idempotent: re-saving
     //    without changing the field creates nothing; bumping it creates the difference).
     //    Reductions are ignored here (adjust manually in Accounting → Bookings).
-    const prevPaid  = isNew ? 0 : (wizard.editing?.amount_paid ?? 0)
+    //    The baseline is the payments actually recorded, not bookings.amount_paid:
+    //    that column is stale, and typing the real total over it paid twice.
+    const prevPaid  = isNew ? 0 : recordedPaidFor(wizard.editing?.id)
     const paidDelta = data.amount_paid - prevPaid
     if (paidDelta > 0) {
       const { error: payErr } = await supabase.from('payments').insert({
@@ -1977,7 +1985,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       taxi_arrival: b.taxi_arrival, taxi_departure: b.taxi_departure, taxi_driver_id: null,
       luggage_count: b.luggage_count, boardbag_count: b.boardbag_count,
       center_access_rate: b.center_access_rate ?? centerAccessRate,
-      amount_paid: b.amount_paid, notes: b.notes ?? '',
+      amount_paid: recordedPaidFor(b.id), notes: b.notes ?? '',
     }
   }
 
@@ -2352,9 +2360,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           editingBookingId={wizard.editing?.id ?? null}
           isEditing={!!wizard.editing}
           originEnquiry={wizard.editing ? (enquiries.find(e => e.booking_id === wizard.editing!.id) ?? null) : null}
-          recordedPaid={paymentsData
-            .filter(p => p.booking_id === wizard.editing?.id && !p.is_discount)
-            .reduce((s, p) => s + p.amount, 0)}
+          recordedPaid={recordedPaidFor(wizard.editing?.id)}
           lang={lang}
           onCancel={closeWizard}
           onSave={handleSave}
