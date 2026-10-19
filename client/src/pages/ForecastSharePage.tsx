@@ -109,7 +109,7 @@ type PickedLesson = ForecastLesson & { start: number; end: number; names: string
 // ─── Main component (read-only) ───────────────────────────────────────────────
 
 const DAYS_KEY = 'forecast_share_days'   // '1' = single day; anything else = 3 days
-const PHONE_VIEW_KEY = 'forecast_share_phone_view'   // 'grid' = all instructors in one table; anything else = one block each
+const PHONE_VIEW_KEY = 'forecast_share_phone_view'   // 'list' = one block per instructor; anything else = all instructors in one table
 
 function useWideScreen(minPx = 1024): boolean {
   const query = `(min-width: ${minPx}px)`
@@ -133,8 +133,9 @@ export default function ForecastSharePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(() =>
     typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches && readLocal(DAYS_KEY) !== '1'
       ? today : addDays(today, 1))
-  // Phone: the per-instructor blocks stay the default; the shared table is opt-in.
-  const [phoneGrid, setPhoneGrid] = useState(() => readLocal(PHONE_VIEW_KEY) === 'grid')
+  // Phone: the shared table is the default; the per-instructor blocks are opt-in
+  // and remembered ('list').
+  const [phoneGrid, setPhoneGrid] = useState(() => readLocal(PHONE_VIEW_KEY) !== 'list')
   function pickPhoneView(grid: boolean) {
     setPhoneGrid(grid)
     writeLocal(PHONE_VIEW_KEY, grid ? 'grid' : 'list')
