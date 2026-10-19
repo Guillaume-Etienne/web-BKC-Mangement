@@ -315,7 +315,14 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
   }
   const goToNow = () => {
     setNavMonthIdx(currentMonthIdx)
-    scrollToMonthIdx(currentMonthIdx)
+    const el = scrollRef.current
+    if (el && todayIndex >= 0 && todayIndex < totalDays) {
+      // Today's column, a couple of days in from the sticky label: on a phone a
+      // month is ~1000px wide, so landing on the 1st leaves today off-screen.
+      el.scrollLeft = Math.max(0, (todayIndex - 2) * CELL_W)
+    } else {
+      scrollToMonthIdx(currentMonthIdx)
+    }
   }
 
   const changeSeason = (delta: number) => {
