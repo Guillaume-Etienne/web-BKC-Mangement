@@ -15,7 +15,7 @@ import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActi
 import { getFullHouseRate, getBaseNightlyRate } from '../utils/roomPricing'
 import { getConfiguredRate, agencyMarker } from '../components/accounting/utils'
 import { todayISO, fmtDate } from '../utils/dates'
-import { getMissingFields, MISSING_LABELS } from '../utils/bookingCompleteness'
+import { getMissingFields, MISSING_LABELS, visaDatesProblem, taxiOffStay } from '../utils/bookingCompleteness'
 import EnquiryOriginPanel from '../components/enquiries/EnquiryOriginPanel'
 import { intentGaps } from '../utils/intentGap'
 import { relationshipFlagLabels, relationshipFlagIcons, relationshipFlagColors } from '../utils/clientRelationshipFlag'
@@ -763,7 +763,27 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                       onChange={e => update({ visa_exit_date: e.target.value })} className={inputCls} />
                   </Field>
                 </div>
+                {(() => {
+                  const problem = visaDatesProblem(d.visa_entry_date, d.visa_exit_date, d.check_in, d.check_out)
+                  return problem && (
+                    <p className="text-sm text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/40 rounded-lg px-3 py-2 font-medium mt-2">
+                      ⚠ {problem} The visa letter prints these dates as they are.
+                    </p>
+                  )
+                })()}
               </div>
+
+              {/* Changing the stay does not move its transfers (#029 kept a
+                  departure two weeks after the new check-out). */}
+              {isEditing && d.check_in && d.check_out && (() => {
+                const off = taxiTrips.filter(t => t.booking_id === editingBookingId && taxiOffStay(d, t))
+                return off.length > 0 && (
+                  <p className="text-sm text-amber-800 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 rounded-lg px-3 py-2 font-medium">
+                    🚕 {off.map(t => `${t.date.split('-').reverse().join('/')} (${t.type})`).join(', ')} {off.length > 1 ? 'are' : 'is'} outside
+                    these dates. Transfers do not follow the stay — move {off.length > 1 ? 'them' : 'it'} in Taxis.
+                  </p>
+                )
+              })()}
 
               <Field label="Rooms" hint="Optional — can be assigned later in the planning view">
                 <div className="space-y-2">
@@ -2041,7 +2061,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     if (filter === 'walkins') return isDayVisitor(b)
     if (isDayVisitor(b)) return false
     const hasRoom = bookingRooms.some(br => br.booking_id === b.id)
-    const missing = getMissingFields(b, hasRoom, bookingParticipants)
+    const missing = getMissingFields(b, hasRoom, bookingParticipants, taxiTrips)
     const isComplete = missing.length === 0
     const isUpcoming = b.check_in > today
     const isActive = b.check_in <= today && b.check_out > today
@@ -2163,7 +2183,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
             <tbody>
               {filteredBookings.map(b => {
                 const hasRoom = bookingRooms.some(br => br.booking_id === b.id)
-                const missing = getMissingFields(b, hasRoom, bookingParticipants)
+                const missing = getMissingFields(b, hasRoom, bookingParticipants, taxiTrips)
                 const nights = getNights(b)
                 const isIncomplete = missing.length > 0
                 const isCancelled = b.status === 'cancelled'
@@ -2286,7 +2306,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           {filteredBookings.map(b => {
             const guests = bookingParticipants.filter(p => p.booking_id === b.id)
             const guestsOpen = openGuestsId === b.id
-            const missing = getMissingFields(b, bookingRooms.some(br => br.booking_id === b.id), bookingParticipants)
+            const missing = getMissingFields(b, bookingRooms.some(br => br.booking_id === b.id), bookingParticipants, taxiTrips)
             return (
             <div key={b.id} className="bg-white dark:bg-gray-900 rounded-lg shadow p-4" onClick={() => openEdit(b)}>
               <div className="flex justify-between items-start mb-2">

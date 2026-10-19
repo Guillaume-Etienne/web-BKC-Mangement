@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getMissingFields, guestsMissingPassport, MISSING_LABELS } from './bookingCompleteness'
+import { getMissingFields, guestsMissingPassport, MISSING_LABELS, visaDatesProblem, taxiOffStay } from './bookingCompleteness'
 import type { Booking, BookingParticipant } from '../types/database'
 
 function mkBooking(over: Partial<Booking> = {}): Booking {
@@ -55,6 +55,38 @@ describe('getMissingFields', () => {
   it('flags a taxi booked with no time to pick anyone up at', () => {
     const b = mkBooking({ taxi_departure: true, departure_time: null })
     expect(getMissingFields(b, true, [mkGuest()])).toContain('taxi_time')
+  })
+})
+
+describe('visa dates and transfers that no longer fit the stay', () => {
+  it('flags an exit date before the entry date (#033, #054 in PROD)', () => {
+    const b = mkBooking({ visa_entry_date: '2026-11-07', visa_exit_date: '2026-10-16' })
+    expect(getMissingFields(b, true, [mkGuest()])).toEqual(['visa_incoherent'])
+    expect(visaDatesProblem('2026-11-07', '2026-10-16', '2026-11-07', '2026-11-14')).toMatch(/before the entry/)
+  })
+
+  it('flags leaving the country before the check-out (#021)', () => {
+    expect(visaDatesProblem('2026-11-07', '2026-11-12', '2026-11-07', '2026-11-14')).toMatch(/check-out/)
+  })
+
+  it('accepts visa dates wider than the stay — guests land early', () => {
+    expect(visaDatesProblem('2026-11-05', '2026-11-16', '2026-11-07', '2026-11-14')).toBeNull()
+  })
+
+  it('leaves missing dates to the "missing" rule', () => {
+    const b = mkBooking({ visa_exit_date: null })
+    expect(getMissingFields(b, true, [mkGuest()])).toEqual(['visa_dates'])
+  })
+
+  it('flags a transfer more than a day outside the stay (#029)', () => {
+    const trips = [{ booking_id: 'b1', date: '2026-11-28' }]
+    expect(getMissingFields(mkBooking(), true, [mkGuest()], trips)).toEqual(['taxi_off_stay'])
+  })
+
+  it('allows a day of slack for night flights, and ignores other bookings', () => {
+    const trips = [{ booking_id: 'b1', date: '2026-11-06' }, { booking_id: 'b1', date: '2026-11-15' }, { booking_id: 'b2', date: '2027-01-01' }]
+    expect(getMissingFields(mkBooking(), true, [mkGuest()], trips)).toEqual([])
+    expect(taxiOffStay(mkBooking(), { date: '2026-11-16' })).toBe(true)
   })
 })
 

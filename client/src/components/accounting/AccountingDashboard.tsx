@@ -120,6 +120,8 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
   const cancelled   = bookings.filter(b => b.status === 'cancelled').length
 
   const fmt = (n: number) => fmtEur(n)
+  // A cost card reads "−1 803 €"; with nothing spent it read "−0 €".
+  const cost = (n: number) => (Math.round(n) === 0 ? fmt(0) : `−${fmt(n)}`)
   const sign = (n: number) => `${n >= 0 ? '+' : ''}${fmt(n)}`
 
   // The period picker sits above everything and is the only place the scope is
@@ -273,15 +275,15 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400 mb-1">{i18n.accounting.dash_instructor_costs[lang]}</p>
-          <p className="text-2xl font-bold text-red-800 dark:text-red-400">−{fmt(instructorCosts)}</p>
+          <p className="text-2xl font-bold text-red-800 dark:text-red-400">{cost(instructorCosts)}</p>
         </div>
         <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400 mb-1">{i18n.accounting.dash_house_rentals[lang]}</p>
-          <p className="text-2xl font-bold text-red-800 dark:text-red-400">−{fmt(houseRentalCosts)}</p>
+          <p className="text-2xl font-bold text-red-800 dark:text-red-400">{cost(houseRentalCosts)}</p>
         </div>
         <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400 mb-1">{i18n.accounting.dash_bungalow_owners[lang]}</p>
-          <p className="text-2xl font-bold text-red-800 dark:text-red-400">−{fmt(bungalowCosts)}</p>
+          <p className="text-2xl font-bold text-red-800 dark:text-red-400">{cost(bungalowCosts)}</p>
         </div>
         {/* gui (2026-07-04): the number that matters on the general dashboard is the MARGIN
             (what's left after paying drivers + manager); costs stay as the subtitle detail */}
@@ -292,19 +294,19 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
         </div>
         <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400 mb-1">{i18n.accounting.dash_activity_providers[lang]}</p>
-          <p className="text-2xl font-bold text-red-800 dark:text-red-400">−{fmt(activityCosts)}</p>
+          <p className="text-2xl font-bold text-red-800 dark:text-red-400">{cost(activityCosts)}</p>
         </div>
         {/* Hidden until a stay exists: an always-zero card next to seven live ones
             teaches the eye to skip the row. */}
         {externalStayCosts > 0 && (
           <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400 mb-1">{i18n.accounting.dash_external_stays[lang]}</p>
-            <p className="text-2xl font-bold text-red-800 dark:text-red-400">−{fmt(externalStayCosts)}</p>
+            <p className="text-2xl font-bold text-red-800 dark:text-red-400">{cost(externalStayCosts)}</p>
           </div>
         )}
         <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-red-500 dark:text-red-400 mb-1">{i18n.accounting.dash_expenses[lang]}</p>
-          <p className="text-2xl font-bold text-red-800 dark:text-red-400">−{fmt(totalExpenses)}</p>
+          <p className="text-2xl font-bold text-red-800 dark:text-red-400">{cost(totalExpenses)}</p>
         </div>
         <div className={`border rounded-xl p-4 ${palmeirasNet >= 0 ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-900' : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900'}`}>
           <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${palmeirasNet >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-red-500 dark:text-red-400'}`}>{i18n.accounting.dash_palmeiras_net[lang]}</p>

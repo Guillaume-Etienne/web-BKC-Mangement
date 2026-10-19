@@ -906,7 +906,9 @@ export function computeVolumeTotals(data: SharedAccountingData): VolumeTotals {
 
 /** Format euros */
 export function fmtEur(amount: number): string {
-  return `${Math.round(amount).toLocaleString('fr-FR')} €`
+  // `|| 0` turns -0 (a sum of nothing, or -0.4 rounded) into 0: callers that
+  // prefix a sign printed "+-0 €" from it.
+  return `${(Math.round(amount) || 0).toLocaleString('fr-FR')} €`
 }
 
 /** Format YYYY-MM to "Feb 2026" */

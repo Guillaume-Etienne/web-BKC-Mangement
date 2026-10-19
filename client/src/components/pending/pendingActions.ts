@@ -74,6 +74,14 @@ function bookingLabel(b: Booking, allBookings: Booking[]): string {
 
 export function computePendingActions(data: PendingActionsData, lang: Lang = 'en'): PendingAction[] {
   const t = i18n.pages
+  // "in 0 day(s)" read badly, and a provisional booking already under way
+  // (activeBookings keeps it until check-out) gave "in -3 day(s)".
+  const when = (days: number): string =>
+    days === 0  ? t.when_today[lang]
+    : days === 1  ? t.when_tomorrow[lang]
+    : days === -1 ? t.when_yesterday[lang]
+    : days < 0    ? t.when_days_ago[lang].replace('{n}', String(-days))
+    : t.when_in_days[lang].replace('{n}', String(days))
   const routeLabelAccounting = i18n.nav.nav_accounting[lang]
   const routeLabelBookings   = i18n.nav.nav_bookings[lang]
   const routeLabelDocuments  = i18n.nav.nav_documents[lang]
@@ -134,7 +142,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
           id: `provisional-urgent-${b.id}`,
           dismissKey: `provisional:${b.id}`,
           priority: 'urgent',
-          message: t.msg_provisional_urgent[lang].replace('{days}', String(Math.round((checkIn.getTime() - today.getTime()) / 86400000))),
+          message: t.msg_provisional_urgent[lang].replace('{when}', when(Math.round((checkIn.getTime() - today.getTime()) / 86400000))),
           bookingRef: bookingLabel(b, data.bookings),
           route: 'bookings',
           routeLabel: routeLabelBookings,
@@ -153,7 +161,7 @@ export function computePendingActions(data: PendingActionsData, lang: Lang = 'en
           id: `visa-${b.id}`,
           dismissKey: `visa:${b.id}`,
           priority: 'urgent',
-          message: t.msg_visa_urgent[lang].replace('{days}', String(daysLeft)),
+          message: t.msg_visa_urgent[lang].replace('{when}', when(daysLeft)),
           bookingRef: bookingLabel(b, data.bookings),
           route: 'documents',
           routeLabel: routeLabelDocuments,
