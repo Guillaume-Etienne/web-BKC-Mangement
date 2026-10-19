@@ -104,9 +104,12 @@ function layoutLanes<T extends { start: number; end: number }>(items: T[]): (T &
   return out
 }
 
+type PickedLesson = ForecastLesson & { start: number; end: number; names: string[] }
+
 // ─── Main component (read-only) ───────────────────────────────────────────────
 
 const DAYS_KEY = 'forecast_share_days'   // '1' = single day; anything else = 3 days
+const PHONE_VIEW_KEY = 'forecast_share_phone_view'   // 'grid' = all instructors in one table; anything else = one block each
 
 function useWideScreen(minPx = 1024): boolean {
   const query = `(min-width: ${minPx}px)`
@@ -130,6 +133,14 @@ export default function ForecastSharePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(() =>
     typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches && readLocal(DAYS_KEY) !== '1'
       ? today : addDays(today, 1))
+  // Phone: the per-instructor blocks stay the default; the shared table is opt-in.
+  const [phoneGrid, setPhoneGrid] = useState(() => readLocal(PHONE_VIEW_KEY) === 'grid')
+  function pickPhoneView(grid: boolean) {
+    setPhoneGrid(grid)
+    writeLocal(PHONE_VIEW_KEY, grid ? 'grid' : 'list')
+  }
+  // Lesson opened from the phone table (tap) → detail sheet.
+  const [picked, setPicked] = useState<{ lesson: PickedLesson; instructor: string } | null>(null)
   function pickDays(three: boolean) {
     setThreeDays(three)
     writeLocal(DAYS_KEY, three ? '3' : '1')
@@ -265,10 +276,10 @@ export default function ForecastSharePage() {
   )
 
   /** Time grid of one day. `narrow` = one of three columns. */
-  const dayGrid = (d: DayData, narrow: boolean) => {
+  const dayGrid = (d: DayData, narrow: boolean, phone = false) => {
     const totalSlots = (d.endHour - d.startHour) * 2
     const gridHeight = totalSlots * SLOT_H
-    const colMin = narrow ? 'min-w-[104px]' : 'min-w-[170px]'
+    const colMin = phone ? 'min-w-[92px]' : narrow ? 'min-w-[104px]' : 'min-w-[170px]'
     if (d.teaching.length === 0) {
       return (
         <p className="text-sm text-gray-500 dark:text-gray-400 italic text-center py-10 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl">
@@ -281,7 +292,7 @@ export default function ForecastSharePage() {
         <div className="min-w-fit">
           {/* Instructor headers */}
           <div className="flex border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
-            <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200 dark:border-gray-800" />
+            <div style={{ width: TIME_COL_W }} className="shrink-0 sticky left-0 z-20 border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800" />
             {d.teaching.map(({ instr, items }) => (
               <div key={instr.id} className={`flex-1 ${colMin} px-2 py-2 border-r border-gray-200 dark:border-gray-800 last:border-r-0`}>
                 <div className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{narrow ? instr.first_name : `${instr.first_name} ${instr.last_name}`}</div>
@@ -293,7 +304,7 @@ export default function ForecastSharePage() {
           {/* Grid body */}
           <div className="flex" style={{ height: gridHeight }}>
             {/* Time labels */}
-            <div style={{ width: TIME_COL_W }} className="shrink-0 border-r border-gray-200 dark:border-gray-800 relative bg-gray-50 dark:bg-gray-800/60">
+            <div style={{ width: TIME_COL_W }} className="shrink-0 sticky left-0 z-20 border-r border-gray-200 dark:border-gray-800 relative bg-gray-50 dark:bg-gray-800">
               {Array.from({ length: totalSlots }, (_, i) => i % 2 === 0 && (
                 <div key={i} className="absolute w-full border-t border-gray-300 dark:border-gray-700 pr-2 text-right"
                   style={{ top: i * SLOT_H }}>
@@ -321,7 +332,12 @@ export default function ForecastSharePage() {
                   const roomy = height >= SLOT_H * 2
                   return (
                     <div key={l.id}
-                      className={`absolute rounded-md border-l-4 px-2 py-1 overflow-hidden shadow-sm z-10 ${cfg.bg} ${cfg.border} ${cfg.text}`}
+                      {...(phone ? {
+                        role: 'button', tabIndex: 0,
+                        onClick: () => setPicked({ lesson: l, instructor: `${instr.first_name} ${instr.last_name}`.trim() }),
+                        onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter') setPicked({ lesson: l, instructor: `${instr.first_name} ${instr.last_name}`.trim() }) },
+                      } : {})}
+                      className={`absolute rounded-md border-l-4 px-2 py-1 overflow-hidden shadow-sm z-10 ${phone ? 'cursor-pointer active:brightness-95' : ''} ${cfg.bg} ${cfg.border} ${cfg.text}`}
                       style={{ top: top + 1, height: height - 2, left: `calc(${l.lane * widthPct}% + 2px)`, width: `calc(${widthPct}% - 4px)` }}
                       title={[`${fmtMinutes(l.start)}–${fmtMinutes(l.end)} ${cfg.label}`, l.names.join(', '), l.notes].filter(Boolean).join('\n')}
                     >
@@ -401,10 +417,21 @@ export default function ForecastSharePage() {
 
         {/* ── Mobile: one block per instructor, lessons in time order ── */}
         <div className="md:hidden flex flex-col gap-4">
-          {selectedDay.teaching.length === 0 && (
+          <div className="flex justify-center gap-2">
+            <button onClick={() => pickPhoneView(false)} className={chip(!phoneGrid)}>☰ By instructor</button>
+            <button onClick={() => pickPhoneView(true)} className={chip(phoneGrid)}>▦ All together</button>
+          </div>
+          {phoneGrid && (
+            <>
+              {dayGrid(selectedDay, true, true)}
+              {idleLine(selectedDay)}
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 text-center -mt-2">Tap a lesson for details · swipe sideways for more instructors</p>
+            </>
+          )}
+          {!phoneGrid && selectedDay.teaching.length === 0 && (
             <p className="text-sm text-gray-500 dark:text-gray-400 italic text-center py-6">No lessons planned</p>
           )}
-          {selectedDay.teaching.map(({ instr, items }) => (
+          {!phoneGrid && selectedDay.teaching.map(({ instr, items }) => (
             <section key={instr.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
               <div className="px-3 py-2 bg-gray-100 dark:bg-gray-800 flex items-center justify-between">
                 <h2 className="font-bold text-gray-900 dark:text-gray-100">{instr.first_name} {instr.last_name}</h2>
@@ -435,9 +462,35 @@ export default function ForecastSharePage() {
               </div>
             </section>
           ))}
-          {idleLine(selectedDay)}
+          {!phoneGrid && idleLine(selectedDay)}
           {rentalsPanel(selectedDay)}
         </div>
+
+        {/* Lesson detail (phone table) */}
+        {picked && (() => {
+          const l = picked.lesson
+          const cfg = LESSON_CFG[l.type]
+          return (
+            <div className="md:hidden fixed inset-0 z-50 flex items-end bg-black/40" onClick={() => setPicked(null)}>
+              <div role="dialog" aria-label="Lesson details" onClick={e => e.stopPropagation()}
+                className={`w-full max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 border-t-4 ${cfg.border} p-4 flex flex-col gap-2 shadow-xl`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-lg font-bold text-gray-900 dark:text-gray-100">{fmtMinutes(l.start)}–{fmtMinutes(l.end)}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">{picked.instructor} · {fmtDuration(l.duration_hours)}</div>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded font-semibold ${cfg.badge}`}>{cfg.label}</span>
+                </div>
+                <div className="text-base font-medium text-gray-900 dark:text-gray-100">
+                  {l.names.length ? l.names.join(', ') : <span className="italic text-gray-400">No name</span>}
+                </div>
+                {l.notes && <div className="text-sm italic text-gray-700 dark:text-gray-300">{l.notes}</div>}
+                <button onClick={() => setPicked(null)}
+                  className="mt-2 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-800 dark:text-gray-200">Close</button>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* ── Laptop: time grid(s) (only instructors who teach that day) + rentals ── */}
         {multi ? (
