@@ -186,6 +186,20 @@ describe('buildDossier', () => {
     expect(ev.kind).toBe('note')
     expect(ev.detail).toBe('Called, wants November')
   })
+
+  it('a discounted rental says how much and why', () => {
+    const rentals = [{
+      id: 'r1', equipment_id: null, booking_id: 'b1', participant_id: null,
+      date: '2026-11-10', slot: 'morning', price: 15, notes: 'Friend of the house',
+      rental_type: 'board', list_price: 20, client_note: null,
+    }] as unknown as DossierInput['rentals']
+    const [ev] = buildDossier({ ...EMPTY, bookings: [mkBooking()], rentals })
+    expect(ev.kind).toBe('rental')
+    expect(ev.title).toBe('Board rental · morning')
+    expect(ev.detail).toContain('€5 discount (grid €20)')
+    expect(ev.detail).toContain('Friend of the house')
+    expect(ev.amount).toBe(15)
+  })
 })
 
 describe('dossierMoney', () => {

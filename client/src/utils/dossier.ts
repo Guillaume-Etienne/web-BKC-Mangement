@@ -15,13 +15,14 @@
  */
 import type {
   ActivityBooking, Booking, ClientNote, EmailLog, EmailLogType, Enquiry, EnquiryNote,
-  FormSubmission, Payment, TaxiTrip,
+  Equipment, EquipmentRental, FormSubmission, Payment, TaxiTrip,
 } from '../types/database'
 import { linkedBookingBadge } from './linkedBooking'
+import { rentalKind, rentalLabel } from '../components/planning/rentalTypes'
 
 export type DossierEventKind =
   | 'enquiry' | 'note' | 'submission' | 'booking' | 'stay'
-  | 'payment' | 'email' | 'taxi' | 'activity'
+  | 'payment' | 'email' | 'taxi' | 'activity' | 'rental'
 
 export interface DossierEvent {
   /** Unique within a dossier — `${kind}:${row id}`, so React keys are stable. */
@@ -52,6 +53,10 @@ export interface DossierInput {
   emails: EmailLog[]
   taxiTrips: TaxiTrip[]
   activities: ActivityBooking[]
+  /** Equipment rented on the person's bookings. Optional like `clientNotes`. */
+  rentals?: EquipmentRental[]
+  /** Needed only to name a rental whose own type is missing (pre-2026-10-18). */
+  equipment?: Pick<Equipment, 'id' | 'category'>[]
   /** id → display name, for the rooms/providers we can name. Optional. */
   providerNames?: Record<string, string>
   /** The app-wide bookings list, only used to resolve a 🔗 linked-stay badge
@@ -267,6 +272,26 @@ export function buildDossier(input: DossierInput): DossierEvent[] {
       ].filter(Boolean).join(' · ') + ref(a.booking_id),
       amount: a.price_client || null,
       bookingId: a.booking_id,
+    })
+  }
+
+  // A rental carries the WHY of its price (internal note, discount): without a
+  // line here the only place to read it was the booking's accounting card.
+  for (const r of input.rentals ?? []) {
+    const discount = r.list_price != null && r.list_price > r.price ? r.list_price - r.price : 0
+    events.push({
+      id: `rental:${r.id}`,
+      at: r.date,
+      kind: 'rental',
+      icon: discount > 0 ? '🏷️' : '🏄',
+      title: `${rentalLabel(rentalKind(r, input.equipment ?? []), 'staff')} rental · ${r.slot}`,
+      detail: [
+        discount > 0 ? `€${discount} discount (grid €${r.list_price})` : null,
+        r.notes,
+        r.client_note,
+      ].filter(Boolean).join(' · ') + ref(r.booking_id) || null,
+      amount: r.price || null,
+      bookingId: r.booking_id,
     })
   }
 

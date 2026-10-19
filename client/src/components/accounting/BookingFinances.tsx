@@ -83,21 +83,29 @@ interface EditRentalFormProps {
   onCancel: () => void
 }
 function EditRentalForm({ rental, onSave, onCancel }: EditRentalFormProps) {
+  const { lang } = useLanguage()
   const [price, setPrice] = useState(String(rental.price))
+  const [notes, setNotes] = useState(rental.notes ?? '')
+  const [clientNote, setClientNote] = useState(rental.client_note ?? '')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const parsed = parseFloat(price)
     if (isNaN(parsed) || parsed < 0) return
-    onSave({ ...rental, price: parsed })
+    onSave({ ...rental, price: parsed, notes: notes.trim() || null, client_note: clientNote.trim() || null })
   }
 
+  const noteInput = 'flex-1 min-w-[10rem] px-2 py-0.5 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-400'
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2 mt-1">
       <input type="number" min="0" step="0.5" value={price} onChange={e => setPrice(e.target.value)}
         autoFocus
         className="w-24 px-2 py-0.5 border border-blue-300 dark:border-blue-800 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-400" />
       <span className="text-xs text-gray-400 dark:text-gray-400">€</span>
+      <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
+        placeholder={i18n.accounting.bf_rental_note_ph[lang]} className={noteInput} />
+      <input type="text" value={clientNote} onChange={e => setClientNote(e.target.value)}
+        placeholder={i18n.accounting.bf_rental_client_note_ph[lang]} className={noteInput} />
       <button type="submit" className="px-2 py-0.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">✓</button>
       <button type="button" onClick={onCancel} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-700">✕</button>
     </form>
@@ -793,6 +801,16 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                             className="p-1 -m-1 text-gray-300 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">✏️</button>
                         </div>
                       </div>
+                      {(r.notes || r.client_note) && (
+                        <div className="italic text-gray-400 dark:text-gray-400">
+                          {r.list_price != null && r.list_price > r.price && (
+                            <span className="not-italic font-medium text-purple-600 dark:text-purple-400 mr-1">
+                              -{fmtEur(r.list_price - r.price)} {i18n.accounting.bf_rental_discount[lang]} ·
+                            </span>
+                          )}
+                          {[r.notes, r.client_note].filter(Boolean).join(' · ')}
+                        </div>
+                      )}
                       {isEditing && (
                         <EditRentalForm
                           rental={r}

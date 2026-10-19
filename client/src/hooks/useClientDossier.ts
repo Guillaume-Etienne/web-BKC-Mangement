@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type {
   ActivityBooking, ActivityProvider, Booking, ClientNote, EmailLog, Enquiry, EnquiryNote,
-  FormSubmission, Payment, TaxiTrip,
+  Equipment, EquipmentRental, FormSubmission, Payment, TaxiTrip,
 } from '../types/database'
 import { buildDossier, type DossierEvent, type DossierInput } from '../utils/dossier'
 import { isMissingTable } from '../utils/supabaseErrors'
@@ -75,7 +75,7 @@ export function useClientDossier(clientId: string | null, bookings: Booking[]): 
 
       const submissionIds = enquiries.map(e => e.form_submission_id).filter((v): v is string => !!v)
 
-      const [clientNotesRes, notesRes, subsRes, paysRes, mailsRes, taxiRes, actRes] = await Promise.all([
+      const [clientNotesRes, notesRes, subsRes, paysRes, mailsRes, taxiRes, actRes, rentRes, equipRes] = await Promise.all([
         supabase.from('client_notes').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
         enquiryIds.length
           ? supabase.from('enquiry_notes').select('*').in('enquiry_id', enquiryIds)
@@ -93,6 +93,8 @@ export function useClientDossier(clientId: string | null, bookings: Booking[]): 
         ids.length ? supabase.from('email_logs').select('*').in('booking_id', ids) : Promise.resolve({ data: [], error: null }),
         ids.length ? supabase.from('taxi_trips').select('*').in('booking_id', ids) : Promise.resolve({ data: [], error: null }),
         ids.length ? supabase.from('activity_bookings').select('*').in('booking_id', ids) : Promise.resolve({ data: [], error: null }),
+        ids.length ? supabase.from('equipment_rentals').select('*').in('booking_id', ids) : Promise.resolve({ data: [], error: null }),
+        ids.length ? supabase.from('equipment').select('id, category') : Promise.resolve({ data: [], error: null }),
       ])
 
       // A missing client_notes table is a pending migration, not a fault: it
@@ -105,6 +107,8 @@ export function useClientDossier(clientId: string | null, bookings: Booking[]): 
       if (mailsRes.error) problems.push(`emails (${mailsRes.error.message})`)
       if (taxiRes.error) problems.push(`transfers (${taxiRes.error.message})`)
       if (actRes.error) problems.push(`activities (${actRes.error.message})`)
+      if (rentRes.error) problems.push(`rentals (${rentRes.error.message})`)
+      if (equipRes.error) problems.push(`equipment (${equipRes.error.message})`)
 
       const activities = (actRes.data ?? []) as ActivityBooking[]
       let providerNames: Record<string, string> = {}
@@ -130,6 +134,8 @@ export function useClientDossier(clientId: string | null, bookings: Booking[]): 
         emails: (mailsRes.data ?? []) as EmailLog[],
         taxiTrips: (taxiRes.data ?? []) as TaxiTrip[],
         activities,
+        rentals: (rentRes.data ?? []) as EquipmentRental[],
+        equipment: (equipRes.data ?? []) as Pick<Equipment, 'id' | 'category'>[],
         providerNames,
       })
       setError(problems.length ? `Part of this file could not be loaded: ${problems.join(', ')}.` : null)
