@@ -393,7 +393,6 @@ export default function EquipmentPage() {
   // a disparu, on écrit sans catégorie plutôt que d'inventer une catégorie —
   // la dépense s'affichera « Uncategorised », ce qui se voit et se corrige.
   const equipmentCategoryId = expenseCategories.find(c => c.slug === 'equipment')?.id ?? null
-  const equipmentCategoryName = expenseCategories.find(c => c.slug === 'equipment')?.name ?? 'Equipment'
 
   // ── Purchase / resale ↔ Expenses linking ───────────────────────────────────
   // Deliberately one-shot buttons, never a silent sync: gui asked for a way to
@@ -405,7 +404,6 @@ export default function EquipmentPage() {
     const { data, error } = await supabase.from('expenses').insert([{
       date: eq.purchase_date || todayISO(),
       category_id: equipmentCategoryId,
-      category: equipmentCategoryName,
       amount: eq.purchase_price + (eq.shipping_cost ?? 0),
       description: `Achat — ${eq.name}`,
     }]).select().single()
@@ -432,7 +430,6 @@ export default function EquipmentPage() {
     const { data, error } = await supabase.from('expenses').insert([{
       date: eq.sold_date || todayISO(),
       category_id: equipmentCategoryId,
-      category: equipmentCategoryName,
       amount: -eq.sold_price,
       description: `Revente — ${eq.name}`,
     }]).select().single()

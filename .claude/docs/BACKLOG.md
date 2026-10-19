@@ -6,6 +6,13 @@
 
 ## 🚨 Migrations SQL — registre
 
+> **Ordre du lot 2026-10-19** : `19` (TEST+PROD) → `19b` (TEST seul) → `19c` (TEST+PROD) → **push du code** → `19d` (TEST+PROD).
+> `19d` supprime `lesson_clients` : passer `19b` avant (il la nomme).
+
+⏳ **`2026-10-19c_expenses_category_nullable.sql`** (**TEST puis PROD, AVANT de pousser le code**) — `expenses.category` DROP NOT NULL, `category_id` SET NOT NULL (36/36 remplies). Sans elle, le code poussé ne peut plus créer de dépense. Vérif : pied du fichier.
+
+⏳ **`2026-10-19d_drop_dead_columns.sql`** (**TEST puis PROD, APRÈS le push** + MCP relancé) — supprime `bookings.amount_paid`, `email_logs.delivered_at/opened_at`, `expenses.category`, table `lesson_clients`. Contrôle préalable dans le fichier (3 zéros attendus). Gardés : `clients.passport_number`, `lesson_intents.estimated_days` (champs en service).
+
 ⏳ **`2026-10-19_revoke_internal_functions.sql`** (**à passer par gui, TEST puis PROD** — aucun code lié) — retire EXECUTE à anon/authenticated/PUBLIC sur `ping_brevo_keepalive` (RPC appelable par n'importe qui → requête Brevo), `notify_*` et `rls_auto_enable` (ménage) ; fige le search_path de `notify_form_submission`, `share_param`, `share_type`. Vérif (pied du fichier) : 4 lignes `anon_exec = false` ; curl anon `rpc/ping_brevo_keepalive` → 401 ; `rpc/resolve_share_token` → 200.
 
 ⏳ **`2026-10-19b_TEST_ONLY_align_anon_grants.sql`** (**TEST UNIQUEMENT, jamais PROD**) — recopie sur TEST les GRANT anon de PROD (TEST en donnait bien plus : bookings 37 colonnes vs 9…) pour qu'un GRANT oublié casse TEST comme il casserait PROD. Trouvé en le préparant : `ForecastSharePage` lisait `equipment` en `*` → 42501 en PROD (corrigé dans le code, `select id, name`). Vérif : Claude refait l'empreinte TEST vs PROD + pages partagées sur TEST.

@@ -44,7 +44,7 @@ export function mkBooking(over: Partial<Booking> = {}): Booking {
     luggage_count: 0, boardbag_count: 0,
     taxi_arrival: false, taxi_departure: false,
     couples_count: 0, children_count: 0,
-    amount_paid: 0, import_id: null,
+    import_id: null,
     emergency_contact_name: null, emergency_contact_phone: null, emergency_contact_email: null,
     has_travel_insurance: false, waiver_accepted_at: null, waiver_version: null,
     referral_source: null,

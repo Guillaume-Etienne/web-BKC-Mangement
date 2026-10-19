@@ -136,7 +136,7 @@
 | taxi_departure | boolean | |
 | couples_count | number | |
 | children_count | number | |
-| amount_paid | number (EUR) | |
+| ~~amount_paid~~ | — | **supprimée 2026-10-19d** (cache périmé) — l'argent vient de `payments` |
 | import_id | string \| null | Google Forms / `form_submission.id` dedup |
 | client? | Client | Join optionnel |
 | emergency_contact_* | string \| null | |
@@ -638,7 +638,7 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 | is_verified | boolean | false = "à vérifier" |
 | is_discount | boolean | true = remise (réduit le solde) |
 | notes | string \| null | |
-> Auto-création : nouveau booking avec `amount_paid > 0` → insert Payment (`method:'transfer'`, `is_verified:false`).
+> Auto-création : le champ « Amount already paid » de l'étape 6 (pré-rempli avec la somme des `payments`) → insert Payment de la différence (`method:'transfer'`, `is_verified:false`). Ce champ n'est plus stocké : `bookings.amount_paid` supprimée (2026-10-19d).
 > Discounts : positif, `is_discount:true`. Réduit outstanding (Total − Paid).
 
 ### `booking_charges` → `BookingCharge` (2026-10-18)
@@ -829,8 +829,7 @@ Table `document_templates` (admin-only, **aucun accès anon**, REVOKE explicite)
 | status | EmailLogStatus | `pending \| sent \| delivered \| opened \| failed` |
 | recipient_email | string | |
 | sent_at | string (ISO) \| null | |
-| delivered_at | string (ISO) \| null | mis à jour par webhook Resend (non encore implémenté) |
-| opened_at | string (ISO) \| null | idem |
+| ~~delivered_at / opened_at~~ | — | **supprimées 2026-10-19d** (webhook Resend jamais branché) — rajouter avec lui |
 | error | string \| null | message d'erreur si `failed` |
 | created_at | string (ISO) | |
 

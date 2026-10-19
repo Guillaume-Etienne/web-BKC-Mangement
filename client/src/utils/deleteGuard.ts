@@ -14,7 +14,6 @@ interface Dep { table: string; column: string; label: string }
 const DEPS: Record<GuardedTable, Dep[]> = {
   clients: [
     { table: 'bookings',       column: 'client_id', label: 'booking' },
-    { table: 'lesson_clients', column: 'client_id', label: 'lesson' },
   ],
   bookings: [
     { table: 'payments',             column: 'booking_id', label: 'payment' },

@@ -12,7 +12,7 @@ const mkTransfer = (o: Partial<AssociateTransfer> & { id: string }): AssociateTr
   associate_id: gui.id, date: '2026-11-10', amount: 100, direction: 'to_associate', notes: null, ...o,
 })
 const mkExpense = (o: Partial<Expense> & { id: string }): Expense => ({
-  date: '2026-11-12', category: '', category_id: null, amount: 40, description: 'Petrol', ...o,
+  date: '2026-11-12', category_id: null, amount: 40, description: 'Petrol', ...o,
 })
 
 describe('buildAssociateLedger', () => {

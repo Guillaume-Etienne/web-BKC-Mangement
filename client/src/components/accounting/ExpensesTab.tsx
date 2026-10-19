@@ -5,7 +5,7 @@ import { fmtEur, fmtMonth } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
 import {
   categoryTree, categoryColor, categoryPath, rollUpId, selfAndChildrenIds,
-  legacyLabel, childrenOf, postableCategories, expensesOnHeadings,
+  childrenOf, postableCategories, expensesOnHeadings,
 } from './expenseCategories'
 
 import ExpenseCategoryManager from './ExpenseCategoryManager'
@@ -81,12 +81,11 @@ function CategorySelect({ categories, value, onChange, allLabel, className, mode
 // ── Add expense form (module-scope) ──────────────────────────────────────────
 interface AddFormProps {
   categories: ExpenseCategory[]        // actives seulement
-  allCategories: ExpenseCategory[]     // archivées incluses, pour le libellé legacy
   associates: Associate[]              // vide tant que la migration associés n'est pas passée
   onAdd: (e: Expense) => void
   onCancel: () => void
 }
-function AddExpenseForm({ categories, allCategories, associates, onAdd, onCancel }: AddFormProps) {
+function AddExpenseForm({ categories, associates, onAdd, onCancel }: AddFormProps) {
   const { lang } = useLanguage()
   const [date,        setDate]        = useState(todayISO())
   // La première DESTINATION réelle, dans l'ordre de l'arbre : ni un titre, ni
@@ -104,8 +103,6 @@ function AddExpenseForm({ categories, allCategories, associates, onAdd, onCancel
       id: crypto.randomUUID(),
       date,
       category_id: categoryId,
-      // Colonne LEGACY : on la garde alimentée tant qu'elle existe (phase 3).
-      category: legacyLabel(allCategories, categoryId),
       amount: amt,
       description: description.trim(),
       // Nommée seulement si la colonne existe : un insert qui cite une colonne
@@ -346,9 +343,6 @@ export default function ExpensesTab({ data, handlers }: Props) {
       ...editDraft,
       amount: amt,
       description: editDraft.description.trim(),
-      // On réaligne la colonne LEGACY sur la catégorie choisie, sinon elle
-      // garderait le libellé d'avant et les deux colonnes se contrediraient.
-      category: legacyLabel(expenseCategories, editDraft.category_id),
     })
     cancelEdit()
   }
@@ -549,7 +543,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
             ? <p className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg px-3 py-2">
                 {i18n.accounting.ex_no_categories[lang]}
               </p>
-            : <AddExpenseForm categories={activeCategories} allCategories={expenseCategories}
+            : <AddExpenseForm categories={activeCategories}
                 associates={associates}
                 onAdd={e => { handlers.addExpense(e); setShowAddForm(false) }}
                 onCancel={() => setShowAddForm(false)} />

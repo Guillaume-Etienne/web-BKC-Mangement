@@ -103,7 +103,6 @@ export interface Booking {
   taxi_departure: boolean
   couples_count: number
   children_count: number
-  amount_paid: number
   import_id: string | null                   // Google Forms row timestamp / form_submission id (dedup key)
   emergency_contact_name: string | null
   emergency_contact_phone: string | null
@@ -941,13 +940,11 @@ export interface ExpenseCategory {
   archived: boolean
 }
 
-// Manual expenses
-// ⚠️ `category` is the LEGACY free-text column, still written as a label
-// snapshot until it is dropped (phase 3). `category_id` is the source of truth.
+// Manual expenses — `category_id` is the category (the legacy free-text
+// `category` column was dropped on 2026-10-19).
 export interface Expense {
   id: string
   date: string
-  category: string
   category_id: string | null
   amount: number
   description: string
@@ -1018,8 +1015,6 @@ export interface EmailLog {
   status: EmailLogStatus
   recipient_email: string
   sent_at: string | null
-  delivered_at: string | null
-  opened_at: string | null
   error: string | null
   created_at: string
 }

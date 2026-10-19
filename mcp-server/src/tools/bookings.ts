@@ -299,7 +299,6 @@ export function registerBookingTools(server: McpServer) {
         taxi_arrival: taxi_arrival ?? false,
         taxi_departure: taxi_departure ?? false,
         couples_count: 0, children_count: 0,
-        amount_paid: 0,
         has_travel_insurance: false,
         waiver_accepted_at: null, waiver_version: null,
         referral_source: null,

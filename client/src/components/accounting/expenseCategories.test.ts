@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   slugify, uniqueSlug, categoryTree, parentsOf, childrenOf, isValidParent,
-  categoryColor, categoryPath, rollUpId, selfAndChildrenIds, canDelete, legacyLabel,
+  categoryColor, categoryPath, rollUpId, selfAndChildrenIds, canDelete,
   reorderSiblings, moveToParent, isPostable, postableCategories, expensesOnHeadings,
 } from './expenseCategories'
 import type { Expense, ExpenseCategory } from '../../types/database'
@@ -10,7 +10,7 @@ const mkCat = (o: Partial<ExpenseCategory> & { id: string; name: string }): Expe
   parent_id: null, slug: slugify(o.name), color: null, sort_order: 0, archived: false, ...o,
 })
 const mkExpense = (o: Partial<Expense> & { id: string }): Expense => ({
-  date: '2026-09-19', category: '', category_id: null, amount: 10, description: 'x', ...o,
+  date: '2026-09-19', category_id: null, amount: 10, description: 'x', ...o,
 })
 
 /** L'arbre de référence des tests : Energy avec 3 enfants, Admin tout seul. */
@@ -338,12 +338,3 @@ describe('moveToParent — ranger une catégorie ailleurs', () => {
   })
 })
 
-describe('legacyLabel — la colonne texte reste alimentée', () => {
-  it('rend le nom de la catégorie', () => {
-    expect(legacyLabel(TREE, 'petrol')).toBe('Petrol')
-  })
-
-  it('rend une chaîne vide plutôt qu’un undefined pour une catégorie inconnue', () => {
-    expect(legacyLabel(TREE, null)).toBe('')
-  })
-})

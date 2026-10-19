@@ -159,7 +159,6 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
       taxi_departure: !!p.taxi_departure,
       couples_count: p.double_beds || 0,
       children_count: 0,
-      amount_paid: 0,
       has_travel_insurance: !!p.has_travel_insurance,
       waiver_accepted_at: p.waiver_accepted ? s.submitted_at : null,
       waiver_version: p.waiver_accepted ? p.waiver_version : null,

@@ -237,7 +237,7 @@
 - **Step 5 (KiteCenter) :** Si `num_center_access > 0` → champ **tarif center access** (`center_access_rate`, €/jour, défaut 5).
 - **Save (nouveaux bookings, isNew=true) :**
   1. Upsert client → upsert booking → réconciliation `booking_participants` (ids stables) → delete+insert booking_rooms → delete+insert booking_room_prices
-  2. Si `amount_paid > 0` → insert `payments` (`method:'transfer'`, `is_verified:false`, note "Auto-created…")
+  2. Si « Amount already paid » dépasse la somme des `payments` déjà enregistrés → insert `payments` de la différence (`method:'transfer'`, `is_verified:false`, note "Auto-created…"). Rien n'est stocké sur la résa (`amount_paid` supprimée 2026-10-19d). Une résa annulée : proposition de supprimer ses taxis à venir, jamais de recréation.
   3. Trajets taxi : si chauffeur pré-assigné → trajets avec ses tarifs + statut `confirmed` ; sinon prix 0 + statut `needs_details`. `taxi_arrival` → `aero-to-center`@check_in ; `taxi_departure` → `center-to-aero`@check_out
 
 ### `ClientsPage`

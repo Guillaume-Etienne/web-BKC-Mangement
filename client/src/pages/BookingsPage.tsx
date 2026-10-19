@@ -1686,7 +1686,8 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       taxi_departure: data.taxi_departure,
       couples_count: data.couples_count,
       children_count: data.children_count,
-      amount_paid: data.amount_paid,
+      // No amount_paid: the column was dropped (2026-10-19). The field of step 6
+      // only feeds the payment it creates below.
       // The label, resolved to English like the public form does, so a source
       // picked here and one picked there are the same answer in the stats.
       referral_source: referralLabel({ sourceId: data.source_id, freeText: data.referral_source }, sources) || null,

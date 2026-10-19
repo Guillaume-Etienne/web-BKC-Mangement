@@ -215,7 +215,6 @@ export function registerEnquiryTools(server: McpServer) {
         luggage_count: 0, boardbag_count: 0,
         taxi_arrival: false, taxi_departure: false,
         couples_count: 0, children_count: 0,
-        amount_paid: 0,
         has_travel_insurance: false,
         waiver_accepted_at: null, waiver_version: null,
         referral_source: null,

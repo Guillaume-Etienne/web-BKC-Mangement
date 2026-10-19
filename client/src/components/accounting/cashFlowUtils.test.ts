@@ -142,7 +142,7 @@ describe('buildCashFlowRows', () => {
       eurMznRate: 73,
       payments: [mkPayment({ date: '2026-11-10', amount: 1000 })],
       palmeirasReversals: [{ id: 'pr1', month: '2026-11', gross_amount: 500, percent: 10, net_amount: 50, notes: null }],
-      expenses: [{ id: 'e1', date: '2026-11-12', category: 'fuel', category_id: 'fuel', amount: 80, description: 'x' }],
+      expenses: [{ id: 'e1', date: '2026-11-12', category_id: 'fuel', amount: 80, description: 'x' }],
       palmeirasRents: [{ id: 'prt1', month: '2026-11', amount: 200, notes: null }],
       instructorPayments: [mkInstructorPayment({ date: '2026-11-28', amount: 300 })],
       taxiTrips: [mkTaxiTrip({ date: '2026-11-02', status: 'done', price_driver_mzn: 7300 })],
@@ -470,7 +470,7 @@ describe('associates in the cash flow', () => {
   it('an expense advanced by an associate is a cost that did not leave the till', () => {
     const data = mkData({
       associates: [gui],
-      expenses: [{ id: 'e1', date: '2026-11-12', category: '', category_id: null, amount: 40, description: 'Petrol', paid_by_associate_id: gui.id }],
+      expenses: [{ id: 'e1', date: '2026-11-12', category_id: null, amount: 40, description: 'Petrol', paid_by_associate_id: gui.id }],
     })
     const row = month(buildCashFlowRows(data), '2026-11')
     expect(row?.expenses).toBe(40)
@@ -495,7 +495,7 @@ describe('associates in the cash flow', () => {
     const data = mkData({
       associates: [gui, teresa],
       payments: [mkPayment({ id: 'p1', date: '2026-10-05', amount: 300, received_by_associate_id: teresa.id })],
-      expenses: [{ id: 'e1', date: '2026-11-12', category: '', category_id: null, amount: 40, description: 'Petrol', paid_by_associate_id: gui.id }],
+      expenses: [{ id: 'e1', date: '2026-11-12', category_id: null, amount: 40, description: 'Petrol', paid_by_associate_id: gui.id }],
       associateTransfers: [{ id: 't1', associate_id: gui.id, date: '2026-12-10', amount: 500, direction: 'to_associate', notes: null }],
     })
     const total = sumCashFlowRows(buildCashFlowRows(data)).associatesOut

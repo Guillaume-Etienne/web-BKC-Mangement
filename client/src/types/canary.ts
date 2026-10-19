@@ -76,7 +76,7 @@ export const _booking = {
   arrival_time: null, departure_time: null,
   luggage_count: 0, boardbag_count: 0,
   taxi_arrival: false, taxi_departure: false,
-  couples_count: 0, children_count: 0, amount_paid: 0,
+  couples_count: 0, children_count: 0,
   num_wing_lessons: 0, import_id: null,
   emergency_contact_name: null, emergency_contact_phone: null,
   emergency_contact_email: null, has_travel_insurance: false,
@@ -188,7 +188,7 @@ export const _bookingCharge = {
 } satisfies BookingCharge
 
 export const _expense = {
-  id: 'x', date: '2026-01-01', category: 'x', category_id: null, amount: 0, description: 'x',
+  id: 'x', date: '2026-01-01', category_id: null, amount: 0, description: 'x',
 } satisfies Expense
 
 export const _expenseCategory = {

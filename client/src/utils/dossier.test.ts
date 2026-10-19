@@ -119,7 +119,7 @@ describe('buildDossier', () => {
   it('reports a failed email with its error rather than as sent', () => {
     const mail = {
       id: 'm1', booking_id: 'b1', type: 'visa_letter', status: 'failed',
-      recipient_email: 'a@b.c', sent_at: null, delivered_at: null, opened_at: null,
+      recipient_email: 'a@b.c', sent_at: null,
       error: '550 rejected by DMARC policy', created_at: '2026-09-02T08:00:00Z',
     } as EmailLog
     const [ev] = buildDossier({ ...EMPTY, emails: [mail] })

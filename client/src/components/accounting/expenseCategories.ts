@@ -216,11 +216,3 @@ export function moveToParent(
   }
 }
 
-/**  Le libellé texte à écrire dans la colonne LEGACY `expenses.category`.
- *   Tant qu'elle existe (phase 3 la supprimera), on la garde alimentée pour que
- *   rien de ce qui la lit encore n'affiche une case vide.
- */
-export function legacyLabel(cats: ExpenseCategory[], id: string | null): string {
-  const cat = cats.find(c => c.id === id)
-  return cat?.name ?? ''
-}
