@@ -165,7 +165,10 @@ export default function ForecastSharePage() {
   // Lesson / rental participant ids are BookingParticipant ids, not Client ids —
   // looking them up in `clients` is what used to leave every name blank here.
   const { data: guests } = useTable<ForecastGuest>('booking_participants', { select: 'id, first_name, last_name' })
-  const { data: equipment } = useTable<Equipment>('equipment', { order: 'name' })
+  // Column-restricted for anon too (purchase/sale columns are not granted): `*`
+  // was 42501 in PROD and every rental lost its gear name. TEST granted more and
+  // hid it until 2026-10-19.
+  const { data: equipment } = useTable<Pick<Equipment, 'id' | 'name'>>('equipment', { select: 'id, name', order: 'name' })
 
   // Walk-ins placed in the plan carry a `client_id` and no participant (2026-10-10d).
   // That column is granted to anon by a LATER migration (10g): it is therefore read by
