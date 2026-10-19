@@ -1,4 +1,6 @@
 -- 2026-10-19d — Suppression des colonnes et tables mortes (audit 2026-10-19)
+-- ⏸️ REPOUSSÉE (décision gui 2026-10-19) : ne pas passer pour l'instant. Le code
+-- tourne sans. À reprendre plus tard, avec une table d'archive avant les DROP.
 -- À passer : TEST puis PROD, **APRÈS le déploiement** du code qui ne les nomme plus
 -- (une requête qui cite une colonne absente est refusée EN ENTIER) — et après
 -- 2026-10-19c. Le MCP local (mcp-server) doit avoir été relancé sur le même code.
