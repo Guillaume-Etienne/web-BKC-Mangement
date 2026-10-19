@@ -20,7 +20,7 @@ export default function TaxiPage() {
   const { data: trips, loading: tripsLoading, error: tripsError, refresh: refreshTrips } = useTaxiTrips()
   const { data: drivers, loading: driversLoading, error: driversError, refresh: refreshDrivers } = useTaxiDrivers()
   const { data: bookings } = useTable<BookingRef>('bookings', {
-    select: 'id, booking_number, check_in, check_out, luggage_count, boardbag_count, client:clients(first_name, last_name)',
+    select: 'id, booking_number, check_in, check_out, luggage_count, boardbag_count, status, client:clients(first_name, last_name)',
     order: 'check_in',
     ascending: false,
   })

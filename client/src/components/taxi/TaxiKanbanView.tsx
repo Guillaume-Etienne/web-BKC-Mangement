@@ -17,7 +17,9 @@ function statusConfig(lang: Lang): Record<TaxiTripStatus, { label: string; card:
 function guestName(bookingId: string | null, bookings: BookingRef[]): string {
   if (!bookingId) return ''
   const b = bookings.find(b => b.id === bookingId)
-  return b?.client ? `${b.client.first_name} ${b.client.last_name}` : ''
+  const name = b?.client ? `${b.client.first_name} ${b.client.last_name}` : ''
+  // Same flag as TaxiListView: a cancelled booking's transfer is still here.
+  return b?.status === 'cancelled' ? `${name || '?'} · ⛔ BOOKING CANCELLED` : name
 }
 
 function bookingLabel(b: BookingRef): string {

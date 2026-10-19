@@ -486,6 +486,8 @@ export interface BookingRef {
   check_out: string
   luggage_count: number
   boardbag_count: number
+  /** Selected by the Taxis page only: a trip whose booking was cancelled is flagged there. */
+  status?: BookingStatus
   client?: { first_name: string; last_name: string } | null
 }
 

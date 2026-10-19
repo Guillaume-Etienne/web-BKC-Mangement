@@ -17,7 +17,10 @@ function statusConfig(lang: Lang): Record<TaxiTripStatus, { label: string; row: 
 function guestName(bookingId: string | null, bookings: BookingRef[]): string {
   if (!bookingId) return '—'
   const b = bookings.find(b => b.id === bookingId)
-  return b?.client ? `${b.client.first_name} ${b.client.last_name}` : '—'
+  const name = b?.client ? `${b.client.first_name} ${b.client.last_name}` : '—'
+  // Cancelling a booking leaves its transfers in place (#034 kept one): say so
+  // where a driver would otherwise be sent.
+  return b?.status === 'cancelled' ? `${name} · ⛔ BOOKING CANCELLED` : name
 }
 
 function bookingLabel(b: BookingRef): string {

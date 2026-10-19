@@ -1594,6 +1594,23 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       }
     }
 
+    // 0 ter. Cancelling leaves the booking's taxi transfers behind — #034 kept a
+    // "needs details" trip a driver could have been sent for. Offer to drop the
+    // ones still to come; the past/done ones are history and stay.
+    let tripsToDelete: string[] = []
+    if (data.status === 'cancelled' && editingId && wizard.editing?.status !== 'cancelled') {
+      const today = todayISO()
+      const upcoming = taxiTrips.filter(t => t.booking_id === editingId && t.date >= today && t.status !== 'done')
+      if (upcoming.length > 0) {
+        const list = upcoming.map(t => `• ${t.date.split('-').reverse().join('/')} — ${t.type}`).join('\n')
+        if (confirm(
+          `This booking still has ${upcoming.length} taxi transfer${upcoming.length > 1 ? 's' : ''} planned:\n${list}\n\n` +
+          `OK = delete ${upcoming.length > 1 ? 'them' : 'it'} with the cancellation.\n` +
+          `Cancel = keep ${upcoming.length > 1 ? 'them' : 'it'} (flagged "booking cancelled" in Taxis).`
+        )) tripsToDelete = upcoming.map(t => t.id)
+      }
+    }
+
     // 1. Create new client if needed
     if (!clientId && data.new_client_first_name) {
       const { data: newClientData, error: clientErr } = await supabase
@@ -1869,9 +1886,18 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     //    trip behind it (the exact gap that prompted this — edits used to skip
     //    trip creation entirely), and re-saving an already-covered booking still
     //    creates nothing, so it stays as idempotent as the payment delta above.
+    //    Never for a cancelled booking: the checkboxes stay as the client asked,
+    //    but recreating the transfers deleted below would undo 0 ter. Set back
+    //    to confirmed/provisional, the self-heal brings them back.
+    if (tripsToDelete.length > 0) {
+      const { error: delErr } = await supabase.from('taxi_trips').delete().in('id', tripsToDelete)
+      if (delErr) problems.push(`The taxi transfers were NOT deleted (${delErr.message}). Remove them in Taxis — a driver could still be sent.`)
+      refreshTaxiTrips()
+    }
     const existingTripTypes = new Set(taxiTrips.filter(t => t.booking_id === bookingId).map(t => t.type))
-    const wantsNewArrival   = data.taxi_arrival   && !existingTripTypes.has('aero-to-center')
-    const wantsNewDeparture = data.taxi_departure && !existingTripTypes.has('center-to-aero')
+    const isCancelled       = data.status === 'cancelled'
+    const wantsNewArrival   = !isCancelled && data.taxi_arrival   && !existingTripTypes.has('aero-to-center')
+    const wantsNewDeparture = !isCancelled && data.taxi_departure && !existingTripTypes.has('center-to-aero')
 
     if (wantsNewArrival || wantsNewDeparture) {
       const nbPersons = data.participants.filter(p => p.first_name.trim()).length || 1

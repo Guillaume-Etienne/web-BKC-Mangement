@@ -198,6 +198,11 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   // which puts it back if the write fails — otherwise a rejected write (RLS,
   // a constraint, a dropped connection) left the books showing money that was
   // never recorded, and said nothing until the next refresh.
+  //
+  // Every ✕ below erases an amount for good — there is no trash to restore it
+  // from. Booking payments ask in BookingFinances, with the amount and date.
+  const sureToDelete = () => confirm(i18n.accounting.confirm_delete_line[lang])
+
   const handlers = {
     upsertBookingRoomPrice: (p: BookingRoomPrice) => {
       const before = bookingRoomPrices
@@ -261,6 +266,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         () => setBookingCharges(before), 'the extra')
     },
     deleteBookingCharge: (id: string) => {
+      if (!sureToDelete()) return
       const before = bookingCharges
       setBookingCharges(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('booking_charges').delete().eq('id', id),
@@ -280,6 +286,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         () => setInstructorDebts(before), 'the debt')
     },
     deleteInstructorDebt: (id: string) => {
+      if (!sureToDelete()) return
       const before = instructorDebts
       setInstructorDebts(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('instructor_debts').delete().eq('id', id),
@@ -293,6 +300,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         () => setInstructorPayments(before), 'the instructor payment')
     },
     deleteInstructorPayment: (id: string) => {
+      if (!sureToDelete()) return
       const before = instructorPayments
       setInstructorPayments(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('instructor_payments').delete().eq('id', id),
@@ -337,6 +345,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         () => setExpenses(before), 'the expense')
     },
     deleteExpense: (id: string) => {
+      if (!sureToDelete()) return
       const before = expenses
       setExpenses(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('expenses').delete().eq('id', id),
@@ -350,6 +359,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         () => setAssociateTransfers(before), 'the transfer')
     },
     deleteAssociateTransfer: (id: string) => {
+      if (!sureToDelete()) return
       const before = associateTransfers
       setAssociateTransfers(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('associate_transfers').delete().eq('id', id),
@@ -377,6 +387,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         () => setActivityBookings(before), 'the activity')
     },
     deleteActivityBooking: (id: string) => {
+      if (!sureToDelete()) return
       const before = activityBookings
       setActivityBookings(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('activity_bookings').delete().eq('id', id),
@@ -438,6 +449,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         () => setPalmeirasEntries(before), 'the entry')
     },
     deletePalmeirasEntry: (id: string) => {
+      if (!sureToDelete()) return
       const before = palmeirasEntries
       setPalmeirasEntries(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('palmeiras_entries').delete().eq('id', id),

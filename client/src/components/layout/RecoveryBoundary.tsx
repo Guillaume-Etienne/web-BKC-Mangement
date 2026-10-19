@@ -1,6 +1,7 @@
 import { Component, Fragment, type ReactNode } from 'react'
 import { classifyError, isSelfHealing, type ErrorKind } from '../../utils/recoverableError'
 import { reportClientError } from '../../utils/reportClientError'
+import { reloadForNewVersion } from '../../utils/chunkReload'
 
 interface Props { children: ReactNode }
 interface State { error: Error | null; attempt: number }
@@ -110,6 +111,13 @@ export default class RecoveryBoundary extends Component<Props, State> {
     // worth knowing about: it is how we find out that page translation is
     // costing us clients, instead of hearing about it once by telephone.
     const willRecover = isSelfHealing(kind) && this.state.attempt < 1
+    // An older deploy's chunk: reload onto the new version by ourselves (see
+    // utils/chunkReload — offline or twice in a minute, it declines and the
+    // screen below takes over).
+    if (kind === 'chunk' && reloadForNewVersion()) {
+      reportClientError(error, 'boundary', true)
+      return
+    }
     reportClientError(error, 'boundary', willRecover)
     // One silent retry, and only for the family a fresh mount actually fixes.
     // A translator rewrites the DOM at a moment of its choosing; if that moment
