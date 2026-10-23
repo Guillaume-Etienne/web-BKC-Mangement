@@ -21,6 +21,7 @@ import { intentGaps } from '../utils/intentGap'
 import { relationshipFlagLabels, relationshipFlagIcons, relationshipFlagColors } from '../utils/clientRelationshipFlag'
 import { linkedBookingBadge } from '../utils/linkedBooking'
 import { isDayVisitor } from '../utils/dayVisitor'
+import ClientShareLink from '../components/common/ClientShareLink'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -559,6 +560,15 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
             </h2>
             <button onClick={onCancel} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-bold text-xl w-8 h-8 flex items-center justify-center">✕</button>
           </div>
+          {isEditing && (() => {
+            const editedBooking = bookings.find(x => x.id === editingBookingId)
+            return editedBooking && (
+              <div className="mb-3">
+                <ClientShareLink bookingNumber={editedBooking.booking_number}
+                  clientName={editedBooking.client ? `${editedBooking.client.first_name} ${editedBooking.client.last_name}` : ''} />
+              </div>
+            )
+          })()}
           <StepBar current={step} onGoto={goTo} maxReached={maxReached} lang={lang} />
         </div>
 

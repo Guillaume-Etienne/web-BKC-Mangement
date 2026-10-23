@@ -15,6 +15,7 @@ import AgencyBillingPanel from './AgencyBillingPanel'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import type { Lang } from '../../types/database'
+import ClientShareLink from '../common/ClientShareLink'
 
 interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
 
@@ -572,6 +573,8 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-3 sm:p-6 space-y-5 sm:space-y-6">
+
+      <ClientShareLink bookingNumber={b.booking_number} clientName={b.client ? `${b.client.first_name} ${b.client.last_name}` : ''} />
 
       {/* Header totals */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
