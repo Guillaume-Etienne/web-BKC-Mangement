@@ -40,6 +40,7 @@ interface Props {
 export default function AgencyBillingPanel({ booking: b, data, handlers }: Props) {
   const { lang } = useLanguage()
   const [adding, setAdding] = useState(false)
+  const [fillNote, setFillNote] = useState<string | null>(null)
 
   // Untagged booking → nothing to bill an agency for. The tag is set in the
   // booking wizard ("Referred by"), Phase 2.
@@ -123,6 +124,37 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
   ]
 
   const assignedCount = services.filter(s => s.lineId).length
+
+  // ── Lesson packages as one pool of hours (gui, 2026-10-23) ───────────────
+  // "2× 4h" sold by the agency = 8h, whoever takes them and whatever the
+  // discipline; past that, the guest pays. Filled in date order.
+  const packageLines = lines.filter(l => l.unit_hours != null)
+  const hoursLeft = (l: AgencyBillingLine) => (l.unit_hours ?? 0) - agencyLineHoursUsed(l.id, data.lessons)
+  const pendingLessons = data.lessons
+    .filter(l => l.booking_id === b.id && !l.agency_billing_line_id)
+    .sort((x, y) => `${x.date} ${x.start_time}`.localeCompare(`${y.date} ${y.start_time}`))
+
+  function fillPackages() {
+    const left = new Map(packageLines.map(l => [l.id, hoursLeft(l)]))
+    let moved = 0
+    for (const lesson of pendingLessons) {
+      const target = packageLines.find(l => (left.get(l.id) ?? 0) >= lesson.duration_hours)
+      // Stop at the first lesson that does not fit rather than skip it: a later,
+      // shorter lesson jumping the queue would bill the guest out of order.
+      // A lesson straddling the limit cannot be split — gui decides by hand.
+      if (!target) {
+        const remaining = [...left.values()].reduce((s, h) => s + h, 0)
+        setFillNote(remaining > 0
+          ? `${moved} lesson(s) moved. Next one (${fmtDateShort(lesson.date)}, ${lesson.duration_hours}h) does not fit in the ${remaining}h left — assign it by hand, or leave it to the guest.`
+          : `${moved} lesson(s) moved. Packages are full: the rest is billed to the guest.`)
+        return
+      }
+      left.set(target.id, (left.get(target.id) ?? 0) - lesson.duration_hours)
+      handlers.setLessonAgencyLine(lesson.id, target.id)
+      moved++
+    }
+    setFillNote(`${moved} lesson(s) moved onto the packages.`)
+  }
 
   function addLine(item: AgencyRateItem | null, participantId: string | null, price: number, hours: number | null, note: string) {
     handlers.addAgencyBillingLine({
@@ -364,6 +396,16 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
             Services on this booking
             <span className="font-normal"> — {assignedCount} of {services.length} billed to {agency.name}</span>
           </p>
+          {packageLines.length > 0 && pendingLessons.length > 0 && (
+            <div className="mb-1.5 flex flex-wrap items-center gap-2">
+              <button onClick={fillPackages}
+                title="Moves the guest's lessons, oldest first, onto the lesson packages until their hours run out"
+                className="text-xs px-2.5 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 font-medium">
+                ⚡ Fill packages ({packageLines.reduce((s, l) => s + hoursLeft(l), 0)}h left)
+              </button>
+            </div>
+          )}
+          {fillNote && <p className="mb-1.5 text-xs text-indigo-600 dark:text-indigo-400">{fillNote}</p>}
           <div className="space-y-1">
             {services.map(s => (
               <div key={s.key} className={`flex flex-wrap items-center gap-2 px-2 py-1 rounded text-xs ${
@@ -381,7 +423,7 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
                   className="px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-700 dark:text-gray-300 disabled:opacity-50 max-w-[14rem]"
                 >
                   <option value="">— billed to guest —</option>
-                  {lines.map(l => <option key={l.id} value={l.id}>{lineLabel(l)}{partName(l.participant_id) ? ` — ${partName(l.participant_id)}` : ''}</option>)}
+                  {lines.map(l => <option key={l.id} value={l.id}>{lineLabel(l)}{partName(l.participant_id) ? ` — ${partName(l.participant_id)}` : ''}{l.unit_hours != null ? ` · ${hoursLeft(l)}h left` : ''}</option>)}
                 </select>
               </div>
             ))}
@@ -412,6 +454,9 @@ function AddLineForm({ rateItems, participants, onAdd, onCancel }: AddLineFormPr
   const [price,  setPrice]  = useState('')
   const [hours,  setHours]  = useState('')
   const [note,   setNote]   = useState('')
+  // Rate-card items priced "per person per day" (storage): the line stores the
+  // total, and the note — printed as the invoice label — says how it was reached.
+  const [qty,    setQty]    = useState('1')
 
   // Picking from the rate card prefills price and package size; both stay
   // editable, because a real invoice sometimes departs from the catalogue.
@@ -427,8 +472,13 @@ function AddLineForm({ rateItems, participants, onAdd, onCancel }: AddLineFormPr
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const item = rateItems.find(r => r.id === itemId) ?? null
-    onAdd(item, partId || null, parseFloat(price) || 0, hours !== '' ? parseFloat(hours) : null, note)
+    const unit = parseFloat(price) || 0
+    const n = parseFloat(qty) || 1
+    const label = note.trim() || (n !== 1 ? `${item?.label ?? 'Prestation'} — ${n} × ${unit} €` : '')
+    onAdd(item, partId || null, unit * n, hours !== '' ? parseFloat(hours) : null, label)
   }
+
+  const total = (parseFloat(price) || 0) * (parseFloat(qty) || 1)
 
   return (
     <form onSubmit={submit} className="rounded-lg bg-white dark:bg-gray-900 border border-indigo-200 dark:border-indigo-900 p-3 space-y-2">
@@ -465,9 +515,15 @@ function AddLineForm({ rateItems, participants, onAdd, onCancel }: AddLineFormPr
           </select>
         </label>
         <label className="text-xs text-gray-600 dark:text-gray-400">
-          Price billed to the agency (€)
-          <input type="number" min="0" step="1" required value={price} onChange={e => setPrice(e.target.value)}
+          Unit price billed to the agency (€)
+          <input type="number" min="0" step="0.01" required value={price} onChange={e => setPrice(e.target.value)}
             className="mt-0.5 w-full px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-200" />
+        </label>
+        <label className="text-xs text-gray-600 dark:text-gray-400">
+          Quantity (e.g. days of storage)
+          <input type="number" min="0.5" step="0.5" required value={qty} onChange={e => setQty(e.target.value)}
+            className="mt-0.5 w-full px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-200" />
+          {qty !== '1' && <span className="block mt-0.5 text-indigo-600 dark:text-indigo-400">= {fmtEur(total)}</span>}
         </label>
         <label className="text-xs text-gray-600 dark:text-gray-400">
           Package hours (lessons only)
@@ -477,7 +533,7 @@ function AddLineForm({ rateItems, participants, onAdd, onCancel }: AddLineFormPr
         </label>
       </div>
       <input type="text" value={note} onChange={e => setNote(e.target.value)}
-        placeholder="Note (optional) — e.g. what the agency's invoice calls this line"
+        placeholder="Invoice label (optional) — replaces the rate-card label on the printed invoice"
         className="w-full px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-200" />
       <div className="flex gap-2">
         <button type="button" onClick={onCancel}

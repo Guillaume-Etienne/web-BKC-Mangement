@@ -476,26 +476,21 @@ erreur. Deux trous du même tonneau, à traiter ensemble :
 
 ## 🧾 EN COURS — résa #26 (Fun & Fly, 19→31/10/2026)
 
-**Résa #26 créée** (`d39da6b7-318d-492a-a6dd-f3e281cb9db7`) : provisional,
-San Martinho **SM-2**, agence Fun & Fly, `center_access_rate: 0`, 3 voyageurs (2 adultes
-et **un enfant de 11 ans** — identités, naissances et téléphone : dans la fiche de la résa).
-Vols : **arrivée MPM 19/10 06:45** (TAP 281) · **départ 31/10 09:25**
-(TAP 282). **2 transferts créés** (Ruiz, 3 pax, 168 €/trajet) : `b100d3a3-…` (19/10 06:45) et
-`760ec72c-…` (31/10 04:25) — `payment_summary.billed` = 336 €.
+**✅ Lignes agence posées le 2026-10-23** (PROD, `a0260001-…-01` à `-06`) — client ramené de 781 € à
+**150 €** (3 locations + braai) :
+- **2 × Pack cours Wing privé 4h** (200 € chacun) = **réserve de 8 h partagée** (tranché gui) : F&F a
+  vendu « 2x privé 4x2h » à Sonia + Eric, on décompte TOUTES les heures faites quelles qu'elles
+  soient (Luca en kite au 23/10 : 4 h + 1 h), **au-delà de 8 h → facturé au client** (au palier
+  dégressif 55 €/h, normal). Prochains cours de Luca : bouton ⚡ Fill packages.
+- **2 × Transfert voiture** à 160 € (grille active ; le 168 € des taxis était l'ancien tarif).
+- **Gardiennage** Sonia + Eric : 12 jours (19→30/10 inclus) × 8 € = 96 € chacun.
+- ⚠️ Une note de ligne **remplace le libellé sur la facture imprimée** (FR) — jamais de note interne.
 
-**⬜ Reste — dans l'app, aucun outil MCP pour la facturation agence :**
-1. **Créer la facture agence** (panneau 🤝 Agency billing de #26) et y rattacher :
-   - 2 × **Transfert Maputo ↔ Bilene** à 168 € (déjà créés)
-   - le **wing** : ⏸️ **bloqué**, voir ci-dessous — ne rien inventer
-   - le **gardiennage** : 7 €/pers./jour × 2 pers. × **11 jours** (19→30/10) = **154 €**
-     *(à confirmer : 11 ou 12 jours selon que le 30/10 compte)*
-2. **Saisir la réf F&Fly** quand l'agence la donne, puis imprimer et envoyer.
+**⬜ Reste** : créer la facture (🧾 Create the invoice), réf F&F `140687`, imprimer, envoyer ;
+`boardbag_count` à 0 sur la résa et les 2 taxis alors qu'ils ont leur matériel (sans effet prix).
 
-**⏸️ Bloquant : « 2x privé 4x2h » = combien d'heures ?** gui : *« mettre une note, il faudra
-clarifier ça auprès de F&Fly »*. Ne rien déduire du libellé —
-[[reference_agency_package_hours]] : le « 10x 2h » valait 10 h au total, pas 20. Depuis qu'un
-« Pack cours Privé 4h » existe, « 4x2h » peut désigner ce pack (4 h) **ou** 4 séances de 2 h (8 h).
-Tant que ce n'est pas clarifié : **ni leçons de wing, ni ligne de facturation.**
+**⬜ #022 — à clarifier plus tard (gui, 2026-10-23)** : 2 lignes « Transfert Maputo ↔ Bilene » à
+160 €, l'une porte les 2 taxis, l'autre aucun → doublon (facturé 2× à F&F) ou 2 trajets sur 1 ligne.
 
 **⬜ Question de nommage laissée ouverte** : la grille dit « Semi Privé » sur le 10 h et gui a dit
 « group » pour le 4 h — deux mots pour peut-être le même produit. Harmoniser ou confirmer deux
