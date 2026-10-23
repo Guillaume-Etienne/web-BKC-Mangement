@@ -336,7 +336,9 @@ function LessonModal({
               <div>
                 <label className={label}>Duration</label>
                 <select value={dur} onChange={e => setDur(+e.target.value)} className={field}>
-                  {[0.5, 1, 1.5, 2, 2.5, 3].map(h => <option key={h} value={h}>{h}h</option>)}
+                  {/* A plan is only a forecast: longer sessions than a lesson happen. */}
+                  {[...new Set([...Array.from({ length: 20 }, (_, i) => (i + 1) / 2), dur])].sort((a, b) => a - b)
+                    .map(h => <option key={h} value={h}>{h}h</option>)}
                 </select>
               </div>
             </div>
@@ -630,6 +632,7 @@ function ForecastDay({
   const dragStartY    = useRef(0)
   const dragStartSlot = useRef(0)
   const dragStartDur  = useRef(0)
+  const justDragged   = useRef(false)
   const gridRef       = useRef<HTMLDivElement>(null)
 
   // The plan. Two reads, refreshed after every write.
@@ -966,6 +969,10 @@ function ForecastDay({
     const same = pv.startSlot === Math.max(0, timeToSlot(moved.start_time, startHour))
       && pv.durationSlots === moved.duration_hours * 2 && pv.instructorId === moved.instructor_id
     if (same) return
+    // The browser still fires a click on the card after the drag; it would open the
+    // modal on the pre-move lesson (old time, old instructor). Swallow that one click.
+    justDragged.current = true
+    setTimeout(() => { justDragged.current = false }, 300)
     // A plan has no frozen pay to re-freeze — that happens at export.
     const { error } = await supabase.from('planned_lessons').update({
       start_time: slotToTime(pv.startSlot, startHour),
@@ -1205,7 +1212,7 @@ function ForecastDay({
                               ${done ? 'opacity-50' : 'cursor-grab active:cursor-grabbing'}
                               ${isDragging ? 'opacity-70 shadow-lg ring-2 ring-blue-400' : 'shadow-sm hover:shadow-md'}`}
                             style={{ top: slot * SLOT_H + 1, height: height - 2, left: `calc(${lane * 100 / lanes}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}
-                            onClick={e => { e.stopPropagation(); setModal({ lesson, instructorId: lesson.instructor_id, slot: rawSlot }) }}
+                            onClick={e => { e.stopPropagation(); if (justDragged.current) return; setModal({ lesson, instructorId: lesson.instructor_id, slot: rawSlot }) }}
                             onPointerDown={e => startDrag(e, lesson, 'move')}>
                             <div className="flex items-center gap-1 mb-0.5">
                               <span className="text-[10px] font-bold">{lesson.start_time.slice(0, 5)}</span>
