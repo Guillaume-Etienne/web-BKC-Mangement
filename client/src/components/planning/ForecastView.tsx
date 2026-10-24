@@ -35,6 +35,9 @@ const LESSON_CFG: Record<LessonType, { bg: string; border: string; text: string;
 
 const TYPES: LessonType[] = ['private', 'group', 'supervision']
 const SHOW_ACTUAL_KEY = 'forecast_show_actual'
+const MOBILE_VIEW_KEY = 'forecast_mobile_view'
+const M_SLOT_H = 30      // px per 30-min slot on the phone grid
+const M_TIME_W = 36      // px for the phone grid's time column
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -616,6 +619,7 @@ function ForecastDay({
   const [ownClip, setOwnClip]           = useState<Clip | null>(null)
   const clip                            = clipCtl ? clipCtl.clip : ownClip
   const setClip                         = clipCtl ? clipCtl.setClip : setOwnClip
+  const [mobileList, setMobileList]    = useState(() => readLocal(MOBILE_VIEW_KEY) === 'list')
   const [busy, setBusy]                 = useState(false)
 
   // Modals
@@ -1089,9 +1093,85 @@ function ForecastDay({
       <div className={`flex flex-col ${compact ? '' : 'md:flex-row'} gap-4 items-start`}>
         <div className="flex-1 w-full min-w-0">
 
+          {/* Mobile: one column per instructor, all on screen; tap a lesson = edit, tap empty = add */}
+          {!mobileList && (
+            <div className="md:hidden space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200">Who teaches when</h2>
+                <button type="button" onClick={() => { setMobileList(true); writeLocal(MOBILE_VIEW_KEY, 'list') }}
+                  className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">☰ List</button>
+              </div>
+              <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
+                <div className="flex border-b border-gray-200 dark:border-gray-800">
+                  <div style={{ width: M_TIME_W }} className="shrink-0" />
+                  {instructors.map(instr => {
+                    const mine = dayPlan.filter(l => l.instructor_id === instr.id)
+                    const hours = mine.reduce((s, l) => s + l.duration_hours, 0)
+                    return (
+                      <div key={instr.id} className="flex-1 min-w-0 px-1 py-1.5 text-center border-l border-gray-200 dark:border-gray-800">
+                        <div className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{instr.first_name}</div>
+                        <div className="text-[10px] text-gray-500 dark:text-gray-400">{mine.length > 0 ? `${mine.length} · ${fmtH(hours)} h` : '—'}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="flex" style={{ height: totalSlots * M_SLOT_H }}>
+                  <div style={{ width: M_TIME_W }} className="shrink-0 relative bg-gray-50 dark:bg-gray-800">
+                    {Array.from({ length: totalSlots }, (_, i) => i % 2 === 0 && (
+                      <span key={i} className="absolute right-1 text-[10px] text-gray-400 dark:text-gray-400 font-medium"
+                        style={{ top: i * M_SLOT_H + 1 }}>{slotToTime(i, startHour)}</span>
+                    ))}
+                  </div>
+                  {instructors.map(instr => (
+                    <div key={instr.id} className="relative flex-1 min-w-0 border-l border-gray-200 dark:border-gray-800"
+                      onClick={e => {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        const slot = Math.max(0, Math.min(totalSlots - 1, Math.floor((e.clientY - rect.top) / M_SLOT_H)))
+                        setModal({ lesson: null, instructorId: instr.id, slot })
+                      }}>
+                      {Array.from({ length: totalSlots }, (_, i) => (
+                        <div key={i} className={`absolute w-full border-t ${i % 2 === 0 ? 'border-gray-200 dark:border-gray-800' : 'border-gray-100 dark:border-gray-800'}`}
+                          style={{ top: i * M_SLOT_H, height: M_SLOT_H }} />
+                      ))}
+                      {lanesFor(dayPlan.filter(l => l.instructor_id === instr.id)).map(({ item: l, lane, lanes }) => {
+                        const cfg = LESSON_CFG[l.type]
+                        const names = namesOf(l.participant_ids)
+                        const top = Math.max(0, timeToSlot(l.start_time, startHour)) * M_SLOT_H
+                        const height = l.duration_hours * 2 * M_SLOT_H
+                        return (
+                          <div key={l.id}
+                            onClick={e => { e.stopPropagation(); setModal({ lesson: l, instructorId: l.instructor_id, slot: 0 }) }}
+                            className={`absolute rounded border-l-4 px-1 py-0.5 overflow-hidden z-10 shadow-sm ${cfg.bg} ${cfg.border} ${cfg.text} ${l.exported_at ? 'opacity-50' : ''}`}
+                            style={{ top: top + 1, height: height - 2, left: `calc(${lane * 100 / lanes}% + 1px)`, width: `calc(${100 / lanes}% - 2px)` }}>
+                            <div className="flex items-center gap-0.5 text-[10px] font-bold leading-tight">
+                              <span>{l.start_time.slice(0, 5)}</span>
+                              <span className={`text-[9px] px-0.5 rounded ${cfg.badge}`}>{l.type === 'private' ? 'P' : l.type === 'group' ? 'G' : 'S'}</span>
+                              {l.exported_at && <span>✓</span>}
+                              {offSite(l.participant_ids) && <span>⚠️</span>}
+                            </div>
+                            {height >= M_SLOT_H * 2 && (
+                              <div className="text-[11px] font-semibold leading-tight truncate">
+                                {names.length ? shortName(names[0]) : l.client_id ? walkInName(l.client_id) : '—'}
+                                {names.length > 1 && <span className="font-normal opacity-70"> +{names.length - 1}</span>}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Mobile: whole day as a list; tap = edit */}
-          <div className="md:hidden space-y-2">
-            <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200">{i18n.planning.agenda_title[lang]}</h2>
+          <div className={`${mobileList ? 'md:hidden' : 'hidden'} space-y-2`}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200">{i18n.planning.agenda_title[lang]}</h2>
+              <button type="button" onClick={() => { setMobileList(false); writeLocal(MOBILE_VIEW_KEY, 'grid') }}
+                className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">▦ Grid</button>
+            </div>
             {agenda.length === 0 && !(showActual && actualAgenda.length > 0) ? (
               <p className="text-sm text-gray-500 dark:text-gray-400 italic text-center py-6">{i18n.planning.agenda_empty[lang]}</p>
             ) : (
