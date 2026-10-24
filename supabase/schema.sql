@@ -1542,3 +1542,54 @@ $$;
 
 REVOKE EXECUTE ON FUNCTION get_db_stats() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION get_db_stats() TO authenticated;
+
+-- Forfaits cours agence : rattachement auto + lecture des heures par le lien client
+-- (migration 2026-10-24_agency_package_hours.sql — commentaires complets là-bas)
+CREATE OR REPLACE FUNCTION attach_lesson_to_agency_package()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.agency_billing_line_id IS NULL AND NEW.booking_id IS NOT NULL THEN
+    BEGIN
+      SELECT l.id INTO NEW.agency_billing_line_id
+        FROM agency_billing_lines l
+        JOIN bookings b ON b.id = l.booking_id AND b.agency_id = l.agency_id
+       WHERE l.booking_id = NEW.booking_id
+         AND l.unit_hours IS NOT NULL
+         AND l.unit_hours - COALESCE((SELECT sum(x.duration_hours) FROM lessons x
+                                       WHERE x.agency_billing_line_id = l.id), 0)
+             >= NEW.duration_hours
+       ORDER BY l.id
+       LIMIT 1;
+    EXCEPTION WHEN OTHERS THEN
+      NEW.agency_billing_line_id := NULL;
+    END;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_attach_lesson_to_agency_package ON lessons;
+CREATE TRIGGER trg_attach_lesson_to_agency_package
+  BEFORE INSERT ON lessons
+  FOR EACH ROW EXECUTE FUNCTION attach_lesson_to_agency_package();
+
+REVOKE EXECUTE ON FUNCTION attach_lesson_to_agency_package() FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION share_agency_package()
+RETURNS TABLE (agency_name text, hours_included numeric)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT a.name::text,
+         COALESCE(sum(l.unit_hours), 0)::numeric
+    FROM bookings b
+    JOIN agencies a ON a.id = b.agency_id
+    LEFT JOIN agency_billing_lines l
+           ON l.booking_id = b.id AND l.agency_id = a.id AND l.unit_hours IS NOT NULL
+   WHERE share_type() = 'client'
+     AND b.id = share_booking_id()
+   GROUP BY a.name;
+$$;
+REVOKE EXECUTE ON FUNCTION share_agency_package() FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION share_agency_package() TO anon, authenticated;

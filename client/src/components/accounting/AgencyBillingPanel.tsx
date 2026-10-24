@@ -3,10 +3,11 @@ import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { Booking, AgencyBillingLine, AgencyRateItem } from '../../types/database'
 import { AGENCY_RATE_CATEGORIES, compareRateItems } from '../../types/database'
 import {
-  computeAgencyTotals, agencyLineHoursUsed, getRoomNightlyRate, getLessonClientRate,
+  computeAgencyTotals, agencyLineHoursUsed, agencyPackageHours, agencyHoursPool, getRoomNightlyRate, getLessonClientRate,
   countNights, fmtEur, nextInvoiceNumber, buildAgencyInvoiceDoc,
 } from './utils'
 import { printAgencyInvoice } from '../../utils/printAgencyInvoice'
+import AgencyHoursGauge from '../common/AgencyHoursGauge'
 import { rentalKind, rentalLabel } from '../planning/rentalTypes'
 import { fmtDateShort, todayISO } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -129,6 +130,7 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
   // "2× 4h" sold by the agency = 8h, whoever takes them and whatever the
   // discipline; past that, the guest pays. Filled in date order.
   const packageLines = lines.filter(l => l.unit_hours != null)
+  const pool = agencyHoursPool(b.id, agencyPackageHours(b.id, lines), data.lessons)
   const hoursLeft = (l: AgencyBillingLine) => (l.unit_hours ?? 0) - agencyLineHoursUsed(l.id, data.lessons)
   const pendingLessons = data.lessons
     .filter(l => l.booking_id === b.id && !l.agency_billing_line_id)
@@ -243,6 +245,19 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
           Gross {fmtEur(totals.gross)} · Commission −{fmtEur(totals.commission)} · <span className="font-semibold">Net {fmtEur(totals.net)}</span>
         </p>
       </div>
+
+      {/* Lesson packages as one pool (2026-10-24) — what the guest sees on their page too */}
+      {pool && (
+        <div className="rounded-lg bg-white dark:bg-gray-900 border border-indigo-200 dark:border-indigo-900 px-3 py-2 space-y-1.5">
+          <AgencyHoursGauge pool={pool} agencyName={agency.name} />
+          {pool.extra > 0 && pool.left > 0 && (
+            <p className="text-xs font-medium text-red-600 dark:text-red-400">
+              ⚠️ {pool.extra} h of lessons are billed to the guest while the package still has {pool.left} h left —
+              use ⚡ Fill packages below, or attach them by hand.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* ── The invoice document (2026-08-19) ────────────────────────────────
           Lines say what is owed; this says what was sent. Creating it stamps a

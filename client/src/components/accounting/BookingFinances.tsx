@@ -7,7 +7,7 @@ import {
   computeBookingTotal, computeBookingPaid, computeBookingDiscounts,
   computeAccommodationRevenue, computeExternalAccommodationCost, computeLessonsRevenue, computeRentalsRevenue,
   computeTaxiRevenue, computeActivityRevenueForBooking, computeCenterAccessRevenue,
-  computeDiningForBooking, getLessonClientRate, lessonHeadsFor, lessonsForBooking, getConfiguredRate, computeStandaloneTaxiRevenue, agencyMarker,
+  computeDiningForBooking, getLessonClientRate, lessonHeadsFor, lessonsForBooking, getConfiguredRate, computeStandaloneTaxiRevenue, agencyMarker, agencyPackageHours, agencyHoursPool,
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate, computeExtrasRevenue, chargeAmount,
 } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
@@ -1252,6 +1252,29 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
+/** Under the guest's name on an agency booking: which agency, and how much of
+ *  its lesson packages is used — with ⚠️ when lessons are billed to the guest
+ *  although hours are left (the #022 trap). Shown in both renders (table + cards). */
+function AgencySummary({ bookingId, data }: { bookingId: string; data: SharedAccountingData }) {
+  const b = data.bookings.find(x => x.id === bookingId)
+  const agency = b?.agency_id ? data.agencies.find(a => a.id === b.agency_id) : undefined
+  if (!agency) return null
+  const pool = agencyHoursPool(bookingId, agencyPackageHours(bookingId, data.agencyBillingLines), data.lessons)
+  const warn = pool != null && pool.extra > 0 && pool.left > 0
+  return (
+    <div className="text-xs font-normal text-indigo-600 dark:text-indigo-400">
+      🤝 {agency.name}
+      {pool && <span className="text-gray-500 dark:text-gray-400"> · 🏄 {pool.used}/{pool.included} h</span>}
+      {warn && (
+        <span className="ml-1 text-red-600 dark:text-red-400"
+          title={`${pool.extra} h billed to the guest while ${pool.left} h are left on the package`}>
+          ⚠️ {pool.extra} h not on the package
+        </span>
+      )}
+    </div>
+  )
+}
+
 export default function BookingFinances({ data, handlers }: Props) {
   const { lang } = useLanguage()
   const { bookings, clients, payments } = data
@@ -1365,6 +1388,7 @@ export default function BookingFinances({ data, handlers }: Props) {
                       {marker && <span className="mr-1 text-gray-500 dark:text-gray-400">{marker}</span>}
                       {client ? `${client.first_name} ${client.last_name}` : '–'}
                     </div>
+                    <AgencySummary bookingId={b.id} data={data} />
                     <div className="text-xs text-gray-500 dark:text-gray-400">{fmtDate(b.check_in)} → {fmtDate(b.check_out)}</div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -1440,6 +1464,7 @@ export default function BookingFinances({ data, handlers }: Props) {
                         </span>
                       )}
                       {client ? `${client.first_name} ${client.last_name}` : '–'}
+                      <AgencySummary bookingId={b.id} data={data} />
                     </td>
                     <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">
                       {fmtDate(b.check_in)} → {fmtDate(b.check_out)}

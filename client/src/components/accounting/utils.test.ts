@@ -9,7 +9,7 @@ import {
   computeInstructorEarned, computeInstructorDebts, computeInstructorPaid, computeInstructorBalance,
   computeSeasonTotals, computeVolumeTotals, suggestDeposit, fmtEur, fmtMonth,
   clientParticipantIds, cumulativeHoursBefore, getTierRate,
-  isAgencyBilled, agencyLineHoursUsed, computeAgencyTotals, reFreezeInstructorRate, buildAgencyInvoiceRows, agencyMarker,
+  isAgencyBilled, agencyLineHoursUsed, agencyPackageHours, agencyHoursPool, computeAgencyTotals, reFreezeInstructorRate, buildAgencyInvoiceRows, agencyMarker,
   nextInvoiceNumber, agencyInvoiceLineLabel, buildAgencyInvoiceDoc,
   chargeAmount, computeExtrasRevenue,
 } from './utils'
@@ -1318,6 +1318,50 @@ describe('agencyLineHoursUsed', () => {
 
   it('returns 0 for a line nothing is attached to yet', () => {
     expect(agencyLineHoursUsed('abl1', [mkLesson()])).toBe(0)
+  })
+})
+
+describe('agencyPackageHours / agencyHoursPool', () => {
+  it('adds up the lesson packages of one booking, ignoring lines without hours', () => {
+    const lines = [
+      mkAgencyLine({ id: 'a', unit_hours: 10 }),
+      mkAgencyLine({ id: 'b', unit_hours: 4 }),
+      mkAgencyLine({ id: 'c', unit_hours: null, price: 160 }),          // transfer
+      mkAgencyLine({ id: 'd', booking_id: 'bk2', unit_hours: 8 }),      // another booking
+    ]
+    expect(agencyPackageHours('bk1', lines)).toBe(14)
+  })
+
+  it('is null on a booking without any package', () => {
+    expect(agencyHoursPool('bk1', 0, [mkLesson()])).toBeNull()
+  })
+
+  it('reads the packages as one shared pool, whoever took the lessons (#26)', () => {
+    // 2× 4h sold to Sonia and Eric, all taken by Luca: 5h used, 3h left.
+    const lessons = [
+      mkLesson({ id: 'l1', duration_hours: 1.5, participant_ids: ['luca'], agency_billing_line_id: 'a' }),
+      mkLesson({ id: 'l2', duration_hours: 1,   participant_ids: ['luca'], agency_billing_line_id: 'a' }),
+      mkLesson({ id: 'l3', duration_hours: 1.5, participant_ids: ['luca'], agency_billing_line_id: 'a' }),
+      mkLesson({ id: 'l4', duration_hours: 1,   participant_ids: ['luca'], agency_billing_line_id: 'b' }),
+    ]
+    expect(agencyHoursPool('bk1', 8, lessons)).toEqual({ included: 8, used: 5, left: 3, extra: 0, extraLessons: 0 })
+  })
+
+  it('reports lessons no package covers — the #022 trap', () => {
+    const lessons = [
+      mkLesson({ id: 'l1', duration_hours: 2 }),
+      mkLesson({ id: 'l2', duration_hours: 2.5 }),
+      mkLesson({ id: 'l3', duration_hours: 1, agency_billing_line_id: 'a' }),
+    ]
+    expect(agencyHoursPool('bk1', 14, lessons)).toEqual({ included: 14, used: 1, left: 13, extra: 4.5, extraLessons: 2 })
+  })
+
+  it('never shows negative hours left, and skips lessons owned by another booking', () => {
+    const lessons = [
+      mkLesson({ id: 'l1', duration_hours: 5, agency_billing_line_id: 'a' }),
+      mkLesson({ id: 'l2', booking_id: 'bk2', duration_hours: 3 }),
+    ]
+    expect(agencyHoursPool('bk1', 4, lessons)).toEqual({ included: 4, used: 5, left: 0, extra: 0, extraLessons: 0 })
   })
 })
 

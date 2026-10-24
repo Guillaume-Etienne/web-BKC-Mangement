@@ -103,6 +103,48 @@ export function agencyLineHoursUsed(lineId: string, lessons: Lesson[]): number {
     .reduce((sum, l) => sum + l.duration_hours, 0)
 }
 
+/** Hours of lessons the agency's packages add up to on one booking — "2× 4h" =
+ *  8h. Only lines with `unit_hours` are packages; transfers and rooms have none. */
+export function agencyPackageHours(bookingId: string, lines: Pick<AgencyBillingLine, 'booking_id' | 'unit_hours'>[]): number {
+  return lines
+    .filter(l => l.booking_id === bookingId && l.unit_hours != null)
+    .reduce((sum, l) => sum + (l.unit_hours ?? 0), 0)
+}
+
+/** A booking's lesson packages read as ONE pool of hours (gui, 2026-10-24):
+ *  whoever takes them, whatever the discipline. Shared by the accounting panel
+ *  and the guest's page, so both always tell the same story. */
+export interface AgencyHoursPool {
+  included: number      // hours the packages add up to
+  used: number          // lessons taught and covered by a package
+  left: number          // included − used, never below 0
+  extra: number         // lessons taught on this booking that no package covers: the guest pays these
+  extraLessons: number
+}
+
+/** Null when the booking has no lesson package — nothing to count against.
+ *  Only lessons OWNED by the booking count: a group lesson booked on another
+ *  reservation is that one's to cover. Rounded to the minute's worth of hours
+ *  so 1.5 + 1 + 1.5 never prints as 3.9999999. */
+export function agencyHoursPool(
+  bookingId: string,
+  included: number,
+  lessons: Pick<Lesson, 'booking_id' | 'duration_hours' | 'agency_billing_line_id'>[]
+): AgencyHoursPool | null {
+  if (included <= 0) return null
+  const round = (h: number) => Math.round(h * 100) / 100
+  const own = lessons.filter(l => l.booking_id === bookingId)
+  const used = round(own.filter(isAgencyBilled).reduce((s, l) => s + l.duration_hours, 0))
+  const uncovered = own.filter(l => !isAgencyBilled(l))
+  return {
+    included: round(included),
+    used,
+    left: round(Math.max(0, included - used)),
+    extra: round(uncovered.reduce((s, l) => s + l.duration_hours, 0)),
+    extraLessons: uncovered.length,
+  }
+}
+
 /** One invoice line, resolved against everything the screen needs to show it:
  *  which agency, which booking, whose package, and how much of it is used. Built
  *  here rather than in the component so the joins are tested once — every one of

@@ -10,6 +10,8 @@
 > `19d` **repoussé (décision gui 2026-10-19)** : le code marche sans lui ; à reprendre dans quelques semaines,
 > idéalement en ajoutant une table d'archive des colonnes supprimées. Passer `19b` avant (il nomme `lesson_clients`).
 
+⬜ **`2026-10-24_agency_package_hours.sql`** (TEST ⬜ / PROD ⬜) — trigger qui rattache tout seul une leçon (Daily) d'une résa agence au forfait cours où elle tient + RPC `share_agency_package()` (nom de l'agence + heures incluses, aucun prix) lue par la page client. Sans elle, le code marche : pas de bloc agence sur la page client, rattachement toujours à la main (⚡). Vérif : pied du fichier.
+
 ✅ **`2026-10-19c_expenses_category_nullable.sql`** (TEST ✅ / PROD ✅ passée par gui 2026-10-19, vérifiée : category YES / category_id NO sur les deux ; dépense créée sur TEST avec le nouveau code → category NULL, category_id OK) — `expenses.category` DROP NOT NULL, `category_id` SET NOT NULL (36/36 remplies). Sans elle, le code poussé ne peut plus créer de dépense. Vérif : pied du fichier.
 
 ⏸️ **`2026-10-19d_drop_dead_columns.sql`** (**REPOUSSÉ** — plus tard, TEST puis PROD, après le push + MCP relancé) — supprime `bookings.amount_paid`, `email_logs.delivered_at/opened_at`, `expenses.category`, table `lesson_clients`. Contrôle préalable dans le fichier (3 zéros attendus). Gardés : `clients.passport_number`, `lesson_intents.estimated_days` (champs en service).
@@ -488,6 +490,12 @@ erreur. Deux trous du même tonneau, à traiter ensemble :
 
 **⬜ Reste** : créer la facture (🧾 Create the invoice), réf F&F `140687`, imprimer, envoyer ;
 `boardbag_count` à 0 sur la résa et les 2 taxis alors qu'ils ont leur matériel (sans effet prix).
+
+**🏄 Forfaits = une réserve d'heures par résa (2026-10-24)** : #022 avait 6,5 h jamais rattachées
+(~377 € affichés au client) → rattachées au pack 10h en PROD. Solution générale : `agencyHoursPool`
+(utils.ts, testé) lu par la compta (jauge + ⚠️ dans le panneau et la liste) et la page client (bloc
+« … package », « In package » sur les cours, détail par voyageur) ; trigger de rattachement auto
+(migration 2026-10-24). Seules les vraies leçons (Daily) — jamais le Forecast.
 
 **⬜ #022 — à clarifier plus tard (gui, 2026-10-23)** : 2 lignes « Transfert Maputo ↔ Bilene » à
 160 €, l'une porte les 2 taxis, l'autre aucun → doublon (facturé 2× à F&F) ou 2 trajets sur 1 ligne.

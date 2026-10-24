@@ -10,6 +10,8 @@ import type {
   ActivityBooking, RoomRate, BookingCharge,
 } from '../types/database'
 import { getBaseNightlyRate } from '../utils/roomPricing'
+import { agencyHoursPool } from '../components/accounting/utils'
+import AgencyHoursGauge from '../components/common/AgencyHoursGauge'
 import { rentalLabel, RENTAL_SLOT_LABEL } from '../components/planning/rentalTypes'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -61,6 +63,10 @@ const rentalName = (r: Pick<SharedRental, 'rental_type'>) =>
 
 type SharedTaxi = Pick<TaxiTrip, 'id' | 'date' | 'type' | 'nb_persons' | 'agency_billing_line_id'>
   & { price_eur: number | null }
+
+/** What `share_agency_package()` returns for this booking's token: the agency's
+ *  name and the hours its lesson packages add up to — no price (2026-10-24). */
+interface AgencyPackage { agency_name: string; hours_included: number }
 
 interface Props {
   bookingNumber: number
@@ -151,6 +157,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const [extras,         setExtras]         = useState<SharedExtra[]>([])
   const [extAccomBkgs,   setExtAccomBkgs]   = useState<SharedExternalStay[]>([])
   const [activityBkgs,   setActivityBkgs]   = useState<ActivityBooking[]>([])
+  const [agencyPkg,      setAgencyPkg]      = useState<AgencyPackage | null>(null)
   const [loading,        setLoading]        = useState(true)
 
   // Step 1 — fetch booking by number
@@ -239,6 +246,12 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         .select('id, date, label, category, quantity, unit_price')
         .eq('booking_id', id).order('date')
       setExtras(extrasRes.error ? [] : (extrasRes.data ?? []) as SharedExtra[])
+      // Agency package (2026-10-24): the agency's name and the hours its lesson
+      // packages add up to — never a price. Own call for the same reason: before
+      // the migration the function does not exist, and that must only mean "none".
+      const pkgRes = await supabase.rpc('share_agency_package')
+      const pkg = pkgRes.error ? null : ((pkgRes.data ?? []) as AgencyPackage[])[0] ?? null
+      setAgencyPkg(pkg)
       setPaidToOwnerIds(new Set((paidToOwnerRes.data ?? []).filter(p => p.paid_to_owner === true).map(p => p.room_id)))
       setBkgRooms(bkgRoomsRes.data ?? [])
       setRoomPrices(pricesRes.data ?? [])
@@ -368,6 +381,9 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   // instead of leaving the guest wondering what "—" means.
   const hasAgencyCovered =
     lessons.some(coveredByAgency) || rentals.some(coveredByAgency) || taxis.some(coveredByAgency)
+  // The agency's lesson packages as one pool of hours — same count as accounting
+  const pool = agencyPkg ? agencyHoursPool(booking.id, Number(agencyPkg.hours_included), lessons) : null
+  const agencyName = agencyPkg?.agency_name ?? 'the agency'
 
   // Dining events (match participants to attendees)
   const partIds = new Set(participants.map(p => p.id))
@@ -443,6 +459,17 @@ export default function ClientSharePage({ bookingNumber }: Props) {
           </div>
         </div>
 
+        {/* Agency package (2026-10-24) */}
+        {agencyPkg && (
+          <section className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-indigo-200 dark:border-indigo-900 px-5 py-4 space-y-3">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              🤝 Your trip was arranged through <span className="font-semibold text-gray-800 dark:text-gray-200">{agencyPkg.agency_name}</span>.
+              What they cover is not charged to you here.
+            </p>
+            {pool && <AgencyHoursGauge pool={pool} agencyName={agencyPkg.agency_name} />}
+          </section>
+        )}
+
         {/* Accommodation */}
         {(billedAccomRows.length > 0 || extAccomRows.length > 0) && (
           <Section title="Accommodation" icon="🛏️">
@@ -511,7 +538,9 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                     <td className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{r.duration}h</td>
                     <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.instructor}</td>
                     <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
-                      {r.total == null ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(r.total)}
+                      {r.total == null
+                        ? <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400 whitespace-nowrap">In package</span>
+                        : fmtEur(r.total)}
                     </td>
                   </tr>
                 ))}
@@ -729,7 +758,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         {(() => {
           if (participants.length === 0) return null
 
-          type Line = { date: string; label: string; amount: number }
+          type Line = { date: string; label: string; amount: number; covered?: boolean }
           const guestData = participants.map(part => {
             const lines: Line[] = []
 
@@ -742,8 +771,13 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             // the page does with a service they are not charged for.
             for (const l of lessons) {
               if (!l.participant_ids.includes(part.id)) continue
-              if (coveredByAgency(l)) continue
               const instr = instructors.find(i => i.id === l.instructor_id)
+              // Covered by the agency: listed, so the guest sees the hours they took,
+              // but at no charge — it adds nothing to their total.
+              if (coveredByAgency(l)) {
+                lines.push({ date: l.date, label: `${l.type} lesson ${l.duration_hours}h${instr ? ` (${instr.first_name})` : ''} — ${agencyName} package`, amount: 0, covered: true })
+                continue
+              }
               const rate = getLessonRate(l)
               lines.push({
                 date: l.date,
@@ -796,7 +830,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                         {lines.map((l, i) => (
                           <div key={i} className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
                             <span>{formatDate(l.date)} · {l.label}</span>
-                            <span>{fmtEur(l.amount)}</span>
+                            <span>{l.covered ? 'Included' : fmtEur(l.amount)}</span>
                           </div>
                         ))}
                       </div>
@@ -898,7 +932,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             </div>
             {hasAgencyCovered && (
               <p className="text-xs text-gray-400 dark:text-gray-500 pt-2 border-t border-gray-100 dark:border-gray-800">
-                Lines shown as “—” are covered by the agency that arranged your trip.
+                Lines shown as “—” or “In package” are covered by {agencyName}, who arranged your trip.
                 They are not charged to you and are not part of the balance above.
               </p>
             )}
