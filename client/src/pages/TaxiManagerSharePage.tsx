@@ -1,3 +1,4 @@
+import { displayFirstName } from '../utils/names'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { TaxiDriver, TaxiTrip, TaxiManagerPayment } from '../types/database'
@@ -20,7 +21,7 @@ type TripWithClient = Pick<TaxiTrip,
 
 function clientName(t: TripWithClient): string {
   const c = t.booking?.client
-  return c ? `${c.first_name} ${c.last_name}` : '–'
+  return c ? `${displayFirstName(c.first_name)} ${c.last_name}` : '–'
 }
 
 // ── Managed-trip list (driver column + manager commission) ────────────────────

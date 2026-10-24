@@ -1,3 +1,4 @@
+import { displayFirstName } from '../utils/names'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import type {
@@ -336,7 +337,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
     + extAccomRows.reduce((s, r) => s + r.total, 0)
 
   // Participant name helpers
-  const partName = (id: string) => participants.find(p => p.id === id)?.first_name ?? null
+  const partName = (id: string) => { const f = participants.find(p => p.id === id)?.first_name; return f ? displayFirstName(f) : null }
   const partNames = (ids: string[]) => ids.map(partName).filter(Boolean).join(', ')
 
   // Lessons
@@ -424,7 +425,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               <div>
                 <p className="text-blue-200 dark:text-blue-300 text-sm font-medium">Booking #{String(booking.booking_number).padStart(3, '0')}</p>
                 <h1 className="text-2xl font-bold mt-0.5">
-                  {booking.client?.first_name} {booking.client?.last_name}
+                  {displayFirstName(booking.client?.first_name)} {booking.client?.last_name}
                 </h1>
               </div>
               <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusCfg.cls}`}>
@@ -788,7 +789,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                   {guestData.map(({ participant: p, lines, total }) => (
                     <div key={p.id} className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
                       <div className="flex justify-between items-center px-4 py-2 bg-blue-50 dark:bg-blue-950/40">
-                        <span className="text-sm font-medium text-blue-800 dark:text-blue-400">{p.first_name} {p.last_name ?? ''}</span>
+                        <span className="text-sm font-medium text-blue-800 dark:text-blue-400">{displayFirstName(p.first_name)} {p.last_name ?? ''}</span>
                         <span className="text-sm font-semibold text-blue-800 dark:text-blue-400">{fmtEur(total)}</span>
                       </div>
                       <div className="px-4 py-2 space-y-1">

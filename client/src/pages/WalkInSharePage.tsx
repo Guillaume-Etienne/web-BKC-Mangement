@@ -1,3 +1,4 @@
+import { displayFirstName } from '../utils/names'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Client, Lesson, EquipmentRental, Payment, LessonType, RentalSlot } from '../types/database'
@@ -134,7 +135,7 @@ export default function WalkInSharePage({ clientId }: Props) {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-blue-200 dark:text-blue-300 text-sm font-medium uppercase tracking-wide mb-1">{tr.title[lang]}</p>
-              <h1 className="text-2xl md:text-3xl font-bold">{client.first_name} {client.last_name}</h1>
+              <h1 className="text-2xl md:text-3xl font-bold">{displayFirstName(client.first_name)} {client.last_name}</h1>
             </div>
             <Segmented value={lang} onChange={setLang}
               options={LANGS.map(l => ({ v: l.code, label: `${l.flag} ${l.code.toUpperCase()}` }))} />

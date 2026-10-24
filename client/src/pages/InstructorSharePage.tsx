@@ -1,3 +1,4 @@
+import { displayFirstName } from '../utils/names'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Instructor, Lesson, LessonType } from '../types/database'
@@ -232,7 +233,7 @@ export default function InstructorSharePage({ instructorId }: Props) {
       const names = (l.participant_ids ?? [])
         .map(pid => students.get(pid))
         .filter((g): g is Student => !!g)
-        .map(g => `${g.first_name} ${g.last_name}`.trim())
+        .map(g => `${displayFirstName(g.first_name)} ${g.last_name}`.trim())
       d.items.push({
         id: l.id, type: l.type, hours: l.duration_hours, names,
         start: l.start_time.slice(0, 5), end: addHours(l.start_time, l.duration_hours),
@@ -287,7 +288,7 @@ export default function InstructorSharePage({ instructorId }: Props) {
       if (to < today || from > end) return []
       const done = doneBy.get(`${i.participant_id}|${i.kind}`) ?? 0
       const g = students.get(i.participant_id)
-      return [{ ...i, from, to, done, name: g ? `${g.first_name} ${g.last_name}`.trim() : '—' }]
+      return [{ ...i, from, to, done, name: g ? `${displayFirstName(g.first_name)} ${g.last_name}`.trim() : '—' }]
     }).sort((a, b) => a.from.localeCompare(b.from) || a.name.localeCompare(b.name))
     const sum = (k: 'kite' | 'wing') => rows.filter(r => r.kind === k).reduce((s, r) => s + (r.planned_hours ?? 0), 0)
     return { rows, kite: sum('kite'), wing: sum('wing') }

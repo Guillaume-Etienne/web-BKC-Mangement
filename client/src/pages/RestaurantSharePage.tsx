@@ -1,3 +1,4 @@
+import { displayFirstName } from '../utils/names'
 import { useState, useRef, useEffect } from 'react'
 import { useTable } from '../hooks/useSupabase'
 import type { Booking, BookingStatus, Client } from '../types/database'
@@ -53,7 +54,7 @@ const fmtDay = (iso: string, lang: TaxiLang) =>
   new Date(iso + 'T00:00:00').toLocaleDateString(LOCALE[lang], { weekday: 'short', day: 'numeric', month: 'short' })
 
 const guestName = (b: BookingRow) =>
-  b.client ? `${b.client.first_name} ${b.client.last_name}` : `#${b.booking_number}`
+  b.client ? `${displayFirstName(b.client.first_name)} ${b.client.last_name}` : `#${b.booking_number}`
 
 const shiftYM = (ym: string, delta: number) => {
   const [y, m] = ym.split('-').map(Number)

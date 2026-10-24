@@ -1,3 +1,4 @@
+import { displayFirstName } from '../utils/names'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { PlannedLesson, PlannedRental, LessonType, Instructor, BookingParticipant, Equipment } from '../types/database'
@@ -185,7 +186,7 @@ export default function ForecastSharePage() {
       ])
       if (!alive || c.error) return
       const names = new Map(((c.data ?? []) as { id: string; first_name: string; last_name: string | null }[])
-        .map(x => [x.id, `🚶 ${x.first_name} ${x.last_name ? x.last_name.charAt(0) + '.' : ''}`.trim()]))
+        .map(x => [x.id, `🚶 ${displayFirstName(x.first_name)} ${x.last_name ? x.last_name.charAt(0) + '.' : ''}`.trim()]))
       const out: Record<string, string> = {}
       for (const res of [l, r]) {
         if (res.error) continue
@@ -213,7 +214,7 @@ export default function ForecastSharePage() {
   const guestName = (id: string | null | undefined): string | null => {
     if (!id) return null
     const g = guestById.get(id)
-    return g ? `${g.first_name} ${g.last_name ?? ''}`.trim() : null
+    return g ? `${displayFirstName(g.first_name)} ${g.last_name ?? ''}`.trim() : null
   }
 
   // Everything one day needs, computed from the plan rows of that day.

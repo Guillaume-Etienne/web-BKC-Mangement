@@ -1,3 +1,4 @@
+import { displayFirstName } from '../utils/names'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { TaxiDriver, TaxiTrip } from '../types/database'
@@ -25,13 +26,13 @@ type TripWithClient = Pick<TaxiTrip,
 
 function clientName(t: TripWithClient): string {
   const c = t.booking?.client
-  return c ? `${c.first_name} ${c.last_name}` : '–'
+  return c ? `${displayFirstName(c.first_name)} ${c.last_name}` : '–'
 }
 
 /** "Clientes: Name" — null when the trip has no client, so no dangling label. */
 function clientLine(t: TripWithClient, lang: TaxiLang): string | null {
   const c = t.booking?.client
-  return c ? `${tr.clients_prefix[lang]}: ${c.first_name} ${c.last_name}` : null
+  return c ? `${tr.clients_prefix[lang]}: ${displayFirstName(c.first_name)} ${c.last_name}` : null
 }
 
 // ── Trip list — cards (mobile-first) or table ─────────────────────────────────

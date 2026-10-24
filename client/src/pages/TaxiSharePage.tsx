@@ -1,3 +1,4 @@
+import { displayFirstName } from '../utils/names'
 import { useState } from 'react'
 import { useTable } from '../hooks/useSupabase'
 import type { TaxiTrip, TaxiDriver, Booking, Client } from '../types/database'
@@ -30,7 +31,7 @@ export default function TaxiSharePage() {
   function guestName(bookingId: string | null): string {
     if (!bookingId) return ''
     const b = allBookings.find(b => b.id === bookingId)
-    return b?.client ? `${b.client.first_name} ${b.client.last_name}` : ''
+    return b?.client ? `${displayFirstName(b.client.first_name)} ${b.client.last_name}` : ''
   }
 
   /** Free seats for a trip: vehicle capacity − occupants. null if no driver assigned yet. */
