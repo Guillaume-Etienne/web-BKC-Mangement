@@ -1,3 +1,4 @@
+import { taxiTripLabels } from '../../data/taxiTripTypes'
 import { useState } from 'react'
 import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef, BookingParticipant } from '../../types/database'
 import { computeTaxiMarginEur } from '../accounting/utils'
@@ -90,15 +91,7 @@ function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
   )
 }
 
-const TRIP_TYPE_LABELS: Record<string, string> = {
-  'aero-to-center': '✈️ Airport → Bilene',
-  'center-to-aero': '🏠 Bilene → Airport',
-  'aero-to-spot': '✈️ Airport → Spot',
-  'spot-to-aero': '🏄 Spot → Airport',
-  'center-to-town': '🏠 Bilene → Town',
-  'town-to-center': '🏢 Town → Bilene',
-  'other': '❓ Other',
-}
+const TRIP_TYPE_LABELS: Record<string, string> = taxiTripLabels({ icon: true })
 
 interface TaxiKanbanViewProps {
   trips: TaxiTrip[]

@@ -13,6 +13,7 @@
  *  This module is pure on purpose: the fetching lives in hooks/useClientDossier,
  *  so the assembly rules can be tested without a database.
  */
+import { TAXI_TRIP_TYPES, taxiTripLabel } from '../data/taxiTripTypes'
 import type {
   ActivityBooking, Booking, ClientNote, EmailLog, EmailLogType, Enquiry, EnquiryNote,
   Equipment, EquipmentRental, FormSubmission, Payment, TaxiTrip,
@@ -74,15 +75,8 @@ const EMAIL_LABEL: Record<EmailLogType, string> = {
   update_form: 'Update form',
 }
 
-const TAXI_LABEL: Record<string, string> = {
-  'aero-to-center': 'Airport → Bilene',
-  'center-to-aero': 'Bilene → airport',
-  'aero-to-spot': 'Airport → spot',
-  'spot-to-aero': 'Spot → airport',
-  'center-to-town': 'Bilene → town',
-  'town-to-center': 'Town → Bilene',
-  other: 'Transfer',
-}
+/** A dossier line reads "Transfer" for an unnamed trip, not "Other". */
+const taxiLabel = (type: string) => (type in TAXI_TRIP_TYPES && type !== 'other' ? taxiTripLabel(type) : 'Transfer')
 
 const PAYMENT_METHOD: Record<string, string> = {
   cash_eur: 'cash €',
@@ -247,7 +241,7 @@ export function buildDossier(input: DossierInput): DossierEvent[] {
       at: t.date,
       kind: 'taxi',
       icon: '🚕',
-      title: TAXI_LABEL[t.type] ?? 'Transfer',
+      title: taxiLabel(t.type),
       detail: [
         t.start_time,
         `${t.nb_persons} pax`,

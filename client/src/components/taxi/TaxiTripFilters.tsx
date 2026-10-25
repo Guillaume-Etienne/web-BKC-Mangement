@@ -1,3 +1,4 @@
+import { taxiTripLabels } from '../../data/taxiTripTypes'
 import type { TaxiTrip, TaxiTripStatus, TaxiTripType, TaxiDriver, BookingRef } from '../../types/database'
 import { todayISO, addDaysISO, fromISODate } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -28,15 +29,7 @@ export const DEFAULT_TAXI_FILTERS: TaxiFilters = {
   status: 'all', type: 'all', search: '', toHandle: false, privateTaxi: 'all', agency: 'all',
 }
 
-export const TRIP_TYPE_FILTER_LABELS: Record<TaxiTripType, string> = {
-  'aero-to-center': '✈️ Airport → Bilene',
-  'center-to-aero': '🏠 Bilene → Airport',
-  'aero-to-spot':   '✈️ Airport → Spot',
-  'spot-to-aero':   '🏄 Spot → Airport',
-  'center-to-town': '🏠 Bilene → Town',
-  'town-to-center': '🏢 Town → Bilene',
-  'other':          '❓ Other',
-}
+export const TRIP_TYPE_FILTER_LABELS: Record<string, string> = taxiTripLabels({ icon: true })
 
 /** Monday → Sunday of the week containing `iso`. */
 function weekBounds(iso: string): [string, string] {

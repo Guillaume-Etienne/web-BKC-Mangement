@@ -7,7 +7,7 @@ import { jsonResult, errorResult } from '../result.js'
 
 const TAXI_TRIP_STATUSES = ['confirmed', 'needs_details', 'done'] as const satisfies readonly TaxiTripStatus[]
 const TAXI_TRIP_TYPES = [
-  'aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other',
+  'aero-to-center', 'center-to-aero', 'center-to-town', 'town-to-center', 'other',
 ] as const satisfies readonly TaxiTripType[]
 
 export function registerTaxiTools(server: McpServer) {

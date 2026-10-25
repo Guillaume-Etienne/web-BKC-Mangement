@@ -36,8 +36,8 @@ export interface DayMovements {
   taxis: TaxiMove[]
 }
 
-const ARRIVAL_TYPES = new Set(['aero-to-center', 'aero-to-spot', 'town-to-center'])
-const DEPARTURE_TYPES = new Set(['center-to-aero', 'spot-to-aero', 'center-to-town'])
+const ARRIVAL_TYPES = new Set(['aero-to-center', 'town-to-center'])
+const DEPARTURE_TYPES = new Set(['center-to-aero', 'center-to-town'])
 
 function clientName(b: Booking | undefined): string | null {
   const c = b?.client

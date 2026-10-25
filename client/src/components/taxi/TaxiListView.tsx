@@ -1,3 +1,4 @@
+import { taxiTripLabels } from '../../data/taxiTripTypes'
 import { useState, useRef } from 'react'
 import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef, BookingParticipant } from '../../types/database'
 import { computeTaxiMarginEur } from '../accounting/utils'
@@ -28,15 +29,7 @@ function bookingLabel(b: BookingRef): string {
   return `#${String(b.booking_number).padStart(3, '0')} — ${name} (${fmtDate(b.check_in)} → ${fmtDate(b.check_out)})`
 }
 
-const TRIP_TYPE_LABELS: Record<string, string> = {
-  'aero-to-center': '✈️ Airport → Bilene',
-  'center-to-aero': '🏠 Bilene → Airport',
-  'aero-to-spot':   '✈️ Airport → Spot',
-  'spot-to-aero':   '🏄 Spot → Airport',
-  'center-to-town': '🏠 Bilene → Town',
-  'town-to-center': '🏢 Town → Bilene',
-  'other':          '❓ Other',
-}
+const TRIP_TYPE_LABELS: Record<string, string> = taxiTripLabels({ icon: true })
 
 // ── Summary table — réalisés vs prévus ───────────────────────────────────────
 function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {

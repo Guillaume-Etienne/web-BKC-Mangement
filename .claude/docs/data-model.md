@@ -14,7 +14,7 @@
 | `LessonType` | `'private' \| 'group' \| 'supervision'` |
 | `DaySlot` | `'morning' \| 'afternoon' \| 'evening'` |
 | `PriceCategory` | `'lesson' \| 'activity' \| 'rental' \| 'taxi'` |
-| `TaxiTripType` | `'aero-to-center' \| 'center-to-aero' \| 'aero-to-spot' \| 'spot-to-aero' \| 'center-to-town' \| 'town-to-center' \| 'other'` |
+||`TaxiTripType` | `'aero-to-center' \| 'center-to-aero' \| 'center-to-town' \| 'town-to-center' \| 'other'` — labels: `client/src/data/taxiTripTypes.ts` (single source); the DB enum still holds the retired `aero-to-spot` / `spot-to-aero` (unused, removed from the app 2026-10-25) |
 | `TaxiTripStatus` | `'confirmed' \| 'needs_details' \| 'done'` |
 | `SharedLinkType` | `'forecast' \| 'taxi' \| 'client' \| 'driver' \| 'activity_provider' \| 'booking_form'` |
 | `EquipmentCategory` | `'kite' \| 'board' \| 'surfboard' \| 'foilboard'` |

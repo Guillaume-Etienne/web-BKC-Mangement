@@ -1,18 +1,11 @@
+import { taxiTripLabels } from '../../data/taxiTripTypes'
 import { useState } from 'react'
 import type { TaxiDriver, TaxiTrip, SharedLink } from '../../types/database'
 import { todayISO, fmtDate } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 
-const TRIP_TYPE_LABELS: Record<string, string> = {
-  'aero-to-center':  'Airport → Bilene',
-  'center-to-aero':  'Bilene → Airport',
-  'aero-to-spot':    'Airport → Spot',
-  'spot-to-aero':    'Spot → Airport',
-  'center-to-town':  'Bilene → Town',
-  'town-to-center':  'Town → Bilene',
-  'other':           'Other',
-}
+const TRIP_TYPE_LABELS: Record<string, string> = taxiTripLabels()
 
 interface Props {
   driver:         TaxiDriver

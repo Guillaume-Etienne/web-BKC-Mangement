@@ -418,7 +418,7 @@ export const rentalBillable = (t: RentalType, slot?: RentalSlot): BillableType =
   (slot === 'full_day' ? `rental_${t}_day` : `rental_${t}`) as BillableType
 
 // Taxis
-export type TaxiTripType   = 'aero-to-center' | 'center-to-aero' | 'aero-to-spot' | 'spot-to-aero' | 'center-to-town' | 'town-to-center' | 'other'
+export type TaxiTripType   = 'aero-to-center' | 'center-to-aero' | 'center-to-town' | 'town-to-center' | 'other'
 export type TaxiTripStatus = 'confirmed' | 'needs_details' | 'done'
 
 export interface TaxiDriver {

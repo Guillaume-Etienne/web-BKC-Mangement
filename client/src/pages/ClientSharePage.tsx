@@ -1,3 +1,4 @@
+import { taxiTripLabels } from '../data/taxiTripTypes'
 import { displayFirstName } from '../utils/names'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
@@ -121,15 +122,7 @@ const METHOD_LABELS: Record<string, string> = {
   card_palmeiras:  'Card – Palmeiras',
 }
 
-const TAXI_TYPE_LABELS: Record<string, string> = {
-  'aero-to-center': 'Airport → Bilene',
-  'center-to-aero': 'Bilene → Airport',
-  'aero-to-spot':   'Airport → Spot',
-  'spot-to-aero':   'Spot → Airport',
-  'center-to-town': 'Bilene → Town',
-  'town-to-center': 'Town → Bilene',
-  'other':          'Other',
-}
+const TAXI_TYPE_LABELS: Record<string, string> = taxiTripLabels()
 
 const STATUS_CFG = {
   confirmed:   { label: 'Confirmed',   cls: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'  },

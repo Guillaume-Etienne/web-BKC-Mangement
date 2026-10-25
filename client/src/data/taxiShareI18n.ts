@@ -1,3 +1,4 @@
+import { TAXI_TRIP_TYPES, taxiTripLabel } from './taxiTripTypes'
 import type { TaxiTripType, TaxiTripStatus } from '../types/database'
 
 // User-facing copy for the public taxi share pages (driver + manager), in PT / EN.
@@ -108,16 +109,6 @@ export const tr = {
 
 // ── Enum label helpers ────────────────────────────────────────────────────────
 
-const TRIP_TYPE: Record<TaxiTripType, Tr> = {
-  'aero-to-center': { pt: 'Aeroporto → Bilene', en: 'Airport → Bilene' },
-  'center-to-aero': { pt: 'Bilene → Aeroporto', en: 'Bilene → Airport' },
-  'aero-to-spot':   { pt: 'Aeroporto → Spot',   en: 'Airport → Spot' },
-  'spot-to-aero':   { pt: 'Spot → Aeroporto',   en: 'Spot → Airport' },
-  'center-to-town': { pt: 'Bilene → Vila',      en: 'Bilene → Town' },
-  'town-to-center': { pt: 'Vila → Bilene',      en: 'Town → Bilene' },
-  'other':          { pt: 'Outro',              en: 'Other' },
-}
-
 const STATUS: Record<TaxiTripStatus, Tr> = {
   confirmed:     { pt: 'Confirmado',      en: 'Confirmed' },
   needs_details: { pt: 'Faltam detalhes', en: 'Details needed' },
@@ -125,7 +116,7 @@ const STATUS: Record<TaxiTripStatus, Tr> = {
 }
 
 export const tripTypeLabel = (type: TaxiTripType, lang: TaxiLang): string =>
-  (TRIP_TYPE[type] ?? TRIP_TYPE.other)[lang]
+  taxiTripLabel(type in TAXI_TRIP_TYPES ? type : 'other', { lang })
 
 export const statusLabel = (status: TaxiTripStatus, lang: TaxiLang): string =>
   STATUS[status][lang]
