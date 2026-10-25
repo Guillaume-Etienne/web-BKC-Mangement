@@ -323,30 +323,39 @@ export default function ExpensesTab({ data, handlers }: Props) {
   }, [housePeriodRows])
   const housePeriodTotal = housePeriodRows.reduce((s, r) => s + r.total_cost, 0)
   // ── Taxis : LECTURE SEULE, même principe que les loyers ───────────────────
-  // Le centre avance le plus souvent la course (chauffeur + commission manager,
-  // en MZN, converti au taux courant). Le tableau de bord ne garde que la marge
-  // taxi : l'additionner au total d'ici = double comptage. Mêmes règles que lui :
-  // courses d'une résa annulée exclues ; période sur la date de la course.
+  // Argent RÉELLEMENT sorti, comme le cash-flow : les courses marquées « Payé »
+  // (statut done = chauffeur réglé, part chauffeur seulement) + les paiements datés
+  // faits au manager. Une course à venir ou non payée n'est pas une dépense : l'y
+  // compter gonflait le chiffre de toute la saison. Le tableau de bord ne garde que
+  // la marge taxi : l'additionner au total d'ici = double comptage. Période sur la
+  // date de la course / du paiement.
   const taxiPeriodRows = useMemo(() => {
-    const cancelled = new Set(data.bookings.filter(b => b.status === 'cancelled').map(b => b.id))
     const rate = data.eurMznRate || 1
-    return data.taxiTrips
-      .filter(t => t.booking_id === null || !cancelled.has(t.booking_id))
-      .filter(t => {
-        if (period === 'season' && currentSeason)
-          return t.date >= currentSeason.start_date && t.date <= currentSeason.end_date
-        if (period === 'custom' && periodFrom && periodTo)
-          return t.date.slice(0, 7) >= periodFrom && t.date.slice(0, 7) <= periodTo
-        return true
-      })
+    const inPeriod = (date: string) => {
+      if (period === 'season' && currentSeason) return date >= currentSeason.start_date && date <= currentSeason.end_date
+      if (period === 'custom' && periodFrom && periodTo) return date.slice(0, 7) >= periodFrom && date.slice(0, 7) <= periodTo
+      return true
+    }
+    const trips = data.taxiTrips
+      .filter(t => t.status === 'done' && inPeriod(t.date))
       .map(t => ({
         ...t,
         label: taxiTripLabel(t.type, { icon: true }),
-        cost:  (t.price_driver_mzn + t.margin_manager_mzn) / rate,
+        margin_manager_mzn: 0,
+        cost:  t.price_driver_mzn / rate,
       }))
+    const managerPays = data.taxiManagerPayments
+      .filter(p => inPeriod(p.date))
+      .map(p => ({
+        id: p.id, date: p.date, notes: p.notes,
+        label: '🚕 ' + i18n.accounting.ex_taxi_manager_col[lang],
+        price_driver_mzn: 0, margin_manager_mzn: p.amount_mzn,
+        cost: p.amount_mzn / rate,
+      }))
+    return [...trips, ...managerPays]
       .filter(t => t.cost > 0)
-      .sort((a, b) => b.date.localeCompare(a.date))
-  }, [data.taxiTrips, data.bookings, data.eurMznRate, period, currentSeason, periodFrom, periodTo])
+      .sort((x, y) => y.date.localeCompare(x.date))
+  }, [data.taxiTrips, data.taxiManagerPayments, data.eurMznRate, lang, period, currentSeason, periodFrom, periodTo])
   const taxiRows = useMemo(() => {
     if (filterCat !== 'all') return []
     const q = search.toLowerCase()

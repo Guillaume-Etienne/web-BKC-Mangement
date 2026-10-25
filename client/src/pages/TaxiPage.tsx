@@ -227,6 +227,8 @@ export default function TaxiPage() {
         {tab === 'finance' && (
           <TaxiFinanceTab
             trips={trips}
+            drivers={drivers}
+            bookings={bookings}
             payments={payments}
             eurMznRate={pricingDefaults.eur_mzn_rate}
             onAddPayment={addManagerPayment}

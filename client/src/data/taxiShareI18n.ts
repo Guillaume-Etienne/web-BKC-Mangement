@@ -112,7 +112,7 @@ export const tr = {
 const STATUS: Record<TaxiTripStatus, Tr> = {
   confirmed:     { pt: 'Confirmado',      en: 'Confirmed' },
   needs_details: { pt: 'Faltam detalhes', en: 'Details needed' },
-  done:          { pt: 'Concluído',       en: 'Done' },
+  done:          { pt: 'Pago',            en: 'Paid' },
 }
 
 export const tripTypeLabel = (type: TaxiTripType, lang: TaxiLang): string =>

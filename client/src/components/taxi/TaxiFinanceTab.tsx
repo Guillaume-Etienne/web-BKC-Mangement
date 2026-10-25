@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { TaxiTrip, TaxiManagerPayment } from '../../types/database'
+import type { TaxiTrip, TaxiManagerPayment, TaxiDriver, BookingRef } from '../../types/database'
 import { todayISO, fmtDate } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
@@ -139,14 +139,46 @@ function AddPaymentForm({ onAdd }: AddPaymentFormProps) {
 // ── Main component ────────────────────────────────────────────────────────────
 interface TaxiFinanceTabProps {
   trips:           TaxiTrip[]
+  drivers:         TaxiDriver[]
+  bookings:        BookingRef[]
   payments:        TaxiManagerPayment[]
   eurMznRate:      number
   onAddPayment:    (p: Omit<TaxiManagerPayment, 'id'>) => Promise<void>
   onDeletePayment: (id: string) => Promise<void>
 }
 
-export default function TaxiFinanceTab({ trips, payments, eurMznRate, onAddPayment, onDeletePayment }: TaxiFinanceTabProps) {
+export default function TaxiFinanceTab({ trips, drivers, bookings, payments, eurMznRate, onAddPayment, onDeletePayment }: TaxiFinanceTabProps) {
   const { lang } = useLanguage()
+
+  // A trip marked "Paid" (status `done`) = the driver has been paid. The centre pays on
+  // the day, the client pays at the end of the stay — so the gap is money advanced.
+  const today        = todayISO()
+  const paidTrips    = trips.filter(t => t.status === 'done')
+  const unpaidPast   = trips.filter(t => t.status !== 'done' && t.date <= today)
+  const sumDriver    = (ts: TaxiTrip[]) => ts.reduce((s, t) => s + t.price_driver_mzn, 0)
+  const driverRows   = [...drivers.map(d => ({ id: d.id as string | null, name: d.name })), { id: null, name: '—' }]
+    .map(d => {
+      const paid = paidTrips.filter(t => t.taxi_driver_id === d.id)
+      const todo = unpaidPast.filter(t => t.taxi_driver_id === d.id)
+      return { ...d, paidCount: paid.length, paidMzn: sumDriver(paid), todoCount: todo.length, todoMzn: sumDriver(todo) }
+    })
+    .filter(r => r.paidCount > 0 || r.todoCount > 0)
+  const totalPaidMzn = sumDriver(paidTrips)
+  const totalTodoMzn = sumDriver(unpaidPast)
+
+  const advancedRows = [...new Set(paidTrips.map(t => t.booking_id).filter((id): id is string => !!id))]
+    .map(id => {
+      const ts = paidTrips.filter(t => t.booking_id === id)
+      const b  = bookings.find(x => x.id === id)
+      const outEur    = sumDriver(ts) / (eurMznRate || 1)
+      const billedEur = ts.reduce((s, t) => s + t.price_eur, 0)
+      return {
+        id, outEur, billedEur,
+        label: b ? `#${String(b.booking_number).padStart(3, '0')}${b.client ? ` ${b.client.first_name} ${b.client.last_name}` : ''}` : '—',
+        num: b?.booking_number ?? 0,
+      }
+    })
+    .sort((a, b) => b.num - a.num)
   const totalEarned = trips.reduce((s, t) => s + t.margin_manager_mzn, 0)
   const totalPaid   = payments.reduce((s, p) => s + p.amount_mzn, 0)
   const balance     = totalEarned - totalPaid  // >0 = we owe manager, <0 = manager overpaid
@@ -172,6 +204,84 @@ export default function TaxiFinanceTab({ trips, payments, eurMznRate, onAddPayme
       <div>
         <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">{i18n.taxis.title_financial_summary[lang]}</h2>
         <SummaryTable trips={trips} rate={eurMznRate} />
+      </div>
+
+      {/* Drivers: paid to date, and what is still to pay */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">{i18n.taxis.section_drivers_paid[lang]}</h2>
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 dark:bg-gray-800 border-b text-xs">
+                <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400">Driver</th>
+                <th className="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-400">{i18n.taxis.label_drv_paid[lang]}</th>
+                <th className="px-3 py-2 text-right font-semibold text-orange-700 dark:text-orange-400">{i18n.taxis.label_drv_to_pay[lang]}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {driverRows.length === 0 ? (
+                <tr><td colSpan={3} className="px-4 py-6 text-center text-gray-400 italic">{i18n.taxis.msg_drv_unpaid_hint[lang]}</td></tr>
+              ) : driverRows.map(r => (
+                <tr key={r.id ?? 'none'} className="border-b">
+                  <td className="px-3 py-2 text-gray-800 dark:text-gray-200">{r.name}</td>
+                  <td className="px-3 py-2 text-right text-emerald-800 dark:text-emerald-400">
+                    {r.paidCount > 0 ? <><MznWithEur mzn={r.paidMzn} rate={eurMznRate} /><span className="text-[10px] text-gray-400">{r.paidCount} trip{r.paidCount > 1 ? 's' : ''}</span></> : '–'}
+                  </td>
+                  <td className="px-3 py-2 text-right text-orange-800 dark:text-orange-400">
+                    {r.todoCount > 0 ? <><MznWithEur mzn={r.todoMzn} rate={eurMznRate} /><span className="text-[10px] text-gray-400">{r.todoCount} trip{r.todoCount > 1 ? 's' : ''}</span></> : '–'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-gray-100 dark:bg-gray-800 border-t-2 border-gray-300 dark:border-gray-700 font-bold">
+                <td className="px-3 py-2 text-gray-800 dark:text-gray-200">Total</td>
+                <td className="px-3 py-2 text-right text-emerald-800 dark:text-emerald-400"><MznWithEur mzn={totalPaidMzn} rate={eurMznRate} /></td>
+                <td className="px-3 py-2 text-right text-orange-800 dark:text-orange-400"><MznWithEur mzn={totalTodoMzn} rate={eurMznRate} /></td>
+              </tr>
+            </tfoot>
+          </table></div>
+        </div>
+      </div>
+
+      {/* Advanced for clients: taxis we paid, per booking */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">{i18n.taxis.section_advanced[lang]}</h2>
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+          {advancedRows.length === 0 ? (
+            <p className="px-4 py-6 text-center text-gray-400 italic text-sm">{i18n.taxis.msg_adv_empty[lang]}</p>
+          ) : (
+            <div className="overflow-x-auto"><table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 dark:bg-gray-800 border-b text-xs">
+                  <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.taxis.label_adv_booking[lang]}</th>
+                  <th className="px-3 py-2 text-right font-semibold text-amber-700 dark:text-amber-400">{i18n.taxis.label_adv_out[lang]}</th>
+                  <th className="px-3 py-2 text-right font-semibold text-blue-700 dark:text-blue-400">{i18n.taxis.label_adv_billed[lang]}</th>
+                  <th className="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-400">{i18n.taxis.label_adv_gap[lang]}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {advancedRows.map(r => (
+                  <tr key={r.id} className="border-b">
+                    <td className="px-3 py-2 text-gray-800 dark:text-gray-200">{r.label}</td>
+                    <td className="px-3 py-2 text-right text-amber-900 dark:text-amber-400">{Math.round(r.outEur)}€</td>
+                    <td className="px-3 py-2 text-right text-blue-900 dark:text-blue-400">{r.billedEur}€</td>
+                    <td className="px-3 py-2 text-right text-emerald-700 dark:text-emerald-400">{Math.round(r.billedEur - r.outEur)}€</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-gray-100 dark:bg-gray-800 border-t-2 border-gray-300 dark:border-gray-700 font-bold">
+                  <td className="px-3 py-2 text-gray-800 dark:text-gray-200">Total</td>
+                  <td className="px-3 py-2 text-right text-amber-900 dark:text-amber-400">{Math.round(advancedRows.reduce((s, r) => s + r.outEur, 0))}€</td>
+                  <td className="px-3 py-2 text-right text-blue-900 dark:text-blue-400">{advancedRows.reduce((s, r) => s + r.billedEur, 0)}€</td>
+                  <td className="px-3 py-2 text-right text-emerald-700 dark:text-emerald-400">{Math.round(advancedRows.reduce((s, r) => s + r.billedEur - r.outEur, 0))}€</td>
+                </tr>
+              </tfoot>
+            </table></div>
+          )}
+          <p className="px-3 py-2 text-xs text-gray-400 border-t border-gray-100 dark:border-gray-800">{i18n.taxis.msg_adv_hint[lang]}</p>
+        </div>
       </div>
 
       {/* Manager Balance + Add Payment */}

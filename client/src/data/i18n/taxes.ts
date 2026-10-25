@@ -45,7 +45,7 @@ export const taxesI18n = {
   // from the status_* keys above, which belong to an older/unused status set)
   status_confirmed_trip:  { fr: 'Confirmé',        en: 'Confirmed',      es: 'Confirmado' },
   status_needs_details:   { fr: 'Détails requis',  en: 'Needs details',  es: 'Faltan detalles' },
-  status_done:            { fr: 'Terminé',         en: 'Done',           es: 'Completado' },
+  status_done:            { fr: 'Payé',            en: 'Paid',           es: 'Pagado' },
 
   // DriverStatementPanel — KPI cards
   label_completed: { fr: 'Terminés',   en: 'Completed', es: 'Completados' },
@@ -94,6 +94,18 @@ export const taxesI18n = {
   // TaxiFinanceTab
   title_financial_summary:  { fr: 'Résumé financier', en: 'Financial Summary', es: 'Resumen financiero' },
   section_manager_balance:  { fr: 'Solde du manager', en: 'Manager Balance', es: 'Saldo del gerente' },
+  section_drivers_paid:     { fr: 'Chauffeurs — payé à ce jour', en: 'Drivers — paid to date', es: 'Conductores — pagado hasta hoy' },
+  label_drv_paid:           { fr: 'Payé', en: 'Paid', es: 'Pagado' },
+  label_drv_to_pay:         { fr: 'À payer (course passée)', en: 'To pay (past trip)', es: 'Por pagar (viaje pasado)' },
+  label_drv_trips:          { fr: 'Courses payées', en: 'Paid trips', es: 'Viajes pagados' },
+  msg_drv_unpaid_hint:      { fr: 'Marque une course « Payé » dans la liste dès que le chauffeur est réglé.', en: 'Mark a trip “Paid” in the list once the driver is paid.', es: 'Marca un viaje «Pagado» en la lista cuando se pague al conductor.' },
+  section_advanced:         { fr: 'Avancé pour les clients — taxis payés', en: 'Advanced for clients — paid taxis', es: 'Adelantado por clientes — taxis pagados' },
+  label_adv_booking:        { fr: 'Résa', en: 'Booking', es: 'Reserva' },
+  label_adv_out:            { fr: 'Sorti (chauffeur)', en: 'Paid out (driver)', es: 'Pagado (conductor)' },
+  label_adv_billed:         { fr: 'Facturé au client', en: 'Billed to client', es: 'Facturado al cliente' },
+  label_adv_gap:            { fr: 'Écart', en: 'Gap', es: 'Diferencia' },
+  msg_adv_hint:             { fr: 'Ce que le client doit encore sur sa résa : Compta → Réservations (reste à payer) ou le tableau de bord (recouvrement).', en: 'What the client still owes on the booking: Accounting → Bookings (remaining to pay) or the dashboard (collections).', es: 'Lo que el cliente aún debe: Contabilidad → Reservas (resto por pagar) o el panel (cobros).' },
+  msg_adv_empty:            { fr: 'Aucun taxi payé rattaché à une résa pour le moment.', en: 'No paid taxi linked to a booking yet.', es: 'Aún no hay taxis pagados vinculados a una reserva.' },
   label_total_earned:       { fr: 'Total gagné',       en: 'Total earned',    es: 'Total ganado' },
   label_total_paid:         { fr: 'Total payé (avances)', en: 'Total paid (advances)', es: 'Total pagado (anticipos)' },
   label_balance_owe:        { fr: '🟠 On doit au manager',      en: '🟠 We owe the manager',          es: '🟠 Debemos al gerente' },
