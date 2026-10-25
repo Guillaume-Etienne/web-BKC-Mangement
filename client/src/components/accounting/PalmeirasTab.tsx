@@ -382,7 +382,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
       </div>
 
       {/* Monthly table */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
         <div className="flex flex-wrap justify-between items-center px-3 sm:px-5 py-3 sm:py-4 border-b gap-2">
           <h2 className="font-semibold text-gray-800 dark:text-gray-200">{i18n.accounting.palm_monthly_breakdown[lang]}</h2>
           <div className="flex gap-2 flex-wrap">

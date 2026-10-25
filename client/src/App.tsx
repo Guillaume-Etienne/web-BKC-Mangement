@@ -345,7 +345,7 @@ function App() {
   return (
     <LanguageProvider lang={lang} setLang={setLang}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <Navigation currentPage={currentPage} onNavigate={setCurrentPage} onLogout={() => supabase.auth.signOut()} urgentCount={openActions.filter(a => a.priority === 'urgent').length} submissionsCount={openActions.filter(a => a.id === 'pending-submissions' || a.id === 'unqualified-enquiries').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
+        <Navigation currentPage={currentPage} onNavigate={setCurrentPage} onLogout={() => supabase.auth.signOut()} onSearch={() => setSearchOpen(true)} urgentCount={openActions.filter(a => a.priority === 'urgent').length} submissionsCount={openActions.filter(a => a.id === 'pending-submissions' || a.id === 'unqualified-enquiries').reduce((n, a) => n + (parseInt(a.message) || 0), 0)} />
         {/* Le fournisseur n'enveloppe QUE l'app admin : le bandeau nomme des
             tables et rend le message brut de Postgres. Les pages partagées, plus
             haut dans ce fichier, gardent le contexte inerte par défaut. */}

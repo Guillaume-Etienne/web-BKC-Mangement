@@ -2177,7 +2177,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
         </div>
 
         {/* Desktop table */}
-        <div className="hidden md:block bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden">
+        <div className="hidden md:block bg-white dark:bg-gray-900 rounded-lg shadow overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-800 border-b">
               <tr>

@@ -12,9 +12,10 @@ interface NavigationProps {
   onLogout: () => void
   urgentCount?: number
   submissionsCount?: number
+  onSearch?: () => void
 }
 
-export default function Navigation({ currentPage, onNavigate, onLogout, urgentCount = 0, submissionsCount = 0 }: NavigationProps) {
+export default function Navigation({ currentPage, onNavigate, onLogout, urgentCount = 0, submissionsCount = 0, onSearch }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
   const { lang } = useLanguage()
@@ -92,6 +93,19 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
                 </button>
               ))}
             </div>
+
+            {/* Search (⌘K / Ctrl+K also works; this button is the touch entry point) */}
+            {onSearch && (
+              <button
+                onClick={onSearch}
+                className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                title={i18n.nav.tooltip_search[lang]}
+                aria-label={i18n.nav.tooltip_search[lang]}
+                style={{ touchAction: 'manipulation' }}
+              >
+                🔍
+              </button>
+            )}
 
             {/* Theme toggle */}
             <button

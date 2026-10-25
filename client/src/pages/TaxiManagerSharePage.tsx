@@ -206,7 +206,7 @@ export default function TaxiManagerSharePage() {
         </div>
 
         {/* Per-driver summary */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
           <div className="px-5 py-3 border-b bg-gray-50 dark:bg-gray-800">
             <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.mgr_by_driver[lang]}</h2>
           </div>

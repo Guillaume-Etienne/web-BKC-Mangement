@@ -251,16 +251,16 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                           isDragging ? 'opacity-40' : ''
                         }`}
                       >
-                        {/* Card actions (hover) */}
-                        <div className="absolute top-2 right-2 hidden group-hover/card:flex gap-1 bg-white dark:bg-gray-900 rounded shadow-sm">
+                        {/* Card actions: always visible on touch, revealed on hover from md up */}
+                        <div className="absolute top-2 right-2 flex gap-1 bg-white dark:bg-gray-900 rounded shadow-sm md:opacity-0 md:group-hover/card:opacity-100 transition-opacity">
                           <button
                             onClick={() => openEdit(trip)}
-                            className="p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded"
+                            className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded"
                             title="Edit"
                           >✏️</button>
                           <button
                             onClick={() => deleteTrip(trip.id)}
-                            className="p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded"
+                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded"
                             title="Delete"
                           >✕</button>
                         </div>

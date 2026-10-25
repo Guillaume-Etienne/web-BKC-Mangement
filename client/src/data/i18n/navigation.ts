@@ -21,6 +21,7 @@ export const navigationI18n = {
   // Logout
   btn_logout:     { fr: 'Déconnexion',  en: 'Sign out',    es: 'Cerrar sesión' },
   tooltip_logout: { fr: 'Se déconnecter', en: 'Sign out', es: 'Cerrar sesión' },
+  tooltip_search:       { fr: 'Rechercher (Ctrl+K)', en: 'Search (Ctrl+K)', es: 'Buscar (Ctrl+K)' },
   tooltip_light_theme:  { fr: 'Passer en mode clair', en: 'Switch to light theme', es: 'Cambiar a tema claro' },
   tooltip_dark_theme:   { fr: 'Passer en mode sombre', en: 'Switch to dark theme', es: 'Cambiar a tema oscuro' },
 } satisfies Record<string, Tr>

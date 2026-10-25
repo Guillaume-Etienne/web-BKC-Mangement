@@ -1602,7 +1602,7 @@ export default function EquipmentPage() {
       {/* ─── EDIT MODAL ───────────────────────────────────────────────────────── */}
       {editModal.open && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-800">
               <h3 className="font-bold text-gray-800 dark:text-gray-100">
                 {editModal.equipment ? i18n.equipment.modal_edit_equipment[lang] : i18n.equipment.modal_new_equipment[lang]}
@@ -1612,7 +1612,7 @@ export default function EquipmentPage() {
                 className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 font-bold"
               >✕</button>
             </div>
-            <div className="p-4 space-y-3">
+            <div className="p-4 space-y-3 overflow-y-auto min-h-0">
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_name[lang]} *</label>
                 <input
@@ -1797,7 +1797,7 @@ export default function EquipmentPage() {
                 />
                 <label htmlFor="is_active" className="text-sm font-medium text-gray-600 dark:text-gray-400">{i18n.equipment.label_active[lang]}</label>
               </div>
-              <div className="flex gap-2 pt-2 border-t dark:border-gray-800">
+              <div className="flex gap-2 pt-2 pb-1 border-t dark:border-gray-800 sticky bottom-0 bg-white dark:bg-gray-900">
                 <button
                   onClick={() => setEditModal({ open: false, equipment: null, formData: {} })}
                   className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded font-medium text-sm"
