@@ -66,7 +66,17 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
     // three-day bar the badge is the first thing that would disappear. It is
     // rendered as its own non-shrinking span so the guest name gives way first.
     const marker = agencyMarker({ booking_id: b.id }, { agencies, bookings, agencyBillingLines: [] })
-    return { booking: b, startOffset, endOffset, label, marker }
+    // In the country but not with us: visa entry → check-in and check-out →
+    // visa exit. Drawn behind the bar as a hatched tail (safari, trip, other
+    // lodging — the reason does not matter). Ignored when the visa date is
+    // missing or on the wrong side of the stay.
+    const rawStart = dateToIdx(b.check_in)
+    const rawEnd = dateToIdx(b.check_out)
+    const awayBefore = b.visa_entry_date ? Math.max(0, dateToIdx(b.visa_entry_date)) : null
+    const awayAfter = b.visa_exit_date ? Math.min(totalDays, dateToIdx(b.visa_exit_date)) : null
+    const tailBefore = awayBefore !== null && dateToIdx(b.visa_entry_date!) < rawStart ? { from: awayBefore, to: startOffset } : null
+    const tailAfter = awayAfter !== null && dateToIdx(b.visa_exit_date!) > rawEnd ? { from: endOffset, to: awayAfter } : null
+    return { booking: b, startOffset, endOffset, label, marker, tailBefore, tailAfter }
   }).filter(s => s.endOffset > 0 && s.startOffset < totalDays)
 
   return (
@@ -98,6 +108,26 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
             )
           })}
         </div>
+        {/* Away tails (in the country, not at the center): behind the bars,
+         *  never interactive, hidden while their booking is being dragged. */}
+        {segments.flatMap((seg) => {
+          if (dragState?.bookingId === seg.booking.id) return []
+          return [seg.tailBefore, seg.tailAfter].flatMap((t, i) => {
+            if (!t || t.to <= t.from) return []
+            return [(
+              <div
+                key={`${seg.booking.id}-away-${i}`}
+                className="absolute top-0.5 h-6 rounded border border-dashed border-emerald-600/60 dark:border-emerald-400/60 pointer-events-none"
+                style={{
+                  left: `${t.from * CELL_W + CELL_W / 2}px`,
+                  width: `${(t.to - t.from) * CELL_W}px`,
+                  backgroundImage: 'repeating-linear-gradient(45deg, rgba(16,185,129,0.35) 0 4px, transparent 4px 8px)',
+                }}
+                title={`${seg.booking.client ? `${seg.booking.client.first_name} ${seg.booking.client.last_name}` : '?'} — in the country, not at the center`}
+              />
+            )]
+          })
+        })}
         {/* Booking bars */}
         {segments.map((seg) => {
           const isDragging = dragState?.bookingId === seg.booking.id
