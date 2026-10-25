@@ -168,6 +168,9 @@ export const accountingI18n = {
   bf_payments_header:     { fr: 'Paiements', en: 'Payments', es: 'Pagos' },
   bf_no_payments:         { fr: 'Aucun paiement enregistré pour le moment.', en: 'No payments recorded yet.', es: 'Aún no hay pagos registrados.' },
   bf_total_paid:          { fr: 'Total payé', en: 'Total paid', es: 'Total pagado' },
+  bf_remaining:           { fr: 'Reste à payer', en: 'Remaining to pay', es: 'Resto por pagar' },
+  bf_remaining_after:     { fr: 'Après ce paiement, reste : {amount}', en: 'After this payment, remaining: {amount}', es: 'Tras este pago, resta: {amount}' },
+  bf_overpaid_after:      { fr: 'Après ce paiement : {amount} de trop-perçu', en: 'After this payment: {amount} overpaid', es: 'Tras este pago: {amount} de más' },
 
   // BookingFinances — main table & totals bar
   bf_balance:             { fr: 'Solde', en: 'Balance', es: 'Saldo' },

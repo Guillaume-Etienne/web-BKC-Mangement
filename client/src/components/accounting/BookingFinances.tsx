@@ -231,7 +231,10 @@ function DiscountForm({ bookingId, initial, onSave, onCancel }: DiscountFormProp
 interface PaymentFormProps {
   bookingId: string
   initial?: Payment
-  suggestedDeposit?: number
+  /** What the guest still owes before this payment (total − discounts − paid, the
+   *  amount of the payment being edited added back): pre-fills a new payment and
+   *  drives the "remaining after" preview. */
+  outstanding: number
   /** Empty until the associates migration is in: the selector then stays hidden
    *  and the column is never written. */
   associates: Associate[]
@@ -239,9 +242,9 @@ interface PaymentFormProps {
   onCancel: () => void
 }
 
-function PaymentForm({ bookingId, initial, suggestedDeposit = 0, associates, onSave, onCancel }: PaymentFormProps) {
+function PaymentForm({ bookingId, initial, outstanding, associates, onSave, onCancel }: PaymentFormProps) {
   const { lang } = useLanguage()
-  const [amount,     setAmount]     = useState(initial ? String(initial.amount) : String(suggestedDeposit))
+  const [amount,     setAmount]     = useState(initial ? String(initial.amount) : outstanding > 0 ? String(Math.round(outstanding * 100) / 100) : '')
   const [method,     setMethod]     = useState<PaymentMethod>(initial?.method ?? 'transfer')
   const [isDeposit,  setIsDeposit]  = useState(initial?.is_deposit ?? false)
   const [isVerified, setIsVerified] = useState(initial?.is_verified ?? true)
@@ -270,6 +273,7 @@ function PaymentForm({ bookingId, initial, suggestedDeposit = 0, associates, onS
   }
 
   const isEdit = !!initial
+  const after = Math.round((outstanding - (parseFloat(amount) || 0)) * 100) / 100
 
   return (
     <form onSubmit={handleSubmit} className={`border rounded-lg p-3 sm:p-4 space-y-3 ${isEdit ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900' : 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900'}`}>
@@ -286,6 +290,12 @@ function PaymentForm({ bookingId, initial, suggestedDeposit = 0, associates, onS
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.bf_amount_eur[lang]}</label>
           <input type="number" min="0.01" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
             className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <p className={`text-xs mt-1 ${after < 0 ? 'text-red-600 dark:text-red-400' : after === 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
+            {after < 0
+              ? i18n.accounting.bf_overpaid_after[lang].replace('{amount}', fmtEur(-after))
+              : after === 0 ? i18n.accounting.bf_settled[lang]
+              : i18n.accounting.bf_remaining_after[lang].replace('{amount}', fmtEur(after))}
+          </p>
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1157,7 +1167,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
         {showAddPayment && (
           <PaymentForm
             bookingId={b.id}
-            suggestedDeposit={sugDeposit}
+            outstanding={due}
             associates={data.associates}
             onSave={(p) => { handlers.addPayment(p); setShowAddPayment(false) }}
             onCancel={() => setShowAddPayment(false)}
@@ -1190,6 +1200,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                     <PaymentForm
                       bookingId={b.id}
                       initial={p}
+                      outstanding={due + p.amount}
                       associates={data.associates}
                       onSave={(updated) => { handlers.updatePayment(updated); setEditingPaymentId(null) }}
                       onCancel={() => setEditingPaymentId(null)}
@@ -1242,6 +1253,12 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
             <div className="flex justify-between items-center px-4 py-2 border-t text-sm font-semibold">
               <span className="text-gray-600 dark:text-gray-400">{i18n.accounting.bf_total_paid[lang]}</span>
               <span className="text-emerald-700 dark:text-emerald-400">{fmtEur(paid)}</span>
+            </div>
+            <div className="flex justify-between items-center px-4 pb-2 text-sm font-semibold">
+              <span className="text-gray-600 dark:text-gray-400">{i18n.accounting.bf_remaining[lang]}</span>
+              <span className={due > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}>
+                {due > 0 ? fmtEur(due) : i18n.accounting.bf_settled[lang]}
+              </span>
             </div>
           </div>
         )}
