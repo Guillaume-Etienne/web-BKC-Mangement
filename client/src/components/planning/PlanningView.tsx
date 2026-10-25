@@ -896,46 +896,20 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       <div className="max-w-full mx-auto px-4 py-3 md:py-8">
 
         {/* Page header */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 md:gap-4 mb-3 md:mb-8">
+        {/* Accommodations: no title; its controls sit in the tabs row below */}
+        {planningTab !== 'accommodations' && <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 md:gap-4 mb-3 md:mb-8">
           <h1 className="text-lg md:text-3xl font-bold text-gray-800 dark:text-gray-200">
-            {planningTab === 'accommodations' ? i18n.pages.planning_title_accommodations[lang]
-              : planningTab === 'lessons' ? i18n.pages.planning_title_daily[lang]
+            {planningTab === 'lessons' ? i18n.pages.planning_title_daily[lang]
               : planningTab === 'forecast' ? i18n.pages.planning_title_forecast[lang]
               : planningTab === 'outlook' ? i18n.pages.planning_title_outlook[lang]
               : i18n.pages.planning_title_now[lang]}
           </h1>
 
-          {planningTab === 'accommodations' && (
-            <div className="flex items-center flex-wrap justify-center gap-1.5 md:gap-2 w-full md:w-auto">
-              {/* Season selector */}
-              <div className="flex items-center gap-0.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg px-1 py-0.5 md:py-1">
-                <button onClick={() => changeSeason(-1)} disabled={seasonOffset <= seasonBounds.min}
-                  className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-30 disabled:hover:bg-transparent text-xs md:text-sm text-blue-700 dark:text-blue-400">←</button>
-                <span className="text-xs md:text-sm font-bold text-blue-800 dark:text-blue-400 min-w-[46px] md:min-w-[90px] text-center"
-                  title={season.configured ? undefined : i18n.pages.label_no_season_configured[lang]}>
-                  <span className="md:hidden">{season.shortLabel}</span>
-                  <span className="hidden md:inline">{season.label}{season.configured ? '' : ' *'}</span>
-                </span>
-                <button onClick={() => changeSeason(+1)} disabled={seasonOffset >= seasonBounds.max}
-                  className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-30 disabled:hover:bg-transparent text-xs md:text-sm text-blue-700 dark:text-blue-400">→</button>
-              </div>
-              {/* Month nav */}
-              <div className="flex items-center gap-0.5">
-                <button onClick={prevMonth} disabled={navMonthIdx === 0} className="px-2 py-1 md:px-3 md:py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 text-xs md:text-sm">←</button>
-                <span className="text-xs md:text-sm font-semibold min-w-[32px] md:min-w-[130px] text-center text-gray-700 dark:text-gray-300">
-                  <span className="md:hidden">{monthGroups[navMonthIdx]?.shortLabel ?? ''}</span>
-                  <span className="hidden md:inline">{monthGroups[navMonthIdx]?.label ?? ''}</span>
-                </span>
-                <button onClick={nextMonth} disabled={navMonthIdx === monthGroups.length - 1} className="px-2 py-1 md:px-3 md:py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 text-xs md:text-sm">→</button>
-              </div>
-              <button onClick={goToNow} className="px-2 py-1 md:px-3 md:py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm font-medium">{i18n.pages.btn_now[lang]}</button>
-            </div>
-          )}
-        </div>
+        </div>}
 
         {/* Tabs */}
         {/* Wraps on phones so every tab stays visible (no hidden "Prévisions") */}
-        <div className="flex flex-wrap gap-1 md:gap-2 mb-3 md:mb-6 border-b">
+        <div className="flex flex-wrap items-center gap-1 md:gap-2 mb-3 md:mb-6 border-b">
           <button
             onClick={() => handleTabChange('accommodations')}
             className={`shrink-0 px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium transition-colors ${planningTab === 'accommodations' ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
@@ -966,6 +940,32 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
           >
             🔭 {i18n.pages.tab_planning_outlook[lang]}
           </button>
+          {planningTab === 'accommodations' && (
+            <div className="flex items-center flex-wrap justify-center gap-1.5 md:gap-2 w-full md:w-auto md:ml-auto md:pb-1">
+              {/* Season selector */}
+              <div className="flex items-center gap-0.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg px-1 py-0.5 md:py-1">
+                <button onClick={() => changeSeason(-1)} disabled={seasonOffset <= seasonBounds.min}
+                  className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-30 disabled:hover:bg-transparent text-xs md:text-sm text-blue-700 dark:text-blue-400">←</button>
+                <span className="text-xs md:text-sm font-bold text-blue-800 dark:text-blue-400 min-w-[46px] md:min-w-[90px] text-center"
+                  title={season.configured ? undefined : i18n.pages.label_no_season_configured[lang]}>
+                  <span className="md:hidden">{season.shortLabel}</span>
+                  <span className="hidden md:inline">{season.label}{season.configured ? '' : ' *'}</span>
+                </span>
+                <button onClick={() => changeSeason(+1)} disabled={seasonOffset >= seasonBounds.max}
+                  className="px-1.5 py-1 md:px-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-30 disabled:hover:bg-transparent text-xs md:text-sm text-blue-700 dark:text-blue-400">→</button>
+              </div>
+              {/* Month nav */}
+              <div className="flex items-center gap-0.5">
+                <button onClick={prevMonth} disabled={navMonthIdx === 0} className="px-2 py-1 md:px-3 md:py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 text-xs md:text-sm">←</button>
+                <span className="text-xs md:text-sm font-semibold min-w-[32px] md:min-w-[130px] text-center text-gray-700 dark:text-gray-300">
+                  <span className="md:hidden">{monthGroups[navMonthIdx]?.shortLabel ?? ''}</span>
+                  <span className="hidden md:inline">{monthGroups[navMonthIdx]?.label ?? ''}</span>
+                </span>
+                <button onClick={nextMonth} disabled={navMonthIdx === monthGroups.length - 1} className="px-2 py-1 md:px-3 md:py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 text-xs md:text-sm">→</button>
+              </div>
+              <button onClick={goToNow} className="px-2 py-1 md:px-3 md:py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm font-medium">{i18n.pages.btn_now[lang]}</button>
+            </div>
+          )}
         </div>
 
         {/* ── ACCOMMODATIONS TAB ── */}
@@ -1004,10 +1004,12 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
             {/* Grid */}
             <div
               ref={scrollRef}
-              className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-x-auto select-none bg-white dark:bg-gray-900"
+              className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-x-auto md:overflow-auto md:max-h-[calc(100vh-14rem)] select-none bg-white dark:bg-gray-900"
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
             >
+              {/* Both header rows stay pinned while the grid scrolls vertically (desktop) */}
+              <div className="sticky top-0 z-30 min-w-max">
               {/* Header row 1: month names */}
               <div className="flex min-w-max border-b border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-700">
                 <div className="sticky left-0 z-20 shrink-0 w-20 bg-gray-200 dark:bg-gray-700 border-r border-gray-300 dark:border-gray-700" />
@@ -1047,6 +1049,8 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
                     )
                   })}
                 </div>
+              </div>
+
               </div>
 
               {/* Rows */}
