@@ -965,7 +965,7 @@ export default function ActivitiesPage() {
               <p className="text-sm text-gray-400 dark:text-gray-400 italic py-8 text-center">No bookings found.</p>
             ) : (
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <div className="overflow-x-auto"><table className="w-full text-sm">
+                <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
                   <thead>
                     <tr className="bg-gray-50 dark:bg-gray-800 border-b text-gray-500 dark:text-gray-400 text-xs text-left">
                       <th className="px-4 py-3 font-medium">Date</th>
@@ -983,22 +983,22 @@ export default function ActivitiesPage() {
                   <tbody>
                     {filteredBookings.sort((a, b) => b.date.localeCompare(a.date)).map(b => (
                       <tr key={b.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(b.date)}{b.end_date && b.end_date !== b.date && ` → ${fmtDate(b.end_date)}`}</td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{providerName(b.provider_id)}</td>
-                        <td className="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">{b.label}</td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{clientName(b)}</td>
-                        <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">{b.nb_persons}</td>
-                        <td className="px-4 py-3">
+                        <td data-label="Date" className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtDate(b.date)}{b.end_date && b.end_date !== b.date && ` → ${fmtDate(b.end_date)}`}</td>
+                        <td data-label="Provider" className="px-4 py-3 text-gray-600 dark:text-gray-400">{providerName(b.provider_id)}</td>
+                        <td data-label="Label" className="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">{b.label}</td>
+                        <td data-label="Client" className="px-4 py-3 text-gray-600 dark:text-gray-400">{clientName(b)}</td>
+                        <td data-label="Pax" className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">{b.nb_persons}</td>
+                        <td data-label="Flow" className="px-4 py-3">
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                             b.payment_flow === 'we_pay_provider'
                               ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
                               : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                           }`}>{b.payment_flow === 'we_pay_provider' ? '→ them' : '← us'}</span>
                         </td>
-                        <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{b.price_client > 0 ? `${b.price_client}€` : '–'}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{b.price_provider > 0 ? `${b.price_provider}€` : '–'}</td>
-                        <td className="px-4 py-3 text-gray-400 dark:text-gray-400 italic text-xs">{b.notes ?? ''}</td>
-                        <td className="px-4 py-3">
+                        <td data-label="Client €" className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{b.price_client > 0 ? `${b.price_client}€` : '–'}</td>
+                        <td data-label="Provider €" className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{b.price_provider > 0 ? `${b.price_provider}€` : '–'}</td>
+                        <td data-label="Notes" className="px-4 py-3 text-gray-400 dark:text-gray-400 italic text-xs">{b.notes ?? ''}</td>
+                        <td data-label="Actions" className="px-4 py-3">
                           <div className="flex gap-1 justify-center">
                             <button onClick={() => setEditingBookingAll(b)}
                               className="text-gray-400 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 px-1">✏️</button>

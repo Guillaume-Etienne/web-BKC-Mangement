@@ -612,7 +612,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
 
         {/* Table */}
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
-          <table className="w-full text-sm min-w-[540px]">
+          <table className="w-full text-sm min-w-0 md:min-w-[540px] stack-mobile">
             <thead className="bg-gray-50 dark:bg-gray-800 border-b">
               <tr>
                 <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{i18n.common.label_date[lang]}</th>
@@ -672,14 +672,14 @@ export default function ExpensesTab({ data, handlers }: Props) {
                 </tr>
               ) : (
                 <tr key={e.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtDate(e.date)}</td>
-                  <td className="px-4 py-3">
+                  <td data-label={i18n.common.label_date[lang]} className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtDate(e.date)}</td>
+                  <td data-label={i18n.accounting.ex_category[lang]} className="px-4 py-3">
                     <span className="px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap"
                       style={{ backgroundColor: colorOf(e.category_id) + '33', color: colorOf(e.category_id) }}>
                       {pathOf(e.category_id)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-800 dark:text-gray-200">
+                  <td data-label={i18n.accounting.palm_description_col[lang]} className="px-4 py-3 text-gray-800 dark:text-gray-200">
                     {e.description}
                     {e.paid_by_associate_id && (
                       <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400">
@@ -687,7 +687,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-400">− {fmtEur(e.amount)}</td>
+                  <td data-label={i18n.common.label_amount[lang]} className="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-400">− {fmtEur(e.amount)}</td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     <button onClick={() => startEdit(e)} title={i18n.accounting.ex_edit_expense[lang]}
                       className="text-xs px-2 py-1 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
