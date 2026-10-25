@@ -244,6 +244,15 @@ reverifier par curl anon.
 
 ---
 
+## ✅ Livré 2026-10-25 — à pousser (aucune migration)
+
+- `567de2a` **Forecast mobile** : grille une colonne par moniteur (toggle Grid/List mémorisé, `forecast_mobile_view`) — vue desktop et Daily inchangés. Vu en iframe 390 px sur TEST ; **reste à voir sur le vrai téléphone**.
+- `d25870e` **Pages partagées** : seul le 1er prénom des guests/clients (`displayFirstName`, `utils/names.ts`) ; base, admin, emails, documents inchangés. Prénoms composés à espace (« Anna Maria ») coupés — voulu. **À vérifier sur un lien réel.**
+- `02111a3` **Compta → Réservations** : « Reste à payer » sous la liste des paiements ; « + Paiement » pré-rempli au reste dû ; aperçu « après ce paiement, reste X » (trop-perçu en rouge). Testé TEST.
+- `4ef7008` **Libellés taxi centralisés** : `client/src/data/taxiTripTypes.ts` (un seul fichier). « Town » → « Maputo ». Types `aero-to-spot` / `spot-to-aero` retirés de l'app (restent dans l'enum Postgres, inutilisés, 0 ligne en PROD). Libellés de facture agence (`accounting/utils.ts` ~1010) NON centralisés (texte FR avec date).
+- `509c9e6` **Taxis** : statut `done` = **Payé** (chauffeur réglé ; date = date de la course, pas de colonne). Finance taxi : payé / à payer par chauffeur + « avancé » par résa. **Dépenses → Taxis = argent réellement sorti** (courses Payé, part chauffeur + paiements manager) : PROD ~3 730 € → ~193 €.
+- 🔔 **Pas fait / à proposer** : le « reste dû par le client » par résa dans la page Taxis (il faut les données de la compta ; aujourd'hui un renvoi vers Compta → Réservations / recouvrement). **Rappeler à gui de marquer les courses « Payé » le jour même** — seulement 2 sur 9 courses passées l'étaient en PROD.
+
 ## 🔴 Ouvert
 
 ### ✅ Cours de groupe mixte (riders de 2 résas) — facturé par tête à la résa du participant — LIVRÉ et vérifié PROD le 2026-10-16 (`5a35cec`, `442ba2b`, migration 2026-10-16b passée TEST+PROD)
