@@ -253,6 +253,21 @@ reverifier par curl anon.
 - `509c9e6` **Taxis** : statut `done` = **Payé** (chauffeur réglé ; date = date de la course, pas de colonne). Finance taxi : payé / à payer par chauffeur + « avancé » par résa. **Dépenses → Taxis = argent réellement sorti** (courses Payé, part chauffeur + paiements manager) : PROD ~3 730 € → ~193 €.
 - 🔔 **Pas fait / à proposer** : le « reste dû par le client » par résa dans la page Taxis (il faut les données de la compta ; aujourd'hui un renvoi vers Compta → Réservations / recouvrement). **Rappeler à gui de marquer les courses « Payé » le jour même** — seulement 2 sur 9 courses passées l'étaient en PROD.
 
+## 📱 Audit UI mobile & cohérence des listes — EN PAUSE (2026-10-25)
+
+> Scan complet de l'app (8 agents Haiku, lecture seule) puis correctifs par lots. Reprendre ici.
+
+- ✅ **Lot 1 — bloquants** `ab7cbc1` (commité, **non poussé**) : modales équipement et chauffeur taxi défilantes à pied collant ; Kanban : ✏️ ✕ visibles au tactile ; 🔍 dans la barre de navigation (⌘K gardé) ; `overflow-x-auto` (Palmeiras, taxi partagé, réservations) ; sélecteur des pages partagées plus grand, survol lisible.
+- ✅ **Lot 2 — cartes mobiles** `c69a3a3` + `e8eafe0` (commités, **non poussés**) : classe CSS `stack-mobile` (`index.css`) + `data-label` sur les cellules (sous `md`, ligne = bloc, libellé à gauche). Fait : fiche client partagée (9 tableaux, **non vérifiée à l'écran**, lien avec jeton requis), locations et actifs d'équipement, dépenses, toutes les réservations d'activités (les trois derniers vérifiés à 390 px).
+- ⏳ **Lot 2 — reste** : fiche hôtel partenaire (`PartnerHotelTab` ~634 et ~750) : lignes imbriquées, balisage à faire à la main.
+- ⬜ **Lot 3 — recherche / tri / réinitialisation identiques** partout (un seul composant). **Décisions gui en attente** : (a) recherche sur toutes les listes ou seulement les longues ? (b) tri par clic sur les en-têtes (réservations) ou par `<select>` (taxi) ?
+- ⬜ **Lot 4 — textes FR/ES en dur** : EquipmentPage (« Enregistrement… », « Erreur : », en-têtes « Créneau », « Équipement », « Nom », « Taille », bloc CA, « Toutes les tailles »), EnquiriesPage (« pers », « j »), SubmissionsPage (« traveler(s) »), BookingBar:20 (« Client inconnu »), ForecastView (« Who teaches when », « Grid », « List »), AgenciesTab:157 (placeholder), onglet « Toutes les réservations » (ActivitiesPage).
+- ⬜ **Panneaux de détail sous `xl`** qui passent après la liste sur mobile (ClientsPage ~530, EquipmentPage ~864) : à trancher.
+- ⬜ **Lu dans le code, pas encore corrigé** : Kanban (modale d'édition, pied dans la zone défilante) ; Management (instructeurs, hébergements, tarifs) : Enregistrer dans la zone défilante ; comptabilité (facturation agence, paiements non vérifiés, Maisons, Événements) sans cartes ; EnquiriesPage / SubmissionsPage : onglets sans `overflow-x-auto` ; BookingsPage : inputs `text-sm` (zoom iOS) et `grid-cols-2` du wizard ; ClientsPage : modale `grid-cols-2`, pied dans la zone défilante ; PartnerHotelSharePage « Past reservations » (~20 px) ; RestaurantSharePage : statut seulement en `title`.
+- ⚠️ **À vérifier à l'écran** : fiche client partagée et sélecteur des pages partagées (lien avec jeton) ; Kanban et modale chauffeur (build OK, pas revérifiés après correctif).
+- ⚠️ **Piège** : le navigateur de dev (localhost) est en `supabase_env = prod`. Toute vérif Chrome lit la PROD : lecture seule seulement, basculer sur TEST avant toute écriture.
+- 🔧 **Méthode qui marche** : sonde iframe de 390 px dans la page. Un `scrollWidth` de page ne suffit pas : les tableaux débordent dans leur propre conteneur, mesurer le tableau et ses cellules.
+
 ## 🔴 Ouvert
 
 ### ✅ Cours de groupe mixte (riders de 2 résas) — facturé par tête à la résa du participant — LIVRÉ et vérifié PROD le 2026-10-16 (`5a35cec`, `442ba2b`, migration 2026-10-16b passée TEST+PROD)
