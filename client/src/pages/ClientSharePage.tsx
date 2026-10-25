@@ -466,7 +466,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         {/* Accommodation */}
         {(billedAccomRows.length > 0 || extAccomRows.length > 0) && (
           <Section title="Accommodation" icon="🛏️">
-            <div className="overflow-x-auto"><table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
                   <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Room</th>
@@ -478,23 +478,23 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               <tbody>
                 {billedAccomRows.map((row, i) => (
                   <tr key={i} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-2.5 sm:px-5 py-3 font-medium text-gray-800 dark:text-gray-200">
+                    <td data-label="Room" className="px-2.5 sm:px-5 py-3 font-medium text-gray-800 dark:text-gray-200">
                       {row.label}
                       {row.note && <span className="ml-2 text-xs text-gray-400 dark:text-gray-400 italic">{row.note}</span>}
                     </td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{row.nights}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{fmtEur(row.pricePerNight)}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(row.total)}</td>
+                    <td data-label="Nights" className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{row.nights}</td>
+                    <td data-label="Per night" className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{fmtEur(row.pricePerNight)}</td>
+                    <td data-label="Total" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(row.total)}</td>
                   </tr>
                 ))}
                 {extAccomRows.map((row, i) => (
                   <tr key={`ext-${i}`} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-2.5 sm:px-5 py-3 font-medium text-gray-800 dark:text-gray-200">{row.label}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{row.nights}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">
+                    <td data-label="Room" className="px-2.5 sm:px-5 py-3 font-medium text-gray-800 dark:text-gray-200">{row.label}</td>
+                    <td data-label="Nights" className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{row.nights}</td>
+                    <td data-label="Per night" className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">
                       {row.pricePerNight != null ? fmtEur(row.pricePerNight) : '—'}
                     </td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(row.total)}</td>
+                    <td data-label="Total" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(row.total)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -511,7 +511,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         {/* Lessons */}
         {lessonRows.length > 0 && (
           <Section title="Kite lessons" icon="🏄">
-            <div className="overflow-x-auto"><table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
                   <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
@@ -525,12 +525,12 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               <tbody>
                 {lessonRows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 capitalize">{r.type}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{r.duration}h</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.instructor}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
+                    <td data-label="Date" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td data-label="Type" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 capitalize">{r.type}</td>
+                    <td data-label="Guest" className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
+                    <td data-label="Duration" className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{r.duration}h</td>
+                    <td data-label="Instructor" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.instructor}</td>
+                    <td data-label="Total" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
                       {r.total == null
                         ? <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400 whitespace-nowrap">In package</span>
                         : fmtEur(r.total)}
@@ -551,7 +551,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         {/* Equipment rentals */}
         {rentals.length > 0 && (
           <Section title="Equipment rentals" icon="🎿">
-            <div className="overflow-x-auto"><table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
                   <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
@@ -563,13 +563,13 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               <tbody>
                 {rentals.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.participant_id ? partName(r.participant_id) ?? '' : ''}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">
+                    <td data-label="Date" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td data-label="Guest" className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.participant_id ? partName(r.participant_id) ?? '' : ''}</td>
+                    <td data-label="Item" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">
                       {rentalName(r)} · {RENTAL_SLOT_LABEL[r.slot]}
                       {r.client_note && <div className="text-xs text-gray-400 dark:text-gray-500">{r.client_note}</div>}
                     </td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
+                    <td data-label="Price" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
                       {coveredByAgency(r) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : (
                         <>
                           {r.list_price != null && r.price != null && r.list_price > r.price && (
@@ -595,7 +595,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         {/* Taxis */}
         {taxis.length > 0 && (
           <Section title="Taxi transfers" icon="🚕">
-            <div className="overflow-x-auto"><table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
                   <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
@@ -607,10 +607,10 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               <tbody>
                 {taxis.map(t => (
                   <tr key={t.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(t.date)}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{TAXI_TYPE_LABELS[t.type] ?? t.type}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{t.nb_persons}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
+                    <td data-label="Date" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(t.date)}</td>
+                    <td data-label="Route" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{TAXI_TYPE_LABELS[t.type] ?? t.type}</td>
+                    <td data-label="Pax" className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{t.nb_persons}</td>
+                    <td data-label="Price" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
                       {coveredByAgency(t) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(t.price_eur ?? 0)}
                     </td>
                   </tr>
@@ -629,7 +629,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         {/* Dining events */}
         {diningRows.length > 0 && (
           <Section title="Dining" icon="🍽️">
-            <div className="overflow-x-auto"><table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
                   <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
@@ -641,13 +641,13 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               <tbody>
                 {diningRows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.name}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right text-gray-500 dark:text-gray-400">
+                    <td data-label="Date" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td data-label="Event" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.name}</td>
+                    <td data-label="Detail" className="px-2.5 sm:px-5 py-3 text-right text-gray-500 dark:text-gray-400">
                       {r.count}p @ {fmtEur(r.pricePerPerson)}
                       {r.guests && <span className="ml-1 text-blue-400 dark:text-blue-300 text-xs">({r.guests})</span>}
                     </td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
+                    <td data-label="Total" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -664,7 +664,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         {/* Activities */}
         {activityRows.length > 0 && (
           <Section title="Activities" icon="🎯">
-            <div className="overflow-x-auto"><table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
                   <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
@@ -676,10 +676,10 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               <tbody>
                 {activityRows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.label}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
+                    <td data-label="Date" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td data-label="Activity" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.label}</td>
+                    <td data-label="Guests" className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
+                    <td data-label="Total" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -718,7 +718,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         {/* Extras */}
         {extraRows.length > 0 && (
           <Section title="Extras" icon="➕">
-            <div className="overflow-x-auto"><table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
                   <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
@@ -730,10 +730,10 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               <tbody>
                 {extraRows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.label}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{r.quantity} × {fmtEur(r.unit_price)}</td>
-                    <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
+                    <td data-label="Date" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td data-label="Item" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.label}</td>
+                    <td data-label="Qty" className="px-2.5 sm:px-5 py-3 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{r.quantity} × {fmtEur(r.unit_price)}</td>
+                    <td data-label="Total" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -844,7 +844,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             <p className="px-5 py-4 text-sm text-gray-400 dark:text-gray-400 italic">No payments recorded yet.</p>
           ) : (
             <div className="overflow-x-auto">
-              <div className="overflow-x-auto"><table className="w-full text-sm">
+              <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                   <tr>
                     <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
@@ -856,8 +856,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 <tbody>
                   {payments.map(p => (
                     <tr key={p.id} className={`border-b border-gray-50 dark:border-gray-800 ${p.is_discount ? 'bg-purple-50 dark:bg-purple-950/40' : ''}`}>
-                      <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(p.date)}</td>
-                      <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                      <td data-label="Date" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(p.date)}</td>
+                      <td data-label="Method" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
                         {p.is_discount ? (
                           <span className="text-xs px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full font-medium">Discount</span>
                         ) : (
@@ -867,8 +867,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                           </>
                         )}
                       </td>
-                      <td className="px-2.5 sm:px-5 py-3 text-gray-400 dark:text-gray-400 text-xs italic">{p.notes ?? ''}</td>
-                      <td className={`px-2.5 sm:px-5 py-3 text-right font-semibold ${p.is_discount ? 'text-purple-700 dark:text-purple-400' : 'text-green-700 dark:text-green-400'}`}>
+                      <td data-label="Note" className="px-2.5 sm:px-5 py-3 text-gray-400 dark:text-gray-400 text-xs italic">{p.notes ?? ''}</td>
+                      <td data-label="Amount" className={`px-2.5 sm:px-5 py-3 text-right font-semibold ${p.is_discount ? 'text-purple-700 dark:text-purple-400' : 'text-green-700 dark:text-green-400'}`}>
                         {p.is_discount ? '-' : ''}{fmtEur(p.amount)}
                       </td>
                     </tr>

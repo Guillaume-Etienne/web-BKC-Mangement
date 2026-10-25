@@ -26,3 +26,39 @@ body {
 .dark {
   color-scheme: dark;
 }
+
+/* Stacked "card" tables for small screens (opt-in with class `stack-mobile`).
+   Below md, each row becomes a block with its cells as label/value lines; the
+   header row is hidden and each cell reads its column name from data-label.
+   Same markup as the desktop table, so there is one source of truth. */
+@media (max-width: 767px) {
+  table.stack-mobile,
+  table.stack-mobile tbody,
+  table.stack-mobile tfoot,
+  table.stack-mobile tr {
+    display: block;
+    width: 100%;
+  }
+  table.stack-mobile thead {
+    display: none;
+  }
+  table.stack-mobile tr {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+  }
+  table.stack-mobile td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.25rem 0.75rem !important;
+    text-align: right !important;
+  }
+  table.stack-mobile td[data-label]::before {
+    content: attr(data-label);
+    font-size: 0.75rem;
+    opacity: 0.6;
+    text-align: left;
+    flex-shrink: 0;
+  }
+}

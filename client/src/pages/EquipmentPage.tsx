@@ -1100,7 +1100,7 @@ export default function EquipmentPage() {
           </div>
 
           <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800">
                 <tr>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Date</th>
@@ -1115,7 +1115,7 @@ export default function EquipmentPage() {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                 {rentalItems.map(rental => (
                   <tr key={rental.id}>
-                    <td className="px-4 py-3">
+                    <td data-label="Date" className="px-4 py-3">
                       <input
                         type="date"
                         defaultValue={rental.date}
@@ -1123,7 +1123,7 @@ export default function EquipmentPage() {
                         className="w-32 text-sm border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1"
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Créneau" className="px-4 py-3">
                       <select
                         defaultValue={rental.slot}
                         onChange={e => updateRentalField(rental.id, 'slot', e.target.value)}
@@ -1134,7 +1134,7 @@ export default function EquipmentPage() {
                         <option value="full_day">{i18n.equipment.slot_full_day[lang]}</option>
                       </select>
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Équipement" className="px-4 py-3">
                       <select
                         defaultValue={rental.equipment_id ?? ''}
                         onChange={e => updateRentalField(rental.id, 'equipment_id', e.target.value)}
@@ -1145,7 +1145,7 @@ export default function EquipmentPage() {
                         ))}
                       </select>
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Booking" className="px-4 py-3">
                       <input
                         type="text"
                         defaultValue={rental.booking_id || ''}
@@ -1154,7 +1154,7 @@ export default function EquipmentPage() {
                         placeholder="—"
                       />
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td data-label="Prix" className="px-4 py-3 text-center">
                       <input
                         type="number"
                         defaultValue={rental.price}
@@ -1171,7 +1171,7 @@ export default function EquipmentPage() {
                         placeholder="Notes"
                       />
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td data-label="Action" className="px-4 py-3 text-center">
                       <button
                         onClick={() => deleteRental(rental.id)}
                         className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-medium"
@@ -1465,7 +1465,7 @@ export default function EquipmentPage() {
             <p className="text-sm text-gray-400 dark:text-gray-400 italic">{i18n.equipment.msg_no_asset_data[lang]}</p>
           ) : (
             <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm stack-mobile">
                 <thead className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800">
                   <tr>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Nom</th>
@@ -1509,12 +1509,12 @@ export default function EquipmentPage() {
                     const saleExpense     = findExpense(eq.sale_expense_id)
                     return (
                       <tr key={eq.id}>
-                        <td className="px-4 py-3 align-top">
+                        <td data-label="Nom" className="px-4 py-3 align-top">
                           <p className="font-medium text-gray-900 dark:text-gray-100">{eq.name}</p>
                           <p className="text-xs text-gray-400 dark:text-gray-400">{getCategoryLabel(eq.category, lang)}</p>
                           {!eq.is_active && <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">{i18n.equipment.label_sold_badge[lang]}</span>}
                         </td>
-                        <td className="px-4 py-3 align-top text-xs text-gray-600 dark:text-gray-400">
+                        <td data-label="Taille" className="px-4 py-3 align-top text-xs text-gray-600 dark:text-gray-400">
                           {eq.size || '—'}
                         </td>
                         <td className="px-4 py-3 align-top">
