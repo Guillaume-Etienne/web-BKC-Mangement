@@ -420,6 +420,11 @@ export const accountingI18n = {
   ex_house_rentals_note:  { fr: 'Lecture seule — se gèrent dans Management → Accommodations. Non comptées dans le total des dépenses ci-dessus (déjà comptées à part dans le tableau de bord).', en: 'Read-only — managed in Management → Accommodations. Not included in the expenses total above (already counted separately on the dashboard).', es: 'Solo lectura — se gestionan en Management → Accommodations. No incluidos en el total de gastos de arriba (ya contados aparte en el panel).' },
   ex_house_rentals_excluded: { fr: 'Hors total — lecture seule', en: 'Not in total — read-only', es: 'Fuera del total — solo lectura' },
   ex_house_rentals_total:{ fr: '{count} location(s)', en: '{count} rental{s}', es: '{count} alquiler(es)' },
+  ex_taxi_costs:         { fr: 'Taxis (chauffeurs + manager)', en: 'Taxis (drivers + manager)', es: 'Taxis (conductores + manager)' },
+  ex_taxi_costs_note:    { fr: 'Lecture seule — ce que le centre règle aux chauffeurs et au manager, le plus souvent en avançant la course (MZN converti au taux courant). Non compté dans le total des dépenses ci-dessus : le tableau de bord ne retient que la marge taxi. Courses de réservations annulées exclues.', en: 'Read-only — what the centre pays drivers and manager, usually by advancing the ride (MZN converted at the current rate). Not included in the expenses total above: the dashboard only keeps the taxi margin. Trips of cancelled bookings excluded.', es: 'Solo lectura — lo que el centro paga a conductores y manager, normalmente adelantando el viaje (MZN convertido al tipo actual). No incluido en el total de gastos de arriba: el panel solo cuenta el margen de taxi. Viajes de reservas canceladas excluidos.' },
+  ex_taxi_total:         { fr: '{count} course(s)', en: '{count} trip{s}', es: '{count} viaje(s)' },
+  ex_taxi_driver_col:    { fr: 'Chauffeur', en: 'Driver', es: 'Conductor' },
+  ex_taxi_manager_col:   { fr: 'Manager', en: 'Manager', es: 'Manager' },
 
   // Categories & sub-categories (2026-09-19)
   ex_manage_categories:   { fr: 'Gérer les catégories', en: 'Manage categories', es: 'Gestionar categorías' },

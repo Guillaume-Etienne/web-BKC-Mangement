@@ -3,6 +3,7 @@ import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { Associate, Expense, ExpenseCategory } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
+import { taxiTripLabel } from '../../data/taxiTripTypes'
 import {
   categoryTree, categoryColor, categoryPath, rollUpId, selfAndChildrenIds,
   childrenOf, postableCategories, expensesOnHeadings,
@@ -20,6 +21,11 @@ interface Props {
 }
 
 type View = 'list' | 'summary'
+
+// Les deux flux hors `expenses` (loyers, taxis) prennent une couleur comme une
+// catégorie, pour se lire pareil ; ils restent HORS du total.
+const HOUSE_COLOR = '#78716c'
+const TAXI_COLOR  = '#0891b2'
 
 // ── Select à 2 niveaux, partagé par la saisie et les filtres ────────────────
 //
@@ -316,9 +322,49 @@ export default function ExpensesTab({ data, handlers }: Props) {
     return m
   }, [housePeriodRows])
   const housePeriodTotal = housePeriodRows.reduce((s, r) => s + r.total_cost, 0)
+  // ── Taxis : LECTURE SEULE, même principe que les loyers ───────────────────
+  // Le centre avance le plus souvent la course (chauffeur + commission manager,
+  // en MZN, converti au taux courant). Le tableau de bord ne garde que la marge
+  // taxi : l'additionner au total d'ici = double comptage. Mêmes règles que lui :
+  // courses d'une résa annulée exclues ; période sur la date de la course.
+  const taxiPeriodRows = useMemo(() => {
+    const cancelled = new Set(data.bookings.filter(b => b.status === 'cancelled').map(b => b.id))
+    const rate = data.eurMznRate || 1
+    return data.taxiTrips
+      .filter(t => t.booking_id === null || !cancelled.has(t.booking_id))
+      .filter(t => {
+        if (period === 'season' && currentSeason)
+          return t.date >= currentSeason.start_date && t.date <= currentSeason.end_date
+        if (period === 'custom' && periodFrom && periodTo)
+          return t.date.slice(0, 7) >= periodFrom && t.date.slice(0, 7) <= periodTo
+        return true
+      })
+      .map(t => ({
+        ...t,
+        label: taxiTripLabel(t.type, { icon: true }),
+        cost:  (t.price_driver_mzn + t.margin_manager_mzn) / rate,
+      }))
+      .filter(t => t.cost > 0)
+      .sort((a, b) => b.date.localeCompare(a.date))
+  }, [data.taxiTrips, data.bookings, data.eurMznRate, period, currentSeason, periodFrom, periodTo])
+  const taxiRows = useMemo(() => {
+    if (filterCat !== 'all') return []
+    const q = search.toLowerCase()
+    return taxiPeriodRows
+      .filter(t => !filterMonth || t.date.startsWith(filterMonth))
+      .filter(t => !q || t.label.toLowerCase().includes(q) || (t.notes ?? '').toLowerCase().includes(q))
+  }, [taxiPeriodRows, filterCat, search, filterMonth])
+  const taxiRowsTotal = taxiRows.reduce((s, t) => s + t.cost, 0)
+  const taxiByMonth = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const t of taxiPeriodRows) m[t.date.slice(0, 7)] = (m[t.date.slice(0, 7)] ?? 0) + t.cost
+    return m
+  }, [taxiPeriodRows])
+  const taxiPeriodTotal = taxiPeriodRows.reduce((s, t) => s + t.cost, 0)
+
   const summaryMonths = useMemo(
-    () => [...new Set([...summaryMatrix.months, ...Object.keys(houseByMonth)])].sort(),
-    [summaryMatrix.months, houseByMonth])
+    () => [...new Set([...summaryMatrix.months, ...Object.keys(houseByMonth), ...Object.keys(taxiByMonth)])].sort(),
+    [summaryMatrix.months, houseByMonth, taxiByMonth])
 
   // ── Totals by category (all time, for breakdown bar) ─────────────────────
   const allByCat = useMemo(() => {
@@ -498,22 +544,28 @@ export default function ExpensesTab({ data, handlers }: Props) {
                 <p className="text-right text-sm font-semibold text-gray-700 dark:text-gray-300 tabular-nums">{fmtEur(val)}</p>
               </Fragment>
             ))}
-            {/* House rentals live in `house_rentals`, not `expenses`: shown dashed and
-                outside the total, same convention as the summary table's last column. */}
-            {housePeriodTotal > 0 && (
-              <Fragment>
-                <span className="justify-self-start text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400"
-                  title={i18n.accounting.ex_house_rentals_note[lang]}>
-                  🏠 {i18n.accounting.ex_house_rentals[lang]}
+            {/* Loyers et taxis ne vivent pas dans `expenses` : même ligne que les
+                catégories (pastille, barre, montant), mais hors du total — le survol
+                le rappelle. */}
+            {([
+              { key: 'houses', total: housePeriodTotal, color: HOUSE_COLOR, icon: '🏠', label: i18n.accounting.ex_house_rentals[lang],
+                note: i18n.accounting.ex_house_rentals_note[lang] },
+              { key: 'taxis', total: taxiPeriodTotal, color: TAXI_COLOR, icon: '🚕', label: i18n.accounting.ex_taxi_costs[lang],
+                note: i18n.accounting.ex_taxi_costs_note[lang] },
+            ]).filter(r => r.total > 0).map(r => (
+              <Fragment key={r.key}>
+                <span className="justify-self-start text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap opacity-70"
+                  style={{ backgroundColor: r.color + '33', color: r.color }} title={r.note}>
+                  {r.icon} {r.label}
                 </span>
-                <div className="bg-gray-100 dark:bg-gray-800 rounded-full h-3 overflow-hidden">
-                  <div className="h-full rounded-full bg-gray-300 dark:bg-gray-600"
-                    style={{ width: `${Math.min(100, (housePeriodTotal / Math.max(allTotal, housePeriodTotal)) * 100)}%` }} />
+                <div className="bg-gray-100 dark:bg-gray-800 rounded-full h-3 overflow-hidden" title={r.note}>
+                  <div className="h-full rounded-full"
+                    style={{ width: `${Math.min(100, (r.total / Math.max(allTotal, r.total)) * 100)}%`, backgroundColor: r.color }} />
                 </div>
-                <p className="text-right text-sm font-semibold text-gray-400 dark:text-gray-500 tabular-nums"
-                  title={i18n.accounting.ex_house_rentals_excluded[lang]}>{fmtEur(housePeriodTotal)}</p>
+                <p className="text-right text-sm font-semibold text-gray-700 dark:text-gray-300 tabular-nums"
+                  title={r.note}>{fmtEur(r.total)}</p>
               </Fragment>
-            )}
+            ))}
           </div>
         </div>
 
@@ -654,29 +706,65 @@ export default function ExpensesTab({ data, handlers }: Props) {
         </div>
 
         {houseRentalRows.length > 0 && (
-          <div className="bg-gray-50 dark:bg-gray-900/60 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 overflow-x-auto">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto" title={i18n.accounting.ex_house_rentals_note[lang]}>
             <div className="px-4 pt-3 pb-2">
-              <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">🏠 {i18n.accounting.ex_house_rentals[lang]}</p>
-              <p className="text-xs text-gray-400 dark:text-gray-500">{i18n.accounting.ex_house_rentals_note[lang]}</p>
+              <span className="px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap"
+                style={{ backgroundColor: HOUSE_COLOR + '33', color: HOUSE_COLOR }}>🏠 {i18n.accounting.ex_house_rentals[lang]}</span>
             </div>
             <table className="w-full text-sm min-w-[540px]">
               <tbody>
                 {houseRentalRows.map(r => (
-                  <tr key={r.id} className="border-t border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                    <td className="px-4 py-2 whitespace-nowrap">{fmtDate(r.start_date)} → {fmtDate(r.end_date)}</td>
-                    <td className="px-4 py-2 font-medium">{r.house}</td>
-                    <td className="px-4 py-2">{r.notes}</td>
-                    <td className="px-4 py-2 text-right">− {fmtEur(r.total_cost)}</td>
+                  <tr key={r.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtDate(r.start_date)} → {fmtDate(r.end_date)}</td>
+                    <td className="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">{r.house}</td>
+                    <td className="px-4 py-3 text-gray-800 dark:text-gray-200">{r.notes}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-400">− {fmtEur(r.total_cost)}</td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="border-t border-gray-200 dark:border-gray-800 font-semibold text-gray-600 dark:text-gray-400">
+              <tfoot className="bg-gray-50 dark:bg-gray-800 border-t font-semibold">
                 <tr>
-                  <td colSpan={3} className="px-4 py-2">
+                  <td colSpan={3} className="px-4 py-3 text-gray-600 dark:text-gray-400">
                     {i18n.accounting.ex_house_rentals_total[lang].replace('{count}', String(houseRentalRows.length)).replace('{s}', houseRentalRows.length !== 1 ? 's' : '')}
                     <span className="ml-2 font-normal text-xs text-gray-400">· {periodLabel}</span>
                   </td>
-                  <td className="px-4 py-2 text-right">− {fmtEur(houseRentalTotal)}</td>
+                  <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">− {fmtEur(houseRentalTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {taxiRows.length > 0 && (
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto" title={i18n.accounting.ex_taxi_costs_note[lang]}>
+            <div className="px-4 pt-3 pb-2">
+              <span className="px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap"
+                style={{ backgroundColor: TAXI_COLOR + '33', color: TAXI_COLOR }}>🚕 {i18n.accounting.ex_taxi_costs[lang]}</span>
+            </div>
+            <table className="w-full text-sm min-w-[540px]">
+              <tbody>
+                {taxiRows.map(t => (
+                  <tr key={t.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtDate(t.date)}</td>
+                    <td className="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">{t.label}</td>
+                    <td className="px-4 py-3 text-gray-800 dark:text-gray-200">
+                      {t.notes}
+                      <span className="ml-2 text-xs text-gray-400">
+                        {i18n.accounting.ex_taxi_driver_col[lang]} {t.price_driver_mzn.toLocaleString()} MZN
+                        {t.margin_manager_mzn > 0 && ` · ${i18n.accounting.ex_taxi_manager_col[lang]} ${t.margin_manager_mzn.toLocaleString()} MZN`}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-400">− {fmtEur(t.cost)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50 dark:bg-gray-800 border-t font-semibold">
+                <tr>
+                  <td colSpan={3} className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                    {i18n.accounting.ex_taxi_total[lang].replace('{count}', String(taxiRows.length)).replace('{s}', taxiRows.length !== 1 ? 's' : '')}
+                    <span className="ml-2 font-normal text-xs text-gray-400">· {periodLabel}</span>
+                  </td>
+                  <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">− {fmtEur(taxiRowsTotal)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -711,14 +799,19 @@ export default function ExpensesTab({ data, handlers }: Props) {
             <p className="text-xl font-bold text-red-700 dark:text-red-400">− {fmtEur(summaryMatrix.grandTotal)}</p>
             <p className="text-[11px] text-gray-400 mt-1 truncate">{periodLabel}</p>
           </div>
-          {housePeriodRows.length > 0 && (
-            <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-4"
-              title={i18n.accounting.ex_house_rentals_note[lang]}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">🏠 {i18n.accounting.ex_house_rentals[lang]}</p>
-              <p className="text-xl font-bold text-gray-500 dark:text-gray-400">− {fmtEur(housePeriodTotal)}</p>
+          {([
+            { key: 'houses', show: housePeriodRows.length > 0, total: housePeriodTotal, color: HOUSE_COLOR, icon: '🏠',
+              label: i18n.accounting.ex_house_rentals[lang], note: i18n.accounting.ex_house_rentals_note[lang] },
+            { key: 'taxis', show: taxiPeriodRows.length > 0, total: taxiPeriodTotal, color: TAXI_COLOR, icon: '🚕',
+              label: i18n.accounting.ex_taxi_costs[lang], note: i18n.accounting.ex_taxi_costs_note[lang] },
+          ]).filter(r => r.show).map(r => (
+            <div key={r.key} className="rounded-xl border p-4" title={r.note}
+              style={{ borderColor: r.color + '66', backgroundColor: r.color + '11' }}>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: r.color }}>{r.icon} {r.label}</p>
+              <p className="text-xl font-bold text-gray-800 dark:text-gray-200">− {fmtEur(r.total)}</p>
               <p className="text-[11px] text-gray-400 mt-1 truncate">{i18n.accounting.ex_house_rentals_excluded[lang]}</p>
             </div>
-          )}
+          ))}
         </div>
 
         {/* Month × Category table */}
@@ -736,9 +829,15 @@ export default function ExpensesTab({ data, handlers }: Props) {
                   ))}
                   <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{i18n.common.label_total[lang]}</th>
                   {housePeriodRows.length > 0 && (
-                    <th className="px-4 py-3 text-right font-semibold text-gray-400 dark:text-gray-500 whitespace-nowrap border-l border-dashed border-gray-300 dark:border-gray-700"
-                      title={i18n.accounting.ex_house_rentals_note[lang]}>
+                    <th className="px-4 py-3 text-right font-semibold whitespace-nowrap border-l border-dashed border-gray-300 dark:border-gray-700"
+                      style={{ color: HOUSE_COLOR }} title={i18n.accounting.ex_house_rentals_note[lang]}>
                       🏠 {i18n.accounting.ex_house_rentals[lang]}
+                    </th>
+                  )}
+                  {taxiPeriodRows.length > 0 && (
+                    <th className="px-4 py-3 text-right font-semibold whitespace-nowrap border-l border-dashed border-gray-300 dark:border-gray-700"
+                      style={{ color: TAXI_COLOR }} title={i18n.accounting.ex_taxi_costs_note[lang]}>
+                      🚕 {i18n.accounting.ex_taxi_costs[lang]}
                     </th>
                   )}
                 </tr>
@@ -760,8 +859,13 @@ export default function ExpensesTab({ data, handlers }: Props) {
                       })}
                       <td className="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-400">{monthTotal ? `− ${fmtEur(monthTotal)}` : '–'}</td>
                       {housePeriodRows.length > 0 && (
-                        <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500 border-l border-dashed border-gray-300 dark:border-gray-700">
+                        <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400 border-l border-dashed border-gray-300 dark:border-gray-700">
                           {houseByMonth[m] ? `− ${fmtEur(houseByMonth[m])}` : '–'}
+                        </td>
+                      )}
+                      {taxiPeriodRows.length > 0 && (
+                        <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400 border-l border-dashed border-gray-300 dark:border-gray-700">
+                          {taxiByMonth[m] ? `− ${fmtEur(taxiByMonth[m])}` : '–'}
                         </td>
                       )}
                     </tr>
@@ -778,8 +882,13 @@ export default function ExpensesTab({ data, handlers }: Props) {
                   ))}
                   <td className="px-4 py-3 text-right text-red-700 dark:text-red-400">− {fmtEur(summaryMatrix.grandTotal)}</td>
                   {housePeriodRows.length > 0 && (
-                    <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400 border-l border-dashed border-gray-300 dark:border-gray-700">
+                    <td className="px-4 py-3 text-right border-l border-dashed border-gray-300 dark:border-gray-700" style={{ color: HOUSE_COLOR }}>
                       − {fmtEur(housePeriodTotal)}
+                    </td>
+                  )}
+                  {taxiPeriodRows.length > 0 && (
+                    <td className="px-4 py-3 text-right border-l border-dashed border-gray-300 dark:border-gray-700" style={{ color: TAXI_COLOR }}>
+                      − {fmtEur(taxiPeriodTotal)}
                     </td>
                   )}
                 </tr>
