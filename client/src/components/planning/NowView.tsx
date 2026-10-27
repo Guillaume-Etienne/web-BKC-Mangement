@@ -220,7 +220,11 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
   const { data: expenseCategories } = useTable<ExpenseCategory>('expense_categories', { order: 'sort_order' })
   const [costs, setCosts] = useState<Record<string, DiningEventCost>>({})
   useEffect(() => setCosts(Object.fromEntries(costsData.map(c => [c.dining_event_id, c]))), [costsData])
-  const [expenseCategoryId, setExpenseCategoryId] = useState('')
+  const [pickedCategoryId, setPickedCategoryId] = useState('')
+  // expenses.category_id is NOT NULL: a category is always sent. Until one is picked, an
+  // "activity"-like category is proposed when there is one.
+  const expenseCategoryId = pickedCategoryId
+    || expenseCategories.find(c => !c.archived && /activit|excurs|trip/i.test(c.slug))?.id || ''
 
   // ── Instructor presence ───────────────────────────────────────────
   const [presence, setPresence] = useState<Record<string, boolean>>({})
@@ -415,7 +419,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
   // amounts proposed come from the saved cost.
   const createEventExpense = async (ev: DiningEvent, cost: DiningEventCost) => {
     const { data, error } = await supabase.from('expenses').insert([{
-      date: ev.date, category_id: expenseCategoryId || null,
+      date: ev.date, category_id: expenseCategoryId,
       amount: eventCost(ev, cost), description: eventExpenseDescription(ev),
     }]).select().single()
     if (error) { alert('Error creating expense: ' + error.message); return }
@@ -588,15 +592,15 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
             {/* Expense in Accounting: proposed, never created on its own */}
             {activeCostEur > 0 && !linkedExpense && (
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <select value={expenseCategoryId} onChange={e => setExpenseCategoryId(e.target.value)}
+                <select value={expenseCategoryId} onChange={e => setPickedCategoryId(e.target.value)}
                   className="border border-gray-200 dark:border-gray-800 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
-                  <option value="">No category</option>
+                  <option value="" disabled>Category…</option>
                   {expenseCategories.filter(c => !c.archived).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
                 <button
-                  disabled={activeDirty || !activeCost}
+                  disabled={activeDirty || !activeCost || !expenseCategoryId}
                   onClick={() => createEventExpense(activeEvent, activeCost!)}
-                  title={activeDirty ? 'Save the event first' : 'Paid by the centre, dated on the event day'}
+                  title={activeDirty ? 'Save the event first' : !expenseCategoryId ? 'Pick a category' : 'Paid by the centre, dated on the event day'}
                   className="px-3 py-1 text-sm border border-amber-300 dark:border-amber-800 rounded text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Create expense (€{activeCostEur.toFixed(2)})
