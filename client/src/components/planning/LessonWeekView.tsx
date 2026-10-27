@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import type { Lesson, DayActivity, DaySlot, LessonType, LessonDiscipline, Booking, BookingParticipant, EquipmentRental, RentalSlot, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine, Lang } from '../../types/database'
+import type { Lesson, DayActivity, DaySlot, LessonType, LessonDiscipline, Booking, BookingParticipant, EquipmentRental, RentalSlot, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine, DiningEvent, DiningEventCost, Lang } from '../../types/database'
+import { useTable } from '../../hooks/useSupabase'
+import { eventDailyContribution } from '../../utils/diningEventCosts'
 import { rentalBillable, lessonDiscipline } from '../../types/database'
 import { currentInstructorRate, reFreezeInstructorRate, resolveLessonRate, agencyMarker, getLessonClientRate } from '../accounting/utils'
 import { toISODate as dateToISO, localeTag } from '../../utils/dates'
@@ -155,6 +157,11 @@ export default function LessonWeekView({
   const SLOT_CONFIG = slotConfig(lang)
   const LESSON_TYPE_CFG = lessonTypeCfg(lang)
   const today = dateToISO(new Date())
+
+  // Events of the Now tab ticked "count in the day's figure" (trip, excursion…) add
+  // their revenue net of the provider cost to the day's total, below.
+  const { data: diningEvents } = useTable<DiningEvent>('dining_events')
+  const { data: eventCosts } = useTable<DiningEventCost>('dining_event_costs')
 
   // ── Inline add form ────────────────────────────────────────────────────────
   const emptyForm = (date: string, slot: Slot, kind: 'lesson' | 'activity' | 'rental'): AddForm => {
@@ -1242,13 +1249,18 @@ export default function LessonWeekView({
                   return sum + (l.type === 'group' ? base * l.participant_ids.length : base)
                 }, 0)
                 const rentalTotal = dayRentals.reduce((sum, r) => sum + r.price, 0)
-                const total = Math.round((lessonTotal + rentalTotal) * 100) / 100
-                if (total === 0 && dayLessons.length === 0) return null
+                const dayEvents = diningEvents.filter(ev =>
+                  ev.date === iso && eventCosts.some(c => c.dining_event_id === ev.id && c.count_in_daily))
+                const eventTotal = dayEvents.reduce((sum, ev) =>
+                  sum + eventDailyContribution(ev, eventCosts.find(c => c.dining_event_id === ev.id)), 0)
+                const total = Math.round((lessonTotal + rentalTotal + eventTotal) * 100) / 100
+                if (total === 0 && dayLessons.length === 0 && dayEvents.length === 0) return null
                 return (
                   <div className="border-t px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-b-lg flex items-center justify-between">
                     <div className="flex gap-2 text-xs text-gray-400 dark:text-gray-400">
                       {dayLessons.length > 0 && <span>{dayLessons.length} lesson{dayLessons.length > 1 ? 's' : ''}</span>}
                       {dayRentals.length > 0 && <span>{dayRentals.length} rental{dayRentals.length > 1 ? 's' : ''}</span>}
+                      {dayEvents.length > 0 && <span>{dayEvents.length} event{dayEvents.length > 1 ? 's' : ''}</span>}
                     </div>
                     <span className={`text-sm font-bold ${total > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-400'}`}>
                       €{total}

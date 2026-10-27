@@ -259,6 +259,18 @@ export interface DiningEvent {
   attendees: EventAttendee[]
 }
 
+/** Admin-only side table of `dining_events` (kept apart: the shared client page reads
+ *  dining_events with select('*'), a provider cost must never reach it). No row = the
+ *  event is not counted in the Daily figure and has no provider cost. */
+export interface DiningEventCost {
+  dining_event_id: string
+  count_in_daily: boolean
+  cost_mode: 'total' | 'per_person'
+  cost_amount: number
+  /** The expense created from this event, so a later cost change can offer to update it. */
+  expense_id: string | null
+}
+
 // Type enrichi pour le planning
 export interface RoomWithBookings extends Room {
   accommodation: Accommodation

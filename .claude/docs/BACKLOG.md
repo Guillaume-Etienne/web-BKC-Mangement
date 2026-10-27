@@ -6,6 +6,8 @@
 
 ## 🚨 Migrations SQL — registre
 
+⏳ **`2026-10-27_dining_event_costs.sql`** (**à passer par gui, TEST puis PROD, AVANT de pousser le code**) — événements de l'onglet Now : case « Count in the day's figure » + coût prestataire (total / par personne) + lien vers la dépense créée. Table neuve `dining_event_costs`, admin seulement (`REVOKE ALL` anon) ; **séparée de `dining_events` exprès** : la page client partagée la lit en `select('*')`, un coût y aurait fuité. Rien ajouté à `expenses` (le lien est dans `expense_id`). Vérif (pied du fichier) : curl anon → 42501. Le total du Daily est NET du coût ; moniteurs mis à 0 seulement à la coche (sur un dîner leur repas est retenu sur la paie). Code : `utils/diningEventCosts.ts` (testé), NowView, LessonWeekView.
+
 > **Ordre du lot 2026-10-19** : `19` (TEST+PROD) → `19b` (TEST seul) → `19c` (TEST+PROD) → **push du code**.
 > `19d` **repoussé (décision gui 2026-10-19)** : le code marche sans lui ; à reprendre dans quelques semaines,
 > idéalement en ajoutant une table d'archive des colonnes supprimées. Passer `19b` avant (il nomme `lesson_clients`).

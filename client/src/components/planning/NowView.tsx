@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import type { Booking, BookingParticipant, BookingRoom, DiningEvent, EventAttendee, EventType, Room, Accommodation, Instructor, PriceItem } from '../../types/database'
+import type { Booking, BookingParticipant, BookingRoom, DiningEvent, DiningEventCost, EventAttendee, EventType, Expense, ExpenseCategory, Room, Accommodation, Instructor, PriceItem } from '../../types/database'
 import { useTable } from '../../hooks/useSupabase'
 import { supabase } from '../../lib/supabase'
 import { getConfiguredRate } from '../accounting/utils'
+import { eventCost, eventDailyContribution, eventExpenseDescription, eventHeadcount } from '../../utils/diningEventCosts'
 import { todayISO, fmtDate } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
@@ -212,6 +213,15 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
   const { data: priceItems } = useTable<PriceItem>('price_items')
   const defaultMealPrice = getConfiguredRate(priceItems, 'meal') ?? 0
 
+  // Provider cost + "count in the Daily figure" live in an admin-only side table, not on
+  // dining_events (the shared client page reads that one with select('*')).
+  const { data: costsData, refresh: refreshCosts } = useTable<DiningEventCost>('dining_event_costs')
+  const { data: expenses, refresh: refreshExpenses } = useTable<Expense>('expenses')
+  const { data: expenseCategories } = useTable<ExpenseCategory>('expense_categories', { order: 'sort_order' })
+  const [costs, setCosts] = useState<Record<string, DiningEventCost>>({})
+  useEffect(() => setCosts(Object.fromEntries(costsData.map(c => [c.dining_event_id, c]))), [costsData])
+  const [expenseCategoryId, setExpenseCategoryId] = useState('')
+
   // ── Instructor presence ───────────────────────────────────────────
   const [presence, setPresence] = useState<Record<string, boolean>>({})
 
@@ -322,6 +332,23 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
     if (activeId) setDirtyIds(prev => new Set(prev).add(activeId))
   }, [activeId])
 
+  const updateCost = (changes: Partial<Omit<DiningEventCost, 'dining_event_id'>>) => {
+    if (!activeEvent) return
+    const base: DiningEventCost = costs[activeEvent.id]
+      ?? { dining_event_id: activeEvent.id, count_in_daily: false, cost_mode: 'total', cost_amount: 0, expense_id: null }
+    setCosts(prev => ({ ...prev, [activeEvent.id]: { ...base, ...changes } }))
+    setDirtyIds(prev => new Set(prev).add(activeEvent.id))
+    // Ticking the box turns the event into a trip we sell to guests: our own instructors
+    // ride for free, so any instructor without an explicit price is set to 0 — only on
+    // this event, since on a plain dinner their meal is deducted from their pay.
+    if (changes.count_in_daily && !base.count_in_daily) {
+      updateEvent({
+        attendees: activeEvent.attendees.map(a =>
+          a.person_type === 'instructor' && a.price_override === undefined ? { ...a, price_override: 0 } : a),
+      })
+    }
+  }
+
   const updateAttendee = useCallback((attendeeId: string, changes: Partial<EventAttendee>) => {
     setEvents(prev => prev.map(e => {
       if (e.id !== activeId) return e
@@ -362,8 +389,51 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
       alert('Error saving event: ' + error.message)
       return
     }
+    // Only an event that was given a cost / the Daily box has a row: a plain dinner
+    // never touches the side table.
+    const cost = costs[id]
+    if (cost) {
+      const { error: costError } = await supabase.from('dining_event_costs').upsert({
+        dining_event_id: id, count_in_daily: cost.count_in_daily,
+        cost_mode: cost.cost_mode, cost_amount: cost.cost_amount,
+        expense_id: cost.expense_id, updated_at: new Date().toISOString(),
+      }, { onConflict: 'dining_event_id' })
+      if (costError) {
+        console.error('Save event cost error:', costError.message)
+        alert('Error saving event cost: ' + costError.message)
+        return
+      }
+      refreshCosts()
+    }
     setDirtyIds(prev => { const n = new Set(prev); n.delete(id); return n })
-  }, [events])
+  }, [events, costs, refreshCosts])
+
+  // ── Expense linked to the event's provider cost ──────────────────
+  // One-shot buttons, never a silent sync (same rule as the equipment purchase expense):
+  // the expense can be edited from Accounting, a live mirror would fight those edits.
+  // The centre pays (paid_by_associate_id left null). Both need a SAVED event: the
+  // amounts proposed come from the saved cost.
+  const createEventExpense = async (ev: DiningEvent, cost: DiningEventCost) => {
+    const { data, error } = await supabase.from('expenses').insert([{
+      date: ev.date, category_id: expenseCategoryId || null,
+      amount: eventCost(ev, cost), description: eventExpenseDescription(ev),
+    }]).select().single()
+    if (error) { alert('Error creating expense: ' + error.message); return }
+    const { error: linkError } = await supabase.from('dining_event_costs')
+      .update({ expense_id: data.id }).eq('dining_event_id', ev.id)
+    if (linkError) { alert('Expense created, but not linked to the event: ' + linkError.message); return }
+    refreshCosts()
+    refreshExpenses()
+  }
+
+  const updateEventExpense = async (ev: DiningEvent, cost: DiningEventCost) => {
+    if (!cost.expense_id) return
+    const { error } = await supabase.from('expenses').update({
+      date: ev.date, amount: eventCost(ev, cost), description: eventExpenseDescription(ev),
+    }).eq('id', cost.expense_id)
+    if (error) { alert('Error updating expense: ' + error.message); return }
+    refreshExpenses()
+  }
 
   // ── Totals ────────────────────────────────────────────────────────
   const attending = useMemo(
@@ -386,6 +456,16 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
   const guests         = activeEvent?.attendees.filter(a => a.person_type !== 'instructor') ?? []
   const isMenu      = activeEvent?.type === 'menu'
   const eventPrice  = activeEvent?.price_per_person ?? 0
+
+  // Provider cost / expense state of the open event
+  const activeCost    = activeEvent ? costs[activeEvent.id] : undefined
+  const activeCostEur = activeEvent ? eventCost(activeEvent, activeCost) : 0
+  const activeDirty   = activeEvent ? dirtyIds.has(activeEvent.id) : false
+  const linkedExpense = activeCost?.expense_id ? expenses.find(x => x.id === activeCost.expense_id) : undefined
+  const expenseOutOfSync = !!(activeEvent && linkedExpense && (
+    Math.abs(linkedExpense.amount - activeCostEur) > 0.005
+    || linkedExpense.date !== activeEvent.date
+    || linkedExpense.description !== eventExpenseDescription(activeEvent)))
 
   return (
     <div className="space-y-4">
@@ -472,6 +552,74 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
                 className="flex-1 min-w-[140px] border border-gray-200 dark:border-gray-800 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
             </div>
+
+            {/* Daily figure + provider cost */}
+            <div className="flex flex-wrap gap-x-4 gap-y-2 items-center text-sm border-t border-gray-100 dark:border-gray-800 pt-3">
+              <label className="flex items-center gap-2 cursor-pointer text-gray-700 dark:text-gray-300">
+                <input type="checkbox" checked={activeCost?.count_in_daily ?? false}
+                  onChange={e => updateCost({ count_in_daily: e.target.checked })} />
+                Count in the day's figure
+              </label>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-400 dark:text-gray-400 text-xs">provider cost €</span>
+                <input type="number" min="0" step="0.01" value={activeCost?.cost_amount || ''}
+                  onChange={e => updateCost({ cost_amount: parseFloat(e.target.value) || 0 })}
+                  className="w-24 border border-gray-200 dark:border-gray-800 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  placeholder="0" />
+                <select value={activeCost?.cost_mode ?? 'total'}
+                  onChange={e => updateCost({ cost_mode: e.target.value as DiningEventCost['cost_mode'] })}
+                  className="border border-gray-200 dark:border-gray-800 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
+                  <option value="total">in total</option>
+                  <option value="per_person">per person</option>
+                </select>
+              </div>
+              {activeCostEur > 0 && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  = €{activeCostEur.toFixed(2)}{activeCost?.cost_mode === 'per_person' && ` (${eventHeadcount(activeEvent)} present)`}
+                </span>
+              )}
+              {activeCost?.count_in_daily && (
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                  Daily: €{eventDailyContribution(activeEvent, activeCost).toFixed(2)} net
+                </span>
+              )}
+            </div>
+
+            {/* Expense in Accounting: proposed, never created on its own */}
+            {activeCostEur > 0 && !linkedExpense && (
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <select value={expenseCategoryId} onChange={e => setExpenseCategoryId(e.target.value)}
+                  className="border border-gray-200 dark:border-gray-800 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
+                  <option value="">No category</option>
+                  {expenseCategories.filter(c => !c.archived).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <button
+                  disabled={activeDirty || !activeCost}
+                  onClick={() => createEventExpense(activeEvent, activeCost!)}
+                  title={activeDirty ? 'Save the event first' : 'Paid by the centre, dated on the event day'}
+                  className="px-3 py-1 text-sm border border-amber-300 dark:border-amber-800 rounded text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Create expense (€{activeCostEur.toFixed(2)})
+                </button>
+                {activeDirty && <span className="text-xs text-gray-400 dark:text-gray-400">save the event first</span>}
+              </div>
+            )}
+            {linkedExpense && (expenseOutOfSync ? (
+              <div className="flex flex-wrap items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
+                <span>Expense is €{linkedExpense.amount.toFixed(2)}, cost is now €{activeCostEur.toFixed(2)}</span>
+                <button
+                  disabled={activeDirty}
+                  onClick={() => updateEventExpense(activeEvent, activeCost!)}
+                  title={activeDirty ? 'Save the event first' : undefined}
+                  className="px-3 py-1 text-sm border border-amber-300 dark:border-amber-800 rounded hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Update expense
+                </button>
+                {activeDirty && <span className="text-xs text-gray-400 dark:text-gray-400">save the event first</span>}
+              </div>
+            ) : (
+              <div className="text-xs text-emerald-700 dark:text-emerald-400">✓ Expense recorded in Accounting (€{linkedExpense.amount.toFixed(2)})</div>
+            ))}
           </div>
 
           {/* Totals bar */}
