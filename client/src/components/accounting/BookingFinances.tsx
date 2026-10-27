@@ -10,7 +10,7 @@ import {
   computeDiningForBooking, getLessonClientRate, lessonHeadsFor, lessonsForBooking, getConfiguredRate, computeStandaloneTaxiRevenue, agencyMarker, agencyPackageHours, agencyHoursPool,
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate, computeExtrasRevenue, chargeAmount,
 } from './utils'
-import { todayISO, fmtDate } from '../../utils/dates'
+import { todayISO, addDaysISO, fmtDate } from '../../utils/dates'
 import AgencyBillingPanel from './AgencyBillingPanel'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
@@ -1298,8 +1298,8 @@ export default function BookingFinances({ data, handlers }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showCancelled, setShowCancelled] = useState(false)
   const [presentOnly, setPresentOnly] = useState(false)
-  const [maxNights, setMaxNights] = useState('')  // "under x days"
-  const [minNights, setMinNights] = useState('')  // "over y days"
+  const [daysBefore, setDaysBefore] = useState('')  // window start: x days before today
+  const [daysAfter, setDaysAfter] = useState('')    // window end: y days after today
   const [search, setSearch] = useState('')
 
   const standaloneTrips = data.taxiTrips.filter(t => t.booking_id === null)
@@ -1327,11 +1327,12 @@ export default function BookingFinances({ data, handlers }: Props) {
         const today = todayISO()
         if (b.check_in > today || b.check_out < today) return false
       }
-      const n = countNights(b.check_in, b.check_out)
-      const max = parseInt(maxNights, 10)
-      const min = parseInt(minNights, 10)
-      if (!isNaN(max) && n >= max) return false
-      if (!isNaN(min) && n <= min) return false
+      // Presence window relative to today: keep stays that overlap it.
+      // An empty bound leaves that side open.
+      const before = parseInt(daysBefore, 10)
+      const after  = parseInt(daysAfter, 10)
+      if (!isNaN(before) && b.check_out < addDaysISO(todayISO(), -before)) return false
+      if (!isNaN(after)  && b.check_in  > addDaysISO(todayISO(), after))   return false
       return true
     })
     .map(b => {
@@ -1372,16 +1373,16 @@ export default function BookingFinances({ data, handlers }: Props) {
           {i18n.accounting.bf_filter_present[lang]}
         </label>
         <label className="flex items-center gap-2">
-          {i18n.accounting.bf_filter_under[lang]}
-          <input type="number" min="1" value={maxNights} onChange={e => setMaxNights(e.target.value)}
+          {i18n.accounting.bf_filter_from[lang]}
+          <input type="number" min="0" value={daysBefore} onChange={e => setDaysBefore(e.target.value)}
             className="w-16 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400" />
-          {i18n.accounting.bf_filter_days[lang]}
+          {i18n.accounting.bf_filter_days_before[lang]}
         </label>
         <label className="flex items-center gap-2">
-          {i18n.accounting.bf_filter_over[lang]}
-          <input type="number" min="1" value={minNights} onChange={e => setMinNights(e.target.value)}
+          {i18n.accounting.bf_filter_to[lang]}
+          <input type="number" min="0" value={daysAfter} onChange={e => setDaysAfter(e.target.value)}
             className="w-16 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400" />
-          {i18n.accounting.bf_filter_days[lang]}
+          {i18n.accounting.bf_filter_days_after[lang]}
         </label>
       </div>
 
