@@ -58,10 +58,12 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
             <div className="flex-shrink-0">
               <button
                 onClick={() => handleNavigate('home')}
-                className={`text-xl font-bold hover:text-blue-700 dark:hover:text-blue-400 ${currentEnv === 'test' ? 'text-amber-700 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}
+                className={`flex flex-col items-start leading-none hover:text-blue-700 dark:hover:text-blue-400 ${currentEnv === 'test' ? 'text-amber-700 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}
                 style={{ touchAction: 'manipulation' }}
+                title={__APP_BUILD__}
               >
-                {currentEnv === 'test' && '🏄 '}BKC
+                <span className="text-xl font-bold">{currentEnv === 'test' && '🏄 '}BKC</span>
+                <span className="mt-0.5 text-[9px] font-normal opacity-60">{__APP_VERSION__}</span>
               </button>
             </div>
 
