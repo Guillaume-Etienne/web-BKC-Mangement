@@ -7,7 +7,9 @@ export type GearLike = Pick<Equipment, 'id' | 'name' | 'brand' | 'size'>
 /** "Duotone Rebel 9m": brand + name + size, skipping a brand the name already starts with. */
 export function gearName(e: GearLike): string {
   const brand = e.brand && !e.name.toLowerCase().startsWith(e.brand.toLowerCase()) ? e.brand : ''
-  return [brand, e.name, e.size].filter(Boolean).join(' ')
+  // Names like "E8 Master 139x42" already carry the size
+  const size = e.size && !e.name.toLowerCase().includes(e.size.toLowerCase()) ? e.size : ''
+  return [brand, e.name, size].filter(Boolean).join(' ')
 }
 
 function joinGear(ids: (string | null | undefined)[], equipment: GearLike[]): string {

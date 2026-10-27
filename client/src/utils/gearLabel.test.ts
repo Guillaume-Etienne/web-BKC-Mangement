@@ -12,6 +12,7 @@ describe('gearLabel', () => {
     expect(gearName(eq[0])).toBe('Duotone Rebel 9m')
     expect(gearName(eq[1])).toBe('Duotone Neo 12m')
     expect(gearName(eq[2])).toBe('Jaime')
+    expect(gearName({ id: 'x', name: 'E8 Master 139x42', brand: 'Eleveight', size: '139x42' })).toBe('Eleveight E8 Master 139x42')
   })
 
   it('joins the kite and the board of a rental, and ignores unknown ids', () => {
