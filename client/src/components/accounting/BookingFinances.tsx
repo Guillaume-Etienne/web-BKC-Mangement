@@ -11,6 +11,7 @@ import {
   fmtEur, suggestDeposit, countNights, getRoomNightlyRate, computeExtrasRevenue, chargeAmount,
 } from './utils'
 import { todayISO, addDaysISO, fmtDate } from '../../utils/dates'
+import { lessonGearText, rentalGearText, inParens } from '../../utils/gearLabel'
 import AgencyBillingPanel from './AgencyBillingPanel'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
@@ -743,6 +744,9 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                       <div className="flex justify-between items-center">
                         <span>
                           {l.type} · {l.duration_hours}h · {fmtDate(l.date)}{instr ? ` (${instr.first_name})` : ''}
+                          {lessonGearText(l, null, data.equipment) && (
+                            <span className="ml-1 text-gray-400 dark:text-gray-500">({lessonGearText(l, null, data.equipment)})</span>
+                          )}
                           {l.type === 'group' && <span className="ml-1">× {heads}</span>}
                           {isShared && (
                             <span className="ml-1 italic text-gray-400 dark:text-gray-500">
@@ -798,7 +802,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                     <div key={r.id} className="text-xs text-gray-500 dark:text-gray-400">
                       <div className="flex justify-between items-center">
                         <span>
-                          {fmtDate(r.date)} · {typeLabel} · {r.slot}
+                          {fmtDate(r.date)} · {typeLabel}{inParens(rentalGearText(r, data.equipment))} · {r.slot}
                           {r.participant_id && partName(r.participant_id) && (
                             <span className="ml-1 text-blue-400 dark:text-blue-300">— {partName(r.participant_id)}</span>
                           )}
@@ -1083,7 +1087,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
             const rate = getLessonClientRate(l, data.priceItems, { tiers: data.priceTiers, allLessons: data.lessons, bookingParticipants: data.bookingParticipants })
             lines.push({
               date: l.date,
-              label: `${l.type} ${i18n.accounting.bf_word_lesson[lang]} ${l.duration_hours}h${instr ? ` (${instr.first_name})` : ''}`,
+              label: `${l.type} ${i18n.accounting.bf_word_lesson[lang]} ${l.duration_hours}h${instr ? ` (${instr.first_name})` : ''}${inParens(lessonGearText(l, part.id, data.equipment))}`,
               amount: rate * l.duration_hours,
             })
           }
@@ -1093,7 +1097,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
             if (r.participant_id !== part.id) continue
             // Per-guest breakdown: the guest's wording ("Kite + bar + board"), not our "Full".
             const kind = rentalKind(r, data.equipment)
-            lines.push({ date: r.date, label: `${kind ? rentalLabel(kind, 'client') : i18n.accounting.bf_word_rental[lang]} · ${r.slot}`, amount: r.price })
+            lines.push({ date: r.date, label: `${kind ? rentalLabel(kind, 'client') : i18n.accounting.bf_word_rental[lang]}${inParens(rentalGearText(r, data.equipment))} · ${r.slot}`, amount: r.price })
           }
 
           // Dining events where this participant attended

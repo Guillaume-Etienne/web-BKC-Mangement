@@ -1,4 +1,7 @@
-import { taxiTripLabels } from '../data/taxiTripTypes'
+import { shareT, type ShareKey } from '../data/i18n/clientShare'
+import { detectAdminLang } from '../data/i18n'
+import { localeTag } from '../utils/dates'
+import { lessonGearText, rentalGearText, inParens, type GearLike } from '../utils/gearLabel'
 import { displayFirstName } from '../utils/names'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
@@ -8,12 +11,11 @@ import type {
   EquipmentRental, TaxiTrip,
   DiningEvent, BookingParticipant,
   ExternalAccommodationBooking,
-  ActivityBooking, RoomRate, BookingCharge,
+  ActivityBooking, RoomRate, BookingCharge, Lang,
 } from '../types/database'
 import { getBaseNightlyRate } from '../utils/roomPricing'
 import { agencyHoursPool } from '../components/accounting/utils'
 import AgencyHoursGauge from '../components/common/AgencyHoursGauge'
-import { rentalLabel, RENTAL_SLOT_LABEL } from '../components/planning/rentalTypes'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,9 +60,14 @@ type SharedRental = Pick<EquipmentRental,
   | 'rental_type' | 'list_price' | 'client_note'>
   & { price: number | null }
 
-/** What the guest reads for a rental. Rows from before 2026-10-18 carry no type. */
-const rentalName = (r: Pick<SharedRental, 'rental_type'>) =>
-  r.rental_type ? rentalLabel(r.rental_type, 'client') : 'Rental'
+/** Key of what the guest reads for a rental. Rows from before 2026-10-18 carry no type. */
+const rentalKey = (r: Pick<SharedRental, 'rental_type'>): ShareKey =>
+  r.rental_type
+    ? (r.rental_type === 'full' ? 'rent_full' : r.rental_type === 'kite' ? 'rent_kite' : `rent_${r.rental_type}`) as ShareKey
+    : 'rent_generic'
+
+/** Kite and board of one lesson, read through their own query (see below). */
+type GearIds = { kite_id: string | null; board_id: string | null }
 
 type SharedTaxi = Pick<TaxiTrip, 'id' | 'date' | 'type' | 'nb_persons' | 'agency_billing_line_id'>
   & { price_eur: number | null }
@@ -79,14 +86,6 @@ function nightsBetween(checkIn: string, checkOut: string): number {
   return Math.max(0, Math.round(
     (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)
   ))
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-function fmtEur(n: number): string {
-  return n.toLocaleString('en-GB', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 })
 }
 
 function roomLabel(room: Room, accom: Accommodation): string {
@@ -115,19 +114,13 @@ function getLessonRate(l: SharedLesson): number {
 const coveredByAgency = (row: { agency_billing_line_id?: string | null }) =>
   row.agency_billing_line_id != null
 
-const METHOD_LABELS: Record<string, string> = {
-  cash_eur:        'Cash (€)',
-  cash_mzn:        'Cash (MZN)',
-  transfer:        'Transfer',
-  card_palmeiras:  'Card – Palmeiras',
-}
-
-const TAXI_TYPE_LABELS: Record<string, string> = taxiTripLabels()
+const SHARE_TAXI_KEYS = { taxi_aero_to_center: 1, taxi_center_to_aero: 1, taxi_center_to_town: 1, taxi_town_to_center: 1, taxi_other: 1 }
+const SHARE_PAY_KEYS = { pay_cash_eur: 1, pay_cash_mzn: 1, pay_transfer: 1, pay_card_palmeiras: 1 }
 
 const STATUS_CFG = {
-  confirmed:   { label: 'Confirmed',   cls: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'  },
-  provisional: { label: 'Provisional', cls: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'  },
-  cancelled:   { label: 'Cancelled',   cls: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'      },
+  confirmed:   { label: 'status_confirmed' as ShareKey,   cls: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'  },
+  provisional: { label: 'status_provisional' as ShareKey, cls: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'  },
+  cancelled:   { label: 'status_cancelled' as ShareKey,   cls: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'      },
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -152,6 +145,24 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const [activityBkgs,   setActivityBkgs]   = useState<ActivityBooking[]>([])
   const [agencyPkg,      setAgencyPkg]      = useState<AgencyPackage | null>(null)
   const [loading,        setLoading]        = useState(true)
+  const [lessonGear,     setLessonGear]     = useState<Record<string, GearIds>>({})
+  const [rentalBoard,    setRentalBoard]    = useState<Record<string, string | null>>({})
+  const [equipment,      setEquipment]      = useState<GearLike[]>([])
+  // The guest's language: what they last picked here, else their browser's.
+  const [lang, setLangState] = useState<Lang>(() => {
+    try { const s = localStorage.getItem('share_lang'); if (s === 'fr' || s === 'en' || s === 'es') return s } catch { /* private mode */ }
+    return detectAdminLang()
+  })
+  const setLang = (l: Lang) => { setLangState(l); try { localStorage.setItem('share_lang', l) } catch { /* private mode */ } }
+  // Gear in parentheses: shown by default on a wide screen, opt-in on a phone.
+  const [showGear, setShowGear] = useState(() => {
+    try { return window.matchMedia('(min-width: 768px)').matches } catch { return true }
+  })
+  const t = (k: ShareKey) => shareT(lang, k)
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(localeTag(lang), { day: 'numeric', month: 'short', year: 'numeric' })
+  const fmtEur = (n: number) =>
+    n.toLocaleString(localeTag(lang), { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 })
 
   // Step 1 — fetch booking by number
   useEffect(() => {
@@ -239,6 +250,25 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         .select('id, date, label, category, quantity, unit_price')
         .eq('booking_id', id).order('date')
       setExtras(extrasRes.error ? [] : (extrasRes.data ?? []) as SharedExtra[])
+      // Gear (2026-10-27): kite/board of each lesson, board of each "Full" rental, then
+      // the models behind those ids. Own queries for the same reason: before the
+      // migration anon cannot read these columns, and that must only mean "no gear".
+      const lessonIds = [...(lessonsRes.data ?? []), ...(sharedRes?.data ?? [])].map(l => l.id)
+      const [lGearRes, rGearRes] = await Promise.all([
+        lessonIds.length === 0 ? null : supabase.from('lessons').select('id, kite_id, board_id').in('id', lessonIds),
+        supabase.from('equipment_rentals').select('id, board_equipment_id').eq('booking_id', id),
+      ])
+      const lGear = lGearRes?.error ? [] : (lGearRes?.data ?? [])
+      const rBoards = rGearRes.error ? [] : (rGearRes.data ?? [])
+      const gearIds = new Set<string>()
+      for (const g of lGear) { if (g.kite_id) gearIds.add(g.kite_id); if (g.board_id) gearIds.add(g.board_id) }
+      for (const r of rentalsRes.data ?? []) if (r.equipment_id) gearIds.add(r.equipment_id)
+      for (const r of rBoards) if (r.board_equipment_id) gearIds.add(r.board_equipment_id)
+      const eqRes = gearIds.size === 0 ? null
+        : await supabase.from('equipment').select('id, name, brand, size').in('id', [...gearIds])
+      setEquipment(eqRes?.error ? [] : (eqRes?.data ?? []) as GearLike[])
+      setLessonGear(Object.fromEntries(lGear.map(g => [g.id, { kite_id: g.kite_id, board_id: g.board_id }])))
+      setRentalBoard(Object.fromEntries(rBoards.map(r => [r.id, r.board_equipment_id])))
       // Agency package (2026-10-24): the agency's name and the hours its lesson
       // packages add up to — never a price. Own call for the same reason: before
       // the migration the function does not exist, and that must only mean "none".
@@ -272,7 +302,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   if (loading || booking === undefined) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <div className="text-gray-400 dark:text-gray-400 text-lg">Loading…</div>
+        <div className="text-gray-400 dark:text-gray-400 text-lg">{t('loading')}</div>
       </div>
     )
   }
@@ -281,8 +311,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-2xl text-gray-400 dark:text-gray-400 mb-2">Booking not found</p>
-          <p className="text-sm text-gray-400 dark:text-gray-400">This link may be invalid or expired.</p>
+          <p className="text-2xl text-gray-400 dark:text-gray-400 mb-2">{t('not_found_title')}</p>
+          <p className="text-sm text-gray-400 dark:text-gray-400">{t('not_found_msg')}</p>
         </div>
       </div>
     )
@@ -291,6 +321,18 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   // ── Calculations ───────────────────────────────────────────────────────────
 
   const nights = nightsBetween(booking.check_in, booking.check_out)
+  const taxiLabel = (type: string): string => {
+    const k = `taxi_${type.replace(/-/g, '_')}`
+    return k in SHARE_TAXI_KEYS ? t(k as ShareKey) : type
+  }
+  const payLabel = (method: string): string => {
+    const k = `pay_${method}`
+    return k in SHARE_PAY_KEYS ? t(k as ShareKey) : method
+  }
+  const rentalGear = (r: SharedRental): string => showGear
+    ? rentalGearText({ equipment_id: r.equipment_id, board_equipment_id: rentalBoard[r.id] ?? null }, equipment) : ''
+  const lessonGear_ = (id: string): string => showGear
+    ? lessonGearText({ kite_id: lessonGear[id]?.kite_id ?? null, board_id: lessonGear[id]?.board_id ?? null }, null, equipment) : ''
   const statusCfg = STATUS_CFG[booking.status] ?? STATUS_CFG.confirmed
 
   // Accommodation rows (own rooms)
@@ -332,7 +374,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
     .map(e => {
       const acc = accoms.find(a => a.id === e.accommodation_id)
       return {
-        label: acc?.name ?? 'External',
+        label: acc?.name ?? t('external'),
         nights: nightsBetween(e.check_in, e.check_out),
         pricePerNight: null as number | null,
         total: e.total_sell_price,
@@ -358,6 +400,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       duration: l.duration_hours,
       instructor: instr ? instr.first_name : '?',
       guests: partNames(l.participant_ids),
+      gear: lessonGear_(l.id),
       // Group: only the heads sitting on THIS booking (a lesson shared with another one is split)
       total: coveredByAgency(l) ? null : rate * l.duration_hours * (l.type === 'group' ? l.participant_ids.filter(pid => partIdSet.has(pid)).length : 1),
     }
@@ -376,7 +419,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
     lessons.some(coveredByAgency) || rentals.some(coveredByAgency) || taxis.some(coveredByAgency)
   // The agency's lesson packages as one pool of hours — same count as accounting
   const pool = agencyPkg ? agencyHoursPool(booking.id, Number(agencyPkg.hours_included), lessons) : null
-  const agencyName = agencyPkg?.agency_name ?? 'the agency'
+  const agencyName = agencyPkg?.agency_name ?? t('agency_default')
 
   // Dining events (match participants to attendees)
   const partIds = new Set(participants.map(p => p.id))
@@ -421,8 +464,26 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between">
         <span className="text-xl font-bold text-blue-600 dark:text-blue-400">Kitesurf Center</span>
         <span className="text-xs px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full font-medium">
-          Your stay — Read-only
+          {t('header_readonly')}
         </span>
+      </div>
+
+      {/* Guest controls: language, and the gear shown in parentheses */}
+      <div className="max-w-2xl mx-auto px-4 pt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={showGear} onChange={e => setShowGear(e.target.checked)} className="rounded" />
+          {t('show_equipment')}
+        </label>
+        <div className="flex items-center gap-1" role="group" aria-label={t('language')}>
+          {(['fr', 'en', 'es'] as Lang[]).map(l => (
+            <button key={l} type="button" onClick={() => setLang(l)} aria-pressed={lang === l}
+              className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase transition-colors ${lang === l
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
@@ -432,13 +493,13 @@ export default function ClientSharePage({ bookingNumber }: Props) {
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-blue-200 dark:text-blue-300 text-sm font-medium">Booking #{String(booking.booking_number).padStart(3, '0')}</p>
+                <p className="text-blue-200 dark:text-blue-300 text-sm font-medium">{t('booking')} #{String(booking.booking_number).padStart(3, '0')}</p>
                 <h1 className="text-2xl font-bold mt-0.5">
                   {displayFirstName(booking.client?.first_name)} {booking.client?.last_name}
                 </h1>
               </div>
               <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusCfg.cls}`}>
-                {statusCfg.label}
+                {t(statusCfg.label)}
               </span>
             </div>
             <div className="mt-4 flex items-center gap-2 text-sm text-blue-100 dark:text-blue-300">
@@ -446,7 +507,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               <span>→</span>
               <span>{formatDate(booking.check_out)}</span>
               <span className="ml-2 bg-blue-500/40 px-2 py-0.5 rounded-full text-white font-medium">
-                {nights} night{nights !== 1 ? 's' : ''}
+                {nights} {t(nights !== 1 ? 'nights' : 'night')}
               </span>
             </div>
           </div>
@@ -456,8 +517,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         {agencyPkg && (
           <section className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-indigo-200 dark:border-indigo-900 px-5 py-4 space-y-3">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              🤝 Your trip was arranged through <span className="font-semibold text-gray-800 dark:text-gray-200">{agencyPkg.agency_name}</span>.
-              What they cover is not charged to you here.
+              🤝 {t('agency_arranged')} <span className="font-semibold text-gray-800 dark:text-gray-200">{agencyPkg.agency_name}</span>.
+              {t('agency_not_charged')}
             </p>
             {pool && <AgencyHoursGauge pool={pool} agencyName={agencyPkg.agency_name} />}
           </section>
@@ -465,42 +526,42 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Accommodation */}
         {(billedAccomRows.length > 0 || extAccomRows.length > 0) && (
-          <Section title="Accommodation" icon="🛏️">
+          <Section title={t('sec_accommodation')} icon="🛏️">
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Room</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Nights</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Per night</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_room')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">{t('col_nights')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">{t('col_per_night')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">{t('col_total')}</th>
                 </tr>
               </thead>
               <tbody>
                 {billedAccomRows.map((row, i) => (
                   <tr key={i} className="border-b border-gray-50 dark:border-gray-800">
-                    <td data-label="Room" className="px-2.5 sm:px-5 py-3 font-medium text-gray-800 dark:text-gray-200">
+                    <td data-label={t('col_room')} className="px-2.5 sm:px-5 py-3 font-medium text-gray-800 dark:text-gray-200">
                       {row.label}
                       {row.note && <span className="ml-2 text-xs text-gray-400 dark:text-gray-400 italic">{row.note}</span>}
                     </td>
-                    <td data-label="Nights" className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{row.nights}</td>
-                    <td data-label="Per night" className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{fmtEur(row.pricePerNight)}</td>
-                    <td data-label="Total" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(row.total)}</td>
+                    <td data-label={t('col_nights')} className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{row.nights}</td>
+                    <td data-label={t('col_per_night')} className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{fmtEur(row.pricePerNight)}</td>
+                    <td data-label={t('col_total')} className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(row.total)}</td>
                   </tr>
                 ))}
                 {extAccomRows.map((row, i) => (
                   <tr key={`ext-${i}`} className="border-b border-gray-50 dark:border-gray-800">
-                    <td data-label="Room" className="px-2.5 sm:px-5 py-3 font-medium text-gray-800 dark:text-gray-200">{row.label}</td>
-                    <td data-label="Nights" className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{row.nights}</td>
-                    <td data-label="Per night" className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">
+                    <td data-label={t('col_room')} className="px-2.5 sm:px-5 py-3 font-medium text-gray-800 dark:text-gray-200">{row.label}</td>
+                    <td data-label={t('col_nights')} className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{row.nights}</td>
+                    <td data-label={t('col_per_night')} className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">
                       {row.pricePerNight != null ? fmtEur(row.pricePerNight) : '—'}
                     </td>
-                    <td data-label="Total" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(row.total)}</td>
+                    <td data-label={t('col_total')} className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(row.total)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal accommodation</td>
+                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">{t('sub_accommodation')}</td>
                   <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(accomTotal)}</td>
                 </tr>
               </tfoot>
@@ -510,29 +571,29 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Lessons */}
         {lessonRows.length > 0 && (
-          <Section title="Kite lessons" icon="🏄">
+          <Section title={t('sec_lessons')} icon="🏄">
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Type</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Guest</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Duration</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Instructor</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_date')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_type')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_guest')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">{t('col_duration')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_instructor')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">{t('col_total')}</th>
                 </tr>
               </thead>
               <tbody>
                 {lessonRows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td data-label="Date" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td data-label="Type" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 capitalize">{r.type}</td>
-                    <td data-label="Guest" className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
-                    <td data-label="Duration" className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{r.duration}h</td>
-                    <td data-label="Instructor" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.instructor}</td>
-                    <td data-label="Total" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
+                    <td data-label={t('col_date')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td data-label={t('col_type')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 ">{t(`lesson_${r.type}` as ShareKey)}{inParens(r.gear)}</td>
+                    <td data-label={t('col_guest')} className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
+                    <td data-label={t('col_duration')} className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{r.duration}h</td>
+                    <td data-label={t('col_instructor')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.instructor}</td>
+                    <td data-label={t('col_total')} className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
                       {r.total == null
-                        ? <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400 whitespace-nowrap">In package</span>
+                        ? <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400 whitespace-nowrap">{t('in_package')}</span>
                         : fmtEur(r.total)}
                     </td>
                   </tr>
@@ -540,7 +601,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td colSpan={5} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal lessons</td>
+                  <td colSpan={5} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">{t('sub_lessons')}</td>
                   <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(lessonsTotal)}</td>
                 </tr>
               </tfoot>
@@ -550,26 +611,26 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Equipment rentals */}
         {rentals.length > 0 && (
-          <Section title="Equipment rentals" icon="🎿">
+          <Section title={t('sec_rentals')} icon="🎿">
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Guest</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Item</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Price</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_date')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_guest')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_item')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">{t('col_price')}</th>
                 </tr>
               </thead>
               <tbody>
                 {rentals.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td data-label="Date" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td data-label="Guest" className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.participant_id ? partName(r.participant_id) ?? '' : ''}</td>
-                    <td data-label="Item" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">
-                      {rentalName(r)} · {RENTAL_SLOT_LABEL[r.slot]}
+                    <td data-label={t('col_date')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td data-label={t('col_guest')} className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.participant_id ? partName(r.participant_id) ?? '' : ''}</td>
+                    <td data-label={t('col_item')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">
+                      {t(rentalKey(r))}{inParens(rentalGear(r))} · {t(`slot_${r.slot}` as ShareKey)}
                       {r.client_note && <div className="text-xs text-gray-400 dark:text-gray-500">{r.client_note}</div>}
                     </td>
-                    <td data-label="Price" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
+                    <td data-label={t('col_price')} className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
                       {coveredByAgency(r) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : (
                         <>
                           {r.list_price != null && r.price != null && r.list_price > r.price && (
@@ -584,7 +645,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal rentals</td>
+                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">{t('sub_rentals')}</td>
                   <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(rentalsTotal)}</td>
                 </tr>
               </tfoot>
@@ -594,31 +655,31 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Taxis */}
         {taxis.length > 0 && (
-          <Section title="Taxi transfers" icon="🚕">
+          <Section title={t('sec_taxis')} icon="🚕">
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Route</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Pax</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Price</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_date')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_route')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">{t('col_pax')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">{t('col_price')}</th>
                 </tr>
               </thead>
               <tbody>
-                {taxis.map(t => (
-                  <tr key={t.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td data-label="Date" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(t.date)}</td>
-                    <td data-label="Route" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{TAXI_TYPE_LABELS[t.type] ?? t.type}</td>
-                    <td data-label="Pax" className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{t.nb_persons}</td>
-                    <td data-label="Price" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
-                      {coveredByAgency(t) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(t.price_eur ?? 0)}
+                {taxis.map(trip => (
+                  <tr key={trip.id} className="border-b border-gray-50 dark:border-gray-800">
+                    <td data-label={t('col_date')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(trip.date)}</td>
+                    <td data-label={t('col_route')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{taxiLabel(trip.type)}</td>
+                    <td data-label={t('col_pax')} className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{trip.nb_persons}</td>
+                    <td data-label={t('col_price')} className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
+                      {coveredByAgency(trip) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : fmtEur(trip.price_eur ?? 0)}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal taxis</td>
+                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">{t('sub_taxis')}</td>
                   <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(taxiTotal)}</td>
                 </tr>
               </tfoot>
@@ -628,32 +689,32 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Dining events */}
         {diningRows.length > 0 && (
-          <Section title="Dining" icon="🍽️">
+          <Section title={t('sec_dining')} icon="🍽️">
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Event</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Detail</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_date')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_event')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">{t('col_detail')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">{t('col_total')}</th>
                 </tr>
               </thead>
               <tbody>
                 {diningRows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td data-label="Date" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td data-label="Event" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.name}</td>
-                    <td data-label="Detail" className="px-2.5 sm:px-5 py-3 text-right text-gray-500 dark:text-gray-400">
+                    <td data-label={t('col_date')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td data-label={t('col_event')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.name}</td>
+                    <td data-label={t('col_detail')} className="px-2.5 sm:px-5 py-3 text-right text-gray-500 dark:text-gray-400">
                       {r.count}p @ {fmtEur(r.pricePerPerson)}
                       {r.guests && <span className="ml-1 text-blue-400 dark:text-blue-300 text-xs">({r.guests})</span>}
                     </td>
-                    <td data-label="Total" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
+                    <td data-label={t('col_total')} className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal dining</td>
+                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">{t('sub_dining')}</td>
                   <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(diningTotal)}</td>
                 </tr>
               </tfoot>
@@ -663,29 +724,29 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Activities */}
         {activityRows.length > 0 && (
-          <Section title="Activities" icon="🎯">
+          <Section title={t('sec_activities')} icon="🎯">
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Activity</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Guests</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_date')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_activity')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_guests')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">{t('col_total')}</th>
                 </tr>
               </thead>
               <tbody>
                 {activityRows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td data-label="Date" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td data-label="Activity" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.label}</td>
-                    <td data-label="Guests" className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
-                    <td data-label="Total" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
+                    <td data-label={t('col_date')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td data-label={t('col_activity')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.label}</td>
+                    <td data-label={t('col_guests')} className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
+                    <td data-label={t('col_total')} className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal activities</td>
+                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">{t('sub_activities')}</td>
                   <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(activityTotal)}</td>
                 </tr>
               </tfoot>
@@ -695,19 +756,19 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Center access */}
         {centerAccessTotal > 0 && (
-          <Section title="Center access" icon="🏖️">
+          <Section title={t('sec_center_access')} icon="🏖️">
             <div className="overflow-x-auto"><table className="w-full text-sm">
               <tbody>
                 <tr className="border-b border-gray-50 dark:border-gray-800">
                   <td className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">
-                    {booking.num_center_access} person{booking.num_center_access > 1 ? 's' : ''} × {nights} night{nights !== 1 ? 's' : ''} @ {fmtEur(booking.center_access_rate ?? 0)}/day
+                    {booking.num_center_access} {t(booking.num_center_access > 1 ? 'persons' : 'person')} × {nights} {t(nights !== 1 ? 'nights' : 'night')} @ {fmtEur(booking.center_access_rate ?? 0)}/{t('per_day')}
                   </td>
                   <td className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(centerAccessTotal)}</td>
                 </tr>
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal center access</td>
+                  <td className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">{t('sub_center_access')}</td>
                   <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(centerAccessTotal)}</td>
                 </tr>
               </tfoot>
@@ -717,29 +778,29 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Extras */}
         {extraRows.length > 0 && (
-          <Section title="Extras" icon="➕">
+          <Section title={t('sec_extras')} icon="➕">
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Item</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Qty</th>
-                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_date')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_item')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_qty')}</th>
+                  <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">{t('col_total')}</th>
                 </tr>
               </thead>
               <tbody>
                 {extraRows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
-                    <td data-label="Date" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td data-label="Item" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.label}</td>
-                    <td data-label="Qty" className="px-2.5 sm:px-5 py-3 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{r.quantity} × {fmtEur(r.unit_price)}</td>
-                    <td data-label="Total" className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
+                    <td data-label={t('col_date')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td data-label={t('col_item')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.label}</td>
+                    <td data-label={t('col_qty')} className="px-2.5 sm:px-5 py-3 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{r.quantity} × {fmtEur(r.unit_price)}</td>
+                    <td data-label={t('col_total')} className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">{fmtEur(r.total)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
-                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Subtotal extras</td>
+                  <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">{t('sub_extras')}</td>
                   <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(extrasTotal)}</td>
                 </tr>
               </tfoot>
@@ -765,16 +826,17 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             for (const l of lessons) {
               if (!l.participant_ids.includes(part.id)) continue
               const instr = instructors.find(i => i.id === l.instructor_id)
+              const lessonName = t('lesson_line').replace('{type}', t(`lesson_${l.type}` as ShareKey).toLowerCase()).replace('{h}', String(l.duration_hours))
               // Covered by the agency: listed, so the guest sees the hours they took,
               // but at no charge — it adds nothing to their total.
               if (coveredByAgency(l)) {
-                lines.push({ date: l.date, label: `${l.type} lesson ${l.duration_hours}h${instr ? ` (${instr.first_name})` : ''} — ${agencyName} package`, amount: 0, covered: true })
+                lines.push({ date: l.date, label: `${lessonName}${instr ? ` (${instr.first_name})` : ''}${inParens(lessonGear_(l.id))} ${t('agency_package_line').replace('{agency}', agencyName)}`, amount: 0, covered: true })
                 continue
               }
               const rate = getLessonRate(l)
               lines.push({
                 date: l.date,
-                label: `${l.type} lesson ${l.duration_hours}h${instr ? ` (${instr.first_name})` : ''}`,
+                label: `${lessonName}${instr ? ` (${instr.first_name})` : ''}${inParens(lessonGear_(l.id))}`,
                 amount: rate * l.duration_hours,
               })
             }
@@ -782,7 +844,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             for (const r of rentals) {
               if (r.participant_id !== part.id) continue
               if (coveredByAgency(r)) continue
-              lines.push({ date: r.date, label: `${rentalName(r)} · ${r.slot}`, amount: r.price ?? 0 })
+              lines.push({ date: r.date, label: `${t(rentalKey(r))}${inParens(rentalGear(r))} · ${t(`slot_${r.slot}` as ShareKey)}`, amount: r.price ?? 0 })
             }
 
             for (const ev of diningEvents) {
@@ -790,7 +852,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               if (!att) continue
               const amount = att.price_override ?? ev.price_per_person
               if (amount === 0) continue
-              lines.push({ date: ev.date, label: ev.name || 'dining', amount })
+              lines.push({ date: ev.date, label: ev.name || t('dining_default'), amount })
             }
 
             for (const a of activityBkgs.filter(a => a.payment_flow === 'we_pay_provider')) {
@@ -810,7 +872,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               <details className="group">
                 <summary className="cursor-pointer select-none px-5 py-4 flex items-center gap-2 font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
                   <span className="transition-transform group-open:rotate-90">▶</span>
-                  Per-guest breakdown
+                  {t('sec_per_guest')}
                 </summary>
                 <div className="px-5 pb-4 space-y-3">
                   {guestData.map(({ participant: p, lines, total }) => (
@@ -823,7 +885,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                         {lines.map((l, i) => (
                           <div key={i} className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
                             <span>{formatDate(l.date)} · {l.label}</span>
-                            <span>{l.covered ? 'Included' : fmtEur(l.amount)}</span>
+                            <span>{l.covered ? t('included') : fmtEur(l.amount)}</span>
                           </div>
                         ))}
                       </div>
@@ -838,37 +900,37 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         {/* Payments */}
         <section className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
-            <h2 className="font-semibold text-gray-800 dark:text-gray-200">💳 Payments</h2>
+            <h2 className="font-semibold text-gray-800 dark:text-gray-200">💳 {t('sec_payments')}</h2>
           </div>
           {payments.length === 0 ? (
-            <p className="px-5 py-4 text-sm text-gray-400 dark:text-gray-400 italic">No payments recorded yet.</p>
+            <p className="px-5 py-4 text-sm text-gray-400 dark:text-gray-400 italic">{t('no_payments')}</p>
           ) : (
             <div className="overflow-x-auto">
               <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                   <tr>
-                    <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                    <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Method</th>
-                    <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Note</th>
-                    <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Amount</th>
+                    <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_date')}</th>
+                    <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_method')}</th>
+                    <th className="px-2.5 sm:px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">{t('col_note')}</th>
+                    <th className="px-2.5 sm:px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">{t('col_amount')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {payments.map(p => (
                     <tr key={p.id} className={`border-b border-gray-50 dark:border-gray-800 ${p.is_discount ? 'bg-purple-50 dark:bg-purple-950/40' : ''}`}>
-                      <td data-label="Date" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(p.date)}</td>
-                      <td data-label="Method" className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                      <td data-label={t('col_date')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(p.date)}</td>
+                      <td data-label={t('col_method')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
                         {p.is_discount ? (
-                          <span className="text-xs px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full font-medium">Discount</span>
+                          <span className="text-xs px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full font-medium">{t('discount')}</span>
                         ) : (
                           <>
-                            {METHOD_LABELS[p.method] ?? p.method}
-                            {p.is_deposit && <span className="ml-1.5 text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full">Deposit</span>}
+                            {payLabel(p.method)}
+                            {p.is_deposit && <span className="ml-1.5 text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full">{t('deposit')}</span>}
                           </>
                         )}
                       </td>
-                      <td data-label="Note" className="px-2.5 sm:px-5 py-3 text-gray-400 dark:text-gray-400 text-xs italic">{p.notes ?? ''}</td>
-                      <td data-label="Amount" className={`px-2.5 sm:px-5 py-3 text-right font-semibold ${p.is_discount ? 'text-purple-700 dark:text-purple-400' : 'text-green-700 dark:text-green-400'}`}>
+                      <td data-label={t('col_note')} className="px-2.5 sm:px-5 py-3 text-gray-400 dark:text-gray-400 text-xs italic">{p.notes ?? ''}</td>
+                      <td data-label={t('col_amount')} className={`px-2.5 sm:px-5 py-3 text-right font-semibold ${p.is_discount ? 'text-purple-700 dark:text-purple-400' : 'text-green-700 dark:text-green-400'}`}>
                         {p.is_discount ? '-' : ''}{fmtEur(p.amount)}
                       </td>
                     </tr>
@@ -877,12 +939,12 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                   {totalDiscounts > 0 && (
                     <tr>
-                      <td colSpan={3} className="px-2.5 sm:px-5 py-2 text-sm font-semibold text-purple-600 dark:text-purple-400">Total discounts</td>
+                      <td colSpan={3} className="px-2.5 sm:px-5 py-2 text-sm font-semibold text-purple-600 dark:text-purple-400">{t('total_discounts')}</td>
                       <td className="px-2.5 sm:px-5 py-2 text-right font-bold text-purple-700 dark:text-purple-400">-{fmtEur(totalDiscounts)}</td>
                     </tr>
                   )}
                   <tr>
-                    <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Total paid</td>
+                    <td colSpan={3} className="px-2.5 sm:px-5 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400">{t('total_paid')}</td>
                     <td className="px-2.5 sm:px-5 py-3 text-right font-bold text-green-700 dark:text-green-400">{fmtEur(totalPaid)}</td>
                   </tr>
                 </tfoot>
@@ -894,39 +956,38 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         {/* Balance */}
         <section className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
-            <h2 className="font-semibold text-gray-800 dark:text-gray-200">💰 Balance</h2>
+            <h2 className="font-semibold text-gray-800 dark:text-gray-200">💰 {t('sec_balance')}</h2>
           </div>
           <div className="px-5 py-4 space-y-2 text-sm">
             {totalCharges > 0 && (
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                <span>Total charges</span>
+                <span>{t('total_charges')}</span>
                 <span className="font-medium text-gray-800 dark:text-gray-200">{fmtEur(totalCharges)}</span>
               </div>
             )}
             {totalDiscounts > 0 && (
               <div className="flex justify-between text-purple-600 dark:text-purple-400">
-                <span>Discounts</span>
+                <span>{t('discounts')}</span>
                 <span className="font-medium">-{fmtEur(totalDiscounts)}</span>
               </div>
             )}
             <div className="flex justify-between text-gray-600 dark:text-gray-400">
-              <span>Total paid</span>
+              <span>{t('total_paid')}</span>
               <span className="font-medium text-green-700 dark:text-green-400">{fmtEur(totalPaid)}</span>
             </div>
             <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-3 flex justify-between items-center">
-              <span className="font-semibold text-gray-800 dark:text-gray-200 text-base">Balance</span>
+              <span className="font-semibold text-gray-800 dark:text-gray-200 text-base">{t('balance')}</span>
               {balance === 0 ? (
                 <span className="font-bold text-green-600 dark:text-green-400 text-lg">€0 ✓</span>
               ) : balance > 0 ? (
-                <span className="font-bold text-red-600 dark:text-red-400 text-lg">{fmtEur(balance)} due</span>
+                <span className="font-bold text-red-600 dark:text-red-400 text-lg">{fmtEur(balance)} {t('due')}</span>
               ) : (
-                <span className="font-bold text-blue-600 dark:text-blue-400 text-lg">{fmtEur(Math.abs(balance))} credit</span>
+                <span className="font-bold text-blue-600 dark:text-blue-400 text-lg">{fmtEur(Math.abs(balance))} {t('credit')}</span>
               )}
             </div>
             {hasAgencyCovered && (
               <p className="text-xs text-gray-400 dark:text-gray-500 pt-2 border-t border-gray-100 dark:border-gray-800">
-                Lines shown as “—” or “In package” are covered by {agencyName}, who arranged your trip.
-                They are not charged to you and are not part of the balance above.
+                {t('agency_note').replace('{agency}', agencyName)}
               </p>
             )}
           </div>
