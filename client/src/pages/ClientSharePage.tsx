@@ -594,7 +594,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 {lessonRows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
                     <td data-label={t('col_date')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td data-label={t('col_type')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 ">{t(`lesson_${r.type}` as ShareKey)}<GearTag text={r.gear} block /></td>
+                    <td data-label={t('col_type')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 "><div>{t(`lesson_${r.type}` as ShareKey)}<GearTag text={r.gear} block /></div></td>
                     <td data-label={t('col_guest')} className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
                     <td data-label={t('col_duration')} className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{r.duration}h</td>
                     <td data-label={t('col_instructor')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.instructor}</td>
@@ -634,8 +634,11 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                     <td data-label={t('col_date')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
                     <td data-label={t('col_guest')} className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.participant_id ? partName(r.participant_id) ?? '' : ''}</td>
                     <td data-label={t('col_item')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">
-                      {t(rentalKey(r))} · {t(`slot_${r.slot}` as ShareKey)}<GearTag text={rentalGear(r)} />
-                      {r.client_note && <div className="text-xs text-gray-400 dark:text-gray-500">{r.client_note}</div>}
+                      {/* One wrapper: on a phone the cell is a flex row, and loose pieces would split into columns */}
+                      <div>
+                        {t(rentalKey(r))} · {t(`slot_${r.slot}` as ShareKey)}<GearTag text={rentalGear(r)} />
+                        {r.client_note && <div className="text-xs text-gray-400 dark:text-gray-500">{r.client_note}</div>}
+                      </div>
                     </td>
                     <td data-label={t('col_price')} className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
                       {coveredByAgency(r) ? <span className="text-gray-400 dark:text-gray-500 font-normal">—</span> : (
