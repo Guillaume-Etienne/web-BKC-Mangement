@@ -1,7 +1,7 @@
 import { shareT, type ShareKey } from '../data/i18n/clientShare'
 import { detectAdminLang } from '../data/i18n'
 import { localeTag } from '../utils/dates'
-import { lessonGearText, rentalGearText, inParens, type GearLike } from '../utils/gearLabel'
+import { lessonGearText, rentalGearText, type GearLike } from '../utils/gearLabel'
 import { displayFirstName } from '../utils/names'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
@@ -469,7 +469,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       </div>
 
       {/* Guest controls: language, and the gear shown in parentheses */}
-      <div className="max-w-2xl mx-auto px-4 pt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
+      <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={showGear} onChange={e => setShowGear(e.target.checked)} className="rounded" />
           {t('show_equipment')}
@@ -486,7 +486,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-6 space-y-6">
 
         {/* Booking summary card */}
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -587,7 +587,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 {lessonRows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 dark:border-gray-800">
                     <td data-label={t('col_date')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td data-label={t('col_type')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 ">{t(`lesson_${r.type}` as ShareKey)}{inParens(r.gear)}</td>
+                    <td data-label={t('col_type')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 ">{t(`lesson_${r.type}` as ShareKey)}<GearTag text={r.gear} block /></td>
                     <td data-label={t('col_guest')} className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.guests}</td>
                     <td data-label={t('col_duration')} className="px-2.5 sm:px-5 py-3 text-right text-gray-600 dark:text-gray-400">{r.duration}h</td>
                     <td data-label={t('col_instructor')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">{r.instructor}</td>
@@ -627,7 +627,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                     <td data-label={t('col_date')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDate(r.date)}</td>
                     <td data-label={t('col_guest')} className="px-2.5 sm:px-5 py-3 text-blue-500 dark:text-blue-400 text-xs">{r.participant_id ? partName(r.participant_id) ?? '' : ''}</td>
                     <td data-label={t('col_item')} className="px-2.5 sm:px-5 py-3 text-gray-600 dark:text-gray-400">
-                      {t(rentalKey(r))}{inParens(rentalGear(r))} · {t(`slot_${r.slot}` as ShareKey)}
+                      {t(rentalKey(r))} · {t(`slot_${r.slot}` as ShareKey)}<GearTag text={rentalGear(r)} />
                       {r.client_note && <div className="text-xs text-gray-400 dark:text-gray-500">{r.client_note}</div>}
                     </td>
                     <td data-label={t('col_price')} className="px-2.5 sm:px-5 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
@@ -812,7 +812,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         {(() => {
           if (participants.length === 0) return null
 
-          type Line = { date: string; label: string; amount: number; covered?: boolean }
+          type Line = { date: string; label: string; gear?: string; amount: number; covered?: boolean }
           const guestData = participants.map(part => {
             const lines: Line[] = []
 
@@ -830,13 +830,14 @@ export default function ClientSharePage({ bookingNumber }: Props) {
               // Covered by the agency: listed, so the guest sees the hours they took,
               // but at no charge — it adds nothing to their total.
               if (coveredByAgency(l)) {
-                lines.push({ date: l.date, label: `${lessonName}${instr ? ` (${instr.first_name})` : ''}${inParens(lessonGear_(l.id))} ${t('agency_package_line').replace('{agency}', agencyName)}`, amount: 0, covered: true })
+                lines.push({ date: l.date, label: `${lessonName}${instr ? ` (${instr.first_name})` : ''} ${t('agency_package_line').replace('{agency}', agencyName)}`, gear: lessonGear_(l.id), amount: 0, covered: true })
                 continue
               }
               const rate = getLessonRate(l)
               lines.push({
                 date: l.date,
-                label: `${lessonName}${instr ? ` (${instr.first_name})` : ''}${inParens(lessonGear_(l.id))}`,
+                label: `${lessonName}${instr ? ` (${instr.first_name})` : ''}`,
+                gear: lessonGear_(l.id),
                 amount: rate * l.duration_hours,
               })
             }
@@ -844,7 +845,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             for (const r of rentals) {
               if (r.participant_id !== part.id) continue
               if (coveredByAgency(r)) continue
-              lines.push({ date: r.date, label: `${t(rentalKey(r))}${inParens(rentalGear(r))} · ${t(`slot_${r.slot}` as ShareKey)}`, amount: r.price ?? 0 })
+              lines.push({ date: r.date, label: `${t(rentalKey(r))} · ${t(`slot_${r.slot}` as ShareKey)}`, gear: rentalGear(r), amount: r.price ?? 0 })
             }
 
             for (const ev of diningEvents) {
@@ -883,9 +884,9 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                       </div>
                       <div className="px-4 py-2 space-y-1">
                         {lines.map((l, i) => (
-                          <div key={i} className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                            <span>{formatDate(l.date)} · {l.label}</span>
-                            <span>{l.covered ? t('included') : fmtEur(l.amount)}</span>
+                          <div key={i} className="flex justify-between gap-4 text-xs text-gray-500 dark:text-gray-400">
+                            <span>{formatDate(l.date)} · {l.label}<GearTag text={l.gear} /></span>
+                            <span className="whitespace-nowrap">{l.covered ? t('included') : fmtEur(l.amount)}</span>
                           </div>
                         ))}
                       </div>
@@ -996,6 +997,17 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       </div>
     </div>
   )
+}
+
+// ─── Gear used, in its own colour so it reads apart from the service ──────────
+
+/** Inline: " · Duotone Rebel 9m" after the line. `block`: on its own line below. */
+function GearTag({ text, block }: { text?: string; block?: boolean }) {
+  if (!text) return null
+  const cls = 'text-teal-700 dark:text-teal-400'
+  return block
+    ? <span className={`block text-xs mt-0.5 ${cls}`}>{text}</span>
+    : <span className={cls}> · {text}</span>
 }
 
 // ─── Reusable section wrapper ─────────────────────────────────────────────────
