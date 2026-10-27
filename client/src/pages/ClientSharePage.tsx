@@ -329,10 +329,17 @@ export default function ClientSharePage({ bookingNumber }: Props) {
     const k = `pay_${method}`
     return k in SHARE_PAY_KEYS ? t(k as ShareKey) : method
   }
-  const rentalGear = (r: SharedRental): string => showGear
-    ? rentalGearText({ equipment_id: r.equipment_id, board_equipment_id: rentalBoard[r.id] ?? null }, equipment) : ''
-  const lessonGear_ = (id: string): string => showGear
-    ? lessonGearText({ kite_id: lessonGear[id]?.kite_id ?? null, board_id: lessonGear[id]?.board_id ?? null }, null, equipment) : ''
+  const rentalGearRaw = (r: SharedRental): string =>
+    rentalGearText({ equipment_id: r.equipment_id, board_equipment_id: rentalBoard[r.id] ?? null }, equipment)
+  const lessonGearRaw = (id: string): string =>
+    lessonGearText({ kite_id: lessonGear[id]?.kite_id ?? null, board_id: lessonGear[id]?.board_id ?? null }, null, equipment)
+  const rentalGear = (r: SharedRental): string => showGear ? rentalGearRaw(r) : ''
+  const lessonGear_ = (id: string): string => showGear ? lessonGearRaw(id) : ''
+  // The toggle is repeated in each section header that has gear to show, so the
+  // guest never has to scroll back up to the top one.
+  const lessonsHaveGear = lessons.some(l => lessonGearRaw(l.id))
+  const rentalsHaveGear = rentals.some(r => rentalGearRaw(r))
+  const gearToggle = <GearToggle on={showGear} onToggle={() => setShowGear(v => !v)} label={t('equipment_short')} />
   const statusCfg = STATUS_CFG[booking.status] ?? STATUS_CFG.confirmed
 
   // Accommodation rows (own rooms)
@@ -571,7 +578,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Lessons */}
         {lessonRows.length > 0 && (
-          <Section title={t('sec_lessons')} icon="🏄">
+          <Section title={t('sec_lessons')} icon="🏄" action={lessonsHaveGear ? gearToggle : undefined}>
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
@@ -611,7 +618,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Equipment rentals */}
         {rentals.length > 0 && (
-          <Section title={t('sec_rentals')} icon="🎿">
+          <Section title={t('sec_rentals')} icon="🎿" action={rentalsHaveGear ? gearToggle : undefined}>
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
@@ -874,6 +881,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 <summary className="cursor-pointer select-none px-5 py-4 flex items-center gap-2 font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
                   <span className="transition-transform group-open:rotate-90">▶</span>
                   {t('sec_per_guest')}
+                  {(lessonsHaveGear || rentalsHaveGear) && <span className="ml-auto">{gearToggle}</span>}
                 </summary>
                 <div className="px-5 pb-4 space-y-3">
                   {guestData.map(({ participant: p, lines, total }) => (
@@ -1010,13 +1018,28 @@ function GearTag({ text, block }: { text?: string; block?: boolean }) {
     : <span className={cls}> · {text}</span>
 }
 
+/** Pill switching the gear on/off. Inside a <summary> a click would also fold the
+ *  section, hence preventDefault. */
+function GearToggle({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
+  return (
+    <button type="button" aria-pressed={on}
+      onClick={e => { e.preventDefault(); e.stopPropagation(); onToggle() }}
+      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${on
+        ? 'bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-300'
+        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+      🔧 {label} {on ? '✓' : ''}
+    </button>
+  )
+}
+
 // ─── Reusable section wrapper ─────────────────────────────────────────────────
 
-function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+function Section({ title, icon, action, children }: { title: string; icon: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+      <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
         <h2 className="font-semibold text-gray-800 dark:text-gray-200">{icon} {title}</h2>
+        {action}
       </div>
       <div className="overflow-x-auto">
         {children}

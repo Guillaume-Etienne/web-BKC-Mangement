@@ -13,6 +13,7 @@ const T = {
   not_found_msg:     { fr: 'Ce lien est peut-être invalide ou expiré.', en: 'This link may be invalid or expired.', es: 'Este enlace puede no ser válido o haber caducado.' },
   booking:           { fr: 'Réservation', en: 'Booking', es: 'Reserva' },
   show_equipment:    { fr: 'Afficher le matériel', en: 'Show equipment', es: 'Mostrar el material' },
+  equipment_short:   { fr: 'Matériel', en: 'Equipment', es: 'Material' },
   language:          { fr: 'Langue', en: 'Language', es: 'Idioma' },
   night:             { fr: 'nuit', en: 'night', es: 'noche' },
   nights:            { fr: 'nuits', en: 'nights', es: 'noches' },
