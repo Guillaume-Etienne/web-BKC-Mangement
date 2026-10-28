@@ -21,10 +21,6 @@ export const pagesI18n = {
 
   // PlanningView — page header (title changes with the active tab)
   planning_title_accommodations: { fr: 'Planning des hébergements', en: 'Accommodation Planning', es: 'Planificación de alojamientos' },
-  planning_title_daily:          { fr: 'Planning quotidien', en: 'Daily Planning', es: 'Planificación diaria' },
-  planning_title_forecast:       { fr: 'Prévisions', en: 'Forecast', es: 'Previsión' },
-  planning_title_now:            { fr: 'Maintenant', en: 'Now', es: 'Ahora' },
-  planning_title_outlook:        { fr: 'Perspectives', en: 'Outlook', es: 'Perspectivas' },
 
   // PlanningView — tabs
   tab_planning_accommodations: { fr: 'Hébergements', en: 'Accommodations', es: 'Alojamientos' },

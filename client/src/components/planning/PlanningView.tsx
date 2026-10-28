@@ -895,17 +895,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-full mx-auto px-4 py-3 md:py-8">
 
-        {/* Page header */}
-        {/* Accommodations: no title; its controls sit in the tabs row below */}
-        {planningTab !== 'accommodations' && <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 md:gap-4 mb-3 md:mb-8">
-          <h1 className="text-lg md:text-3xl font-bold text-gray-800 dark:text-gray-200">
-            {planningTab === 'lessons' ? i18n.pages.planning_title_daily[lang]
-              : planningTab === 'forecast' ? i18n.pages.planning_title_forecast[lang]
-              : planningTab === 'outlook' ? i18n.pages.planning_title_outlook[lang]
-              : i18n.pages.planning_title_now[lang]}
-          </h1>
-
-        </div>}
+        {/* No page title on any tab: the highlighted tab already says where we are */}
 
         {/* Tabs */}
         {/* Wraps on phones so every tab stays visible (no hidden "Prévisions") */}
