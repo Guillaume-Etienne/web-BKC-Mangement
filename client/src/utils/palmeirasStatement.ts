@@ -51,7 +51,8 @@ export interface StatementInput {
   /** `date` since 2026-10-30d (a free line can happen any day); older rows → the 1st of `month`. */
   entries: { month: string; date?: string | null; type: 'income' | 'expense'; description: string; amount: number }[]
   card_payments: { booking_number: number | null; guest: string; date: string; amount: number }[]
-  settlements: { id?: string; date: string; direction: 'us_to_palmeiras' | 'palmeiras_to_us'; amount: number; method: string | null }[]
+  /** `rent_month` (2026-10-30e): the rent period this payment settles. */
+  settlements: { id?: string; date: string; direction: 'us_to_palmeiras' | 'palmeiras_to_us'; amount: number; method: string | null; rent_month?: string | null }[]
 }
 
 export type LineKind = 'stay_ours' | 'stay_direct' | 'adjustment' | 'rent' | 'card' | 'entry'
@@ -104,6 +105,11 @@ export function fmtEurCents(n: number): string {
 
 /** What one stay weighs in the account — the single rule behind both the
  *  statement lines and the timeline bars. */
+/** The payment that settled a rent period, if one was recorded against it. */
+export function rentPayment(input: Pick<StatementInput, 'settlements'>, month: string) {
+  return input.settlements.find(s => s.rent_month === month && s.direction === 'us_to_palmeiras') ?? null
+}
+
 export function stayAmounts(s: StatementStay): { nights: number; gross: number; toUs: number; toPalmeiras: number } {
   const nights = stayNights(s)
   if (s.paid_direct) {
@@ -279,7 +285,9 @@ export function buildLedger(st: Statement): { months: LedgerMonth[]; upcoming: L
     ...st.settlements.map(s => ({
       key: s.key, date: s.date, kind: 'settlement' as const, provisional: false, balance: null,
       settlementId: s.id,
-      title: s.direction === 'us_to_palmeiras' ? 'Payment BKC → the Palmeiras' : 'Payment the Palmeiras → BKC',
+      title: s.rent_month
+        ? `House rent paid (${fmtDate(rentPeriod(s.rent_month).start)} → ${fmtDate(rentPeriod(s.rent_month).end)})`
+        : s.direction === 'us_to_palmeiras' ? 'Payment BKC → the Palmeiras' : 'Payment the Palmeiras → BKC',
       detail: s.method ?? '',
       toUs: s.direction === 'palmeiras_to_us' ? -s.amount : 0,
       toPalmeiras: s.direction === 'us_to_palmeiras' ? -s.amount : 0,

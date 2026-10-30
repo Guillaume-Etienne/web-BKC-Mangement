@@ -957,7 +957,9 @@ CREATE TABLE palmeiras_settlements (
   amount      NUMERIC(12,2) NOT NULL CHECK (amount > 0),
   method      TEXT,
   notes       TEXT,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- 2026-10-30e : la période de loyer (mois de départ, 15 → 15) que ce règlement paie
+  rent_month  TEXT CHECK (rent_month ~ '^[0-9]{4}-[0-9]{2}$')
 );
 
 -- palmeiras_sub_lets — REMOVED (avril 2026)

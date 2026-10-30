@@ -147,7 +147,7 @@ export function statementInputFromData(
         const { booking, guest } = guestOf(p.booking_id)
         return { booking_number: booking?.booking_number ?? null, guest, date: p.date, amount: p.amount }
       }),
-    settlements: settlements.map(s => ({ id: s.id, date: s.date, direction: s.direction, amount: s.amount, method: s.method })),
+    settlements: settlements.map(s => ({ id: s.id, date: s.date, direction: s.direction, amount: s.amount, method: s.method, rent_month: s.rent_month ?? null })),
   }
 }
 

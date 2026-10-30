@@ -1002,6 +1002,8 @@ export interface PalmeirasSettlement {
   amount: number                // €
   method: string | null
   notes: string | null
+  /** The rent period this payment settles (month it starts, 15 → 15) — 2026-10-30e. */
+  rent_month?: string | null
 }
 
 // Palmeiras — monthly % reversal they owe us on direct bookings.

@@ -26,10 +26,12 @@ interface Props {
   settlementControls?: ReactNode
   /** Admin only: records a missing rent period from the timeline. */
   onAddRent?: (month: string) => void
+  /** Admin only: records the payment of a rent period from the timeline. */
+  onPayRent?: (month: string, amount: number) => void
   defaultRentMzn?: number
 }
 
-export default function PalmeirasStatementView({ statement: st, input, eurMznRate, settlementAction, settlementControls, onAddRent, defaultRentMzn }: Props) {
+export default function PalmeirasStatementView({ statement: st, input, eurMznRate, settlementAction, settlementControls, onAddRent, onPayRent, defaultRentMzn }: Props) {
   const [view, setView] = usePref<View>('palmeiras_view', 'timeline')
   const rate = eurMznRate && eurMznRate > 0 ? eurMznRate : null
   const settled = Math.abs(st.balance) < 0.01
@@ -73,7 +75,7 @@ export default function PalmeirasStatementView({ statement: st, input, eurMznRat
       </div>
 
       {view === 'timeline' ? (<>
-        <PalmeirasTimeline input={input} statement={st} onAddRent={onAddRent} defaultRentMzn={defaultRentMzn} />
+        <PalmeirasTimeline input={input} statement={st} onAddRent={onAddRent} onPayRent={onPayRent} defaultRentMzn={defaultRentMzn} />
 
         {/* Payments between us — in the table they are rows of their own */}
         <section className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
@@ -111,7 +113,7 @@ export default function PalmeirasStatementView({ statement: st, input, eurMznRat
         <p>{badge('stay_direct')} the guest paid the Palmeiras: the Palmeiras owes BKC {PALMEIRAS_COMMISSION_PCT}% of what the guest paid.</p>
         <p>{badge('card')} a BKC guest paid on the Palmeiras card terminal: the Palmeiras owes BKC that amount.</p>
         <p>{badge('rent')} the house BKC rents from the Palmeiras, from the {RENT_PERIOD_DAY}th to the {RENT_PERIOD_DAY}th.</p>
-        <p>{badge('settlement')} a payment between us: it is deducted from the balance.</p>
+        <p>{badge('settlement')} a payment between us: it is deducted from the balance. A rent paid on its own shows « ✓ Paid » on the timeline.</p>
         <p className="text-gray-500 dark:text-gray-400">A stay counts from its arrival day, a rent from the start of its period.</p>
       </div>
     </div>

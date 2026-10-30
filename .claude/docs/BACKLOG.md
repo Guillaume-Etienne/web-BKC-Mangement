@@ -6,7 +6,9 @@
 
 ## 🚨 Migrations SQL — registre
 
-⏳ **`2026-10-30d_palmeiras_entries_date.sql`** (TEST ✅ 2026-10-30 par Claude ; **PROD à passer par gui AVANT de pousser le code** — le formulaire Revenu/Dépense écrit la colonne `date`) — `palmeiras_entries.date` + RPC qui la rend. Rien n'est supprimé (le `REVOKE … FROM PUBLIC` re-pose le droit de 30b). Vérif : `SELECT count(*) FROM palmeiras_entries WHERE date IS NULL` → 0.
+⏳ **`2026-10-30e_palmeiras_rent_paid.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD à passer par gui — avant le push de préférence : sans elle, « Mark paid » échoue, le reste marche) — `palmeiras_settlements.rent_month` + RPC qui la rend. Rien n'est supprimé.
+
+✅ **`2026-10-30d_palmeiras_entries_date.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD ✅ passée par gui le 2026-10-30, vérifiée en base — le formulaire Revenu/Dépense écrit la colonne `date`) — `palmeiras_entries.date` + RPC qui la rend. Rien n'est supprimé (le `REVOKE … FROM PUBLIC` re-pose le droit de 30b). Vérif : `SELECT count(*) FROM palmeiras_entries WHERE date IS NULL` → 0.
 
 ⏳ **`2026-10-30c_palmeiras_statement_bungalows.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD à passer par gui — **pas bloquant pour pousser**) — `CREATE OR REPLACE palmeiras_statement()` + clé `bungalows` (noms) pour que la frise montre aussi les bungalows vides. Rien n'est supprimé (Supabase signalera le `REVOKE … FROM PUBLIC`, il re-pose le même droit qu'en 30b). Vérif : token palmeiras → `"bungalows": [...]`.
 

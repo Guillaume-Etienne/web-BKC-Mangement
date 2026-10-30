@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import PalmeirasTimeline from './PalmeirasTimeline'
-import { buildStatement, type StatementInput } from '../../utils/palmeirasStatement'
+import { buildStatement, buildLedger, type StatementInput } from '../../utils/palmeirasStatement'
 
 // Shaped like PROD on 2026-10-30 (numbers only, no real names).
 const input: StatementInput = {
@@ -38,7 +38,7 @@ describe('PalmeirasTimeline', () => {
   })
 
   it('house rent: a bar where recorded, a reminder for a past month without, nothing ahead', () => {
-    expect(html).toContain('10,000 MZN · 138,89 € Palm.')                         // October
+    expect(html).toContain('10,000 MZN · 138,89 €')                         // October
     expect(html.match(/not recorded yet/g)?.length).toBe(1)                  // September only, not November
     expect(html).not.toContain('+ 10,000 MZN')                                    // no button on the shared page
     const admin = renderToStaticMarkup(<PalmeirasTimeline input={input} statement={buildStatement(input, '2026-10-30')}
@@ -49,5 +49,32 @@ describe('PalmeirasTimeline', () => {
   it('shows the monthly totals with the rent in meticals', () => {
     expect(html).toContain('incl. rent 10,000 MZN')
     expect(html).toContain('October 2026')
+  })
+})
+
+describe('PalmeirasTimeline — rent paid', () => {
+  const paidInput: StatementInput = {
+    ...input,
+    settlements: [{ id: 'p1', date: '2026-10-17', direction: 'us_to_palmeiras', amount: 138.89, method: 'cash', rent_month: '2026-10' }],
+  }
+  const st = buildStatement(paidInput, '2026-10-30')
+
+  it('a rent with a payment linked to its period says when it was paid', () => {
+    const html = renderToStaticMarkup(<PalmeirasTimeline input={paidInput} statement={st} onPayRent={() => {}} />)
+    expect(html).toContain('✓ Paid 17/10/2026')
+    expect(html).not.toContain('Mark paid')
+  })
+
+  it('an unpaid recorded rent offers « Mark paid » to the admin only', () => {
+    const admin = renderToStaticMarkup(<PalmeirasTimeline input={input} statement={buildStatement(input, '2026-10-30')} onPayRent={() => {}} />)
+    const shared = renderToStaticMarkup(<PalmeirasTimeline input={input} statement={buildStatement(input, '2026-10-30')} />)
+    expect(admin).toContain('Mark paid')
+    expect(shared).not.toContain('Mark paid')
+  })
+
+  it('the payment cancels the rent in the balance and is named in the ledger', () => {
+    expect(st.balance).toBeCloseTo(buildStatement(input, '2026-10-30').balance + 138.89, 2)
+    const rows = buildLedger(st).months.flatMap(m => m.rows)
+    expect(rows.find(r => r.kind === 'settlement')?.title).toBe('House rent paid (15/10/2026 → 15/11/2026)')
   })
 })

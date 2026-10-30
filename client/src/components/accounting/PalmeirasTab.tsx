@@ -3,10 +3,10 @@ import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSettlement, SharedLink } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
 import { buildBungalowRows, computePalmeirasTotals, monthlyCommission, statementInputFromData } from './palmeirasUtils'
-import { thisMonthISO, todayISO, addDaysISO } from '../../utils/dates'
+import { thisMonthISO, todayISO, addDaysISO, fmtDate } from '../../utils/dates'
 import { supabase } from '../../lib/supabase'
 import { useTable } from '../../hooks/useSupabase'
-import { buildStatement, PALMEIRAS_COMMISSION_PCT } from '../../utils/palmeirasStatement'
+import { buildStatement, rentPeriod, PALMEIRAS_COMMISSION_PCT } from '../../utils/palmeirasStatement'
 import PalmeirasStatementView from '../palmeiras/PalmeirasStatementView'
 import MonthInput from '../common/MonthInput'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -182,26 +182,33 @@ function EntryForm({ month: initialMonth, type, onSave, onCancel }: {
 
 /** A dated payment between us. Pre-filled to settle the current balance in
  *  the right direction, since that is what a monthly point usually ends with. */
-function SettlementForm({ balance, onSave, onCancel }: {
+function SettlementForm({ balance, rentMonth, rentAmount, onSave, onCancel }: {
   balance: number
+  /** Paying one rent period (« Mark paid » on the timeline): amount and
+   *  direction preset, and the payment is linked to the period. */
+  rentMonth?: string; rentAmount?: number
   onSave: (s: PalmeirasSettlement) => void; onCancel: () => void
 }) {
   const { lang } = useLanguage()
   const [date,      setDate]      = useState(todayISO())
-  const [direction, setDirection] = useState<PalmeirasSettlement['direction']>(balance >= 0 ? 'palmeiras_to_us' : 'us_to_palmeiras')
-  const [amount,    setAmount]    = useState(balance ? String(Math.abs(balance)) : '')
+  const [direction, setDirection] = useState<PalmeirasSettlement['direction']>(rentMonth ? 'us_to_palmeiras' : balance >= 0 ? 'palmeiras_to_us' : 'us_to_palmeiras')
+  const [amount,    setAmount]    = useState(rentMonth ? String(rentAmount ?? '') : balance ? String(Math.abs(balance)) : '')
   const [method,    setMethod]    = useState('')
   const [notes,     setNotes]     = useState('')
+  const period = rentMonth ? rentPeriod(rentMonth) : null
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     const amt = parseFloat(amount)
     if (!amt || amt <= 0) return
-    onSave({ id: crypto.randomUUID(), date, direction, amount: Math.round(amt * 100) / 100, method: method.trim() || null, notes: notes.trim() || null })
+    onSave({ id: crypto.randomUUID(), date, direction, amount: Math.round(amt * 100) / 100, method: method.trim() || null, notes: notes.trim() || null,
+      ...(rentMonth ? { rent_month: rentMonth } : {}) })
   }
   const input = 'w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-400'
   return (
     <form onSubmit={submit} className="m-3 sm:m-4 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-900 rounded-lg p-3 sm:p-4 space-y-3">
-      <p className="text-sm font-semibold text-teal-800 dark:text-teal-300">{i18n.accounting.palm_settlement_title[lang]}</p>
+      <p className="text-sm font-semibold text-teal-800 dark:text-teal-300">
+        {period ? `🏠 House rent ${fmtDate(period.start)} → ${fmtDate(period.end)} — payment` : i18n.accounting.palm_settlement_title[lang]}
+      </p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <input type="date" value={date} onChange={e => setDate(e.target.value)} className={input} required />
         <select value={direction} onChange={e => setDirection(e.target.value as PalmeirasSettlement['direction'])} className={input}>
@@ -242,6 +249,8 @@ export default function PalmeirasTab({ data, handlers }: Props) {
     useTable<PalmeirasSettlement>('palmeiras_settlements', { order: 'date', ascending: false })
   const { data: sharedLinks, refresh: refreshLinks } = useTable<SharedLink>('shared_links')
   const [addingSettlement, setAddingSettlement] = useState(false)
+  // Set by « Mark paid » on a rent bar: the payment form opens on that period.
+  const [payingRent, setPayingRent] = useState<{ month: string; amount: number } | null>(null)
   const [copied, setCopied] = useState(false)
 
   const statementInput = useMemo(() => statementInputFromData(data, settlements), [data, settlements])
@@ -264,7 +273,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
   }
   async function addSettlement(s: PalmeirasSettlement) {
     const { error } = await supabase.from('palmeiras_settlements').insert([s])
-    if (reportDb('record the payment', error)) { setAddingSettlement(false); refreshSettlements() }
+    if (reportDb('record the payment', error)) { setAddingSettlement(false); setPayingRent(null); refreshSettlements() }
   }
   async function deleteSettlement(id: string) {
     if (!confirm(i18n.accounting.confirm_delete_line[lang])) return
@@ -287,7 +296,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
   const closeAll = () => {
     setShowAddRent(false); setShowAddReversal(false)
     setEditingRent(null);  setEditingReversal(null)
-    setAddingSettlement(false)
+    setAddingSettlement(false); setPayingRent(null)
   }
 
   // ── Auto-computed bungalow margin from bookings ──────────────────────────
@@ -501,8 +510,12 @@ export default function PalmeirasTab({ data, handlers }: Props) {
             id: crypto.randomUUID(), month, notes: null, amount_mzn: DEFAULT_RENT_MZN,
             amount: Math.round(DEFAULT_RENT_MZN / (data.eurMznRate > 0 ? data.eurMznRate : 1) * 100) / 100,
           })}
+          onPayRent={(month, amount) => { closeAll(); setPayingRent({ month, amount }); setAddingSettlement(true) }}
           settlementControls={addingSettlement && (
-            <SettlementForm balance={statement.balance} onSave={addSettlement} onCancel={() => setAddingSettlement(false)} />
+            // keyed so « Mark paid » on another period starts a fresh form
+            <SettlementForm key={payingRent?.month ?? 'free'} balance={statement.balance}
+              rentMonth={payingRent?.month} rentAmount={payingRent?.amount}
+              onSave={addSettlement} onCancel={() => { setAddingSettlement(false); setPayingRent(null) }} />
           )}
           settlementAction={id => (
             <button onClick={() => deleteSettlement(id)} aria-label="Delete"

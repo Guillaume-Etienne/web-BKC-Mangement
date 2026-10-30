@@ -41,6 +41,11 @@ qu'on a encaissé, **que ce qu'on lui doit** (jamais notre prix de vente) ; **no
   puis « Upcoming » grisé hors solde. L'ancienne liste « par mois » est remplacée par la Table.
 - Séjour daté à l'**arrivée** (essai) — 🔔 rappeler à gui qu'on peut passer à la date de départ.
 - Lignes libres (Revenu / Dépense) : vraie **date** (`palmeiras_entries.date`, migration **30d**), `month` en découle.
+- **Loyer « ✓ Paid le X »** (migration **30e**) : un règlement BKC → Palmeiras peut porter `rent_month` (la période
+  qu'il paie). C'est lui qui compte dans le solde ; la frise en déduit la barre verte « ✓ Paid 17/10 », le Tableau
+  nomme la ligne « House rent paid (15/10 → 15/11) ». Admin : bouton « Mark paid » sur une barre de loyer non payée →
+  formulaire de règlement pré-rempli (montant du loyer, sens, date du jour). Supprimer le règlement = loyer non payé.
+  Un loyer réglé dans une compensation mensuelle globale : ne pas le marquer (la barre reste rose, sans « impayé »).
 - Migrations `2026-10-30` (enum, SEULE) puis `2026-10-30b` : TEST ✅ (Claude, curl vérifié) / PROD à passer.
 - Hors périmètre : Cash Flow compte toujours les Reversals saisis (pas la commission calculée) ; les
   règlements n'y apparaissent pas.

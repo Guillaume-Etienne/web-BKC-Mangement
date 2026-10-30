@@ -8,7 +8,7 @@ import { addDaysISO, daysBetween, fmtDate, fromISODate, todayISO } from '../../u
 import {
   type Statement, type StatementInput, type StatementStay,
   stayAmounts, stayRef, fmtEurCents, fmtMonthLong, PALMEIRAS_COMMISSION_PCT,
-  PALMEIRAS_RENT_START_MONTH, rentPeriod,
+  PALMEIRAS_RENT_START_MONTH, rentPeriod, rentPayment,
 } from '../../utils/palmeirasStatement'
 
 const CELL_W = 36   // px per day — wider than the planning, the bars carry amounts
@@ -42,11 +42,13 @@ interface Props {
   statement: Statement
   /** Admin only: records the rent of a month that has none yet. */
   onAddRent?: (month: string) => void
+  /** Admin only: records the payment of a rent period (opens the payment form). */
+  onPayRent?: (month: string, amount: number) => void
   /** The usual monthly rent, shown on the add button. */
   defaultRentMzn?: number
 }
 
-export default function PalmeirasTimeline({ input, statement, onAddRent, defaultRentMzn }: Props) {
+export default function PalmeirasTimeline({ input, statement, onAddRent, onPayRent, defaultRentMzn }: Props) {
   const today = todayISO()
   const scroller = useRef<HTMLDivElement>(null)
 
@@ -229,14 +231,26 @@ export default function PalmeirasTimeline({ input, statement, onAddRent, default
                 if (to <= 0 || from >= totalDays) return null
                 const style = { left: from * CELL_W + 2, width: (to - from) * CELL_W - 4 }
                 const period = `${fmtDate(start)} → ${fmtDate(end)}`
+                // Paid = a payment recorded against this period (the payment is
+                // what counts in the balance; the bar only says so). A rent
+                // settled within a monthly offset is simply left unmarked.
+                const paid = rent ? rentPayment(input, m) : null
                 return rent ? (
                   <div key={m} style={style}
-                    title={`House rent ${period}: ${fmtEurCents(rent.amount)}${rent.amount_mzn ? ` (${Math.round(rent.amount_mzn).toLocaleString('en-US')} MZN)` : ''} — owed to the Palmeiras`}
-                    className="absolute top-1.5 h-8 rounded-md bg-rose-400 dark:bg-rose-600 text-white text-xs px-2 flex items-center whitespace-nowrap overflow-hidden">
+                    title={`House rent ${period}: ${fmtEurCents(rent.amount)}${rent.amount_mzn ? ` (${Math.round(rent.amount_mzn).toLocaleString('en-US')} MZN)` : ''}${paid ? ` — paid on ${fmtDate(paid.date)}${paid.method ? ` (${paid.method})` : ''}` : ' — owed to the Palmeiras'}`}
+                    className={`absolute top-1.5 h-8 rounded-md text-white text-xs px-2 flex items-center gap-2 whitespace-nowrap overflow-hidden
+                      ${paid ? 'bg-emerald-500 dark:bg-emerald-600' : 'bg-rose-400 dark:bg-rose-600'}`}>
                     <span className="truncate">
                       <span className="font-semibold">Rent {period}</span>
-                      {rent.amount_mzn ? ` · ${Math.round(rent.amount_mzn).toLocaleString('en-US')} MZN` : ''} · {fmtEurCents(rent.amount)} Palm.
+                      {rent.amount_mzn ? ` · ${Math.round(rent.amount_mzn).toLocaleString('en-US')} MZN` : ''} · {fmtEurCents(rent.amount)}
+                      {paid && <span className="font-semibold"> · ✓ Paid {fmtDate(paid.date)}</span>}
                     </span>
+                    {!paid && onPayRent && (
+                      <button onClick={() => onPayRent(m, rent.amount)}
+                        className="shrink-0 px-2 py-0.5 rounded bg-white/90 text-rose-700 font-medium hover:bg-white">
+                        Mark paid
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div key={m} style={style}
