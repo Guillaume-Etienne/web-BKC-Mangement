@@ -581,12 +581,8 @@ export default function EquipmentPage() {
 
   return (
     <div className="p-4 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">🎿 {i18n.equipment.page_title[lang]}</h1>
-      </div>
-
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
+      <div className="flex gap-2 mb-4 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
         <button
           onClick={() => setActiveTab('inventory')}
           className={`shrink-0 whitespace-nowrap px-4 py-3 font-medium border-b-2 transition-colors ${

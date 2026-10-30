@@ -773,12 +773,9 @@ export default function ActivitiesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-full mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">🏕️ Activities & Safaris</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Manage external activity providers and bookings</p>
-
+      <div className="max-w-full mx-auto px-4 py-4">
         {/* Tabs */}
-        <div className="flex gap-4 mt-8 mb-8 overflow-x-auto border-b">
+        <div className="flex gap-4 mb-4 overflow-x-auto border-b">
           {(['providers', 'bookings'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`shrink-0 whitespace-nowrap px-4 py-2 font-medium transition-colors ${tab === t ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>

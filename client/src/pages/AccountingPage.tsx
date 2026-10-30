@@ -576,13 +576,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200">Accounting</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Financial overview of the kite center</p>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 py-4">
 
         {/* Tab bar — a 10-way horizontal scroller doesn't work on a phone (most
             tabs sit off-screen with only a faint arrow hinting they exist), so
@@ -593,7 +587,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         <select
           value={tab}
           onChange={e => setTab(e.target.value as Tab)}
-          className="md:hidden w-full mb-8 px-4 py-2.5 rounded-xl font-medium text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200"
+          className="md:hidden w-full mb-4 px-4 py-2.5 rounded-xl font-medium text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200"
         >
           {TABS.map(t => {
             const unverifiedCount = t.id === 'unverified' ? payments.filter(p => !p.is_verified).length : 0
@@ -604,7 +598,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
             )
           })}
         </select>
-        <div className="hidden md:flex flex-wrap gap-1 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-1 mb-8">
+        <div className="hidden md:flex flex-wrap gap-1 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-1 mb-4">
           {TABS.map(t => {
             const unverifiedCount = t.id === 'unverified' ? payments.filter(p => !p.is_verified).length : 0
             return (

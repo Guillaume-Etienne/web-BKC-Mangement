@@ -24,15 +24,6 @@ export default function UnverifiedPayments({ data, handlers }: Props) {
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{i18n.accounting.uvp_title[lang]}</h2>
-        {unverified.length > 0 && (
-          <span className="px-2.5 py-0.5 rounded-full text-sm font-bold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">
-            {unverified.length}
-          </span>
-        )}
-      </div>
-
       {unverified.length === 0 ? (
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-8 text-center">
           <div className="text-3xl mb-2">✅</div>

@@ -165,21 +165,9 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200">Enquiries</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
-              People who wrote in and have not booked. Nothing here touches the planning or the accounts.
-            </p>
-          </div>
-          <button onClick={() => { setCreating(true); setSelected(null) }}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm">
-            + New enquiry
-          </button>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3 mt-6 max-w-lg">
+          <div className="grid grid-cols-3 gap-3 max-w-lg flex-1">
           {[
             { label: 'Open', value: working.length, tone: '' },
             { label: 'People expected', value: people, tone: '' },
@@ -190,10 +178,15 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
               <p className={`text-xl font-bold text-gray-800 dark:text-gray-200 ${c.tone}`}>{c.value}</p>
             </div>
           ))}
+          </div>
+          <button onClick={() => { setCreating(true); setSelected(null) }}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm">
+            + New enquiry
+          </button>
         </div>
 
         {/* ── Toolbar: one search box, a few chips, the colours ─────────────── */}
-        <div className="mt-6 flex flex-wrap items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <input
             value={query} onChange={e => setQuery(e.target.value)}
             placeholder="Search names, messages, notes…"

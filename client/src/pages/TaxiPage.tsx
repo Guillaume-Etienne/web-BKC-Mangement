@@ -164,12 +164,7 @@ export default function TaxiPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-full mx-auto px-4 py-8">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200">🚕 {i18n.taxis.page_title[lang]}</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Plan trips and manage drivers</p>
-        </div>
-
+      <div className="max-w-full mx-auto px-4 py-4">
         {error && (
           <div className="mt-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 rounded-lg px-4 py-3 text-sm">
             {i18n.common.msg_error[lang]}: {error}

@@ -398,15 +398,9 @@ export default function ManagementPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200">Management</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Manage instructors, pricing, and shared links</p>
-        </div>
-
+      <div className="max-w-7xl mx-auto px-4 py-4">
         {/* Tabs */}
-        <div className="flex gap-1 md:gap-4 mt-4 md:mt-8 mb-4 md:mb-8 border-b overflow-x-auto">
+        <div className="flex gap-1 md:gap-4 mb-4 border-b overflow-x-auto">
           {(['instructors', 'houses', 'pricing', 'seasons', 'sources', 'agencies', 'links', 'language', 'database'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`shrink-0 whitespace-nowrap px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium capitalize transition-colors ${

@@ -933,9 +933,7 @@ export default function DocumentsPage() {
   // sideways. The other tabs keep their own max-w-3xl body, so they stay
   // centred and narrow inside this wider shell.
   return (
-    <div className="max-w-[1700px] mx-auto px-4 py-6 space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">📄 {i18n.pages.page_documents[uiLang]}</h1>
-
+    <div className="max-w-[1700px] mx-auto px-4 py-4 space-y-4">
       {/* Tab bar */}
       <div className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
         {tabs.map(t => (

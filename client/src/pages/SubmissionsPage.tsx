@@ -757,14 +757,7 @@ export default function SubmissionsPage() {
   const tabs: FormSubmissionStatus[] = ['pending', 'approved', 'rejected']
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">📝 Booking form submissions</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Review public form submissions and turn them into bookings.</p>
-        </div>
-      </div>
-
+    <div className="max-w-4xl mx-auto px-4 py-4">
       {/* Reminder: notification emails are hardcoded, not editable in the app */}
       <div className="mb-4 flex items-start gap-2 rounded-lg border border-sky-200 dark:border-sky-900 bg-sky-50 dark:bg-sky-950/40 px-3 py-2 text-sm text-sky-800 dark:text-sky-400">
         <span aria-hidden>✉️</span>

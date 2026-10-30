@@ -240,10 +240,7 @@ export default function AssociatesTab({ data, handlers, onOpenBooking }: Props) 
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{i18n.accounting.as_title[lang]}</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-3xl">{i18n.accounting.as_intro[lang]}</p>
-      </div>
+      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-3xl">{i18n.accounting.as_intro[lang]}</p>
 
       <div className="flex flex-wrap gap-3 items-center">
         <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
