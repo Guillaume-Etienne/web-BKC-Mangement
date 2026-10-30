@@ -39,9 +39,13 @@ function stayTitle(s: StatementStay): string {
 interface Props {
   input: StatementInput
   statement: Statement
+  /** Admin only: records the rent of a month that has none yet. */
+  onAddRent?: (month: string) => void
+  /** The usual monthly rent, shown on the add button. */
+  defaultRentMzn?: number
 }
 
-export default function PalmeirasTimeline({ input, statement }: Props) {
+export default function PalmeirasTimeline({ input, statement, onAddRent, defaultRentMzn }: Props) {
   const today = todayISO()
   const scroller = useRef<HTMLDivElement>(null)
 
@@ -195,6 +199,45 @@ export default function PalmeirasTimeline({ input, statement }: Props) {
               </div>
             )
           })}
+
+          {/* The house we rent from the Palmeiras: one bar per month. A month
+              already begun with no rent recorded is flagged — it is the line
+              most easily forgotten, and the balance is wrong without it. */}
+          <div className="flex border-b border-gray-200 dark:border-gray-800">
+            <div className={`${label} py-2 text-sm font-medium text-gray-800 dark:text-gray-200 flex items-center`}>
+              <span className="truncate">🏠 House rent</span>
+            </div>
+            {months.map(m => {
+              const rent = input.rents.find(r => r.month === m)
+              const due = m <= today.slice(0, 7)
+              return (
+                <div key={m} style={{ width: daysInMonth(m) * CELL_W, height: 44 }}
+                  className="shrink-0 relative border-r-2 border-gray-300 dark:border-gray-600">
+                  {rent ? (
+                    <div title={`Rent ${fmtMonthLong(m)}: ${fmtEurCents(rent.amount)}${rent.amount_mzn ? ` (${Math.round(rent.amount_mzn).toLocaleString('en-US')} MZN)` : ''} — owed to the Palmeiras`}
+                      className="absolute inset-x-1 top-1.5 h-8 rounded-md bg-rose-400 dark:bg-rose-600 text-white text-xs px-2 flex items-center whitespace-nowrap overflow-hidden">
+                      <span className="sticky left-28 sm:left-36 truncate">
+                        <span className="font-semibold">Rent</span>
+                        {rent.amount_mzn ? ` · ${Math.round(rent.amount_mzn).toLocaleString('en-US')} MZN` : ''} · {fmtEurCents(rent.amount)} Palm.
+                      </span>
+                    </div>
+                  ) : due ? (
+                    <div className="absolute inset-x-1 top-1.5 h-8 rounded-md border-2 border-dashed border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 text-xs px-2 flex items-center gap-2 whitespace-nowrap overflow-hidden">
+                      <span className="sticky left-28 sm:left-36 flex items-center gap-2">
+                        <span>Rent not recorded yet</span>
+                        {onAddRent && (
+                          <button onClick={() => onAddRent(m)}
+                            className="px-2 py-0.5 rounded bg-rose-600 text-white font-medium hover:bg-rose-700">
+                            + {defaultRentMzn ? `${defaultRentMzn.toLocaleString('en-US')} MZN` : 'Add'}
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
 
           {/* Totals per month */}
           <div className="flex bg-gray-50 dark:bg-gray-800">

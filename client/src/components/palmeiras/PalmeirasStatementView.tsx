@@ -43,9 +43,12 @@ interface Props {
   settlementAction?: (id: string) => ReactNode
   /** Admin only: controls above the settlements list (add form). */
   settlementControls?: ReactNode
+  /** Admin only: records a missing month's rent from the timeline. */
+  onAddRent?: (month: string) => void
+  defaultRentMzn?: number
 }
 
-export default function PalmeirasStatementView({ statement: st, input, eurMznRate, settlementAction, settlementControls }: Props) {
+export default function PalmeirasStatementView({ statement: st, input, eurMznRate, settlementAction, settlementControls, onAddRent, defaultRentMzn }: Props) {
   const rate = eurMznRate && eurMznRate > 0 ? eurMznRate : null
   const settled = Math.abs(st.balance) < 0.01
   return (
@@ -75,7 +78,7 @@ export default function PalmeirasStatementView({ statement: st, input, eurMznRat
         </dl>
       </div>
 
-      <PalmeirasTimeline input={input} statement={st} />
+      <PalmeirasTimeline input={input} statement={st} onAddRent={onAddRent} defaultRentMzn={defaultRentMzn} />
 
       {/* How to read it */}
       <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 text-sm text-gray-700 dark:text-gray-300 space-y-1.5">

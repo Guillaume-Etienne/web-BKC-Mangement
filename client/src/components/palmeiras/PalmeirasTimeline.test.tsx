@@ -37,6 +37,15 @@ describe('PalmeirasTimeline', () => {
     expect(html).toContain('#58 · 350 € Palm.')
   })
 
+  it('house rent: a bar where recorded, a reminder for a past month without, nothing ahead', () => {
+    expect(html).toContain('10,000 MZN · 138,89 € Palm.')                         // October
+    expect(html.match(/Rent not recorded yet/g)?.length).toBe(1)                  // September only, not November
+    expect(html).not.toContain('+ 10,000 MZN')                                    // no button on the shared page
+    const admin = renderToStaticMarkup(<PalmeirasTimeline input={input} statement={buildStatement(input, '2026-10-30')}
+      onAddRent={() => {}} defaultRentMzn={10000} />)
+    expect(admin).toContain('+ 10,000 MZN')
+  })
+
   it('shows the monthly totals with the rent in meticals', () => {
     expect(html).toContain('incl. rent 10,000 MZN')
     expect(html).toContain('October 2026')

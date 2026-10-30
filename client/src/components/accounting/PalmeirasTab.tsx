@@ -491,6 +491,13 @@ export default function PalmeirasTab({ data, handlers }: Props) {
           statement={statement}
           input={statementInput}
           eurMznRate={data.eurMznRate}
+          defaultRentMzn={DEFAULT_RENT_MZN}
+          // One click from the timeline: the usual 10 000 MZN at today's rate.
+          // A different amount is still corrected through ✏ in Internal result.
+          onAddRent={month => handlers.addPalmeirasRent({
+            id: crypto.randomUUID(), month, notes: null, amount_mzn: DEFAULT_RENT_MZN,
+            amount: Math.round(DEFAULT_RENT_MZN / (data.eurMznRate > 0 ? data.eurMznRate : 1) * 100) / 100,
+          })}
           settlementControls={addingSettlement && (
             <SettlementForm balance={statement.balance} onSave={addSettlement} onCancel={() => setAddingSettlement(false)} />
           )}
