@@ -545,6 +545,15 @@ erreur. Deux trous du même tonneau, à traiter ensemble :
 - **Gardiennage** Sonia + Eric : 12 jours (19→30/10 inclus) × 8 € = 96 € chacun.
 - ⚠️ Une note de ligne **remplace le libellé sur la facture imprimée** (FR) — jamais de note interne.
 
+**✅ Corrigé le 2026-10-30 (PROD) — F&F a vendu 2×2×4h = 16 h, pas 8** : 2 lignes Wing 4h ajoutées
+(`-07` Sonia, `-08` Eric) → 4 forfaits, **800 € de cours à F&F** (agence 1 312 € au total). Cours
+27/28/29-10 (dont la supervision, comptée heure pleine, tranché gui) rattachés → 11,5/16 h. Les
+4,5 h non utilisées sont **rendues au client** (pas au TO) en remise `payments.is_discount` :
+4,5 × 50 € = 225 € → client attendu **124 €** (305 locations + 30 bateau + 14 jet ski − 225).
+Remise figée : un cours ajouté après ne la réduit pas. ⬜ vérif écran Compta + page client.
+🐛 Le MCP `get_booking` affichait **795 €** dus pour #26 avant correction (vrai : 519 €) — cause pas
+encore cherchée (`computeBookingTotal` côté mcp-server) ; à corriger.
+
 **⬜ Reste** : créer la facture (🧾 Create the invoice), réf F&F `140687`, imprimer, envoyer ;
 `boardbag_count` à 0 sur la résa et les 2 taxis alors qu'ils ont leur matériel (sans effet prix).
 
