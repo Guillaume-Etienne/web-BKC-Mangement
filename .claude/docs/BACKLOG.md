@@ -6,6 +6,8 @@
 
 ## 🚨 Migrations SQL — registre
 
+⏳ **`2026-10-30c_palmeiras_statement_bungalows.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD à passer par gui — **pas bloquant pour pousser**) — `CREATE OR REPLACE palmeiras_statement()` + clé `bungalows` (noms) pour que la frise montre aussi les bungalows vides. Rien n'est supprimé (Supabase signalera le `REVOKE … FROM PUBLIC`, il re-pose le même droit qu'en 30b). Vérif : token palmeiras → `"bungalows": [...]`.
+
 ✅ **`2026-10-30_palmeiras_link_type.sql` (SEULE) PUIS `2026-10-30b_palmeiras_statement.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD ✅ passée par gui le 2026-10-30, curl anon vérifié : sans token → null, table → 42501 ; empreinte TEST = PROD — code `4c46a71` à pousser) — type de lien `palmeiras`, `palmeiras_rents.amount_mzn`, table `palmeiras_settlements` (admin only), RPC `palmeiras_statement()` (token `palmeiras` seul). Vérif curl (pied du fichier) : sans token → `null` ; token client → `null` ; token palmeiras → l'objet ; `palmeiras_settlements?select=*` → 42501. Résultats TEST : identiques.
 
 ⏳ **`2026-10-27_dining_event_costs.sql`** (**à passer par gui, TEST puis PROD, AVANT de pousser le code**) — événements de l'onglet Now : case « Count in the day's figure » + coût prestataire (total / par personne) + lien vers la dépense créée. Table neuve `dining_event_costs`, admin seulement (`REVOKE ALL` anon) ; **séparée de `dining_events` exprès** : la page client partagée la lit en `select('*')`, un coût y aurait fuité. Rien ajouté à `expenses` (le lien est dans `expense_id`). Vérif (pied du fichier) : curl anon → 42501. Le total du Daily est NET du coût ; moniteurs mis à 0 seulement à la coche (sur un dîner leur repas est retenu sur la paie). Code : `utils/diningEventCosts.ts` (testé), NowView, LessonWeekView.

@@ -21,6 +21,13 @@ qu'on a encaissé, **que ce qu'on lui doit** (jamais notre prix de vente) ; **no
   le relevé n'affiche que l'écart (« Commission adjustment »). Même règle dans la vue interne et le
   dashboard (`monthlyCommission`) — avant, rien n'était compté tant qu'aucun Reversal n'était saisi.
 - **Page partagée** `PalmeirasSharePage` ← RPC `palmeiras_statement()` (voir security-rls.md). Imprimable.
+- **Frise des bungalows** (`components/palmeiras/PalmeirasTimeline.tsx`, 2026-10-30, demandée par gui « bien
+  visuel, comme le planning ») : en tête du relevé, côté admin ET côté Palmeiras. Une ligne par bungalow (même vide),
+  période continue du 1er mois avec séjour à aujourd'hui/dernier séjour, boutons de mois, défilement auto sur
+  aujourd'hui. Barre violette = payé au Palmeiras (+15 % BKC), bleue = payé à BKC (coût dû), pointillés = provisoire ;
+  montant sur la barre, détail au survol. Ligne « Month total » : nuits occupées, dû à BKC / au Palmeiras
+  (lignes du relevé, loyer et CB compris), loyer en MZN, « not due yet ». Liste des bungalows : clé `bungalows`
+  de la RPC (migration **30c**) ; sans elle, lignes déduites des séjours.
 - Migrations `2026-10-30` (enum, SEULE) puis `2026-10-30b` : TEST ✅ (Claude, curl vérifié) / PROD à passer.
 - Hors périmètre : Cash Flow compte toujours les Reversals saisis (pas la commission calculée) ; les
   règlements n'y apparaissent pas.

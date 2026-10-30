@@ -29,6 +29,9 @@ export interface StatementStay {
 
 export interface StatementInput {
   eur_mzn_rate: number | null
+  /** Every Palmeiras bungalow, so the timeline shows the empty ones too
+   *  (2026-10-30c; absent from an older RPC → taken from the stays). */
+  bungalows?: string[]
   stays: StatementStay[]
   rents: { month: string; amount: number; amount_mzn: number | null }[]
   adjustments: { month: string; gross_amount: number; percent: number; net_amount: number }[]
@@ -85,8 +88,25 @@ export function fmtEurCents(n: number): string {
   return `${v.toLocaleString('fr-FR', { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: 2 })} €`
 }
 
-function stayRef(s: Pick<StatementStay, 'booking_number' | 'guest'>): string {
+/** What one stay weighs in the account — the single rule behind both the
+ *  statement lines and the timeline bars. */
+export function stayAmounts(s: StatementStay): { nights: number; gross: number; toUs: number; toPalmeiras: number } {
+  const nights = stayNights(s)
+  if (s.paid_direct) {
+    const gross = (s.price_per_night ?? 0) * nights
+    return { nights, gross, toUs: r2(gross * PALMEIRAS_COMMISSION_PCT / 100), toPalmeiras: 0 }
+  }
+  return { nights, gross: 0, toUs: 0, toPalmeiras: r2((s.cost_per_night ?? 0) * nights) }
+}
+
+export function stayRef(s: Pick<StatementStay, 'booking_number' | 'guest'>): string {
   return [s.booking_number ? `#${s.booking_number}` : null, s.guest || null].filter(Boolean).join(' · ')
+}
+
+/** "October 2026" */
+export function fmtMonthLong(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  return new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
 }
 
 export function monthStart(month: string): string {
@@ -98,26 +118,23 @@ export function buildStatement(input: StatementInput, today: string = todayISO()
   const autoCommission: Record<string, number> = {}
 
   input.stays.forEach((s, i) => {
-    const nights = stayNights(s)
+    const { nights, gross, toUs, toPalmeiras } = stayAmounts(s)
     const month = s.check_in.slice(0, 7)
     const period = `${s.bungalow} · ${fmtDate(s.check_in)} → ${fmtDate(s.check_out)}`
     if (s.paid_direct) {
-      const price = s.price_per_night ?? 0
-      const commission = r2(price * nights * PALMEIRAS_COMMISSION_PCT / 100)
-      autoCommission[month] = (autoCommission[month] ?? 0) + commission
+      autoCommission[month] = (autoCommission[month] ?? 0) + toUs
       lines.push({
         key: `stay-${i}`, date: s.check_in, kind: 'stay_direct', provisional: s.provisional,
         title: `Commission ${PALMEIRAS_COMMISSION_PCT}% — ${stayRef(s)}`,
-        detail: `${period} · guest paid the Palmeiras ${nights} night${nights === 1 ? '' : 's'} × ${fmtEurCents(price)} = ${fmtEurCents(price * nights)}`,
-        toUs: commission, toPalmeiras: 0,
+        detail: `${period} · guest paid the Palmeiras ${nights} night${nights === 1 ? '' : 's'} × ${fmtEurCents(s.price_per_night ?? 0)} = ${fmtEurCents(gross)}`,
+        toUs, toPalmeiras: 0,
       })
     } else {
-      const cost = s.cost_per_night ?? 0
       lines.push({
         key: `stay-${i}`, date: s.check_in, kind: 'stay_ours', provisional: s.provisional,
         title: `Bungalow rented through BKC — ${stayRef(s)}`,
-        detail: `${period} · ${nights} night${nights === 1 ? '' : 's'} × ${fmtEurCents(cost)}`,
-        toUs: 0, toPalmeiras: r2(cost * nights),
+        detail: `${period} · ${nights} night${nights === 1 ? '' : 's'} × ${fmtEurCents(s.cost_per_night ?? 0)}`,
+        toUs: 0, toPalmeiras,
       })
     }
   })

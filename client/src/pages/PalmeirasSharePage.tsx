@@ -48,7 +48,7 @@ export default function PalmeirasSharePage() {
             🖨 Print
           </button>
         </div>
-        <PalmeirasStatementView statement={statement} eurMznRate={input.eur_mzn_rate} />
+        <PalmeirasStatementView statement={statement} input={input} eurMznRate={input.eur_mzn_rate} />
       </div>
     </div>
   )

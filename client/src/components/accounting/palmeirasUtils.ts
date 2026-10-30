@@ -134,6 +134,7 @@ export function statementInputFromData(
 
   return {
     eur_mzn_rate: data.eurMznRate,
+    bungalows: bungalows.map(b => b.name),
     stays,
     rents: data.palmeirasRents.map(r => ({ month: r.month, amount: r.amount, amount_mzn: r.amount_mzn ?? null })),
     adjustments: data.palmeirasReversals.map(r => ({

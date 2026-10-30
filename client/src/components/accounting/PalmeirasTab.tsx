@@ -241,7 +241,8 @@ export default function PalmeirasTab({ data, handlers }: Props) {
   const [addingSettlement, setAddingSettlement] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const statement = useMemo(() => buildStatement(statementInputFromData(data, settlements)), [data, settlements])
+  const statementInput = useMemo(() => statementInputFromData(data, settlements), [data, settlements])
+  const statement = useMemo(() => buildStatement(statementInput), [statementInput])
   const shareLink = sharedLinks.find(l => l.type === 'palmeiras' && l.is_active
     && (!l.expires_at || l.expires_at >= todayISO()))
   const shareUrl = shareLink ? `${window.location.protocol}//${window.location.host}?share=${shareLink.token}` : null
@@ -488,6 +489,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
       {view === 'statement' && (
         <PalmeirasStatementView
           statement={statement}
+          input={statementInput}
           eurMznRate={data.eurMznRate}
           settlementControls={addingSettlement && (
             <SettlementForm balance={statement.balance} onSave={addSettlement} onCancel={() => setAddingSettlement(false)} />

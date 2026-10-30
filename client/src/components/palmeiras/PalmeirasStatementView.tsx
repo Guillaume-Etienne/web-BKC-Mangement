@@ -5,14 +5,10 @@
 import type { ReactNode } from 'react'
 import { fmtDate } from '../../utils/dates'
 import {
-  type Statement, type StatementLine, PALMEIRAS_COMMISSION_PCT,
-  fmtEurCents, balanceSentence,
+  type Statement, type StatementInput, type StatementLine, PALMEIRAS_COMMISSION_PCT,
+  fmtEurCents, balanceSentence, fmtMonthLong,
 } from '../../utils/palmeirasStatement'
-
-export function fmtMonthLong(month: string): string {
-  const [y, m] = month.split('-').map(Number)
-  return new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-}
+import PalmeirasTimeline from './PalmeirasTimeline'
 
 const KIND_BADGE: Record<StatementLine['kind'], { label: string; cls: string }> = {
   stay_ours:   { label: 'Booked & paid via BKC',   cls: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' },
@@ -40,6 +36,8 @@ const ROW = 'grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_8.5
 
 interface Props {
   statement: Statement
+  /** The raw statement data — the timeline draws the stays from it. */
+  input: StatementInput
   eurMznRate: number | null
   /** Admin only: an action under each settlement (delete). */
   settlementAction?: (id: string) => ReactNode
@@ -47,7 +45,7 @@ interface Props {
   settlementControls?: ReactNode
 }
 
-export default function PalmeirasStatementView({ statement: st, eurMznRate, settlementAction, settlementControls }: Props) {
+export default function PalmeirasStatementView({ statement: st, input, eurMznRate, settlementAction, settlementControls }: Props) {
   const rate = eurMznRate && eurMznRate > 0 ? eurMznRate : null
   const settled = Math.abs(st.balance) < 0.01
   return (
@@ -76,6 +74,8 @@ export default function PalmeirasStatementView({ statement: st, eurMznRate, sett
             <dd className="font-semibold text-gray-800 dark:text-gray-200">{fmtEurCents(st.paidByThem)}</dd></div>
         </dl>
       </div>
+
+      <PalmeirasTimeline input={input} statement={st} />
 
       {/* How to read it */}
       <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 text-sm text-gray-700 dark:text-gray-300 space-y-1.5">
