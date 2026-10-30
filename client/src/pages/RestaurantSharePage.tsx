@@ -4,7 +4,7 @@ import { useTable } from '../hooks/useSupabase'
 import type { Booking, BookingStatus, Client } from '../types/database'
 import { TAXI_LANGS, type TaxiLang } from '../data/taxiShareI18n'
 import { usePref, Segmented } from './taxiShareUI'
-import { todayISO as isoToday, addDaysISO as addDays, daysBetween } from '../utils/dates'
+import { todayISO as isoToday, addDaysISO as addDays, daysBetween, fromISODate } from '../utils/dates'
 import { stayBookings } from '../utils/dayVisitor'
 
 // Public read-only stay planning for the hotel restaurant manager:
@@ -177,6 +177,17 @@ export default function RestaurantSharePage() {
     return null
   }
 
+  // Week strip next to the departures: same bars as the overview, 7 days wide,
+  // so the names fit INSIDE the bars and nothing scrolls sideways.
+  const mondayOf = (iso: string) => addDays(iso, -((fromISODate(iso).getDay() + 6) % 7))
+  const [weekStart, setWeekStart] = useState(() => mondayOf(today))
+  const weekEnd = addDays(weekStart, 6)
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+  const weekRows = bookings
+    .filter(b => b.check_in <= weekEnd && b.check_out >= weekStart)
+    .sort((a, b) => a.check_in.localeCompare(b.check_in) || a.check_out.localeCompare(b.check_out))
+  const weekLabel = `${fromISODate(weekStart).toLocaleDateString(LOCALE[lang], { day: 'numeric', month: 'short' })} – ${fromISODate(weekEnd).toLocaleDateString(LOCALE[lang], { day: 'numeric', month: 'short' })}`
+
   const [tab, setTab] = usePref<Tab>('restaurant_share_tab', 'departures')
   const tabs: { id: Tab; label: string }[] = [
     { id: 'departures', label: L.tab_departures[lang] },
@@ -274,8 +285,76 @@ export default function RestaurantSharePage() {
         )}
 
         {!loading && tab === 'departures' && (
-          <div className="max-w-3xl mx-auto">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start">
             <DayGroups groups={departures} view="departures" empty={L.no_departures[lang]} />
+
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden">
+              <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setWeekStart(addDays(weekStart, -7))}
+                    className="px-3 py-1 bg-white dark:bg-gray-900 border rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800">‹</button>
+                  <span className="font-semibold text-sm text-gray-800 dark:text-gray-200 min-w-32 text-center">{weekLabel}</span>
+                  <button onClick={() => setWeekStart(addDays(weekStart, 7))}
+                    className="px-3 py-1 bg-white dark:bg-gray-900 border rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800">›</button>
+                </div>
+                <button onClick={() => setWeekStart(mondayOf(today))}
+                  className="px-3 py-1 bg-white dark:bg-gray-900 border rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
+                  {L.today[lang]}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-800">
+                {weekDays.map(d => {
+                  const date = fromISODate(d)
+                  const isToday = d === today
+                  return (
+                    <div key={d} className={`text-center py-1.5 border-r last:border-r-0 border-gray-100 dark:border-gray-800 ${
+                      isToday ? 'bg-blue-600' : isWeekendDate(date) ? 'bg-gray-50 dark:bg-gray-800' : ''}`}>
+                      <div className={`text-[10px] leading-none uppercase ${isToday ? 'text-blue-100' : 'text-gray-400 dark:text-gray-400'}`}>
+                        {date.toLocaleDateString(LOCALE[lang], { weekday: 'short' })}
+                      </div>
+                      <div className={`text-sm font-bold ${isToday ? 'text-white' : 'text-gray-600 dark:text-gray-400'}`}>{date.getDate()}</div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {weekRows.length === 0 ? (
+                <div className="text-center py-10 text-sm text-gray-400 dark:text-gray-400">{L.no_bookings[lang]}</div>
+              ) : weekRows.map(b => {
+                const clippedStart = b.check_in < weekStart
+                const clippedEnd = b.check_out > weekEnd
+                const startCol = clippedStart ? 0 : daysBetween(weekStart, b.check_in)
+                const endCol = clippedEnd ? 6 : daysBetween(weekStart, b.check_out)
+                const span = endCol - startCol + 1
+                const color = BAR_COLOR[b.status as Exclude<BookingStatus, 'cancelled'>]
+                const tooltip = `${guestName(b)} — ${L.arrival[lang]} ${fmtDay(b.check_in, lang)} · ${L.departure[lang]} ${fmtDay(b.check_out, lang)} (${b.status === 'confirmed' ? L.confirmed[lang] : L.provisional[lang]})`
+                return (
+                  <div key={b.id} className="relative h-10 border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+                    <div className="absolute inset-0 grid grid-cols-7">
+                      {weekDays.map(d => (
+                        <div key={d} className={`border-r last:border-r-0 border-gray-100 dark:border-gray-800 ${
+                          d === today ? 'bg-blue-50 dark:bg-blue-950/40' : isWeekendDate(fromISODate(d)) ? 'bg-gray-50 dark:bg-gray-800' : ''}`} />
+                      ))}
+                    </div>
+                    <div title={tooltip}
+                      className={`absolute top-1.5 bottom-1.5 flex items-center overflow-hidden ${color.bar} ${
+                        clippedStart ? '' : 'rounded-l-md'} ${clippedEnd ? '' : 'rounded-r-md'}`}
+                      style={{ left: `${(startCol / 7) * 100}%`, width: `${(span / 7) * 100}%` }}>
+                      {clippedStart && <span className="text-white text-[10px] pl-0.5">◀</span>}
+                      <span className="flex-1 min-w-0 truncate px-1.5 text-xs font-medium text-white">{guestName(b)}</span>
+                      {!clippedEnd && (
+                        <span className={`h-full shrink-0 ${color.cap} flex items-center justify-center rounded-r-md`}
+                          style={{ width: `${100 / span}%` }}>
+                          <span className="text-white text-[10px]">🧳</span>
+                        </span>
+                      )}
+                      {clippedEnd && <span className="text-white text-[10px] pr-0.5">▶</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
 
