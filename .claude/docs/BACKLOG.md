@@ -549,10 +549,11 @@ erreur. Deux trous du même tonneau, à traiter ensemble :
 (`-07` Sonia, `-08` Eric) → 4 forfaits, **800 € de cours à F&F** (agence 1 312 € au total). Cours
 27/28/29-10 (dont la supervision, comptée heure pleine, tranché gui) rattachés → 11,5/16 h. Les
 4,5 h non utilisées sont **rendues au client** (pas au TO) en remise `payments.is_discount` :
-4,5 × 50 € = 225 € → client attendu **124 €** (305 locations + 30 bateau + 14 jet ski − 225).
+4,5 × 50 € = 225 € → client **400 € dus** (625 facturés : 305 locations + 276 repas + 30 bateau
++ 14 jet ski ; − 225 de remise ; vérifié via MCP `get_booking`, même calcul que l'app).
 Remise figée : un cours ajouté après ne la réduit pas. ⬜ vérif écran Compta + page client.
-🐛 Le MCP `get_booking` affichait **795 €** dus pour #26 avant correction (vrai : 519 €) — cause pas
-encore cherchée (`computeBookingTotal` côté mcp-server) ; à corriger.
+⬜ Repas à faire confirmer par gui : dîner du 26/10 à **70 €/pers.**, Luca (11 ans) compté plein
+alors qu'il était à 6 € (au lieu de 12) le 23/10.
 
 **⬜ Reste** : créer la facture (🧾 Create the invoice), réf F&F `140687`, imprimer, envoyer ;
 `boardbag_count` à 0 sur la résa et les 2 taxis alors qu'ils ont leur matériel (sans effet prix).
