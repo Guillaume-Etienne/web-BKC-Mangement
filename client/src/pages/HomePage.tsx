@@ -105,15 +105,12 @@ export default function HomePage({ onNavigate, pendingActions = [], closedAction
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 dark:from-blue-950/40 to-indigo-100 dark:to-indigo-900/30">
-      <div className="max-w-6xl mx-auto px-4 py-6 md:py-16">
+      <div className="max-w-6xl mx-auto px-4 py-3 md:py-5">
         {/* Header */}
-        <div className="text-center mb-6 md:mb-16">
-          <h1 className="text-2xl md:text-5xl font-bold text-gray-800 dark:text-gray-200 mb-1 md:mb-4">
+        <div className="text-center mb-3 md:mb-5">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-200">
             🏄 BKC-Management
           </h1>
-          <p className="text-sm md:text-xl text-gray-600 dark:text-gray-400 hidden sm:block">
-            Manage everything from here: reservations, planning, clients and more!
-          </p>
         </div>
 
         <MovementsPanel days={movements} onOpenTaxis={() => onNavigate('taxis')} />
@@ -125,8 +122,8 @@ export default function HomePage({ onNavigate, pendingActions = [], closedAction
             l'accordéon du bas (table `dismissed_actions`) ; l'alerte remonte
             d'elle-même si le sujet change — voir dismissKey / dismissCount. */}
         {urgent.length > 0 && (
-          <div className="mb-4">
-            <div className="flex items-center gap-3 mb-4">
+          <div className="mb-3">
+            <div className="flex items-center gap-3 mb-2">
               <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">{i18n.pages.status_urgent[lang]}</h2>
               <span className="bg-red-500 text-white text-sm font-bold rounded-full px-2 py-0.5">{urgent.length}</span>
             </div>
@@ -135,7 +132,7 @@ export default function HomePage({ onNavigate, pendingActions = [], closedAction
         )}
 
         {(toCheckCount > 0 || closedActions.length > 0) && (
-          <div className="mb-10">
+          <div className="mb-4">
             <button
               onClick={() => setShowToCheck(v => !v)}
               aria-expanded={showToCheck}
@@ -265,16 +262,16 @@ export default function HomePage({ onNavigate, pendingActions = [], closedAction
         )}
 
         {/* Shortcuts */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
           {SHORTCUTS.map(s => (
             <button
               key={s.page}
               onClick={() => onNavigate(s.page)}
-              className="group bg-white dark:bg-gray-900 rounded-xl shadow-lg hover:shadow-xl transition-all p-4 md:p-8 text-left flex flex-col"
+              className="group bg-white dark:bg-gray-900 rounded-xl shadow-lg hover:shadow-xl transition-all p-4 md:p-5 text-left flex flex-col"
             >
-              <div className="text-3xl md:text-5xl mb-1 md:mb-4">{s.icon}</div>
-              <h2 className="text-base md:text-2xl font-bold text-gray-800 dark:text-gray-200 mb-0.5 md:mb-3">{s.label}</h2>
-              <p className="hidden md:block text-gray-600 dark:text-gray-400 mb-4">
+              <div className="text-3xl md:text-4xl mb-1 md:mb-2">{s.icon}</div>
+              <h2 className="text-base md:text-xl font-bold text-gray-800 dark:text-gray-200 mb-0.5 md:mb-1">{s.label}</h2>
+              <p className="hidden md:block text-sm text-gray-600 dark:text-gray-400 mb-2">
                 {s.description}
               </p>
               <div className="hidden md:inline-flex items-center text-blue-600 dark:text-blue-400 font-semibold group-hover:gap-2 transition-all">
