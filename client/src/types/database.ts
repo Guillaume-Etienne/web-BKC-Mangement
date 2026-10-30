@@ -602,7 +602,7 @@ export interface PartnerHotelPayment {
 }
 
 // Shared public links
-export type SharedLinkType = 'forecast' | 'taxi' | 'client' | 'driver' | 'taxi_manager' | 'activity_provider' | 'booking_form' | 'restaurant' | 'enquiry_form' | 'partner_hotel' | 'instructor' | 'walkin'
+export type SharedLinkType = 'forecast' | 'taxi' | 'client' | 'driver' | 'taxi_manager' | 'activity_provider' | 'booking_form' | 'restaurant' | 'enquiry_form' | 'partner_hotel' | 'instructor' | 'walkin' | 'palmeiras'
 
 export interface SharedLink {
   id: string
@@ -991,9 +991,22 @@ export interface PalmeirasRent {
   month: string                 // YYYY-MM
   amount: number
   notes: string | null
+  amount_mzn?: number | null    // the rent is set in meticals; `amount` (€) is what counts
 }
 
-// Palmeiras — monthly % reversal they owe us on direct bookings
+// Palmeiras — a dated payment between us, which brings the statement balance back
+export interface PalmeirasSettlement {
+  id: string
+  date: string                  // YYYY-MM-DD
+  direction: 'us_to_palmeiras' | 'palmeiras_to_us'
+  amount: number                // €
+  method: string | null
+  notes: string | null
+}
+
+// Palmeiras — monthly % reversal they owe us on direct bookings.
+// Since 2026-10-30 the commission is computed per stay; a row here is the
+// month's actual figure (exchange-rate gaps) and the statement shows the difference.
 export interface PalmeirasReversal {
   id: string
   month: string                 // YYYY-MM

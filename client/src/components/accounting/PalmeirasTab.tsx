@@ -1,9 +1,13 @@
 import { useState, useMemo, useCallback } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
-import type { PalmeirasRent, PalmeirasReversal, PalmeirasEntry } from '../../types/database'
+import type { PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSettlement, SharedLink } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
-import { buildBungalowRows, computePalmeirasTotals } from './palmeirasUtils'
-import { thisMonthISO } from '../../utils/dates'
+import { buildBungalowRows, computePalmeirasTotals, monthlyCommission, statementInputFromData } from './palmeirasUtils'
+import { thisMonthISO, todayISO, addDaysISO } from '../../utils/dates'
+import { supabase } from '../../lib/supabase'
+import { useTable } from '../../hooks/useSupabase'
+import { buildStatement, PALMEIRAS_COMMISSION_PCT } from '../../utils/palmeirasStatement'
+import PalmeirasStatementView from '../palmeiras/PalmeirasStatementView'
 import MonthInput from '../common/MonthInput'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
@@ -20,29 +24,44 @@ function shiftMonth(ym: string, delta: number): string {
 
 // ── Forms (module-scope) ──────────────────────────────────────────────────────
 
-function RentForm({ existing, onSave, onCancel }: { existing?: PalmeirasRent; onSave: (r: PalmeirasRent) => void; onCancel: () => void }) {
+// The rent is set in meticals (10 000 MZN, gui 2026-10-30). The € amount is
+// what every total counts; it is proposed from the MZN at the current rate and
+// can be corrected to what was really paid.
+const DEFAULT_RENT_MZN = 10000
+
+function RentForm({ existing, eurMznRate, onSave, onCancel }: { existing?: PalmeirasRent; eurMznRate: number; onSave: (r: PalmeirasRent) => void; onCancel: () => void }) {
   const { lang } = useLanguage()
+  const rate = eurMznRate > 0 ? eurMznRate : 1
+  const toEur = (mzn: string) => { const n = parseFloat(mzn); return n ? String(Math.round(n / rate * 100) / 100) : '' }
+  const initialMzn = existing ? (existing.amount_mzn != null ? String(existing.amount_mzn) : '') : String(DEFAULT_RENT_MZN)
   const [month,  setMonth]  = useState(existing?.month  ?? thisMonthISO())
-  const [amount, setAmount] = useState(String(existing?.amount ?? 850))
+  const [mzn,    setMzn]    = useState(initialMzn)
+  const [amount, setAmount] = useState(existing ? String(existing.amount) : toEur(initialMzn))
   const [notes,  setNotes]  = useState(existing?.notes  ?? '')
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     const parsed = parseFloat(amount)
     if (!parsed) return
-    onSave({ id: existing?.id ?? crypto.randomUUID(), month, amount: parsed, notes: notes || null })
+    onSave({ id: existing?.id ?? crypto.randomUUID(), month, amount: parsed, notes: notes || null, amount_mzn: parseFloat(mzn) || null })
   }
   return (
     <form onSubmit={submit} className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-3 sm:p-4 space-y-3">
       <p className="text-sm font-semibold text-red-800 dark:text-red-400">{existing ? i18n.accounting.palm_edit_rent[lang] : i18n.accounting.palm_add_rent[lang]}</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.label_month[lang]}</label>
           <MonthInput value={month} onChange={setMonth} className="w-full" focusRing="focus:ring-red-300" />
         </div>
         <div>
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.palm_rent_mzn[lang]}</label>
+          <input type="number" min="0" step="1" value={mzn} onChange={e => { setMzn(e.target.value); setAmount(toEur(e.target.value)) }}
+            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
+        </div>
+        <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.bf_amount_eur[lang]}</label>
           <input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
             className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
+          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{i18n.accounting.palm_rent_rate_hint[lang].replace('{rate}', String(rate))}</p>
         </div>
       </div>
       <div>
@@ -58,11 +77,18 @@ function RentForm({ existing, onSave, onCancel }: { existing?: PalmeirasRent; on
   )
 }
 
-function ReversalForm({ existing, onSave, onCancel }: { existing?: PalmeirasReversal; onSave: (r: PalmeirasReversal) => void; onCancel: () => void }) {
+function ReversalForm({ existing, directGross, onSave, onCancel }: {
+  existing?: PalmeirasReversal
+  /** What guests paid the Palmeiras directly, per month — the gross to start from. */
+  directGross: Record<string, number>
+  onSave: (r: PalmeirasReversal) => void; onCancel: () => void
+}) {
   const { lang } = useLanguage()
-  const [month,   setMonth]   = useState(existing?.month   ?? thisMonthISO())
-  const [gross,   setGross]   = useState(String(existing?.gross_amount ?? ''))
-  const [percent, setPercent] = useState(String(existing?.percent      ?? 15))
+  const startMonth = existing?.month ?? thisMonthISO()
+  const [month,   setMonthRaw] = useState(startMonth)
+  const [gross,   setGross]   = useState(String(existing?.gross_amount ?? directGross[startMonth] ?? ''))
+  const [percent, setPercent] = useState(String(existing?.percent      ?? PALMEIRAS_COMMISSION_PCT))
+  const setMonth = (m: string) => { setMonthRaw(m); if (!existing) setGross(String(directGross[m] ?? '')) }
   const [notes,   setNotes]   = useState(existing?.notes   ?? '')
   const grossNum  = parseFloat(gross)   || 0
   const pctNum    = parseFloat(percent) || 0
@@ -75,6 +101,7 @@ function ReversalForm({ existing, onSave, onCancel }: { existing?: PalmeirasReve
   return (
     <form onSubmit={submit} className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-lg p-3 sm:p-4 space-y-3">
       <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-400">{existing ? i18n.accounting.palm_edit_reversal[lang] : i18n.accounting.palm_add_reversal[lang]}</p>
+      <p className="text-xs text-emerald-900/70 dark:text-emerald-300/80">{i18n.accounting.palm_reversal_hint[lang].replace('{pct}', String(PALMEIRAS_COMMISSION_PCT))}</p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.label_month[lang]}</label>
@@ -111,11 +138,14 @@ function ReversalForm({ existing, onSave, onCancel }: { existing?: PalmeirasReve
   )
 }
 
-function EntryForm({ month, type, onSave, onCancel }: {
+// The free lines: anything between us that is neither a stay, the rent nor a
+// payment. The description is shown as is on the Palmeiras page.
+function EntryForm({ month: initialMonth, type, onSave, onCancel }: {
   month: string; type: 'expense' | 'income'
   onSave: (e: PalmeirasEntry) => void; onCancel: () => void
 }) {
   const { lang } = useLanguage()
+  const [month,       setMonth]       = useState(initialMonth)
   const [description, setDescription] = useState('')
   const [amount,      setAmount]      = useState('')
   const submit = (ev: React.FormEvent) => {
@@ -124,23 +154,76 @@ function EntryForm({ month, type, onSave, onCancel }: {
     if (!description.trim() || isNaN(amt) || amt <= 0) return
     onSave({ id: crypto.randomUUID(), month, type, description: description.trim(), amount: amt })
   }
-  const color = type === 'expense' ? 'red' : 'emerald'
+  const expense = type === 'expense'
+  const input = 'px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400'
   return (
-    <form onSubmit={submit} className={`bg-${color}-50 border border-${color}-200 rounded-lg p-3 space-y-2`}>
-      <p className={`text-xs font-semibold text-${color}-800`}>
-        {type === 'expense' ? i18n.accounting.palm_new_expense[lang] : i18n.accounting.palm_new_income[lang]}
+    <form onSubmit={submit} className={`rounded-lg p-3 space-y-2 border ${expense
+      ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-900'
+      : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900'}`}>
+      <p className={`text-xs font-semibold ${expense ? 'text-orange-800 dark:text-orange-300' : 'text-emerald-800 dark:text-emerald-300'}`}>
+        {expense ? i18n.accounting.palm_new_expense[lang] : i18n.accounting.palm_new_income[lang]}
+        <span className="font-normal text-gray-500 dark:text-gray-400"> · {expense ? 'owed to the Palmeiras' : 'owed to BKC'} · shown on the Palmeiras page</span>
       </p>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        <MonthInput value={month} onChange={setMonth} />
         <input type="text" value={description} onChange={e => setDescription(e.target.value)}
-          placeholder="Description…" autoFocus
-          className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          placeholder="Description…" autoFocus className={`flex-1 min-w-[12rem] ${input}`} />
         <input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
-          placeholder="€" className="w-28 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-        <button type="submit" className={`px-3 py-1.5 bg-${color}-600 text-white rounded text-sm font-semibold hover:bg-${color}-700`}>{i18n.common.btn_add[lang]}</button>
-        <button type="button" onClick={onCancel} className="text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-400 text-xl leading-none px-1">×</button>
+          placeholder="€" className={`w-28 ${input}`} />
+        <button type="submit" className={`px-3 py-1.5 text-white rounded text-sm font-semibold ${expense ? 'bg-orange-600 hover:bg-orange-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>{i18n.common.btn_add[lang]}</button>
+        <button type="button" onClick={onCancel} className="text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none px-1">×</button>
       </div>
     </form>
   )
+}
+
+/** A dated payment between us. Pre-filled to settle the current balance in
+ *  the right direction, since that is what a monthly point usually ends with. */
+function SettlementForm({ balance, onSave, onCancel }: {
+  balance: number
+  onSave: (s: PalmeirasSettlement) => void; onCancel: () => void
+}) {
+  const { lang } = useLanguage()
+  const [date,      setDate]      = useState(todayISO())
+  const [direction, setDirection] = useState<PalmeirasSettlement['direction']>(balance >= 0 ? 'palmeiras_to_us' : 'us_to_palmeiras')
+  const [amount,    setAmount]    = useState(balance ? String(Math.abs(balance)) : '')
+  const [method,    setMethod]    = useState('')
+  const [notes,     setNotes]     = useState('')
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const amt = parseFloat(amount)
+    if (!amt || amt <= 0) return
+    onSave({ id: crypto.randomUUID(), date, direction, amount: Math.round(amt * 100) / 100, method: method.trim() || null, notes: notes.trim() || null })
+  }
+  const input = 'w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-400'
+  return (
+    <form onSubmit={submit} className="m-3 sm:m-4 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-900 rounded-lg p-3 sm:p-4 space-y-3">
+      <p className="text-sm font-semibold text-teal-800 dark:text-teal-300">{i18n.accounting.palm_settlement_title[lang]}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <input type="date" value={date} onChange={e => setDate(e.target.value)} className={input} required />
+        <select value={direction} onChange={e => setDirection(e.target.value as PalmeirasSettlement['direction'])} className={input}>
+          <option value="palmeiras_to_us">{i18n.accounting.palm_settle_them[lang]}</option>
+          <option value="us_to_palmeiras">{i18n.accounting.palm_settle_us[lang]}</option>
+        </select>
+        <input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="€" className={input} required />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <input type="text" value={method} onChange={e => setMethod(e.target.value)} placeholder={i18n.accounting.palm_settle_method[lang]} className={input} />
+        <input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder={`${i18n.common.label_notes[lang]} (internal)`} className={input} />
+      </div>
+      <div className="flex gap-2">
+        <button type="button" onClick={onCancel} className="flex-1 px-3 py-1.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">{i18n.common.btn_cancel[lang]}</button>
+        <button type="submit" className="flex-1 px-3 py-1.5 bg-teal-600 text-white rounded text-sm font-semibold hover:bg-teal-700">{i18n.common.btn_save[lang]}</button>
+      </div>
+    </form>
+  )
+}
+
+function reportDb(action: string, error: { message: string } | null): boolean {
+  if (!error) return true
+  console.error(`${action} failed:`, error.message)
+  alert(`Could not ${action}.\n\n${error.message}`)
+  return false
 }
 
 // ── Bungalow margin row (computed from bookings) ─────────────────────────────
@@ -149,6 +232,41 @@ export default function PalmeirasTab({ data, handlers }: Props) {
   const { lang } = useLanguage()
   const { palmeirasRents, palmeirasReversals, palmeirasEntries, seasons } = data
   const currentSeason = seasons[seasons.length - 1]
+
+  // ── Statement (what the Palmeiras sees) vs internal result ────────────────
+  const [view, setView] = useState<'statement' | 'internal'>('statement')
+  const { data: settlements, refresh: refreshSettlements } =
+    useTable<PalmeirasSettlement>('palmeiras_settlements', { order: 'date', ascending: false })
+  const { data: sharedLinks, refresh: refreshLinks } = useTable<SharedLink>('shared_links')
+  const [addingSettlement, setAddingSettlement] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const statement = useMemo(() => buildStatement(statementInputFromData(data, settlements)), [data, settlements])
+  const shareLink = sharedLinks.find(l => l.type === 'palmeiras' && l.is_active
+    && (!l.expires_at || l.expires_at >= todayISO()))
+  const shareUrl = shareLink ? `${window.location.protocol}//${window.location.host}?share=${shareLink.token}` : null
+
+  async function createLink() {
+    const { error } = await supabase.from('shared_links').insert([{
+      token: `palmeiras_${crypto.randomUUID()}`, type: 'palmeiras', label: 'Palmeiras account',
+      params: {}, created_at: todayISO(), expires_at: addDaysISO(todayISO(), 365), is_active: true,
+    }])
+    if (reportDb('create the share link', error)) refreshLinks()
+  }
+  function copyLink() {
+    if (!shareUrl) return
+    navigator.clipboard.writeText(shareUrl)
+    setCopied(true); setTimeout(() => setCopied(false), 1500)
+  }
+  async function addSettlement(s: PalmeirasSettlement) {
+    const { error } = await supabase.from('palmeiras_settlements').insert([s])
+    if (reportDb('record the payment', error)) { setAddingSettlement(false); refreshSettlements() }
+  }
+  async function deleteSettlement(id: string) {
+    if (!confirm(i18n.accounting.confirm_delete_line[lang])) return
+    const { error } = await supabase.from('palmeiras_settlements').delete().eq('id', id)
+    if (reportDb('delete the payment', error)) refreshSettlements()
+  }
 
   const [period,    setPeriod]    = useState<PeriodMode>('season')
   const [customFrom,setFrom]      = useState(currentSeason?.start_date.slice(0, 7) ?? '')
@@ -165,6 +283,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
   const closeAll = () => {
     setShowAddRent(false); setShowAddReversal(false)
     setEditingRent(null);  setEditingReversal(null)
+    setAddingSettlement(false)
   }
 
   // ── Auto-computed bungalow margin from bookings ──────────────────────────
@@ -192,8 +311,13 @@ export default function PalmeirasTab({ data, handlers }: Props) {
   // unlike the dashboard's Palmeiras KPI — see computePalmeirasTotals for why
   // both are right and must not be aligned.
   const totals = computePalmeirasTotals(filteredRents, filteredReversals, filteredEntries, filteredBungalows)
-  const { rent: totalRent, reversals: totalReversals, bungalowMargin: totalBungMargin,
+  const { rent: totalRent, reversals: totalReversals, grossReversals: totalGross, bungalowMargin: totalBungMargin,
           freeIncome: totalFreeInc, freeExpenses: totalFreeExp, net } = totals
+  // Our commission per month: 15 % per stay, or the actual figure when entered.
+  const commission  = useMemo(() => monthlyCommission(filteredBungalows, filteredReversals), [filteredBungalows, filteredReversals])
+  const directGross = useMemo(() => Object.fromEntries(
+    Object.entries(monthlyCommission(bungalowRows, [])).map(([m, c]) => [m, Math.round(c.gross * 100) / 100]),
+  ), [bungalowRows])
 
   // ── Month list for table ──────────────────────────────────────────────────
   const allMonths = useMemo(() => [...new Set([
@@ -220,19 +344,19 @@ export default function PalmeirasTab({ data, handlers }: Props) {
 
     const mainRows = allMonths.map(month => {
       const rent     = filteredRents.find(r => r.month === month)
-      const reversal = filteredReversals.find(r => r.month === month)
+      const comm     = commission[month]
       const bungM    = filteredBungalows.filter(b => b.month === month)
       const bungMargin = bungM.reduce((s, b) => s + b.margin, 0)
       const mEntries = filteredEntries.filter(e => e.month === month)
       const mInc     = mEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
       const mExp     = mEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
-      const monthNet = (reversal?.net_amount ?? 0) + bungMargin + mInc - (rent?.amount ?? 0) - mExp
+      const monthNet = (comm?.net ?? 0) + bungMargin + mInc - (rent?.amount ?? 0) - mExp
       return `<tr>
         <td>${fmtMonth(month)}</td>
         <td class="right neg">${rent ? `− ${fmtEur(rent.amount)}` : '–'}</td>
-        <td class="right">${reversal ? fmtEur(reversal.gross_amount) : '–'}</td>
-        <td class="right">${reversal ? `${reversal.percent}%` : ''}</td>
-        <td class="right pos">${reversal ? `+ ${fmtEur(reversal.net_amount)}` : '–'}</td>
+        <td class="right">${comm ? fmtEur(comm.gross) : '–'}</td>
+        <td class="right">${comm ? `${comm.percent}%` : ''}</td>
+        <td class="right pos">${comm ? `+ ${fmtEur(comm.net)}` : '–'}</td>
         <td class="right ${bungMargin > 0 ? 'pos' : ''}">${bungMargin ? `+ ${fmtEur(bungMargin)}` : '–'}</td>
         <td class="right ${mInc > 0 ? 'pos' : ''}">${mInc ? `+ ${fmtEur(mInc)}` : '–'}</td>
         <td class="right ${mExp > 0 ? 'neg' : ''}">${mExp ? `− ${fmtEur(mExp)}` : '–'}</td>
@@ -269,7 +393,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
       <tfoot><tr>
         <td>Total</td>
         <td class="right neg">− ${fmtEur(totalRent)}</td>
-        <td class="right">${fmtEur(filteredReversals.reduce((s, r) => s + r.gross_amount, 0))}</td>
+        <td class="right">${fmtEur(totalGross)}</td>
         <td></td>
         <td class="right pos">+ ${fmtEur(totalReversals)}</td>
         <td class="right pos">+ ${fmtEur(totalBungMargin)}</td>
@@ -301,8 +425,82 @@ export default function PalmeirasTab({ data, handlers }: Props) {
 
   const anyForm = showAddRent || showAddReversal || editingRent || editingReversal
 
+  const toolbarBtn = 'text-xs px-3 py-1.5 rounded-lg font-medium'
+
   return (
     <div className="space-y-6">
+
+      {/* View: the statement both sides read, or our internal result */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
+          {(['statement', 'internal'] as const).map(v => (
+            <button key={v} onClick={() => setView(v)}
+              className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${view === v
+                ? 'bg-teal-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+              {v === 'statement' ? i18n.accounting.palm_view_statement[lang] : i18n.accounting.palm_view_internal[lang]}
+            </button>
+          ))}
+        </div>
+        {shareUrl ? (
+          <button onClick={copyLink}
+            className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
+            {copied ? i18n.accounting.palm_link_copied[lang] : i18n.accounting.palm_copy_link[lang]}
+          </button>
+        ) : (
+          <button onClick={createLink}
+            className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
+            {i18n.accounting.palm_create_link[lang]}
+          </button>
+        )}
+      </div>
+
+      {/* Entries — the same in both views */}
+      <div className="flex gap-2 flex-wrap">
+        <button onClick={() => { closeAll(); setShowAddRent(true) }}
+          className={`${toolbarBtn} bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800`}>{i18n.accounting.palm_add_rent_btn[lang]}</button>
+        <button onClick={() => { closeAll(); setAddingSettlement(true) }}
+          className={`${toolbarBtn} bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 hover:bg-teal-200 dark:hover:bg-teal-800`}>{i18n.accounting.palm_add_settlement_btn[lang]}</button>
+        <button onClick={() => { closeAll(); setAddingEntry('income') }}
+          className={`${toolbarBtn} bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800`}>{i18n.accounting.palm_add_income_btn[lang]}</button>
+        <button onClick={() => { closeAll(); setAddingEntry('expense') }}
+          className={`${toolbarBtn} bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-800`}>{i18n.accounting.palm_add_expense_btn[lang]}</button>
+        <button onClick={() => { closeAll(); setShowAddReversal(true) }}
+          className={`${toolbarBtn} bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700`}>{i18n.accounting.palm_add_reversal_btn[lang]}</button>
+      </div>
+
+      {(anyForm || addingEntry) && (
+        <div className="space-y-3">
+          {showAddRent      && <RentForm     eurMznRate={data.eurMznRate} onSave={r => { handlers.addPalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
+          {showAddReversal  && <ReversalForm directGross={directGross} onSave={r => { handlers.addPalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
+          {editingRent      && <RentForm     eurMznRate={data.eurMznRate} existing={editingRent}     onSave={r => { handlers.updatePalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
+          {editingReversal  && <ReversalForm directGross={directGross} existing={editingReversal} onSave={r => { handlers.updatePalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
+          {addingEntry && (
+            <EntryForm
+              month={view === 'internal' && period === 'single' ? singleMonth : thisMonthISO()}
+              type={addingEntry}
+              onSave={e => { handlers.addPalmeirasEntry(e); setAddingEntry(null) }}
+              onCancel={() => setAddingEntry(null)}
+            />
+          )}
+        </div>
+      )}
+
+      {view === 'statement' && (
+        <PalmeirasStatementView
+          statement={statement}
+          eurMznRate={data.eurMznRate}
+          settlementControls={addingSettlement && (
+            <SettlementForm balance={statement.balance} onSave={addSettlement} onCancel={() => setAddingSettlement(false)} />
+          )}
+          settlementAction={id => (
+            <button onClick={() => deleteSettlement(id)} aria-label="Delete"
+              className="p-1 text-gray-400 hover:text-red-500 text-lg leading-none">×</button>
+          )}
+        />
+      )}
+
+      {view === 'internal' && (<>
+      <p className="text-xs text-gray-500 dark:text-gray-400">{i18n.accounting.palm_internal_hint[lang]}</p>
 
       {/* Period selector */}
       <div className="flex flex-wrap gap-2 items-center">
@@ -385,36 +583,9 @@ export default function PalmeirasTab({ data, handlers }: Props) {
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
         <div className="flex flex-wrap justify-between items-center px-3 sm:px-5 py-3 sm:py-4 border-b gap-2">
           <h2 className="font-semibold text-gray-800 dark:text-gray-200">{i18n.accounting.palm_monthly_breakdown[lang]}</h2>
-          <div className="flex gap-2 flex-wrap">
-            <button onClick={() => { closeAll(); setShowAddRent(true) }}
-              className="text-xs px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-800 font-medium">{i18n.accounting.palm_add_rent_btn[lang]}</button>
-            <button onClick={() => { closeAll(); setShowAddReversal(true) }}
-              className="text-xs px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 font-medium">{i18n.accounting.palm_add_reversal_btn[lang]}</button>
-            <button onClick={() => { closeAll(); setAddingEntry('income') }}
-              className="text-xs px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 font-medium">{i18n.accounting.palm_add_income_btn[lang]}</button>
-            <button onClick={() => { closeAll(); setAddingEntry('expense') }}
-              className="text-xs px-3 py-1.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-800 font-medium">{i18n.accounting.palm_add_expense_btn[lang]}</button>
-            <button onClick={handlePrint}
-              className="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 font-medium">{i18n.accounting.palm_export_btn[lang]}</button>
-          </div>
+          <button onClick={handlePrint}
+            className="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 font-medium">{i18n.accounting.palm_export_btn[lang]}</button>
         </div>
-
-        {(anyForm || addingEntry) && (
-          <div className="px-3 sm:px-5 py-3 sm:py-4 border-b bg-gray-50 dark:bg-gray-800 space-y-3">
-            {showAddRent      && <RentForm     onSave={r => { handlers.addPalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
-            {showAddReversal  && <ReversalForm onSave={r => { handlers.addPalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
-            {editingRent      && <RentForm     existing={editingRent}     onSave={r => { handlers.updatePalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
-            {editingReversal  && <ReversalForm existing={editingReversal} onSave={r => { handlers.updatePalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
-            {addingEntry && (
-              <EntryForm
-                month={period === 'single' ? singleMonth : thisMonthISO()}
-                type={addingEntry}
-                onSave={e => { handlers.addPalmeirasEntry(e); setAddingEntry(null) }}
-                onCancel={() => setAddingEntry(null)}
-              />
-            )}
-          </div>
-        )}
 
         {/* Mobile: one card per month */}
         <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
@@ -423,13 +594,14 @@ export default function PalmeirasTab({ data, handlers }: Props) {
           )}
           {allMonths.map(month => {
             const rent       = filteredRents.find(r => r.month === month)
+            const comm       = commission[month]
             const reversal   = filteredReversals.find(r => r.month === month)
             const bungMargin = filteredBungalows.filter(b => b.month === month).reduce((s, b) => s + b.margin, 0)
             const mEntries   = filteredEntries.filter(e => e.month === month)
             const mInc       = mEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
             const mExp       = mEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
-            const monthNet   = (reversal?.net_amount ?? 0) + bungMargin + mInc - (rent?.amount ?? 0) - mExp
-            const hasAny     = !!(rent || reversal || bungMargin || mInc || mExp)
+            const monthNet   = (comm?.net ?? 0) + bungMargin + mInc - (rent?.amount ?? 0) - mExp
+            const hasAny     = !!(rent || comm || bungMargin || mInc || mExp)
             const line = (label: string, value: React.ReactNode) => (
               <div className="flex justify-between gap-3 text-sm py-0.5">
                 <span className="text-gray-500 dark:text-gray-400">{label}</span>
@@ -449,9 +621,9 @@ export default function PalmeirasTab({ data, handlers }: Props) {
                   </div>
                 </div>
                 {rent && line(i18n.accounting.palm_rent[lang], <span className="text-red-600 dark:text-red-400 font-medium">− {fmtEur(rent.amount)}</span>)}
-                {reversal && line(
-                  `${i18n.accounting.palm_reversal_col[lang]} (${reversal.percent}% of ${fmtEur(reversal.gross_amount)})`,
-                  <span className="text-emerald-700 dark:text-emerald-400 font-medium">+ {fmtEur(reversal.net_amount)}</span>)}
+                {comm && line(
+                  `${i18n.accounting.palm_reversal_col[lang]} (${comm.percent}% of ${fmtEur(comm.gross)})`,
+                  <span className="text-emerald-700 dark:text-emerald-400 font-medium">+ {fmtEur(comm.net)}</span>)}
                 {bungMargin > 0 && line(i18n.accounting.label_bungalows[lang], <span className="text-blue-700 dark:text-blue-400 font-medium">+ {fmtEur(bungMargin)}</span>)}
                 {mInc > 0 && line(i18n.accounting.palm_free_plus_col[lang], <span className="text-emerald-600 dark:text-emerald-400 font-medium">+ {fmtEur(mInc)}</span>)}
                 {mExp > 0 && line(i18n.accounting.palm_free_minus_col[lang], <span className="text-orange-600 dark:text-orange-400 font-medium">− {fmtEur(mExp)}</span>)}
@@ -487,23 +659,24 @@ export default function PalmeirasTab({ data, handlers }: Props) {
             )}
             {allMonths.map(month => {
               const rent      = filteredRents.find(r => r.month === month)
+              const comm      = commission[month]
               const reversal  = filteredReversals.find(r => r.month === month)
               const bungM     = filteredBungalows.filter(b => b.month === month)
               const bungMargin = bungM.reduce((s, b) => s + b.margin, 0)
               const mEntries  = filteredEntries.filter(e => e.month === month)
               const mInc      = mEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
               const mExp      = mEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
-              const monthNet  = (reversal?.net_amount ?? 0) + bungMargin + mInc - (rent?.amount ?? 0) - mExp
+              const monthNet  = (comm?.net ?? 0) + bungMargin + mInc - (rent?.amount ?? 0) - mExp
               return (
                 <tr key={month} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                   <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{fmtMonth(month)}</td>
                   <td className="px-4 py-3 text-right">
                     {rent ? <span className="text-red-600 dark:text-red-400 font-medium">− {fmtEur(rent.amount)}</span> : <span className="text-gray-300 dark:text-gray-500">–</span>}
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{reversal ? fmtEur(reversal.gross_amount) : <span className="text-gray-300 dark:text-gray-500">–</span>}</td>
-                  <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-400">{reversal ? `${reversal.percent}%` : ''}</td>
+                  <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{comm ? fmtEur(comm.gross) : <span className="text-gray-300 dark:text-gray-500">–</span>}</td>
+                  <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-400">{comm ? `${comm.percent}%` : ''}</td>
                   <td className="px-4 py-3 text-right">
-                    {reversal ? <span className="text-emerald-700 dark:text-emerald-400 font-medium">+ {fmtEur(reversal.net_amount)}</span> : <span className="text-gray-300 dark:text-gray-500">–</span>}
+                    {comm ? <span className="text-emerald-700 dark:text-emerald-400 font-medium">+ {fmtEur(comm.net)}</span> : <span className="text-gray-300 dark:text-gray-500">–</span>}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {bungMargin > 0 ? <span className="text-blue-700 dark:text-blue-400 font-medium">+ {fmtEur(bungMargin)}</span> : <span className="text-gray-300 dark:text-gray-500">–</span>}
@@ -515,7 +688,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
                     {mExp > 0 ? <span className="text-orange-600 dark:text-orange-400 font-medium">− {fmtEur(mExp)}</span> : <span className="text-gray-300 dark:text-gray-500">–</span>}
                   </td>
                   <td className={`px-4 py-3 text-right font-bold ${monthNet > 0 ? 'text-emerald-700 dark:text-emerald-400' : monthNet < 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-400 dark:text-gray-400'}`}>
-                    {(rent || reversal || bungMargin || mInc || mExp) ? `${monthNet >= 0 ? '+' : ''}${fmtEur(monthNet)}` : '–'}
+                    {(rent || comm || bungMargin || mInc || mExp) ? `${monthNet >= 0 ? '+' : ''}${fmtEur(monthNet)}` : '–'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">
@@ -531,7 +704,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
             <tr>
               <td className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">{i18n.common.label_total[lang]}</td>
               <td className="px-4 py-3 text-right font-semibold text-red-700 dark:text-red-400">− {fmtEur(totalRent)}</td>
-              <td className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{fmtEur(filteredReversals.reduce((s, r) => s + r.gross_amount, 0))}</td>
+              <td className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">{fmtEur(totalGross)}</td>
               <td />
               <td className="px-4 py-3 text-right font-semibold text-emerald-700 dark:text-emerald-400">+ {fmtEur(totalReversals)}</td>
               <td className="px-4 py-3 text-right font-semibold text-blue-700 dark:text-blue-400">+ {fmtEur(totalBungMargin)}</td>
@@ -696,8 +869,9 @@ export default function PalmeirasTab({ data, handlers }: Props) {
       <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl p-5 text-sm text-amber-800 dark:text-amber-400 space-y-1">
         <p className="font-semibold">{i18n.accounting.palm_about_header[lang]}</p>
         <p>All figures reflect the selected period and are included in the global dashboard totals.</p>
-        <p><strong>Reversal</strong> = % of Palmeiras' own bookings they owe us · <strong>Rent</strong> = monthly lease · <strong>Bungalow margin</strong> = sell − cost, auto-calculated from bookings assigned to bungalow accommodations · <strong>Free entries</strong> = any misc income or expense.</p>
+        <p><strong>Commission</strong> = {PALMEIRAS_COMMISSION_PCT}% of what guests paid the Palmeiras directly, per stay (or the actual figure entered for the month) · <strong>Rent</strong> = monthly lease · <strong>Bungalow margin</strong> = sell − cost, auto-calculated from bookings assigned to bungalow accommodations · <strong>Free entries</strong> = any misc income or expense.</p>
       </div>
+      </>)}
     </div>
   )
 }

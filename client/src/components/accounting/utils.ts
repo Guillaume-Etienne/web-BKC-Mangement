@@ -4,6 +4,8 @@ import type { SharedAccountingData } from './types'
 import { getBaseNightlyRate } from '../../utils/roomPricing'
 import { commissionEur } from '../../utils/partnerHotel'
 import { isDayVisitor } from '../../utils/dayVisitor'
+// Circular (palmeirasUtils imports this file) but only called inside functions.
+import { buildBungalowRows, monthlyCommission } from './palmeirasUtils'
 
 /** An accounting dataset with every collection empty.
  *  Spread a partial on top when a caller only needs a few slices — that keeps the
@@ -836,8 +838,10 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
     return sum + e.total_cost
   }, 0)
 
+  // Commission on bungalows paid to the Palmeiras: computed per stay unless the
+  // month's actual figure was entered (monthlyCommission — same rule as the statement).
   const palmeirasNet =
-    data.palmeirasReversals.reduce((s, r) => s + r.net_amount, 0)
+    Object.values(monthlyCommission(buildBungalowRows(data), data.palmeirasReversals)).reduce((s, c) => s + c.net, 0)
     + data.palmeirasEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
     - data.palmeirasRents.reduce((s, r) => s + r.amount, 0)
     - data.palmeirasEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)

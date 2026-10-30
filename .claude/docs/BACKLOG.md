@@ -6,6 +6,8 @@
 
 ## 🚨 Migrations SQL — registre
 
+⏳ **`2026-10-30_palmeiras_link_type.sql` (SEULE) PUIS `2026-10-30b_palmeiras_statement.sql`** (TEST ✅ 2026-10-30 par Claude ; **PROD à passer par gui AVANT de pousser le code**) — type de lien `palmeiras`, `palmeiras_rents.amount_mzn`, table `palmeiras_settlements` (admin only), RPC `palmeiras_statement()` (token `palmeiras` seul). Vérif curl (pied du fichier) : sans token → `null` ; token client → `null` ; token palmeiras → l'objet ; `palmeiras_settlements?select=*` → 42501. Résultats TEST : identiques.
+
 ⏳ **`2026-10-27_dining_event_costs.sql`** (**à passer par gui, TEST puis PROD, AVANT de pousser le code**) — événements de l'onglet Now : case « Count in the day's figure » + coût prestataire (total / par personne) + lien vers la dépense créée. Table neuve `dining_event_costs`, admin seulement (`REVOKE ALL` anon) ; **séparée de `dining_events` exprès** : la page client partagée la lit en `select('*')`, un coût y aurait fuité. Rien ajouté à `expenses` (le lien est dans `expense_id`). Vérif (pied du fichier) : curl anon → 42501. Le total du Daily est NET du coût ; moniteurs mis à 0 seulement à la coche (sur un dîner leur repas est retenu sur la paie). Code : `utils/diningEventCosts.ts` (testé), NowView, LessonWeekView.
 ⏳ **`2026-10-27b_share_gear_columns.sql`** (à passer par gui, TEST puis PROD ; pas bloquant pour pousser) — `GRANT SELECT` anon sur `lessons(kite_id, board_id)` et `equipment_rentals(board_equipment_id)` : sans elle la page client n'affiche simplement pas le matériel (requêtes séparées, 42501 = « aucun »). Livré en même temps : matériel entre parenthèses en compta (cours + locations, par voyageur) et sur `ClientSharePage` (case « Show equipment » : cochée en desktop, décochée en mobile) ; page client traduite FR/EN/ES (`data/i18n/clientShare.ts`, sélecteur en haut, langue du navigateur par défaut, choix mémorisé). Limite : le matériel par rider d'un cours de groupe (`lesson_participant_gear`) n'est pas lisible par anon → la page client montre le kite/board du cours.
 
@@ -272,6 +274,17 @@ reverifier par curl anon.
 - 🔧 **Méthode qui marche** : sonde iframe de 390 px dans la page. Un `scrollWidth` de page ne suffit pas : les tableaux débordent dans leur propre conteneur, mesurer le tableau et ses cellules.
 
 ## 🔴 Ouvert
+
+### 🌴 Compta Palmeiras — vues d'abord, données ensuite (ouvert 2026-10-30)
+
+Aucun point n'a encore été fait avec le Palmeiras. En PROD : aucun loyer, aucun Reversal, aucune Free entry, aucun paiement `card_palmeiras`.
+Règles données par gui : commission **15 %** du prix payé chez eux (petits écarts possibles, change MZN) ; loyer = **10 000 MZN/mois** (≈ 140 €, pas 850 €).
+✅ Vues codées le 2026-10-30 (relevé dans l'onglet + page partagée `palmeiras`, détail `PALMEIRAS_ACCOUNT.md`) — migrations PROD à passer, puis vérif écran par gui.
+Ensuite, à saisir par gui : loyers sept. + oct. (10 000 MZN), et les éventuels paiements CB sur leur terminal.
+**Données à revoir avec gui APRÈS les vues :**
+- #52 (B4, 1 nuit) vendue 0 € et #58 (B4, 7 nuits, nov.) sans prix figé : oubli de prix ou bungalow offert (dont on doit quand même le coût) ?
+- #64 (B4, 2 nuits, payé en direct) encore **provisoire** : le séjour a-t-il eu lieu ?
+- Marges incohérentes avec 15 % : See View 5 coût 154 / vente 165-167 (≈ 7 %), B4 50 / 55 (≈ 10 %).
 
 ### ✅ Cours de groupe mixte (riders de 2 résas) — facturé par tête à la résa du participant — LIVRÉ et vérifié PROD le 2026-10-16 (`5a35cec`, `442ba2b`, migration 2026-10-16b passée TEST+PROD)
 

@@ -110,6 +110,7 @@ const LINK_TYPE_LABELS: Record<SharedLinkType, { icon: string; label: string }> 
   partner_hotel:     { icon: '🏨', label: 'Partner Hotel (Maputo)' },
   instructor:        { icon: '🏄', label: 'Instructor Hours' },
   walkin:            { icon: '🚶', label: 'Walk-in Client Visits' },
+  palmeiras:         { icon: '🌴', label: 'Palmeiras Account' },
 }
 
 function generateToken(type: SharedLinkType) {

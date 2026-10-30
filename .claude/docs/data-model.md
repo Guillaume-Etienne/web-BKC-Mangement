@@ -553,7 +553,7 @@ FK `ON DELETE SET NULL` : supprimer une ligne de facture rend ses services au cl
 | `client` | `{ booking_number: '42' }` |
 | `driver` | `{ driver_id: 'uuid' }` |
 | `activity_provider` | `{ provider_id: 'uuid' }` |
-| `forecast` / `taxi` / `booking_form` | `{}` |
+| `forecast` / `taxi` / `booking_form` / `palmeiras` | `{}` |
 
 > Créés automatiquement (pas via le form links) pour `driver` et `activity_provider` depuis leurs pages dédiées. `booking_form` créé via Management → Links (un seul lien public permanent).
 
@@ -793,6 +793,9 @@ Comptes des deux associés (Gui, Teresa). « associate » et pas « partner » :
 | `palmeiras_rents` | `PalmeirasRent` | `month` YYYY-MM |
 | `palmeiras_reversals` | `PalmeirasReversal` | `month` + gross/percent/net |
 | `palmeiras_entries` | `PalmeirasEntry` | `month` + type income/expense |
+| `palmeiras_settlements` | `PalmeirasSettlement` | `date` + direction `us_to_palmeiras`/`palmeiras_to_us` + amount € + method (2026-10-30b) |
+
+> `palmeiras_rents.amount_mzn` (2026-10-30b) : montant d'origine (10 000 MZN) ; `amount` € fait foi partout. `palmeiras_reversals` = **commission réelle du mois** (écart de change) depuis 2026-10-30 : sinon 15 % calculés par séjour payé en direct (`monthlyCommission`, `utils/palmeirasStatement.ts`). Relevé partagé : token `palmeiras` → RPC `palmeiras_statement()`.
 | `palmeiras_sub_lets` | `PalmeirasSubLet` | `month` + bungalow + cost/sell/nights |
 
 ---

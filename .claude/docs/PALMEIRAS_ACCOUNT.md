@@ -1,3 +1,32 @@
+# Compte Palmeiras
+
+## Relevé « qui doit quoi à qui » + page partagée — codé le 2026-10-30
+
+Demandé par gui avant son premier point avec le Palmeiras (aucun point fait jusque-là).
+Décisions gui : commission **15 %** du prix payé chez eux (petits écarts de change possibles) ;
+loyer **10 000 MZN/mois** (≈ 140 €, et non 850 €) ; montants en **€ + équivalent MZN** ;
+ligne **règlement** datée pour remettre le solde à zéro ; le Palmeiras ne voit, pour un bungalow
+qu'on a encaissé, **que ce qu'on lui doit** (jamais notre prix de vente) ; **nom complet** du client.
+
+- **Onglet Accounting → Palmeiras** : bascule *Statement* (par défaut, ce que voit le Palmeiras)
+  / *Internal result* (l'ancienne vue P&L, marge incluse — à ne pas montrer). Barre commune :
+  + Rent (saisie en MZN, € proposé au taux courant), + Payment (règlement), + Income / + Expense
+  (lignes libres, **leur description est visible du Palmeiras**), ± Actual commission (ex-Reversal).
+  Bouton « Create / Copy Palmeiras link » (lien `palmeiras`, 1 an, géré aussi dans Shared Links).
+- **Calcul unique** `client/src/utils/palmeirasStatement.ts` (`buildStatement`, testé) : séjour payé chez
+  eux → +15 % à BKC ; séjour encaissé par nous → coût/nuit × nuits au Palmeiras ; loyer → au Palmeiras ;
+  paiement `card_palmeiras` → à BKC ; ligne libre income/expense ; règlements déduits.
+  Un séjour **pas encore commencé** et le loyer d'un mois **à venir** sont listés à part (*Upcoming*), hors solde.
+- **Commission réelle** (`palmeiras_reversals`) : si saisie pour un mois, elle remplace les 15 % calculés ;
+  le relevé n'affiche que l'écart (« Commission adjustment »). Même règle dans la vue interne et le
+  dashboard (`monthlyCommission`) — avant, rien n'était compté tant qu'aucun Reversal n'était saisi.
+- **Page partagée** `PalmeirasSharePage` ← RPC `palmeiras_statement()` (voir security-rls.md). Imprimable.
+- Migrations `2026-10-30` (enum, SEULE) puis `2026-10-30b` : TEST ✅ (Claude, curl vérifié) / PROD à passer.
+- Hors périmètre : Cash Flow compte toujours les Reversals saisis (pas la commission calculée) ; les
+  règlements n'y apparaissent pas.
+
+---
+
 # Bungalows Palmeiras payés en direct — conception (2026-09-27) · codé le 2026-09-28
 
 > Décidé avec gui le 2026-09-27, à partir de la résa **#39** (Bungalow See View 5).

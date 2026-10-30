@@ -50,6 +50,7 @@ const BookingFormPage           = lazy(() => import('./pages/BookingFormPage'))
 const EnquiryFormPage           = lazy(() => import('./pages/EnquiryFormPage'))
 const RestaurantSharePage       = lazy(() => import('./pages/RestaurantSharePage'))
 const PartnerHotelSharePage     = lazy(() => import('./pages/PartnerHotelSharePage'))
+const PalmeirasSharePage        = lazy(() => import('./pages/PalmeirasSharePage'))
 const InstructorSharePage       = lazy(() => import('./pages/InstructorSharePage'))
 const WalkInSharePage           = lazy(() => import('./pages/WalkInSharePage'))
 // Not lazy: ⌘K must answer instantly, and a chunk fetched on first keystroke
@@ -303,6 +304,7 @@ function App() {
       sharedLink.type === 'enquiry_form'      ? <EnquiryFormPage /> :
       sharedLink.type === 'restaurant'        ? <RestaurantSharePage /> :
       sharedLink.type === 'partner_hotel'     ? <PartnerHotelSharePage hotelId={sharedLink.params?.hotel_id ?? ''} /> :
+      sharedLink.type === 'palmeiras'         ? <PalmeirasSharePage /> :
       sharedLink.type === 'instructor'        ? <InstructorSharePage instructorId={sharedLink.params?.instructor_id ?? ''} /> :
       sharedLink.type === 'walkin'            ? <WalkInSharePage clientId={sharedLink.params?.client_id ?? ''} /> :
       null

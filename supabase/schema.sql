@@ -15,7 +15,7 @@ CREATE TYPE day_slot                        AS ENUM ('morning', 'afternoon', 'ev
 CREATE TYPE price_category                  AS ENUM ('lesson', 'activity', 'rental', 'meal', 'center_access');
 CREATE TYPE taxi_trip_type                  AS ENUM ('aero-to-center', 'center-to-aero', 'aero-to-spot', 'spot-to-aero', 'center-to-town', 'town-to-center', 'other');
 CREATE TYPE taxi_trip_status                AS ENUM ('confirmed', 'needs_details', 'done');
-CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form', 'restaurant', 'enquiry_form', 'partner_hotel', 'instructor', 'walkin');
+CREATE TYPE shared_link_type                AS ENUM ('forecast', 'taxi', 'client', 'driver', 'taxi_manager', 'activity_provider', 'booking_form', 'restaurant', 'enquiry_form', 'partner_hotel', 'instructor', 'walkin', 'palmeiras');
 CREATE TYPE equipment_category              AS ENUM ('kite', 'board', 'surfboard', 'foilboard', 'bar', 'wing');  -- 'bar' 2026-09-07, 'wing' 2026-10-14
 -- Tout ce que l'app facture automatiquement : une valeur = un tarif (index unique sur
 -- price_items). Brancher un nouveau poste = ajouter une valeur, pas une colonne.
@@ -926,7 +926,8 @@ CREATE TABLE palmeiras_rents (
   id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   month   TEXT NOT NULL UNIQUE,   -- YYYY-MM
   amount  NUMERIC(10,2) NOT NULL,
-  notes   TEXT
+  notes   TEXT,
+  amount_mzn NUMERIC(12,2)        -- montant d'origine (le loyer est fixé en MZN) ; `amount` € fait foi
 );
 
 CREATE TABLE palmeiras_reversals (
@@ -944,6 +945,18 @@ CREATE TABLE palmeiras_entries (
   type         palmeiras_entry_type NOT NULL,
   description  TEXT NOT NULL,
   amount       NUMERIC(10,2) NOT NULL
+);
+
+-- Règlement daté entre nous et le Palmeiras (2026-10-30b). Admin only ; la page partagée lit
+-- le relevé via palmeiras_statement() (SECURITY DEFINER, token 'palmeiras'), jamais la table.
+CREATE TABLE palmeiras_settlements (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date        DATE NOT NULL,
+  direction   TEXT NOT NULL CHECK (direction IN ('us_to_palmeiras', 'palmeiras_to_us')),
+  amount      NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+  method      TEXT,
+  notes       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- palmeiras_sub_lets — REMOVED (avril 2026)
@@ -1132,7 +1145,7 @@ BEGIN
     'payments', 'booking_charges',
     'instructor_debts', 'instructor_payments', 'lesson_rate_overrides',
     'expenses', 'expense_categories',
-    'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries',
+    'palmeiras_rents', 'palmeiras_reversals', 'palmeiras_entries', 'palmeiras_settlements',
     'email_logs', 'document_templates',
     'enquiry_sources', 'enquiries', 'enquiry_notes', 'client_notes',
     'agencies', 'agency_rate_items', 'agency_billing_lines', 'agency_invoices',
