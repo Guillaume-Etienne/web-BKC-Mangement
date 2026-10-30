@@ -28,6 +28,10 @@ qu'on a encaissé, **que ce qu'on lui doit** (jamais notre prix de vente) ; **no
   montant sur la barre, détail au survol. Ligne « Month total » : nuits occupées, dû à BKC / au Palmeiras
   (lignes du relevé, loyer et CB compris), loyer en MZN, « not due yet ». Liste des bungalows : clé `bungalows`
   de la RPC (migration **30c**) ; sans elle, lignes déduites des séjours.
+  Ligne **🏠 House rent** (le loyer de 10 000 MZN de la maison qu'on loue au Palmeiras, confirmé gui) : une barre
+  par mois saisi ; un mois commencé sans loyer → « Rent not recorded yet » (visible aussi du Palmeiras) et, côté
+  admin, bouton « + 10,000 MZN » qui l'enregistre au taux courant (montant différent → ✏ dans Internal result).
+  Onglet admin et page partagée en pleine largeur.
 - Migrations `2026-10-30` (enum, SEULE) puis `2026-10-30b` : TEST ✅ (Claude, curl vérifié) / PROD à passer.
 - Hors périmètre : Cash Flow compte toujours les Reversals saisis (pas la commission calculée) ; les
   règlements n'y apparaissent pas.
