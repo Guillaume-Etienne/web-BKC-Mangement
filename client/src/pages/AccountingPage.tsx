@@ -576,7 +576,9 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-7xl mx-auto px-4 py-4">
+      {/* Palmeiras uses the whole screen: its bungalow timeline scrolls sideways
+          and every extra column of days shown is one less scroll (gui, 2026-10-30). */}
+      <div className={tab === 'palmeiras' ? 'w-full px-4 sm:px-6 lg:px-10 py-4' : 'max-w-7xl mx-auto px-4 py-4'}>
 
         {/* Tab bar — a 10-way horizontal scroller doesn't work on a phone (most
             tabs sit off-screen with only a faint arrow hinting they exist), so
