@@ -14,6 +14,8 @@ const input: StatementInput = {
       check_in: '2026-10-15', check_out: '2026-10-16', paid_direct: false, price_per_night: null, cost_per_night: 50 },
     { booking_number: 64, guest: 'Guest C', provisional: true, bungalow: 'B4',
       check_in: '2026-10-21', check_out: '2026-10-23', paid_direct: true, price_per_night: 55, cost_per_night: null },
+    { booking_number: 58, guest: 'Guest D', provisional: false, bungalow: 'B4',
+      check_in: '2026-11-03', check_out: '2026-11-10', paid_direct: false, price_per_night: null, cost_per_night: 50 },
   ],
   rents: [{ month: '2026-10', amount: 138.89, amount_mzn: 10000 }],
   adjustments: [], entries: [], card_payments: [], settlements: [],
@@ -23,13 +25,16 @@ describe('PalmeirasTimeline', () => {
   const html = renderToStaticMarkup(<PalmeirasTimeline input={input} statement={buildStatement(input, '2026-10-30')} />)
 
   it('draws every bungalow, even an empty one', () => {
-    for (const b of input.bungalows!) expect(html).toContain(`>${b}<`)
+    for (const b of ['B1', 'B2', 'B3', 'B4', 'See View 5']) expect(html).toContain(`>${b}<`)
   })
 
-  it('puts the amount each stay weighs on its bar', () => {
-    expect(html).toContain('#39 · +49,50')
-    expect(html).toContain('#52 · 50 € Palm.')
-    expect(html).toContain('#64 · +16,50')
+  it('puts the amount each stay weighs on its bar — compact on a short stay', () => {
+    expect(html).toContain('>#39<')
+    expect(html).toContain('>+49,50<')
+    expect(html).toContain('>#52<')
+    expect(html).toContain('>+16,50<')
+    expect(html).toContain('>Guest D<')
+    expect(html).toContain('#58 · 350 € Palm.')
   })
 
   it('shows the monthly totals with the rent in meticals', () => {

@@ -10,7 +10,7 @@ import {
   stayAmounts, stayRef, fmtEurCents, fmtMonthLong, PALMEIRAS_COMMISSION_PCT,
 } from '../../utils/palmeirasStatement'
 
-const CELL_W = 30   // px per day — wider than the planning, the bars carry amounts
+const CELL_W = 36   // px per day — wider than the planning, the bars carry amounts
 
 function monthsBetween(from: string, to: string): string[] {
   const out: string[] = []
@@ -153,7 +153,7 @@ export default function PalmeirasTimeline({ input, statement }: Props) {
             return (
               <div key={b} className="flex border-b border-gray-100 dark:border-gray-800">
                 <div className={`${label} py-2 text-sm font-medium text-gray-800 dark:text-gray-200 flex items-center`}>
-                  <span className="truncate">{b}</span>
+                  <span className="truncate" title={b}>{b.replace(/^Bungalow\s+/i, '')}</span>
                 </div>
                 <div className="relative shrink-0" style={{ width: totalDays * CELL_W, height: 52 }}>
                   {/* weekend shading + today */}
@@ -166,18 +166,28 @@ export default function PalmeirasTimeline({ input, statement }: Props) {
                     })}
                   </div>
                   {stays.map((s, i) => {
-                    const { toUs, toPalmeiras } = stayAmounts(s)
+                    const { nights, toUs, toPalmeiras } = stayAmounts(s)
                     const left = idx(s.check_in) * CELL_W + CELL_W / 2
-                    const width = Math.max(daysBetween(s.check_in, s.check_out) * CELL_W, CELL_W / 2)
+                    const width = Math.max(nights * CELL_W, CELL_W / 2)
+                    const amount = s.paid_direct ? `+${fmtEurCents(toUs)}` : fmtEurCents(toPalmeiras)
+                    // A 1–2 night bar is too short for a name: booking number and
+                    // amount only (the colour says which side), the rest on hover.
+                    const short = nights < 3
                     return (
                       <div key={i} title={stayTitle(s)} style={{ left, width }}
-                        className={`absolute top-1.5 h-10 rounded-md px-1.5 text-white overflow-hidden whitespace-nowrap shadow-sm flex flex-col justify-center leading-tight
+                        className={`absolute top-1.5 h-10 rounded-md text-white overflow-hidden whitespace-nowrap shadow-sm flex flex-col justify-center leading-tight
+                          ${short ? 'px-0.5 items-center text-center' : 'px-1.5'}
                           ${s.paid_direct ? 'bg-purple-500 dark:bg-purple-600' : 'bg-sky-500 dark:bg-sky-600'}
                           ${s.provisional ? 'opacity-70 outline-2 outline-dashed outline-offset-[-2px] outline-white/80' : ''}`}>
-                        <span className="text-xs font-semibold truncate">{s.guest || `#${s.booking_number}`}</span>
-                        <span className="text-[11px] truncate opacity-95">
-                          #{s.booking_number} · {s.paid_direct ? `+${fmtEurCents(toUs)} BKC` : `${fmtEurCents(toPalmeiras)} Palm.`}
-                        </span>
+                        {short ? (<>
+                          <span className="text-[11px] font-semibold">#{s.booking_number}</span>
+                          <span className={`${nights === 1 ? 'text-[9px]' : 'text-[11px]'} tabular-nums`}>{amount.replace(' €', '')}</span>
+                        </>) : (<>
+                          <span className="text-xs font-semibold truncate">{s.guest || `#${s.booking_number}`}</span>
+                          <span className="text-[11px] truncate opacity-95">
+                            #{s.booking_number} · {amount} {s.paid_direct ? 'BKC' : 'Palm.'}
+                          </span>
+                        </>)}
                       </div>
                     )
                   })}
