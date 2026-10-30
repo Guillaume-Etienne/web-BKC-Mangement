@@ -36,7 +36,7 @@ export default function PalmeirasSharePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <div className="w-full px-4 sm:px-6 lg:px-10 py-6 space-y-6">
         <div className="bg-gradient-to-r from-teal-600 to-teal-700 rounded-xl text-white px-5 sm:px-6 py-5 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-teal-100 text-sm font-medium uppercase tracking-wide mb-1">Bilene Kite Center · Palmeiras</p>
