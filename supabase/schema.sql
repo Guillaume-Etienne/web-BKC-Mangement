@@ -944,7 +944,8 @@ CREATE TABLE palmeiras_entries (
   month        TEXT NOT NULL,   -- YYYY-MM
   type         palmeiras_entry_type NOT NULL,
   description  TEXT NOT NULL,
-  amount       NUMERIC(10,2) NOT NULL
+  amount       NUMERIC(10,2) NOT NULL,
+  date         DATE              -- 2026-10-30d : le jour réel ; month en découle
 );
 
 -- Règlement daté entre nous et le Palmeiras (2026-10-30b). Admin only ; la page partagée lit

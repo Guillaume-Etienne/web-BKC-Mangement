@@ -6,6 +6,8 @@
 
 ## 🚨 Migrations SQL — registre
 
+⏳ **`2026-10-30d_palmeiras_entries_date.sql`** (TEST ✅ 2026-10-30 par Claude ; **PROD à passer par gui AVANT de pousser le code** — le formulaire Revenu/Dépense écrit la colonne `date`) — `palmeiras_entries.date` + RPC qui la rend. Rien n'est supprimé (le `REVOKE … FROM PUBLIC` re-pose le droit de 30b). Vérif : `SELECT count(*) FROM palmeiras_entries WHERE date IS NULL` → 0.
+
 ⏳ **`2026-10-30c_palmeiras_statement_bungalows.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD à passer par gui — **pas bloquant pour pousser**) — `CREATE OR REPLACE palmeiras_statement()` + clé `bungalows` (noms) pour que la frise montre aussi les bungalows vides. Rien n'est supprimé (Supabase signalera le `REVOKE … FROM PUBLIC`, il re-pose le même droit qu'en 30b). Vérif : token palmeiras → `"bungalows": [...]`.
 
 ✅ **`2026-10-30_palmeiras_link_type.sql` (SEULE) PUIS `2026-10-30b_palmeiras_statement.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD ✅ passée par gui le 2026-10-30, curl anon vérifié : sans token → null, table → 42501 ; empreinte TEST = PROD — code `4c46a71` à pousser) — type de lien `palmeiras`, `palmeiras_rents.amount_mzn`, table `palmeiras_settlements` (admin only), RPC `palmeiras_statement()` (token `palmeiras` seul). Vérif curl (pied du fichier) : sans token → `null` ; token client → `null` ; token palmeiras → l'objet ; `palmeiras_settlements?select=*` → 42501. Résultats TEST : identiques.
@@ -293,6 +295,7 @@ Aucun point n'a encore été fait avec le Palmeiras. En PROD : aucun loyer, aucu
 Règles données par gui : commission **15 %** du prix payé chez eux (petits écarts possibles, change MZN) ; loyer = **10 000 MZN/mois** (≈ 140 €, pas 850 €).
 ✅ Vues codées le 2026-10-30 (relevé dans l'onglet + page partagée `palmeiras`, détail `PALMEIRAS_ACCOUNT.md`) — migrations PROD à passer, puis vérif écran par gui.
 Ensuite, à saisir par gui : loyers sept. + oct. (10 000 MZN), et les éventuels paiements CB sur leur terminal.
+🔔 **Rappeler à gui** : dans le tableau chronologique, un séjour est daté à l'**arrivée** (essai, gui 2026-10-30) — on peut le passer à la date de **départ** (séjour fini = payé) s'il préfère.
 **Données à revoir avec gui APRÈS les vues :**
 - #52 (B4, 1 nuit) vendue 0 € et #58 (B4, 7 nuits, nov.) sans prix figé : oubli de prix ou bungalow offert (dont on doit quand même le coût) ?
 - #64 (B4, 2 nuits, payé en direct) encore **provisoire** : le séjour a-t-il eu lieu ?

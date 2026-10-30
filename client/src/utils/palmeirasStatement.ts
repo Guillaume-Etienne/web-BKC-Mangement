@@ -13,6 +13,19 @@ import { fmtDate, todayISO } from './dates'
  *  month's actual commission (palmeiras_reversals) and show as an adjustment. */
 export const PALMEIRAS_COMMISSION_PCT = 15
 
+/** The house is rented from the 15th to the 15th (gui, 2026-10-30). A rent row
+ *  is keyed by the month its period starts: "2026-10" = 15/10 → 15/11. */
+export const RENT_PERIOD_DAY = 15
+/** First rent period: 15/09/2026 → 15/10/2026 (gui). Before it, no reminder. */
+export const PALMEIRAS_RENT_START_MONTH = '2026-09'
+
+export function rentPeriod(month: string): { start: string; end: string } {
+  const [y, m] = month.split('-').map(Number)
+  const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+  const dd = String(RENT_PERIOD_DAY).padStart(2, '0')
+  return { start: `${month}-${dd}`, end: `${next}-${dd}` }
+}
+
 export interface StatementStay {
   booking_number: number
   guest: string
@@ -35,7 +48,8 @@ export interface StatementInput {
   stays: StatementStay[]
   rents: { month: string; amount: number; amount_mzn: number | null }[]
   adjustments: { month: string; gross_amount: number; percent: number; net_amount: number }[]
-  entries: { month: string; type: 'income' | 'expense'; description: string; amount: number }[]
+  /** `date` since 2026-10-30d (a free line can happen any day); older rows → the 1st of `month`. */
+  entries: { month: string; date?: string | null; type: 'income' | 'expense'; description: string; amount: number }[]
   card_payments: { booking_number: number | null; guest: string; date: string; amount: number }[]
   settlements: { id?: string; date: string; direction: 'us_to_palmeiras' | 'palmeiras_to_us'; amount: number; method: string | null }[]
 }
@@ -113,6 +127,11 @@ export function monthStart(month: string): string {
   return `${month}-01`
 }
 
+export function monthEnd(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  return `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`
+}
+
 export function buildStatement(input: StatementInput, today: string = todayISO()): Statement {
   const lines: StatementLine[] = []
   const autoCommission: Record<string, number> = {}
@@ -145,7 +164,8 @@ export function buildStatement(input: StatementInput, today: string = todayISO()
     const diff = r2(a.net_amount - (autoCommission[a.month] ?? 0))
     if (Math.abs(diff) < 0.01) continue
     lines.push({
-      key: `adj-${a.month}`, date: monthStart(a.month), kind: 'adjustment', provisional: false,
+      // dated at the end of its month: it corrects that month's stays
+      key: `adj-${a.month}`, date: monthEnd(a.month), kind: 'adjustment', provisional: false,
       title: 'Commission adjustment (exchange rate)',
       detail: `Actual commission for the month: ${a.percent}% of ${fmtEurCents(a.gross_amount)} = ${fmtEurCents(a.net_amount)}`,
       toUs: diff > 0 ? diff : 0, toPalmeiras: diff < 0 ? -diff : 0,
@@ -153,9 +173,10 @@ export function buildStatement(input: StatementInput, today: string = todayISO()
   }
 
   for (const r of input.rents) {
+    const p = rentPeriod(r.month)
     lines.push({
-      key: `rent-${r.month}`, date: monthStart(r.month), kind: 'rent', provisional: false,
-      title: 'Monthly rent',
+      key: `rent-${r.month}`, date: p.start, kind: 'rent', provisional: false,
+      title: `House rent ${fmtDate(p.start)} → ${fmtDate(p.end)}`,
       detail: r.amount_mzn ? `${Math.round(r.amount_mzn).toLocaleString('en-US')} MZN` : '',
       toUs: 0, toPalmeiras: r2(r.amount),
     })
@@ -172,7 +193,7 @@ export function buildStatement(input: StatementInput, today: string = todayISO()
 
   input.entries.forEach((e, i) => {
     lines.push({
-      key: `entry-${i}`, date: monthStart(e.month), kind: 'entry', provisional: false,
+      key: `entry-${i}`, date: e.date ?? monthStart(e.month), kind: 'entry', provisional: false,
       title: e.description, detail: '',
       toUs: e.type === 'income' ? r2(e.amount) : 0,
       toPalmeiras: e.type === 'expense' ? r2(e.amount) : 0,
@@ -181,9 +202,9 @@ export function buildStatement(input: StatementInput, today: string = todayISO()
 
   // A stay counts once it has begun, a rent once its month has come: a booking
   // for next month must not weigh on the balance settled today.
+  // (A rent is dated on the 15th its period starts, so the same rule covers it.)
   const isUpcoming = (l: StatementLine) =>
-    ((l.kind === 'stay_ours' || l.kind === 'stay_direct') && l.date > today)
-    || (l.kind === 'rent' && l.date.slice(0, 7) > today.slice(0, 7))
+    (l.kind === 'stay_ours' || l.kind === 'stay_direct' || l.kind === 'rent') && l.date > today
   const upcoming = lines.filter(isUpcoming).sort((a, b) => a.date.localeCompare(b.date))
   const due = lines.filter(l => !isUpcoming(l))
 
@@ -219,4 +240,67 @@ export function balanceSentence(balance: number): string {
   return balance > 0
     ? `The Palmeiras owes BKC ${fmtEurCents(balance)}`
     : `BKC owes the Palmeiras ${fmtEurCents(-balance)}`
+}
+
+// ── Chronological ledger (the « Table » view) ───────────────────────────────
+// Like a bank statement: one row per movement in date order, a running
+// balance, a subtotal per month. A payment between us is a row too: a payment
+// by BKC reduces what is owed to the Palmeiras (negative in that column), a
+// payment by the Palmeiras reduces what is owed to BKC — so the running
+// balance (owed to BKC − owed to the Palmeiras) walks back towards zero.
+
+export type LedgerKind = LineKind | 'settlement'
+
+export interface LedgerRow extends Omit<StatementLine, 'kind'> {
+  kind: LedgerKind
+  /** Balance once this row is counted; null for a row not due yet. */
+  balance: number | null
+  /** The settlement's id, so the admin can delete it from the table. */
+  settlementId?: string
+}
+
+export interface LedgerMonth {
+  month: string
+  rows: LedgerRow[]
+  toUs: number
+  toPalmeiras: number
+  /** Running balance at the end of the month. */
+  closing: number
+}
+
+// Same day: what happened before what was paid for it.
+const KIND_ORDER: Record<LedgerKind, number> = {
+  rent: 0, stay_ours: 1, stay_direct: 2, card: 3, entry: 4, adjustment: 5, settlement: 6,
+}
+
+export function buildLedger(st: Statement): { months: LedgerMonth[]; upcoming: LedgerRow[] } {
+  const rows: LedgerRow[] = [
+    ...st.months.flatMap(m => m.lines).map(l => ({ ...l, balance: null })),
+    ...st.settlements.map(s => ({
+      key: s.key, date: s.date, kind: 'settlement' as const, provisional: false, balance: null,
+      settlementId: s.id,
+      title: s.direction === 'us_to_palmeiras' ? 'Payment BKC → the Palmeiras' : 'Payment the Palmeiras → BKC',
+      detail: s.method ?? '',
+      toUs: s.direction === 'palmeiras_to_us' ? -s.amount : 0,
+      toPalmeiras: s.direction === 'us_to_palmeiras' ? -s.amount : 0,
+    })),
+  ].sort((a, b) => a.date.localeCompare(b.date) || KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.key.localeCompare(b.key))
+
+  const months: LedgerMonth[] = []
+  let running = 0
+  for (const row of rows) {
+    running = r2(running + row.toUs - row.toPalmeiras)
+    row.balance = running
+    const month = row.date.slice(0, 7)
+    let m = months[months.length - 1]
+    if (!m || m.month !== month) months.push(m = { month, rows: [], toUs: 0, toPalmeiras: 0, closing: 0 })
+    m.rows.push(row)
+    m.toUs = r2(m.toUs + row.toUs)
+    m.toPalmeiras = r2(m.toPalmeiras + row.toPalmeiras)
+    m.closing = running
+  }
+  return {
+    months,
+    upcoming: st.upcoming.map(l => ({ ...l, balance: null })),
+  }
 }

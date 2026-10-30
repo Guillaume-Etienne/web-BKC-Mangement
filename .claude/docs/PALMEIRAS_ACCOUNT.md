@@ -32,6 +32,15 @@ qu'on a encaissé, **que ce qu'on lui doit** (jamais notre prix de vente) ; **no
   par mois saisi ; un mois commencé sans loyer → « Rent not recorded yet » (visible aussi du Palmeiras) et, côté
   admin, bouton « + 10,000 MZN » qui l'enregistre au taux courant (montant différent → ✏ dans Internal result).
   Onglet admin et page partagée en pleine largeur.
+- **Loyer du 15 au 15** (gui, 2026-10-30) : une ligne `palmeiras_rents.month = '2026-10'` = période 15/10 → 15/11,
+  datée et due le 15 (`rentPeriod`, `RENT_PERIOD_DAY`). Première période 15/09/2026 (`PALMEIRAS_RENT_START_MONTH`) :
+  aucun rappel avant.
+- **Deux vues** (bascule mémorisée par appareil, admin ET Palmeiras) : 📅 **Timeline** (frise + liste des règlements)
+  et 📋 **Table** = relevé chronologique (`PalmeirasLedger`, `buildLedger` testé) : une ligne par mouvement, solde
+  courant, sous-total + solde de clôture par mois, règlements en lignes (− sur le côté qu'ils soldent), ligne « Today »,
+  puis « Upcoming » grisé hors solde. L'ancienne liste « par mois » est remplacée par la Table.
+- Séjour daté à l'**arrivée** (essai) — 🔔 rappeler à gui qu'on peut passer à la date de départ.
+- Lignes libres (Revenu / Dépense) : vraie **date** (`palmeiras_entries.date`, migration **30d**), `month` en découle.
 - Migrations `2026-10-30` (enum, SEULE) puis `2026-10-30b` : TEST ✅ (Claude, curl vérifié) / PROD à passer.
 - Hors périmètre : Cash Flow compte toujours les Reversals saisis (pas la commission calculée) ; les
   règlements n'y apparaissent pas.

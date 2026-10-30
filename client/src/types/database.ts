@@ -1019,10 +1019,11 @@ export interface PalmeirasReversal {
 // Free expense or income line for a given month
 export interface PalmeirasEntry {
   id: string
-  month: string       // YYYY-MM
+  month: string       // YYYY-MM — follows `date`
   type: 'expense' | 'income'
   description: string
   amount: number
+  date?: string | null  // YYYY-MM-DD (2026-10-30d); older rows: the 1st of `month`
 }
 
 // PalmeirasSubLet — REMOVED (avril 2026)

@@ -4,10 +4,11 @@
 // carrying what the stay weighs in the account. Under the grid, one total per
 // month. Shared by the admin tab and the Palmeiras share page.
 import { useEffect, useMemo, useRef } from 'react'
-import { addDaysISO, daysBetween, fromISODate, todayISO } from '../../utils/dates'
+import { addDaysISO, daysBetween, fmtDate, fromISODate, todayISO } from '../../utils/dates'
 import {
   type Statement, type StatementInput, type StatementStay,
   stayAmounts, stayRef, fmtEurCents, fmtMonthLong, PALMEIRAS_COMMISSION_PCT,
+  PALMEIRAS_RENT_START_MONTH, rentPeriod,
 } from '../../utils/palmeirasStatement'
 
 const CELL_W = 36   // px per day — wider than the planning, the bars carry amounts
@@ -68,6 +69,13 @@ export default function PalmeirasTimeline({ input, statement, onAddRent, default
   const totalDays = months.reduce((n, m) => n + daysInMonth(m), 0)
   const idx = (iso: string) => daysBetween(first, iso)
   const todayIdx = idx(today)
+
+  // Rent periods to draw: from the first one (or the earliest recorded) to the
+  // last month shown — each spills into the next month, the bar is clipped.
+  const rentMonths = useMemo(() => {
+    const from = [PALMEIRAS_RENT_START_MONTH, ...input.rents.map(r => r.month)].sort()[0]
+    return monthsBetween(from, months[months.length - 1])
+  }, [input.rents, months])
 
   // Money per month, from the statement itself (due lines + upcoming ones),
   // so the timeline and the list can never disagree.
@@ -200,43 +208,50 @@ export default function PalmeirasTimeline({ input, statement, onAddRent, default
             )
           })}
 
-          {/* The house we rent from the Palmeiras: one bar per month. A month
-              already begun with no rent recorded is flagged — it is the line
-              most easily forgotten, and the balance is wrong without it. */}
+          {/* The house we rent from the Palmeiras, from the 15th to the 15th: one
+              bar per period, drawn like a stay. A period already begun with no
+              rent recorded is flagged — the line most easily forgotten, and the
+              balance is wrong without it. */}
           <div className="flex border-b border-gray-200 dark:border-gray-800">
             <div className={`${label} py-2 text-sm font-medium text-gray-800 dark:text-gray-200 flex items-center`}>
               <span className="truncate">🏠 House rent</span>
             </div>
-            {months.map(m => {
-              const rent = input.rents.find(r => r.month === m)
-              const due = m <= today.slice(0, 7)
-              return (
-                <div key={m} style={{ width: daysInMonth(m) * CELL_W, height: 44 }}
-                  className="shrink-0 relative border-r-2 border-gray-300 dark:border-gray-600">
-                  {rent ? (
-                    <div title={`Rent ${fmtMonthLong(m)}: ${fmtEurCents(rent.amount)}${rent.amount_mzn ? ` (${Math.round(rent.amount_mzn).toLocaleString('en-US')} MZN)` : ''} — owed to the Palmeiras`}
-                      className="absolute inset-x-1 top-1.5 h-8 rounded-md bg-rose-400 dark:bg-rose-600 text-white text-xs px-2 flex items-center whitespace-nowrap overflow-hidden">
-                      <span className="sticky left-28 sm:left-36 truncate">
-                        <span className="font-semibold">Rent</span>
-                        {rent.amount_mzn ? ` · ${Math.round(rent.amount_mzn).toLocaleString('en-US')} MZN` : ''} · {fmtEurCents(rent.amount)} Palm.
-                      </span>
-                    </div>
-                  ) : due ? (
-                    <div className="absolute inset-x-1 top-1.5 h-8 rounded-md border-2 border-dashed border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 text-xs px-2 flex items-center gap-2 whitespace-nowrap overflow-hidden">
-                      <span className="sticky left-28 sm:left-36 flex items-center gap-2">
-                        <span>Rent not recorded yet</span>
-                        {onAddRent && (
-                          <button onClick={() => onAddRent(m)}
-                            className="px-2 py-0.5 rounded bg-rose-600 text-white font-medium hover:bg-rose-700">
-                            + {defaultRentMzn ? `${defaultRentMzn.toLocaleString('en-US')} MZN` : 'Add'}
-                          </button>
-                        )}
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
-              )
-            })}
+            <div className="relative shrink-0" style={{ width: totalDays * CELL_W, height: 44 }}>
+              <div className="absolute inset-0 flex">
+                {months.map(m => <div key={m} style={{ width: daysInMonth(m) * CELL_W }} className="shrink-0 border-r-2 border-gray-300 dark:border-gray-600" />)}
+              </div>
+              {rentMonths.map(m => {
+                const rent = input.rents.find(r => r.month === m)
+                const { start, end } = rentPeriod(m)
+                if (!rent && start > today) return null
+                const from = Math.max(0, idx(start))
+                const to = Math.min(totalDays, idx(end))
+                if (to <= 0 || from >= totalDays) return null
+                const style = { left: from * CELL_W + 2, width: (to - from) * CELL_W - 4 }
+                const period = `${fmtDate(start)} → ${fmtDate(end)}`
+                return rent ? (
+                  <div key={m} style={style}
+                    title={`House rent ${period}: ${fmtEurCents(rent.amount)}${rent.amount_mzn ? ` (${Math.round(rent.amount_mzn).toLocaleString('en-US')} MZN)` : ''} — owed to the Palmeiras`}
+                    className="absolute top-1.5 h-8 rounded-md bg-rose-400 dark:bg-rose-600 text-white text-xs px-2 flex items-center whitespace-nowrap overflow-hidden">
+                    <span className="truncate">
+                      <span className="font-semibold">Rent {period}</span>
+                      {rent.amount_mzn ? ` · ${Math.round(rent.amount_mzn).toLocaleString('en-US')} MZN` : ''} · {fmtEurCents(rent.amount)} Palm.
+                    </span>
+                  </div>
+                ) : (
+                  <div key={m} style={style}
+                    className="absolute top-1.5 h-8 rounded-md border-2 border-dashed border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 text-xs px-2 flex items-center gap-2 whitespace-nowrap overflow-hidden">
+                    <span className="truncate">Rent {period} not recorded yet</span>
+                    {onAddRent && (
+                      <button onClick={() => onAddRent(m)}
+                        className="shrink-0 px-2 py-0.5 rounded bg-rose-600 text-white font-medium hover:bg-rose-700">
+                        + {defaultRentMzn ? `${defaultRentMzn.toLocaleString('en-US')} MZN` : 'Add'}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
           {/* Totals per month */}

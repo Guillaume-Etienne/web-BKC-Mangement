@@ -145,14 +145,17 @@ function EntryForm({ month: initialMonth, type, onSave, onCancel }: {
   onSave: (e: PalmeirasEntry) => void; onCancel: () => void
 }) {
   const { lang } = useLanguage()
-  const [month,       setMonth]       = useState(initialMonth)
+  // A free line happens on a given day (gui, 2026-10-30): today, or the 1st
+  // of the month being browsed; `month` is derived from it.
+  const [date,        setDate]        = useState(initialMonth === todayISO().slice(0, 7) ? todayISO() : `${initialMonth}-01`)
   const [description, setDescription] = useState('')
   const [amount,      setAmount]      = useState('')
   const submit = (ev: React.FormEvent) => {
     ev.preventDefault()
     const amt = parseFloat(amount)
     if (!description.trim() || isNaN(amt) || amt <= 0) return
-    onSave({ id: crypto.randomUUID(), month, type, description: description.trim(), amount: amt })
+    if (!date) return
+    onSave({ id: crypto.randomUUID(), month: date.slice(0, 7), date, type, description: description.trim(), amount: amt })
   }
   const expense = type === 'expense'
   const input = 'px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400'
@@ -165,7 +168,7 @@ function EntryForm({ month: initialMonth, type, onSave, onCancel }: {
         <span className="font-normal text-gray-500 dark:text-gray-400"> · {expense ? 'owed to the Palmeiras' : 'owed to BKC'} · shown on the Palmeiras page</span>
       </p>
       <div className="flex flex-wrap gap-2">
-        <MonthInput value={month} onChange={setMonth} />
+        <input type="date" value={date} onChange={e => setDate(e.target.value)} required className={input} />
         <input type="text" value={description} onChange={e => setDescription(e.target.value)}
           placeholder="Description…" autoFocus className={`flex-1 min-w-[12rem] ${input}`} />
         <input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}

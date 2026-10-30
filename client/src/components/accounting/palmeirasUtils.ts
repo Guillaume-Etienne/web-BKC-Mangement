@@ -140,7 +140,7 @@ export function statementInputFromData(
     adjustments: data.palmeirasReversals.map(r => ({
       month: r.month, gross_amount: r.gross_amount, percent: r.percent, net_amount: r.net_amount,
     })),
-    entries: data.palmeirasEntries.map(e => ({ month: e.month, type: e.type, description: e.description, amount: e.amount })),
+    entries: data.palmeirasEntries.map(e => ({ month: e.month, date: e.date ?? null, type: e.type, description: e.description, amount: e.amount })),
     card_payments: data.payments
       .filter(p => p.method === 'card_palmeiras' && !p.is_discount)
       .map(p => {
