@@ -36,7 +36,7 @@ const L = {
   no_arrivals:    { pt: 'Nenhuma chegada nos próximos dias', en: 'No arrivals in the next few days' },
   no_inhouse:     { pt: 'Nenhum hóspede no centro', en: 'No guests at the center' },
   tab_departures: { pt: 'Partidas', en: 'Departures' },
-  tab_inhouse:    { pt: 'No hotel', en: 'In house' },
+  tab_inhouse:    { pt: 'No local', en: 'On site' },
   tab_arrivals:   { pt: 'Chegadas', en: 'Arrivals' },
   tab_overview:   { pt: 'Visão geral', en: 'Overview' },
   stays_count:    { pt: 'estadias', en: 'stays' },
