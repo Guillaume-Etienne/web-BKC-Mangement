@@ -297,6 +297,7 @@ Aucun point n'a encore été fait avec le Palmeiras. En PROD : aucun loyer, aucu
 Règles données par gui : commission **15 %** du prix payé chez eux (petits écarts possibles, change MZN) ; loyer = **10 000 MZN/mois** (≈ 140 €, pas 850 €).
 ✅ Vues codées le 2026-10-30 (relevé dans l'onglet + page partagée `palmeiras`, détail `PALMEIRAS_ACCOUNT.md`) — migrations PROD à passer, puis vérif écran par gui.
 Ensuite, à saisir par gui : loyers sept. + oct. (10 000 MZN), et les éventuels paiements CB sur leur terminal.
+**Reprise (2026-10-30, tout livré et en ligne)** : 1) gui saisit les loyers 15/09 et 15/10 (« + 10,000 MZN ») et marque payés ceux réglés (« Mark paid ») ; 2) revue des données ci-dessous ; 3) gui envoie le lien. Proposé, pas fait : alerte « loyer non saisi » aussi dans la vue Table.
 🔔 **Rappeler à gui** : dans le tableau chronologique, un séjour est daté à l'**arrivée** (essai, gui 2026-10-30) — on peut le passer à la date de **départ** (séjour fini = payé) s'il préfère.
 **Données à revoir avec gui APRÈS les vues :**
 - #52 (B4, 1 nuit) vendue 0 € et #58 (B4, 7 nuits, nov.) sans prix figé : oubli de prix ou bungalow offert (dont on doit quand même le coût) ?
