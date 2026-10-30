@@ -533,7 +533,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Accommodation */}
         {(billedAccomRows.length > 0 || extAccomRows.length > 0) && (
-          <Section title={t('sec_accommodation')} icon="🛏️">
+          <Section title={t('sec_accommodation')} icon="🛏️" count={billedAccomRows.length + extAccomRows.length} total={fmtEur(accomTotal)}>
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
@@ -578,7 +578,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Lessons */}
         {lessonRows.length > 0 && (
-          <Section title={t('sec_lessons')} icon="🏄" action={lessonsHaveGear ? gearToggle : undefined}>
+          <Section title={t('sec_lessons')} icon="🏄" count={lessonRows.length} total={fmtEur(lessonsTotal)} action={lessonsHaveGear ? gearToggle : undefined}>
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
@@ -618,7 +618,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Equipment rentals */}
         {rentals.length > 0 && (
-          <Section title={t('sec_rentals')} icon="🎿" action={rentalsHaveGear ? gearToggle : undefined}>
+          <Section title={t('sec_rentals')} icon="🎿" count={rentals.length} total={fmtEur(rentalsTotal)} action={rentalsHaveGear ? gearToggle : undefined}>
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
@@ -665,7 +665,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Taxis */}
         {taxis.length > 0 && (
-          <Section title={t('sec_taxis')} icon="🚕">
+          <Section title={t('sec_taxis')} icon="🚕" count={taxis.length} total={fmtEur(taxiTotal)}>
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
@@ -699,7 +699,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Dining events */}
         {diningRows.length > 0 && (
-          <Section title={t('sec_dining')} icon="🍽️">
+          <Section title={t('sec_dining')} icon="🍽️" count={diningRows.length} total={fmtEur(diningTotal)}>
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
@@ -734,7 +734,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Activities */}
         {activityRows.length > 0 && (
-          <Section title={t('sec_activities')} icon="🎯">
+          <Section title={t('sec_activities')} icon="🎯" count={activityRows.length} total={fmtEur(activityTotal)}>
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
@@ -766,7 +766,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Center access */}
         {centerAccessTotal > 0 && (
-          <Section title={t('sec_center_access')} icon="🏖️">
+          <Section title={t('sec_center_access')} icon="🏖️" total={fmtEur(centerAccessTotal)}>
             <div className="overflow-x-auto"><table className="w-full text-sm">
               <tbody>
                 <tr className="border-b border-gray-50 dark:border-gray-800">
@@ -788,7 +788,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
 
         {/* Extras */}
         {extraRows.length > 0 && (
-          <Section title={t('sec_extras')} icon="➕">
+          <Section title={t('sec_extras')} icon="➕" count={extraRows.length} total={fmtEur(extrasTotal)}>
             <div className="overflow-x-auto"><table className="w-full text-sm stack-mobile">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                 <tr>
@@ -1037,16 +1037,33 @@ function GearToggle({ on, onToggle, label }: { on: boolean; onToggle: () => void
 
 // ─── Reusable section wrapper ─────────────────────────────────────────────────
 
-function Section({ title, icon, action, children }: { title: string; icon: string; action?: React.ReactNode; children: React.ReactNode }) {
+/** Folds on a click. A long stay on a phone is a wall of lessons and rentals:
+ *  closed by default there, the headers alone — line count and subtotal — give
+ *  the whole picture. Open by default on a wide screen, where nothing is lost. */
+function Section({ title, icon, count, total, action, children }: {
+  title: string; icon: string; count?: number; total?: string; action?: React.ReactNode; children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(() => {
+    try { return window.matchMedia('(min-width: 768px)').matches } catch { return true }
+  })
   return (
     <section className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
-        <h2 className="font-semibold text-gray-800 dark:text-gray-200">{icon} {title}</h2>
-        {action}
-      </div>
-      <div className="overflow-x-auto">
-        {children}
-      </div>
+      <details className="group" open={open} onToggle={e => setOpen(e.currentTarget.open)}>
+        <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden px-5 py-4 flex items-center gap-2 group-open:border-b border-gray-100 dark:border-gray-800">
+          <span className="text-xs text-gray-400 dark:text-gray-500 transition-transform group-open:rotate-90">▶</span>
+          <h2 className="font-semibold text-gray-800 dark:text-gray-200">{icon} {title}</h2>
+          {count != null && (
+            <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">{count}</span>
+          )}
+          <span className="ml-auto flex items-center gap-3">
+            {action}
+            {total != null && <span className="font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">{total}</span>}
+          </span>
+        </summary>
+        <div className="overflow-x-auto">
+          {children}
+        </div>
+      </details>
     </section>
   )
 }
