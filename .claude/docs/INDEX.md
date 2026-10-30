@@ -11,6 +11,7 @@
 | Ajouter un **type de page partagée** (type TS + enum migration + dispatch + label…) | `taxi-and-shares.md` § RUNBOOK — Ajouter un nouveau type |
 | Ajouter un **champ à une page partagée** | `taxi-and-shares.md` § RUNBOOK — Ajouter un champ |
 | Ajouter/modifier une **policy anon** (sans fuiter de données) | `security-rls.md` § Checklist |
+| Vérifier que **TEST et PROD ont le même schéma** (après un lot de migrations) | `supabase/diagnostics_schema_fingerprint.sql` sur les 2 bases → comparer les 10 lignes ; détail : mode 2 du fichier |
 | Ajouter un **enum** (valeur) en base | migration `ALTER TYPE … ADD VALUE IF NOT EXISTS` (seule, hors txn) + `schema.sql` |
 | Ajouter une **colonne** | migration + `schema.sql` + type TS + **`types/canary.ts`** *si le champ TS est obligatoire* (fichier importé nulle part mais type-checké : le `satisfies` casse le build, un champ optionnel ne le casse pas ; `accounting/utils.fixtures.ts` peut casser aussi) + form admin. ⚠️ Vérifier aussi si la table est en **GRANT par colonne** pour `anon` (`bookings`, `clients`, `taxi_trips`…) : si oui, la colonne est invisible en anon par défaut — c'est voulu, ne l'accorder que sur décision |
 | Créer une **migration** | `supabase/migrations/AAAA-MM-JJ_nom.sql`, idempotent, appliquer **TEST puis PROD** |

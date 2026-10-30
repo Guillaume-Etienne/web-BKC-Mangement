@@ -275,6 +275,16 @@ reverifier par curl anon.
 
 ## 🔴 Ouvert
 
+### 🧬 Dérive de schéma — contrôle du 2026-10-30 (`supabase/diagnostics_schema_fingerprint.sql`)
+
+Empreinte TEST ↔ PROD (tables, colonnes, contraintes, index, policies, droits, fonctions, enums, triggers) :
+**identiques**, sauf `get_db_stats()` exécutable par anon sur TEST seul → REVOKE passé sur TEST par Claude, aligné.
+À relancer après chaque lot de migrations (résumé = 10 lignes à comparer).
+- ⏳ **`schema.sql` incomplet** : 6 tables en base n'y sont pas — `client_errors`, `dining_event_costs`,
+  `dismissed_actions`, `lesson_clients` (morte, cf. 19d), `lesson_participant_gear`, `transfer_reference_prices`.
+  À régénérer depuis la PROD (ou à compléter) ; ne pas s'y fier comme référence d'ici là.
+- Rappel dette : 19d (colonnes mortes) repoussée ; `palmeiras_reversals` = désormais « commission réelle du mois ».
+
 ### 🌴 Compta Palmeiras — vues d'abord, données ensuite (ouvert 2026-10-30)
 
 Aucun point n'a encore été fait avec le Palmeiras. En PROD : aucun loyer, aucun Reversal, aucune Free entry, aucun paiement `card_palmeiras`.
