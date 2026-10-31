@@ -352,7 +352,28 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
                       <span className="font-normal text-gray-500 dark:text-gray-400"> — {partName(l.participant_id)}</span>
                     )}
                   </span>
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{fmtEur(l.price)}</span>
+                  {/* Editable while the invoice is unpaid (2026-10-31): a price the agency
+                      disputes gets fixed here, without deleting the line — deleting it would
+                      detach every lesson counted against the package. */}
+                  {invoice?.paid_at && l.agency_invoice_id === invoice.id ? (
+                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{fmtEur(l.price)}</span>
+                  ) : (
+                    <label className="flex items-center gap-1 text-sm font-semibold text-gray-800 dark:text-gray-200">
+                      <input
+                        key={l.price}
+                        type="number" min="0" step="0.01"
+                        defaultValue={l.price}
+                        title="Price billed to the agency — editable until the invoice is paid"
+                        onBlur={e => {
+                          const v = parseFloat(e.target.value)
+                          if (!Number.isFinite(v) || v < 0) { e.target.value = String(l.price); return }
+                          if (v !== Number(l.price)) handlers.updateAgencyBillingLine({ ...l, price: v })
+                        }}
+                        className="w-20 px-1.5 py-0.5 text-right rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 tabular-nums"
+                      />
+                      €
+                    </label>
+                  )}
                 </div>
 
                 {/* Package progress — hours only exist on lesson packages */}
