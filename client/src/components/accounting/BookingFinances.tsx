@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { Payment, PaymentMethod, Booking, EquipmentRental, Associate, BookingCharge, BookingChargeCategory } from '../../types/database'
 import { rentalKind, rentalLabel } from '../planning/rentalTypes'
@@ -18,7 +18,13 @@ import { i18n } from '../../data/i18n'
 import type { Lang } from '../../types/database'
 import ClientShareLink from '../common/ClientShareLink'
 
-interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
+interface Props {
+  data: SharedAccountingData
+  handlers: AccountingHandlers
+  /** Open on this booking, filtered and unfolded, scrolled to its agency panel. */
+  focusBookingId?: string | null
+  onFocusDone?: () => void
+}
 
 function methodLabels(lang: Lang): Record<PaymentMethod, string> {
   return {
@@ -1296,15 +1302,27 @@ function AgencySummary({ bookingId, data }: { bookingId: string; data: SharedAcc
   )
 }
 
-export default function BookingFinances({ data, handlers }: Props) {
+export default function BookingFinances({ data, handlers, focusBookingId, onFocusDone }: Props) {
   const { lang } = useLanguage()
   const { bookings, clients, payments } = data
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const focused = focusBookingId ? bookings.find(b => b.id === focusBookingId) : undefined
+  const [expandedId, setExpandedId] = useState<string | null>(focused?.id ?? null)
   const [showCancelled, setShowCancelled] = useState(false)
   const [presentOnly, setPresentOnly] = useState(false)
   const [daysBefore, setDaysBefore] = useState('')  // window start: x days before today
   const [daysAfter, setDaysAfter] = useState('')    // window end: y days after today
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(focused ? String(focused.booking_number).padStart(3, '0') : '')
+
+  // Mobile cards and desktop table both render the panel — scroll to the visible one.
+  useEffect(() => {
+    if (!focusBookingId) return
+    const id = requestAnimationFrame(() => {
+      const panels = document.querySelectorAll<HTMLElement>(`[data-agency-panel="${focusBookingId}"]`)
+      ;[...panels].find(p => p.offsetParent !== null)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      onFocusDone?.()
+    })
+    return () => cancelAnimationFrame(id)
+  }, [])  // once, on arrival
 
   const standaloneTrips = data.taxiTrips.filter(t => t.booking_id === null)
   const standaloneRev   = computeStandaloneTaxiRevenue(data)

@@ -233,7 +233,7 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
   }
 
   return (
-    <div className="rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-950/20 p-4 space-y-4">
+    <div data-agency-panel={b.id} className="rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-950/20 p-4 space-y-4 scroll-mt-4">
 
       {/* Header */}
       <div className="flex flex-wrap justify-between items-baseline gap-2">

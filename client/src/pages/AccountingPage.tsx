@@ -58,6 +58,9 @@ function getTabs(lang: Lang): { id: Tab; label: string; icon: string }[] {
 
 export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id: string) => void }) {
   const [tab, setTab] = useState<Tab>('dashboard')
+  // Agencies tab → one booking's invoice panel (2026-10-31): handed to
+  // BookingFinances once, then dropped so a later visit opens unfiltered.
+  const [focusBookingId, setFocusBookingId] = useState<string | null>(null)
   const { lang } = useLanguage()
   const TABS = getTabs(lang)
 
@@ -627,11 +630,11 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
 
         {/* Tab content */}
         {tab === 'dashboard'   && <AccountingDashboard data={sharedData} onOpenBooking={onOpenBooking} />}
-        {tab === 'bookings'    && <BookingFinances     data={sharedData} handlers={handlers} />}
+        {tab === 'bookings'    && <BookingFinances     data={sharedData} handlers={handlers} focusBookingId={focusBookingId} onFocusDone={() => setFocusBookingId(null)} />}
         {tab === 'instructors' && <InstructorPayroll   data={sharedData} handlers={handlers} />}
         {tab === 'houses'      && <HousesTab            data={sharedData} />}
         {tab === 'palmeiras'   && <PalmeirasTab        data={sharedData} handlers={handlers} />}
-        {tab === 'agencies'    && <AgencyBillingTab    data={sharedData} />}
+        {tab === 'agencies'    && <AgencyBillingTab    data={sharedData} onOpenInvoice={id => { setFocusBookingId(id); setTab('bookings') }} />}
         {tab === 'associates'  && <AssociatesTab       data={sharedData} handlers={handlers} onOpenBooking={onOpenBooking} />}
         {tab === 'cashflow'    && <CashFlow            data={sharedData} />}
         {tab === 'expenses'    && <ExpensesTab         data={sharedData} handlers={handlers} />}

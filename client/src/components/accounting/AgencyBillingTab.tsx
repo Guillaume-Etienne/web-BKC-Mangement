@@ -10,7 +10,11 @@ import { i18n } from '../../data/i18n'
 
 // Read-only screen: it reports, it never stamps. The invoice — number, agency
 // ref, stamps, printable document — is handled from the booking it belongs to.
-interface Props { data: SharedAccountingData }
+interface Props {
+  data: SharedAccountingData
+  /** Jump to the booking's 🤝 Agency billing panel, where the invoice is made. */
+  onOpenInvoice?: (bookingId: string) => void
+}
 
 /** Invoice lines carry no date of their own — they belong to a booking, and a
  *  booking belongs to the season containing its check-in. So the period filter
@@ -18,7 +22,7 @@ interface Props { data: SharedAccountingData }
  *  here and on the dashboard must always come from the same slice of data. */
 type Period = 'all' | 'season'
 
-export default function AgencyBillingTab({ data }: Props) {
+export default function AgencyBillingTab({ data, onOpenInvoice }: Props) {
   const { lang } = useLanguage()
   const [period, setPeriod]     = useState<Period>('all')
   const [agencyId, setAgencyId] = useState<string>('')
@@ -187,7 +191,17 @@ export default function AgencyBillingTab({ data }: Props) {
                     {fmtEur(g.net)}
                     <span className="block text-xs text-purple-500 dark:text-purple-400">−{fmtEur(g.commission)} ({first.commissionPercent}%)</span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">{invoiceStatus(g.invoice)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-start gap-3">
+                      {invoiceStatus(g.invoice)}
+                      {onOpenInvoice && (
+                        <button onClick={e => { e.stopPropagation(); onOpenInvoice(g.bookingId) }}
+                          className="ml-auto text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                          {g.invoice ? 'Open invoice →' : 'Create invoice →'}
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
                 {isOpen && g.lines.map(r => {
                   const over = r.line.unit_hours != null && r.hoursUsed > r.line.unit_hours
