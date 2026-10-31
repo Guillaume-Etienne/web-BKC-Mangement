@@ -198,6 +198,7 @@ export const accountingI18n = {
   palm_rent_rate_hint:    { fr: '≈ converti au taux courant ({rate} MZN/€)', en: '≈ converted at the current rate ({rate} MZN/€)', es: '≈ convertido al tipo actual ({rate} MZN/€)' },
   palm_view_statement:    { fr: 'Relevé (partagé avec le Palmeiras)', en: 'Statement (shared with the Palmeiras)', es: 'Extracto (compartido con Palmeiras)' },
   palm_view_internal:     { fr: 'Résultat interne', en: 'Internal result', es: 'Resultado interno' },
+  palm_view_exports:      { fr: 'Exports', en: 'Exports', es: 'Exportaciones' },
   palm_copy_link:         { fr: '🔗 Copier le lien Palmeiras', en: '🔗 Copy Palmeiras link', es: '🔗 Copiar enlace Palmeiras' },
   palm_create_link:       { fr: '🔗 Créer le lien Palmeiras', en: '🔗 Create Palmeiras link', es: '🔗 Crear enlace Palmeiras' },
   palm_link_copied:       { fr: '✓ Copié', en: '✓ Copied', es: '✓ Copiado' },

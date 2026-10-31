@@ -46,6 +46,11 @@ qu'on a encaissé, **que ce qu'on lui doit** (jamais notre prix de vente) ; **no
   nomme la ligne « House rent paid (15/10 → 15/11) ». Admin : bouton « Mark paid » sur une barre de loyer non payée →
   formulaire de règlement pré-rempli (montant du loyer, sens, date du jour). Supprimer le règlement = loyer non payé.
   Un loyer réglé dans une compensation mensuelle globale : ne pas le marquer (la barre reste rose, sans « impayé »).
+- **Vue « Exports »** (2026-10-31, 3ᵉ bascule à côté de Statement / Internal) : feuilles imprimables façon Palmeiras,
+  prévisualisées dans une iframe (= la page imprimée) puis « Print / Save as PDF ». Formats = registre `EXPORT_FORMATS`
+  (`utils/palmeirasExports.ts`, testé) : *Month grid* (bungalows × jours), *Bungalow sheets*, *Stay list*. **Ajouter un
+  format = une entrée dans le registre.** Construits depuis `StatementInput` → jamais notre prix de vente. Mois par mois ;
+  montants optionnels (case), comptés au mois d'arrivée comme le relevé.
 - Migrations `2026-10-30` (enum, SEULE) puis `2026-10-30b` : TEST ✅ (Claude, curl vérifié) / PROD à passer.
 - Hors périmètre : Cash Flow compte toujours les Reversals saisis (pas la commission calculée) ; les
   règlements n'y apparaissent pas.

@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase'
 import { useTable } from '../../hooks/useSupabase'
 import { buildStatement, rentPeriod, PALMEIRAS_COMMISSION_PCT } from '../../utils/palmeirasStatement'
 import PalmeirasStatementView from '../palmeiras/PalmeirasStatementView'
+import PalmeirasExports from '../palmeiras/PalmeirasExports'
 import MonthInput from '../common/MonthInput'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
@@ -244,7 +245,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
   const currentSeason = seasons[seasons.length - 1]
 
   // ── Statement (what the Palmeiras sees) vs internal result ────────────────
-  const [view, setView] = useState<'statement' | 'internal'>('statement')
+  const [view, setView] = useState<'statement' | 'internal' | 'exports'>('statement')
   const { data: settlements, refresh: refreshSettlements } =
     useTable<PalmeirasSettlement>('palmeiras_settlements', { order: 'date', ascending: false })
   const { data: sharedLinks, refresh: refreshLinks } = useTable<SharedLink>('shared_links')
@@ -446,11 +447,13 @@ export default function PalmeirasTab({ data, handlers }: Props) {
       {/* View: the statement both sides read, or our internal result */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
-          {(['statement', 'internal'] as const).map(v => (
+          {(['statement', 'internal', 'exports'] as const).map(v => (
             <button key={v} onClick={() => setView(v)}
               className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${view === v
                 ? 'bg-teal-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
-              {v === 'statement' ? i18n.accounting.palm_view_statement[lang] : i18n.accounting.palm_view_internal[lang]}
+              {v === 'statement' ? i18n.accounting.palm_view_statement[lang]
+                : v === 'internal' ? i18n.accounting.palm_view_internal[lang]
+                : i18n.accounting.palm_view_exports[lang]}
             </button>
           ))}
         </div>
@@ -523,6 +526,8 @@ export default function PalmeirasTab({ data, handlers }: Props) {
           )}
         />
       )}
+
+      {view === 'exports' && <PalmeirasExports input={statementInput} />}
 
       {view === 'internal' && (<>
       <p className="text-xs text-gray-500 dark:text-gray-400">{i18n.accounting.palm_internal_hint[lang]}</p>
