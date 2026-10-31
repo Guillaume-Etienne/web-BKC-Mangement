@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import type { SharedAccountingData } from './types'
 import { buildAgencyInvoiceRows, computeAgencyTotals, fmtEur } from './utils'
+import type { AgencyInvoiceRow } from './utils'
+import type { AgencyInvoice } from '../../types/database'
 import { filterDataToSeason } from './seasonFilter'
 import { fmtDate } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -32,6 +34,60 @@ export default function AgencyBillingTab({ data }: Props) {
   const totals = useMemo(() => computeAgencyTotals(scoped, filter), [scoped, agencyId])
 
   const day = (ts: string | null) => (ts ? fmtDate(ts.slice(0, 10)) : null)
+
+  // One group per booking — one invoice per booking, gui's rule — folded by
+  // default (2026-10-31): the header carries the totals, the lines are detail.
+  const groups = useMemo(() => {
+    const byBooking = new Map<string, AgencyInvoiceRow[]>()
+    for (const r of rows) {
+      const g = byBooking.get(r.line.booking_id)
+      if (g) g.push(r); else byBooking.set(r.line.booking_id, [r])
+    }
+    return [...byBooking.entries()].map(([bookingId, lines]) => ({
+      bookingId, lines,
+      gross:      lines.reduce((s, r) => s + Number(r.line.price), 0),
+      net:        lines.reduce((s, r) => s + r.net, 0),
+      commission: lines.reduce((s, r) => s + r.commission, 0),
+      invoice:    lines.find(r => r.invoice)?.invoice ?? null,
+      uninvoiced: lines.filter(r => !r.invoice).length,
+      guests:     [...new Set(lines.map(r => r.guestName).filter(Boolean))].join(', '),
+      overHours:  lines.some(r => r.line.unit_hours != null && r.hoursUsed > r.line.unit_hours),
+    }))
+  }, [rows])
+  // Read-only since 2026-08-19: the stamps belong to the invoice, and an invoice
+  // is drawn up from the booking (Accounting → Bookings → 🤝 Agency billing),
+  // where the number, the agency ref and the printable document live.
+  const invoiceStatus = (inv: AgencyInvoice | null) => !inv ? (
+    <span className="text-xs text-gray-400 dark:text-gray-500 italic">not invoiced</span>
+  ) : (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+        🧾 {inv.invoice_number}
+        {inv.agency_ref && <span className="ml-1 text-gray-400 dark:text-gray-500">· ref {inv.agency_ref}</span>}
+      </span>
+      <span className="flex gap-1">
+        {inv.invoiced_at && (
+          <span className="px-1.5 py-0.5 rounded text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+            sent {day(inv.invoiced_at)}
+          </span>
+        )}
+        {inv.paid_at
+          ? <span className="px-1.5 py-0.5 rounded text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+              paid {day(inv.paid_at)}
+            </span>
+          : <span className="px-1.5 py-0.5 rounded text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
+              unpaid
+            </span>}
+      </span>
+    </div>
+  )
+
+  const [open, setOpen] = useState<Set<string>>(new Set())
+  const toggle = (id: string) => setOpen(prev => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
 
   // Agencies with no line at all in the current period would make the picker
   // look broken ("I select them and the table is empty"), so it only lists
@@ -105,67 +161,63 @@ export default function AgencyBillingTab({ data }: Props) {
                   <th className="px-4 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Status</th>
                 </tr>
               </thead>
-              <tbody>
-                {rows.map(r => {
+              {groups.map(g => {
+                const first = g.lines[0]
+                const isOpen = open.has(g.bookingId)
+                return (
+              <tbody key={g.bookingId} className="border-b border-gray-100 dark:border-gray-800">
+                <tr onClick={() => toggle(g.bookingId)}
+                  className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60">
+                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">
+                    <span className="inline-block w-4 text-gray-400">{isOpen ? '▾' : '▸'}</span>🤝 {first.agencyName}
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    {first.bookingNumber != null ? `#${String(first.bookingNumber).padStart(3, '0')}` : '—'}
+                    <span className="ml-1.5 text-blue-500 dark:text-blue-400 text-xs">{g.guests}</span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">
+                    {g.lines.length} line{g.lines.length > 1 ? 's' : ''}
+                    {g.invoice && g.uninvoiced > 0 && (
+                      <span className="ml-1 text-amber-600 dark:text-amber-400">· {g.uninvoiced} not on the invoice</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right text-amber-600 dark:text-amber-400 font-medium">{g.overHours ? '⚠' : ''}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">{fmtEur(g.gross)}</td>
+                  <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                    {fmtEur(g.net)}
+                    <span className="block text-xs text-purple-500 dark:text-purple-400">−{fmtEur(g.commission)} ({first.commissionPercent}%)</span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">{invoiceStatus(g.invoice)}</td>
+                </tr>
+                {isOpen && g.lines.map(r => {
                   const over = r.line.unit_hours != null && r.hoursUsed > r.line.unit_hours
                   return (
-                    <tr key={r.line.id} className="border-b border-gray-50 dark:border-gray-800">
-                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">🤝 {r.agencyName}</td>
-                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                        {r.bookingNumber != null ? `#${String(r.bookingNumber).padStart(3, '0')}` : '—'}
-                        <span className="ml-1.5 text-blue-500 dark:text-blue-400 text-xs">{r.guestName}</span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{r.label}</td>
-                      <td className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${over ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
+                    <tr key={r.line.id} className="bg-gray-50/50 dark:bg-gray-800/30 border-t border-gray-50 dark:border-gray-800">
+                      <td className="px-4 py-2" />
+                      <td className="px-4 py-2 text-blue-500 dark:text-blue-400 text-xs whitespace-nowrap">{r.guestName}</td>
+                      <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{r.label}</td>
+                      <td className={`px-4 py-2 text-right tabular-nums whitespace-nowrap ${over ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
                         {r.line.unit_hours != null ? `${r.hoursUsed}h / ${r.line.unit_hours}h${over ? ' ⚠' : ''}` : '—'}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">{fmtEur(r.line.price)}</td>
-                      <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                        {fmtEur(r.net)}
-                        <span className="block text-xs text-purple-500 dark:text-purple-400">−{fmtEur(r.commission)} ({r.commissionPercent}%)</span>
-                      </td>
-                      {/* Read-only since 2026-08-19: the stamps belong to the
-                          invoice, and an invoice is drawn up from the booking
-                          (Accounting → Bookings → 🤝 Agency billing), where the
-                          number, the agency ref and the printable document live.
-                          Stamping from here would have meant guessing which
-                          invoice a line belongs to. */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {!r.invoice ? (
-                          <span className="text-xs text-gray-400 dark:text-gray-500 italic">not invoiced</span>
-                        ) : (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                              🧾 {r.invoice.invoice_number}
-                              {r.invoice.agency_ref && (
-                                <span className="ml-1 text-gray-400 dark:text-gray-500">· ref {r.invoice.agency_ref}</span>
-                              )}
-                            </span>
-                            <span className="flex gap-1">
-                              {r.invoice.invoiced_at && (
-                                <span className="px-1.5 py-0.5 rounded text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
-                                  sent {day(r.invoice.invoiced_at)}
-                                </span>
-                              )}
-                              {r.invoice.paid_at
-                                ? <span className="px-1.5 py-0.5 rounded text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
-                                    paid {day(r.invoice.paid_at)}
-                                  </span>
-                                : <span className="px-1.5 py-0.5 rounded text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
-                                    unpaid
-                                  </span>}
-                            </span>
-                          </div>
-                        )}
+                      <td className="px-4 py-2 text-right text-gray-700 dark:text-gray-300 whitespace-nowrap">{fmtEur(r.line.price)}</td>
+                      <td className="px-4 py-2 text-right text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtEur(r.net)}</td>
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        {!r.invoice && <span className="text-xs text-gray-400 dark:text-gray-500 italic">not invoiced</span>}
                       </td>
                     </tr>
                   )
                 })}
               </tbody>
+                )
+              })}
               <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
                 <tr>
                   <td colSpan={4} className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-400">
-                    {rows.length} line{rows.length > 1 ? 's' : ''}
+                    {groups.length} booking{groups.length > 1 ? 's' : ''} · {rows.length} line{rows.length > 1 ? 's' : ''}
+                    <button onClick={() => setOpen(open.size === groups.length ? new Set() : new Set(groups.map(g => g.bookingId)))}
+                      className="ml-3 text-xs font-normal text-blue-600 dark:text-blue-400 hover:underline">
+                      {open.size === groups.length ? 'Collapse all' : 'Expand all'}
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(totals.gross)}</td>
                   <td className="px-4 py-3 text-right font-bold text-gray-800 dark:text-gray-200">{fmtEur(totals.net)}</td>
