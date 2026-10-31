@@ -557,6 +557,12 @@ Remise figée : un cours ajouté après ne la réduit pas. ⬜ vérif écran Com
 ⬜ Repas à faire confirmer par gui : dîner du 26/10 à **70 €/pers.**, Luca (11 ans) compté plein
 alors qu'il était à 6 € (au lieu de 12) le 23/10.
 
+**✅ 2026-10-31 — les 4 forfaits passés à 240 € (Pack cours Privé 4h, prix kite)** au lieu du Wing 4h
+à 200 € (gui : le 4h n'avait pas été précisé « wing » avec F&F, on tente). Agence **1 472 € brut →
+1 177,60 € net** (commission 20 % sur tout, confirmé gui). Si F&F refuse : prix éditable sur la ligne
+(Compta → panneau agence, `57ec4ab`) tant que la facture n'est pas payée. Remise client 175 € et repas
+laissés tels quels (gui).
+
 **⬜ Reste** : créer la facture (🧾 Create the invoice), réf F&F `140687`, imprimer, envoyer ;
 `boardbag_count` à 0 sur la résa et les 2 taxis alors qu'ils ont leur matériel (sans effet prix).
 
