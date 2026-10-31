@@ -10,7 +10,7 @@ const stay = (o: Partial<StatementStay>): StatementStay => ({
 const input = (stays: StatementStay[], bungalows?: string[]): StatementInput => ({
   eur_mzn_rate: 72, bungalows, stays, rents: [], adjustments: [], entries: [], card_payments: [], settlements: [],
 })
-const OPTS = { showAmounts: true }
+const OPTS = { showAmounts: true, lang: 'en' as const }
 
 describe('palmeirasExports', () => {
   it('keeps a stay that straddles the month, counting only its nights inside', () => {
@@ -60,6 +60,28 @@ describe('palmeirasExports', () => {
     for (const r of rows) {
       const span = [...r.matchAll(/<td(?: colspan="(\d+)")?/g)].reduce((t, m) => t + Number(m[1] ?? 1), 0)
       expect(span).toBe(31)
+    }
+  })
+
+  it('translates labels and month in FR / ES / PT, amounts included', () => {
+    const i = input([stay({})], ['B4'])
+    const html = (lang: 'fr' | 'es' | 'pt') => buildExportDocument('list', i, '2026-10', { showAmounts: true, lang })
+    expect(html('fr')).toContain('Octobre 2026')
+    expect(html('fr')).toContain('Payé à BKC')
+    expect(html('fr')).toContain('BKC vous paie 150 €')
+    expect(html('es')).toContain('Pagado a BKC')
+    expect(html('es')).toContain('BKC le paga 150 €')
+    expect(html('pt')).toContain('Outubro')
+    expect(html('pt')).toContain('Pago à BKC')
+    expect(html('pt')).toContain('a BKC paga-vos 150 €')
+    expect(html('pt')).toContain('<html lang="pt">')
+  })
+
+  it('every language renders every format with no leftover English label', () => {
+    for (const lang of ['fr', 'es', 'pt'] as const) for (const f of EXPORT_FORMATS) {
+      const html = buildExportDocument(f.id, input([stay({})], ['B4']), '2026-10', { showAmounts: true, lang })
+      expect(html).not.toContain('Paid to')
+      expect(html).not.toContain('No stay')
     }
   })
 

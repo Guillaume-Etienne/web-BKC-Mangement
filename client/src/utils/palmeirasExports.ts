@@ -6,16 +6,108 @@
 // Built from the SAME input as the statement (`StatementInput`), which never
 // holds our selling price — a sheet made from it cannot leak it.
 // Output is plain HTML + inline CSS: previewed in an iframe, printed from it,
-// saved as PDF by gui. English, like the Palmeiras page.
+// saved as PDF by gui. Language chosen per export (EN / FR / ES / PT).
 import {
-  stayAmounts, stayNights, stayRef, fmtEurCents, fmtMonthLong, monthStart, monthEnd,
+  stayAmounts, stayNights, stayRef, fmtEurCents, monthStart, monthEnd,
   PALMEIRAS_COMMISSION_PCT, type StatementInput, type StatementStay,
 } from './palmeirasStatement'
 import { fmtDate, addDaysISO } from './dates'
 
 export type ExportFormatId = 'grid' | 'sheets' | 'list'
 
+/** Language of the printed sheet — chosen per export, independent of the screen
+ *  language: the Palmeiras read Portuguese (the app's own i18n has no PT). */
+export type ExportLang = 'en' | 'fr' | 'es' | 'pt'
+export const EXPORT_LANGS: { id: ExportLang; label: string }[] = [
+  { id: 'pt', label: 'Português' }, { id: 'en', label: 'English' },
+  { id: 'fr', label: 'Français' }, { id: 'es', label: 'Español' },
+]
+
+interface Strings {
+  locale: string
+  /** First letter of each weekday, Sunday first. */
+  dayLetters: string
+  gridTitle: string; gridSub: string
+  sheetsTitle: string; sheetsSub: string
+  listTitle: string; listSub: (stays: number, nights: number) => string
+  legendPalm: string; legendBkc: string; legendProv: string
+  noStay: string; provisional: string
+  guest: string; checkIn: string; checkOut: string; nights: string; bungalow: string; paidTo: string; betweenUs: string
+  paidPalm: string; paidBkc: string
+  occupied: (n: number, days: number) => string
+  arrived: (date: string) => string
+  guestPaid: (gross: string, pct: number, share: string) => string
+  bkcPays: (amount: string) => string
+}
+
+const STRINGS: Record<ExportLang, Strings> = {
+  en: {
+    locale: 'en-GB', dayLetters: 'SMTWTFS',
+    gridTitle: 'Bungalows', gridSub: 'Occupancy by night · the colour shows who is paid by the guest',
+    sheetsTitle: 'Bungalow sheets', sheetsSub: 'One block per bungalow',
+    listTitle: 'Stays', listSub: (s, n) => `${s} stay${s === 1 ? '' : 's'} · ${n} night${n === 1 ? '' : 's'} in the month`,
+    legendPalm: 'guest pays the Palmeiras', legendBkc: 'guest pays BKC', legendProv: 'provisional',
+    noStay: 'No stay this month.', provisional: 'provisional',
+    guest: 'Guest', checkIn: 'In', checkOut: 'Out', nights: 'Nights', bungalow: 'Bungalow', paidTo: 'Paid to', betweenUs: 'Between us',
+    paidPalm: 'Paid to Palmeiras', paidBkc: 'Paid to BKC',
+    occupied: (n, d) => `${n} / ${d} nights occupied`,
+    arrived: d => `arrived ${d}`,
+    guestPaid: (g, p, sh) => `guest paid you ${g} · BKC share ${p}% = ${sh}`,
+    bkcPays: a => `BKC pays you ${a}`,
+  },
+  fr: {
+    locale: 'fr-FR', dayLetters: 'DLMMJVS',
+    gridTitle: 'Bungalows', gridSub: 'Occupation par nuit · la couleur indique qui est payé par le client',
+    sheetsTitle: 'Fiches par bungalow', sheetsSub: 'Un bloc par bungalow',
+    listTitle: 'Séjours', listSub: (s, n) => `${s} séjour${s > 1 ? 's' : ''} · ${n} nuit${n > 1 ? 's' : ''} dans le mois`,
+    legendPalm: 'le client paie le Palmeiras', legendBkc: 'le client paie BKC', legendProv: 'provisoire',
+    noStay: 'Aucun séjour ce mois-ci.', provisional: 'provisoire',
+    guest: 'Client', checkIn: 'Arrivée', checkOut: 'Départ', nights: 'Nuits', bungalow: 'Bungalow', paidTo: 'Payé à', betweenUs: 'Entre nous',
+    paidPalm: 'Payé au Palmeiras', paidBkc: 'Payé à BKC',
+    occupied: (n, d) => `${n} / ${d} nuits occupées`,
+    arrived: d => `arrivé le ${d}`,
+    guestPaid: (g, p, sh) => `le client vous a payé ${g} · part BKC ${p} % = ${sh}`,
+    bkcPays: a => `BKC vous paie ${a}`,
+  },
+  es: {
+    locale: 'es-ES', dayLetters: 'DLMXJVS',
+    gridTitle: 'Bungalows', gridSub: 'Ocupación por noche · el color indica quién cobra al cliente',
+    sheetsTitle: 'Fichas por bungalow', sheetsSub: 'Un bloque por bungalow',
+    listTitle: 'Estancias', listSub: (s, n) => `${s} estancia${s > 1 ? 's' : ''} · ${n} noche${n > 1 ? 's' : ''} en el mes`,
+    legendPalm: 'el cliente paga al Palmeiras', legendBkc: 'el cliente paga a BKC', legendProv: 'provisional',
+    noStay: 'Ninguna estancia este mes.', provisional: 'provisional',
+    guest: 'Cliente', checkIn: 'Entrada', checkOut: 'Salida', nights: 'Noches', bungalow: 'Bungalow', paidTo: 'Pagado a', betweenUs: 'Entre nosotros',
+    paidPalm: 'Pagado al Palmeiras', paidBkc: 'Pagado a BKC',
+    occupied: (n, d) => `${n} / ${d} noches ocupadas`,
+    arrived: d => `llegó el ${d}`,
+    guestPaid: (g, p, sh) => `el cliente le pagó ${g} · parte de BKC ${p} % = ${sh}`,
+    bkcPays: a => `BKC le paga ${a}`,
+  },
+  pt: {
+    locale: 'pt-PT', dayLetters: 'DSTQQSS',
+    gridTitle: 'Bungalows', gridSub: 'Ocupação por noite · a cor indica quem é pago pelo hóspede',
+    sheetsTitle: 'Fichas por bungalow', sheetsSub: 'Um bloco por bungalow',
+    listTitle: 'Estadias', listSub: (s, n) => `${s} estadia${s > 1 ? 's' : ''} · ${n} noite${n > 1 ? 's' : ''} no mês`,
+    legendPalm: 'o hóspede paga ao Palmeiras', legendBkc: 'o hóspede paga à BKC', legendProv: 'provisório',
+    noStay: 'Nenhuma estadia este mês.', provisional: 'provisório',
+    guest: 'Hóspede', checkIn: 'Entrada', checkOut: 'Saída', nights: 'Noites', bungalow: 'Bungalow', paidTo: 'Pago a', betweenUs: 'Entre nós',
+    paidPalm: 'Pago ao Palmeiras', paidBkc: 'Pago à BKC',
+    occupied: (n, d) => `${n} / ${d} noites ocupadas`,
+    arrived: d => `chegou a ${d}`,
+    guestPaid: (g, p, sh) => `o hóspede pagou-vos ${g} · parte da BKC ${p} % = ${sh}`,
+    bkcPays: a => `a BKC paga-vos ${a}`,
+  },
+}
+
+/** "October 2026" / "octobre 2026" / "outubro de 2026"… */
+export function fmtMonthLabel(month: string, lang: ExportLang): string {
+  const [y, m] = month.split('-').map(Number)
+  const t = new Date(y, m - 1, 1).toLocaleDateString(STRINGS[lang].locale, { month: 'long', year: 'numeric' })
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+
 export interface ExportOptions {
+  lang: ExportLang
   /** Print what each stay is worth between us. Off = pure occupancy sheet. */
   showAmounts: boolean
 }
@@ -62,42 +154,40 @@ export function nightsInMonth(s: Pick<StatementStay, 'check_in' | 'check_out'>, 
 
 /** What this stay means between us, in words the Palmeiras reads. Counted in
  *  the month of arrival (like the statement): a stay that began earlier says so. */
-export function stayFigure(s: StatementStay, month: string): { text: string; side: 'palmeiras' | 'bkc' | 'none' } {
-  if (s.check_in.slice(0, 7) !== month) return { text: `arrived ${fmtDate(s.check_in)}`, side: 'none' }
+export function stayFigure(s: StatementStay, month: string, lang: ExportLang = 'en'): { text: string; side: 'palmeiras' | 'bkc' | 'none' } {
+  const t = STRINGS[lang]
+  if (s.check_in.slice(0, 7) !== month) return { text: t.arrived(fmtDate(s.check_in)), side: 'none' }
   const a = stayAmounts(s)
   if (s.paid_direct) {
-    return {
-      text: `guest paid you ${fmtEurCents(a.gross)} · BKC share ${PALMEIRAS_COMMISSION_PCT}% = ${fmtEurCents(a.toUs)}`,
-      side: 'palmeiras',
-    }
+    return { text: t.guestPaid(fmtEurCents(a.gross), PALMEIRAS_COMMISSION_PCT, fmtEurCents(a.toUs)), side: 'palmeiras' }
   }
-  return { text: `BKC pays you ${fmtEurCents(a.toPalmeiras)}`, side: 'bkc' }
+  return { text: t.bkcPays(fmtEurCents(a.toPalmeiras)), side: 'bkc' }
 }
 
 const stayColour = (s: StatementStay) => (s.paid_direct ? PURPLE : BLUE)
 
-const paidBadge = (s: StatementStay) =>
-  `<span class="badge" style="background:${stayColour(s)}">${s.paid_direct ? 'Paid to Palmeiras' : 'Paid to BKC'}</span>`
+const paidBadge = (s: StatementStay, t: Strings) =>
+  `<span class="badge" style="background:${stayColour(s)}">${s.paid_direct ? t.paidPalm : t.paidBkc}</span>`
 
-const legend = () => `
+const legend = (t: Strings) => `
   <p class="legend">
-    <span class="dot" style="background:${PURPLE}"></span> guest pays the Palmeiras
-    &nbsp;&nbsp;<span class="dot" style="background:${BLUE}"></span> guest pays BKC
-    &nbsp;&nbsp;<span class="dot hatch"></span> provisional
+    <span class="dot" style="background:${PURPLE}"></span> ${t.legendPalm}
+    &nbsp;&nbsp;<span class="dot" style="background:${BLUE}"></span> ${t.legendBkc}
+    &nbsp;&nbsp;<span class="dot hatch"></span> ${t.legendProv}
   </p>`
 
 // ── 1. Month grid — bungalows × days, like a reservations notebook ──────────
 
-function renderGrid(input: StatementInput, month: string): string {
+function renderGrid(input: StatementInput, month: string, { lang }: ExportOptions): string {
+  const t = STRINGS[lang]
   const [y, m] = month.split('-').map(Number)
   const days = new Date(y, m, 0).getDate()
   const next = addDaysISO(monthEnd(month), 1)
   const weekend = (d: number) => [0, 6].includes(new Date(y, m - 1, d).getDay())
-  const dayLetters = 'SMTWTFS'
 
   const head = Array.from({ length: days }, (_, i) => {
     const d = i + 1
-    return `<th class="${weekend(d) ? 'we' : ''}">${d}<br><small>${dayLetters[new Date(y, m - 1, d).getDay()]}</small></th>`
+    return `<th class="${weekend(d) ? 'we' : ''}">${d}<br><small>${t.dayLetters[new Date(y, m - 1, d).getDay()]}</small></th>`
   }).join('')
 
   const stays = staysOfMonth(input, month)
@@ -107,7 +197,7 @@ function renderGrid(input: StatementInput, month: string): string {
     let d = 1
     while (d <= days) {
       const iso = `${month}-${String(d).padStart(2, '0')}`
-      // the night of day d belongs to the stay that is in before the end of that day and out after
+      // the night of day d belongs to the stay that is in by that day and out after it
       const s = mine.find(x => x.check_in <= iso && x.check_out > iso)
       if (!s) { cells.push(`<td class="${weekend(d) ? 'we' : ''}"></td>`); d++; continue }
       const end = s.check_out < next ? s.check_out : next
@@ -120,56 +210,58 @@ function renderGrid(input: StatementInput, month: string): string {
   }).join('')
 
   return `
-    <h1>Bungalows — ${fmtMonthLong(month)}</h1>
-    <p class="sub">Occupancy by night · the colour shows who is paid by the guest</p>
+    <h1>${t.gridTitle} — ${fmtMonthLabel(month, lang)}</h1>
+    <p class="sub">${t.gridSub}</p>
     <table class="grid"><thead><tr><th class="bung"></th>${head}</tr></thead><tbody>${rows}</tbody></table>
-    ${legend()}`
+    ${legend(t)}`
 }
 
 // ── 2. One card per bungalow ────────────────────────────────────────────────
 
-function renderSheets(input: StatementInput, month: string, opts: ExportOptions): string {
+function renderSheets(input: StatementInput, month: string, { lang, showAmounts }: ExportOptions): string {
+  const t = STRINGS[lang]
   const days = new Date(Number(month.slice(0, 4)), Number(month.slice(5)), 0).getDate()
   const stays = staysOfMonth(input, month)
   const cards = exportBungalows(input).map(b => {
     const mine = stays.filter(s => s.bungalow === b)
-    const nights = mine.reduce((t, s) => t + nightsInMonth(s, month), 0)
+    const nights = mine.reduce((n, s) => n + nightsInMonth(s, month), 0)
     const body = mine.length === 0
-      ? '<p class="empty">No stay this month.</p>'
-      : `<table class="rows"><thead><tr><th>Guest</th><th>In</th><th>Out</th><th class="r">Nights</th><th>Paid to</th>${opts.showAmounts ? '<th>Between us</th>' : ''}</tr></thead><tbody>${
+      ? `<p class="empty">${t.noStay}</p>`
+      : `<table class="rows"><thead><tr><th>${t.guest}</th><th>${t.checkIn}</th><th>${t.checkOut}</th><th class="r">${t.nights}</th><th>${t.paidTo}</th>${showAmounts ? `<th>${t.betweenUs}</th>` : ''}</tr></thead><tbody>${
         mine.map(s => {
-          const f = stayFigure(s, month)
+          const f = stayFigure(s, month, lang)
           return `<tr${s.provisional ? ' class="prov-row"' : ''}>
-            <td>${escapeHtml(s.guest || '—')}${s.provisional ? ' <small>(provisional)</small>' : ''}</td>
+            <td>${escapeHtml(s.guest || '—')}${s.provisional ? ` <small>(${t.provisional})</small>` : ''}</td>
             <td>${fmtDate(s.check_in)}</td><td>${fmtDate(s.check_out)}</td>
-            <td class="r">${stayNights(s)}</td><td>${paidBadge(s)}</td>
-            ${opts.showAmounts ? `<td class="fig">${escapeHtml(f.text)}</td>` : ''}</tr>`
+            <td class="r">${stayNights(s)}</td><td>${paidBadge(s, t)}</td>
+            ${showAmounts ? `<td class="fig">${escapeHtml(f.text)}</td>` : ''}</tr>`
         }).join('')}</tbody></table>`
     return `<section class="card">
-      <h2>${escapeHtml(b)} <small>${nights} / ${days} nights occupied</small></h2>${body}</section>`
+      <h2>${escapeHtml(b)} <small>${t.occupied(nights, days)}</small></h2>${body}</section>`
   }).join('')
-  return `<h1>Bungalow sheets — ${fmtMonthLong(month)}</h1><p class="sub">One block per bungalow</p>${cards}`
+  return `<h1>${t.sheetsTitle} — ${fmtMonthLabel(month, lang)}</h1><p class="sub">${t.sheetsSub}</p>${cards}`
 }
 
 // ── 3. Chronological list ───────────────────────────────────────────────────
 
-function renderList(input: StatementInput, month: string, opts: ExportOptions): string {
+function renderList(input: StatementInput, month: string, { lang, showAmounts }: ExportOptions): string {
+  const t = STRINGS[lang]
   const stays = staysOfMonth(input, month)
-  const nights = stays.reduce((t, s) => t + nightsInMonth(s, month), 0)
+  const nights = stays.reduce((n, s) => n + nightsInMonth(s, month), 0)
   const rows = stays.map(s => {
-    const f = stayFigure(s, month)
+    const f = stayFigure(s, month, lang)
     return `<tr${s.provisional ? ' class="prov-row"' : ''}>
       <td>${fmtDate(s.check_in)}</td><td>${fmtDate(s.check_out)}</td>
       <td><b>${escapeHtml(s.bungalow)}</b></td>
-      <td>${escapeHtml(s.guest || '—')}${s.provisional ? ' <small>(provisional)</small>' : ''}</td>
-      <td class="r">${stayNights(s)}</td><td>${paidBadge(s)}</td>
-      ${opts.showAmounts ? `<td class="fig">${escapeHtml(f.text)}</td>` : ''}</tr>`
+      <td>${escapeHtml(s.guest || '—')}${s.provisional ? ` <small>(${t.provisional})</small>` : ''}</td>
+      <td class="r">${stayNights(s)}</td><td>${paidBadge(s, t)}</td>
+      ${showAmounts ? `<td class="fig">${escapeHtml(f.text)}</td>` : ''}</tr>`
   }).join('')
   return `
-    <h1>Stays — ${fmtMonthLong(month)}</h1>
-    <p class="sub">${stays.length} stay${stays.length === 1 ? '' : 's'} · ${nights} night${nights === 1 ? '' : 's'} in the month</p>
-    ${stays.length === 0 ? '<p class="empty">No stay this month.</p>' : `
-    <table class="rows"><thead><tr><th>In</th><th>Out</th><th>Bungalow</th><th>Guest</th><th class="r">Nights</th><th>Paid to</th>${opts.showAmounts ? '<th>Between us</th>' : ''}</tr></thead>
+    <h1>${t.listTitle} — ${fmtMonthLabel(month, lang)}</h1>
+    <p class="sub">${t.listSub(stays.length, nights)}</p>
+    ${stays.length === 0 ? `<p class="empty">${t.noStay}</p>` : `
+    <table class="rows"><thead><tr><th>${t.checkIn}</th><th>${t.checkOut}</th><th>${t.bungalow}</th><th>${t.guest}</th><th class="r">${t.nights}</th><th>${t.paidTo}</th>${showAmounts ? `<th>${t.betweenUs}</th>` : ''}</tr></thead>
     <tbody>${rows}</tbody></table>`}`
 }
 
@@ -210,8 +302,8 @@ export function buildExportDocument(
   formatId: ExportFormatId, input: StatementInput, month: string, opts: ExportOptions,
 ): string {
   const f = EXPORT_FORMATS.find(x => x.id === formatId) ?? EXPORT_FORMATS[0]
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
-<title>Palmeiras — ${f.label} — ${fmtMonthLong(month)}</title>
+  return `<!DOCTYPE html><html lang="${opts.lang}"><head><meta charset="utf-8">
+<title>Palmeiras — ${f.label} — ${fmtMonthLabel(month, opts.lang)}</title>
 <style>@page { size: A4 ${f.orientation}; margin: 12mm; }${CSS}</style></head>
 <body>${f.render(input, month, opts)}</body></html>`
 }

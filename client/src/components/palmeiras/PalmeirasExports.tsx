@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import type { StatementInput } from '../../utils/palmeirasStatement'
-import { fmtMonthLong } from '../../utils/palmeirasStatement'
-import { EXPORT_FORMATS, buildExportDocument, type ExportFormatId } from '../../utils/palmeirasExports'
+import { EXPORT_FORMATS, EXPORT_LANGS, buildExportDocument, fmtMonthLabel, type ExportFormatId, type ExportLang } from '../../utils/palmeirasExports'
 import { thisMonthISO } from '../../utils/dates'
 
 function shiftMonth(ym: string, delta: number): string {
@@ -16,10 +15,12 @@ export default function PalmeirasExports({ input }: { input: StatementInput }) {
   const [formatId, setFormatId] = useState<ExportFormatId>('grid')
   const [month, setMonth] = useState(thisMonthISO())
   const [showAmounts, setShowAmounts] = useState(false)
+  // The sheet's language is the reader's, not the screen's: Portuguese first.
+  const [lang, setLang] = useState<ExportLang>('pt')
   const frame = useRef<HTMLIFrameElement>(null)
 
   const format = EXPORT_FORMATS.find(f => f.id === formatId) ?? EXPORT_FORMATS[0]
-  const html = useMemo(() => buildExportDocument(formatId, input, month, { showAmounts }), [formatId, input, month, showAmounts])
+  const html = useMemo(() => buildExportDocument(formatId, input, month, { showAmounts, lang }), [formatId, input, month, showAmounts, lang])
   const landscape = format.orientation === 'landscape'
 
   const navBtn = 'w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 text-lg'
@@ -45,9 +46,18 @@ export default function PalmeirasExports({ input }: { input: StatementInput }) {
         <div className="flex items-center gap-1">
           <button onClick={() => setMonth(m => shiftMonth(m, -1))} className={navBtn} aria-label="Previous month">‹</button>
           <span className="px-4 py-1.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-300 min-w-[150px] text-center">
-            {fmtMonthLong(month)}
+            {fmtMonthLabel(month, lang)}
           </span>
           <button onClick={() => setMonth(m => shiftMonth(m, +1))} className={navBtn} aria-label="Next month">›</button>
+        </div>
+        <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1" role="group" aria-label="Sheet language">
+          {EXPORT_LANGS.map(l => (
+            <button key={l.id} onClick={() => setLang(l.id)}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${lang === l.id
+                ? 'bg-teal-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+              {l.label}
+            </button>
+          ))}
         </div>
         {format.id !== 'grid' && (
           <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
