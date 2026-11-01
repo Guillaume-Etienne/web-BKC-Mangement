@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { supabase } from '../supabaseClient.js'
 import { fetchAccountingBundle } from '../data/fetchAccountingBundle.js'
+import { configuredCenterAccessRate } from '../data/centerAccessRate.js'
 import type { Booking, BookingStatus, Client, BookingParticipant, Enquiry, EnquiryNote, Payment, Room } from '../../../client/src/types/database.js'
 import { dossierMoney } from '../../../client/src/utils/dossier.js'
 import {
@@ -256,6 +257,9 @@ export function registerBookingTools(server: McpServer) {
         }
       }
 
+      // An explicit rate wins (0 = an agency covers it), otherwise the configured price.
+      const rate = center_access_rate ?? await configuredCenterAccessRate()
+
       // ── Client ────────────────────────────────────────────────────────────
       let clientId = client_id
       let reusedClientFlag: string | null = null
@@ -289,7 +293,7 @@ export function registerBookingTools(server: McpServer) {
         // Derived, never taken from the caller: the num_* columns are a cache of
         // the travellers' flags, and the app recomputes them the same way.
         ...activityCountColumns(travellers),
-        center_access_rate: center_access_rate ?? 5,
+        ...(rate !== null ? { center_access_rate: rate } : {}),
         visa_entry_date: null, visa_exit_date: null,
         status: status ?? 'provisional',
         notes: notes ?? null,

@@ -4,7 +4,8 @@ import { useTable } from '../hooks/useSupabase'
 import { useBookings } from '../hooks/useBookings'
 import { useClients } from '../hooks/useClients'
 import { useTaxiTrips } from '../hooks/useTaxis'
-import type { Booking, Client, Enquiry, FormSubmission, FormSubmissionStatus, Lang, TaxiPricingDefaults, TaxiTrip } from '../types/database'
+import type { Booking, Client, Enquiry, FormSubmission, FormSubmissionStatus, Lang, PriceItem, TaxiPricingDefaults, TaxiTrip } from '../types/database'
+import { getConfiguredRate } from '../components/accounting/utils'
 import { activityCountColumns } from '../utils/bookingActivity'
 import { blanksToFill, findExistingClient, normEmail } from '../utils/clientIdentity'
 import { addDaysISO as addDays, fmtDate } from '../utils/dates'
@@ -63,6 +64,8 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
   // Most recently edited row wins, same guard as TaxiPage (stale duplicate rows → wrong default price)
   const { data: pricingDefaultsData } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
   const pricingDefaults = pricingDefaultsData[0] ?? FALLBACK_TAXI_PRICING
+  const { data: priceItems } = useTable<PriceItem>('price_items')
+  const centerAccessRate = getConfiguredRate(priceItems, 'center_access')
 
   const alreadyCreated = !!s.created_booking_id
   const datesValid = !!(checkIn && checkOut && checkOut > checkIn)
@@ -147,6 +150,8 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
       check_in: checkIn,
       check_out: checkOut,
       ...activityCountColumns(formTravelers),
+      // No configured price: leave the column out, the database default applies.
+      ...(centerAccessRate !== null ? { center_access_rate: centerAccessRate } : {}),
       visa_entry_date: p.country_entry_date || null,
       visa_exit_date: p.country_exit_date || null,
       status: 'provisional',

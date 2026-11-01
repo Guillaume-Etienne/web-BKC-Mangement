@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { supabase } from '../supabaseClient.js'
+import { configuredCenterAccessRate } from '../data/centerAccessRate.js'
 import type { Client, Enquiry, EnquiryNote, EnquiryStatus } from '../../../client/src/types/database.js'
 import { silenceDays, isQualified, isSettled, matchesSearch } from '../../../client/src/utils/enquiries.js'
 import { splitName } from '../../../client/src/utils/names.js'
@@ -157,6 +158,7 @@ export function registerEnquiryTools(server: McpServer) {
       const { data: enquiryRow, error: eFetchErr } = await supabase.from('enquiries').select('*').eq('id', enquiry_id).single()
       if (eFetchErr || !enquiryRow) return errorResult(`Enquiry not found: ${eFetchErr?.message ?? enquiry_id}`)
       const enquiry = enquiryRow as Enquiry
+      const centerAccessRate = await configuredCenterAccessRate()
 
       // Reuse an existing client before minting one — same rule as the app's
       // own conversion path (utils/clientIdentity.ts): the enquiry's own
@@ -207,6 +209,7 @@ export function registerEnquiryTools(server: McpServer) {
         check_in,
         check_out,
         ...activityCountColumns([]),
+        ...(centerAccessRate !== null ? { center_access_rate: centerAccessRate } : {}),
         visa_entry_date: null,
         visa_exit_date: null,
         status: 'provisional',

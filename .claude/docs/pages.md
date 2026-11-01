@@ -234,7 +234,7 @@
 - **Step 2 (Stay) :** Bandeau rouge si `check_in >= check_out` (Next désactivé). **Full house** = ligne de prix unique (défaut 100€, split 50/50 entre les 2 chambres en interne).
 - **Step 3 (Guests) :** Gère `booking_participants` — réconciliation au save (update en place des voyageurs gardés, insert des nouveaux, delete seulement des retirés : les ids restent stables, les cours/locations pointent dessus). Auto-ajoute le client principal si aucun participant saisi (nouveaux bookings).
 - **Step 4 (Transport) :** Si taxi arrivée/départ coché → sélecteur **chauffeur optionnel** (`taxi_driver_id`). Pré-assigne le chauffeur + ses `default_*` aux trajets auto-créés. Nouveaux bookings uniquement.
-- **Step 5 (KiteCenter) :** Si `num_center_access > 0` → champ **tarif center access** (`center_access_rate`, €/jour, défaut 5).
+- **Step 5 (KiteCenter) :** Si `num_center_access > 0` → champ **tarif center access** (`center_access_rate`, €/jour, pré-rempli depuis `price_items.center_access`).
 - **Save (nouveaux bookings, isNew=true) :**
   1. Upsert client → upsert booking → réconciliation `booking_participants` (ids stables) → delete+insert booking_rooms → delete+insert booking_room_prices
   2. Si « Amount already paid » dépasse la somme des `payments` déjà enregistrés → insert `payments` de la différence (`method:'transfer'`, `is_verified:false`, note "Auto-created…"). Rien n'est stocké sur la résa (`amount_paid` supprimée 2026-10-19d). Une résa annulée : proposition de supprimer ses taxis à venir, jamais de recréation.

@@ -93,7 +93,7 @@ export interface Booking {
   num_equipment_rentals: number // = count(participants.wants_kite_rental)
   num_wing_lessons: number      // = count(participants.wants_wing_lessons)
   num_center_access: number     // = count(participants.brings_own_gear) — billed via center_access_rate
-  center_access_rate: number    // €/day per center-access (own-gear) person (default 5)
+  center_access_rate: number    // €/day per center-access (own-gear) person (default: price_items.center_access)
   client?: Client
   arrival_time: string | null
   departure_time: string | null

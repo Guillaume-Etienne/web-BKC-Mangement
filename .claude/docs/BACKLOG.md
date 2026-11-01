@@ -6,6 +6,7 @@
 
 ## 🚨 Migrations SQL — registre
 
+✅ **`2026-11-01_center_access_rate_7.sql`** (TEST + PROD ✅ 2026-11-01 par Claude, vérifié en base) — DEFAULT 7 + séjours en cours/à venir de 5 à 7 € (14 résas PROD) ; terminés, annulés et tarifs à 0 inchangés.
 ✅ **`2026-10-30e_palmeiras_rent_paid.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD ✅ vérifiée en base le 2026-11-01 : colonne présente) — `palmeiras_settlements.rent_month` + RPC qui la rend. Rien n'est supprimé.
 
 ✅ **`2026-10-30d_palmeiras_entries_date.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD ✅ passée par gui le 2026-10-30, vérifiée en base — le formulaire Revenu/Dépense écrit la colonne `date`) — `palmeiras_entries.date` + RPC qui la rend. Rien n'est supprimé (le `REVOKE … FROM PUBLIC` re-pose le droit de 30b). Vérif : `SELECT count(*) FROM palmeiras_entries WHERE date IS NULL` → 0.
@@ -305,7 +306,7 @@ Ensuite, à saisir par gui : loyers sept. + oct. (10 000 MZN), et les éventuels
 - ⚠️ **Sécurité** : prix de vente et marge restent hors de `StatementInput` et de la RPC `palmeiras_statement()` (ce qui protège la page partagée et les exports actuels) ; les passer à part, côté admin.
 - **Taux** : le global `taxi_pricing_defaults.eur_mzn_rate` (70 au 2026-11-01), sans nouveau réglage ni migration ; déjà dans `StatementInput.eur_mzn_rate`. Afficher « 1 € = X MZN » ; taux absent → masquer le MZN, ne pas retomber sur 65. Le loyer garde son vrai `amount_mzn`. Taux figé par séjour écarté. Petite fonction commune de formatage € + MZN à créer.
 - **Tranché gui 2026-11-01** : prix par nuit ET marge par bungalow en fin de mois : oui (admin seul). Vider le champ du taux ne repasse plus à 65 (Save bloqué tant que le taux est vide).
-- 💭 **Historique du taux EUR/MZN (idée gui 2026-11-01, NE PAS CODER, réflexion en cours)** : un taux par date d'effet, modifiable. Aujourd'hui un seul taux courant, appliqué à tout le passé. Ouvert : voir l'échange du 2026-11-01 (date de référence de chaque conversion, séjour à cheval, page partagée).
+- 💭 **Historique du taux EUR/MZN (idée gui 2026-11-01, NE PAS CODER, réflexion en cours)** : un taux par date d'effet, modifiable. Aujourd'hui un seul taux courant, appliqué à tout le passé. Tranché gui : une mise à jour du taux ne change pas ce qui a été appliqué par le passé, historique conservé. Ouvert : Palmeiras (lignes au taux de leur date + solde au dernier taux, proposé) ; tarifs Palmeiras convenus en MZN ou en € ? #52 = prix oublié, à corriger plus tard (gui) ; #58 sans chambre = en réflexion (gui).
 🔔 **Rappeler à gui** : dans le tableau chronologique, un séjour est daté à l'**arrivée** (essai, gui 2026-10-30) — on peut le passer à la date de **départ** (séjour fini = payé) s'il préfère.
 **Données à revoir avec gui APRÈS les vues :**
 - #52 (B4, 1 nuit) vendue 0 € et #58 (B4, 7 nuits, nov.) sans prix figé : oubli de prix ou bungalow offert (dont on doit quand même le coût) ?
@@ -518,7 +519,7 @@ l'agence de 127,50 € par pack 10h**. Migration écrite, voir le registre en t�
 - ⬜ **Ligne 215 de la fiche, « % commission » : toujours vide.** C'est le seul champ qui dit à
   F&Fly que les prix contiennent déjà leur marge. À remplir avant envoi (20).
 
-### 🛟 Location : `full_day` facture le tarif demi-journée (2026-09-07) — ✅ `full_day` corrigé 2026-10-18 (tarifs `rental_*_day`, migration 18b/18c en attente) ; reste : wing (plus tard, gui) et `center_access_rate` DEFAULT 5
+### 🛟 Location : `full_day` facture le tarif demi-journée (2026-09-07) — ✅ `full_day` corrigé 2026-10-18 (tarifs `rental_*_day`, migration 18b/18c en attente) ; reste : wing (plus tard, gui)
 
 `rentalPrice()` (`client/src/components/planning/LessonWeekView.tsx:207`) ne regarde que le
 `billable_type`, **jamais le `slot`**. Cocher « journée » facture donc 55 € au lieu des 95 € de la
@@ -530,8 +531,6 @@ erreur. Deux trous du même tonneau, à traiter ensemble :
 
 - ⬜ **Aucun `billable_type` wing** — l'enum a `rental_kite/board/full/surfboard/foilboard` et
   s'arrête là, alors que la fiche vend du WingFoil 60 €/jour.
-- ⬜ **`bookings.center_access_rate` a `DEFAULT 5`** (`schema.sql:126`) alors que le tarif direct est
-  7 (`price_items.center_access`). C'est pour ça que la résa #22 est à 5.
 - ❓ **Choix de modèle à trancher avec gui** : un tarif jour par type d'équipement dans
   `price_items`, ou une grille dégressive au nombre de jours sur le modèle de `price_tiers` (la
   fiche vend aussi des forfaits 6-7 jours). Le second colle à la fiche, le premier est plus simple.

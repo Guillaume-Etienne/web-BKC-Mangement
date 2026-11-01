@@ -134,7 +134,7 @@ CREATE TABLE bookings (
   num_equipment_rentals     INTEGER NOT NULL DEFAULT 0,   -- = count(participants.wants_kite_rental)
   num_wing_lessons          INTEGER NOT NULL DEFAULT 0,   -- = count(participants.wants_wing_lessons)
   num_center_access         INTEGER NOT NULL DEFAULT 0,   -- = count(participants.brings_own_gear) — billed via center_access_rate
-  center_access_rate        NUMERIC(10,2) NOT NULL DEFAULT 5,  -- €/day per center-access (own-gear) person
+  center_access_rate        NUMERIC(10,2) NOT NULL DEFAULT 7,  -- €/day per center-access (own-gear) person
   arrival_time              TEXT,     -- HH:MM
   departure_time            TEXT,     -- HH:MM
   luggage_count             INTEGER NOT NULL DEFAULT 0,

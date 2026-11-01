@@ -127,7 +127,7 @@
 | num_equipment_rentals | number | **Cache** = count(participants.wants_kite_rental) |
 | num_wing_lessons | number | **Cache** = count(participants.wants_wing_lessons) |
 | num_center_access | number | **Cache** = count(participants.brings_own_gear) |
-| center_access_rate | number (EUR) | €/jour par personne own-gear/center access (défaut 5) |
+| center_access_rate | number (EUR) | €/jour par personne own-gear/center access (défaut base 7 ; à la création = `price_items.center_access`) |
 | arrival_time | string \| null (HH:MM) | |
 | departure_time | string \| null (HH:MM) | |
 | luggage_count | number | |
