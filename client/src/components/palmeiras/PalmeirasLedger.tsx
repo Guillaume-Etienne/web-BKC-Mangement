@@ -68,7 +68,10 @@ function InternalCells({ row }: { row: StayInternal | undefined }) {
     <td className={adminCell}>
       {row.noPrice
         ? <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 whitespace-nowrap">No price</span>
-        : <>
+        : row.direct ? <>
+          <span className="tabular-nums whitespace-nowrap text-gray-400 dark:text-gray-500">–</span>
+          <div className="text-[11px] whitespace-nowrap text-gray-500 dark:text-gray-400">paid to the Palmeiras</div>
+        </> : <>
           <span className="font-semibold tabular-nums whitespace-nowrap text-gray-800 dark:text-gray-200">{fmtEurCents(row.billed)}</span>
           <div className="text-[11px] tabular-nums whitespace-nowrap text-gray-500 dark:text-gray-400">{fmtEurCents(row.sellPerNight)} / night</div>
         </>}
@@ -105,7 +108,12 @@ function Row({ r, muted, action, rate, internals }: { r: LedgerRow; muted?: bool
       <td className="px-3 py-2 text-right"><Money value={r.toUs} side="us" rate={rate} /></td>
       <td className="px-3 py-2 text-right"><Money value={r.toPalmeiras} side="palm" rate={rate} mzn={r.mzn} /></td>
       <td className="px-3 py-2 text-right"><Balance value={r.balance} rate={rate} /></td>
-      {internals && <InternalCells row={internal} />}
+      {internals && (r.kind === 'adjustment'
+        ? <>
+          <td className="px-3 py-2 border-l border-gray-200 dark:border-gray-700" />
+          <td className="px-3 py-2 text-right font-semibold tabular-nums whitespace-nowrap text-blue-700 dark:text-blue-400">{signedEur(r.toUs - r.toPalmeiras)}</td>
+        </>
+        : <InternalCells row={internal} />)}
     </tr>
   )
 }
@@ -170,7 +178,7 @@ export default function PalmeirasLedger({ statement, eurMznRate: rate, stayInter
       </p>
       {stayInternals && (
         <p className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800">
-          Billed and Margin are internal: the Palmeiras link does not show them. Margin covers the stays BKC collected; our commission on the others is in « Owed to BKC ».
+          Billed and Margin are internal: the Palmeiras link does not show them. Margin is what BKC keeps: selling price minus cost on the stays we collected, the commission on the stays paid to the Palmeiras.
         </p>
       )}
     </section>
@@ -185,6 +193,8 @@ function FragmentMonth({ m, rate, cols, internals, settlementAction }: {
   settlementAction?: (id: string) => ReactNode
 }) {
   const summary = internals ? summarizeInternals(m.rows.map(r => internals[r.key])) : null
+  // A commission adjustment belongs to no stay, but it is margin all the same.
+  const totalMargin = (summary?.margin ?? 0) + m.rows.reduce((t, r) => t + (r.kind === 'adjustment' ? r.toUs - r.toPalmeiras : 0), 0)
   return (<>
     <tr className="bg-gray-100/70 dark:bg-gray-800/70 border-b border-gray-200 dark:border-gray-700">
       <td colSpan={cols} className="px-3 py-1.5 font-semibold text-gray-800 dark:text-gray-200">{fmtMonthLong(m.month)}</td>
@@ -202,8 +212,8 @@ function FragmentMonth({ m, rate, cols, internals, settlementAction }: {
       {summary && <>
         <td className={`${adminCell} font-semibold tabular-nums whitespace-nowrap text-gray-800 dark:text-gray-200`}>{summary.billed ? fmtEurCents(summary.billed) : '–'}</td>
         <td className="px-3 py-2 text-right">
-          {summary.billed || summary.margin ? <>
-            <span className={`font-bold tabular-nums whitespace-nowrap ${summary.margin < 0 ? 'text-red-700 dark:text-red-400' : 'text-blue-700 dark:text-blue-400'}`}>{signedEur(summary.margin)}</span>
+          {summary.billed || totalMargin ? <>
+            <span className={`font-bold tabular-nums whitespace-nowrap ${totalMargin < 0 ? 'text-red-700 dark:text-red-400' : 'text-blue-700 dark:text-blue-400'}`}>{signedEur(totalMargin)}</span>
             {summary.marginPct !== null && <div className="text-[11px] tabular-nums whitespace-nowrap text-gray-500 dark:text-gray-400">{summary.marginPct.toLocaleString('fr-FR')} %</div>}
           </> : '–'}
         </td>

@@ -4,7 +4,7 @@
 
 - **Des deux côtés** : équivalent MZN sous chaque montant de la vue Table et dans le détail des séjours, au taux courant ; le loyer et son règlement complet gardent leurs vrais MZN. Taux absent : pas de MZN.
 - **Admin seul** : colonnes Billed / Margin, ligne « Margin by bungalow » par mois, feuille d'export « Margins · Internal – BKC only ». `stayInternals` passe à part de `StatementInput`, qui ne doit jamais contenir le prix de vente. Tests : `PalmeirasLedger.test.tsx`, `palmeirasExports.test.ts`.
-- Margin ne couvre que les séjours encaissés par BKC. Signalés : 0 € facturé (« No price ») et marge sous 15 %.
+- Margin = ce que BKC garde : vente − coût sur un séjour encaissé, commission sur un séjour payé en direct (gui, 2026-11-01), plus l'éventuel ajustement de commission du mois dans le total. Pas de % au total d'un mois avec commission. Signalés : prix à 0 € (« No price ») et marge sous 15 %.
 
 ## Relevé « qui doit quoi à qui » + page partagée — codé le 2026-10-30
 

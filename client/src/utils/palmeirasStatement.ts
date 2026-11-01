@@ -349,11 +349,16 @@ export function buildLedger(st: Statement): { months: LedgerMonth[]; upcoming: L
 
 export interface StayInternal {
   bungalow: string
+  /** The guest paid the Palmeiras: we billed nothing, our margin is the commission. */
+  direct: boolean
   sellPerNight: number
   nights: number
+  /** What BKC billed; 0 on a stay paid directly. */
   billed: number
+  /** What the guest paid the Palmeiras; 0 on a stay we collected. */
+  guestPaid: number
   margin: number
-  /** Share of the billed price; null when nothing was billed. */
+  /** Share of what the guest paid; null when nothing was. */
   marginPct: number | null
   /** Billed nothing: a forgotten price, or a bungalow we offered? */
   noPrice: boolean
@@ -361,20 +366,26 @@ export interface StayInternal {
   lowMargin: boolean
 }
 
-/** By statement line key (`stay-<index in input.stays>`); the stays the guest
- *  paid the Palmeiras directly have no entry: we earn the commission on them. */
+/** By statement line key (`stay-<index in input.stays>`). */
 export type StayInternals = Record<string, StayInternal>
 
 export const stayLineKey = (index: number) => `stay-${index}`
 
-export function stayInternal(s: StatementStay, sellPerNight: number): StayInternal | null {
-  if (s.paid_direct) return null
+export function stayInternal(s: StatementStay, sellPerNight: number): StayInternal {
   const nights = stayNights(s)
+  if (s.paid_direct) {
+    const { gross, toUs } = stayAmounts(s)
+    return {
+      bungalow: s.bungalow, direct: true, sellPerNight, nights, billed: 0, guestPaid: gross,
+      margin: toUs, marginPct: gross > 0 ? PALMEIRAS_COMMISSION_PCT : null,
+      noPrice: gross <= 0, lowMargin: false,
+    }
+  }
   const billed = r2(sellPerNight * nights)
   const margin = r2(billed - (s.cost_per_night ?? 0) * nights)
   const marginPct = billed > 0 ? Math.round(margin / billed * 1000) / 10 : null
   return {
-    bungalow: s.bungalow, sellPerNight, nights, billed, margin, marginPct,
+    bungalow: s.bungalow, direct: false, sellPerNight, nights, billed, guestPaid: 0, margin, marginPct,
     noPrice: billed <= 0,
     lowMargin: marginPct !== null && marginPct < PALMEIRAS_COMMISSION_PCT,
   }
@@ -383,6 +394,8 @@ export function stayInternal(s: StatementStay, sellPerNight: number): StayIntern
 export interface InternalSummary {
   billed: number
   margin: number
+  /** Margin over what BKC billed; null when a commission is in the sum: it was
+   *  not earned on that billed amount, the percentage would mean nothing. */
   marginPct: number | null
   byBungalow: { bungalow: string; margin: number }[]
 }
@@ -395,7 +408,7 @@ export function summarizeInternals(rows: (StayInternal | null | undefined)[]): I
   for (const r of real) totals[r.bungalow] = r2((totals[r.bungalow] ?? 0) + r.margin)
   return {
     billed, margin,
-    marginPct: billed > 0 ? Math.round(margin / billed * 1000) / 10 : null,
+    marginPct: billed > 0 && !real.some(r => r.direct) ? Math.round(margin / billed * 1000) / 10 : null,
     byBungalow: Object.entries(totals)
       .map(([bungalow, m]) => ({ bungalow, margin: m }))
       .sort((a, b) => a.bungalow.localeCompare(b.bungalow, 'en', { numeric: true })),

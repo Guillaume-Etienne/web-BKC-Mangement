@@ -186,25 +186,39 @@ describe('metical equivalents', () => {
 
 describe('stayInternal (admin only)', () => {
   it('billed and margin of a stay we collected', () => {
-    const r = stayInternal(stay({ cost_per_night: 50 }), 55)!
+    const r = stayInternal(stay({ cost_per_night: 50 }), 55)
     expect([r.nights, r.billed, r.margin, r.marginPct]).toEqual([3, 165, 15, 9.1])
     expect(r.lowMargin).toBe(true)
     expect(r.noPrice).toBe(false)
   })
 
   it('a stay sold at 0 € is flagged, its cost is a loss', () => {
-    const r = stayInternal(stay({ check_in: '2026-10-15', check_out: '2026-10-16', cost_per_night: 50 }), 0)!
+    const r = stayInternal(stay({ check_in: '2026-10-15', check_out: '2026-10-16', cost_per_night: 50 }), 0)
     expect([r.billed, r.margin, r.marginPct, r.noPrice, r.lowMargin]).toEqual([0, -50, null, true, false])
   })
 
-  it('a stay paid directly has no margin of its own: we earn the commission', () => {
-    expect(stayInternal(stay({ paid_direct: true, price_per_night: 100, cost_per_night: null }), 100)).toBeNull()
+  it('a stay paid directly: nothing billed by us, the commission is our margin', () => {
+    const r = stayInternal(stay({ paid_direct: true, price_per_night: 100, cost_per_night: null }), 100)
+    expect([r.direct, r.billed, r.guestPaid, r.margin, r.marginPct, r.lowMargin]).toEqual([true, 0, 300, 45, 15, false])
+  })
+
+  it('a stay paid directly at 0 € is flagged too', () => {
+    const r = stayInternal(stay({ paid_direct: true, price_per_night: 0, cost_per_night: null }), 0)
+    expect([r.noPrice, r.margin, r.marginPct]).toEqual([true, 0, null])
+  })
+
+  it('a commission counts in the total, which then gives no percentage of what we billed', () => {
+    const ours = stayInternal(stay({ cost_per_night: 50 }), 60)
+    const direct = stayInternal(stay({ paid_direct: true, price_per_night: 100, cost_per_night: null }), 100)
+    expect(summarizeInternals([ours]).marginPct).toBe(16.7)
+    const s = summarizeInternals([ours, direct])
+    expect([s.billed, s.margin, s.marginPct]).toEqual([180, 75, null])
   })
 
   it('sums by month and by bungalow, in natural order', () => {
-    const a = stayInternal(stay({ bungalow: 'B10', cost_per_night: 50 }), 60)!
-    const b = stayInternal(stay({ bungalow: 'B4', cost_per_night: 50 }), 55)!
-    const c = stayInternal(stay({ bungalow: 'B4', cost_per_night: 50 }), 0)!
+    const a = stayInternal(stay({ bungalow: 'B10', cost_per_night: 50 }), 60)
+    const b = stayInternal(stay({ bungalow: 'B4', cost_per_night: 50 }), 55)
+    const c = stayInternal(stay({ bungalow: 'B4', cost_per_night: 50 }), 0)
     const s = summarizeInternals([a, undefined, b, c, null])
     expect([s.billed, s.margin]).toEqual([345, -105])
     expect(s.byBungalow).toEqual([{ bungalow: 'B4', margin: -135 }, { bungalow: 'B10', margin: 30 }])

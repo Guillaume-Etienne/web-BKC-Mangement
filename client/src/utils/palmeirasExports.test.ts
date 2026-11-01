@@ -91,8 +91,8 @@ describe('palmeirasExports', () => {
       stay({ booking_number: 8, check_in: '2026-10-10', check_out: '2026-10-11', cost_per_night: 50 }),
     ], ['B4'])
     const html = buildExportDocument('internal', i, '2026-10', { ...OPTS, internals: {
-      'stay-0': stayInternal(i.stays[0], 55)!,
-      'stay-1': stayInternal(i.stays[1], 0)!,
+      'stay-0': stayInternal(i.stays[0], 55),
+      'stay-1': stayInternal(i.stays[1], 0),
     } })
     expect(html).toContain('INTERNAL – BKC ONLY')
     expect(html).toContain('165 €')          // 3 nights × 55 €
@@ -103,13 +103,28 @@ describe('palmeirasExports', () => {
 
   it('the selling price stays out of every sheet meant for the Palmeiras, internals or not', () => {
     const i = input([stay({ cost_per_night: 50 })], ['B4'])
-    const internals = { 'stay-0': stayInternal(i.stays[0], 987)! }
+    const internals = { 'stay-0': stayInternal(i.stays[0], 987) }
     for (const f of EXPORT_FORMATS.filter(x => !x.internal)) {
       const html = buildExportDocument(f.id, i, '2026-10', { ...OPTS, internals })
       expect(html).not.toContain('987')
       expect(html).not.toContain('INTERNAL')
     }
     expect(buildExportDocument('internal', i, '2026-10', { ...OPTS, internals })).toContain('987')
+  })
+
+  it('internal sheet: the commission and the actual figure of the month count in the total margin', () => {
+    const i: StatementInput = {
+      ...input([
+        stay({ check_in: '2026-10-02', check_out: '2026-10-05', cost_per_night: 50 }),
+        stay({ booking_number: 9, bungalow: 'B5', check_in: '2026-10-10', check_out: '2026-10-12', paid_direct: true, price_per_night: 100, cost_per_night: null }),
+      ], ['B4', 'B5']),
+      adjustments: [{ month: '2026-10', gross_amount: 200, percent: 15, net_amount: 25 }],
+    }
+    const internals = { 'stay-0': stayInternal(i.stays[0], 60), 'stay-1': stayInternal(i.stays[1], 100) }
+    const html = buildExportDocument('internal', i, '2026-10', { ...OPTS, internals })
+    expect(html).toContain('Commission adjustment:</b> −5 €')   // 25 € actual − 30 € computed
+    expect(html).toContain('Total margin: +55 €')               // 30 € + 30 € − 5 €
+    expect(html).toContain('B4 +30 € · B5 +30 €')
   })
 
   it('internal sheet without the data says so, rather than printing zeros', () => {

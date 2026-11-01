@@ -44,7 +44,7 @@ interface Strings {
   internalTitle: string; internalBanner: string; internalSub: string; internalEmpty: string
   costPerNight: string; cost: string; soldPerNight: string; billed: string; margin: string
   noPrice: string; total: string; byBungalow: string; directTitle: string; guestPaidCol: string; commission: string
-  rentOfMonth: string; rate: (rate: string) => string
+  rentOfMonth: string; rate: (rate: string) => string; adjustment: string; totalMargin: string
 }
 
 const STRINGS: Record<ExportLang, Strings> = {
@@ -65,7 +65,7 @@ const STRINGS: Record<ExportLang, Strings> = {
     internalSub: 'Stays counted in their month of arrival', internalEmpty: 'No margin data: open this sheet from the accounting tab.',
     costPerNight: 'Cost / night', cost: 'Cost', soldPerNight: 'Sold / night', billed: 'Billed', margin: 'Margin',
     noPrice: 'no price', total: 'Total', byBungalow: 'Margin by bungalow', directTitle: 'Paid directly to the Palmeiras', guestPaidCol: 'Guest paid', commission: 'Our commission',
-    rentOfMonth: 'House rent of the period', rate: r => `1 € = ${r} MZN`,
+    rentOfMonth: 'House rent of the period', rate: r => `1 € = ${r} MZN`, adjustment: 'Commission adjustment', totalMargin: 'Total margin',
   },
   fr: {
     locale: 'fr-FR', dayLetters: 'DLMMJVS',
@@ -84,7 +84,7 @@ const STRINGS: Record<ExportLang, Strings> = {
     internalSub: "Séjours comptés dans leur mois d'arrivée", internalEmpty: "Pas de données de marge : ouvrir cette fiche depuis l'onglet compta.",
     costPerNight: 'Coût / nuit', cost: 'Coût', soldPerNight: 'Vendu / nuit', billed: 'Facturé', margin: 'Marge',
     noPrice: 'sans prix', total: 'Total', byBungalow: 'Marge par bungalow', directTitle: 'Payés directement au Palmeiras', guestPaidCol: 'Payé par le client', commission: 'Notre commission',
-    rentOfMonth: 'Loyer de la maison de la période', rate: r => `1 € = ${r} MZN`,
+    rentOfMonth: 'Loyer de la maison de la période', rate: r => `1 € = ${r} MZN`, adjustment: 'Ajustement de commission', totalMargin: 'Marge totale',
   },
   es: {
     locale: 'es-ES', dayLetters: 'DLMXJVS',
@@ -103,7 +103,7 @@ const STRINGS: Record<ExportLang, Strings> = {
     internalSub: 'Estancias contadas en su mes de llegada', internalEmpty: 'Sin datos de margen: abrir esta hoja desde la pestaña de contabilidad.',
     costPerNight: 'Coste / noche', cost: 'Coste', soldPerNight: 'Vendido / noche', billed: 'Facturado', margin: 'Margen',
     noPrice: 'sin precio', total: 'Total', byBungalow: 'Margen por bungalow', directTitle: 'Pagados directamente al Palmeiras', guestPaidCol: 'Pagado por el cliente', commission: 'Nuestra comisión',
-    rentOfMonth: 'Alquiler de la casa del período', rate: r => `1 € = ${r} MZN`,
+    rentOfMonth: 'Alquiler de la casa del período', rate: r => `1 € = ${r} MZN`, adjustment: 'Ajuste de comisión', totalMargin: 'Margen total',
   },
   pt: {
     locale: 'pt-PT', dayLetters: 'DSTQQSS',
@@ -122,7 +122,7 @@ const STRINGS: Record<ExportLang, Strings> = {
     internalSub: 'Estadias contadas no mês de chegada', internalEmpty: 'Sem dados de margem: abrir esta folha a partir do separador de contabilidade.',
     costPerNight: 'Custo / noite', cost: 'Custo', soldPerNight: 'Vendido / noite', billed: 'Faturado', margin: 'Margem',
     noPrice: 'sem preço', total: 'Total', byBungalow: 'Margem por bungalow', directTitle: 'Pagas diretamente ao Palmeiras', guestPaidCol: 'Pago pelo hóspede', commission: 'A nossa comissão',
-    rentOfMonth: 'Renda da casa do período', rate: r => `1 € = ${r} MZN`,
+    rentOfMonth: 'Renda da casa do período', rate: r => `1 € = ${r} MZN`, adjustment: 'Ajuste de comissão', totalMargin: 'Margem total',
   },
 }
 
@@ -337,8 +337,7 @@ function renderInternal(input: StatementInput, month: string, { lang, internals 
       <th class="r">${t.costPerNight}</th><th class="r">${t.cost}</th><th class="r">${t.soldPerNight}</th><th class="r">${t.billed}</th><th class="r">${t.margin}</th><th class="r">%</th></tr></thead>
     <tbody>${oursRows}</tbody>
     <tfoot><tr><td colspan="6">${t.total}</td><td class="r">${fmtEurCents(costTotal)}<br><small>${fmtMznEquivalent(costTotal, rate)}</small></td><td></td>
-      <td class="r">${fmtEurCents(sum.billed)}</td><td class="r">${signed(sum.margin)}</td><td class="r">${pct(sum.marginPct)}</td></tr></tfoot></table>
-    <p class="note"><b>${t.byBungalow}:</b> ${sum.byBungalow.map(b => `${escapeHtml(b.bungalow)} ${signed(b.margin)}`).join(' · ')}</p>`
+      <td class="r">${fmtEurCents(sum.billed)}</td><td class="r">${signed(sum.margin)}</td><td class="r">${pct(sum.marginPct)}</td></tr></tfoot></table>`
 
   const directTable = direct.length === 0 ? '' : `
     <h2>${t.directTitle}</h2>
@@ -348,10 +347,20 @@ function renderInternal(input: StatementInput, month: string, { lang, internals 
       return `<tr><td>${fmtDate(s.check_in)}</td><td>${fmtDate(s.check_out)}</td><td><b>${escapeHtml(s.bungalow)}</b></td><td>${guestCell(s)}</td><td class="r">${a.nights}</td><td class="r">${fmtEurCents(a.gross)}</td><td class="r"><b>${fmtEurCents(a.toUs)}</b></td></tr>`
     }).join('')}</tbody></table>`
 
+  // Everything BKC keeps on the month: stays we collected, commissions, and the
+  // month's actual commission when it differs (same rule as the statement).
+  const all = summarizeInternals(stays.map(x => x.row))
+  const actual = input.adjustments.find(a => a.month === month)
+  const adjustment = actual ? actual.net_amount - direct.reduce((n, x) => n + stayAmounts(x.s).toUs, 0) : 0
+  const totals = `
+    ${Math.abs(adjustment) >= 0.01 ? `<p class="note"><b>${t.adjustment}:</b> ${signed(adjustment)}</p>` : ''}
+    <p class="note"><b>${t.totalMargin}: ${signed(all.margin + adjustment)}</b></p>
+    <p class="note"><b>${t.byBungalow}:</b> ${all.byBungalow.map(b => `${escapeHtml(b.bungalow)} ${signed(b.margin)}`).join(' · ')}</p>`
+
   const rent = input.rents.find(r => r.month === month)
   const rentLine = rent ? `<p class="note"><b>${t.rentOfMonth}:</b> ${fmtEurCents(rent.amount)}${rent.amount_mzn ? ` · ${fmtMznExact(rent.amount_mzn)}` : ''}</p>` : ''
 
-  return `${banner}${head}${stays.length === 0 ? `<p class="empty">${t.noStay}</p>` : `${oursTable}${directTable}`}${rentLine}`
+  return `${banner}${head}${stays.length === 0 ? `<p class="empty">${t.noStay}</p>` : `${oursTable}${directTable}${totals}`}${rentLine}`
 }
 
 export const EXPORT_FORMATS: ExportFormat[] = [

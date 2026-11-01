@@ -14,7 +14,7 @@ const input: StatementInput = {
   adjustments: [], entries: [], card_payments: [], settlements: [],
 }
 const statement = buildStatement(input, '2026-10-30')
-const internals = { 'stay-0': stayInternal(stay, 987)! }
+const internals = { 'stay-0': stayInternal(stay, 987) }
 
 describe('PalmeirasLedger', () => {
   it('the Palmeiras view has the meticals, and nothing of our price or margin', () => {
@@ -33,6 +33,16 @@ describe('PalmeirasLedger', () => {
     expect(html).toContain('987 € / night')
     expect(html).toContain('Margin by bungalow:')
     expect(html).toContain('B4 +2')                  // (987 − 50) × 3 = 2 811 €
+  })
+
+  it('a stay paid directly: no billed amount, the commission in Margin and in the month total', () => {
+    const direct: StatementStay = { ...stay, paid_direct: true, price_per_night: 100, cost_per_night: null, check_in: '2026-10-10', check_out: '2026-10-12' }
+    const i: StatementInput = { ...input, rents: [], stays: [stay, direct] }
+    const html = renderToStaticMarkup(<PalmeirasLedger statement={buildStatement(i, '2026-10-30')} eurMznRate={70}
+      stayInternals={{ 'stay-0': stayInternal(stay, 0), 'stay-1': stayInternal(direct, 100) }} />)
+    expect(html).toContain('paid to the Palmeiras')
+    expect(html).toContain('+30 €')                  // the commission
+    expect(html).toContain('B4 −120 €')              // same bungalow: −150 € on the stay sold at 0 €, +30 €
   })
 
   it('without a rate, no metical equivalent is made up', () => {
