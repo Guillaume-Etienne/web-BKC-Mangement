@@ -595,8 +595,10 @@ offres distinctes.
 ⚠️ Les factures déjà émises gardent leurs **prix figés** : #022 reste à 160 €/transfert malgré la
 grille à 168 €. C'est voulu — un prix figé ne se refacture pas.
 
-**⬜ Facture #022, émise, pas encore envoyée** (`invoiced_at` nul) — 970 € brut,
-commission 20 %, **776 € à payer**, facture `20260819`, réf F&Fly `142018`.
+**⬜ Facture #022, émise, pas encore envoyée** (`invoiced_at` nul) — ~~970 €~~ **1 010 € brut**
+(pack 4h 200 → 240 € le 2026-11-01, aligné sur #026, décision gui « on verra la réponse de F&F » ;
+le 10h reste à 450 €), commission 20 %, **808 € à payer**, facture `20260819`, réf F&Fly `142018`.
+#026 : facture `20261031`, réf `140687`, 1 472 € brut / 1 177,60 € net.
 Reste : **comparer l'impression au modèle Excel** et dire ce qui cloche (la fenêtre d'impression
 s'ouvre hors du groupe piloté par l'extension : **Claude ne peut pas la voir**, seul gui peut
 relire ce rendu), puis les **tampons `Invoice` / `Paid`** — c'est `paid_at` qui alimente la colonne
