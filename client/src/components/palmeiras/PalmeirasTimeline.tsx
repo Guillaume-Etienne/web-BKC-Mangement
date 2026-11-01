@@ -130,7 +130,8 @@ export default function PalmeirasTimeline({ input, statement, onAddRent, onPayRe
         <span className="flex items-center gap-1.5"><span className="w-4 h-3 rounded-sm border-2 border-dashed border-gray-400" /> Provisional</span>
       </div>
 
-      <div ref={scroller} className="overflow-x-auto">
+      {/* pb: room for Firefox's overlay scrollbar, which would cover the last row. */}
+      <div ref={scroller} className="overflow-x-auto pb-3.5 print:pb-0">
         <div className="min-w-max">
           {/* Months */}
           <div className="flex border-b border-gray-200 dark:border-gray-800">
