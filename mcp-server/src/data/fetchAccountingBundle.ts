@@ -7,7 +7,7 @@ import type {
   InstructorDebt, InstructorPayment, LessonRateOverride, Expense, ExpenseCategory, PalmeirasRent,
   PalmeirasReversal, PalmeirasEntry, ActivityBooking, ActivityPayment, TaxiPricingDefaults,
   PriceTier, Agency, AgencyRateItem, AgencyBillingLine, AgencyInvoice,
-  PartnerHotelStay, Associate, AssociateTransfer, BookingCharge,
+  PartnerHotelStay, Associate, AssociateTransfer, BookingCharge, EurMznRateRow,
 } from '../../../client/src/types/database.js'
 
 /** Every table `SharedAccountingData` needs, fetched in parallel. This is the
@@ -24,7 +24,7 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     expenseCategories,
     palmeirasRents, palmeirasReversals, palmeirasEntries, activityBookings, activityPayments,
     priceTiers, agencies, agencyRateItems, agencyBillingLines, agencyInvoices, partnerHotelStays,
-    associates, associateTransfers, bookingCharges,
+    associates, associateTransfers, bookingCharges, eurMznRates,
   ] = await Promise.all([
     selectAll<Accommodation>('accommodations'),
     selectAll<BookingParticipant>('booking_participants'),
@@ -77,6 +77,7 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     selectAll<AssociateTransfer>('associate_transfers').catch(missingTableAsEmpty<AssociateTransfer>),
     // Extras, 2026-10-18 — same tolerance until the migration is in.
     selectAll<BookingCharge>('booking_charges').catch(missingTableAsEmpty<BookingCharge>),
+    selectAll<EurMznRateRow>('eur_mzn_rates').catch(missingTableAsEmpty<EurMznRateRow>),
   ])
 
   return {
@@ -84,6 +85,7 @@ export async function fetchAccountingBundle(): Promise<SharedAccountingData> {
     bookingRoomPrices, roomRates, externalAccommodationBkgs, diningEvents, lessons, instructors,
     priceItems, equipment, equipmentRentals, taxiTrips, taxiManagerPayments,
     eurMznRate: taxiPricingDefaults[0]?.eur_mzn_rate ?? 65,
+    eurMznRates,
     seasons, payments, instructorDebts, instructorPayments, lessonRateOverrides, expenses,
     expenseCategories,
     palmeirasRents, palmeirasReversals, palmeirasEntries, activityBookings, activityPayments,

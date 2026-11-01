@@ -12,6 +12,7 @@ import { useTaxiTrips } from '../hooks/useTaxis'
 import { useActivityBookings, useActivityPayments, usePartnerHotelStays } from '../hooks/useActivities'
 import { useAgencies, useAgencyRateItems, useAgencyBillingLines, useAgencyInvoices } from '../hooks/useAgencies'
 import { useTable } from '../hooks/useSupabase'
+import { useEurMznRates } from '../hooks/useEurMznRates'
 import { usePriceTiers } from '../hooks/usePriceTiers'
 import { persist } from '../components/accounting/persist'
 import { getRoomNightlyRate } from '../components/accounting/utils'
@@ -85,6 +86,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const { data: taxiManagerPayments }      = useTable<TaxiManagerPayment>('taxi_manager_payments', { order: 'date', ascending: false })
   // order matters: several rows may exist, every screen must pick the most recent (8000€ bug)
   const { data: taxiPricingDefaults }      = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
+  const { data: eurMznRates }              = useEurMznRates()
   const { data: activityBookingsData }     = useActivityBookings()
   const { data: activityPayments }         = useActivityPayments()
   const { data: agencies }                 = useAgencies()
@@ -172,6 +174,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
     taxiTrips,
     taxiManagerPayments,
     eurMznRate: taxiPricingDefaults[0]?.eur_mzn_rate ?? 65,
+    eurMznRates,
     seasons,
     payments,
     bookingCharges,

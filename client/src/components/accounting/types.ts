@@ -10,6 +10,8 @@ import type {
 } from '../../types/database'
 import type { NewActivityBooking } from '../../utils/billedActivities'
 
+import type { EurMznRatePoint } from '../../utils/exchangeRates'
+
 export interface SharedAccountingData {
   accommodations:            Accommodation[]
   bookingParticipants:       BookingParticipant[]
@@ -30,7 +32,8 @@ export interface SharedAccountingData {
   equipmentRentals:          EquipmentRental[]
   taxiTrips:                 TaxiTrip[]
   taxiManagerPayments:       TaxiManagerPayment[]
-  eurMznRate:                number    // global EUR/MZN rate (taxi_pricing_defaults)
+  eurMznRate:                number    // latest EUR/MZN rate (taxi_pricing_defaults)
+  eurMznRates:               EurMznRatePoint[]  // the rates over time: a conversion takes the rate of its date
   seasons:                   Season[]
   payments:                  Payment[]
   bookingCharges:            BookingCharge[]      // hand-typed extras, owed by the guest (2026-10-18)

@@ -11,6 +11,7 @@ import PartnerHotelTab, { type HotelBookingRef } from '../components/activities/
 import SafariTab from '../components/activities/SafariTab'
 import { useBookingParticipants } from '../hooks/useBookings'
 import { useTable } from '../hooks/useSupabase'
+import { useEurMznRates } from '../hooks/useEurMznRates'
 import type {
   ActivityProvider, ActivityBooking, ActivityPayment,
   ActivityProviderType, ActivityPaymentFlow, ActivityPaymentDirection,
@@ -647,6 +648,7 @@ export default function ActivitiesPage() {
   })
   const { data: taxiPricingDefaults } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
   const eurMznRate = taxiPricingDefaults[0]?.eur_mzn_rate ?? 65
+  const { data: eurMznRates } = useEurMznRates()
   const activeHotels = hotels.filter(h => h.is_active)
   const participantCounts: Record<string, number> = {}
   for (const p of bpData) participantCounts[p.booking_id] = (participantCounts[p.booking_id] ?? 0) + 1
@@ -843,6 +845,7 @@ export default function ActivitiesPage() {
             safaris={bookings.filter(b => safariProviderIds.has(b.provider_id))}
             shareLink={sharedLinksData.find(l => l.type === 'partner_hotel' && l.is_active && l.params?.hotel_id === h.id)}
             eurMznRate={eurMznRate}
+            eurMznRates={eurMznRates}
             onStaysChanged={refreshHotelStays}
             onPaymentsChanged={refreshHotelPayments}
             onHotelChanged={refreshHotels}

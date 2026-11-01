@@ -11,7 +11,7 @@ import type { ReactNode } from 'react'
 import { fmtDate, todayISO } from '../../utils/dates'
 import {
   type Statement, type LedgerKind, type LedgerRow, type StayInternal, type StayInternals,
-  buildLedger, fmtEurCents, fmtMonthLong, balanceSentence, fmtMznExact, fmtMznEquivalent,
+  buildLedger, fmtEurCents, fmtMonthLong, balanceSentence, fmtMznExact, fmtMznEquivalent, rowMzn,
   summarizeInternals, PALMEIRAS_COMMISSION_PCT,
 } from '../../utils/palmeirasStatement'
 
@@ -27,21 +27,29 @@ export const KIND_BADGE: Record<LedgerKind, { label: string; cls: string }> = {
 
 const signedEur = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${fmtEurCents(Math.abs(n))}`
 
-/** The small line under an amount: the real meticals if known, else an equivalent. */
-function MznLine({ eur, mzn, rate }: { eur: number; mzn?: number | null; rate: number | null }) {
-  const text = mzn ? fmtMznExact(mzn) : fmtMznEquivalent(eur, rate)
+/** A row in meticals: the real amount as it is, an equivalent marked ≈. */
+function rowMznText(r: LedgerRow): string {
+  if (r.mzn) return fmtMznExact(r.mzn)
+  const mzn = rowMzn(r)
+  return mzn === null ? '' : `≈ ${fmtMznExact(mzn)}`
+}
+
+const totalMznText = (mzn: number | null, exact: boolean) => (mzn ? `${exact ? '' : '≈ '}${fmtMznExact(Math.abs(mzn))}` : '')
+
+/** The small line under an amount. */
+function MznLine({ text }: { text: string }) {
   if (!text) return null
   return <div className="text-[11px] font-normal tabular-nums whitespace-nowrap text-gray-500 dark:text-gray-400">{text}</div>
 }
 
-function Money({ value, side, rate, mzn }: { value: number; side: 'us' | 'palm'; rate: number | null; mzn?: number | null }) {
+function Money({ value, side, mznText }: { value: number; side: 'us' | 'palm'; mznText: string }) {
   if (!value) return <span className="text-gray-300 dark:text-gray-600">–</span>
   const cls = value < 0
     ? 'text-gray-700 dark:text-gray-300'          // a payment: it reduces that side
     : side === 'us' ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'
   return <>
     <span className={`font-semibold tabular-nums whitespace-nowrap ${cls}`}>{value < 0 ? '−' : ''}{fmtEurCents(Math.abs(value))}</span>
-    <MznLine eur={value} mzn={mzn} rate={rate} />
+    <MznLine text={mznText} />
   </>
 }
 
@@ -52,7 +60,7 @@ function Balance({ value, rate }: { value: number | null; rate: number | null })
     <span className={`tabular-nums whitespace-nowrap font-medium ${value > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}>
       {value > 0 ? '+' : '−'}{fmtEurCents(Math.abs(value))}
     </span>
-    <MznLine eur={value} rate={rate} />
+    <MznLine text={fmtMznEquivalent(value, rate)} />
   </>
 }
 
@@ -105,8 +113,8 @@ function Row({ r, muted, action, rate, internals }: { r: LedgerRow; muted?: bool
         </div>
         {r.detail && <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{r.detail}</div>}
       </td>
-      <td className="px-3 py-2 text-right"><Money value={r.toUs} side="us" rate={rate} /></td>
-      <td className="px-3 py-2 text-right"><Money value={r.toPalmeiras} side="palm" rate={rate} mzn={r.mzn} /></td>
+      <td className="px-3 py-2 text-right"><Money value={r.toUs} side="us" mznText={rowMznText(r)} /></td>
+      <td className="px-3 py-2 text-right"><Money value={r.toPalmeiras} side="palm" mznText={rowMznText(r)} /></td>
       <td className="px-3 py-2 text-right"><Balance value={r.balance} rate={rate} /></td>
       {internals && (r.kind === 'adjustment'
         ? <>
@@ -174,7 +182,7 @@ export default function PalmeirasLedger({ statement, eurMznRate: rate, stayInter
       </div>
       <p className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800">
         Balance above 0: the Palmeiras owes BKC · below 0: BKC owes the Palmeiras. A payment reduces the side it settles (shown with −).
-        {rate && <> Metical amounts marked ≈ use today's rate: 1 € = {rate.toLocaleString('en-US')} MZN.</>}
+        {rate && <> Metical amounts marked ≈ use the rate of their date; balances use today's rate: 1 € = {rate.toLocaleString('en-US')} MZN.</>}
       </p>
       {stayInternals && (
         <p className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800">
@@ -206,8 +214,8 @@ function FragmentMonth({ m, rate, cols, internals, settlementAction }: {
     <tr className={`align-top bg-gray-50 dark:bg-gray-800/50 ${summary?.byBungalow.length ? 'border-b border-gray-200 dark:border-gray-700' : 'border-b-2 border-gray-300 dark:border-gray-600'}`}>
       <td />
       <td className="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300">Total {fmtMonthLong(m.month)}</td>
-      <td className="px-3 py-2 text-right"><Money value={m.toUs} side="us" rate={rate} /></td>
-      <td className="px-3 py-2 text-right"><Money value={m.toPalmeiras} side="palm" rate={rate} /></td>
+      <td className="px-3 py-2 text-right"><Money value={m.toUs} side="us" mznText={totalMznText(m.toUsMzn, m.mznExact)} /></td>
+      <td className="px-3 py-2 text-right"><Money value={m.toPalmeiras} side="palm" mznText={totalMznText(m.toPalmeirasMzn, m.mznExact)} /></td>
       <td className="px-3 py-2 text-right font-bold"><Balance value={m.closing} rate={rate} /></td>
       {summary && <>
         <td className={`${adminCell} font-semibold tabular-nums whitespace-nowrap text-gray-800 dark:text-gray-200`}>{summary.billed ? fmtEurCents(summary.billed) : '–'}</td>

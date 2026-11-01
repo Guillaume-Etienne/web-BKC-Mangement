@@ -11,7 +11,7 @@
 // saved as PDF by gui. Language chosen per export (EN / FR / ES / PT).
 import {
   stayAmounts, stayNights, stayRef, fmtEurCents, monthStart, monthEnd,
-  fmtMznEquivalent, fmtMznExact, summarizeInternals, usableRate, stayLineKey,
+  fmtMznExact, summarizeInternals, usableRate, stayLineKey, statementRateOn,
   PALMEIRAS_COMMISSION_PCT, type StatementInput, type StatementStay, type StayInternals,
 } from './palmeirasStatement'
 import { fmtDate, addDaysISO } from './dates'
@@ -303,7 +303,7 @@ function renderInternal(input: StatementInput, month: string, { lang, internals 
   const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${fmtEurCents(Math.abs(n))}`
   const pct = (n: number | null) => (n === null ? '–' : `${n.toLocaleString(t.locale)} %`)
   const banner = `<p class="internal">${t.internalBanner}</p>`
-  const rate = usableRate(input.eur_mzn_rate)
+  const rate = usableRate(statementRateOn(input, monthEnd(month)))
   const head = `<h1>${t.internalTitle} — ${fmtMonthLabel(month, lang)}</h1>
     <p class="sub">${t.internalSub}${rate ? ` · ${t.rate(rate.toLocaleString('en-US'))}` : ''}</p>`
   if (!internals) return `${banner}${head}<p class="empty">${t.internalEmpty}</p>`
@@ -317,6 +317,17 @@ function renderInternal(input: StatementInput, month: string, { lang, internals 
   const direct = stays.filter(x => x.s.paid_direct)
   const sum = summarizeInternals(ours.map(x => x.row))
   const costTotal = ours.reduce((n, x) => n + stayAmounts(x.s).toPalmeiras, 0)
+  // A tariff in meticals is exact; otherwise an equivalent at the rate of the arrival.
+  const stayMzn = (s: StatementStay): number | null => {
+    if (s.cost_per_night_mzn) return s.cost_per_night_mzn * stayNights(s)
+    const r = usableRate(statementRateOn(input, s.check_in))
+    return r ? stayAmounts(s).toPalmeiras * r : null
+  }
+  const mznCell = (n: number | null, exact = false) => (n === null ? '' : `${exact ? '' : '≈ '}${fmtMznExact(n)}`)
+  const mznTotal = ours.reduce<number | null>((n, x) => {
+    const m = stayMzn(x.s)
+    return n === null || m === null ? null : n + m
+  }, 0)
   const guestCell = (s: StatementStay) => `#${s.booking_number} ${escapeHtml(s.guest || '—')}${s.provisional ? ` <small>(${t.provisional})</small>` : ''}`
 
   const oursRows = ours.map(({ s, row }) => {
@@ -325,7 +336,7 @@ function renderInternal(input: StatementInput, month: string, { lang, internals 
       <td>${fmtDate(s.check_in)}</td><td>${fmtDate(s.check_out)}</td><td><b>${escapeHtml(s.bungalow)}</b></td><td>${guestCell(s)}</td>
       <td class="r">${stayNights(s)}</td>
       <td class="r">${fmtEurCents(s.cost_per_night ?? 0)}</td>
-      <td class="r">${fmtEurCents(cost)}<br><small>${fmtMznEquivalent(cost, rate)}</small></td>
+      <td class="r">${fmtEurCents(cost)}<br><small>${mznCell(stayMzn(s), !!s.cost_per_night_mzn)}</small></td>
       <td class="r">${row?.noPrice ? `<b>${t.noPrice}</b>` : fmtEurCents(row?.sellPerNight ?? 0)}</td>
       <td class="r">${fmtEurCents(row?.billed ?? 0)}</td>
       <td class="r"><b>${signed(row?.margin ?? 0)}</b></td>
@@ -336,7 +347,7 @@ function renderInternal(input: StatementInput, month: string, { lang, internals 
     <table class="rows"><thead><tr><th>${t.checkIn}</th><th>${t.checkOut}</th><th>${t.bungalow}</th><th>${t.guest}</th><th class="r">${t.nights}</th>
       <th class="r">${t.costPerNight}</th><th class="r">${t.cost}</th><th class="r">${t.soldPerNight}</th><th class="r">${t.billed}</th><th class="r">${t.margin}</th><th class="r">%</th></tr></thead>
     <tbody>${oursRows}</tbody>
-    <tfoot><tr><td colspan="6">${t.total}</td><td class="r">${fmtEurCents(costTotal)}<br><small>${fmtMznEquivalent(costTotal, rate)}</small></td><td></td>
+    <tfoot><tr><td colspan="6">${t.total}</td><td class="r">${fmtEurCents(costTotal)}<br><small>${mznCell(mznTotal)}</small></td><td></td>
       <td class="r">${fmtEurCents(sum.billed)}</td><td class="r">${signed(sum.margin)}</td><td class="r">${pct(sum.marginPct)}</td></tr></tfoot></table>`
 
   const directTable = direct.length === 0 ? '' : `

@@ -154,6 +154,22 @@ describe('computePalmeirasTotals', () => {
   })
 })
 
+describe('bungalow tariff in meticals', () => {
+  it('sets the cost and the margin at the rate of the arrival, everywhere', () => {
+    const base = bungalowSetup({ sell: 200, cost: 25 })
+    const data = {
+      ...base,
+      eurMznRates: [{ valid_from: '2000-01-01', rate: 70 }, { valid_from: '2026-12-01', rate: 100 }],
+      accommodations: base.accommodations.map(a => ({ ...a, cost_per_night_mzn: 7000 })),
+    }
+    expect(buildBungalowRows(data)[0]).toMatchObject({ costRate: 100, margin: 700 })     // arrival 1 Nov, rate 70
+    expect(stayInternalsFromData(data)['stay-0']).toMatchObject({ billed: 1400, margin: 700 })
+    const stay = statementInputFromData(data, []).stays[0]
+    expect([stay.cost_per_night, stay.cost_per_night_mzn]).toEqual([100, 7000])
+    expect(computeSeasonTotals(data).bungalowCosts).toBe(700)
+  })
+})
+
 describe('selling price, admin side only', () => {
   it('reaches the internals, keyed like the statement lines, and never the statement input', () => {
     const data = bungalowSetup({ sell: 987, cost: 25 })

@@ -3,6 +3,7 @@ import { lessonBillable, lessonDiscipline } from '../../types/database'
 import type { SharedAccountingData } from './types'
 import { getBaseNightlyRate } from '../../utils/roomPricing'
 import { commissionEur } from '../../utils/partnerHotel'
+import { rateOn, bungalowCostPerNight } from '../../utils/exchangeRates'
 import { isDayVisitor } from '../../utils/dayVisitor'
 // Circular (palmeirasUtils imports this file) but only called inside functions.
 import { buildBungalowRows, monthlyCommission } from './palmeirasUtils'
@@ -17,7 +18,7 @@ export function emptyAccountingData(): SharedAccountingData {
     rooms: [], bookingRooms: [], bookingRoomPrices: [], roomRates: [],
     externalAccommodationBkgs: [], diningEvents: [],
     lessons: [], instructors: [], priceItems: [], priceTiers: [], equipment: [], equipmentRentals: [],
-    taxiTrips: [], taxiManagerPayments: [], eurMznRate: 65, seasons: [],
+    taxiTrips: [], taxiManagerPayments: [], eurMznRate: 65, eurMznRates: [], seasons: [],
     payments: [], bookingCharges: [], instructorDebts: [], instructorPayments: [], lessonRateOverrides: [],
     expenses: [], expenseCategories: [], palmeirasRents: [], palmeirasReversals: [], palmeirasEntries: [],
     activityBookings: [], activityPayments: [],
@@ -491,7 +492,7 @@ export function computeActivityRevenueForBooking(booking: Booking, data: SharedA
     }, 0)
 }
 
-/** Centre net margin (EUR) on a taxi trip: client EUR minus driver+manager MZN cost converted at the global rate */
+/** Centre net margin (EUR) on a taxi trip: client EUR minus driver+manager MZN cost converted at the given rate: pass the rate of the trip's date */
 export function computeTaxiMarginEur(
   trip: { price_eur: number; price_driver_mzn: number; margin_manager_mzn: number },
   eurMznRate: number
@@ -776,7 +777,7 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
   // driver is paid either way, and dropping it would make the ride look free.
   // On a dataset with no agency line this is identical to the previous formula.
   const taxiRevGross = activeTrips.filter(t => !isAgencyBilled(t)).reduce((s, t) => s + t.price_eur, 0)
-  const taxiCosts    = activeTrips.reduce((s, t) => s + (t.price_eur - computeTaxiMarginEur(t, data.eurMznRate)), 0)
+  const taxiCosts    = activeTrips.reduce((s, t) => s + (t.price_eur - computeTaxiMarginEur(t, rateOn(data.eurMznRates, t.date, data.eurMznRate))), 0)
   const taxiMargin   = taxiRevGross - taxiCosts
 
   // we_pay_provider → the client pays us; provider_pays_us → the provider reverses their cut
@@ -790,7 +791,7 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
   // to the hotel whoever collects it. Counted as soon as the stay exists, like
   // every other line here (a booking is revenue before it is paid).
   const activeHotelStays = (data.partnerHotelStays ?? []).filter(s => s.booking_id === null || activeIds.has(s.booking_id))
-  const partnerHotelRev  = commissionEur(activeHotelStays, data.eurMznRate)
+  const partnerHotelRev  = commissionEur(activeHotelStays, data.eurMznRate, data.eurMznRates)
 
   // Partner agencies. The revenue every other line above just gave up (lessons,
   // rentals, transfers and rooms carrying an agency_billing_line_id) comes back
@@ -825,7 +826,7 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
     if (isRoomPaidToOwner(br.booking_id, br.room_id, data)) return sum
     const room = data.rooms.find(r => r.id === br.room_id)
     const acc  = bungalows.find(b => b.id === room?.accommodation_id)
-    return sum + (acc?.cost_per_night ?? 0) * countNights(bk.check_in, bk.check_out)
+    return sum + bungalowCostPerNight(acc, bk.check_in, data.eurMznRates, data.eurMznRate) * countNights(bk.check_in, bk.check_out)
   }, 0)
 
   // Same shape as bungalows, and for the same reason: what the guest pays for an

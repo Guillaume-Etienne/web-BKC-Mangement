@@ -1,5 +1,11 @@
 # Compte Palmeiras
 
+## Taux dans le temps + tarifs en MZN — codé le 2026-11-01 (migration `2026-11-01b`)
+
+- `utils/exchangeRates.ts` : `rateOn(rates, date, repli)` et `bungalowCostPerNight`. `data.eurMznRate` reste le dernier taux, `data.eurMznRates` l'historique. Hook : `useEurMznRateFor`.
+- Palmeiras : chaque ligne au taux de sa date (séjour : arrivée, règlement : son jour), soldes au dernier taux, loyer et tarif MZN exacts. `withMznCosts` calcule le coût en € une seule fois sur l'entrée de la page partagée ; côté admin, `bungalowStays` fait le même calcul. Écarts de change : « ± Actual commission ».
+- Le taux ne se saisit plus dans « Taxi Pricing Defaults » : `eur_mzn_rate` y est recopié par trigger.
+
 ## Table : MZN + prix facturé et marge (admin) — codé le 2026-11-01
 
 - **Des deux côtés** : équivalent MZN sous chaque montant de la vue Table et dans le détail des séjours, au taux courant ; le loyer et son règlement complet gardent leurs vrais MZN. Taux absent : pas de MZN.

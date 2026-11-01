@@ -13,6 +13,7 @@ import AccommodationsTab from '../components/management/AccommodationsTab'
 import SeasonsTab from '../components/management/SeasonsTab'
 import SourcesTab from '../components/management/SourcesTab'
 import DatabaseTab from '../components/management/DatabaseTab'
+import EurMznRatesPanel from '../components/management/EurMznRatesPanel'
 import AgenciesTab from '../components/management/AgenciesTab'
 import TransferReferencePricesTab from '../components/management/TransferReferencePricesTab'
 import { todayISO, addDaysISO, fmtDate } from '../utils/dates'
@@ -173,7 +174,7 @@ export default function ManagementPage() {
 
   // ── Taxi pricing defaults (Supabase) ──────────────────────────────────────
   // Most recently edited row wins (same ordering as TaxiPage, so both screens agree)
-  const { data: taxiDefaultsData, loading: taxiDefaultsLoading } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
+  const { data: taxiDefaultsData, loading: taxiDefaultsLoading, refresh: refreshTaxiDefaults } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
   const [taxiPricingDefaults, setTaxiPricingDefaults] = useState<TaxiPricingDefaults | null>(null)
   const [taxiPricingForm, setTaxiPricingForm] = useState<TaxiPricingDefaults | null>(null)
   const [taxiPricingEditing, setTaxiPricingEditing] = useState(false)
@@ -774,6 +775,8 @@ export default function ManagementPage() {
               )
             })}
 
+            <EurMznRatesPanel onChanged={refreshTaxiDefaults} />
+
             {/* Taxi Pricing Defaults */}
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -803,7 +806,7 @@ export default function ManagementPage() {
                   </div>
                 ) : taxiPricingEditing && taxiPricingForm ? (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Client price (EUR)</label>
                         <input type="number" min="0" value={taxiPricingForm.default_price_eur}
@@ -822,12 +825,6 @@ export default function ManagementPage() {
                           onChange={e => setTaxiPricingForm(f => f ? ({ ...f, default_manager_mzn: parseInt(e.target.value) || 0 }) : f)}
                           className="w-full text-sm border rounded px-2 py-1.5 font-semibold text-purple-900 dark:text-purple-400" />
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">EUR/MZN rate</label>
-                        <input type="number" min="1" step="0.01" value={taxiPricingForm.eur_mzn_rate}
-                          onChange={e => setTaxiPricingForm(f => f ? ({ ...f, eur_mzn_rate: parseFloat(e.target.value) || 0 }) : f)}
-                          className="w-full text-sm border rounded px-2 py-1.5" />
-                      </div>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded p-3 text-sm">
                       <span className="font-medium text-gray-700 dark:text-gray-300">MZN cost total: </span>
@@ -843,21 +840,20 @@ export default function ManagementPage() {
                     <div className="flex gap-3 pt-2">
                       <button onClick={() => setTaxiPricingEditing(false)}
                         className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm">Cancel</button>
-                      <button disabled={!(taxiPricingForm.eur_mzn_rate > 0)} onClick={async () => {
-                        if (!taxiPricingForm || !(taxiPricingForm.eur_mzn_rate > 0)) return
+                      <button onClick={async () => {
+                        if (!taxiPricingForm) return
                         const updated = { ...taxiPricingForm, updated_at: new Date().toISOString() }
                         const { error } = await supabase.from('taxi_pricing_defaults').update({
                           default_price_eur:  updated.default_price_eur,
                           default_driver_mzn: updated.default_driver_mzn,
                           default_manager_mzn:updated.default_manager_mzn,
-                          eur_mzn_rate:       updated.eur_mzn_rate,
                           updated_at:         updated.updated_at,
                         }).eq('id', updated.id)
                         if (error) { alert('Error: ' + error.message); return }
                         setTaxiPricingDefaults(updated)
                         setTaxiPricingEditing(false)
                       }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm">Save</button>
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm">Save</button>
                     </div>
                   </div>
                 ) : (
@@ -877,6 +873,7 @@ export default function ManagementPage() {
                     <div className="bg-gray-50 dark:bg-gray-800 rounded p-3">
                       <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">EUR/MZN rate</p>
                       <p className="text-xl font-bold text-gray-900 dark:text-gray-100">1€ = {taxiPricingDefaults.eur_mzn_rate} MZN</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">Current rate: change it in the history above</p>
                     </div>
                   </div>
                 )}

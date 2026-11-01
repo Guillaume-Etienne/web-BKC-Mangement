@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildStatement, buildLedger, rentPeriod, balanceSentence, fmtEurCents, fmtMznEquivalent, stayInternal, summarizeInternals, type StatementInput, type StatementStay } from './palmeirasStatement'
+import { buildStatement, buildLedger, rentPeriod, balanceSentence, fmtEurCents, fmtMznEquivalent, rowMzn, withMznCosts, stayInternal, summarizeInternals, type StatementInput, type StatementStay } from './palmeirasStatement'
 
 const stay = (o: Partial<StatementStay>): StatementStay => ({
   booking_number: 1, guest: 'Guest', provisional: false, bungalow: 'B4',
@@ -181,6 +181,57 @@ describe('metical equivalents', () => {
     expect(rows.find(r => r.kind === 'rent')?.mzn).toBe(10000)
     expect(rows.find(r => r.settlementId === 'full')?.mzn).toBe(10000)
     expect(rows.find(r => r.settlementId === 'part')?.mzn).toBeNull()
+  })
+})
+
+describe('the rate over time', () => {
+  const rates = [{ valid_from: '2000-01-01', rate: 70 }, { valid_from: '2026-10-10', rate: 72 }]
+
+  it('a line keeps the rate of its date; a new rate leaves it as it was', () => {
+    const i = { ...empty, eur_mzn_rate: 72, eur_mzn_rates: rates, stays: [stay({ cost_per_night: 50 })] }
+    const rows = () => buildLedger(build(i)).months[0].rows
+    expect(rowMzn(rows()[0])).toBe(10500)    // 150 € at 70, the rate of 2 Oct
+    expect(rows()[0].detail).toContain('≈ 3,500 MZN')
+  })
+
+  it('without the history (an older RPC), the latest rate everywhere', () => {
+    expect(rowMzn(buildLedger(build({ ...empty, eur_mzn_rate: 72, stays: [stay({ cost_per_night: 50 })] })).months[0].rows[0])).toBe(10800)
+  })
+
+  it('the month total adds up each line at its own rate', () => {
+    const st = build({ ...empty, eur_mzn_rate: 72, eur_mzn_rates: rates, stays: [
+      stay({ check_in: '2026-10-02', check_out: '2026-10-03', cost_per_night: 50 }),   // 3 500
+      stay({ check_in: '2026-10-12', check_out: '2026-10-13', cost_per_night: 50 }),   // 3 600
+    ] })
+    expect(buildLedger(st).months[0].toPalmeirasMzn).toBe(7100)
+  })
+
+  it('a payment takes off its own meticals; no rate, no total', () => {
+    const paid = build({ ...empty, eur_mzn_rate: 70, stays: [stay({ cost_per_night: 50 })],
+      settlements: [{ id: 's', date: '2026-10-20', direction: 'us_to_palmeiras', amount: 100, method: null }] })
+    expect(buildLedger(paid).months[0].toPalmeirasMzn).toBe(3500)
+    expect(buildLedger(build({ ...empty, eur_mzn_rate: null, stays: [stay({})] })).months[0].toPalmeirasMzn).toBeNull()
+  })
+
+  it('a tariff in meticals sets the cost at the rate of the arrival, and is exact in the table', () => {
+    const i = withMznCosts({ ...empty, eur_mzn_rate: 72, eur_mzn_rates: rates, stays: [
+      stay({ check_in: '2026-10-02', check_out: '2026-10-05', cost_per_night: 154, cost_per_night_mzn: 7000 }),
+      stay({ check_in: '2026-10-12', check_out: '2026-10-13', cost_per_night: 154, cost_per_night_mzn: 7200 }),
+    ] })
+    expect(i.stays.map(s => s.cost_per_night)).toEqual([100, 100])
+    const st = build(i)
+    expect(st.toPalmeiras).toBe(400)
+    const rows = buildLedger(st).months[0].rows
+    expect(rows[0].mzn).toBe(21000)
+    expect(rows[0].detail).toContain('3 nights × 7,000 MZN (≈ 100 €)')
+  })
+
+  it('no tariff in meticals, or a stay paid directly: nothing changes', () => {
+    const i = withMznCosts({ ...empty, eur_mzn_rate: 72, eur_mzn_rates: rates, stays: [
+      stay({ cost_per_night: 50, cost_per_night_mzn: null }),
+      stay({ paid_direct: true, price_per_night: 100, cost_per_night: null, cost_per_night_mzn: 7000 }),
+    ] })
+    expect(i.stays.map(s => s.cost_per_night)).toEqual([50, null])
   })
 })
 

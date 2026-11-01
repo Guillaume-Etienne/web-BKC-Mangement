@@ -5,6 +5,14 @@ export type KiteLevel = 'beg-total' | 'beg-bodydrag' | 'beg-waterstart' | 'inter
 /** Deliberately just two states, not a tag system — 2026-09-11, gui's "blacklist" request. */
 export type ClientRelationshipFlag = 'avoid' | 'favorite'
 
+export interface EurMznRateRow {
+  id: string
+  valid_from: string
+  rate: number
+  note: string | null
+  created_at: string
+}
+
 export interface Accommodation {
   id: string
   name: string
@@ -12,6 +20,7 @@ export interface Accommodation {
   total_rooms: number
   is_active: boolean
   cost_per_night: number | null  // what we pay the owner (bungalows); null for owned houses
+  cost_per_night_mzn: number | null  // the tariff agreed in meticals; when set, it replaces cost_per_night, converted at the rate of the arrival
   // true = carries no room_rate on purpose; the amount lives on the external stay,
   // case by case (San Martinho, the "No accommodation" row). Exempt from the
   // "no sell price" badge — that is the whole point of the flag.
@@ -478,7 +487,7 @@ export interface TaxiPricingDefaults {
   default_price_eur: number     // default EUR price for new trips (e.g. 120)
   default_driver_mzn: number    // default driver payment MZN (e.g. 6000)
   default_manager_mzn: number   // default manager commission MZN (e.g. 1000)
-  eur_mzn_rate: number          // default exchange rate
+  eur_mzn_rate: number          // the latest rate, kept in step by a trigger on eur_mzn_rates: do not write it
   updated_at: string
 }
 

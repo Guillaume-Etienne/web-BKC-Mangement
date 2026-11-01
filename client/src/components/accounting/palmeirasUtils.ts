@@ -1,6 +1,7 @@
 import type { SharedAccountingData } from './types'
 import type { PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSettlement } from '../../types/database'
 import { countNights, isRoomPaidToOwner } from './utils'
+import { bungalowCostPerNight } from '../../utils/exchangeRates'
 import { PALMEIRAS_COMMISSION_PCT, stayInternal, stayLineKey, type StatementInput, type StatementStay, type StayInternals } from '../../utils/palmeirasStatement'
 
 /** One bungalow stay, with the margin the centre makes by sub-letting it. */
@@ -50,7 +51,7 @@ export function buildBungalowRows(data: SharedAccountingData): BungalowRow[] {
     const sellRate = data.bookingRoomPrices
       .find(p => p.booking_id === br.booking_id && p.room_id === br.room_id)?.price_per_night ?? 0
     const paidToOwner = isRoomPaidToOwner(br.booking_id, br.room_id, data)
-    const costRate = paidToOwner ? 0 : acc?.cost_per_night ?? 0
+    const costRate = paidToOwner ? 0 : bungalowCostPerNight(acc, booking.check_in, data.eurMznRates, data.eurMznRate)
     const nights = countNights(booking.check_in, booking.check_out)
     const client = data.clients.find(c => c.id === booking.client_id)
 
@@ -125,7 +126,8 @@ function bungalowStays(data: SharedAccountingData): { stay: StatementStay; sell:
         bungalow: acc.name, check_in: booking.check_in, check_out: booking.check_out,
         paid_direct: direct,
         price_per_night: direct ? price : null,
-        cost_per_night:  direct ? null : acc.cost_per_night ?? 0,
+        cost_per_night:  direct ? null : bungalowCostPerNight(acc, booking.check_in, data.eurMznRates, data.eurMznRate),
+        cost_per_night_mzn: direct ? null : acc.cost_per_night_mzn ?? null,
       },
     })
   }
@@ -152,6 +154,7 @@ export function statementInputFromData(
 ): StatementInput {
   return {
     eur_mzn_rate: data.eurMznRate,
+    eur_mzn_rates: data.eurMznRates.map(r => ({ valid_from: r.valid_from, rate: r.rate })),
     bungalows: data.accommodations.filter(a => a.type === 'bungalow').map(b => b.name),
     stays: bungalowStays(data).map(s => s.stay),
     rents: data.palmeirasRents.map(r => ({ month: r.month, amount: r.amount, amount_mzn: r.amount_mzn ?? null })),

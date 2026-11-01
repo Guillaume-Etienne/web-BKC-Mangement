@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { SharedAccountingData } from './types'
 import { countNights, getRoomNightlyRate, fmtEur, isRoomPaidToOwner } from './utils'
-import { fmtDate } from '../../utils/dates'
+import { fmtDate, todayISO } from '../../utils/dates'
+import { bungalowCostPerNight } from '../../utils/exchangeRates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 
@@ -60,9 +61,9 @@ export default function HousesTab({ data }: Props) {
     return bungalows.map(bung => {
       const bungRooms = rooms.filter(r => r.accommodation_id === bung.id)
       const roomIds   = new Set(bungRooms.map(r => r.id))
-      const costRate  = bung.cost_per_night ?? 0
+      const costRate  = bungalowCostPerNight(bung, todayISO(), data.eurMznRates, data.eurMznRate)
 
-      const bookingLines: { bookingId: string; clientName: string; checkIn: string; checkOut: string; nights: number; sellRate: number; revenue: number; cost: number; margin: number }[] = []
+      const bookingLines: { bookingId: string; clientName: string; checkIn: string; checkOut: string; nights: number; costRate: number; sellRate: number; revenue: number; cost: number; margin: number }[] = []
 
       for (const br of bookingRooms) {
         if (!roomIds.has(br.room_id)) continue
@@ -76,14 +77,15 @@ export default function HousesTab({ data }: Props) {
         // Paid to Palmeiras directly: neither our revenue nor our cost.
         const direct   = isRoomPaidToOwner(br.booking_id, br.room_id, data)
         const revenue  = direct ? 0 : sellRate * nights
-        const cost     = direct ? 0 : costRate * nights
+        const lineCost = bungalowCostPerNight(bung, booking.check_in, data.eurMznRates, data.eurMznRate)
+        const cost     = direct ? 0 : lineCost * nights
         const client   = data.clients.find(c => c.id === booking.client_id)
         bookingLines.push({
           bookingId:  booking.id,
           clientName: client ? `${client.first_name} ${client.last_name}` : `#${booking.booking_number}`,
           checkIn:    booking.check_in,
           checkOut:   booking.check_out,
-          nights, sellRate, revenue, cost,
+          nights, costRate: lineCost, sellRate, revenue, cost,
           margin:     revenue - cost,
         })
       }
@@ -274,7 +276,7 @@ export default function HousesTab({ data }: Props) {
                           <td className="px-2 sm:px-4 py-2 font-medium text-gray-700 dark:text-gray-300">{line.clientName}</td>
                           <td className="px-2 sm:px-4 py-2 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{line.checkIn} → {line.checkOut}</td>
                           <td className="px-2 sm:px-4 py-2 text-right text-gray-500 dark:text-gray-400">{line.nights}</td>
-                          <td className="px-2 sm:px-4 py-2 text-right text-red-500 dark:text-red-400">{fmtEur(costRate)}</td>
+                          <td className="px-2 sm:px-4 py-2 text-right text-red-500 dark:text-red-400">{fmtEur(line.costRate)}</td>
                           <td className="px-2 sm:px-4 py-2 text-right text-emerald-600 dark:text-emerald-400">{fmtEur(line.sellRate)}</td>
                           <td className={`px-4 py-2 text-right font-semibold ${line.margin >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'}`}>
                             {line.margin >= 0 ? '+' : ''}{fmtEur(line.margin)}

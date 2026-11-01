@@ -2,6 +2,7 @@ import { taxiTripLabels } from '../../data/taxiTripTypes'
 import { useState, useRef } from 'react'
 import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef, BookingParticipant } from '../../types/database'
 import { computeTaxiMarginEur } from '../accounting/utils'
+import { useEurMznRateFor } from '../../hooks/useEurMznRates'
 import { todayISO, fmtDate } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
@@ -32,7 +33,7 @@ function bookingLabel(b: BookingRef): string {
 const TRIP_TYPE_LABELS: Record<string, string> = taxiTripLabels({ icon: true })
 
 // ── Summary table — réalisés vs prévus ───────────────────────────────────────
-function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
+function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: (date: string) => number }) {
   const today = todayISO()
 
   function stats(subset: TaxiTrip[]) {
@@ -41,7 +42,7 @@ function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
       clientEur:  subset.reduce((s, t) => s + t.price_eur,           0),
       driverMzn:  subset.reduce((s, t) => s + t.price_driver_mzn,   0),
       managerMzn: subset.reduce((s, t) => s + t.margin_manager_mzn, 0),
-      centreEur:  subset.reduce((s, t) => s + computeTaxiMarginEur(t, rate), 0),
+      centreEur:  subset.reduce((s, t) => s + computeTaxiMarginEur(t, rate(t.date)), 0),
     }
   }
 
@@ -108,6 +109,7 @@ interface EditModalProps {
 }
 
 function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaults, onChange, onSave, onDelete, onClose }: EditModalProps) {
+  const rateFor = useEurMznRateFor(pricingDefaults.eur_mzn_rate)
   const { lang } = useLanguage()
   const STATUS_CONFIG = statusConfig(lang)
   function handleSave() {
@@ -252,7 +254,7 @@ function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaul
             </div>
             <div className="border-t pt-3 flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
               <span className="text-gray-500 dark:text-gray-400">
-                Global rate: <strong>1€ = {pricingDefaults.eur_mzn_rate} MZN</strong>
+                Rate on this date: <strong>1€ = {rateFor(trip.date)} MZN</strong>
               </span>
               <span className="text-gray-400 dark:text-gray-400">|</span>
               <span className="text-gray-500 dark:text-gray-400">
@@ -260,7 +262,7 @@ function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaul
               </span>
               <span className="text-gray-400 dark:text-gray-400">|</span>
               <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                Centre margin: {computeTaxiMarginEur(trip, pricingDefaults.eur_mzn_rate)}€
+                Centre margin: {computeTaxiMarginEur(trip, rateFor(trip.date))}€
               </span>
             </div>
           </div>
@@ -299,6 +301,7 @@ interface TaxiListViewProps {
 }
 
 export default function TaxiListView({ trips, drivers, bookings, bookingParticipants, pricingDefaults, onAddTrip, onUpdateTrip, onDeleteTrip }: TaxiListViewProps) {
+  const rateFor = useEurMznRateFor(pricingDefaults.eur_mzn_rate)
   const { lang } = useLanguage()
   const STATUS_CONFIG = statusConfig(lang)
   const [sortBy, setSortBy]             = useState<'date' | 'driver' | 'type'>('date')
@@ -375,7 +378,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
   return (
     <>
       {/* Summary */}
-      <SummaryTable trips={sortedTrips} rate={pricingDefaults.eur_mzn_rate} />
+      <SummaryTable trips={sortedTrips} rate={rateFor} />
 
       {/* Controls */}
       <div className="flex flex-col md:flex-row gap-4 mb-6 items-start md:items-center">
@@ -442,7 +445,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                 <div><div className="text-[10px] text-blue-700 dark:text-blue-400">EUR</div><div className="font-bold text-blue-900 dark:text-blue-300">{trip.price_eur}€</div></div>
                 <div><div className="text-[10px] text-amber-700 dark:text-amber-400">Driver</div><div className="font-semibold text-amber-900 dark:text-amber-300">{trip.price_driver_mzn.toLocaleString()}</div></div>
                 <div><div className="text-[10px] text-purple-700 dark:text-purple-400">Mgr</div><div className="font-semibold text-purple-900 dark:text-purple-300">{trip.margin_manager_mzn.toLocaleString()}</div></div>
-                <div><div className="text-[10px] text-emerald-700 dark:text-emerald-400">Centre</div><div className="font-semibold text-emerald-900 dark:text-emerald-300">{computeTaxiMarginEur(trip, pricingDefaults.eur_mzn_rate)}€</div></div>
+                <div><div className="text-[10px] text-emerald-700 dark:text-emerald-400">Centre</div><div className="font-semibold text-emerald-900 dark:text-emerald-300">{computeTaxiMarginEur(trip, rateFor(trip.date))}€</div></div>
               </div>
             </button>
           )
@@ -499,7 +502,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                     <td className="px-3 py-2 text-right font-bold text-blue-900 dark:text-blue-400">{trip.price_eur}€</td>
                     <td className="px-3 py-2 text-right font-semibold text-amber-900 dark:text-amber-400">{trip.price_driver_mzn.toLocaleString()}</td>
                     <td className="px-3 py-2 text-right font-semibold text-purple-900 dark:text-purple-400">{trip.margin_manager_mzn.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right font-semibold text-emerald-900 dark:text-emerald-400">{computeTaxiMarginEur(trip, pricingDefaults.eur_mzn_rate)}€</td>
+                    <td className="px-3 py-2 text-right font-semibold text-emerald-900 dark:text-emerald-400">{computeTaxiMarginEur(trip, rateFor(trip.date))}€</td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${sc.badge}`}>{sc.label}</span>
                     </td>

@@ -1,3 +1,4 @@
+import { rateOn } from '../../utils/exchangeRates'
 import type { SharedAccountingData } from './types'
 import { computeBookingTotal, computeBookingDiscounts, agencyCommission } from './utils'
 import { computeAssociateSummaries } from './associateUtils'
@@ -80,7 +81,7 @@ export function buildCashFlowRows(data: SharedAccountingData): MonthRow[] {
   const {
     payments, expenses, palmeirasRents, palmeirasReversals, palmeirasEntries,
     bookings, instructorPayments, taxiTrips, taxiManagerPayments,
-    activityBookings, activityPayments, eurMznRate,
+    activityBookings, activityPayments, eurMznRate, eurMznRates,
     agencyBillingLines, agencies, agencyInvoices,
   } = data
 
@@ -126,12 +127,13 @@ export function buildCashFlowRows(data: SharedAccountingData): MonthRow[] {
   for (const e of expenses)           ensure(e.date.slice(0, 7)).expenses  += e.amount
   for (const p of instructorPayments) ensure(p.date.slice(0, 7)).instrPaid += p.amount
 
-  const rate = eurMznRate || 1
+  // At the rate of the day the money left: a new rate leaves past months as they were.
+  const rateAt = (date: string) => rateOn(eurMznRates, date, eurMznRate) || 1
   for (const t of taxiTrips.filter(t => t.status === 'done')) {
-    ensure(t.date.slice(0, 7)).taxiOut += t.price_driver_mzn / rate
+    ensure(t.date.slice(0, 7)).taxiOut += t.price_driver_mzn / rateAt(t.date)
   }
   for (const p of taxiManagerPayments) {
-    ensure(p.date.slice(0, 7)).taxiOut += p.amount_mzn / rate
+    ensure(p.date.slice(0, 7)).taxiOut += p.amount_mzn / rateAt(p.date)
   }
 
   // Settling an activity provider moves real cash, and nothing in this table used

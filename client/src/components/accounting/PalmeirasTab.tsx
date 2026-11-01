@@ -6,6 +6,7 @@ import { buildBungalowRows, computePalmeirasTotals, monthlyCommission, statement
 import { thisMonthISO, todayISO, addDaysISO, fmtDate } from '../../utils/dates'
 import { supabase } from '../../lib/supabase'
 import { useTable } from '../../hooks/useSupabase'
+import { rateOn } from '../../utils/exchangeRates'
 import { buildStatement, rentPeriod, PALMEIRAS_COMMISSION_PCT } from '../../utils/palmeirasStatement'
 import PalmeirasStatementView from '../palmeiras/PalmeirasStatementView'
 import PalmeirasExports from '../palmeiras/PalmeirasExports'
@@ -26,16 +27,16 @@ function shiftMonth(ym: string, delta: number): string {
 // ── Forms (module-scope) ──────────────────────────────────────────────────────
 
 // The rent is set in meticals (10 000 MZN, gui 2026-10-30). The € amount is
-// what every total counts; it is proposed from the MZN at the current rate and
-// can be corrected to what was really paid.
+// what every total counts; it is proposed from the MZN at the rate of the start
+// of the period and can be corrected to what was really paid.
 const DEFAULT_RENT_MZN = 10000
 
-function RentForm({ existing, eurMznRate, onSave, onCancel }: { existing?: PalmeirasRent; eurMznRate: number; onSave: (r: PalmeirasRent) => void; onCancel: () => void }) {
+function RentForm({ existing, rateFor, onSave, onCancel }: { existing?: PalmeirasRent; rateFor: (date: string) => number; onSave: (r: PalmeirasRent) => void; onCancel: () => void }) {
   const { lang } = useLanguage()
-  const rate = eurMznRate > 0 ? eurMznRate : 1
+  const [month,  setMonth]  = useState(existing?.month  ?? thisMonthISO())
+  const rate = rateFor(rentPeriod(month).start) || 1
   const toEur = (mzn: string) => { const n = parseFloat(mzn); return n ? String(Math.round(n / rate * 100) / 100) : '' }
   const initialMzn = existing ? (existing.amount_mzn != null ? String(existing.amount_mzn) : '') : String(DEFAULT_RENT_MZN)
-  const [month,  setMonth]  = useState(existing?.month  ?? thisMonthISO())
   const [mzn,    setMzn]    = useState(initialMzn)
   const [amount, setAmount] = useState(existing ? String(existing.amount) : toEur(initialMzn))
   const [notes,  setNotes]  = useState(existing?.notes  ?? '')
@@ -256,6 +257,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
 
   const statementInput = useMemo(() => statementInputFromData(data, settlements), [data, settlements])
   const statement = useMemo(() => buildStatement(statementInput), [statementInput])
+  const rateFor = useCallback((date: string) => rateOn(data.eurMznRates, date, data.eurMznRate), [data.eurMznRates, data.eurMznRate])
   // Our selling price and margin: admin only, handed over beside the statement.
   const stayInternals = useMemo(() => stayInternalsFromData(data), [data])
   const shareLink = sharedLinks.find(l => l.type === 'palmeiras' && l.is_active
@@ -488,9 +490,9 @@ export default function PalmeirasTab({ data, handlers }: Props) {
 
       {(anyForm || addingEntry) && (
         <div className="space-y-3">
-          {showAddRent      && <RentForm     eurMznRate={data.eurMznRate} onSave={r => { handlers.addPalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
+          {showAddRent      && <RentForm     rateFor={rateFor} onSave={r => { handlers.addPalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
           {showAddReversal  && <ReversalForm directGross={directGross} onSave={r => { handlers.addPalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
-          {editingRent      && <RentForm     eurMznRate={data.eurMznRate} existing={editingRent}     onSave={r => { handlers.updatePalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
+          {editingRent      && <RentForm     rateFor={rateFor} existing={editingRent}     onSave={r => { handlers.updatePalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
           {editingReversal  && <ReversalForm directGross={directGross} existing={editingReversal} onSave={r => { handlers.updatePalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
           {addingEntry && (
             <EntryForm
@@ -510,11 +512,11 @@ export default function PalmeirasTab({ data, handlers }: Props) {
           eurMznRate={data.eurMznRate}
           stayInternals={stayInternals}
           defaultRentMzn={DEFAULT_RENT_MZN}
-          // One click from the timeline: the usual 10 000 MZN at today's rate.
+          // One click from the timeline: the usual 10 000 MZN at the period's rate.
           // A different amount is still corrected through ✏ in Internal result.
           onAddRent={month => handlers.addPalmeirasRent({
             id: crypto.randomUUID(), month, notes: null, amount_mzn: DEFAULT_RENT_MZN,
-            amount: Math.round(DEFAULT_RENT_MZN / (data.eurMznRate > 0 ? data.eurMznRate : 1) * 100) / 100,
+            amount: Math.round(DEFAULT_RENT_MZN / (rateFor(rentPeriod(month).start) || 1) * 100) / 100,
           })}
           onPayRent={(month, amount) => { closeAll(); setPayingRent({ month, amount }); setAddingSettlement(true) }}
           settlementControls={addingSettlement && (

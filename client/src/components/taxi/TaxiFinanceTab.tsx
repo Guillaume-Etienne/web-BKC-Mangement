@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { TaxiTrip, TaxiManagerPayment, TaxiDriver, BookingRef } from '../../types/database'
 import { todayISO, fmtDate } from '../../utils/dates'
+import { useEurMznRateFor } from '../../hooks/useEurMznRates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 
@@ -8,28 +9,32 @@ import { i18n } from '../../data/i18n'
 const mznToEur = (mzn: number, rate: number) => Math.round(mzn / (rate || 1))
 const fmtMzn   = (mzn: number) => `${mzn.toLocaleString()} MZN`
 
-function MznWithEur({ mzn, rate, className }: { mzn: number; rate: number; className?: string }) {
+/** `eur` when the amount was already converted line by line, each at the rate of
+ *  its date; otherwise `rate`, for what is still to settle today. */
+function MznWithEur({ mzn, rate, eur, className }: { mzn: number; rate?: number; eur?: number; className?: string }) {
   return (
     <span className={className}>
       {fmtMzn(mzn)}
-      <span className="block text-[10px] font-normal text-gray-400 dark:text-gray-400">≈ {mznToEur(mzn, rate)}€</span>
+      <span className="block text-[10px] font-normal text-gray-400 dark:text-gray-400">≈ {eur !== undefined ? Math.round(eur) : mznToEur(mzn, rate ?? 1)}€</span>
     </span>
   )
 }
 
 // ── Summary table (copy from TaxiListView — avoids refactoring) ──────────────
-function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
+function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: (date: string) => number }) {
   const today = todayISO()
 
   function stats(subset: TaxiTrip[]) {
     const clientEur  = subset.reduce((s, t) => s + t.price_eur,          0)
     const driverMzn  = subset.reduce((s, t) => s + t.price_driver_mzn,   0)
     const managerMzn = subset.reduce((s, t) => s + t.margin_manager_mzn, 0)
+    const driverEur  = subset.reduce((s, t) => s + t.price_driver_mzn   / (rate(t.date) || 1), 0)
+    const managerEur = subset.reduce((s, t) => s + t.margin_manager_mzn / (rate(t.date) || 1), 0)
     return {
       count: subset.length,
-      clientEur, driverMzn, managerMzn,
+      clientEur, driverMzn, managerMzn, driverEur, managerEur,
       // what the center keeps once driver + manager are paid
-      marginEur: clientEur - (driverMzn + managerMzn) / (rate || 1),
+      marginEur: clientEur - driverEur - managerEur,
     }
   }
 
@@ -60,8 +65,8 @@ function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
             <tr key={r.label} className={`border-b ${r.bg}`}>
               <td className="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">{r.label}</td>
               <td className="px-3 py-2 text-right font-bold text-blue-900 dark:text-blue-400">{r.clientEur}€</td>
-              <td className="px-3 py-2 text-right text-amber-900 dark:text-amber-400"><MznWithEur mzn={r.driverMzn} rate={rate} /></td>
-              <td className="px-3 py-2 text-right text-purple-900 dark:text-purple-400"><MznWithEur mzn={r.managerMzn} rate={rate} /></td>
+              <td className="px-3 py-2 text-right text-amber-900 dark:text-amber-400"><MznWithEur mzn={r.driverMzn} eur={r.driverEur} /></td>
+              <td className="px-3 py-2 text-right text-purple-900 dark:text-purple-400"><MznWithEur mzn={r.managerMzn} eur={r.managerEur} /></td>
               <td className="px-3 py-2 text-right font-bold text-emerald-700 dark:text-emerald-400">{Math.round(r.marginEur)}€</td>
               <td className="px-3 py-2 text-right text-gray-600 dark:text-gray-400">{r.count}</td>
             </tr>
@@ -71,15 +76,15 @@ function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
           <tr className="bg-gray-100 dark:bg-gray-800 border-t-2 border-gray-300 dark:border-gray-700 font-bold">
             <td className="px-3 py-2 text-gray-800 dark:text-gray-200">Total</td>
             <td className="px-3 py-2 text-right text-blue-900 dark:text-blue-400">{total.clientEur}€</td>
-            <td className="px-3 py-2 text-right text-amber-900 dark:text-amber-400"><MznWithEur mzn={total.driverMzn} rate={rate} /></td>
-            <td className="px-3 py-2 text-right text-purple-900 dark:text-purple-400"><MznWithEur mzn={total.managerMzn} rate={rate} /></td>
+            <td className="px-3 py-2 text-right text-amber-900 dark:text-amber-400"><MznWithEur mzn={total.driverMzn} eur={total.driverEur} /></td>
+            <td className="px-3 py-2 text-right text-purple-900 dark:text-purple-400"><MznWithEur mzn={total.managerMzn} eur={total.managerEur} /></td>
             <td className="px-3 py-2 text-right text-emerald-700 dark:text-emerald-400">{Math.round(total.marginEur)}€</td>
             <td className="px-3 py-2 text-right text-gray-600 dark:text-gray-400">{total.count}</td>
           </tr>
         </tfoot>
       </table></div>
       <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800">
-        Centre margin = Client € − (Driver + Manager MZN → € at global rate {rate})
+        Centre margin = Client € − (Driver + Manager MZN → € at the rate of each trip's date)
       </p>
     </div>
   )
@@ -152,15 +157,17 @@ export default function TaxiFinanceTab({ trips, drivers, bookings, payments, eur
 
   // A trip marked "Paid" (status `done`) = the driver has been paid. The centre pays on
   // the day, the client pays at the end of the stay — so the gap is money advanced.
+  const rateFor      = useEurMznRateFor(eurMznRate)
   const today        = todayISO()
   const paidTrips    = trips.filter(t => t.status === 'done')
   const unpaidPast   = trips.filter(t => t.status !== 'done' && t.date <= today)
   const sumDriver    = (ts: TaxiTrip[]) => ts.reduce((s, t) => s + t.price_driver_mzn, 0)
+  const sumDriverEur = (ts: TaxiTrip[]) => ts.reduce((s, t) => s + t.price_driver_mzn / (rateFor(t.date) || 1), 0)
   const driverRows   = [...drivers.map(d => ({ id: d.id as string | null, name: d.name })), { id: null, name: '—' }]
     .map(d => {
       const paid = paidTrips.filter(t => t.taxi_driver_id === d.id)
       const todo = unpaidPast.filter(t => t.taxi_driver_id === d.id)
-      return { ...d, paidCount: paid.length, paidMzn: sumDriver(paid), todoCount: todo.length, todoMzn: sumDriver(todo) }
+      return { ...d, paidCount: paid.length, paidMzn: sumDriver(paid), paidEur: sumDriverEur(paid), todoCount: todo.length, todoMzn: sumDriver(todo) }
     })
     .filter(r => r.paidCount > 0 || r.todoCount > 0)
   const totalPaidMzn = sumDriver(paidTrips)
@@ -170,7 +177,7 @@ export default function TaxiFinanceTab({ trips, drivers, bookings, payments, eur
     .map(id => {
       const ts = paidTrips.filter(t => t.booking_id === id)
       const b  = bookings.find(x => x.id === id)
-      const outEur    = sumDriver(ts) / (eurMznRate || 1)
+      const outEur    = sumDriverEur(ts)
       const billedEur = ts.reduce((s, t) => s + t.price_eur, 0)
       return {
         id, outEur, billedEur,
@@ -203,7 +210,7 @@ export default function TaxiFinanceTab({ trips, drivers, bookings, payments, eur
       {/* Financial Summary */}
       <div>
         <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">{i18n.taxis.title_financial_summary[lang]}</h2>
-        <SummaryTable trips={trips} rate={eurMznRate} />
+        <SummaryTable trips={trips} rate={rateFor} />
       </div>
 
       {/* Drivers: paid to date, and what is still to pay */}
@@ -225,7 +232,7 @@ export default function TaxiFinanceTab({ trips, drivers, bookings, payments, eur
                 <tr key={r.id ?? 'none'} className="border-b">
                   <td className="px-3 py-2 text-gray-800 dark:text-gray-200">{r.name}</td>
                   <td className="px-3 py-2 text-right text-emerald-800 dark:text-emerald-400">
-                    {r.paidCount > 0 ? <><MznWithEur mzn={r.paidMzn} rate={eurMznRate} /><span className="text-[10px] text-gray-400">{r.paidCount} trip{r.paidCount > 1 ? 's' : ''}</span></> : '–'}
+                    {r.paidCount > 0 ? <><MznWithEur mzn={r.paidMzn} eur={r.paidEur} /><span className="text-[10px] text-gray-400">{r.paidCount} trip{r.paidCount > 1 ? 's' : ''}</span></> : '–'}
                   </td>
                   <td className="px-3 py-2 text-right text-orange-800 dark:text-orange-400">
                     {r.todoCount > 0 ? <><MznWithEur mzn={r.todoMzn} rate={eurMznRate} /><span className="text-[10px] text-gray-400">{r.todoCount} trip{r.todoCount > 1 ? 's' : ''}</span></> : '–'}
@@ -236,7 +243,7 @@ export default function TaxiFinanceTab({ trips, drivers, bookings, payments, eur
             <tfoot>
               <tr className="bg-gray-100 dark:bg-gray-800 border-t-2 border-gray-300 dark:border-gray-700 font-bold">
                 <td className="px-3 py-2 text-gray-800 dark:text-gray-200">Total</td>
-                <td className="px-3 py-2 text-right text-emerald-800 dark:text-emerald-400"><MznWithEur mzn={totalPaidMzn} rate={eurMznRate} /></td>
+                <td className="px-3 py-2 text-right text-emerald-800 dark:text-emerald-400"><MznWithEur mzn={totalPaidMzn} eur={sumDriverEur(paidTrips)} /></td>
                 <td className="px-3 py-2 text-right text-orange-800 dark:text-orange-400"><MznWithEur mzn={totalTodoMzn} rate={eurMznRate} /></td>
               </tr>
             </tfoot>

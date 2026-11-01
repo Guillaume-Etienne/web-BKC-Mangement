@@ -6,7 +6,7 @@
 // bungalow BKC collected, it gives the cost owed to them, never our price.
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { buildStatement, type StatementInput } from '../utils/palmeirasStatement'
+import { buildStatement, withMznCosts, type StatementInput } from '../utils/palmeirasStatement'
 import PalmeirasStatementView from '../components/palmeiras/PalmeirasStatementView'
 
 export default function PalmeirasSharePage() {
@@ -16,7 +16,7 @@ export default function PalmeirasSharePage() {
   useEffect(() => {
     supabase.rpc('palmeiras_statement').then(({ data, error }) => {
       if (error) console.error('PalmeirasSharePage:', error.message)
-      setInput((data ?? null) as StatementInput | null)
+      setInput(data ? withMznCosts(data as StatementInput) : null)
       setLoading(false)
     })
   }, [])

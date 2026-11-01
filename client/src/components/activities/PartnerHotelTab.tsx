@@ -1,3 +1,4 @@
+import type { EurMznRatePoint } from '../../utils/exchangeRates'
 // One tab of /activities per partner hotel (Hotel CasaMoz, Maputo).
 // Reservations the hotel hosts for our guests — most often two separate
 // nights around a safari, one row each, tied by `group_id` — the money each
@@ -385,6 +386,7 @@ interface Props {
   safaris:           ActivityBooking[]      // to prefill the nights around a safari
   shareLink:         SharedLink | undefined
   eurMznRate:        number
+  eurMznRates:       EurMznRatePoint[]
   onStaysChanged:    () => void
   onPaymentsChanged: () => void
   onHotelChanged:    () => void
@@ -394,7 +396,7 @@ interface Props {
 type Period = 'upcoming' | 'past' | 'all'
 
 export default function PartnerHotelTab({
-  hotel, stays, payments, bookings, participantCounts, safaris, shareLink, eurMznRate,
+  hotel, stays, payments, bookings, participantCounts, safaris, shareLink, eurMznRate, eurMznRates,
   onStaysChanged, onPaymentsChanged, onHotelChanged, onLinksChanged,
 }: Props) {
   const [period,      setPeriod]      = useState<Period>('upcoming')
@@ -582,7 +584,7 @@ export default function PartnerHotelTab({
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
           <p className="text-xs text-gray-500 dark:text-gray-400">Our commission ({period})</p>
           <p className="text-lg font-bold text-gray-800 dark:text-gray-200">{fmtMzn(visibleCommission)}</p>
-          <p className="text-xs text-gray-400">≈ {commissionEur(visibleStays, eurMznRate)} €</p>
+          <p className="text-xs text-gray-400">≈ {commissionEur(visibleStays, eurMznRate, eurMznRates)} €</p>
         </div>
         <div className={`rounded-xl border p-4 ${balance > 0
           ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'

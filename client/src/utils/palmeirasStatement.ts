@@ -7,6 +7,7 @@
 // Sign convention: `toUs` = the Palmeiras owes BKC, `toPalmeiras` = BKC owes
 // the Palmeiras. A positive balance means the Palmeiras owes us.
 import { fmtDate, todayISO } from './dates'
+import { rateOn, type EurMznRatePoint } from './exchangeRates'
 
 /** Our share of what a guest paid the Palmeiras directly for a bungalow
  *  (gui, 2026-10-30). Small gaps from the metical rate are entered as the
@@ -38,10 +39,17 @@ export interface StatementStay {
   price_per_night: number | null
   /** What we owe them per night — set only when we collected. */
   cost_per_night: number | null
+  /** The tariff in meticals, when it is known (2026-11-01b): `withMznCosts` then
+   *  sets cost_per_night from it, at the rate of the arrival. */
+  cost_per_night_mzn?: number | null
 }
 
 export interface StatementInput {
+  /** The latest rate: what the balance converts at. */
   eur_mzn_rate: number | null
+  /** The rates over time: a line converts at the rate of its own date
+   *  (2026-11-01b; absent from an older RPC → the latest rate everywhere). */
+  eur_mzn_rates?: EurMznRatePoint[]
   /** Every Palmeiras bungalow, so the timeline shows the empty ones too
    *  (2026-10-30c; absent from an older RPC → taken from the stays). */
   bungalows?: string[]
@@ -67,8 +75,10 @@ export interface StatementLine {
   toPalmeiras: number
   provisional: boolean
   /** The real metical amount, when there is one (a rent). Otherwise the MZN
-   *  shown is an equivalent at the current rate. */
+   *  shown is an equivalent at `rate`. */
   mzn?: number | null
+  /** The rate of this line's date; null when there is none. */
+  rate?: number | null
 }
 
 export interface StatementMonth {
@@ -82,7 +92,7 @@ export interface Statement {
   months: StatementMonth[]          // most recent first — only what is due today
   /** Stays not begun yet, rents of months to come: shown, not in the balance. */
   upcoming: StatementLine[]
-  settlements: (StatementInput['settlements'][number] & { key: string; mzn?: number | null })[]  // most recent first
+  settlements: (StatementInput['settlements'][number] & { key: string; mzn?: number | null; rate?: number | null })[]  // most recent first
   toUs: number
   toPalmeiras: number
   paidByUs: number                  // settlements BKC → Palmeiras
@@ -110,6 +120,26 @@ export function fmtEurCents(n: number): string {
  *  rate, the MZN is simply not shown. */
 export function usableRate(rate: number | null | undefined): number | null {
   return rate && rate > 0 ? rate : null
+}
+
+/** The rate of a date in this statement; 0 when there is none at all. */
+export function statementRateOn(input: Pick<StatementInput, 'eur_mzn_rate' | 'eur_mzn_rates'>, date: string): number {
+  return rateOn(input.eur_mzn_rates, date, input.eur_mzn_rate ?? 0)
+}
+
+/** Stays with a tariff in meticals get their cost in euros at the rate of their
+ *  arrival. Done once on the raw input, so the balance, the timeline and the
+ *  sheets all read the same `cost_per_night`. */
+export function withMznCosts(input: StatementInput): StatementInput {
+  return {
+    ...input,
+    stays: input.stays.map(s => {
+      const rate = usableRate(statementRateOn(input, s.check_in))
+      return !s.paid_direct && s.cost_per_night_mzn && rate
+        ? { ...s, cost_per_night: r2(s.cost_per_night_mzn / rate) }
+        : s
+    }),
+  }
 }
 
 /** "10,000 MZN" */
@@ -160,8 +190,8 @@ export function monthEnd(month: string): string {
 
 export function buildStatement(input: StatementInput, today: string = todayISO()): Statement {
   const lines: StatementLine[] = []
-  const mznNote = (eur: number) => {
-    const t = fmtMznEquivalent(eur, input.eur_mzn_rate)
+  const mznNote = (eur: number, date: string) => {
+    const t = fmtMznEquivalent(eur, statementRateOn(input, date))
     return t ? ` (${t})` : ''
   }
   const autoCommission: Record<string, number> = {}
@@ -175,15 +205,17 @@ export function buildStatement(input: StatementInput, today: string = todayISO()
       lines.push({
         key: `stay-${i}`, date: s.check_in, kind: 'stay_direct', provisional: s.provisional,
         title: `Commission ${PALMEIRAS_COMMISSION_PCT}% — ${stayRef(s)}`,
-        detail: `${period} · guest paid the Palmeiras ${nights} night${nights === 1 ? '' : 's'} × ${fmtEurCents(s.price_per_night ?? 0)} = ${fmtEurCents(gross)}${mznNote(gross)}`,
+        detail: `${period} · guest paid the Palmeiras ${nights} night${nights === 1 ? '' : 's'} × ${fmtEurCents(s.price_per_night ?? 0)} = ${fmtEurCents(gross)}${mznNote(gross, s.check_in)}`,
         toUs, toPalmeiras: 0,
       })
     } else {
       lines.push({
         key: `stay-${i}`, date: s.check_in, kind: 'stay_ours', provisional: s.provisional,
         title: `Bungalow rented through BKC — ${stayRef(s)}`,
-        detail: `${period} · ${nights} night${nights === 1 ? '' : 's'} × ${fmtEurCents(s.cost_per_night ?? 0)}${mznNote(s.cost_per_night ?? 0)}`,
-        toUs: 0, toPalmeiras,
+        detail: `${period} · ${nights} night${nights === 1 ? '' : 's'} × ${s.cost_per_night_mzn
+          ? `${fmtMznExact(s.cost_per_night_mzn)} (≈ ${fmtEurCents(s.cost_per_night ?? 0)})`
+          : `${fmtEurCents(s.cost_per_night ?? 0)}${mznNote(s.cost_per_night ?? 0, s.check_in)}`}`,
+        toUs: 0, toPalmeiras, mzn: s.cost_per_night_mzn ? s.cost_per_night_mzn * nights : null,
       })
     }
   })
@@ -230,6 +262,9 @@ export function buildStatement(input: StatementInput, today: string = todayISO()
     })
   })
 
+  // Each line keeps the rate of its own date: a new rate leaves it as it was.
+  for (const l of lines) l.rate = usableRate(statementRateOn(input, l.date))
+
   // A stay counts once it has begun, a rent once its month has come: a booking
   // for next month must not weigh on the balance settled today.
   // (A rent is dated on the 15th its period starts, so the same rule covers it.)
@@ -261,7 +296,7 @@ export function buildStatement(input: StatementInput, today: string = todayISO()
         // A rent paid in full is those same meticals, whatever the rate became.
         const rent = s.rent_month ? input.rents.find(r => r.month === s.rent_month) : undefined
         const mzn = rent?.amount_mzn && Math.abs(rent.amount - s.amount) < 0.01 ? rent.amount_mzn : null
-        return { ...s, key: `set-${i}`, mzn }
+        return { ...s, key: `set-${i}`, mzn, rate: usableRate(statementRateOn(input, s.date)) }
       })
       .sort((a, b) => b.date.localeCompare(a.date)),
     toUs, toPalmeiras, paidByUs, paidByThem,
@@ -301,6 +336,17 @@ export interface LedgerMonth {
   toPalmeiras: number
   /** Running balance at the end of the month. */
   closing: number
+  /** The month's lines in meticals, each at its own rate; null without a rate. */
+  toUsMzn: number | null
+  toPalmeirasMzn: number | null
+  /** Every line of the month is a real metical amount: no ≈ on its total. */
+  mznExact: boolean
+}
+
+/** A row in meticals: its real amount if it has one, else at the rate of its date. */
+export function rowMzn(r: Pick<StatementLine, 'toUs' | 'toPalmeiras' | 'mzn' | 'rate'>): number | null {
+  if (r.mzn) return r.mzn
+  return r.rate ? Math.abs(r.toUs || r.toPalmeiras) * r.rate : null
 }
 
 // Same day: what happened before what was paid for it.
@@ -313,7 +359,7 @@ export function buildLedger(st: Statement): { months: LedgerMonth[]; upcoming: L
     ...st.months.flatMap(m => m.lines).map(l => ({ ...l, balance: null })),
     ...st.settlements.map(s => ({
       key: s.key, date: s.date, kind: 'settlement' as const, provisional: false, balance: null,
-      settlementId: s.id, mzn: s.mzn ?? null,
+      settlementId: s.id, mzn: s.mzn ?? null, rate: s.rate ?? null,
       title: s.rent_month
         ? `House rent paid (${fmtDate(rentPeriod(s.rent_month).start)} → ${fmtDate(rentPeriod(s.rent_month).end)})`
         : s.direction === 'us_to_palmeiras' ? 'Payment BKC → the Palmeiras' : 'Payment the Palmeiras → BKC',
@@ -330,11 +376,17 @@ export function buildLedger(st: Statement): { months: LedgerMonth[]; upcoming: L
     row.balance = running
     const month = row.date.slice(0, 7)
     let m = months[months.length - 1]
-    if (!m || m.month !== month) months.push(m = { month, rows: [], toUs: 0, toPalmeiras: 0, closing: 0 })
+    if (!m || m.month !== month) months.push(m = { month, rows: [], toUs: 0, toPalmeiras: 0, closing: 0, toUsMzn: 0, toPalmeirasMzn: 0, mznExact: true })
     m.rows.push(row)
     m.toUs = r2(m.toUs + row.toUs)
     m.toPalmeiras = r2(m.toPalmeiras + row.toPalmeiras)
     m.closing = running
+    m.mznExact = m.mznExact && !!row.mzn
+    const mzn = rowMzn(row)
+    const addMzn = (total: number | null, eur: number) =>
+      !eur ? total : total === null || mzn === null ? null : total + Math.sign(eur) * mzn
+    m.toUsMzn = addMzn(m.toUsMzn, row.toUs)
+    m.toPalmeirasMzn = addMzn(m.toPalmeirasMzn, row.toPalmeiras)
   }
   return {
     months,

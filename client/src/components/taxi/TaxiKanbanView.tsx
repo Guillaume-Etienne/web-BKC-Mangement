@@ -2,6 +2,7 @@ import { taxiTripLabels } from '../../data/taxiTripTypes'
 import { useState } from 'react'
 import type { TaxiTrip, TaxiDriver, TaxiPricingDefaults, TaxiTripStatus, BookingRef, BookingParticipant } from '../../types/database'
 import { computeTaxiMarginEur } from '../accounting/utils'
+import { useEurMznRateFor } from '../../hooks/useEurMznRates'
 import { todayISO, fmtDate } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
@@ -29,7 +30,7 @@ function bookingLabel(b: BookingRef): string {
 }
 
 // ── Summary table — réalisés vs prévus ───────────────────────────────────────
-function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
+function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: (date: string) => number }) {
   const today = todayISO()
 
   function stats(subset: TaxiTrip[]) {
@@ -38,7 +39,7 @@ function SummaryTable({ trips, rate }: { trips: TaxiTrip[]; rate: number }) {
       clientEur:  subset.reduce((s, t) => s + t.price_eur,           0),
       driverMzn:  subset.reduce((s, t) => s + t.price_driver_mzn,   0),
       managerMzn: subset.reduce((s, t) => s + t.margin_manager_mzn, 0),
-      centreEur:  subset.reduce((s, t) => s + computeTaxiMarginEur(t, rate), 0),
+      centreEur:  subset.reduce((s, t) => s + computeTaxiMarginEur(t, rate(t.date)), 0),
     }
   }
 
@@ -105,6 +106,7 @@ interface TaxiKanbanViewProps {
 }
 
 export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookings, bookingParticipants, onAddTrip, onUpdateTrip, onDeleteTrip }: TaxiKanbanViewProps) {
+  const rateFor = useEurMznRateFor(pricingDefaults.eur_mzn_rate)
   const { lang } = useLanguage()
   const STATUS_CONFIG = statusConfig(lang)
   const [editTrip, setEditTrip]         = useState<TaxiTrip | null>(null)
@@ -190,7 +192,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
   return (
     <>
       {/* Summary */}
-      <SummaryTable trips={trips} rate={pricingDefaults.eur_mzn_rate} />
+      <SummaryTable trips={trips} rate={rateFor} />
 
       {/* Kanban */}
       <div className="flex gap-4 overflow-x-auto pb-6">
@@ -305,7 +307,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                           </div>
                           <div className="flex justify-between text-emerald-800 dark:text-emerald-400 border-t pt-1 font-bold">
                             <span>{i18n.taxis.label_centre[lang]}</span>
-                            <span>{computeTaxiMarginEur(trip, pricingDefaults.eur_mzn_rate)}€</span>
+                            <span>{computeTaxiMarginEur(trip, rateFor(trip.date))}€</span>
                           </div>
                         </div>
 
@@ -470,7 +472,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                 </div>
                 <div className="border-t pt-3 flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
                   <span className="text-gray-500 dark:text-gray-400">
-                    Global rate: <strong>1€ = {pricingDefaults.eur_mzn_rate} MZN</strong>
+                    Rate on this date: <strong>1€ = {rateFor(editTrip.date)} MZN</strong>
                   </span>
                   <span className="text-gray-400 dark:text-gray-400">|</span>
                   <span className="text-gray-500 dark:text-gray-400">
@@ -478,7 +480,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                   </span>
                   <span className="text-gray-400 dark:text-gray-400">|</span>
                   <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                    Centre margin: {computeTaxiMarginEur(editTrip, pricingDefaults.eur_mzn_rate)}€
+                    Centre margin: {computeTaxiMarginEur(editTrip, rateFor(editTrip.date))}€
                   </span>
                 </div>
               </div>

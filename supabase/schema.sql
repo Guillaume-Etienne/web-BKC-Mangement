@@ -566,6 +566,17 @@ CREATE TABLE taxi_trips (
   created_at          TIMESTAMPTZ DEFAULT now()
 );
 
+-- The EUR/MZN rate over time, and bungalow tariffs in meticals: 2026-11-01b_eur_mzn_rates.sql
+-- (admin only; a trigger copies the latest rate to taxi_pricing_defaults.eur_mzn_rate).
+CREATE TABLE eur_mzn_rates (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  valid_from  DATE NOT NULL UNIQUE,
+  rate        NUMERIC(10,4) NOT NULL CHECK (rate > 0),
+  note        TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE accommodations ADD COLUMN cost_per_night_mzn NUMERIC(12,2) CHECK (cost_per_night_mzn > 0);
+
 CREATE TABLE taxi_pricing_defaults (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   default_price_eur   INTEGER NOT NULL DEFAULT 120,       -- default EUR price for new trips

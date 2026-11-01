@@ -9,6 +9,7 @@
 // expected, and is not counted in the balance.
 import type { PartnerHotelPayment, PartnerHotelStay } from '../types/database'
 import { daysBetween, addDaysISO } from './dates'
+import { rateOn, type EurMznRatePoint } from './exchangeRates'
 
 export function stayNights(s: Pick<PartnerHotelStay, 'check_in' | 'check_out'>): number {
   return Math.max(0, daysBetween(s.check_in, s.check_out))
@@ -50,11 +51,12 @@ export function hotelBalanceMzn(stays: PartnerHotelStay[], payments: PartnerHote
   return due - settled
 }
 
-/** Our commission on all these stays, in EUR at the given rate (approximate). */
-export function commissionEur(stays: PartnerHotelStay[], eurMznRate: number): number {
+/** Our commission on all these stays, in EUR (approximate): each stay at the
+ *  rate of its arrival when the rates over time are given, else at `eurMznRate`. */
+export function commissionEur(stays: PartnerHotelStay[], eurMznRate: number, rates?: readonly EurMznRatePoint[]): number {
   if (!eurMznRate) return 0
-  const mzn = stays.reduce((s, st) => s + stayCommissionMzn(st), 0)
-  return Math.round(mzn / eurMznRate)
+  const eur = stays.reduce((s, st) => s + stayCommissionMzn(st) / (rateOn(rates, st.check_in, eurMznRate) || 1), 0)
+  return Math.round(eur)
 }
 
 export function fmtMzn(n: number): string {

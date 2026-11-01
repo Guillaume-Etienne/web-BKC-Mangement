@@ -13,7 +13,7 @@ import type { SharedAccountingData } from './types'
 import { emptyAccountingData } from './utils'
 
 export function mkAccommodation(over: Partial<Accommodation> = {}): Accommodation {
-  return { id: 'acc1', name: 'House 1', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null, external_billing: false, ...over }
+  return { id: 'acc1', name: 'House 1', type: 'house', total_rooms: 2, is_active: true, cost_per_night: null, cost_per_night_mzn: null, external_billing: false, ...over }
 }
 
 export function mkRoom(over: Partial<Room> = {}): Room {

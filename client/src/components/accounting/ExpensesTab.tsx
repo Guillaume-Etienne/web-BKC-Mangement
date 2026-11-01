@@ -3,6 +3,7 @@ import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { Associate, Expense, ExpenseCategory } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
+import { rateOn } from '../../utils/exchangeRates'
 import { taxiTripLabel } from '../../data/taxiTripTypes'
 import {
   categoryTree, categoryColor, categoryPath, rollUpId, selfAndChildrenIds,
@@ -330,7 +331,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
   // la marge taxi : l'additionner au total d'ici = double comptage. Période sur la
   // date de la course / du paiement.
   const taxiPeriodRows = useMemo(() => {
-    const rate = data.eurMznRate || 1
+    const rateAt = (date: string) => rateOn(data.eurMznRates, date, data.eurMznRate) || 1
     const inPeriod = (date: string) => {
       if (period === 'season' && currentSeason) return date >= currentSeason.start_date && date <= currentSeason.end_date
       if (period === 'custom' && periodFrom && periodTo) return date.slice(0, 7) >= periodFrom && date.slice(0, 7) <= periodTo
@@ -342,7 +343,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
         ...t,
         label: taxiTripLabel(t.type, { icon: true }),
         margin_manager_mzn: 0,
-        cost:  t.price_driver_mzn / rate,
+        cost:  t.price_driver_mzn / rateAt(t.date),
       }))
     const managerPays = data.taxiManagerPayments
       .filter(p => inPeriod(p.date))
@@ -350,12 +351,12 @@ export default function ExpensesTab({ data, handlers }: Props) {
         id: p.id, date: p.date, notes: p.notes,
         label: '🚕 ' + i18n.accounting.ex_taxi_manager_col[lang],
         price_driver_mzn: 0, margin_manager_mzn: p.amount_mzn,
-        cost: p.amount_mzn / rate,
+        cost: p.amount_mzn / rateAt(p.date),
       }))
     return [...trips, ...managerPays]
       .filter(t => t.cost > 0)
       .sort((x, y) => y.date.localeCompare(x.date))
-  }, [data.taxiTrips, data.taxiManagerPayments, data.eurMznRate, lang, period, currentSeason, periodFrom, periodTo])
+  }, [data.taxiTrips, data.taxiManagerPayments, data.eurMznRate, data.eurMznRates, lang, period, currentSeason, periodFrom, periodTo])
   const taxiRows = useMemo(() => {
     if (filterCat !== 'all') return []
     const q = search.toLowerCase()
