@@ -825,7 +825,7 @@ export default function ManagementPage() {
                       <div>
                         <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">EUR/MZN rate</label>
                         <input type="number" min="1" step="0.01" value={taxiPricingForm.eur_mzn_rate}
-                          onChange={e => setTaxiPricingForm(f => f ? ({ ...f, eur_mzn_rate: parseFloat(e.target.value) || 65 }) : f)}
+                          onChange={e => setTaxiPricingForm(f => f ? ({ ...f, eur_mzn_rate: parseFloat(e.target.value) || 0 }) : f)}
                           className="w-full text-sm border rounded px-2 py-1.5" />
                       </div>
                     </div>
@@ -835,14 +835,16 @@ export default function ManagementPage() {
                         {taxiPricingForm.default_driver_mzn + taxiPricingForm.default_manager_mzn} MZN
                       </span>
                       <span className="text-gray-500 dark:text-gray-400 ml-3">
-                        ≈ {Math.round((taxiPricingForm.default_driver_mzn + taxiPricingForm.default_manager_mzn) / taxiPricingForm.eur_mzn_rate)}€
+                        {taxiPricingForm.eur_mzn_rate > 0
+                          ? `≈ ${Math.round((taxiPricingForm.default_driver_mzn + taxiPricingForm.default_manager_mzn) / taxiPricingForm.eur_mzn_rate)}€`
+                          : 'Enter the EUR/MZN rate'}
                       </span>
                     </div>
                     <div className="flex gap-3 pt-2">
                       <button onClick={() => setTaxiPricingEditing(false)}
                         className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm">Cancel</button>
-                      <button onClick={async () => {
-                        if (!taxiPricingForm) return
+                      <button disabled={!(taxiPricingForm.eur_mzn_rate > 0)} onClick={async () => {
+                        if (!taxiPricingForm || !(taxiPricingForm.eur_mzn_rate > 0)) return
                         const updated = { ...taxiPricingForm, updated_at: new Date().toISOString() }
                         const { error } = await supabase.from('taxi_pricing_defaults').update({
                           default_price_eur:  updated.default_price_eur,
@@ -855,7 +857,7 @@ export default function ManagementPage() {
                         setTaxiPricingDefaults(updated)
                         setTaxiPricingEditing(false)
                       }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm">Save</button>
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm">Save</button>
                     </div>
                   </div>
                 ) : (

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildStatement, buildLedger, rentPeriod, balanceSentence, fmtEurCents, type StatementInput, type StatementStay } from './palmeirasStatement'
+import { buildStatement, buildLedger, rentPeriod, balanceSentence, fmtEurCents, fmtMznEquivalent, stayInternal, summarizeInternals, type StatementInput, type StatementStay } from './palmeirasStatement'
 
 const stay = (o: Partial<StatementStay>): StatementStay => ({
   booking_number: 1, guest: 'Guest', provisional: false, bungalow: 'B4',
@@ -152,5 +152,61 @@ describe('buildLedger', () => {
   it('what is not due yet stays out, without a balance', () => {
     expect(upcoming.map(r => r.title)).toEqual(['Bungalow rented through BKC — #58 · Guest'])
     expect(upcoming[0].balance).toBeNull()
+  })
+})
+
+describe('metical equivalents', () => {
+  it('converts at the current rate, and shows nothing without a rate', () => {
+    expect(fmtMznEquivalent(50, 70)).toBe('≈ 3,500 MZN')
+    expect(fmtMznEquivalent(-50, 70)).toBe('≈ 3,500 MZN')
+    expect(fmtMznEquivalent(50, null)).toBe('')
+    expect(fmtMznEquivalent(50, 0)).toBe('')
+  })
+
+  it('a stay states its amounts in both currencies; no rate, no made-up MZN', () => {
+    const line = (rate: number | null) => build({ ...empty, eur_mzn_rate: rate, stays: [stay({ cost_per_night: 50 })] }).months[0].lines[0].detail
+    expect(line(70)).toContain('× 50 € (≈ 3,500 MZN)')
+    expect(line(null)).not.toContain('MZN')
+  })
+
+  it('a rent and its full payment keep the real meticals, whatever the rate became', () => {
+    const st = build({ ...empty, eur_mzn_rate: 80,
+      rents: [{ month: '2026-09', amount: 142.86, amount_mzn: 10000 }],
+      settlements: [
+        { id: 'full', date: '2026-09-20', direction: 'us_to_palmeiras', amount: 142.86, method: null, rent_month: '2026-09' },
+        { id: 'part', date: '2026-09-21', direction: 'us_to_palmeiras', amount: 50, method: null, rent_month: '2026-09' },
+      ],
+    })
+    const rows = buildLedger(st).months[0].rows
+    expect(rows.find(r => r.kind === 'rent')?.mzn).toBe(10000)
+    expect(rows.find(r => r.settlementId === 'full')?.mzn).toBe(10000)
+    expect(rows.find(r => r.settlementId === 'part')?.mzn).toBeNull()
+  })
+})
+
+describe('stayInternal (admin only)', () => {
+  it('billed and margin of a stay we collected', () => {
+    const r = stayInternal(stay({ cost_per_night: 50 }), 55)!
+    expect([r.nights, r.billed, r.margin, r.marginPct]).toEqual([3, 165, 15, 9.1])
+    expect(r.lowMargin).toBe(true)
+    expect(r.noPrice).toBe(false)
+  })
+
+  it('a stay sold at 0 € is flagged, its cost is a loss', () => {
+    const r = stayInternal(stay({ check_in: '2026-10-15', check_out: '2026-10-16', cost_per_night: 50 }), 0)!
+    expect([r.billed, r.margin, r.marginPct, r.noPrice, r.lowMargin]).toEqual([0, -50, null, true, false])
+  })
+
+  it('a stay paid directly has no margin of its own: we earn the commission', () => {
+    expect(stayInternal(stay({ paid_direct: true, price_per_night: 100, cost_per_night: null }), 100)).toBeNull()
+  })
+
+  it('sums by month and by bungalow, in natural order', () => {
+    const a = stayInternal(stay({ bungalow: 'B10', cost_per_night: 50 }), 60)!
+    const b = stayInternal(stay({ bungalow: 'B4', cost_per_night: 50 }), 55)!
+    const c = stayInternal(stay({ bungalow: 'B4', cost_per_night: 50 }), 0)!
+    const s = summarizeInternals([a, undefined, b, c, null])
+    expect([s.billed, s.margin]).toEqual([345, -105])
+    expect(s.byBungalow).toEqual([{ bungalow: 'B4', margin: -135 }, { bungalow: 'B10', margin: 30 }])
   })
 })

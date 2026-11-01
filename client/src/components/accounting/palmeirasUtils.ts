@@ -1,7 +1,7 @@
 import type { SharedAccountingData } from './types'
 import type { PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSettlement } from '../../types/database'
 import { countNights, isRoomPaidToOwner } from './utils'
-import { PALMEIRAS_COMMISSION_PCT, type StatementInput, type StatementStay } from '../../utils/palmeirasStatement'
+import { PALMEIRAS_COMMISSION_PCT, stayInternal, stayLineKey, type StatementInput, type StatementStay, type StayInternals } from '../../utils/palmeirasStatement'
 
 /** One bungalow stay, with the margin the centre makes by sub-letting it. */
 export interface BungalowRow {
@@ -97,6 +97,52 @@ export function monthlyCommission(
   return out
 }
 
+const guestOf = (data: SharedAccountingData, bookingId: string | null) => {
+  const booking = data.bookings.find(b => b.id === bookingId)
+  const client  = data.clients.find(c => c.id === booking?.client_id)
+  return { booking, guest: client ? `${client.first_name} ${client.last_name}`.trim() : '' }
+}
+
+/** Every bungalow stay in statement order, with the price we sold it at kept
+ *  beside the stay — never inside it. */
+function bungalowStays(data: SharedAccountingData): { stay: StatementStay; sell: number }[] {
+  const bungalows = data.accommodations.filter(a => a.type === 'bungalow')
+  const stays: { stay: StatementStay; sell: number }[] = []
+  for (const br of data.bookingRooms) {
+    const room = data.rooms.find(r => r.id === br.room_id)
+    const acc  = bungalows.find(b => b.id === room?.accommodation_id)
+    if (!acc) continue
+    const { booking, guest } = guestOf(data, br.booking_id)
+    if (!booking || booking.status === 'cancelled') continue
+    const direct = isRoomPaidToOwner(br.booking_id, br.room_id, data)
+    const price  = data.bookingRoomPrices
+      .find(p => p.booking_id === br.booking_id && p.room_id === br.room_id)?.price_per_night ?? 0
+    stays.push({
+      sell: price,
+      stay: {
+        booking_number: booking.booking_number, guest,
+        provisional: booking.status === 'provisional',
+        bungalow: acc.name, check_in: booking.check_in, check_out: booking.check_out,
+        paid_direct: direct,
+        price_per_night: direct ? price : null,
+        cost_per_night:  direct ? null : acc.cost_per_night ?? 0,
+      },
+    })
+  }
+  return stays.sort((a, b) => a.stay.check_in.localeCompare(b.stay.check_in))
+}
+
+/** Admin only: price billed and margin of each stay we collected, by statement
+ *  line key. Kept out of `statementInputFromData` on purpose: see StayInternal. */
+export function stayInternalsFromData(data: SharedAccountingData): StayInternals {
+  const out: StayInternals = {}
+  bungalowStays(data).forEach(({ stay, sell }, i) => {
+    const row = stayInternal(stay, sell)
+    if (row) out[stayLineKey(i)] = row
+  })
+  return out
+}
+
 /** The admin side of the statement: the same shape `palmeiras_statement()`
  *  returns to the share page, built from the accounting data, so both screens
  *  run the very same buildStatement. */
@@ -104,38 +150,10 @@ export function statementInputFromData(
   data: SharedAccountingData,
   settlements: PalmeirasSettlement[],
 ): StatementInput {
-  const bungalows = data.accommodations.filter(a => a.type === 'bungalow')
-  const guestOf = (bookingId: string | null) => {
-    const booking = data.bookings.find(b => b.id === bookingId)
-    const client  = data.clients.find(c => c.id === booking?.client_id)
-    return { booking, guest: client ? `${client.first_name} ${client.last_name}`.trim() : '' }
-  }
-
-  const stays: StatementStay[] = []
-  for (const br of data.bookingRooms) {
-    const room = data.rooms.find(r => r.id === br.room_id)
-    const acc  = bungalows.find(b => b.id === room?.accommodation_id)
-    if (!acc) continue
-    const { booking, guest } = guestOf(br.booking_id)
-    if (!booking || booking.status === 'cancelled') continue
-    const direct = isRoomPaidToOwner(br.booking_id, br.room_id, data)
-    const price  = data.bookingRoomPrices
-      .find(p => p.booking_id === br.booking_id && p.room_id === br.room_id)?.price_per_night ?? 0
-    stays.push({
-      booking_number: booking.booking_number, guest,
-      provisional: booking.status === 'provisional',
-      bungalow: acc.name, check_in: booking.check_in, check_out: booking.check_out,
-      paid_direct: direct,
-      price_per_night: direct ? price : null,
-      cost_per_night:  direct ? null : acc.cost_per_night ?? 0,
-    })
-  }
-  stays.sort((a, b) => a.check_in.localeCompare(b.check_in))
-
   return {
     eur_mzn_rate: data.eurMznRate,
-    bungalows: bungalows.map(b => b.name),
-    stays,
+    bungalows: data.accommodations.filter(a => a.type === 'bungalow').map(b => b.name),
+    stays: bungalowStays(data).map(s => s.stay),
     rents: data.palmeirasRents.map(r => ({ month: r.month, amount: r.amount, amount_mzn: r.amount_mzn ?? null })),
     adjustments: data.palmeirasReversals.map(r => ({
       month: r.month, gross_amount: r.gross_amount, percent: r.percent, net_amount: r.net_amount,
@@ -144,7 +162,7 @@ export function statementInputFromData(
     card_payments: data.payments
       .filter(p => p.method === 'card_palmeiras' && !p.is_discount)
       .map(p => {
-        const { booking, guest } = guestOf(p.booking_id)
+        const { booking, guest } = guestOf(data, p.booking_id)
         return { booking_number: booking?.booking_number ?? null, guest, date: p.date, amount: p.amount }
       }),
     settlements: settlements.map(s => ({ id: s.id, date: s.date, direction: s.direction, amount: s.amount, method: s.method, rent_month: s.rent_month ?? null })),

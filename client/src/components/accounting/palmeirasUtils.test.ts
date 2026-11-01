@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildBungalowRows, computePalmeirasTotals } from './palmeirasUtils'
+import { buildBungalowRows, computePalmeirasTotals, statementInputFromData, stayInternalsFromData } from './palmeirasUtils'
 import type { BungalowRow } from './palmeirasUtils'
 import { computeAccommodationRevenue, computeSeasonTotals } from './utils'
 import {
@@ -151,5 +151,13 @@ describe('computePalmeirasTotals', () => {
     expect(dash.accomRev).toBe(350)        // 50 × 7 sold to the client
     expect(dash.bungalowCosts).toBe(175)   // 25 × 7 owed to the owner
     expect(dash.accomRev - dash.bungalowCosts).toBe(tab.net)
+  })
+})
+
+describe('selling price, admin side only', () => {
+  it('reaches the internals, keyed like the statement lines, and never the statement input', () => {
+    const data = bungalowSetup({ sell: 987, cost: 25 })
+    expect(stayInternalsFromData(data)['stay-0']).toMatchObject({ sellPerNight: 987, billed: 6909, margin: 6734 })
+    expect(JSON.stringify(statementInputFromData(data, []))).not.toContain('987')
   })
 })

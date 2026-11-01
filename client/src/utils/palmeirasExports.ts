@@ -4,16 +4,19 @@
 // EXPORT_FORMATS, so a new layout is one more entry, nothing else to wire.
 //
 // Built from the SAME input as the statement (`StatementInput`), which never
-// holds our selling price — a sheet made from it cannot leak it.
+// holds our selling price — a sheet made from it cannot leak it. The one
+// exception is the « internal » format, for gui alone: it reads the selling
+// price from `opts.internals`, which no other format touches.
 // Output is plain HTML + inline CSS: previewed in an iframe, printed from it,
 // saved as PDF by gui. Language chosen per export (EN / FR / ES / PT).
 import {
   stayAmounts, stayNights, stayRef, fmtEurCents, monthStart, monthEnd,
-  PALMEIRAS_COMMISSION_PCT, type StatementInput, type StatementStay,
+  fmtMznEquivalent, fmtMznExact, summarizeInternals, usableRate, stayLineKey,
+  PALMEIRAS_COMMISSION_PCT, type StatementInput, type StatementStay, type StayInternals,
 } from './palmeirasStatement'
 import { fmtDate, addDaysISO } from './dates'
 
-export type ExportFormatId = 'grid' | 'sheets' | 'list'
+export type ExportFormatId = 'grid' | 'sheets' | 'list' | 'internal'
 
 /** Language of the printed sheet — chosen per export, independent of the screen
  *  language: the Palmeiras read Portuguese (the app's own i18n has no PT). */
@@ -38,6 +41,10 @@ interface Strings {
   arrived: (date: string) => string
   guestPaid: (gross: string, pct: number, share: string) => string
   bkcPays: (amount: string) => string
+  internalTitle: string; internalBanner: string; internalSub: string; internalEmpty: string
+  costPerNight: string; cost: string; soldPerNight: string; billed: string; margin: string
+  noPrice: string; total: string; byBungalow: string; directTitle: string; guestPaidCol: string; commission: string
+  rentOfMonth: string; rate: (rate: string) => string
 }
 
 const STRINGS: Record<ExportLang, Strings> = {
@@ -54,6 +61,11 @@ const STRINGS: Record<ExportLang, Strings> = {
     arrived: d => `arrived ${d}`,
     guestPaid: (g, p, sh) => `guest paid you ${g} · BKC share ${p}% = ${sh}`,
     bkcPays: a => `BKC pays you ${a}`,
+    internalTitle: 'Bungalow margins', internalBanner: 'INTERNAL – BKC ONLY · shows our selling prices · never send to the Palmeiras',
+    internalSub: 'Stays counted in their month of arrival', internalEmpty: 'No margin data: open this sheet from the accounting tab.',
+    costPerNight: 'Cost / night', cost: 'Cost', soldPerNight: 'Sold / night', billed: 'Billed', margin: 'Margin',
+    noPrice: 'no price', total: 'Total', byBungalow: 'Margin by bungalow', directTitle: 'Paid directly to the Palmeiras', guestPaidCol: 'Guest paid', commission: 'Our commission',
+    rentOfMonth: 'House rent of the period', rate: r => `1 € = ${r} MZN`,
   },
   fr: {
     locale: 'fr-FR', dayLetters: 'DLMMJVS',
@@ -68,6 +80,11 @@ const STRINGS: Record<ExportLang, Strings> = {
     arrived: d => `arrivé le ${d}`,
     guestPaid: (g, p, sh) => `le client vous a payé ${g} · part BKC ${p} % = ${sh}`,
     bkcPays: a => `BKC vous paie ${a}`,
+    internalTitle: 'Marges des bungalows', internalBanner: 'INTERNE – BKC UNIQUEMENT · montre nos prix de vente · ne jamais envoyer au Palmeiras',
+    internalSub: "Séjours comptés dans leur mois d'arrivée", internalEmpty: "Pas de données de marge : ouvrir cette fiche depuis l'onglet compta.",
+    costPerNight: 'Coût / nuit', cost: 'Coût', soldPerNight: 'Vendu / nuit', billed: 'Facturé', margin: 'Marge',
+    noPrice: 'sans prix', total: 'Total', byBungalow: 'Marge par bungalow', directTitle: 'Payés directement au Palmeiras', guestPaidCol: 'Payé par le client', commission: 'Notre commission',
+    rentOfMonth: 'Loyer de la maison de la période', rate: r => `1 € = ${r} MZN`,
   },
   es: {
     locale: 'es-ES', dayLetters: 'DLMXJVS',
@@ -82,6 +99,11 @@ const STRINGS: Record<ExportLang, Strings> = {
     arrived: d => `llegó el ${d}`,
     guestPaid: (g, p, sh) => `el cliente le pagó ${g} · parte de BKC ${p} % = ${sh}`,
     bkcPays: a => `BKC le paga ${a}`,
+    internalTitle: 'Márgenes de los bungalows', internalBanner: 'INTERNO – SOLO BKC · muestra nuestros precios de venta · no enviar nunca al Palmeiras',
+    internalSub: 'Estancias contadas en su mes de llegada', internalEmpty: 'Sin datos de margen: abrir esta hoja desde la pestaña de contabilidad.',
+    costPerNight: 'Coste / noche', cost: 'Coste', soldPerNight: 'Vendido / noche', billed: 'Facturado', margin: 'Margen',
+    noPrice: 'sin precio', total: 'Total', byBungalow: 'Margen por bungalow', directTitle: 'Pagados directamente al Palmeiras', guestPaidCol: 'Pagado por el cliente', commission: 'Nuestra comisión',
+    rentOfMonth: 'Alquiler de la casa del período', rate: r => `1 € = ${r} MZN`,
   },
   pt: {
     locale: 'pt-PT', dayLetters: 'DSTQQSS',
@@ -96,6 +118,11 @@ const STRINGS: Record<ExportLang, Strings> = {
     arrived: d => `chegou a ${d}`,
     guestPaid: (g, p, sh) => `o hóspede pagou-vos ${g} · parte da BKC ${p} % = ${sh}`,
     bkcPays: a => `a BKC paga-vos ${a}`,
+    internalTitle: 'Margens dos bungalows', internalBanner: 'INTERNO – SÓ BKC · mostra os nossos preços de venda · nunca enviar ao Palmeiras',
+    internalSub: 'Estadias contadas no mês de chegada', internalEmpty: 'Sem dados de margem: abrir esta folha a partir do separador de contabilidade.',
+    costPerNight: 'Custo / noite', cost: 'Custo', soldPerNight: 'Vendido / noite', billed: 'Faturado', margin: 'Margem',
+    noPrice: 'sem preço', total: 'Total', byBungalow: 'Margem por bungalow', directTitle: 'Pagas diretamente ao Palmeiras', guestPaidCol: 'Pago pelo hóspede', commission: 'A nossa comissão',
+    rentOfMonth: 'Renda da casa do período', rate: r => `1 € = ${r} MZN`,
   },
 }
 
@@ -110,6 +137,8 @@ export interface ExportOptions {
   lang: ExportLang
   /** Print what each stay is worth between us. Off = pure occupancy sheet. */
   showAmounts: boolean
+  /** Our selling prices and margins: read by the « internal » format only. */
+  internals?: StayInternals
 }
 
 export interface ExportFormat {
@@ -117,6 +146,8 @@ export interface ExportFormat {
   label: string
   description: string
   orientation: 'portrait' | 'landscape'
+  /** For BKC alone: holds our selling prices. */
+  internal?: boolean
   render: (input: StatementInput, month: string, opts: ExportOptions) => string
 }
 
@@ -265,6 +296,64 @@ function renderList(input: StatementInput, month: string, { lang, showAmounts }:
     <tbody>${rows}</tbody></table>`}`
 }
 
+// ── 4. Internal: selling prices and margins, for gui alone ──────────────────
+
+function renderInternal(input: StatementInput, month: string, { lang, internals }: ExportOptions): string {
+  const t = STRINGS[lang]
+  const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${fmtEurCents(Math.abs(n))}`
+  const pct = (n: number | null) => (n === null ? '–' : `${n.toLocaleString(t.locale)} %`)
+  const banner = `<p class="internal">${t.internalBanner}</p>`
+  const rate = usableRate(input.eur_mzn_rate)
+  const head = `<h1>${t.internalTitle} — ${fmtMonthLabel(month, lang)}</h1>
+    <p class="sub">${t.internalSub}${rate ? ` · ${t.rate(rate.toLocaleString('en-US'))}` : ''}</p>`
+  if (!internals) return `${banner}${head}<p class="empty">${t.internalEmpty}</p>`
+
+  // Counted where the statement counts them, so the month's totals agree with it.
+  const stays = input.stays
+    .map((s, i) => ({ s, row: internals[stayLineKey(i)] }))
+    .filter(x => x.s.check_in.slice(0, 7) === month)
+    .sort((a, b) => a.s.check_in.localeCompare(b.s.check_in) || a.s.bungalow.localeCompare(b.s.bungalow, 'en', { numeric: true }))
+  const ours = stays.filter(x => !x.s.paid_direct)
+  const direct = stays.filter(x => x.s.paid_direct)
+  const sum = summarizeInternals(ours.map(x => x.row))
+  const costTotal = ours.reduce((n, x) => n + stayAmounts(x.s).toPalmeiras, 0)
+  const guestCell = (s: StatementStay) => `#${s.booking_number} ${escapeHtml(s.guest || '—')}${s.provisional ? ` <small>(${t.provisional})</small>` : ''}`
+
+  const oursRows = ours.map(({ s, row }) => {
+    const cost = stayAmounts(s).toPalmeiras
+    return `<tr${row?.noPrice ? ' class="alert"' : ''}>
+      <td>${fmtDate(s.check_in)}</td><td>${fmtDate(s.check_out)}</td><td><b>${escapeHtml(s.bungalow)}</b></td><td>${guestCell(s)}</td>
+      <td class="r">${stayNights(s)}</td>
+      <td class="r">${fmtEurCents(s.cost_per_night ?? 0)}</td>
+      <td class="r">${fmtEurCents(cost)}<br><small>${fmtMznEquivalent(cost, rate)}</small></td>
+      <td class="r">${row?.noPrice ? `<b>${t.noPrice}</b>` : fmtEurCents(row?.sellPerNight ?? 0)}</td>
+      <td class="r">${fmtEurCents(row?.billed ?? 0)}</td>
+      <td class="r"><b>${signed(row?.margin ?? 0)}</b></td>
+      <td class="r${row?.lowMargin ? ' warn' : ''}">${pct(row?.marginPct ?? null)}</td></tr>`
+  }).join('')
+
+  const oursTable = ours.length === 0 ? '' : `
+    <table class="rows"><thead><tr><th>${t.checkIn}</th><th>${t.checkOut}</th><th>${t.bungalow}</th><th>${t.guest}</th><th class="r">${t.nights}</th>
+      <th class="r">${t.costPerNight}</th><th class="r">${t.cost}</th><th class="r">${t.soldPerNight}</th><th class="r">${t.billed}</th><th class="r">${t.margin}</th><th class="r">%</th></tr></thead>
+    <tbody>${oursRows}</tbody>
+    <tfoot><tr><td colspan="6">${t.total}</td><td class="r">${fmtEurCents(costTotal)}<br><small>${fmtMznEquivalent(costTotal, rate)}</small></td><td></td>
+      <td class="r">${fmtEurCents(sum.billed)}</td><td class="r">${signed(sum.margin)}</td><td class="r">${pct(sum.marginPct)}</td></tr></tfoot></table>
+    <p class="note"><b>${t.byBungalow}:</b> ${sum.byBungalow.map(b => `${escapeHtml(b.bungalow)} ${signed(b.margin)}`).join(' · ')}</p>`
+
+  const directTable = direct.length === 0 ? '' : `
+    <h2>${t.directTitle}</h2>
+    <table class="rows"><thead><tr><th>${t.checkIn}</th><th>${t.checkOut}</th><th>${t.bungalow}</th><th>${t.guest}</th><th class="r">${t.nights}</th><th class="r">${t.guestPaidCol}</th><th class="r">${t.commission} ${PALMEIRAS_COMMISSION_PCT} %</th></tr></thead>
+    <tbody>${direct.map(({ s }) => {
+      const a = stayAmounts(s)
+      return `<tr><td>${fmtDate(s.check_in)}</td><td>${fmtDate(s.check_out)}</td><td><b>${escapeHtml(s.bungalow)}</b></td><td>${guestCell(s)}</td><td class="r">${a.nights}</td><td class="r">${fmtEurCents(a.gross)}</td><td class="r"><b>${fmtEurCents(a.toUs)}</b></td></tr>`
+    }).join('')}</tbody></table>`
+
+  const rent = input.rents.find(r => r.month === month)
+  const rentLine = rent ? `<p class="note"><b>${t.rentOfMonth}:</b> ${fmtEurCents(rent.amount)}${rent.amount_mzn ? ` · ${fmtMznExact(rent.amount_mzn)}` : ''}</p>` : ''
+
+  return `${banner}${head}${stays.length === 0 ? `<p class="empty">${t.noStay}</p>` : `${oursTable}${directTable}`}${rentLine}`
+}
+
 export const EXPORT_FORMATS: ExportFormat[] = [
   { id: 'grid',   label: 'Month grid',      orientation: 'landscape', render: renderGrid,
     description: 'Bungalows in rows, days in columns — a reservations notebook page.' },
@@ -272,6 +361,8 @@ export const EXPORT_FORMATS: ExportFormat[] = [
     description: 'One block per bungalow with its stays of the month.' },
   { id: 'list',   label: 'Stay list',       orientation: 'portrait',  render: renderList,
     description: 'All stays in date order, one line each.' },
+  { id: 'internal', label: 'Margins · Internal – BKC only', orientation: 'landscape', render: renderInternal, internal: true,
+    description: 'Selling prices and margins per stay. Never send it to the Palmeiras.' },
 ]
 
 const CSS = `
@@ -294,6 +385,10 @@ const CSS = `
   .rows { font-size: 10pt; } .rows th { text-align: left; font-size: 8.5pt; text-transform: uppercase; color: #6b7280; border-bottom: 1pt solid #d1d5db; padding: 4px 6px; }
   .rows td { padding: 5px 6px; border-bottom: 0.5pt solid #e5e7eb; } .r { text-align: right !important; }
   .prov-row td { color: #6b7280; } .fig { font-size: 9.5pt; color: #374151; }
+  .internal { background: #fef2f2; color: #991b1b; border: 1pt solid #fca5a5; border-radius: 4px; padding: 4px 8px; font-weight: 700; font-size: 9.5pt; margin: 0 0 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rows tfoot td { font-weight: 700; border-top: 1pt solid #9ca3af; border-bottom: 0; } .rows small { color: #6b7280; font-weight: normal; }
+  .alert td { background: #fef2f2; -webkit-print-color-adjust: exact; print-color-adjust: exact; } .warn { color: #b45309; font-weight: 700; }
+  .note { font-size: 10pt; margin: 8px 0 14px; color: #374151; } h2 { margin-top: 14px; }
   .badge { color: #fff; border-radius: 9px; padding: 1px 8px; font-size: 8.5pt; white-space: nowrap; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 `
 

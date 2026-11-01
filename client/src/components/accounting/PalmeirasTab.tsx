@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
 import type { PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSettlement, SharedLink } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
-import { buildBungalowRows, computePalmeirasTotals, monthlyCommission, statementInputFromData } from './palmeirasUtils'
+import { buildBungalowRows, computePalmeirasTotals, monthlyCommission, statementInputFromData, stayInternalsFromData } from './palmeirasUtils'
 import { thisMonthISO, todayISO, addDaysISO, fmtDate } from '../../utils/dates'
 import { supabase } from '../../lib/supabase'
 import { useTable } from '../../hooks/useSupabase'
@@ -256,6 +256,8 @@ export default function PalmeirasTab({ data, handlers }: Props) {
 
   const statementInput = useMemo(() => statementInputFromData(data, settlements), [data, settlements])
   const statement = useMemo(() => buildStatement(statementInput), [statementInput])
+  // Our selling price and margin: admin only, handed over beside the statement.
+  const stayInternals = useMemo(() => stayInternalsFromData(data), [data])
   const shareLink = sharedLinks.find(l => l.type === 'palmeiras' && l.is_active
     && (!l.expires_at || l.expires_at >= todayISO()))
   const shareUrl = shareLink ? `${window.location.protocol}//${window.location.host}?share=${shareLink.token}` : null
@@ -506,6 +508,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
           statement={statement}
           input={statementInput}
           eurMznRate={data.eurMznRate}
+          stayInternals={stayInternals}
           defaultRentMzn={DEFAULT_RENT_MZN}
           // One click from the timeline: the usual 10 000 MZN at today's rate.
           // A different amount is still corrected through ✏ in Internal result.
@@ -527,7 +530,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
         />
       )}
 
-      {view === 'exports' && <PalmeirasExports input={statementInput} />}
+      {view === 'exports' && <PalmeirasExports input={statementInput} stayInternals={stayInternals} />}
 
       {view === 'internal' && (<>
       <p className="text-xs text-gray-500 dark:text-gray-400">{i18n.accounting.palm_internal_hint[lang]}</p>

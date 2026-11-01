@@ -66,6 +66,9 @@ export interface StatementLine {
   toUs: number
   toPalmeiras: number
   provisional: boolean
+  /** The real metical amount, when there is one (a rent). Otherwise the MZN
+   *  shown is an equivalent at the current rate. */
+  mzn?: number | null
 }
 
 export interface StatementMonth {
@@ -79,7 +82,7 @@ export interface Statement {
   months: StatementMonth[]          // most recent first — only what is due today
   /** Stays not begun yet, rents of months to come: shown, not in the balance. */
   upcoming: StatementLine[]
-  settlements: (StatementInput['settlements'][number] & { key: string })[]  // most recent first
+  settlements: (StatementInput['settlements'][number] & { key: string; mzn?: number | null })[]  // most recent first
   toUs: number
   toPalmeiras: number
   paidByUs: number                  // settlements BKC → Palmeiras
@@ -101,6 +104,23 @@ export function fmtEurCents(n: number): string {
   const v = r2(n) || 0
   const cents = Math.abs(v % 1) > 0.001
   return `${v.toLocaleString('fr-FR', { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: 2 })} €`
+}
+
+/** The current rate, or null when it is missing: never fall back on a made-up
+ *  rate, the MZN is simply not shown. */
+export function usableRate(rate: number | null | undefined): number | null {
+  return rate && rate > 0 ? rate : null
+}
+
+/** "10,000 MZN" */
+export function fmtMznExact(mzn: number): string {
+  return `${Math.round(mzn).toLocaleString('en-US')} MZN`
+}
+
+/** "≈ 3,500 MZN" for an amount in euros, '' without a usable rate. */
+export function fmtMznEquivalent(eur: number, rate: number | null | undefined): string {
+  const r = usableRate(rate)
+  return r ? `≈ ${fmtMznExact(Math.abs(eur) * r)}` : ''
 }
 
 /** What one stay weighs in the account — the single rule behind both the
@@ -140,6 +160,10 @@ export function monthEnd(month: string): string {
 
 export function buildStatement(input: StatementInput, today: string = todayISO()): Statement {
   const lines: StatementLine[] = []
+  const mznNote = (eur: number) => {
+    const t = fmtMznEquivalent(eur, input.eur_mzn_rate)
+    return t ? ` (${t})` : ''
+  }
   const autoCommission: Record<string, number> = {}
 
   input.stays.forEach((s, i) => {
@@ -151,14 +175,14 @@ export function buildStatement(input: StatementInput, today: string = todayISO()
       lines.push({
         key: `stay-${i}`, date: s.check_in, kind: 'stay_direct', provisional: s.provisional,
         title: `Commission ${PALMEIRAS_COMMISSION_PCT}% — ${stayRef(s)}`,
-        detail: `${period} · guest paid the Palmeiras ${nights} night${nights === 1 ? '' : 's'} × ${fmtEurCents(s.price_per_night ?? 0)} = ${fmtEurCents(gross)}`,
+        detail: `${period} · guest paid the Palmeiras ${nights} night${nights === 1 ? '' : 's'} × ${fmtEurCents(s.price_per_night ?? 0)} = ${fmtEurCents(gross)}${mznNote(gross)}`,
         toUs, toPalmeiras: 0,
       })
     } else {
       lines.push({
         key: `stay-${i}`, date: s.check_in, kind: 'stay_ours', provisional: s.provisional,
         title: `Bungalow rented through BKC — ${stayRef(s)}`,
-        detail: `${period} · ${nights} night${nights === 1 ? '' : 's'} × ${fmtEurCents(s.cost_per_night ?? 0)}`,
+        detail: `${period} · ${nights} night${nights === 1 ? '' : 's'} × ${fmtEurCents(s.cost_per_night ?? 0)}${mznNote(s.cost_per_night ?? 0)}`,
         toUs: 0, toPalmeiras,
       })
     }
@@ -183,8 +207,8 @@ export function buildStatement(input: StatementInput, today: string = todayISO()
     lines.push({
       key: `rent-${r.month}`, date: p.start, kind: 'rent', provisional: false,
       title: `House rent ${fmtDate(p.start)} → ${fmtDate(p.end)}`,
-      detail: r.amount_mzn ? `${Math.round(r.amount_mzn).toLocaleString('en-US')} MZN` : '',
-      toUs: 0, toPalmeiras: r2(r.amount),
+      detail: r.amount_mzn ? fmtMznExact(r.amount_mzn) : '',
+      toUs: 0, toPalmeiras: r2(r.amount), mzn: r.amount_mzn ?? null,
     })
   }
 
@@ -233,7 +257,12 @@ export function buildStatement(input: StatementInput, today: string = todayISO()
     months,
     upcoming,
     settlements: input.settlements
-      .map((s, i) => ({ ...s, key: `set-${i}` }))
+      .map((s, i) => {
+        // A rent paid in full is those same meticals, whatever the rate became.
+        const rent = s.rent_month ? input.rents.find(r => r.month === s.rent_month) : undefined
+        const mzn = rent?.amount_mzn && Math.abs(rent.amount - s.amount) < 0.01 ? rent.amount_mzn : null
+        return { ...s, key: `set-${i}`, mzn }
+      })
       .sort((a, b) => b.date.localeCompare(a.date)),
     toUs, toPalmeiras, paidByUs, paidByThem,
     balance: r2(toUs - toPalmeiras + paidByUs - paidByThem),
@@ -284,7 +313,7 @@ export function buildLedger(st: Statement): { months: LedgerMonth[]; upcoming: L
     ...st.months.flatMap(m => m.lines).map(l => ({ ...l, balance: null })),
     ...st.settlements.map(s => ({
       key: s.key, date: s.date, kind: 'settlement' as const, provisional: false, balance: null,
-      settlementId: s.id,
+      settlementId: s.id, mzn: s.mzn ?? null,
       title: s.rent_month
         ? `House rent paid (${fmtDate(rentPeriod(s.rent_month).start)} → ${fmtDate(rentPeriod(s.rent_month).end)})`
         : s.direction === 'us_to_palmeiras' ? 'Payment BKC → the Palmeiras' : 'Payment the Palmeiras → BKC',
@@ -310,5 +339,65 @@ export function buildLedger(st: Statement): { months: LedgerMonth[]; upcoming: L
   return {
     months,
     upcoming: st.upcoming.map(l => ({ ...l, balance: null })),
+  }
+}
+
+// ── Admin only: what BKC earns on a stay ────────────────────────────────────
+// ⚠️ Never add any of this to StatementInput or to palmeiras_statement(): that
+// separation is what keeps our selling price off the share page and the sheets
+// sent to the Palmeiras. It travels on the side, built by the admin tab alone.
+
+export interface StayInternal {
+  bungalow: string
+  sellPerNight: number
+  nights: number
+  billed: number
+  margin: number
+  /** Share of the billed price; null when nothing was billed. */
+  marginPct: number | null
+  /** Billed nothing: a forgotten price, or a bungalow we offered? */
+  noPrice: boolean
+  /** Below what a stay paid directly earns us (15 %). */
+  lowMargin: boolean
+}
+
+/** By statement line key (`stay-<index in input.stays>`); the stays the guest
+ *  paid the Palmeiras directly have no entry: we earn the commission on them. */
+export type StayInternals = Record<string, StayInternal>
+
+export const stayLineKey = (index: number) => `stay-${index}`
+
+export function stayInternal(s: StatementStay, sellPerNight: number): StayInternal | null {
+  if (s.paid_direct) return null
+  const nights = stayNights(s)
+  const billed = r2(sellPerNight * nights)
+  const margin = r2(billed - (s.cost_per_night ?? 0) * nights)
+  const marginPct = billed > 0 ? Math.round(margin / billed * 1000) / 10 : null
+  return {
+    bungalow: s.bungalow, sellPerNight, nights, billed, margin, marginPct,
+    noPrice: billed <= 0,
+    lowMargin: marginPct !== null && marginPct < PALMEIRAS_COMMISSION_PCT,
+  }
+}
+
+export interface InternalSummary {
+  billed: number
+  margin: number
+  marginPct: number | null
+  byBungalow: { bungalow: string; margin: number }[]
+}
+
+export function summarizeInternals(rows: (StayInternal | null | undefined)[]): InternalSummary {
+  const real = rows.filter((r): r is StayInternal => !!r)
+  const billed = r2(real.reduce((t, r) => t + r.billed, 0))
+  const margin = r2(real.reduce((t, r) => t + r.margin, 0))
+  const totals: Record<string, number> = {}
+  for (const r of real) totals[r.bungalow] = r2((totals[r.bungalow] ?? 0) + r.margin)
+  return {
+    billed, margin,
+    marginPct: billed > 0 ? Math.round(margin / billed * 1000) / 10 : null,
+    byBungalow: Object.entries(totals)
+      .map(([bungalow, m]) => ({ bungalow, margin: m }))
+      .sort((a, b) => a.bungalow.localeCompare(b.bungalow, 'en', { numeric: true })),
   }
 }

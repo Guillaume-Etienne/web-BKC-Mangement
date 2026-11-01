@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildExportDocument, staysOfMonth, nightsInMonth, stayFigure, exportBungalows, EXPORT_FORMATS } from './palmeirasExports'
-import type { StatementInput, StatementStay } from './palmeirasStatement'
+import { stayInternal, type StatementInput, type StatementStay } from './palmeirasStatement'
 
 const stay = (o: Partial<StatementStay>): StatementStay => ({
   booking_number: 1, guest: 'Ann Martin', provisional: false, bungalow: 'B4',
@@ -83,6 +83,37 @@ describe('palmeirasExports', () => {
       expect(html).not.toContain('Paid to')
       expect(html).not.toContain('No stay')
     }
+  })
+
+  it('internal sheet: prices and margins per stay and per bungalow, with its warning', () => {
+    const i = input([
+      stay({ booking_number: 7, check_in: '2026-10-02', check_out: '2026-10-05', cost_per_night: 50 }),
+      stay({ booking_number: 8, check_in: '2026-10-10', check_out: '2026-10-11', cost_per_night: 50 }),
+    ], ['B4'])
+    const html = buildExportDocument('internal', i, '2026-10', { ...OPTS, internals: {
+      'stay-0': stayInternal(i.stays[0], 55)!,
+      'stay-1': stayInternal(i.stays[1], 0)!,
+    } })
+    expect(html).toContain('INTERNAL – BKC ONLY')
+    expect(html).toContain('165 €')          // 3 nights × 55 €
+    expect(html).toContain('no price')       // the stay sold at 0 €
+    expect(html).toContain('B4 −35 €')       // +15 € − 50 €
+    expect(html).toContain('1 € = 72 MZN')
+  })
+
+  it('the selling price stays out of every sheet meant for the Palmeiras, internals or not', () => {
+    const i = input([stay({ cost_per_night: 50 })], ['B4'])
+    const internals = { 'stay-0': stayInternal(i.stays[0], 987)! }
+    for (const f of EXPORT_FORMATS.filter(x => !x.internal)) {
+      const html = buildExportDocument(f.id, i, '2026-10', { ...OPTS, internals })
+      expect(html).not.toContain('987')
+      expect(html).not.toContain('INTERNAL')
+    }
+    expect(buildExportDocument('internal', i, '2026-10', { ...OPTS, internals })).toContain('987')
+  })
+
+  it('internal sheet without the data says so, rather than printing zeros', () => {
+    expect(buildExportDocument('internal', input([stay({})]), '2026-10', OPTS)).toContain('No margin data')
   })
 
   it('every format renders for an empty month', () => {

@@ -6,7 +6,7 @@
 import type { ReactNode } from 'react'
 import { fmtDate } from '../../utils/dates'
 import {
-  type Statement, type StatementInput, PALMEIRAS_COMMISSION_PCT, RENT_PERIOD_DAY,
+  type Statement, type StatementInput, type StayInternals, PALMEIRAS_COMMISSION_PCT, RENT_PERIOD_DAY,
   fmtEurCents, balanceSentence,
 } from '../../utils/palmeirasStatement'
 import { usePref } from '../../pages/taxiShareUI'
@@ -20,6 +20,8 @@ interface Props {
   /** The raw statement data — the timeline draws the stays from it. */
   input: StatementInput
   eurMznRate: number | null
+  /** Admin only: price billed and margin per stay. The share page has none. */
+  stayInternals?: StayInternals
   /** Admin only: an action on each payment (delete). */
   settlementAction?: (id: string) => ReactNode
   /** Admin only: the add-payment form, shown above the payments. */
@@ -31,7 +33,7 @@ interface Props {
   defaultRentMzn?: number
 }
 
-export default function PalmeirasStatementView({ statement: st, input, eurMznRate, settlementAction, settlementControls, onAddRent, onPayRent, defaultRentMzn }: Props) {
+export default function PalmeirasStatementView({ statement: st, input, eurMznRate, stayInternals, settlementAction, settlementControls, onAddRent, onPayRent, defaultRentMzn }: Props) {
   const [view, setView] = usePref<View>('palmeiras_view', 'timeline')
   const rate = eurMznRate && eurMznRate > 0 ? eurMznRate : null
   const settled = Math.abs(st.balance) < 0.01
@@ -103,7 +105,7 @@ export default function PalmeirasStatementView({ statement: st, input, eurMznRat
         </section>
       </>) : (<>
         {settlementControls && <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">{settlementControls}</div>}
-        <PalmeirasLedger statement={st} settlementAction={settlementAction} />
+        <PalmeirasLedger statement={st} eurMznRate={rate} stayInternals={stayInternals} settlementAction={settlementAction} />
       </>)}
 
       {/* How to read it */}

@@ -6,11 +6,11 @@
 
 ## 🚨 Migrations SQL — registre
 
-⏳ **`2026-10-30e_palmeiras_rent_paid.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD à passer par gui — avant le push de préférence : sans elle, « Mark paid » échoue, le reste marche) — `palmeiras_settlements.rent_month` + RPC qui la rend. Rien n'est supprimé.
+✅ **`2026-10-30e_palmeiras_rent_paid.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD ✅ vérifiée en base le 2026-11-01 : colonne présente) — `palmeiras_settlements.rent_month` + RPC qui la rend. Rien n'est supprimé.
 
 ✅ **`2026-10-30d_palmeiras_entries_date.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD ✅ passée par gui le 2026-10-30, vérifiée en base — le formulaire Revenu/Dépense écrit la colonne `date`) — `palmeiras_entries.date` + RPC qui la rend. Rien n'est supprimé (le `REVOKE … FROM PUBLIC` re-pose le droit de 30b). Vérif : `SELECT count(*) FROM palmeiras_entries WHERE date IS NULL` → 0.
 
-⏳ **`2026-10-30c_palmeiras_statement_bungalows.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD à passer par gui — **pas bloquant pour pousser**) — `CREATE OR REPLACE palmeiras_statement()` + clé `bungalows` (noms) pour que la frise montre aussi les bungalows vides. Rien n'est supprimé (Supabase signalera le `REVOKE … FROM PUBLIC`, il re-pose le même droit qu'en 30b). Vérif : token palmeiras → `"bungalows": [...]`.
+✅ **`2026-10-30c_palmeiras_statement_bungalows.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD ✅ vérifiée en base le 2026-11-01 : la RPC rend `bungalows`) — `CREATE OR REPLACE palmeiras_statement()` + clé `bungalows` (noms) pour que la frise montre aussi les bungalows vides. Rien n'est supprimé (Supabase signalera le `REVOKE … FROM PUBLIC`, il re-pose le même droit qu'en 30b). Vérif : token palmeiras → `"bungalows": [...]`.
 
 ✅ **`2026-10-30_palmeiras_link_type.sql` (SEULE) PUIS `2026-10-30b_palmeiras_statement.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD ✅ passée par gui le 2026-10-30, curl anon vérifié : sans token → null, table → 42501 ; empreinte TEST = PROD — code `4c46a71` à pousser) — type de lien `palmeiras`, `palmeiras_rents.amount_mzn`, table `palmeiras_settlements` (admin only), RPC `palmeiras_statement()` (token `palmeiras` seul). Vérif curl (pied du fichier) : sans token → `null` ; token client → `null` ; token palmeiras → l'objet ; `palmeiras_settlements?select=*` → 42501. Résultats TEST : identiques.
 
@@ -298,13 +298,14 @@ Règles données par gui : commission **15 %** du prix payé chez eux (petits é
 ✅ Vues codées le 2026-10-30 (relevé dans l'onglet + page partagée `palmeiras`, détail `PALMEIRAS_ACCOUNT.md`) — migrations PROD à passer, puis vérif écran par gui.
 Ensuite, à saisir par gui : loyers sept. + oct. (10 000 MZN), et les éventuels paiements CB sur leur terminal.
 **Reprise (2026-10-30, tout livré et en ligne)** : 1) gui saisit les loyers 15/09 et 15/10 (« + 10,000 MZN ») et marque payés ceux réglés (« Mark paid ») ; 2) revue des données ci-dessous ; 3) gui envoie le lien. Proposé, pas fait : alerte « loyer non saisi » aussi dans la vue Table.
-**Table + export : prix facturé, marge, MZN (conçu avec gui le 2026-11-01, rien de codé, feu vert à redemander)** :
+**Table + export : prix facturé, marge, MZN : ✅ CODÉ le 2026-11-01 (aucune migration ; à pousser par gui, puis vérif écran). Constaté en PROD le 2026-11-01 : sur 6 séjours bungalow, 5 sont payés en direct (#39 #43 #63 #64 #59 : commission, pas de marge) ; le seul encaissé par BKC est #52 à 0 €, donc Billed/Margin n'affichent aujourd'hui que « No price / −50 € » : **à trancher avec gui : commission dans la colonne Margin ?** #58 (arrivée 03/11, confirmée) n'a plus aucune chambre. 2 loyers saisis, 0 règlement. Conception d'origine :**
 - **Admin seul** (onglet Palmeiras) : séjour encaissé par BKC → prix facturé, marge en € et en %. Total du mois → total facturé, marge totale. Lignes à anomalie (#52, #58, marges faibles) mises en évidence, pas masquées.
 - **Visible aussi du Palmeiras** : équivalent MZN des montants de la Table, à côté des €. Séjour encaissé par BKC → nuits, coût/nuit, total dû ; séjour payé chez eux → prix payé, commission 15 % ; loyer → MZN + € ; totaux du mois.
 - **Export** : nouveau format dans `EXPORT_FORMATS`, marqué « Internal – BKC only », pour gui seul.
 - ⚠️ **Sécurité** : prix de vente et marge restent hors de `StatementInput` et de la RPC `palmeiras_statement()` (ce qui protège la page partagée et les exports actuels) ; les passer à part, côté admin.
 - **Taux** : le global `taxi_pricing_defaults.eur_mzn_rate` (70 au 2026-11-01), sans nouveau réglage ni migration ; déjà dans `StatementInput.eur_mzn_rate`. Afficher « 1 € = X MZN » ; taux absent → masquer le MZN, ne pas retomber sur 65. Le loyer garde son vrai `amount_mzn`. Taux figé par séjour écarté. Petite fonction commune de formatage € + MZN à créer.
-- **À demander à gui** : prix par nuit en plus du total ? marge par bungalow en fin de mois ?
+- **Tranché gui 2026-11-01** : prix par nuit ET marge par bungalow en fin de mois : oui (admin seul). Vider le champ du taux ne repasse plus à 65 (Save bloqué tant que le taux est vide).
+- 💭 **Historique du taux EUR/MZN (idée gui 2026-11-01, NE PAS CODER, réflexion en cours)** : un taux par date d'effet, modifiable. Aujourd'hui un seul taux courant, appliqué à tout le passé. Ouvert : voir l'échange du 2026-11-01 (date de référence de chaque conversion, séjour à cheval, page partagée).
 🔔 **Rappeler à gui** : dans le tableau chronologique, un séjour est daté à l'**arrivée** (essai, gui 2026-10-30) — on peut le passer à la date de **départ** (séjour fini = payé) s'il préfère.
 **Données à revoir avec gui APRÈS les vues :**
 - #52 (B4, 1 nuit) vendue 0 € et #58 (B4, 7 nuits, nov.) sans prix figé : oubli de prix ou bungalow offert (dont on doit quand même le coût) ?
