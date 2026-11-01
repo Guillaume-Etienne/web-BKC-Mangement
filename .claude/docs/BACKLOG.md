@@ -298,6 +298,13 @@ Règles données par gui : commission **15 %** du prix payé chez eux (petits é
 ✅ Vues codées le 2026-10-30 (relevé dans l'onglet + page partagée `palmeiras`, détail `PALMEIRAS_ACCOUNT.md`) — migrations PROD à passer, puis vérif écran par gui.
 Ensuite, à saisir par gui : loyers sept. + oct. (10 000 MZN), et les éventuels paiements CB sur leur terminal.
 **Reprise (2026-10-30, tout livré et en ligne)** : 1) gui saisit les loyers 15/09 et 15/10 (« + 10,000 MZN ») et marque payés ceux réglés (« Mark paid ») ; 2) revue des données ci-dessous ; 3) gui envoie le lien. Proposé, pas fait : alerte « loyer non saisi » aussi dans la vue Table.
+**Table + export : prix facturé, marge, MZN (conçu avec gui le 2026-11-01, rien de codé, feu vert à redemander)** :
+- **Admin seul** (onglet Palmeiras) : séjour encaissé par BKC → prix facturé, marge en € et en %. Total du mois → total facturé, marge totale. Lignes à anomalie (#52, #58, marges faibles) mises en évidence, pas masquées.
+- **Visible aussi du Palmeiras** : équivalent MZN des montants de la Table, à côté des €. Séjour encaissé par BKC → nuits, coût/nuit, total dû ; séjour payé chez eux → prix payé, commission 15 % ; loyer → MZN + € ; totaux du mois.
+- **Export** : nouveau format dans `EXPORT_FORMATS`, marqué « Internal – BKC only », pour gui seul.
+- ⚠️ **Sécurité** : prix de vente et marge restent hors de `StatementInput` et de la RPC `palmeiras_statement()` (ce qui protège la page partagée et les exports actuels) ; les passer à part, côté admin.
+- **Taux** : le global `taxi_pricing_defaults.eur_mzn_rate` (70 au 2026-11-01), sans nouveau réglage ni migration ; déjà dans `StatementInput.eur_mzn_rate`. Afficher « 1 € = X MZN » ; taux absent → masquer le MZN, ne pas retomber sur 65. Le loyer garde son vrai `amount_mzn`. Taux figé par séjour écarté. Petite fonction commune de formatage € + MZN à créer.
+- **À demander à gui** : prix par nuit en plus du total ? marge par bungalow en fin de mois ?
 🔔 **Rappeler à gui** : dans le tableau chronologique, un séjour est daté à l'**arrivée** (essai, gui 2026-10-30) — on peut le passer à la date de **départ** (séjour fini = payé) s'il préfère.
 **Données à revoir avec gui APRÈS les vues :**
 - #52 (B4, 1 nuit) vendue 0 € et #58 (B4, 7 nuits, nov.) sans prix figé : oubli de prix ou bungalow offert (dont on doit quand même le coût) ?
