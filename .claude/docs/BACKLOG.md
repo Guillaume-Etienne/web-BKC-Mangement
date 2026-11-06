@@ -6,7 +6,7 @@
 
 ## 🚨 Migrations SQL — registre
 
-⏳ **`2026-11-01b_eur_mzn_rates.sql`** (**à passer par gui, TEST puis PROD, AVANT de pousser le code** ; puis relancer le MCP) — table `eur_mzn_rates` (admin seul), trigger qui recopie le dernier taux dans `taxi_pricing_defaults.eur_mzn_rate`, `accommodations.cost_per_night_mzn`, RPC `palmeiras_statement()` qui rend les taux et le tarif MZN. Aucun chiffre ne bouge au passage (une ligne au taux actuel depuis 2000-01-01). Rien n'est supprimé. Vérif : pied du fichier (`eur_mzn_rates` anon → 401/42501 ; RPC sans token → null).
+✅ **`2026-11-01b_eur_mzn_rates.sql`** (TEST + PROD ✅ 2026-11-06 par Claude, avec accord de gui — le code `491ee4d` était parti en prod le 06/11 à 15 h 06 sans elle ; base + curl anon vérifiés : 1 taux 70 depuis 2000-01-01, anon → 401/42501, RPC sans token → null ; **gui doit relancer le MCP**) — table `eur_mzn_rates` (admin seul), trigger qui recopie le dernier taux dans `taxi_pricing_defaults.eur_mzn_rate`, `accommodations.cost_per_night_mzn`, RPC `palmeiras_statement()` qui rend les taux et le tarif MZN. Aucun chiffre ne bouge au passage (une ligne au taux actuel depuis 2000-01-01). Rien n'est supprimé. Vérif : pied du fichier (`eur_mzn_rates` anon → 401/42501 ; RPC sans token → null).
 
 ✅ **`2026-11-01_center_access_rate_7.sql`** (TEST + PROD ✅ 2026-11-01 par Claude, vérifié en base) — DEFAULT 7 + séjours en cours/à venir de 5 à 7 € (14 résas PROD) ; terminés, annulés et tarifs à 0 inchangés.
 ✅ **`2026-10-30e_palmeiras_rent_paid.sql`** (TEST ✅ 2026-10-30 par Claude ; PROD ✅ vérifiée en base le 2026-11-01 : colonne présente) — `palmeiras_settlements.rent_month` + RPC qui la rend. Rien n'est supprimé.
