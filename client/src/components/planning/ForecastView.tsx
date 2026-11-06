@@ -638,6 +638,15 @@ function ForecastDay({
   const dragStartDur  = useRef(0)
   const justDragged   = useRef(false)
   const gridRef       = useRef<HTMLDivElement>(null)
+  // Touch: a card is only picked up after a long press (see startDrag), so a
+  // swipe that happens to start on a card scrolls instead of rewriting a lesson.
+  const pressTimer    = useRef<number | null>(null)
+  const pressArmed    = useRef(false)
+  const pressStart    = useRef({ x: 0, y: 0 })
+  const pressLast     = useRef({ x: 0, y: 0 })
+  const blockScroll   = useRef((ev: TouchEvent) => {
+    if (pressArmed.current && ev.cancelable) ev.preventDefault()
+  })
 
   // The plan. Two reads, refreshed after every write.
   const { data: planLessons, refresh: refreshPlanLessons } = useTable<PlannedLesson>('planned_lessons', { order: 'date' })
@@ -931,12 +940,15 @@ function ForecastDay({
 
   // ── Drag (plan cards) ─────────────────────────────────────────────────────
 
-  function startDrag(e: React.PointerEvent, lesson: PlannedLesson, mode: 'move' | 'resize') {
-    if (lesson.exported_at) return
-    e.preventDefault()
-    e.stopPropagation()
-    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-    dragStartY.current    = e.clientY
+  function cancelPress() {
+    if (pressTimer.current !== null) window.clearTimeout(pressTimer.current)
+    pressTimer.current = null
+    pressArmed.current = false
+    window.removeEventListener('touchmove', blockScroll.current)
+  }
+
+  function beginDrag(lesson: PlannedLesson, mode: 'move' | 'resize', startY: number) {
+    dragStartY.current    = startY
     dragStartSlot.current = Math.max(0, timeToSlot(lesson.start_time, startHour))
     dragStartDur.current  = lesson.duration_hours * 2
     setDragLesson(lesson)
@@ -944,7 +956,40 @@ function ForecastDay({
     setDragPreview({ instructorId: lesson.instructor_id, startSlot: dragStartSlot.current, durationSlots: dragStartDur.current })
   }
 
+  function startDrag(e: React.PointerEvent, lesson: PlannedLesson, mode: 'move' | 'resize') {
+    if (lesson.exported_at) return
+    e.stopPropagation()
+    if (e.pointerType === 'touch') {
+      // No preventDefault / capture yet: until the long press fires, the browser
+      // stays free to scroll. A tap still reaches onClick and opens the lesson.
+      cancelPress()
+      const target = e.target as HTMLElement
+      const pointerId = e.pointerId
+      pressStart.current = { x: e.clientX, y: e.clientY }
+      pressLast.current  = { x: e.clientX, y: e.clientY }
+      pressTimer.current = window.setTimeout(() => {
+        pressTimer.current = null
+        pressArmed.current = true
+        try { target.setPointerCapture(pointerId) } catch { /* pointer already gone */ }
+        navigator.vibrate?.(15)
+        beginDrag(lesson, mode, pressLast.current.y)
+      }, 350)
+      // Registered at touch start so it can veto the scroll once armed.
+      window.addEventListener('touchmove', blockScroll.current, { passive: false })
+      return
+    }
+    e.preventDefault()
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    beginDrag(lesson, mode, e.clientY)
+  }
+
   function onPointerMove(e: React.PointerEvent) {
+    // Waiting for the long press: too much travel means the user is scrolling.
+    if (pressTimer.current !== null) {
+      pressLast.current = { x: e.clientX, y: e.clientY }
+      if (Math.abs(e.clientX - pressStart.current.x) > 10 || Math.abs(e.clientY - pressStart.current.y) > 10) cancelPress()
+      return
+    }
     if (!dragLesson || !dragPreview) return
     const dSlots = Math.round((e.clientY - dragStartY.current) / SLOT_H)
     if (dragMode === 'resize') {
@@ -964,7 +1009,19 @@ function ForecastDay({
       setDragPreview(p => p && { ...p, startSlot: newStart, instructorId: newInstr })
   }
 
+  // The browser took the gesture over (scroll, system gesture): drop everything,
+  // never write a half-finished drag.
+  function onPointerCancel() {
+    cancelPress()
+    setDragLesson(null)
+    setDragPreview(null)
+  }
+
   async function onPointerUp() {
+    // Lifted before the long press fired: a tap or a scroll, not a drag.
+    if (pressTimer.current !== null) { cancelPress(); return }
+    const wasLongPress = pressArmed.current
+    cancelPress()
     if (!dragLesson || !dragPreview) { setDragLesson(null); return }
     const moved = dragLesson
     const pv = dragPreview
@@ -972,7 +1029,14 @@ function ForecastDay({
     setDragPreview(null)
     const same = pv.startSlot === Math.max(0, timeToSlot(moved.start_time, startHour))
       && pv.durationSlots === moved.duration_hours * 2 && pv.instructorId === moved.instructor_id
-    if (same) return
+    if (same) {
+      // A long press released in place is a pick-up, not a tap: swallow the click.
+      if (wasLongPress) {
+        justDragged.current = true
+        setTimeout(() => { justDragged.current = false }, 300)
+      }
+      return
+    }
     // The browser still fires a click on the card after the drag; it would open the
     // modal on the pre-move lesson (old time, old instructor). Swallow that one click.
     justDragged.current = true
@@ -999,7 +1063,7 @@ function ForecastDay({
     : (showActual ? 'min-w-[190px]' : 'min-w-[130px]')
 
   return (
-    <div className="flex flex-col gap-4 select-none" onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
+    <div className="flex flex-col gap-4 select-none" onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}>
       {/* Plan banner: this is not the accounting view (the 3-day header shows it once) */}
       {!compact && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-xs text-blue-800 dark:text-blue-300">
@@ -1293,6 +1357,7 @@ function ForecastDay({
                               ${isDragging ? 'opacity-70 shadow-lg ring-2 ring-blue-400' : 'shadow-sm hover:shadow-md'}`}
                             style={{ top: slot * SLOT_H + 1, height: height - 2, left: `calc(${lane * 100 / lanes}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}
                             onClick={e => { e.stopPropagation(); if (justDragged.current) return; setModal({ lesson, instructorId: lesson.instructor_id, slot: rawSlot }) }}
+                            onContextMenu={e => e.preventDefault()}
                             onPointerDown={e => startDrag(e, lesson, 'move')}>
                             <div className="flex items-center gap-1 mb-0.5">
                               <span className="text-[10px] font-bold">{lesson.start_time.slice(0, 5)}</span>
