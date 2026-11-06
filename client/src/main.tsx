@@ -18,11 +18,21 @@ window.addEventListener('vite:preloadError', e => {
 // Number fields: select the whole value when focused, so typing replaces it
 // instead of editing digit by digit ("12" → "5" without keeping the "1").
 // The timeout lets the click's own selection settle before we select.
+// The mouse-up that ends the click moves the caret to the click point and drops
+// the selection, so the first mouse-up after focusing a number field is cancelled.
+let numberFocusPending: HTMLInputElement | null = null
 document.addEventListener('focusin', e => {
   const t = e.target
   if (t instanceof HTMLInputElement && t.type === 'number') {
+    numberFocusPending = t
     setTimeout(() => t.select(), 0)
   }
+})
+document.addEventListener('mouseup', e => {
+  if (numberFocusPending && e.target === numberFocusPending) {
+    e.preventDefault()
+  }
+  numberFocusPending = null
 })
 
 createRoot(document.getElementById('root')!).render(
