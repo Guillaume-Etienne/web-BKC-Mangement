@@ -610,6 +610,12 @@ export default function ManagementPage() {
                       + Add
                     </button>
                   </div>
+                  {/* Decision gui 2026-11-06: the rule lives in deriveActivityCounts (own gear → center access), shown here so it isn't buried in code */}
+                  {category === 'center_access' && (
+                    <p className="-mt-2 mb-4 text-xs text-gray-500 dark:text-gray-400">
+                      Billed only to guests who bring their own gear (🏖️ Own gear on the booking). Lessons-only or rental-only guests use our gear and don't pay it.
+                    </p>
+                  )}
                   {categoryPrices.length === 0 && missingRates(category).length === 0 ? (
                     <p className="text-gray-600 dark:text-gray-400 text-sm">No price entries</p>
                   ) : (
