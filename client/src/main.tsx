@@ -20,10 +20,16 @@ window.addEventListener('vite:preloadError', e => {
 // The timeout lets the click's own selection settle before we select.
 // The mouse-up that ends the click moves the caret to the click point and drops
 // the selection, so the first mouse-up after focusing a number field is cancelled.
+// Only a focus caused by a mouse press arms this: a Tab focus must not cancel
+// the next real click inside the field.
+let mousePressOnNumber = false
 let numberFocusPending: HTMLInputElement | null = null
+document.addEventListener('mousedown', e => {
+  mousePressOnNumber = e.target instanceof HTMLInputElement && e.target.type === 'number'
+})
 document.addEventListener('focusin', e => {
   const t = e.target
-  if (t instanceof HTMLInputElement && t.type === 'number') {
+  if (mousePressOnNumber && t instanceof HTMLInputElement && t.type === 'number') {
     numberFocusPending = t
     setTimeout(() => t.select(), 0)
   }
@@ -33,6 +39,7 @@ document.addEventListener('mouseup', e => {
     e.preventDefault()
   }
   numberFocusPending = null
+  mousePressOnNumber = false
 })
 
 createRoot(document.getElementById('root')!).render(
