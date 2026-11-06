@@ -606,7 +606,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
             )
           })}
         </select>
-        <div className="hidden md:flex flex-wrap gap-1 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-1 mb-4">
+        <div className="hidden md:flex sticky top-16 z-40 flex-wrap gap-1 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-1 mb-4">
           {TABS.map(t => {
             const unverifiedCount = t.id === 'unverified' ? payments.filter(p => !p.is_verified).length : 0
             return (

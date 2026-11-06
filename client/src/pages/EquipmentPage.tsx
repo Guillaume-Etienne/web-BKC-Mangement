@@ -582,7 +582,7 @@ export default function EquipmentPage() {
   return (
     <div className="p-4 max-w-7xl mx-auto">
       {/* Tabs */}
-      <div className="flex gap-2 mb-4 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
+      <div className="sticky top-16 z-40 bg-gray-50 dark:bg-gray-950 flex gap-2 mb-4 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
         <button
           onClick={() => setActiveTab('inventory')}
           className={`shrink-0 whitespace-nowrap px-4 py-3 font-medium border-b-2 transition-colors ${

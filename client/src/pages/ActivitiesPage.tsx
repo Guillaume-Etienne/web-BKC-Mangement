@@ -103,7 +103,7 @@ function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
         </div>
         <div className="col-span-2">
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{i18n.common.label_notes[lang]}</label>
-          <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
+          <textarea rows={4} value={notes} onChange={e => setNotes(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
       </div>
@@ -271,7 +271,7 @@ function BookingForm({ initial, providers, bookingRefs, allParticipants, onSave,
         </div>
         <div className="col-span-2">
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
-          <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
+          <textarea rows={4} value={notes} onChange={e => setNotes(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
       </div>
@@ -777,7 +777,7 @@ export default function ActivitiesPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-full mx-auto px-4 py-4">
         {/* Tabs */}
-        <div className="flex gap-4 mb-4 overflow-x-auto border-b">
+        <div className="sticky top-16 z-40 bg-gray-50 dark:bg-gray-950 flex gap-4 mb-4 overflow-x-auto border-b">
           {(['providers', 'bookings'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`shrink-0 whitespace-nowrap px-4 py-2 font-medium transition-colors ${tab === t ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>

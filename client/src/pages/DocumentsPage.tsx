@@ -935,7 +935,7 @@ export default function DocumentsPage() {
   return (
     <div className="max-w-[1700px] mx-auto px-4 py-4 space-y-4">
       {/* Tab bar */}
-      <div className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
+      <div className="sticky top-16 z-40 bg-gray-50 dark:bg-gray-950 flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${
