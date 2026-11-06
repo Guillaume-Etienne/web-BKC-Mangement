@@ -160,6 +160,9 @@ export default function PlanningRow({ roomId, label, totalDays, seasonStart, boo
               }`}
               style={{ left: `${leftPx}px`, width: `${widthPx}px`, cursor: isDragging ? 'grabbing' : 'grab' }}
               title={seg.marker ? `${seg.marker} ${seg.label}` : seg.label}
+              // The long press that picks a bar up on a phone must not open the
+              // Android/iOS context menu or start a text selection.
+              onContextMenu={e => e.preventDefault()}
             >
               <div
                 className="absolute left-0 top-0 w-2 h-full cursor-col-resize"

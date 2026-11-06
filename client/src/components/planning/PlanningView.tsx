@@ -884,7 +884,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     setQuickViewBookingId(bookingId)
   }, [])
 
-  const { dragState, onPointerDown, onPointerMove, onPointerUp } = useBookingDrag({
+  const { dragState, onPointerDown, onPointerMove, onPointerUp, onPointerCancel } = useBookingDrag({
     onBookingUpdate, onBookingMove, onBookingTap, gridRef,
   })
   // Looked up once per render for the drop-preview bar every row can paint
@@ -997,6 +997,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
               className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-x-auto md:overflow-auto md:max-h-[calc(100vh-14rem)] select-none bg-white dark:bg-gray-900"
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
+              onPointerCancel={onPointerCancel}
             >
               {/* Both header rows stay pinned while the grid scrolls vertically (desktop) */}
               <div className="sticky top-0 z-30 min-w-max">
