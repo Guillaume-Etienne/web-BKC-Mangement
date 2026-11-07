@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { sortKitesBySize } from '../../utils/kiteSort'
 import type { Lesson, DayActivity, DaySlot, LessonType, LessonDiscipline, Booking, BookingParticipant, EquipmentRental, RentalSlot, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine, DiningEvent, DiningEventCost, Lang } from '../../types/database'
 import { useTable } from '../../hooks/useSupabase'
 import { eventDailyContribution } from '../../utils/diningEventCosts'
@@ -240,7 +241,7 @@ export default function LessonWeekView({
       return { sails: wing, boards: wing }
     }
     return {
-      sails: active.filter(e => e.category === 'kite'),
+      sails: sortKitesBySize(active.filter(e => e.category === 'kite')),
       boards: active.filter(e => e.category === 'board' || e.category === 'surfboard' || e.category === 'foilboard'),
     }
   }
@@ -963,7 +964,7 @@ export default function LessonWeekView({
                                   className="w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1"
                                 >
                                   <option value="">🪂 Kite — not specified</option>
-                                  {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
+                                  {sortKitesBySize(equipment.filter(e => e.category === 'kite' && e.is_active)).map(e => (
                                     <option key={e.id} value={e.id}>🪂 {e.name}</option>
                                   ))}
                                 </select>
@@ -1512,7 +1513,7 @@ export default function LessonWeekView({
                 <select value={editRentalKiteId ?? ''} onChange={e => setEditRentalKiteId(e.target.value || null)}
                   className="w-full text-sm border rounded px-2 py-1.5">
                   <option value="">🪂 Kite — not specified</option>
-                  {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => (
+                  {sortKitesBySize(equipment.filter(e => e.category === 'kite' && e.is_active)).map(e => (
                     <option key={e.id} value={e.id}>🪂 {e.name}</option>
                   ))}
                 </select>

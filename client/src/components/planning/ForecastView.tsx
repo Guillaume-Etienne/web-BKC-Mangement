@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { sortKitesBySize } from '../../utils/kiteSort'
 import type {
   Lesson, LessonType, EquipmentRental, RentalSlot, Instructor, Equipment, Booking, BookingParticipant, Client,
   Agency, AgencyBillingLine, PriceItem, PriceTier, PlannedLesson, PlannedRental, RentalType, Lang,
@@ -438,7 +439,8 @@ function RentalsPanel({ date, plan, actual, showActual, equipment, bookings, boo
       .sort((a, b) => (a.booking?.booking_number ?? 0) - (b.booking?.booking_number ?? 0))
   }, [guests, bookings])
 
-  const gearOptions = equipment.filter(e => e.is_active && (type === 'full' ? e.category === 'kite' : e.category === type))
+  const gearFiltered = equipment.filter(e => e.is_active && (type === 'full' ? e.category === 'kite' : e.category === type))
+  const gearOptions = type === 'full' || type === 'kite' ? sortKitesBySize(gearFiltered) : gearFiltered
   const slots: { key: RentalSlot; label: string }[] = [
     { key: 'morning',   label: i18n.planning.slot_morning[lang] },
     { key: 'afternoon', label: i18n.planning.slot_afternoon[lang] },

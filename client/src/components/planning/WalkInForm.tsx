@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { sortKitesBySize } from '../../utils/kiteSort'
 import type { Booking, BookingParticipant, Client, Equipment, Instructor, Lesson, LessonType, PaymentMethod, PriceItem, PriceTier, RentalSlot } from '../../types/database'
 import { rentalBillable } from '../../types/database'
 import { currentInstructorRate, resolveLessonRate } from '../accounting/utils'
@@ -264,7 +265,7 @@ export default function WalkInForm(props: WalkInFormProps) {
                 <div className="grid grid-cols-2 gap-2">
                   <select className={inputCls} value={kiteId ?? ''} onChange={e => setKiteId(e.target.value || null)}>
                     <option value="">No kite</option>
-                    {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => <option key={e.id} value={e.id}>🪂 {e.name}</option>)}
+                    {sortKitesBySize(equipment.filter(e => e.category === 'kite' && e.is_active)).map(e => <option key={e.id} value={e.id}>🪂 {e.name}</option>)}
                   </select>
                   <select className={inputCls} value={boardId ?? ''} onChange={e => setBoardId(e.target.value || null)}>
                     <option value="">No board</option>
@@ -302,7 +303,7 @@ export default function WalkInForm(props: WalkInFormProps) {
                 {showsKitePicker(rentalType) && (
                   <select className={inputCls} value={rentalKiteId ?? ''} onChange={e => setRentalKiteId(e.target.value || null)}>
                     <option value="">🪂 Kite — not specified</option>
-                    {equipment.filter(e => e.category === 'kite' && e.is_active).map(e => <option key={e.id} value={e.id}>🪂 {e.name}</option>)}
+                    {sortKitesBySize(equipment.filter(e => e.category === 'kite' && e.is_active)).map(e => <option key={e.id} value={e.id}>🪂 {e.name}</option>)}
                   </select>
                 )}
                 {boardPickerCategory(rentalType) && (
