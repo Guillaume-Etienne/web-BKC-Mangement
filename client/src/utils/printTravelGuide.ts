@@ -1,5 +1,6 @@
 import type { Booking } from '../types/database'
-import type { TravelGuideSection } from '../data/travelGuide'
+import { guideTextHtml, type TravelGuideSection } from '../data/travelGuide'
+import { WELCOME_ACCOUNT_BOX } from '../data/welcomeGuide'
 import type { Lang } from './printBookingSummary'
 
 const LOGO_URL = `${window.location.origin}/docs/LOGO-bkc.png`
@@ -42,19 +43,24 @@ export function printTravelGuide(
   printGuideDoc('travel', booking, lang, sections)
 }
 
+/** `accountUrl`: the client's personal account link, printed in a box under
+ *  the intro (button for the PDF on screen, full address for paper) — null
+ *  when there is no live link, and the box is left out. */
 export function printWelcomeGuide(
   booking: Booking | null,
   lang: Lang,
-  sections: TravelGuideSection[]
+  sections: TravelGuideSection[],
+  accountUrl: string | null = null
 ): void {
-  printGuideDoc('welcome', booking, lang, sections)
+  printGuideDoc('welcome', booking, lang, sections, accountUrl)
 }
 
 function printGuideDoc(
   kind: GuideKind,
   booking: Booking | null,
   lang: Lang,
-  sections: TravelGuideSection[]
+  sections: TravelGuideSection[],
+  accountUrl: string | null = null
 ): void {
   const title    = TITLES[kind][lang]
   const intro    = INTROS[kind][lang]
@@ -69,9 +75,18 @@ function printGuideDoc(
         ${sec.title[lang]}
       </div>
       <div style="font-size:10.5pt;color:#374151;line-height:1.75;">
-        ${sec.content[lang]}
+        ${guideTextHtml(sec.content[lang])}
       </div>
     </div>`).join('')
+
+  const ab = WELCOME_ACCOUNT_BOX[lang]
+  const accountHtml = accountUrl ? `
+  <div style="margin:0 0 22px;padding:12px 16px;background:#eff6ff;border:1pt solid #bfdbfe;border-radius:8px;page-break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+    <div style="font-weight:bold;color:${BLUE};font-size:12pt;margin-bottom:4px;">${ab.title}</div>
+    <div style="font-size:10.5pt;color:#374151;line-height:1.6;margin-bottom:10px;">${ab.text}</div>
+    <a href="${accountUrl}" style="display:inline-block;background:${BLUE};color:#fff;text-decoration:none;font-size:10.5pt;font-weight:bold;padding:7px 18px;border-radius:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${ab.button}</a>
+    <div style="font-size:8.5pt;color:#6b7280;margin-top:8px;word-break:break-all;">${accountUrl}</div>
+  </div>` : ''
 
   const html = `<!DOCTYPE html>
 <html lang="${lang}">
@@ -108,6 +123,8 @@ function printGuideDoc(
 
   <!-- Intro -->
   <p style="font-size:10.5pt;color:#6b7280;margin:0 0 22px;font-style:italic;">${intro}</p>
+
+  ${accountHtml}
 
   <!-- Sections -->
   ${sectionsHtml}

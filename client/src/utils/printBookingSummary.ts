@@ -1,5 +1,5 @@
 import type { Booking, BookingParticipant } from '../types/database'
-import type { TravelGuideSection } from '../data/travelGuide'
+import { guideTextHtml, type TravelGuideSection } from '../data/travelGuide'
 
 const LOGO_URL = `${window.location.origin}/docs/LOGO-bkc.png`
 const BLUE = '#4472C4'
@@ -164,7 +164,7 @@ export function printBookingSummary(
     section('🌍', t.travelGuide, activeSections.map(sec => `
       <div style="margin:0 10px 14px;">
         <div style="font-weight:bold;color:${TEAL};font-size:10pt;margin-bottom:4px;">${sec.title[lang]}</div>
-        <div style="font-size:9.5pt;color:#374151;line-height:1.7;">${sec.content[lang]}</div>
+        <div style="font-size:9.5pt;color:#374151;line-height:1.7;">${guideTextHtml(sec.content[lang])}</div>
       </div>`).join(''))
 
   const html = `<!DOCTYPE html>

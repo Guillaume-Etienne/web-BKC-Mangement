@@ -6,6 +6,13 @@ export interface TravelGuideSection {
   order: number
 }
 
+/** Section text is typed as plain text in the editor: its line breaks must
+ *  survive in the HTML of the PDF and the email, where a bare "\n" collapses
+ *  into a space and two paragraphs read as one. */
+export function guideTextHtml(text: string): string {
+  return text.replace(/\r?\n/g, '<br>')
+}
+
 export const defaultTravelGuideSections: TravelGuideSection[] = [
   {
     id: 'tg1',

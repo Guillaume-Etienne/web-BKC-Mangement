@@ -5,7 +5,8 @@
  */
 
 import type { Booking, BookingParticipant } from '../types/database'
-import type { TravelGuideSection } from '../data/travelGuide'
+import { guideTextHtml, type TravelGuideSection } from '../data/travelGuide'
+import { WELCOME_ACCOUNT_BOX } from '../data/welcomeGuide'
 import type { Lang } from './printBookingSummary'
 
 const LOGO_URL = `${window.location.origin}/docs/LOGO-bkc.png`
@@ -280,7 +281,7 @@ export function emailBookingConfirmation(
     sectionBlock('🌍', t.travelGuide, activeSections.map(sec => `
       <div style="margin:0 10px 14px;">
         <div style="font-weight:bold;color:${TEAL};font-size:12px;margin-bottom:4px;">${sec.title[lang]}</div>
-        <div style="font-size:12px;color:#374151;line-height:1.7;">${sec.content[lang]}</div>
+        <div style="font-size:12px;color:#374151;line-height:1.7;">${guideTextHtml(sec.content[lang])}</div>
       </div>`).join(''))
 
   const body = `
@@ -339,28 +340,40 @@ export function emailTravelGuide(
   return emailGuideDoc('travel', booking, lang, activeSections)
 }
 
+/** `accountUrl`: the client's personal account link, shown in a box under the
+ *  intro — null when the booking has no live link (the box is then left out). */
 export function emailWelcomeGuide(
   booking: Booking,
   lang: Lang,
-  activeSections: TravelGuideSection[]
+  activeSections: TravelGuideSection[],
+  accountUrl: string | null = null
 ): string {
-  return emailGuideDoc('welcome', booking, lang, activeSections)
+  return emailGuideDoc('welcome', booking, lang, activeSections, accountUrl)
 }
 
 function emailGuideDoc(
   kind: 'travel' | 'welcome',
   booking: Booking,
   lang: Lang,
-  activeSections: TravelGuideSection[]
+  activeSections: TravelGuideSection[],
+  accountUrl: string | null = null
 ): string {
   const gt = GUIDE_T[kind][lang]
   const client = booking.client
   const clientName = client ? `${client.first_name} ${client.last_name}` : '—'
 
+  const ab = WELCOME_ACCOUNT_BOX[lang]
+  const accountHtml = accountUrl ? `
+    <div style="margin:0 0 24px;padding:14px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;">
+      <div style="font-weight:bold;color:${BLUE};font-size:14px;margin-bottom:4px;">${ab.title}</div>
+      <div style="font-size:13px;color:#374151;line-height:1.6;margin-bottom:12px;">${ab.text}</div>
+      <a href="${accountUrl}" style="display:inline-block;background:${BLUE};color:#fff;text-decoration:none;font-size:13px;font-weight:bold;padding:10px 22px;border-radius:6px;">${ab.button}</a>
+    </div>` : ''
+
   const sectionsHtml = activeSections.map(sec => `
     <div style="margin-bottom:20px;">
       <div style="font-weight:bold;color:${TEAL};font-size:14px;margin-bottom:6px;border-bottom:1px solid #d1fae5;padding-bottom:4px;">${sec.title[lang]}</div>
-      <div style="font-size:13px;color:#374151;line-height:1.7;">${sec.content[lang]}</div>
+      <div style="font-size:13px;color:#374151;line-height:1.7;">${guideTextHtml(sec.content[lang])}</div>
     </div>`).join('')
 
   const body = `
@@ -382,6 +395,7 @@ function emailGuideDoc(
     <!-- Content -->
     <div style="padding:24px 28px;">
       <p style="font-size:13px;color:#6b7280;margin:0 0 24px;">${gt.intro}</p>
+      ${accountHtml}
       ${sectionsHtml}
     </div>`
 

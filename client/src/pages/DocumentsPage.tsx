@@ -630,10 +630,13 @@ export default function DocumentsPage() {
     if (id && !updateFormLinkByBookingId.has(id)) updateFormLinkByBookingId.set(id, link)
   }
 
-  async function createClientLink(booking: Booking) {
+  /** Inserts the booking's client-account link; returns its token, or null
+   *  after saying why it failed. */
+  async function insertClientLink(booking: Booking): Promise<string | null> {
     const clientName = booking.client ? `${booking.client.first_name} ${booking.client.last_name}` : `#${booking.booking_number}`
+    const token = generateClientToken()
     const { error } = await supabase.from('shared_links').insert([{
-      token: generateClientToken(),
+      token,
       type: 'client' as const,
       label: `Client Account – ${clientName}`,
       params: { booking_number: String(booking.booking_number) },
@@ -641,8 +644,28 @@ export default function DocumentsPage() {
       expires_at: addDaysISO(todayISO(), 365),
       is_active: true,
     }])
-    if (error) { alert(`Failed to create link: ${error.message}`); return }
+    if (error) { alert(`Failed to create link: ${error.message}`); return null }
     refreshSharedLinks()
+    return token
+  }
+
+  async function createClientLink(booking: Booking) {
+    await insertClientLink(booking)
+  }
+
+  /** The account link the Welcome Guide carries. A live link is reused; a
+   *  booking that never had one gets it created here, so nobody has to think
+   *  of the Client Account column first. A deactivated or expired link stays
+   *  off — it was switched off on purpose, or a guest would land on a dead
+   *  page — and the guide goes out without the box. */
+  async function welcomeAccountUrl(booking: Booking): Promise<string | null> {
+    const existing = clientLinkByBookingNumber.get(booking.booking_number)
+    if (existing) {
+      const expired = !!existing.expires_at && existing.expires_at < todayISO()
+      return existing.is_active && !expired ? shareUrl(existing.token) : null
+    }
+    const token = await insertClientLink(booking)
+    return token ? shareUrl(token) : null
   }
 
   // Same shape as EnquiryPanel.createFormLink, just snapshotted from the
@@ -751,7 +774,7 @@ export default function DocumentsPage() {
   // null = nothing to send (only reachable for 'client_account' if the row's
   // checkbox got selected right as its link was deleted elsewhere — the cell
   // itself never renders a checkbox for a booking with no link).
-  function buildDocumentEmail(type: EmailLogType, booking: Booking, lang: Lang): { subject: string; html: string } | null {
+  function buildDocumentEmail(type: EmailLogType, booking: Booking, lang: Lang, accountUrl: string | null = null): { subject: string; html: string } | null {
     const participants = bookingParticipants.filter(p => p.booking_id === booking.id)
     switch (type) {
       case 'visa_letter':
@@ -766,7 +789,7 @@ export default function DocumentsPage() {
       case 'travel_guide':
         return { subject: `Traveller's guide — BKC`, html: emailTravelGuide(booking, lang, activeSections) }
       case 'welcome_guide':
-        return { subject: `Welcome guide — BKC`, html: emailWelcomeGuide(booking, lang, activeWelcomeSections) }
+        return { subject: `Welcome guide — BKC`, html: emailWelcomeGuide(booking, lang, activeWelcomeSections, accountUrl) }
       case 'client_account': {
         const link = clientLinkByBookingNumber.get(booking.booking_number)
         if (!link) return null
@@ -870,7 +893,9 @@ export default function DocumentsPage() {
       const [bookingId, type] = cells[i].split(':') as [string, EmailLogType]
       const booking = activeBookings.find(b => b.id === bookingId)
       const to = clientEmail(booking)
-      const built = booking ? buildDocumentEmail(type, booking, overviewLang) : null
+      // Only resolved (and possibly created) for a guide that will really go out.
+      const accountUrl = booking && to && type === 'welcome_guide' ? await welcomeAccountUrl(booking) : null
+      const built = booking ? buildDocumentEmail(type, booking, overviewLang, accountUrl) : null
       if (!booking || !to || !built) {
         skipped++
       } else {
@@ -1438,7 +1463,10 @@ export default function DocumentsPage() {
               </div>
               <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={() => summaryBooking && printWelcomeGuide(summaryBooking, lang, activeWelcomeSections)}
+                  onClick={async () => {
+                    if (!summaryBooking) return
+                    printWelcomeGuide(summaryBooking, lang, activeWelcomeSections, await welcomeAccountUrl(summaryBooking))
+                  }}
                   disabled={!summaryBooking}
                   className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors">
                   🖨️ {i18n.pages.btn_generate_pdf[uiLang]}
@@ -1451,8 +1479,9 @@ export default function DocumentsPage() {
                   label="Send welcome guide by email"
                   emailValue={welcomeEmail}
                   onEmailChange={setWelcomeEmail}
-                  onSend={() => {
-                    const html = emailWelcomeGuide(summaryBooking, lang, activeWelcomeSections)
+                  onSend={async () => {
+                    if (!welcomeEmail.trim()) return
+                    const html = emailWelcomeGuide(summaryBooking, lang, activeWelcomeSections, await welcomeAccountUrl(summaryBooking))
                     sendEmail('welcome_guide', welcomeEmail, `Welcome guide — BKC`, html)
                   }}
                   sending={sending === 'welcome_guide'}
@@ -1508,7 +1537,7 @@ export default function DocumentsPage() {
               <button key={l}
                 onClick={() => templatesDoc === 'travel'
                   ? printTravelGuide(null, l, guideSections)
-                  : printWelcomeGuide(null, l, welcomeSections)}
+                  : printWelcomeGuide(null, l, welcomeSections, shareUrl('…'))}
                 className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition-colors">
                 🖨️ Preview {l.toUpperCase()}
               </button>

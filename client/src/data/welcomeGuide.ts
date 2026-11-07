@@ -1,5 +1,28 @@
 import type { TravelGuideSection } from './travelGuide'
 
+/** Box printed at the top of a booking's Welcome Guide (PDF and email) with
+ *  the client's personal account link — the guide is what every guest
+ *  actually opens on arrival, so the link travels with it. Not part of the
+ *  editable sections: it depends on the booking, and a section mentioning a
+ *  link would lie for a booking whose link was deactivated. */
+export const WELCOME_ACCOUNT_BOX: Record<'fr' | 'en' | 'es', { title: string; text: string; button: string }> = {
+  fr: {
+    title: 'Votre compte en ligne',
+    text: 'Suivez votre note en temps réel (hébergement, repas, cours, location, taxis…) et ce qui est déjà réglé, à tout moment :',
+    button: 'Voir mon compte',
+  },
+  en: {
+    title: 'Your online account',
+    text: 'Follow your tab in real time (accommodation, meals, lessons, rentals, taxis…) and what is already paid, any time:',
+    button: 'View my account',
+  },
+  es: {
+    title: 'Su cuenta en línea',
+    text: 'Siga su cuenta en tiempo real (alojamiento, comidas, clases, alquiler, taxis…) y lo que ya está pagado, en cualquier momento:',
+    button: 'Ver mi cuenta',
+  },
+}
+
 // Welcome Guide — on-site info handed to clients on arrival ("you made it!").
 // Answers the questions every guest asks: wifi, meals, water, power, schedule…
 // Placeholders like [WiFi password] are meant to be filled in via the
