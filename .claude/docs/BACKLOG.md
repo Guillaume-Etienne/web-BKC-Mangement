@@ -287,7 +287,7 @@ reverifier par curl anon.
 ### 🚕 Taxis & dates de la saison — audit du 2026-11-06, à traiter étape par étape avec gui
 - **#040 / #038, taxi aéroport du 07/11 = UNE voiture** (posé en PROD le 07/11) : course #040 = tout le coût (6 500 MZN chauffeur + 1 000 Geraldo, 2 pax), facturée à F&F pour la voiture entière (grille 160 €) à la création de leur facture ; course #038 = **prix d'ami 60 €** (gui), 0 MZN chauffeur et 0 Geraldo. Notes internes sur les deux résas.
 - **Trajet à vide du 06/11** (notre erreur de date sur #040) : course sans résa, 0 € client, **chauffeur payé la moitié (3 250 MZN) pour l'instant — à trancher avec lui** (gui), Geraldo 0.
-- **#66 : taxi du 05/11 (120 €) pas encore payé**, ça viendra plus tard (gui) ; aucun paiement saisi non plus pour celui du 06/11 — à confirmer.
+- **#66 : taxi du 05/11 (120 €) pas encore payé**, ça viendra plus tard (virement/PayPal demandé par gui). Taxi retour du 06/11 payé 120 € **directement au chauffeur**, qui garde **100 %** (8 400 MZN, ni Geraldo ni marge centre) pour limiter ses pertes sur le reste (trajet à vide payé moitié) — gui, 07/11. Paiement client pas encore saisi dans l'app.
 - ⚠️ Les notes de `taxi_trips` sont lues par le chauffeur, Geraldo et le planning public (GRANT anon) : n'y mettre que du neutre ; l'argent va dans les notes de résa (non lisibles en anon).
 - Reste de l'audit (taxis ≠ dates du séjour, taxis cochés jamais créés, séjours sans chambre, visas absurdes #33/#54, arrivées matinales à vérifier sur le billet) : liste complète dans la mémoire Claude `project_2026-11-06_season_dates_audit`. Ensuite : **revue des taxis passés** (non marqués payés, dû par chauffeur / Geraldo). Idée à proposer : alerte « taxi ≠ dates du séjour ».
 
