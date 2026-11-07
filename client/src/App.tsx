@@ -218,6 +218,9 @@ function App() {
   const prevPage = useRef(currentPage)
   useEffect(() => {
     if (currentPage === 'home' && prevPage.current !== 'home') refreshPendingActions()
+    // Pages are swapped in place (no router), so the window keeps the previous
+    // page's scroll: land at the top so the sub-menu is visible.
+    if (prevPage.current !== currentPage) window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
     prevPage.current = currentPage
   }, [currentPage]) // eslint-disable-line react-hooks/exhaustive-deps
 
