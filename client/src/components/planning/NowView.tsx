@@ -264,6 +264,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
       })
     }
     for (const b of bookings) {
+      if (b.status === 'cancelled') continue
       if (b.check_in > today || b.check_out <= today) continue
       const roomLabel = getRoomLabel(b.id, bookingRooms, rooms, accommodations)
       const bParts = bookingParticipants.filter(p => p.booking_id === b.id)
