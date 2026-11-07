@@ -499,7 +499,7 @@ refermerait. **Ne pas le faire à moitié** : les quatre ou aucune.
 
 ### 📄 Documents / guides
 
-- ⬜ **Le Welcome Guide n'a jamais été sauvé** : **0 ligne `welcome_guide`** en PROD, il tourne sur
+- ✅ **Welcome Guide rédigé avec gui et écrit en base le 2026-11-07** : 10 sections FR/EN/ES (WhatsApp, WiFi Palmeiras, repas, eau, électricité, ménage, sécurité, note, activités + école de Julio, départ), TEST + PROD, empreinte md5 identique. Encadré « Votre compte en ligne » + fix des sauts de ligne = `53529d5`, **à pousser**. Retouches : Documents → Guide de bienvenue → Enregistrer. *Ancien constat : 0 ligne `welcome_guide` en PROD, il tournait sur*
   les défauts en dur avec les placeholders `[…]`. gui doit les remplir dans Documents → Welcome
   Guide puis cliquer **Save** (le premier Save sème la table).
 - ⬜ **Waiver EN/ES** : traductions auto à faire relire (FR = source gui). `WAIVER_VERSION = 'v1-2026'`.
