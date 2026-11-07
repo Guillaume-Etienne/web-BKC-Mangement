@@ -33,11 +33,13 @@ export type ErrorKind =
 
 interface Named { name?: unknown; message?: unknown }
 
-/** Order matters. "Failed to fetch dynamically imported module" carries both a
+/** `_result is undefined` is how Firefox words a React.lazy chunk that never
+ *  arrived (Chrome says "dynamically imported module"): same cause, same cure.
+ *  Order matters. "Failed to fetch dynamically imported module" carries both a
  *  chunk signature and a network one, and it is a chunk problem. */
 const PATTERNS: [ErrorKind, RegExp][] = [
   ['dom-mutated', /\b(removeChild|insertBefore|replaceChild|appendChild)\b|NotFoundError|HierarchyRequestError/i],
-  ['chunk', /dynamically imported module|module script failed|ChunkLoadError|Loading (CSS )?chunk|Unexpected token '<'/i],
+  ['chunk', /dynamically imported module|module script failed|ChunkLoadError|Loading (CSS )?chunk|Unexpected token '<'|_result is undefined/i],
   ['network', /Failed to fetch|NetworkError|Network request failed|Load failed|net::ERR|ERR_INTERNET|ERR_NETWORK/i],
   ['storage', /localStorage|sessionStorage|QuotaExceeded|access to storage|The operation is insecure/i],
 ]

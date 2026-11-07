@@ -30,6 +30,8 @@ describe('classifyError', () => {
       'Failed to fetch dynamically imported module: https://x.vercel.app/assets/BookingFormPage-a1b2.js'
     ))).toBe('chunk')
     expect(classifyError(new Error("Unexpected token '<'"))).toBe('chunk')
+    // Firefox's wording of a React.lazy chunk that did not arrive (client_errors, 2026-10-30 → 11-07).
+    expect(classifyError(new TypeError("can't access property \"default\", E._result is undefined"))).toBe('chunk')
   })
 
   it('files a dropped connection as network', () => {
