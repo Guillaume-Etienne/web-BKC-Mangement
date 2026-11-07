@@ -74,13 +74,13 @@ export default function Navigation({ currentPage, onNavigate, onLogout, urgentCo
                   key={item.id}
                   onClick={() => handleNavigate(item.id)}
                   style={{ touchAction: 'manipulation' }}
-                  className={`relative px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`relative flex flex-col items-center px-3 py-1.5 rounded-lg font-medium leading-tight whitespace-nowrap transition-colors ${
                     currentPage === item.id
                       ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
-                  <span className="mr-1">{item.icon}</span>
+                  <span>{item.icon}</span>
                   {item.label}
                   {item.id === 'home' && urgentCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
