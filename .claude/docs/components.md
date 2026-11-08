@@ -78,6 +78,14 @@ en croyant agir sur le planning. À supprimer un jour, décision de gui.
 - 3 slots/jour (morning, afternoon, evening)
 - Modals add/edit lesson, activity, rental
 - ⚠️ Formulaires définis au **scope module** (pas dans le render) pour éviter la perte de focus
+- **Qui le sélecteur de voyageurs propose (cours, location, activité facturée, + les 2 modales
+  d'édition)** : les présents ce jour-là (`isOnSiteOn`). Dessous, deux cases remises à zéro à
+  chaque ouverture (`renderGuestScope`) : **« In the country (n) »** ajoute, *après* les présents,
+  les voyageurs dans le pays mais pas logés chez nous ce jour-là (`isInCountryOn` — dates visa,
+  `utils/dayVisitor.ts`, testé), avec la mention ambre « ✈️ not lodged · check-in 09/11 » sur leur
+  résa ; **« Show all guests »** liste tout le monde. Ajouté le 2026-11-08 (Léa #058 louait du
+  matériel la veille de son check-in). Rien d'autre ne change : la location/le cours s'accroche à
+  la résa du voyageur comme d'habitude.
 
 ### `NowView` — `planning/NowView.tsx`
 **Props :** `{ bookings: Booking[]; bookingParticipants: BookingParticipant[]; bookingRooms: BookingRoom[]; rooms: Room[]; accommodations: Accommodation[]; instructors: Instructor[] }` + `useTable<DiningEvent>` interne
@@ -103,7 +111,9 @@ en croyant agir sur le planning. À supprimer un jour, décision de gui.
   `planned_rentals` (migration 2026-10-10c) ; `lessons` / `equipment_rentals` (Daily) = la vérité de ce
   qui a eu lieu. Rien dans la compta, la paie ou la page Instructor Hours ne lit le plan.
 - Grille horaire par moniteur, glisser/redimensionner, clic = ajouter ; modale avec pastilles de
-  voyageurs groupées par résa (présents ce jour-là, « Show all guests » pour sortir de la liste) ;
+  voyageurs groupées par résa (présents ce jour-là, « In the country » pour ajouter les voyageurs
+  dans le pays pas encore/plus logés, « Show all guests » pour sortir de la liste — idem panneau
+  des locations prévues ; le ⚠️ « not on site » ne se déclenche pas pour un voyageur dans le pays) ;
   `booking_id` déduit du 1er participant (jamais de `''`, jamais de Client.id).
 - Locations prévues (panneau de droite), copier-coller d'un jour (plan ou « From Daily »).
 - Interrupteur **Show Daily** : cours/locs réels en voie de droite, non éditables (localStorage).

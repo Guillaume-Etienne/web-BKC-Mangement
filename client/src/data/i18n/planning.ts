@@ -15,6 +15,9 @@ export const planningI18n = {
   // LessonWeekView
   msg_no_guests_checked_in: { fr: 'Aucun invité enregistré ce jour-là.', en: 'No guests checked in that day.', es: 'Ningún huésped registrado ese día.' },
   label_show_all_guests: { fr: 'Montrer tous les invités', en: 'Show all guests', es: 'Mostrar todos los huéspedes' },
+  label_show_in_country: { fr: 'Sur le territoire', en: 'In the country', es: 'En el país' },
+  tag_not_lodged_until: { fr: 'pas logé · arrive le', en: 'not lodged · check-in', es: 'no alojado · llega el' },
+  tag_not_lodged_since: { fr: 'pas logé · parti le', en: 'not lodged · left', es: 'no alojado · salió el' },
   btn_add_lesson:   { fr: '+ Cours',    en: '+ Lesson',   es: '+ Clase' },
   btn_add_activity: { fr: '+ Activité', en: '+ Activity', es: '+ Actividad' },
   label_bill_guests: { fr: 'Facturer aux clients', en: 'Bill to guests', es: 'Facturar a los huéspedes' },

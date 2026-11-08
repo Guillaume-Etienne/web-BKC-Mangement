@@ -6,8 +6,8 @@ import type {
 } from '../../types/database'
 import { rentalBillable } from '../../types/database'
 import { currentInstructorRate, resolveLessonRate, agencyMarker } from '../accounting/utils'
-import { toISODate as dateToISO, addDays, localeTag } from '../../utils/dates'
-import { isOnSiteOn, searchClients, suggestedLessonRate } from '../../utils/dayVisitor'
+import { toISODate as dateToISO, addDays, localeTag, fmtDateShort } from '../../utils/dates'
+import { isInCountryOn, isOnSiteOn, searchClients, suggestedLessonRate } from '../../utils/dayVisitor'
 import type { WalkInRequest } from './walkInSave'
 import { readLocal, writeLocal } from '../../utils/safeStorage'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -132,9 +132,27 @@ interface GuestPickerProps {
   /** hours already planned / done that day, per participant, to spread the load */
   hoursByParticipant: Map<string, number>
   onToggle: (id: string) => void
+  /** The day of the plan — tags the bookings in the country but not lodged. */
+  date: string
 }
 
-function GuestPicker({ participants, bookings, selectedIds, multi, hoursByParticipant, onToggle }: GuestPickerProps) {
+/** "✈️ not lodged · check-in 09/11" for a booking in the country but not with
+ *  us that day (utils/dayVisitor.ts isInCountryOn), null otherwise. */
+function notLodgedTag(b: Booking | undefined, date: string, lang: Lang): string | null {
+  if (!b || !isInCountryOn(b, date)) return null
+  return b.check_in > date
+    ? `✈️ ${i18n.planning.tag_not_lodged_until[lang]} ${fmtDateShort(b.check_in)}`
+    : `✈️ ${i18n.planning.tag_not_lodged_since[lang]} ${fmtDateShort(b.check_out)}`
+}
+
+/** Guests of the bookings in the country but not lodged that day. */
+function inCountryParticipants(bookings: Booking[], participants: BookingParticipant[], date: string): BookingParticipant[] {
+  const ids = new Set(bookings.filter(b => isInCountryOn(b, date)).map(b => b.id))
+  return participants.filter(p => ids.has(p.booking_id))
+}
+
+function GuestPicker({ participants, bookings, selectedIds, multi, hoursByParticipant, onToggle, date }: GuestPickerProps) {
+  const { lang } = useLanguage()
   const groups = useMemo(() => {
     const m = new Map<string, BookingParticipant[]>()
     for (const p of participants) m.set(p.booking_id, [...(m.get(p.booking_id) ?? []), p])
@@ -151,7 +169,10 @@ function GuestPicker({ participants, bookings, selectedIds, multi, hoursByPartic
     <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
       {groups.map(({ booking, ps }) => (
         <div key={booking?.id ?? ps[0].booking_id}>
-          <div className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1">{bookingLabel(booking)}</div>
+          <div className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1">
+            {bookingLabel(booking)}
+            {notLodgedTag(booking, date, lang) && <span className="ml-1.5 font-medium text-amber-700 dark:text-amber-400">{notLodgedTag(booking, date, lang)}</span>}
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {ps.map(p => {
               const on = selectedIds.includes(p.id)
@@ -260,17 +281,20 @@ function LessonModal({
   const [dur, setDur]         = useState(lesson?.duration_hours ?? initialDuration ?? 1)
   const [notes, setNotes]     = useState(lesson?.notes ?? '')
   const [showAll, setShowAll] = useState(false)
+  const [inCountry, setInCountry] = useState(false)
   const [clientId, setClientId] = useState<string | null>(lesson?.client_id ?? null)
 
   const exported = !!lesson?.exported_at
+  const inCountryCount = useMemo(() => inCountryParticipants(bookings, bookingParticipants, date).length, [bookings, bookingParticipants, date])
 
   // Guests on site that day, plus whoever is already picked (so an edit never
-  // silently hides the person it is about). "Show all" escapes to everyone.
+  // silently hides the person it is about). "In the country" adds the guests
+  // in Mozambique but not lodged yet / anymore; "Show all" escapes to everyone.
   const candidates = useMemo(() => {
     if (showAll) return bookingParticipants
-    const onSite = new Set(bookings.filter(b => isOnSiteOn(b, date)).map(b => b.id))
+    const onSite = new Set(bookings.filter(b => isOnSiteOn(b, date) || (inCountry && isInCountryOn(b, date))).map(b => b.id))
     return bookingParticipants.filter(p => onSite.has(p.booking_id) || ids.includes(p.id))
-  }, [showAll, bookings, bookingParticipants, date, ids])
+  }, [showAll, inCountry, bookings, bookingParticipants, date, ids])
 
   function toggle(id: string) {
     setClientId(null)   // a lesson is for booked guests OR for a walk-in client
@@ -350,12 +374,18 @@ function LessonModal({
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className={`${label} mb-0`}>{type === 'group' ? 'Guests' : 'Guest'}{ids.length > 0 && ` · ${ids.length}`}</label>
-                <label className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 cursor-pointer">
-                  <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} />
-                  Show all guests
-                </label>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 cursor-pointer">
+                    <input type="checkbox" checked={inCountry} onChange={e => setInCountry(e.target.checked)} />
+                    {inCountryCount > 0 ? `${i18n.planning.label_show_in_country[lang]} (${inCountryCount})` : i18n.planning.label_show_in_country[lang]}
+                  </label>
+                  <label className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 cursor-pointer">
+                    <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} />
+                    {i18n.planning.label_show_all_guests[lang]}
+                  </label>
+                </div>
               </div>
-              <GuestPicker participants={candidates} bookings={bookings} selectedIds={ids}
+              <GuestPicker participants={candidates} bookings={bookings} selectedIds={ids} date={date}
                 multi={type === 'group'} hoursByParticipant={hoursByParticipant} onToggle={toggle} />
               {ids.length === 0 && !clientId && (
                 <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-400">No guest yet — fine for a plan, but it can't be exported to Daily without one.</p>
@@ -418,6 +448,7 @@ function RentalsPanel({ date, plan, actual, showActual, equipment, bookings, boo
   const { lang } = useLanguage()
   const [showForm, setShowForm]   = useState(false)
   const [showAll, setShowAll]     = useState(false)
+  const [inCountry, setInCountry] = useState(false)
   const [participantId, setPid]   = useState('')
   const [clientId, setClientId]   = useState<string | null>(null)
   const [type, setType]           = useState<RentalKind>('kite')
@@ -427,9 +458,10 @@ function RentalsPanel({ date, plan, actual, showActual, equipment, bookings, boo
 
   const guests = useMemo(() => {
     if (showAll) return bookingParticipants
-    const onSite = new Set(bookings.filter(b => isOnSiteOn(b, date)).map(b => b.id))
+    const onSite = new Set(bookings.filter(b => isOnSiteOn(b, date) || (inCountry && isInCountryOn(b, date))).map(b => b.id))
     return bookingParticipants.filter(p => onSite.has(p.booking_id))
-  }, [showAll, bookings, bookingParticipants, date])
+  }, [showAll, inCountry, bookings, bookingParticipants, date])
+  const inCountryCount = useMemo(() => inCountryParticipants(bookings, bookingParticipants, date).length, [bookings, bookingParticipants, date])
 
   const groups = useMemo(() => {
     const m = new Map<string, BookingParticipant[]>()
@@ -482,13 +514,17 @@ function RentalsPanel({ date, plan, actual, showActual, equipment, bookings, boo
           <select value={participantId} onChange={e => { setPid(e.target.value); if (e.target.value) setClientId(null) }} className={field}>
             <option value="">— guest (optional) —</option>
             {groups.map(({ booking, ps }) => (
-              <optgroup key={booking?.id ?? ps[0].booking_id} label={bookingLabel(booking)}>
+              <optgroup key={booking?.id ?? ps[0].booking_id} label={[bookingLabel(booking), notLodgedTag(booking, date, lang)].filter(Boolean).join(' · ')}>
                 {ps.map(p => <option key={p.id} value={p.id}>{p.first_name} {p.last_name ?? ''}</option>)}
               </optgroup>
             ))}
           </select>
           <label className="flex items-center gap-1 text-[11px] text-gray-600 dark:text-gray-400 cursor-pointer">
-            <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} /> Show all guests
+            <input type="checkbox" checked={inCountry} onChange={e => setInCountry(e.target.checked)} />
+            {inCountryCount > 0 ? `${i18n.planning.label_show_in_country[lang]} (${inCountryCount})` : i18n.planning.label_show_in_country[lang]}
+          </label>
+          <label className="flex items-center gap-1 text-[11px] text-gray-600 dark:text-gray-400 cursor-pointer">
+            <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} /> {i18n.planning.label_show_all_guests[lang]}
           </label>
           {!participantId && <WalkInClientPicker clients={clients} value={clientId} onChange={setClientId} />}
           <select value={type} onChange={e => { setType(e.target.value as RentalKind); setEquip('') }} className={field}>
@@ -663,8 +699,10 @@ function ForecastDay({
   const dayActual   = lessons.filter(l => l.date === iso)
   const dayActualRent = rentals.filter(r => r.date === iso)
 
+  // Feeds the ⚠️ "not on site that day". A guest in the country but not lodged
+  // yet (picked through "In the country", on purpose) is not an error to flag.
   const onSiteBookingIds = useMemo(
-    () => new Set(bookings.filter(b => isOnSiteOn(b, iso)).map(b => b.id)),
+    () => new Set(bookings.filter(b => isOnSiteOn(b, iso) || isInCountryOn(b, iso)).map(b => b.id)),
     [bookings, iso],
   )
   const onSiteParticipantIds = useMemo(

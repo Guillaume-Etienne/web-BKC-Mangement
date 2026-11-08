@@ -5,13 +5,13 @@ import { useTable } from '../../hooks/useSupabase'
 import { eventDailyContribution } from '../../utils/diningEventCosts'
 import { rentalBillable, lessonDiscipline } from '../../types/database'
 import { currentInstructorRate, reFreezeInstructorRate, resolveLessonRate, agencyMarker, getLessonClientRate } from '../accounting/utils'
-import { toISODate as dateToISO, localeTag } from '../../utils/dates'
+import { toISODate as dateToISO, localeTag, fmtDateShort } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import { RENTAL_TYPES, boardPickerCategory, rentalGear, rentalKind, rentalLabel, showsKitePicker, type RentalKind } from './rentalTypes'
 import WalkInForm from './WalkInForm'
 import type { WalkInRequest } from './walkInSave'
-import { isDayVisitor, isOnSiteOn } from '../../utils/dayVisitor'
+import { isDayVisitor, isInCountryOn, isOnSiteOn } from '../../utils/dayVisitor'
 import type { BillActivityRequest } from '../../utils/billedActivities'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -189,17 +189,22 @@ export default function LessonWeekView({
   // Off by default: only guests checked in that day. Escape hatch for edge
   // cases (early arrivals, data not quite in sync) — reset on each new form.
   const [showAllGuests, setShowAllGuests] = useState(false)
+  // Narrower escape: adds only the guests in Mozambique but not lodged with us
+  // that day (visa dates — utils/dayVisitor.ts isInCountryOn). Same reset.
+  const [showInCountry, setShowInCountry] = useState(false)
 
   // ── Edit modal ─────────────────────────────────────────────────────────────
   const [editLesson, setEditLesson] = useState<Lesson | null>(null)
   const [editData, setEditData] = useState<Partial<Lesson>>({})
   const [editRiderGear, setEditRiderGear] = useState<Record<string, GearPick>>({})
-  // Same escape hatch as the add-form's, reset on each open — see candidatesForEdit.
+  // Same escape hatches as the add-form's, reset on each open — see candidatesForEdit.
   const [showAllGuestsEditLesson, setShowAllGuestsEditLesson] = useState(false)
+  const [showInCountryEditLesson, setShowInCountryEditLesson] = useState(false)
 
   // ── Rental edit ────────────────────────────────────────────────────────────
   const [editRental, setEditRental] = useState<EquipmentRental | null>(null)
   const [showAllGuestsEditRental, setShowAllGuestsEditRental] = useState(false)
+  const [showInCountryEditRental, setShowInCountryEditRental] = useState(false)
   const [editRentalPrice, setEditRentalPrice] = useState('')
   const [editRentalSlot, setEditRentalSlot] = useState<'morning' | 'afternoon' | 'full_day'>('morning')
   const [editRentalParticipantId, setEditRentalParticipantId] = useState('')
@@ -377,14 +382,23 @@ export default function LessonWeekView({
     return f.act_bill && f.act_participant_ids.length > 0 && !isNaN(p) && p >= 0 && !isNaN(c) && c >= 0
   }
 
-  function activeParticipantsForDate(date: string): BookingParticipant[] {
+  function activeParticipantsForDate(date: string, withInCountry = false): BookingParticipant[] {
     // isOnSiteOn: a walk-in visit counts on its own day only, although its
     // check_out is the next day (utils/dayVisitor.ts).
     const activeIds = new Set(bookings.filter(b => isOnSiteOn(b, date)).map(b => b.id))
     // No silent fallback to "everyone" here — an empty result genuinely means
     // no one is checked in that day. Callers that want to override this (the
     // "Show all guests" checkbox) pass `bookingParticipants` directly instead.
-    return bookingParticipants.filter(p => activeIds.has(p.booking_id))
+    const here = bookingParticipants.filter(p => activeIds.has(p.booking_id))
+    // "In the country" ticked: appended AFTER the lodged guests, so the usual
+    // picks do not move when the box is ticked.
+    return withInCountry ? [...here, ...inCountryParticipantsForDate(date)] : here
+  }
+
+  /** Guests in Mozambique but not lodged with us that day (visa dates). */
+  function inCountryParticipantsForDate(date: string): BookingParticipant[] {
+    const ids = new Set(bookings.filter(b => isInCountryOn(b, date)).map(b => b.id))
+    return bookingParticipants.filter(p => ids.has(p.booking_id))
   }
 
   // Edit modals default to this instead of the full guest list (illegible on
@@ -392,8 +406,8 @@ export default function LessonWeekView({
   // picked even if their booking isn't active anymore — so an edit never
   // silently hides the person it's about. "Show all guests" still escapes to
   // the full list for the rare case of picking someone else entirely.
-  function candidatesForEdit(date: string, selectedIds: string[]): BookingParticipant[] {
-    const active = activeParticipantsForDate(date)
+  function candidatesForEdit(date: string, selectedIds: string[], withInCountry = false): BookingParticipant[] {
+    const active = activeParticipantsForDate(date, withInCountry)
     const missing = bookingParticipants.filter(p => selectedIds.includes(p.id) && !active.some(a => a.id === p.id))
     return missing.length ? [...active, ...missing] : active
   }
@@ -413,8 +427,10 @@ export default function LessonWeekView({
     candidates: BookingParticipant[]
     selectedIds: string[]
     onToggle: (id: string) => void
+    /** The day of the form — tags the bookings in the country but not lodged. */
+    date?: string
   }) {
-    const { candidates, selectedIds, onToggle } = opts
+    const { candidates, selectedIds, onToggle, date } = opts
     if (candidates.length === 0) {
       return (
         <p className="text-xs text-gray-400 dark:text-gray-400 italic px-0.5">
@@ -432,10 +448,17 @@ export default function LessonWeekView({
       <div className="space-y-1.5">
         {[...byBooking.entries()].map(([bookingId, people]) => {
           const primary = bookingClient(bookingId)
+          const booking = date ? bookings.find(b => b.id === bookingId) : undefined
+          const away = booking && date && isInCountryOn(booking, date)
+            ? booking.check_in > date
+              ? `${i18n.planning.tag_not_lodged_until[lang]} ${fmtDateShort(booking.check_in)}`
+              : `${i18n.planning.tag_not_lodged_since[lang]} ${fmtDateShort(booking.check_out)}`
+            : null
           return (
             <div key={bookingId} className="border border-gray-100 dark:border-gray-800 rounded-lg p-1.5 bg-gray-50/50 dark:bg-gray-800/30">
               <div className="text-[10px] font-semibold text-gray-400 dark:text-gray-400 uppercase tracking-wide mb-1 px-0.5">
                 {primary ? `${primary.first_name} ${primary.last_name ?? ''}` : 'Booking'}
+                {away && <span className="ml-1.5 normal-case tracking-normal font-medium text-amber-700 dark:text-amber-400">{`✈️ ${away}`}</span>}
               </div>
               <div className="flex flex-wrap gap-1">
                 {people.map(p => {
@@ -460,6 +483,33 @@ export default function LessonWeekView({
             </div>
           )
         })}
+      </div>
+    )
+  }
+
+  /** The two escape hatches under every guest picker: "In the country" adds the
+   *  guests in Mozambique but not lodged that day (with their count, so gui
+   *  knows before ticking whether anyone is there), "Show all guests" lists
+   *  everyone. */
+  function renderGuestScope(opts: {
+    date: string
+    inCountry: boolean
+    onInCountry: (v: boolean) => void
+    all: boolean
+    onAll: (v: boolean) => void
+    className?: string
+  }) {
+    const n = opts.date ? inCountryParticipantsForDate(opts.date).length : 0
+    return (
+      <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400 px-0.5 ${opts.className ?? ''}`}>
+        <label className="flex items-center gap-1.5">
+          <input type="checkbox" checked={opts.inCountry} onChange={e => opts.onInCountry(e.target.checked)} />
+          {n > 0 ? `${i18n.planning.label_show_in_country[lang]} (${n})` : i18n.planning.label_show_in_country[lang]}
+        </label>
+        <label className="flex items-center gap-1.5">
+          <input type="checkbox" checked={opts.all} onChange={e => opts.onAll(e.target.checked)} />
+          {i18n.planning.label_show_all_guests[lang]}
+        </label>
       </div>
     )
   }
@@ -500,6 +550,7 @@ export default function LessonWeekView({
     setEditRentalNotes(r.notes ?? '')
     setEditRentalClientNote(r.client_note ?? '')
     setShowAllGuestsEditRental(false)
+    setShowInCountryEditRental(false)
   }
 
   function submitEditRental(e: React.FormEvent) {
@@ -529,6 +580,7 @@ export default function LessonWeekView({
   function openAdd(date: string, slot: Slot, kind: 'lesson' | 'activity' | 'rental') {
     setAddForm(emptyForm(date, slot, kind))
     setShowAllGuests(false)
+    setShowInCountry(false)
   }
 
   function submitAdd() {
@@ -602,6 +654,7 @@ export default function LessonWeekView({
     setEditData({ ...lesson })
     setEditRiderGear(Object.fromEntries((lesson.rider_gear ?? []).map(g => [g.participant_id, { kite_id: g.kite_id, board_id: g.board_id }])))
     setShowAllGuestsEditLesson(false)
+    setShowInCountryEditLesson(false)
   }
 
   function submitEdit(e: React.FormEvent) {
@@ -923,14 +976,12 @@ export default function LessonWeekView({
                             <>
                               {/* Rental form */}
                               {renderParticipantChips({
-                                candidates: showAllGuests ? bookingParticipants : activeParticipantsForDate(addForm?.date ?? ''),
+                                candidates: showAllGuests ? bookingParticipants : activeParticipantsForDate(addForm?.date ?? '', showInCountry),
                                 selectedIds: addForm?.rental_participant_id ? [addForm.rental_participant_id] : [],
                                 onToggle: id => setAddForm(f => f && { ...f, rental_participant_id: f.rental_participant_id === id ? '' : id }),
+                                date: addForm?.date,
                               })}
-                              <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 px-0.5">
-                                <input type="checkbox" checked={showAllGuests} onChange={e => setShowAllGuests(e.target.checked)} />
-                                {i18n.planning.label_show_all_guests[lang]}
-                              </label>
+                              {renderGuestScope({ date: addForm?.date ?? '', inCountry: showInCountry, onInCountry: setShowInCountry, all: showAllGuests, onAll: setShowAllGuests })}
                               {/* Type buttons */}
                               <div className="grid grid-cols-3 gap-1">
                                 {RENTAL_TYPES.map(rt => (
@@ -1059,7 +1110,8 @@ export default function LessonWeekView({
                               {renderWingToggle(addForm?.type ?? 'private', addForm?.discipline ?? 'kite', d => setAddForm(f => f && { ...f, discipline: d }))}
                               {/* Participant(s) — single for private/supervision, multi-toggle for group */}
                               {renderParticipantChips({
-                                candidates: showAllGuests ? bookingParticipants : activeParticipantsForDate(addForm?.date ?? ''),
+                                candidates: showAllGuests ? bookingParticipants : activeParticipantsForDate(addForm?.date ?? '', showInCountry),
+                                date: addForm?.date,
                                 selectedIds: addForm?.participant_ids ?? [],
                                 onToggle: id => setAddForm(f => {
                                   if (!f) return f
@@ -1072,10 +1124,7 @@ export default function LessonWeekView({
                                   return { ...f, participant_ids: [...f.participant_ids, id] }
                                 }),
                               })}
-                              <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 px-0.5">
-                                <input type="checkbox" checked={showAllGuests} onChange={e => setShowAllGuests(e.target.checked)} />
-                                {i18n.planning.label_show_all_guests[lang]}
-                              </label>
+                              {renderGuestScope({ date: addForm?.date ?? '', inCountry: showInCountry, onInCountry: setShowInCountry, all: showAllGuests, onAll: setShowAllGuests })}
                               <select
                                 value={addForm?.instructor_id}
                                 onChange={e => setAddForm(f => f && { ...f, instructor_id: e.target.value })}
@@ -1150,7 +1199,7 @@ export default function LessonWeekView({
                               {addForm?.act_bill && (
                                 <>
                                   {renderParticipantChips({
-                                    candidates: showAllGuests ? bookingParticipants : activeParticipantsForDate(addForm?.date ?? ''),
+                                    candidates: showAllGuests ? bookingParticipants : activeParticipantsForDate(addForm?.date ?? '', showInCountry),
                                     selectedIds: addForm?.act_participant_ids ?? [],
                                     onToggle: id => setAddForm(f => f && {
                                       ...f,
@@ -1158,11 +1207,9 @@ export default function LessonWeekView({
                                         ? f.act_participant_ids.filter(x => x !== id)
                                         : [...f.act_participant_ids, id],
                                     }),
+                                    date: addForm?.date,
                                   })}
-                                  <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 px-0.5">
-                                    <input type="checkbox" checked={showAllGuests} onChange={e => setShowAllGuests(e.target.checked)} />
-                                    {i18n.planning.label_show_all_guests[lang]}
-                                  </label>
+                                  {renderGuestScope({ date: addForm?.date ?? '', inCountry: showInCountry, onInCountry: setShowInCountry, all: showAllGuests, onAll: setShowAllGuests })}
                                   <div className="grid grid-cols-2 gap-1">
                                     <input type="number" min="0" step="0.01" inputMode="decimal"
                                       placeholder={i18n.planning.ph_price_per_guest[lang]}
@@ -1361,7 +1408,8 @@ export default function LessonWeekView({
                 {renderParticipantChips({
                   candidates: showAllGuestsEditLesson
                     ? bookingParticipants
-                    : candidatesForEdit(editData.date ?? editLesson.date, editData.participant_ids ?? []),
+                    : candidatesForEdit(editData.date ?? editLesson.date, editData.participant_ids ?? [], showInCountryEditLesson),
+                  date: editData.date ?? editLesson.date,
                   selectedIds: editData.participant_ids ?? [],
                   onToggle: id => setEditData(d => {
                     if (d.type !== 'group') return { ...d, participant_ids: [id] }
@@ -1374,10 +1422,11 @@ export default function LessonWeekView({
                     return { ...d, participant_ids: [...ids, id] }
                   }),
                 })}
-                <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 px-0.5 mt-1">
-                  <input type="checkbox" checked={showAllGuestsEditLesson} onChange={e => setShowAllGuestsEditLesson(e.target.checked)} />
-                  {i18n.planning.label_show_all_guests[lang]}
-                </label>
+                {renderGuestScope({
+                  date: editData.date ?? editLesson.date, className: 'mt-1',
+                  inCountry: showInCountryEditLesson, onInCountry: setShowInCountryEditLesson,
+                  all: showAllGuestsEditLesson, onAll: setShowAllGuestsEditLesson,
+                })}
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Instructor</label>
@@ -1478,14 +1527,16 @@ export default function LessonWeekView({
                 {renderParticipantChips({
                   candidates: showAllGuestsEditRental
                     ? bookingParticipants
-                    : candidatesForEdit(editRental.date, editRentalParticipantId ? [editRentalParticipantId] : []),
+                    : candidatesForEdit(editRental.date, editRentalParticipantId ? [editRentalParticipantId] : [], showInCountryEditRental),
                   selectedIds: editRentalParticipantId ? [editRentalParticipantId] : [],
                   onToggle: id => setEditRentalParticipantId(prev => prev === id ? '' : id),
+                  date: editRental.date,
                 })}
-                <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 px-0.5 mt-1">
-                  <input type="checkbox" checked={showAllGuestsEditRental} onChange={e => setShowAllGuestsEditRental(e.target.checked)} />
-                  {i18n.planning.label_show_all_guests[lang]}
-                </label>
+                {renderGuestScope({
+                  date: editRental.date, className: 'mt-1',
+                  inCountry: showInCountryEditRental, onInCountry: setShowInCountryEditRental,
+                  all: showAllGuestsEditRental, onAll: setShowAllGuestsEditRental,
+                })}
               </div>
               {/* Type */}
               <div>

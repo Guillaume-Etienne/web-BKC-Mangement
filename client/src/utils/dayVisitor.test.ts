@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { _booking, _client } from '../types/canary'
 import type { Booking, BookingParticipant, Client } from '../types/database'
 import {
-  isDayVisitor, stayBookings, isOnSiteOn, newVisitBookingRow, findVisitOn,
+  isDayVisitor, stayBookings, isOnSiteOn, isInCountryOn, newVisitBookingRow, findVisitOn,
   suggestedLessonRate, visitsOf, searchClients,
 } from './dayVisitor'
 
@@ -48,6 +48,44 @@ describe('isOnSiteOn', () => {
   })
   it('cancelled = nobody', () => {
     expect(isOnSiteOn(mkBooking({ status: 'cancelled', check_in: '2026-09-25', check_out: '2026-09-26' }), '2026-09-25')).toBe(false)
+  })
+})
+
+describe('isInCountryOn', () => {
+  // #058: in the country from the 3rd, with us from the 9th to the 16th, leaves the 18th.
+  const stay = { check_in: '2026-11-09', check_out: '2026-11-16', visa_entry_date: '2026-11-03', visa_exit_date: '2026-11-18' }
+  it('covers visa entry up to the day before check-in', () => {
+    const b = mkBooking(stay)
+    expect(isInCountryOn(b, '2026-11-02')).toBe(false)
+    expect(isInCountryOn(b, '2026-11-03')).toBe(true)
+    expect(isInCountryOn(b, '2026-11-08')).toBe(true)
+  })
+  it('is false on every day isOnSiteOn covers — never both', () => {
+    const b = mkBooking(stay)
+    for (const d of ['2026-11-09', '2026-11-12', '2026-11-16']) {
+      expect(isOnSiteOn(b, d)).toBe(true)
+      expect(isInCountryOn(b, d)).toBe(false)
+    }
+  })
+  it('covers the day after check-out up to the visa exit', () => {
+    const b = mkBooking(stay)
+    expect(isInCountryOn(b, '2026-11-17')).toBe(true)
+    expect(isInCountryOn(b, '2026-11-18')).toBe(true)
+    expect(isInCountryOn(b, '2026-11-19')).toBe(false)
+  })
+  it('a missing visa date removes that side only', () => {
+    expect(isInCountryOn(mkBooking({ ...stay, visa_entry_date: null }), '2026-11-08')).toBe(false)
+    expect(isInCountryOn(mkBooking({ ...stay, visa_entry_date: null }), '2026-11-17')).toBe(true)
+    expect(isInCountryOn(mkBooking({ ...stay, visa_exit_date: null }), '2026-11-17')).toBe(false)
+  })
+  it('a visa date on the wrong side of the stay adds nothing', () => {
+    // #058 as it is in PROD on 2026-11-08: visa exit the 15th, check-out the 16th.
+    const b = mkBooking({ ...stay, visa_exit_date: '2026-11-15' })
+    expect(isInCountryOn(b, '2026-11-17')).toBe(false)
+  })
+  it('cancelled bookings and walk-in visits are never in the country', () => {
+    expect(isInCountryOn(mkBooking({ ...stay, status: 'cancelled' }), '2026-11-08')).toBe(false)
+    expect(isInCountryOn(mkBooking({ ...stay, kind: 'day_visitor' }), '2026-11-08')).toBe(false)
   })
 })
 

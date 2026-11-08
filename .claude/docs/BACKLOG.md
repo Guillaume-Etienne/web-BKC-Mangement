@@ -268,6 +268,19 @@ reverifier par curl anon.
 
 ---
 
+## ✅ Livré 2026-11-08 — Daily : case « In the country » (à pousser, aucune migration)
+
+Demande gui : Léa #058 est déjà à Bilene et loue du matériel, mais son check-in est le 09/11 →
+absente des sélecteurs du Daily, et « Show all guests » donne des kilomètres. Nouvelle case
+**« In the country (n) »** sous chaque sélecteur de voyageurs (Daily : cours, location, activité,
+modales d'édition ; Forecast : cours, locations prévues) : ajoute les voyageurs entre leur entrée
+dans le pays et leur check-in, ou entre leur check-out et leur sortie (`isInCountryOn`,
+`utils/dayVisitor.ts`, 6 cas testés). Build + 906 tests ✅. **Pas encore vu à l'écran.** Reste :
+- ⬜ gui : pousser, puis attribuer la location de Léa (case cochée → Léa avec « ✈️ not lodged · check-in 09/11 »)
+- 🔔 **#058 : sortie du pays le 15/11 mais check-out le 16/11** (note : « du 9 au 15/11 ») → une nuit de
+  trop facturée (490 €) ? Question posée à gui, rien touché
+- 💭 Ne marche que si les dates visa sont saisies (le formulaire public les remplit ; résa faite à la main = à saisir)
+
 ## ✅ Livré 2026-11-08 — N° de vol (à pousser APRÈS la migration 08b)
 
 Demande gui : le n° de vol évite les erreurs de taxi (heure tapée à la main = AM/PM, heure du pays

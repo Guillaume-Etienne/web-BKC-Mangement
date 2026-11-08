@@ -37,6 +37,23 @@ export function isOnSiteOn(b: Pick<Booking, 'kind' | 'status' | 'check_in' | 'ch
   return b.check_in <= date && b.check_out >= date
 }
 
+type InCountryBooking = Pick<Booking, 'kind' | 'status' | 'check_in' | 'check_out' | 'visa_entry_date' | 'visa_exit_date'>
+
+/** In Mozambique but not lodged with us on `date`: between the visa entry and
+ *  the check-in, or between the check-out and the visa exit (another lodge in
+ *  Bilene, Maputo, a safari — the reason does not matter). The Daily's
+ *  "In the country" checkbox offers them, so an early arrival renting gear the
+ *  day before check-in is found without "Show all guests" (#058, 2026-11-08).
+ *
+ *  Never true on a day `isOnSiteOn` covers, for a walk-in visit or a cancelled
+ *  booking. A missing visa date means that side of the stay does not exist. */
+export function isInCountryOn(b: InCountryBooking, date: ISODate): boolean {
+  if (b.status === 'cancelled' || isDayVisitor(b) || isOnSiteOn(b, date)) return false
+  const before = !!b.visa_entry_date && b.visa_entry_date <= date && date < b.check_in
+  const after = !!b.visa_exit_date && b.check_out < date && date <= b.visa_exit_date
+  return before || after
+}
+
 /** The row to insert for a new visit. Confirmed: the person is standing in
  *  front of us. `kind` is left to the caller — it is written by a separate
  *  UPDATE so a base without the column still gets its booking. */
