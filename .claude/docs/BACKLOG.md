@@ -282,8 +282,12 @@ Demande gui : voir ce que dit la fiche résa d'un trajet sans changer d'écran, 
 ⓘ sur chaque trajet lié → panneau (droite sur ordi, bas + flèches ‹ › sur téléphone) ; corrige heures
 de vol, bagages, notes de la résa ; propose ensuite de reporter heure/bagages sur les trajets (choix
 gui : « panneau qui propose »). Détail `pages.md` § TaxiPage. Tests `taxiBookingSync.test.ts` (8 cas).
-- ⬜ **Pas encore vu à l'écran** — à tester sur TEST (navbar ambre) : ouvrir/fermer, flèches mobile,
-  enregistrer une heure puis accepter/refuser la proposition.
+- ✅ **Testé sur TEST (Claude in Chrome, 08/11)** : liste, kanban, changement de résa, fermeture par le même ⓘ ;
+  #045 vol 08:15→09:00 + bagages 3→4 → proposition 10:30→11:15 + 4 bagages acceptée, puis tout remis
+  à l'identique (vérifié en base). Mobile vérifié dans un cadre de 395 px, par le DOM seulement (panneau
+  en bas 80 %, flèches 3/21 ↔ 4/21) — **rendu mobile jamais vu en capture** (captures en échec).
+- ⬜ Non testés par Claude : garde « modifications non enregistrées » (confirm() bloque l'automate),
+  « Laisser tel quel », « Ouvrir la résa → ». À essayer par gui, + un coup d'œil sur son téléphone.
 
 ## ✅ Livré 2026-10-25 — à pousser (aucune migration)
 
