@@ -111,7 +111,7 @@ policy `lessons`). Strictement additif. ⚠️ **Avant le push** : sans le (a) l
 instructor → seulement ses cours ; `select=instructor_rate` → 42501. Reste **ouvert, volontairement** :
 avances/paiements moniteur non exposés (gui, 2026-10-10 : « plus tard »).
 
-⬜ **`2026-10-08c_partner_hotel_departure_transfer.sql`** (TEST ⬜ / PROD ⬜) — drop-off aéroport
+✅ **`2026-10-08c_partner_hotel_departure_transfer.sql`** (TEST ✅ / PROD ✅, passée par gui le 2026-11-08 — **un mois après le push du code** : enregistrer une résa hôtel échouait en PROD entre-temps ; **curl anon vérifié le 2026-11-08** sur les deux : `select=id,departure_transfer,departure_transfer_time` → `[]` 200, `internal_notes` → 401) — drop-off aéroport
 le jour du DÉPART : `departure_transfer boolean NOT NULL DEFAULT false` + `departure_transfer_time
 text` + GRANT anon des deux. Le transfert existant (`airport_transfer`/`transfer_time`) devient le
 pick-up du jour d'arrivée. **Strictement additive.** ⚠️ **Avant le push** : sinon enregistrer une
@@ -257,6 +257,22 @@ copie des vrais noms de PROD. **PROD vérifié intact** (42501 confirmé partout
 reverifier par curl anon.
 
 ---
+
+## ✅ Livré 2026-11-08 — Safari : voyage complet (à pousser, aucune migration)
+
+Cas d'école #021 Sassolas (Bilene → Maputo → Kruger → Maputo → vol). Onglet 🦁 Safaris : la chaîne
+couvre maintenant séjour Bilene + taxis + transferts aéroport de l'hôtel (détail `data-model.md`
+§ Partner hotels). Testé (`safariChain.test.ts`, 17 cas dont #021 tel que stocké le 08/11), build
+vérifié dans une copie propre (une autre session avait du Palmeiras en cours). **Pas encore vu à
+l'écran.** Reste ouvert :
+- ⬜ **#021 en PROD** (gui : pas encore) — quand il choisit A (safari 14→15, nuits 13+15, départ
+  Bilene 13) ou B (13→15, nuits 12+15, départ 12) : check_out, taxi `center-to-town` 2 pers. (et
+  supprimer le `center-to-aero` du 15/11), safari TourMaputo `provider_pays_us`, CasaMoz 2 nuits +
+  dépose le 16. Nuits Bilene non utilisées **non facturées** (gui). Manquent : prix 2 j / 3 j,
+  heure du taxi, heure de dépose.
+- 💭 **% TourMaputo** : le prestataire reverse un % en fin de saison (cumulé) → aujourd'hui
+  `price_provider` calculé à la main. Un `commission_pct` sur le prestataire (comme CasaMoz) le
+  pré-remplirait — seulement si le % est fixe (question posée à gui).
 
 ## ✅ Livré 2026-10-25 — à pousser (aucune migration)
 

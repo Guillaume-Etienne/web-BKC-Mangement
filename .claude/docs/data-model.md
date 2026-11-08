@@ -425,6 +425,15 @@ les `activity_bookings` des prestataires `type='safari'`, croisés par `booking_
 séjours partner hotel. Chaîne attendue : séjour avant `check_out = date`, séjour après
 `check_in = end_date ?? date`. Alertes : nuit manquante avant/après, nuits non couvertes (trou),
 séjour qui chevauche le safari. Signale, ne corrige jamais.
+**Voyage complet** (2026-11-08, cas #021) : avec le séjour Bilene (`bookings.check_in/out`) et les
+taxis de la résa, `chainSafari(…, ctx)` lit 3 formes via `bileneSide` — **Bilene d'abord** (notre
+taxi `center-to-town` le jour de la 1re nuit Maputo, l'hôtel fait la DÉPOSE aéroport la dernière
+nuit, un `center-to-aero` restant = doublon), **safari d'abord** (PRISE EN CHARGE par l'hôtel,
+puis `town-to-center`, un `aero-to-center` = doublon), **voyage au milieu** (un taxi dans chaque
+sens ; la chambre Bilene gardée n'est pas signalée). Nuits Bilene facturées pendant le voyage ou
+non couvertes = alerte. Liens Bilene ↔ Maputo vérifiés seulement une fois la nuit d'hôtel saisie.
+Le formulaire hôtel pré-coche dépose / prise en charge selon la même forme. Pas de statut
+« option » ni de scénarios (gui : rares) : on saisit le scénario probable, la chaîne signale le reste.
 ⚠️ Si le guest NOUS paie l'hôtel, ce paiement n'est pas relié à `payments` du booking : à ne pas
 saisir comme paiement de la résa (sinon solde client faux).
 

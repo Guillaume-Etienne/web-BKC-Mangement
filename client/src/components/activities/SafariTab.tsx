@@ -1,10 +1,11 @@
 // /activities → Safaris: every booking with a safari-type provider, lined up
-// with the Maputo partner-hotel nights before and after it, so a missing or
-// mismatched night shows before the guests land. Logic: utils/safariChain.ts.
+// with the Maputo partner-hotel nights before and after it — and, since
+// 2026-11-08, with the Bilene stay and the booking's taxis — so a missing or
+// mismatched link shows before the guests land. Logic: utils/safariChain.ts.
 // Creating / editing reuses the activity booking form of ActivitiesPage.
 import { useState } from 'react'
-import type { ActivityBooking, ActivityProvider, BookingRef, PartnerHotel, PartnerHotelStay } from '../../types/database'
-import { todayISO, fmtDate, daysBetween } from '../../utils/dates'
+import type { ActivityBooking, ActivityProvider, BookingRef, PartnerHotel, PartnerHotelStay, TaxiTrip } from '../../types/database'
+import { todayISO, fmtDate, fmtDateShort, daysBetween } from '../../utils/dates'
 import { chainSafari, issueLabel } from '../../utils/safariChain'
 
 interface Props {
@@ -12,7 +13,8 @@ interface Props {
   providers:   ActivityProvider[]
   stays:       PartnerHotelStay[]  // all partner hotels
   hotels:      PartnerHotel[]
-  bookingRefs: BookingRef[]
+  bookingRefs: BookingRef[]        // check_in / check_out = the Bilene stay
+  taxis:       Pick<TaxiTrip, 'booking_id' | 'date' | 'type'>[]
   onAdd:       () => void
   onEdit:      (b: ActivityBooking) => void
   onDelete:    (id: string) => void
@@ -31,16 +33,18 @@ function StayCell({ s, hotels }: { s: PartnerHotelStay | null; hotels: PartnerHo
           ? <span className="text-emerald-600 dark:text-emerald-400">✓ confirmed</span>
           : <span className="text-amber-600 dark:text-amber-400">to confirm</span>}
       </div>
+      {s.airport_transfer && <div className="text-xs text-gray-400">{`✈️ pick-up ${s.transfer_time ?? '?'}`}</div>}
+      {s.departure_transfer && <div className="text-xs text-gray-400">{`✈️ drop-off ${s.departure_transfer_time ?? '?'}`}</div>}
     </div>
   )
 }
 
-export default function SafariTab({ safaris, providers, stays, hotels, bookingRefs, onAdd, onEdit, onDelete }: Props) {
+export default function SafariTab({ safaris, providers, stays, hotels, bookingRefs, taxis, onAdd, onEdit, onDelete }: Props) {
   const [period, setPeriod] = useState<Period>('upcoming')
   const today = todayISO()
 
   const chains = safaris
-    .map(s => chainSafari(s, stays))
+    .map(s => chainSafari(s, stays, { stay: bookingRefs.find(r => r.id === s.booking_id), taxis }))
     .filter(c => period === 'all' || (period === 'upcoming' ? c.end >= today : c.end < today))
     .sort((a, b) => period === 'past' ? b.start.localeCompare(a.start) : a.start.localeCompare(b.start))
 
@@ -100,7 +104,7 @@ export default function SafariTab({ safaris, providers, stays, hotels, bookingRe
                       {ref ? (
                         <>
                           <div className="font-medium text-gray-800 dark:text-gray-200">{ref.client ? `${ref.client.first_name} ${ref.client.last_name}` : '–'}</div>
-                          <div className="text-xs text-gray-400">#{ref.booking_number}</div>
+                          <div className="text-xs text-gray-400 whitespace-nowrap">{`#${ref.booking_number} · Bilene ${fmtDateShort(ref.check_in)} → ${fmtDateShort(ref.check_out)}`}</div>
                         </>
                       ) : <span className="text-gray-400 italic">No booking</span>}
                     </td>
@@ -143,7 +147,8 @@ export default function SafariTab({ safaris, providers, stays, hotels, bookingRe
         </div>
       )}
       <p className="text-xs text-gray-400">
-        Expected chain: the Maputo stay before ends the day the safari starts, the one after begins the day it ends.
+        Expected chain: Bilene → our taxi → Maputo night → safari → Maputo night → airport drop-off by the hotel.
+        When the safari comes first: hotel pick-up at the airport, then our taxi to Bilene.
       </p>
     </div>
   )

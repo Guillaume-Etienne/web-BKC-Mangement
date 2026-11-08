@@ -16,7 +16,7 @@ import {
   stayNights, stayTotalMzn, stayCommissionMzn, stayExpectedMzn,
   hotelBalanceMzn, commissionEur, fmtMzn, groupStays, stayGroupKey, nightsAroundSafari,
 } from '../../utils/partnerHotel'
-import { safariEnd } from '../../utils/safariChain'
+import { safariEnd, bileneSide } from '../../utils/safariChain'
 
 /** A booking as this tab needs it: enough to prefill a reservation. */
 export interface HotelBookingRef {
@@ -104,7 +104,9 @@ function ReservationForm({ hotel, initial, bookings, participantCounts, safaris,
   const setCommon = <K extends keyof Common>(k: K, v: Common[K]) => setC(prev => ({ ...prev, [k]: v }))
 
   // A booking prefills what it already knows — and, when it has a safari, the
-  // nights around it. Everything stays editable.
+  // nights around it, plus the airport transfer the hotel does: drop-off after
+  // the trip when they come from Bilene, pick-up before it when they go on to
+  // Bilene (utils/safariChain.ts). Everything stays editable.
   function pickBooking(id: string) {
     const b = bookings.find(x => x.id === id)
     if (!b) { setCommon('booking_id', null); return }
@@ -124,6 +126,9 @@ function ReservationForm({ hotel, initial, bookings, participantCounts, safaris,
         const s = nightsAroundSafari(safari.date, safariEnd(safari))
         Object.assign(next[0], s.arrival)
         Object.assign(next[1], s.ret)
+        const side = bileneSide(b, s.arrival.check_in, s.ret.check_out)
+        if (side === 'before') next[1].departure_transfer = true
+        if (side === 'after')  next[0].airport_transfer = true
       }
       return next
     })

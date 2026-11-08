@@ -15,7 +15,7 @@ import { useEurMznRates } from '../hooks/useEurMznRates'
 import type {
   ActivityProvider, ActivityBooking, ActivityPayment,
   ActivityProviderType, ActivityPaymentFlow, ActivityPaymentDirection,
-  SharedLink, BookingRef, Lang, TaxiPricingDefaults,
+  SharedLink, BookingRef, Lang, TaxiPricingDefaults, TaxiTrip,
 } from '../types/database'
 import { todayISO, addDaysISO, fmtDate } from '../utils/dates'
 
@@ -646,6 +646,10 @@ export default function ActivitiesPage() {
     select: 'id, booking_number, check_in, check_out, status, couples_count, children_count, boardbag_count, client:clients(first_name, last_name)',
     order: 'check_in', ascending: false,
   })
+  // Safaris tab: the Bilene ↔ Maputo taxis of each booking (whole-trip check).
+  const { data: taxiTrips } = useTable<Pick<TaxiTrip, 'booking_id' | 'date' | 'type'>>('taxi_trips', {
+    select: 'booking_id, date, type', order: 'date',
+  })
   const { data: taxiPricingDefaults } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
   const eurMznRate = taxiPricingDefaults[0]?.eur_mzn_rate ?? 65
   const { data: eurMznRates } = useEurMznRates()
@@ -827,6 +831,7 @@ export default function ActivitiesPage() {
               stays={hotelStays}
               hotels={hotels}
               bookingRefs={bookingRefs}
+              taxis={taxiTrips}
               onAdd={() => setSafariForm({})}
               onEdit={b => setSafariForm({ initial: b })}
               onDelete={deleteBooking}
