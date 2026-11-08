@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildBookingOrder, zeroPricedLines, type BookingOrderData } from './bookingOrder'
+import { bookingOrderHtml, describeLine } from './bookingOrderHtml'
 import {
   mkAccommodation, mkRoom, mkBookingRoom, mkBookingRoomPrice, mkRoomRate, mkBooking, mkTaxiTrip,
   mkExternalBooking, mkPayment, mkCharge, mkActivityBooking, mkAgency, mkAgencyRateItem, mkAgencyLine,
@@ -97,7 +98,20 @@ describe('buildBookingOrder', () => {
     expect(o.lines[0]).toMatchObject({ item: { kind: 'external_stay', accommodationName: 'San Martinho', roomNames: ['SM-2'], nights: 4 }, amount: 600 })
   })
 
-  it('a room there with no stay entered still shows, at 0 € (flagged, never dropped)', () => {
+  it('a stay there with no sell price is the place\'s own business: shown, no price, out of the total', () => {
+    const o = buildBookingOrder(mkBooking(), base({
+      accommodations: [mkAccommodation({ id: 'acc1', name: 'San Martinho', type: 'other', external_billing: true })],
+      rooms: [mkRoom({ id: 'room1', accommodation_id: 'acc1', name: 'SM-2' })],
+      bookingRoomPrices: [],
+      externalAccommodationBkgs: [mkExternalBooking({ total_sell_price: 0 })],
+    }), [])
+    expect(o.lines[0]).toMatchObject({ amount: null, settledBy: { kind: 'place', name: 'San Martinho' } })
+    expect(o.total).toBe(0)
+    expect(zeroPricedLines(o)).toHaveLength(0)
+    expect(bookingOrderHtml(o, 'fr', '10pt', '9pt')).toContain('Géré par San Martinho')
+  })
+
+  it('a room there with no stay entered still shows (never dropped), the same way', () => {
     const o = buildBookingOrder(mkBooking(), base({
       accommodations: [mkAccommodation({ id: 'acc1', name: 'San Martinho', type: 'other', external_billing: true })],
       rooms: [mkRoom({ id: 'room1', accommodation_id: 'acc1', name: 'SM-2' })],
@@ -105,8 +119,11 @@ describe('buildBookingOrder', () => {
       externalAccommodationBkgs: [],
     }), [])
     expect(o.lines).toHaveLength(1)
-    expect(o.lines[0]).toMatchObject({ item: { kind: 'external_stay', accommodationName: 'San Martinho', roomNames: ['SM-2'], nights: 7 }, amount: 0 })
-    expect(zeroPricedLines(o)).toHaveLength(1)
+    expect(o.lines[0]).toMatchObject({
+      item: { kind: 'external_stay', accommodationName: 'San Martinho', roomNames: ['SM-2'], nights: 7 },
+      amount: null, settledBy: { kind: 'place', name: 'San Martinho' },
+    })
+    expect(zeroPricedLines(o)).toHaveLength(0)
   })
 
   it('activities: billed by us, or paid to the provider directly', () => {
@@ -129,6 +146,15 @@ describe('buildBookingOrder', () => {
     expect(o.lines.find(l => l.item.kind === 'center_access')).toMatchObject({ item: { persons: 2, days: 7, rate: 7 }, amount: 98 })
     expect(o.lines.find(l => l.item.kind === 'extra')).toMatchObject({ amount: 550 })
     expect(o.total).toBe(420 + 98 + 550)
+  })
+
+  it('center access at 0 € is included via the agency on an agency booking, still flagged on a direct one', () => {
+    const agency = buildBookingOrder(mkBooking({ agency_id: 'ag1', num_center_access: 2, center_access_rate: 0 }), base({ agencies: [mkAgency()] }), [])
+    const ca = agency.lines.find(l => l.item.kind === 'center_access')!
+    expect(ca).toMatchObject({ amount: null, settledBy: { kind: 'agency', name: 'Fun & Fly' } })
+    expect(describeLine(ca, 'fr').detail).toBe('2 pers. × 7 jours')
+    const direct = buildBookingOrder(mkBooking({ num_center_access: 2, center_access_rate: 0 }), base(), [])
+    expect(zeroPricedLines(direct).map(l => l.item.kind)).toEqual(['center_access'])
   })
 
   it('paid = verified money only; remaining = total − discounts − paid, never below 0', () => {

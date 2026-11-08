@@ -20,6 +20,7 @@ interface Words {
   includedVia: (agency: string) => string
   paidToOwner: string
   paidToProvider: (provider: string) => string
+  handledBy: (place: string) => string
   total: string; discount: string; paid: string; remaining: string
   footnote: string
 }
@@ -39,6 +40,7 @@ const W: Record<Lang, Words> = {
     includedVia: a => `Inclus via ${a}`,
     paidToOwner: 'Réglé directement au propriétaire',
     paidToProvider: p => `À régler directement à ${p}`,
+    handledBy: p => `Géré par ${p}`,
     total: 'Total commandé', discount: 'Remise', paid: 'Déjà réglé', remaining: 'Reste à payer',
     footnote: 'Les cours, locations et repas pris sur place s’ajoutent à votre compte client.',
   },
@@ -56,6 +58,7 @@ const W: Record<Lang, Words> = {
     includedVia: a => `Included via ${a}`,
     paidToOwner: 'Paid directly to the owner',
     paidToProvider: p => `Paid directly to ${p}`,
+    handledBy: p => `Handled by ${p}`,
     total: 'Total ordered', discount: 'Discount', paid: 'Already paid', remaining: 'Remaining to pay',
     footnote: 'Lessons, rentals and meals taken on site are added to your client account.',
   },
@@ -73,6 +76,7 @@ const W: Record<Lang, Words> = {
     includedVia: a => `Incluido vía ${a}`,
     paidToOwner: 'Pagado directamente al propietario',
     paidToProvider: p => `A pagar directamente a ${p}`,
+    handledBy: p => `Gestionado por ${p}`,
     total: 'Total pedido', discount: 'Descuento', paid: 'Ya pagado', remaining: 'Pendiente de pago',
     footnote: 'Las clases, alquileres y comidas en el centro se añaden a su cuenta de cliente.',
   },
@@ -129,7 +133,10 @@ export function describeLine(line: OrderLine, lang: Lang): { icon: string; title
         detail: [it.endDate && it.endDate !== it.date ? `${day(it.date, lang)} → ${day(it.endDate, lang)}` : day(it.date, lang), `${it.persons} ${w.pers}`].join(' · '),
       }
     case 'center_access':
-      return { icon: '🏄', title: w.centerAccess, detail: `${it.persons} ${w.pers} × ${it.days} ${w.days} × ${money(it.rate, lang)}` }
+      return {
+        icon: '🏄', title: w.centerAccess,
+        detail: [`${it.persons} ${w.pers}`, `${it.days} ${w.days}`, ...(line.settledBy.kind === 'us' ? [money(it.rate, lang)] : [])].join(' × '),
+      }
     case 'extra':
       return { icon: '➕', title: it.label, detail: it.quantity !== 1 ? `${it.quantity} × ${money(it.unitPrice, lang)}` : '' }
     case 'agency_service':
@@ -140,7 +147,10 @@ export function describeLine(line: OrderLine, lang: Lang): { icon: string; title
 function settledText(line: OrderLine, lang: Lang): string {
   const w = W[lang], s = line.settledBy
   if (s.kind === 'us') return money(line.amount ?? 0, lang)
-  const note = s.kind === 'agency' ? w.includedVia(s.name) : s.kind === 'owner' ? w.paidToOwner : w.paidToProvider(s.name)
+  const note = s.kind === 'agency' ? w.includedVia(s.name)
+    : s.kind === 'owner' ? w.paidToOwner
+    : s.kind === 'place' ? w.handledBy(s.name)
+    : w.paidToProvider(s.name)
   return `<span style="font-weight:normal;font-style:italic;color:#0f766e;">${esc(note)}</span>`
 }
 

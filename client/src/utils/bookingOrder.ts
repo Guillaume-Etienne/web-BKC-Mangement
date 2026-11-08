@@ -21,7 +21,8 @@ import { dossierMoney } from './dossier'
 //
 // Each line names who settles it: us (counted in the total), the partner agency
 // ("included via Fun & Fly", no price — the agency pays it), the bungalow's
-// owner, or an activity provider paid directly. Only the first kind is money the
+// owner, an activity provider paid directly, or the place itself (San Martinho:
+// "a separate accounting", gui 2026-11-08). Only the first kind is money the
 // guest owes BKC, the same split every accounting total makes.
 
 export type OrderSettledBy =
@@ -29,6 +30,7 @@ export type OrderSettledBy =
   | { kind: 'agency'; name: string }
   | { kind: 'owner' }
   | { kind: 'provider'; name: string }
+  | { kind: 'place'; name: string }
 
 export type OrderItem =
   | { kind: 'room'; accommodationType: AccommodationType; accommodationName: string; roomName: string; nights: number; nightlyRate: number }
@@ -103,6 +105,12 @@ export function buildBookingOrder(booking: Booking, input: BookingOrderData, pro
   }
   rooms.sort((a, b) => roomKey(a).localeCompare(roomKey(b), undefined, { numeric: true }))
 
+  // San Martinho is "a separate accounting" (gui, 2026-11-08): the confirmation
+  // says where the guest sleeps, and that is all — unless we did put a sell
+  // price on the stay (0 = self-managed, database.ts), which the client account
+  // then bills and this total must too.
+  const stayAt = (accName: string, sell: number): Pick<OrderLine, 'amount' | 'settledBy'> =>
+    sell > 0 ? { amount: cents(sell), settledBy: { kind: 'us' } } : { amount: null, settledBy: { kind: 'place', name: accName } }
   for (const e of data.externalAccommodationBkgs.filter(x => x.booking_id === booking.id)) {
     const acc = data.accommodations.find(a => a.id === e.accommodation_id)
     const roomNames = bookedRooms
@@ -111,13 +119,11 @@ export function buildBookingOrder(booking: Booking, input: BookingOrderData, pro
       .map(r => r!.name)
     stays.push({
       item: { kind: 'external_stay', accommodationName: acc?.name ?? '—', roomNames, checkIn: e.check_in, checkOut: e.check_out, nights: countNights(e.check_in, e.check_out) },
-      amount: cents(e.total_sell_price),
-      settledBy: { kind: 'us' },
+      ...stayAt(acc?.name ?? '—', e.total_sell_price),
     })
   }
-  // A room booked there with no stay entered yet (#026, seen 2026-11-08): the
-  // client still sleeps somewhere, so the line stays, at 0 € — which the check
-  // under "Generate PDF" reports as a price not entered.
+  // A room booked there with no stay entered (#026, seen 2026-11-08): the
+  // guest still sleeps there, so the line stays — the booking's dates, no price.
   const staysAt = new Set(data.externalAccommodationBkgs.filter(x => x.booking_id === booking.id).map(x => x.accommodation_id))
   const unpricedStays = new Map<string, string[]>()
   for (const br of bookedRooms) {
@@ -127,10 +133,10 @@ export function buildBookingOrder(booking: Booking, input: BookingOrderData, pro
     unpricedStays.set(acc.id, [...(unpricedStays.get(acc.id) ?? []), room.name])
   }
   for (const [accId, roomNames] of unpricedStays) {
+    const accName = data.accommodations.find(a => a.id === accId)?.name ?? '—'
     stays.push({
-      item: { kind: 'external_stay', accommodationName: data.accommodations.find(a => a.id === accId)?.name ?? '—', roomNames, checkIn: booking.check_in, checkOut: booking.check_out, nights },
-      amount: 0,
-      settledBy: { kind: 'us' },
+      item: { kind: 'external_stay', accommodationName: accName, roomNames, checkIn: booking.check_in, checkOut: booking.check_out, nights },
+      ...stayAt(accName, 0),
     })
   }
 
@@ -156,11 +162,16 @@ export function buildBookingOrder(booking: Booking, input: BookingOrderData, pro
     })
 
   // ── Center access (own gear), at the rate frozen on the booking ──
+  // At 0 € on an agency booking it is the agency's (Fun & Fly bills "gear
+  // storage" instead): "included via", like the rest of the package (gui,
+  // 2026-11-08). At 0 € on a direct booking it stays a price to check.
+  const caRate = booking.center_access_rate ?? 0
   const centerAccess: OrderLine[] = booking.num_center_access > 0 && nights > 0
     ? [{
-        item: { kind: 'center_access', persons: booking.num_center_access, days: nights, rate: booking.center_access_rate ?? 0 },
-        amount: cents(booking.num_center_access * nights * (booking.center_access_rate ?? 0)),
-        settledBy: { kind: 'us' },
+        item: { kind: 'center_access', persons: booking.num_center_access, days: nights, rate: caRate },
+        ...(caRate === 0 && booking.agency_id
+          ? { amount: null, settledBy: { kind: 'agency', name: agencyNameOfLine(null) } }
+          : { amount: cents(booking.num_center_access * nights * caRate), settledBy: { kind: 'us' } }),
       }]
     : []
 

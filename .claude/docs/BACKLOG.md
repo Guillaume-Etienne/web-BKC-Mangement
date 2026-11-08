@@ -318,10 +318,9 @@ activités, center access, extras — puis total / déjà réglé / reste à pay
 Tests `bookingOrder.test.ts` (10 cas), build + 899 tests ✅.
 - ✅ **Vu sur TEST le 08/11** (PDF #045 EN, #026 FR) : mise en page propre. Bug trouvé et corrigé : une chambre
   San Martinho sans séjour externe saisi **disparaissait** (#026) → ligne à 0 € signalée (test ajouté, 900 ✅).
-- 🔔 **Questions à gui** : (1) #045 et #026 : prix San Martinho = 0 € en PROD, à saisir avant tout envoi ;
-  (2) center access à 0 € (F&F : gardiennage facturé à l'agence) → masquer la ligne quand le tarif est 0 ? ;
-  (3) après des achats sur place, « Déjà réglé » compte TOUT l'argent (#026 : total 44, remise 175, réglé 434)
-  → remplacer réglé/reste par « solde : voir votre compte client » dès que réglé + remise > total ?
+- ✅ **Réponses gui (08/11)** : San Martinho = autre compta → « Géré par San Martinho », sans prix ; center
+  access à 0 € d'une résa agence → « Inclus via F&F » ; totaux après achats sur place : sans objet, la
+  confirmation part AVANT le voyage. Codé, 908 tests ✅.
 - 💭 Pas couverts : séjour hôtel partenaire (CasaMoz), cours/locations/repas déjà consommés (renvoyés au
   compte client).
 
