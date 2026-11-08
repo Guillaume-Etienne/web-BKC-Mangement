@@ -21,10 +21,17 @@ describe('PalmeirasLedger', () => {
     const html = renderToStaticMarkup(<PalmeirasLedger statement={statement} eurMznRate={70} />)
     expect(html).toContain('≈ 10,500 MZN')           // 150 € owed for the stay
     expect(html).toContain('10,000 MZN')             // the rent, in real meticals
-    expect(html).toContain('1 € = 70 MZN')
+    expect(html).toContain('≈ −20,500 MZN')          // balance in meticals, ≈ once a line is an equivalent
+    expect(html).not.toContain('150 €')              // euros only on request
     expect(html).not.toContain('Billed')
     expect(html).not.toContain('Margin')
     expect(html).not.toContain('987')
+  })
+
+  it('« € equivalents » adds the euros under the meticals', () => {
+    const html = renderToStaticMarkup(<PalmeirasLedger statement={statement} eurMznRate={70} showEur />)
+    expect(html).toContain('≈ 150 €')
+    expect(html).toContain('1 € = 70 MZN')
   })
 
   it('the admin view adds the price billed, the margin and the margin by bungalow', () => {

@@ -40,7 +40,7 @@ import type {
 
 export const _accommodation = {
   id: 'x', name: 'X', type: 'house', total_rooms: 1, is_active: true,
-  cost_per_night: null, cost_per_night_mzn: null, external_billing: false,
+  cost_per_night: null, palmeiras_price_mzn: null, external_billing: false,
 } satisfies Accommodation
 
 export const _room = {

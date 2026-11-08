@@ -36,9 +36,17 @@ describe('palmeirasExports', () => {
     expect(stayFigure(direct, '2026-11').side).toBe('none')
   })
 
+  it('in meticals: exact at the Palmeiras price, ≈ from euros otherwise', () => {
+    const rates = { eur_mzn_rate: 72 }
+    expect(stayFigure(stay({ palmeiras_price_mzn: 4000 }), '2026-10', 'en', rates).text).toBe('BKC pays you 10,200 MZN')
+    const direct = stay({ paid_direct: true, price_per_night: 170, cost_per_night: null, palmeiras_price_mzn: 12000 })
+    expect(stayFigure(direct, '2026-10', 'en', rates).text).toBe('guest paid you 36,000 MZN · BKC share 15% = 5,400 MZN')
+    expect(stayFigure(stay({}), '2026-10', 'en', rates).text).toBe('BKC pays you ≈ 10,800 MZN')
+  })
+
   it('never prints a selling price: a BKC-collected stay shows the cost only', () => {
     const html = buildExportDocument('list', input([stay({ cost_per_night: 50 })]), '2026-10', OPTS)
-    expect(html).toContain('150 €')
+    expect(html).toContain('≈ 10,800 MZN')
     expect(html).toContain('Paid to BKC')
   })
 
@@ -68,12 +76,12 @@ describe('palmeirasExports', () => {
     const html = (lang: 'fr' | 'es' | 'pt') => buildExportDocument('list', i, '2026-10', { showAmounts: true, lang })
     expect(html('fr')).toContain('Octobre 2026')
     expect(html('fr')).toContain('Payé à BKC')
-    expect(html('fr')).toContain('BKC vous paie 150 €')
+    expect(html('fr')).toContain('BKC vous paie ≈ 10,800 MZN')
     expect(html('es')).toContain('Pagado a BKC')
-    expect(html('es')).toContain('BKC le paga 150 €')
+    expect(html('es')).toContain('BKC le paga ≈ 10,800 MZN')
     expect(html('pt')).toContain('Outubro')
     expect(html('pt')).toContain('Pago à BKC')
-    expect(html('pt')).toContain('a BKC paga-vos 150 €')
+    expect(html('pt')).toContain('a BKC paga-vos ≈ 10,800 MZN')
     expect(html('pt')).toContain('<html lang="pt">')
   })
 

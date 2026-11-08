@@ -1,8 +1,8 @@
 import type { SharedAccountingData } from './types'
 import type { PalmeirasRent, PalmeirasReversal, PalmeirasEntry, PalmeirasSettlement } from '../../types/database'
 import { countNights, isRoomPaidToOwner } from './utils'
-import { bungalowCostPerNight } from '../../utils/exchangeRates'
-import { PALMEIRAS_COMMISSION_PCT, stayInternal, stayLineKey, type StatementInput, type StatementStay, type StayInternals } from '../../utils/palmeirasStatement'
+import { bungalowCostPerNight, rateOn } from '../../utils/exchangeRates'
+import { PALMEIRAS_COMMISSION_PCT, stayInternal, stayLineKey, withMznAmounts, type StatementInput, type StatementStay, type StayInternals } from '../../utils/palmeirasStatement'
 
 /** One bungalow stay, with the margin the centre makes by sub-letting it. */
 export interface BungalowRow {
@@ -15,8 +15,11 @@ export interface BungalowRow {
   sellRate: number   // €/night billed to the client (booking snapshot)
   margin: number     // (sell − cost) × nights
   /** The guest paid Palmeiras directly: cost and margin are 0 — our commission
-   *  on sellRate × nights is entered by hand as a Reversal. */
+   *  on paidRate × nights is entered by hand as a Reversal. */
   paidToOwner: boolean
+  /** Paid directly: €/night the guest paid the Palmeiras — their MZN price at
+   *  the rate of the arrival when it is known (2026-11-08), else sellRate. */
+  paidRate?: number
   month: string      // YYYY-MM, the booking check-in month
 }
 
@@ -54,6 +57,11 @@ export function buildBungalowRows(data: SharedAccountingData): BungalowRow[] {
     const costRate = paidToOwner ? 0 : bungalowCostPerNight(acc, booking.check_in, data.eurMznRates, data.eurMznRate)
     const nights = countNights(booking.check_in, booking.check_out)
     const client = data.clients.find(c => c.id === booking.client_id)
+    const rate = rateOn(data.eurMznRates, booking.check_in, data.eurMznRate)
+    const price = Number(acc?.palmeiras_price_mzn ?? 0)
+    const paidRate = paidToOwner
+      ? (price > 0 && rate > 0 ? Math.round(price / rate * 100) / 100 : sellRate)
+      : undefined
 
     rows.push({
       bungalow:   acc?.name ?? '?',
@@ -65,6 +73,7 @@ export function buildBungalowRows(data: SharedAccountingData): BungalowRow[] {
       sellRate,
       margin: paidToOwner ? 0 : (sellRate - costRate) * nights,
       paidToOwner,
+      paidRate,
       month:  booking.check_in.slice(0, 7),
     })
   }
@@ -89,8 +98,9 @@ export function monthlyCommission(
   const out: Record<string, MonthCommission> = {}
   for (const b of rows.filter(r => r.paidToOwner)) {
     const c = (out[b.month] ??= { gross: 0, percent: PALMEIRAS_COMMISSION_PCT, net: 0, actual: false })
-    c.gross += b.sellRate * b.nights
-    c.net   += Math.round(b.sellRate * b.nights * PALMEIRAS_COMMISSION_PCT) / 100
+    const paid = b.paidRate ?? b.sellRate
+    c.gross += paid * b.nights
+    c.net   += Math.round(paid * b.nights * PALMEIRAS_COMMISSION_PCT) / 100
   }
   for (const r of reversals) {
     out[r.month] = { gross: r.gross_amount, percent: r.percent, net: r.net_amount, actual: true }
@@ -127,7 +137,7 @@ function bungalowStays(data: SharedAccountingData): { stay: StatementStay; sell:
         paid_direct: direct,
         price_per_night: direct ? price : null,
         cost_per_night:  direct ? null : bungalowCostPerNight(acc, booking.check_in, data.eurMznRates, data.eurMznRate),
-        cost_per_night_mzn: direct ? null : acc.cost_per_night_mzn ?? null,
+        palmeiras_price_mzn: acc.palmeiras_price_mzn ?? null,
       },
     })
   }
@@ -135,11 +145,14 @@ function bungalowStays(data: SharedAccountingData): { stay: StatementStay; sell:
 }
 
 /** Admin only: price billed and margin of each stay we collected, by statement
- *  line key. Kept out of `statementInputFromData` on purpose: see StayInternal. */
+ *  line key. Kept out of `statementInputFromData` on purpose: see StayInternal.
+ *  The stays are read from that same input, so their euros (from the MZN price)
+ *  are the statement's own. */
 export function stayInternalsFromData(data: SharedAccountingData): StayInternals {
   const out: StayInternals = {}
-  bungalowStays(data).forEach(({ stay, sell }, i) => {
-    const row = stayInternal(stay, sell)
+  const stays = statementInputFromData(data, []).stays
+  bungalowStays(data).forEach(({ sell }, i) => {
+    const row = stayInternal(stays[i], sell)
     if (row) out[stayLineKey(i)] = row
   })
   return out
@@ -152,7 +165,8 @@ export function statementInputFromData(
   data: SharedAccountingData,
   settlements: PalmeirasSettlement[],
 ): StatementInput {
-  return {
+  // The same euros from the meticals as the share page (withMznAmounts on both).
+  return withMznAmounts({
     eur_mzn_rate: data.eurMznRate,
     eur_mzn_rates: data.eurMznRates.map(r => ({ valid_from: r.valid_from, rate: r.rate })),
     bungalows: data.accommodations.filter(a => a.type === 'bungalow').map(b => b.name),
@@ -160,16 +174,17 @@ export function statementInputFromData(
     rents: data.palmeirasRents.map(r => ({ month: r.month, amount: r.amount, amount_mzn: r.amount_mzn ?? null })),
     adjustments: data.palmeirasReversals.map(r => ({
       month: r.month, gross_amount: r.gross_amount, percent: r.percent, net_amount: r.net_amount,
+      gross_amount_mzn: r.gross_amount_mzn ?? null, net_amount_mzn: r.net_amount_mzn ?? null,
     })),
-    entries: data.palmeirasEntries.map(e => ({ month: e.month, date: e.date ?? null, type: e.type, description: e.description, amount: e.amount })),
+    entries: data.palmeirasEntries.map(e => ({ month: e.month, date: e.date ?? null, type: e.type, description: e.description, amount: e.amount, amount_mzn: e.amount_mzn ?? null })),
     card_payments: data.payments
       .filter(p => p.method === 'card_palmeiras' && !p.is_discount)
       .map(p => {
         const { booking, guest } = guestOf(data, p.booking_id)
-        return { booking_number: booking?.booking_number ?? null, guest, date: p.date, amount: p.amount }
+        return { booking_number: booking?.booking_number ?? null, guest, date: p.date, amount: p.amount, amount_mzn: p.amount_mzn ?? null }
       }),
-    settlements: settlements.map(s => ({ id: s.id, date: s.date, direction: s.direction, amount: s.amount, method: s.method, rent_month: s.rent_month ?? null })),
-  }
+    settlements: settlements.map(s => ({ id: s.id, date: s.date, direction: s.direction, amount: s.amount, amount_mzn: s.amount_mzn ?? null, method: s.method, rent_month: s.rent_month ?? null })),
+  })
 }
 
 /** What the Palmeiras relationship yields over a period.

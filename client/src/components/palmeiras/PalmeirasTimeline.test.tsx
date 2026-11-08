@@ -29,16 +29,28 @@ describe('PalmeirasTimeline', () => {
   })
 
   it('puts the amount each stay weighs on its bar — compact on a short stay', () => {
+    // in meticals, ≈ for stays with no Palmeiras price (49,50 € × 72 …)
     expect(html).toContain('>#39<')
-    expect(html).toContain('>+49,50<')
+    expect(html).toContain('>≈+3,564<')
     expect(html).toContain('>#52<')
-    expect(html).toContain('>+16,50<')
+    expect(html).toContain('>≈+1,188<')
     expect(html).toContain('>Guest D<')
-    expect(html).toContain('#58 · 350 € Palm.')
+    expect(html).toContain('#58 · ≈ 25,200 MZN Palm.')
+  })
+
+  it('at the Palmeiras price, the amount on the bar is exact', () => {
+    const priced: StatementInput = { ...input, stays: input.stays.map(s => ({ ...s, palmeiras_price_mzn: s.bungalow === 'B4' ? 4000 : 12000 })) }
+    const out = renderToStaticMarkup(<PalmeirasTimeline input={priced} statement={buildStatement(priced, '2026-10-30')} />)
+    expect(out).toContain('>+3,600<')                  // #39: 2 × 12 000 × 15 %
+    expect(out).toContain('#58 · 23,800 MZN Palm.')     // 7 × 4 000 − 15 %
+    expect(out).not.toContain('≈')
   })
 
   it('house rent: a bar where recorded, a reminder for a past month without, nothing ahead', () => {
-    expect(html).toContain('10,000 MZN · 138,89 €')                         // October
+    expect(html).toContain('</span> · 10,000 MZN')                           // October, in meticals only
+    expect(html).not.toContain('138,89 €')
+    const withEur = renderToStaticMarkup(<PalmeirasTimeline input={input} statement={buildStatement(input, '2026-10-30')} showEur />)
+    expect(withEur).toContain('10,000 MZN · 138,89 €')
     expect(html.match(/not recorded yet/g)?.length).toBe(1)                  // September only, not November
     expect(html).not.toContain('+ 10,000 MZN')                                    // no button on the shared page
     const admin = renderToStaticMarkup(<PalmeirasTimeline input={input} statement={buildStatement(input, '2026-10-30')}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildBungalowRows, computePalmeirasTotals, statementInputFromData, stayInternalsFromData } from './palmeirasUtils'
+import { buildBungalowRows, computePalmeirasTotals, monthlyCommission, statementInputFromData, stayInternalsFromData } from './palmeirasUtils'
 import type { BungalowRow } from './palmeirasUtils'
 import { computeAccommodationRevenue, computeSeasonTotals } from './utils'
 import {
@@ -154,19 +154,33 @@ describe('computePalmeirasTotals', () => {
   })
 })
 
-describe('bungalow tariff in meticals', () => {
-  it('sets the cost and the margin at the rate of the arrival, everywhere', () => {
+describe('bungalow price in meticals (the Palmeiras price, 2026-11-08)', () => {
+  const withPrice = (paidToOwner: boolean) => {
     const base = bungalowSetup({ sell: 200, cost: 25 })
-    const data = {
+    return {
       ...base,
-      eurMznRates: [{ valid_from: '2000-01-01', rate: 70 }, { valid_from: '2026-12-01', rate: 100 }],
-      accommodations: base.accommodations.map(a => ({ ...a, cost_per_night_mzn: 7000 })),
+      eurMznRates: [{ valid_from: '2000-01-01', rate: 85 }, { valid_from: '2026-12-01', rate: 100 }],
+      // 10 000 MZN: BKC owes 8 500 (= 100 € at 85), or earns 1 500 (= 17,65 €)
+      accommodations: base.accommodations.map(a => ({ ...a, palmeiras_price_mzn: 10000 })),
+      bookingRoomPrices: base.bookingRoomPrices.map(p => ({ ...p, paid_to_owner: paidToOwner })),
     }
-    expect(buildBungalowRows(data)[0]).toMatchObject({ costRate: 100, margin: 700 })     // arrival 1 Nov, rate 70
+  }
+
+  it('sets the cost and the margin at the rate of the arrival, everywhere', () => {
+    const data = withPrice(false)
+    expect(buildBungalowRows(data)[0]).toMatchObject({ costRate: 100, margin: 700 })     // arrival 1 Nov, rate 85
     expect(stayInternalsFromData(data)['stay-0']).toMatchObject({ billed: 1400, margin: 700 })
     const stay = statementInputFromData(data, []).stays[0]
-    expect([stay.cost_per_night, stay.cost_per_night_mzn]).toEqual([100, 7000])
+    expect([stay.cost_per_night, stay.palmeiras_price_mzn]).toEqual([100, 10000])
     expect(computeSeasonTotals(data).bungalowCosts).toBe(700)
+  })
+
+  it('paid to them: our commission is 15 % of their price, not of our selling price', () => {
+    const data = withPrice(true)
+    const row = buildBungalowRows(data)[0]
+    expect(row.paidRate).toBe(117.65)                        // 10 000 / 85
+    expect(monthlyCommission([row], [])['2026-11'].net).toBeCloseTo(123.53, 2)   // 7 × 117,65 × 15 %
+    expect(stayInternalsFromData(data)['stay-0'].margin).toBe(123.53)
   })
 })
 

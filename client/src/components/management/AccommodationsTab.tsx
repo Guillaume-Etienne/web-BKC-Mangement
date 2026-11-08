@@ -5,6 +5,7 @@ import { useAccommodations, useRooms } from '../../hooks/useAccommodations'
 import { useTable } from '../../hooks/useSupabase'
 import type { Accommodation, AccommodationType, Room, RoomRate, HouseRental, Lang } from '../../types/database'
 import { todayISO, fmtDate } from '../../utils/dates'
+import { PALMEIRAS_COMMISSION_PCT, palmeirasCostMzn, palmeirasCommissionMzn } from '../../utils/palmeirasTerms'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 
@@ -22,12 +23,12 @@ interface AccFormData {
   is_active: boolean
   type: AccommodationType
   cost_per_night: number | null
-  cost_per_night_mzn: number | null
+  palmeiras_price_mzn: number | null
   external_billing: boolean
   hide_empty_rooms: boolean
 }
 interface AccFormProps {
-  initial: { name: string; is_active: boolean; type: AccommodationType; cost_per_night: string; cost_per_night_mzn: string; external_billing: boolean; hide_empty_rooms: boolean }
+  initial: { name: string; is_active: boolean; type: AccommodationType; cost_per_night: string; palmeiras_price_mzn: string; external_billing: boolean; hide_empty_rooms: boolean }
   title: string
   lockType?: boolean
   /** Present when editing an existing accommodation: lets the same modal set
@@ -50,7 +51,7 @@ function AccForm({ initial, title, lockType, editContext, onSave, onClose }: Acc
   const [active,  setActive]  = useState(initial.is_active)
   const [type,    setType]    = useState(initial.type)
   const [cost,    setCost]    = useState(initial.cost_per_night)
-  const [costMzn, setCostMzn] = useState(initial.cost_per_night_mzn)
+  const [priceMzn, setPriceMzn] = useState(initial.palmeiras_price_mzn)
   const [external, setExternal] = useState(initial.external_billing)
   const [hideEmpty, setHideEmpty] = useState(initial.hide_empty_rooms)
   const [saving,  setSaving]  = useState(false)
@@ -73,7 +74,7 @@ function AccForm({ initial, title, lockType, editContext, onSave, onClose }: Acc
       is_active: active,
       type,
       cost_per_night: type === 'bungalow' && cost !== '' ? parseFloat(cost) : null,
-      cost_per_night_mzn: type === 'bungalow' && parseFloat(costMzn) > 0 ? parseFloat(costMzn) : null,
+      palmeiras_price_mzn: type === 'bungalow' && parseFloat(priceMzn) > 0 ? parseFloat(priceMzn) : null,
       external_billing: external,
       hide_empty_rooms: hideEmpty,
     })
@@ -114,17 +115,21 @@ function AccForm({ initial, title, lockType, editContext, onSave, onClose }: Acc
           </div>
           {type === 'bungalow' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cost per night (€) — what we pay</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Palmeiras price per night (MZN)</label>
+              <input type="number" min="0" step="1" value={priceMzn}
+                onChange={e => setPriceMzn(e.target.value)}
+                placeholder="e.g. 12000"
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {parseFloat(priceMzn) > 0
+                  ? `Guest pays BKC → BKC owes the Palmeiras ${palmeirasCostMzn(parseFloat(priceMzn)).toLocaleString('en-US')} MZN / night (−${PALMEIRAS_COMMISSION_PCT}%). Guest pays the Palmeiras → they owe BKC ${palmeirasCommissionMzn(parseFloat(priceMzn)).toLocaleString('en-US')} MZN / night (${PALMEIRAS_COMMISSION_PCT}%). Converted at the rate of each arrival.`
+                  : `Their own price. BKC keeps ${PALMEIRAS_COMMISSION_PCT}% of it, whoever the guest pays.`}
+              </p>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 mb-1">Cost per night (€) — only without an MZN price</label>
               <input type="number" min="0" step="0.5" value={cost}
                 onChange={e => setCost(e.target.value)}
                 placeholder="e.g. 25"
                 className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 mb-1">Agreed tariff per night (MZN)</label>
-              <input type="number" min="0" step="1" value={costMzn}
-                onChange={e => setCostMzn(e.target.value)}
-                placeholder="e.g. 3500"
-                className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">When set, it replaces the € cost: each stay converts it at the rate of its arrival.</p>
             </div>
           )}
           <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
@@ -515,7 +520,7 @@ export default function AccommodationsTab() {
         total_rooms: data.type === 'house' ? 2 : 1,
         is_active: data.is_active,
         cost_per_night: data.cost_per_night,
-        cost_per_night_mzn: data.cost_per_night_mzn,
+        palmeiras_price_mzn: data.palmeiras_price_mzn,
         external_billing: data.external_billing,
       }])
       .select('id')
@@ -545,7 +550,7 @@ export default function AccommodationsTab() {
         name: data.name,
         is_active: data.is_active,
         cost_per_night: data.cost_per_night,
-        cost_per_night_mzn: data.cost_per_night_mzn,
+        palmeiras_price_mzn: data.palmeiras_price_mzn,
         external_billing: data.external_billing,
       })
       .eq('id', editing.id)
@@ -658,7 +663,7 @@ export default function AccommodationsTab() {
                                   ))
                                 )}
                                 {acc.cost_per_night != null && (
-                                  <span className="text-amber-600 dark:text-amber-400">cost: {acc.cost_per_night_mzn ? `${acc.cost_per_night_mzn.toLocaleString('en-US')} MZN` : `${acc.cost_per_night}€`}/n</span>
+                                  <span className="text-amber-600 dark:text-amber-400">{acc.palmeiras_price_mzn ? `price: ${acc.palmeiras_price_mzn.toLocaleString('en-US')} MZN` : `cost: ${acc.cost_per_night}€`}/n</span>
                                 )}
                               </div>
                               {rms.length === 0 ? (
@@ -714,7 +719,9 @@ export default function AccommodationsTab() {
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                   {TM[selected.type].label} — Rooms: {selRooms.map(r => r.name).join(', ') || 'none'}
                   {selected.cost_per_night != null && (
-                    <span className="ml-2 text-amber-600 dark:text-amber-400 font-medium">Cost: {selected.cost_per_night_mzn ? `${selected.cost_per_night_mzn.toLocaleString('en-US')} MZN` : `${selected.cost_per_night}€`}/night</span>
+                    <span className="ml-2 text-amber-600 dark:text-amber-400 font-medium">{selected.palmeiras_price_mzn
+                      ? `Palmeiras price: ${selected.palmeiras_price_mzn.toLocaleString('en-US')} MZN/night (BKC cost ${palmeirasCostMzn(selected.palmeiras_price_mzn).toLocaleString('en-US')})`
+                      : `Cost: ${selected.cost_per_night}€/night`}</span>
                   )}
                 </p>
               </div>
@@ -776,7 +783,7 @@ export default function AccommodationsTab() {
       {/* ── Modals ───────────────────────────────────────────────────────── */}
       {showForm && (
         <AccForm
-          initial={{ name: '', is_active: true, type: 'house', cost_per_night: '', cost_per_night_mzn: '', external_billing: false, hide_empty_rooms: false }}
+          initial={{ name: '', is_active: true, type: 'house', cost_per_night: '', palmeiras_price_mzn: '', external_billing: false, hide_empty_rooms: false }}
           title={i18n.management.title_new_accommodation[lang]}
           onSave={handleCreate}
           onClose={() => setShowForm(false)}
@@ -789,7 +796,7 @@ export default function AccommodationsTab() {
             is_active: editing.is_active,
             type: editing.type,
             cost_per_night: editing.cost_per_night != null ? String(editing.cost_per_night) : '',
-            cost_per_night_mzn: editing.cost_per_night_mzn != null ? String(editing.cost_per_night_mzn) : '',
+            palmeiras_price_mzn: editing.palmeiras_price_mzn != null ? String(editing.palmeiras_price_mzn) : '',
             // `?? false` only bites in the window before the migration is applied,
             // where the column doesn't exist yet — after it, NOT NULL DEFAULT false.
             // Without it the checkbox starts uncontrolled and React complains.

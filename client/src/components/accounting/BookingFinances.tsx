@@ -258,11 +258,16 @@ function PaymentForm({ bookingId, initial, outstanding, associates, onSave, onCa
   const [notes,      setNotes]      = useState(initial?.notes ?? '')
   const [date,       setDate]       = useState(initial?.date ?? todayISO())
   const [receivedBy, setReceivedBy] = useState(initial?.received_by_associate_id ?? '')
+  // Paid on the Palmeiras terminal: what it charged in meticals is what their
+  // account counts (2026-11-08); the euros above are what the guest is credited.
+  const [amountMzn,  setAmountMzn]  = useState(initial?.amount_mzn != null ? String(initial.amount_mzn) : '')
+  const onTerminal = method === 'card_palmeiras'
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const parsed = parseFloat(amount)
     if (!parsed || parsed <= 0) return
+    const mzn = parseFloat(amountMzn)
     onSave({
       id:          initial?.id ?? crypto.randomUUID(),
       booking_id:  bookingId,
@@ -276,6 +281,8 @@ function PaymentForm({ bookingId, initial, outstanding, associates, onSave, onCa
       // Only named once the column exists — an insert naming an unmigrated
       // column is refused whole, and the payment would be lost with it.
       ...(associates.length > 0 ? { received_by_associate_id: receivedBy || null } : {}),
+      // Named only for a terminal payment (or to clear one that no longer is).
+      ...(onTerminal ? { amount_mzn: mzn > 0 ? mzn : null } : initial?.amount_mzn != null ? { amount_mzn: null } : {}),
     })
   }
 
@@ -321,6 +328,14 @@ function PaymentForm({ bookingId, initial, outstanding, associates, onSave, onCa
             className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
       </div>
+      {onTerminal && (
+        <div>
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.bf_terminal_mzn[lang]}</label>
+          <input type="number" min="0" step="1" value={amountMzn} onChange={e => setAmountMzn(e.target.value)} placeholder="MZN"
+            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">{i18n.accounting.bf_terminal_mzn_hint[lang]}</p>
+        </div>
+      )}
       {associates.length > 0 && (
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.as_received_by[lang]}</label>

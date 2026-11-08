@@ -1,5 +1,20 @@
 # Compte Palmeiras
 
+## Meticals comme base — codé le 2026-11-08 (migration `2026-11-08_palmeiras_mzn_base`)
+
+gui : « ils sont QUE en meticals ». Le compte se tient en MZN ; les euros ne sont plus qu'un équivalent.
+
+- **Règle unique** `utils/palmeirasTerms.ts` : `PALMEIRAS_COMMISSION_PCT` (15, ré-exporté par palmeirasStatement), `palmeirasCostMzn` (prix − 15 %), `palmeirasCommissionMzn` (15 %). Tarif = **prix public du Palmeiras** (`accommodations.palmeiras_price_mzn`, saisi dans Options → Accommodations) ; il remplace `cost_per_night_mzn` (jamais rempli, plus lu) et, quand il est là, le coût en € (`bungalowCostPerNight` = 85 % du prix au taux de l'arrivée).
+- **Chaque ligne née en MZN porte `mzn` exact** : séjour au prix du Palmeiras (encaissé : nuits × prix − 15 % ; payé chez eux : 15 % de nuits × prix), loyer, règlement (`amount_mzn`), ligne libre (`amount_mzn`), paiement CB sur leur terminal (`payments.amount_mzn`, champ affiché dans le formulaire de paiement quand le moyen est `card_palmeiras`), commission réelle (`net_amount_mzn`). Sinon (vieilles données en €) : MZN = € × taux de sa date, marqué ≈.
+- `withMznAmounts(input)` (remplace `withMznCosts`) : calcule les € de tout ce qui est né en MZN, au taux de sa date — appliqué une fois sur l'entrée, côté page partagée ET admin (`statementInputFromData` le renvoie déjà normalisé ; `stayInternalsFromData` lit ces mêmes séjours).
+- `buildStatement` rend aussi `toUsMzn`, `toPalmeirasMzn`, `paidByUsMzn`, `paidByThemMzn`, **`balanceMzn`** (somme des MZN ligne à ligne) et `mznExact` ; `buildLedger` : `balanceMzn` / `balanceMznExact` par ligne, `closingMzn` par mois. Commission réelle saisie en MZN : l'écart se prend en MZN (seulement si tous les séjours directs du mois ont un prix MZN, sinon en € comme avant).
+- **Affichage** : MZN partout (encadré du solde, tableau, frise, totaux du mois, règlements) ; bascule **MZN | MZN + € equivalents** à côté de Timeline/Table, mémorisée par appareil (`palmeiras_currency`). Sans aucun taux : retour aux €. Le signe se place après le ≈ (`fmtMzn(n, exact, sign)` → « ≈ −500 MZN »). Colonnes admin Billed / Margin : restent en € (chiffres BKC).
+- **Formulaires** (onglet Palmeiras) : règlement, ligne libre et commission réelle se saisissent en MZN, € stocké = équivalent au taux du jour (fin de mois pour la commission) ; « Mark paid » pré-remplit les MZN du loyer ; « + Payment » pré-remplit le solde MZN.
+- **Exports** : « BKC vous paie 10 200 MZN », « le client vous a payé 36 000 MZN · part BKC 15 % = 5 400 MZN » ; ≈ quand seul l'€ est connu. Fiche interne : coût exact si prix MZN.
+- Vue « Internal result » et dashboard : restent en € (compta BKC) ; la commission des séjours payés en direct y suit aussi le prix MZN (`BungalowRow.paidRate`).
+- Sécurité : `palmeiras_price_mzn` est LEUR prix public — exposable ; notre prix de vente reste hors de `StatementInput` et de la RPC. `accommodations` est lisible par tout jeton valide (comme `cost_per_night` déjà).
+- Tests : `palmeirasStatement.test.ts` § « meticals as the base », `palmeirasUtils.test.ts` § « bungalow price in meticals », `exchangeRates.test.ts`, `palmeirasExports.test.ts`, `PalmeirasLedger.test.tsx`, `PalmeirasTimeline.test.tsx`.
+
 ## Taux dans le temps + tarifs en MZN — codé le 2026-11-01 (migration `2026-11-01b`)
 
 - `utils/exchangeRates.ts` : `rateOn(rates, date, repli)` et `bungalowCostPerNight`. `data.eurMznRate` reste le dernier taux, `data.eurMznRates` l'historique. Hook : `useEurMznRateFor`.

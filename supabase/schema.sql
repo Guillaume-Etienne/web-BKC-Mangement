@@ -576,6 +576,9 @@ CREATE TABLE eur_mzn_rates (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE accommodations ADD COLUMN cost_per_night_mzn NUMERIC(12,2) CHECK (cost_per_night_mzn > 0);
+-- 2026-11-08 : cost_per_night_mzn n'est plus lu (jamais rempli) — remplacé par le prix public du Palmeiras.
+-- BKC leur doit 85 % quand le client paie BKC ; ils doivent 15 % à BKC quand le client les paie.
+ALTER TABLE accommodations ADD COLUMN palmeiras_price_mzn NUMERIC(12,2) CHECK (palmeiras_price_mzn > 0);
 
 CREATE TABLE taxi_pricing_defaults (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -839,6 +842,9 @@ CREATE TABLE payments (
   notes        TEXT,
   -- NULL = encaissé par le centre ; sinon l'associé que le client a payé en direct
   received_by_associate_id UUID REFERENCES associates(id) ON DELETE RESTRICT,
+  -- 2026-11-08 : card_palmeiras seulement — ce que leur terminal a débité, en MZN (le compte Palmeiras
+  -- est en meticals) ; `amount` reste en € pour le client
+  amount_mzn   NUMERIC(12,2) CHECK (amount_mzn > 0),
   created_at   TIMESTAMPTZ DEFAULT now()
 );
 
@@ -949,6 +955,9 @@ CREATE TABLE palmeiras_reversals (
   net_amount    NUMERIC(10,2) NOT NULL,
   notes         TEXT
 );
+-- 2026-11-08 : la commission réelle en MZN (le compte est en meticals) ; les colonnes € en sont l'équivalent
+ALTER TABLE palmeiras_reversals ADD COLUMN gross_amount_mzn NUMERIC(12,2);
+ALTER TABLE palmeiras_reversals ADD COLUMN net_amount_mzn   NUMERIC(12,2);
 
 CREATE TABLE palmeiras_entries (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -958,6 +967,8 @@ CREATE TABLE palmeiras_entries (
   amount       NUMERIC(10,2) NOT NULL,
   date         DATE              -- 2026-10-30d : le jour réel ; month en découle
 );
+-- 2026-11-08 : montant d'origine en MZN ; `amount` (€) en est l'équivalent au taux du jour
+ALTER TABLE palmeiras_entries ADD COLUMN amount_mzn NUMERIC(12,2) CHECK (amount_mzn > 0);
 
 -- Règlement daté entre nous et le Palmeiras (2026-10-30b). Admin only ; la page partagée lit
 -- le relevé via palmeiras_statement() (SECURITY DEFINER, token 'palmeiras'), jamais la table.
@@ -972,6 +983,8 @@ CREATE TABLE palmeiras_settlements (
   -- 2026-10-30e : la période de loyer (mois de départ, 15 → 15) que ce règlement paie
   rent_month  TEXT CHECK (rent_month ~ '^[0-9]{4}-[0-9]{2}$')
 );
+-- 2026-11-08 : montant d'origine en MZN (réglé le plus souvent en cash MZN) ; `amount` (€) en est l'équivalent
+ALTER TABLE palmeiras_settlements ADD COLUMN amount_mzn NUMERIC(12,2) CHECK (amount_mzn > 0);
 
 -- palmeiras_sub_lets — REMOVED (avril 2026)
 -- Bungalow sub-lets are now tracked via accommodations (type='bungalow', cost_per_night)

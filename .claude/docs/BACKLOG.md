@@ -6,6 +6,8 @@
 
 ## 🚨 Migrations SQL — registre
 
+⏳ **`2026-11-08_palmeiras_mzn_base.sql`** (TEST ✅ 2026-11-08 par Claude : colonnes + tarifs + RPC, curl anon vérifié — settlements → 42501, accommodations sans token → [], RPC sans token → null ; RPC avec jeton palmeiras simulé → `palmeiras_price_mzn` sur chaque séjour, aucun prix de vente ; **PROD à passer AVANT le push**) — compte Palmeiras en meticals : `accommodations.palmeiras_price_mzn` (prix public du Palmeiras, tarifs gui See View 5 = 12 000, B1 = 4 000, B2 = 8 000, B3 = 8 000, B4 = 4 000), `amount_mzn` sur `palmeiras_settlements` / `palmeiras_entries` / `payments` (CB terminal Palmeiras), `gross_amount_mzn` / `net_amount_mzn` sur `palmeiras_reversals`, RPC qui les rend. Rien n'est supprimé (`cost_per_night_mzn` n'est plus lu, colonne morte à archiver puis supprimer un jour). Vérif : pied du fichier.
+
 ✅ **`2026-11-01b_eur_mzn_rates.sql`** (TEST + PROD ✅ 2026-11-06 par Claude, avec accord de gui — le code `491ee4d` était parti en prod le 06/11 à 15 h 06 sans elle ; base + curl anon vérifiés : 1 taux 70 depuis 2000-01-01, anon → 401/42501, RPC sans token → null ; **gui doit relancer le MCP**) — table `eur_mzn_rates` (admin seul), trigger qui recopie le dernier taux dans `taxi_pricing_defaults.eur_mzn_rate`, `accommodations.cost_per_night_mzn`, RPC `palmeiras_statement()` qui rend les taux et le tarif MZN. Aucun chiffre ne bouge au passage (une ligne au taux actuel depuis 2000-01-01). Rien n'est supprimé. Vérif : pied du fichier (`eur_mzn_rates` anon → 401/42501 ; RPC sans token → null).
 
 ✅ **`2026-11-01_center_access_rate_7.sql`** (TEST + PROD ✅ 2026-11-01 par Claude, vérifié en base) — DEFAULT 7 + séjours en cours/à venir de 5 à 7 € (14 résas PROD) ; terminés, annulés et tarifs à 0 inchangés.
@@ -328,6 +330,12 @@ Empreinte TEST ↔ PROD (tables, colonnes, contraintes, index, policies, droits,
   À régénérer depuis la PROD (ou à compléter) ; ne pas s'y fier comme référence d'ici là.
 - Rappel dette : 19d (colonnes mortes) repoussée ; `palmeiras_reversals` = désormais « commission réelle du mois ».
 
+### 🌴 Compta Palmeiras en meticals — ✅ CODÉ le 2026-11-08 (migration ci-dessus, PROD à passer, puis push par gui)
+
+gui : « ils sont QUE en meticals ». Tranché : **la base est en MZN, bascule « MZN + € equivalents » pour voir les euros** (admin ET page partagée) ; tarifs = **prix public du Palmeiras**, BKC garde **15 % dans les deux sens** (client paie BKC → on leur doit 85 % ; client les paie → ils nous doivent 15 %) ; règlements surtout en **cash MZN**, parfois via nos clients qui paient sur **leur terminal CB** (`card_palmeiras`, montant MZN du ticket saisi sur le paiement). Détail : `PALMEIRAS_ACCOUNT.md` § « Meticals comme base ».
+- Reste : vérif écran (relevé, tableau, frise, exports, fiche bungalow, paiement CB) — **proposer Claude in Chrome** ; vieilles lignes en € (aucune en PROD au 08/11 hors loyers déjà en MZN) restent « ≈ ».
+- Effet en PROD dès le push : les commissions des séjours payés en direct passent sur 15 % du tarif MZN (ex. See View 5 : 1 800 MZN/nuit ≈ 25,7 € au lieu de 15 % × 165 € = 24,75 €) ; les coûts des séjours encaissés passent sur 85 % du tarif (B4 : 3 400 MZN ≈ 48,6 € au lieu de 50 €).
+
 ### 🌴 Compta Palmeiras — vues d'abord, données ensuite (ouvert 2026-10-30)
 
 Aucun point n'a encore été fait avec le Palmeiras. En PROD : aucun loyer, aucun Reversal, aucune Free entry, aucun paiement `card_palmeiras`.
@@ -342,7 +350,7 @@ Ensuite, à saisir par gui : loyers sept. + oct. (10 000 MZN), et les éventuels
 - ⚠️ **Sécurité** : prix de vente et marge restent hors de `StatementInput` et de la RPC `palmeiras_statement()` (ce qui protège la page partagée et les exports actuels) ; les passer à part, côté admin.
 - **Taux** : le global `taxi_pricing_defaults.eur_mzn_rate` (70 au 2026-11-01), sans nouveau réglage ni migration ; déjà dans `StatementInput.eur_mzn_rate`. Afficher « 1 € = X MZN » ; taux absent → masquer le MZN, ne pas retomber sur 65. Le loyer garde son vrai `amount_mzn`. Taux figé par séjour écarté. Petite fonction commune de formatage € + MZN à créer.
 - **Tranché gui 2026-11-01** : prix par nuit ET marge par bungalow en fin de mois : oui (admin seul). Vider le champ du taux ne repasse plus à 65 (Save bloqué tant que le taux est vide).
-- ✅ **Historique du taux EUR/MZN : CODÉ le 2026-11-01, migration `2026-11-01b` à passer** : taux datés dans Options → Pricing, chaque conversion au taux de sa date (taxis, cash-flow, dépenses, hôtel, Palmeiras), soldes au dernier taux. 🔔 **Rappeler à gui : donner les tarifs MZN par bungalow**, à saisir dans Options → Accommodations (sans eux, le coût reste en €). Tranché gui : une mise à jour du taux ne change pas ce qui a été appliqué par le passé, historique conservé. Tranché gui aussi : lignes Palmeiras au taux de leur date, solde au dernier taux ; bungalows convenus en MZN, « sans trop complexifier ». #52 = prix oublié, à corriger plus tard (gui) ; #58 sans chambre = en réflexion (gui).
+- ✅ **Historique du taux EUR/MZN : CODÉ le 2026-11-01, migration `2026-11-01b` à passer** : taux datés dans Options → Pricing, chaque conversion au taux de sa date (taxis, cash-flow, dépenses, hôtel, Palmeiras), soldes au dernier taux. ✅ Tarifs MZN donnés par gui le 2026-11-08 (prix public du Palmeiras, posés par la migration 2026-11-08). Tranché gui : une mise à jour du taux ne change pas ce qui a été appliqué par le passé, historique conservé. Tranché gui aussi : lignes Palmeiras au taux de leur date, solde au dernier taux ; bungalows convenus en MZN, « sans trop complexifier ». #52 = prix oublié, à corriger plus tard (gui) ; #58 sans chambre = en réflexion (gui).
 🔔 **Rappeler à gui** : dans le tableau chronologique, un séjour est daté à l'**arrivée** (essai, gui 2026-10-30) — on peut le passer à la date de **départ** (séjour fini = payé) s'il préfère.
 **Données à revoir avec gui APRÈS les vues :**
 - #52 (B4, 1 nuit) vendue 0 € et #58 (B4, 7 nuits, nov.) sans prix figé : oubli de prix ou bungalow offert (dont on doit quand même le coût) ?

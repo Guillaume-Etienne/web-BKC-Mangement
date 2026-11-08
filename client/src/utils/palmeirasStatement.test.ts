@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildStatement, buildLedger, rentPeriod, balanceSentence, fmtEurCents, fmtMznEquivalent, rowMzn, withMznCosts, stayInternal, summarizeInternals, type StatementInput, type StatementStay } from './palmeirasStatement'
+import { buildStatement, buildLedger, rentPeriod, balanceSentence, balanceSentenceMzn, fmtEurCents, fmtMznEquivalent, rowMzn, withMznAmounts, stayInternal, summarizeInternals, type StatementInput, type StatementStay } from './palmeirasStatement'
 
 const stay = (o: Partial<StatementStay>): StatementStay => ({
   booking_number: 1, guest: 'Guest', provisional: false, bungalow: 'B4',
@@ -213,25 +213,80 @@ describe('the rate over time', () => {
     expect(buildLedger(build({ ...empty, eur_mzn_rate: null, stays: [stay({})] })).months[0].toPalmeirasMzn).toBeNull()
   })
 
-  it('a tariff in meticals sets the cost at the rate of the arrival, and is exact in the table', () => {
-    const i = withMznCosts({ ...empty, eur_mzn_rate: 72, eur_mzn_rates: rates, stays: [
-      stay({ check_in: '2026-10-02', check_out: '2026-10-05', cost_per_night: 154, cost_per_night_mzn: 7000 }),
-      stay({ check_in: '2026-10-12', check_out: '2026-10-13', cost_per_night: 154, cost_per_night_mzn: 7200 }),
+  it('the Palmeiras price sets the euros of both kinds of stay at the rate of the arrival', () => {
+    const i = withMznAmounts({ ...empty, eur_mzn_rate: 72, eur_mzn_rates: rates, stays: [
+      // B4 at 4 000 MZN, 3 nights, we collected (rate 70): we owe 85 %
+      stay({ check_in: '2026-10-02', check_out: '2026-10-05', cost_per_night: 50, palmeiras_price_mzn: 4000 }),
+      // See View 5 at 12 000 MZN, 2 nights, paid to them (rate 72): they owe 15 %
+      stay({ check_in: '2026-10-12', check_out: '2026-10-14', paid_direct: true, price_per_night: 170, cost_per_night: null, palmeiras_price_mzn: 12000 }),
     ] })
-    expect(i.stays.map(s => s.cost_per_night)).toEqual([100, 100])
+    expect(i.stays.map(s => [s.cost_per_night, s.price_per_night])).toEqual([[48.57, null], [null, 166.67]])
     const st = build(i)
-    expect(st.toPalmeiras).toBe(400)
+    expect([st.toPalmeirasMzn, st.toUsMzn, st.balanceMzn, st.mznExact]).toEqual([10200, 3600, -6600, true])
     const rows = buildLedger(st).months[0].rows
-    expect(rows[0].mzn).toBe(21000)
-    expect(rows[0].detail).toContain('3 nights × 7,000 MZN (≈ 100 €)')
+    expect(rows.map(r => r.mzn)).toEqual([10200, 3600])
+    expect(rows[0].detail).toContain('3 nights × 4,000 MZN − 15% = 10,200 MZN')
+    expect(rows[1].detail).toContain('guest paid the Palmeiras 2 nights × 12,000 MZN = 24,000 MZN')
   })
 
-  it('no tariff in meticals, or a stay paid directly: nothing changes', () => {
-    const i = withMznCosts({ ...empty, eur_mzn_rate: 72, eur_mzn_rates: rates, stays: [
-      stay({ cost_per_night: 50, cost_per_night_mzn: null }),
-      stay({ paid_direct: true, price_per_night: 100, cost_per_night: null, cost_per_night_mzn: 7000 }),
-    ] })
-    expect(i.stays.map(s => s.cost_per_night)).toEqual([50, null])
+  it('no Palmeiras price: the euros stay as they are, and the meticals are marked ≈', () => {
+    const i = withMznAmounts({ ...empty, eur_mzn_rate: 72, eur_mzn_rates: rates, stays: [stay({ cost_per_night: 50 })] })
+    expect(i.stays[0].cost_per_night).toBe(50)
+    const st = build(i)
+    expect([st.balanceMzn, st.mznExact]).toEqual([-10500, false])   // 3 × 50 € × 70
+    expect(balanceSentenceMzn(st.balanceMzn ?? 0, st.mznExact)).toBe('BKC owes the Palmeiras ≈ 10,500 MZN')
+  })
+})
+
+describe('meticals as the base (2026-11-08)', () => {
+  const rates = [{ valid_from: '2000-01-01', rate: 70 }, { valid_from: '2026-10-10', rate: 72 }]
+
+  it('a rent paid in meticals is settled to the metical, a free line in MZN counts as such', () => {
+    const i = withMznAmounts({
+      ...empty, eur_mzn_rate: 72, eur_mzn_rates: rates,
+      rents: [{ month: '2026-10', amount: 138.89, amount_mzn: 10000 }],
+      settlements: [{ id: 's', date: '2026-10-20', direction: 'us_to_palmeiras', amount: 0, amount_mzn: 10000, method: 'cash', rent_month: '2026-10' }],
+      entries: [{ month: '2026-10', date: '2026-10-21', type: 'income', description: 'Fuel', amount: 0, amount_mzn: 1500 }],
+    })
+    expect(i.settlements[0].amount).toBe(138.89)
+    expect(i.entries[0].amount).toBe(20.83)
+    const st = build(i)
+    expect([st.paidByUsMzn, st.balanceMzn, st.mznExact]).toEqual([10000, 1500, true])
+    expect(balanceSentenceMzn(st.balanceMzn ?? 0, st.mznExact)).toBe('The Palmeiras owes BKC 1,500 MZN')
+  })
+
+  it('a card payment on their terminal counts what the terminal charged', () => {
+    const st = build(withMznAmounts({ ...empty, eur_mzn_rate: 72, eur_mzn_rates: rates,
+      card_payments: [{ booking_number: 7, guest: 'G', date: '2026-10-20', amount: 100, amount_mzn: 7300 }] }))
+    expect([st.toUsMzn, st.mznExact, st.toUs]).toEqual([7300, true, 101.39])
+  })
+
+  it('the actual commission entered in meticals corrects the month in meticals', () => {
+    const st = build(withMznAmounts({ ...empty, eur_mzn_rate: 72, eur_mzn_rates: rates,
+      stays: [stay({ check_in: '2026-10-12', check_out: '2026-10-14', paid_direct: true, price_per_night: 170, cost_per_night: null, palmeiras_price_mzn: 12000 })],
+      adjustments: [{ month: '2026-10', gross_amount: 0, percent: 12.5, net_amount: 0, gross_amount_mzn: 24000, net_amount_mzn: 3000 }],
+    }))
+    const adj = st.months[0].lines.find(l => l.kind === 'adjustment')!
+    expect([adj.mzn, adj.toPalmeiras, adj.toUs]).toEqual([600, 8.33, 0])   // 3 000 − 3 600, at 72
+    expect([st.balanceMzn, st.mznExact]).toEqual([3000, true])
+    const rows = buildLedger(st).months[0].rows
+    expect(rows.map(r => r.balanceMzn)).toEqual([3600, 3000])
+    expect(buildLedger(st).months[0]).toMatchObject({ closingMzn: 3000, closingMznExact: true })
+  })
+
+  it('a line in euros only makes the running balance approximate from there on', () => {
+    const st = build(withMznAmounts({ ...empty, eur_mzn_rate: 72, eur_mzn_rates: rates,
+      rents: [{ month: '2026-09', amount: 142.86, amount_mzn: 10000 }],
+      entries: [{ month: '2026-10', date: '2026-10-20', type: 'expense', description: 'Old line', amount: 10 }],
+    }))
+    const rows = buildLedger(st).months.flatMap(m => m.rows)
+    expect(rows.map(r => [r.balanceMzn, r.balanceMznExact])).toEqual([[-10000, true], [-10720, false]])
+  })
+
+  it('half a metical is settled; the sentence carries ≈ when the balance is an equivalent', () => {
+    expect(balanceSentenceMzn(0.3, true)).toBe('All settled')
+    expect(balanceSentenceMzn(12345.4, true)).toBe('The Palmeiras owes BKC 12,345 MZN')
+    expect(balanceSentenceMzn(-500, false)).toBe('BKC owes the Palmeiras ≈ 500 MZN')
   })
 })
 

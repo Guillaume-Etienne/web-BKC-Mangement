@@ -10,8 +10,8 @@
 // Output is plain HTML + inline CSS: previewed in an iframe, printed from it,
 // saved as PDF by gui. Language chosen per export (EN / FR / ES / PT).
 import {
-  stayAmounts, stayNights, stayRef, fmtEurCents, monthStart, monthEnd,
-  fmtMznExact, summarizeInternals, usableRate, stayLineKey, statementRateOn,
+  stayAmounts, stayMznAmount, stayNights, stayRef, fmtEurCents, monthStart, monthEnd,
+  fmtMzn, fmtMznExact, summarizeInternals, usableRate, stayLineKey, statementRateOn,
   PALMEIRAS_COMMISSION_PCT, type StatementInput, type StatementStay, type StayInternals,
 } from './palmeirasStatement'
 import { fmtDate, addDaysISO } from './dates'
@@ -183,16 +183,24 @@ export function nightsInMonth(s: Pick<StatementStay, 'check_in' | 'check_out'>, 
   })
 }
 
-/** What this stay means between us, in words the Palmeiras reads. Counted in
- *  the month of arrival (like the statement): a stay that began earlier says so. */
-export function stayFigure(s: StatementStay, month: string, lang: ExportLang = 'en'): { text: string; side: 'palmeiras' | 'bkc' | 'none' } {
+/** What this stay means between us, in words the Palmeiras reads — in
+ *  meticals, their currency (2026-11-08): exact at their price, else the euros
+ *  converted at the rate of the arrival (≈), else the euros. Counted in the
+ *  month of arrival (like the statement): a stay that began earlier says so. */
+export function stayFigure(
+  s: StatementStay, month: string, lang: ExportLang = 'en',
+  rates?: Pick<StatementInput, 'eur_mzn_rate' | 'eur_mzn_rates'>,
+): { text: string; side: 'palmeiras' | 'bkc' | 'none' } {
   const t = STRINGS[lang]
   if (s.check_in.slice(0, 7) !== month) return { text: t.arrived(fmtDate(s.check_in)), side: 'none' }
   const a = stayAmounts(s)
+  const rate = rates ? usableRate(statementRateOn(rates, s.check_in)) : null
+  const money = (mzn: number | undefined, eur: number) =>
+    mzn !== undefined ? fmtMznExact(mzn) : rate ? fmtMzn(eur * rate, false) : fmtEurCents(eur)
   if (s.paid_direct) {
-    return { text: t.guestPaid(fmtEurCents(a.gross), PALMEIRAS_COMMISSION_PCT, fmtEurCents(a.toUs)), side: 'palmeiras' }
+    return { text: t.guestPaid(money(a.mzn?.gross, a.gross), PALMEIRAS_COMMISSION_PCT, money(a.mzn?.toUs, a.toUs)), side: 'palmeiras' }
   }
-  return { text: t.bkcPays(fmtEurCents(a.toPalmeiras)), side: 'bkc' }
+  return { text: t.bkcPays(money(a.mzn?.toPalmeiras, a.toPalmeiras)), side: 'bkc' }
 }
 
 const stayColour = (s: StatementStay) => (s.paid_direct ? PURPLE : BLUE)
@@ -260,7 +268,7 @@ function renderSheets(input: StatementInput, month: string, { lang, showAmounts 
       ? `<p class="empty">${t.noStay}</p>`
       : `<table class="rows"><thead><tr><th>${t.guest}</th><th>${t.checkIn}</th><th>${t.checkOut}</th><th class="r">${t.nights}</th><th>${t.paidTo}</th>${showAmounts ? `<th>${t.betweenUs}</th>` : ''}</tr></thead><tbody>${
         mine.map(s => {
-          const f = stayFigure(s, month, lang)
+          const f = stayFigure(s, month, lang, input)
           return `<tr${s.provisional ? ' class="prov-row"' : ''}>
             <td>${escapeHtml(s.guest || '—')}${s.provisional ? ` <small>(${t.provisional})</small>` : ''}</td>
             <td>${fmtDate(s.check_in)}</td><td>${fmtDate(s.check_out)}</td>
@@ -280,7 +288,7 @@ function renderList(input: StatementInput, month: string, { lang, showAmounts }:
   const stays = staysOfMonth(input, month)
   const nights = stays.reduce((n, s) => n + nightsInMonth(s, month), 0)
   const rows = stays.map(s => {
-    const f = stayFigure(s, month, lang)
+    const f = stayFigure(s, month, lang, input)
     return `<tr${s.provisional ? ' class="prov-row"' : ''}>
       <td>${fmtDate(s.check_in)}</td><td>${fmtDate(s.check_out)}</td>
       <td><b>${escapeHtml(s.bungalow)}</b></td>
@@ -317,13 +325,9 @@ function renderInternal(input: StatementInput, month: string, { lang, internals 
   const direct = stays.filter(x => x.s.paid_direct)
   const sum = summarizeInternals(ours.map(x => x.row))
   const costTotal = ours.reduce((n, x) => n + stayAmounts(x.s).toPalmeiras, 0)
-  // A tariff in meticals is exact; otherwise an equivalent at the rate of the arrival.
-  const stayMzn = (s: StatementStay): number | null => {
-    if (s.cost_per_night_mzn) return s.cost_per_night_mzn * stayNights(s)
-    const r = usableRate(statementRateOn(input, s.check_in))
-    return r ? stayAmounts(s).toPalmeiras * r : null
-  }
-  const mznCell = (n: number | null, exact = false) => (n === null ? '' : `${exact ? '' : '≈ '}${fmtMznExact(n)}`)
+  // At the Palmeiras' MZN price it is exact; otherwise an equivalent at the rate of the arrival.
+  const stayMzn = (s: StatementStay): number | null => stayMznAmount(input, s)?.mzn ?? null
+  const mznCell = (n: number | null, exact = false) => (n === null ? '' : fmtMzn(n, exact))
   const mznTotal = ours.reduce<number | null>((n, x) => {
     const m = stayMzn(x.s)
     return n === null || m === null ? null : n + m
@@ -336,7 +340,7 @@ function renderInternal(input: StatementInput, month: string, { lang, internals 
       <td>${fmtDate(s.check_in)}</td><td>${fmtDate(s.check_out)}</td><td><b>${escapeHtml(s.bungalow)}</b></td><td>${guestCell(s)}</td>
       <td class="r">${stayNights(s)}</td>
       <td class="r">${fmtEurCents(s.cost_per_night ?? 0)}</td>
-      <td class="r">${fmtEurCents(cost)}<br><small>${mznCell(stayMzn(s), !!s.cost_per_night_mzn)}</small></td>
+      <td class="r">${fmtEurCents(cost)}<br><small>${mznCell(stayMzn(s), !!s.palmeiras_price_mzn)}</small></td>
       <td class="r">${row?.noPrice ? `<b>${t.noPrice}</b>` : fmtEurCents(row?.sellPerNight ?? 0)}</td>
       <td class="r">${fmtEurCents(row?.billed ?? 0)}</td>
       <td class="r"><b>${signed(row?.margin ?? 0)}</b></td>

@@ -88,6 +88,8 @@ export const accountingI18n = {
   // BookingFinances — forms (payment / discount / room price / rental / lesson price)
   bf_note_short:          { fr: 'Note',  en: 'Note', es: 'Nota' },
   bf_amount_eur:          { fr: 'Montant (€)', en: 'Amount (€)', es: 'Cantidad (€)' },
+  bf_terminal_mzn:        { fr: 'Débité sur le terminal du Palmeiras (MZN)', en: 'Charged on the Palmeiras terminal (MZN)', es: 'Cobrado en el terminal del Palmeiras (MZN)' },
+  bf_terminal_mzn_hint:   { fr: 'Le montant du ticket : le compte Palmeiras compte en meticals. Vide = converti au taux du jour.', en: 'The amount on the receipt: the Palmeiras account counts in meticals. Empty = converted at the day’s rate.', es: 'El importe del ticket: la cuenta Palmeiras cuenta en meticales. Vacío = convertido al tipo del día.' },
   bf_reason:              { fr: 'Motif', en: 'Reason', es: 'Motivo' },
   bf_method:              { fr: 'Méthode', en: 'Method', es: 'Método' },
   bf_deposit:             { fr: 'Acompte', en: 'Deposit', es: 'Depósito' },
@@ -209,6 +211,8 @@ export const accountingI18n = {
   palm_settle_method:     { fr: 'Moyen (cash, virement, compensation…)', en: 'Method (cash, transfer, offset…)', es: 'Medio (efectivo, transferencia, compensación…)' },
   palm_internal_hint:     { fr: 'Vue interne : ce que le partenariat nous rapporte. Ne pas montrer au Palmeiras — utiliser le relevé.', en: 'Internal view: what the partnership brings us. Not for the Palmeiras — use the statement.', es: 'Vista interna: lo que nos aporta la colaboración. No para Palmeiras: usar el extracto.' },
   palm_gross_eur:         { fr: 'Brut Palmeiras (€)', en: 'Palmeiras gross (€)', es: 'Bruto Palmeiras (€)' },
+  palm_gross_mzn:         { fr: 'Brut Palmeiras (MZN)', en: 'Palmeiras gross (MZN)', es: 'Bruto Palmeiras (MZN)' },
+  palm_mzn_rate_hint:     { fr: '≈ {eur} au taux du {date} ({rate} MZN/€)', en: '≈ {eur} at the rate of {date} ({rate} MZN/€)', es: '≈ {eur} al tipo del {date} ({rate} MZN/€)' },
   palm_percent_owed:      { fr: '% qui nous revient', en: '% owed to us', es: '% que nos corresponde' },
   palm_we_receive:        { fr: 'Nous recevons', en: 'We receive', es: 'Recibimos' },
   palm_new_expense:       { fr: '− Nouvelle dépense', en: '− New expense', es: '− Nuevo gasto' },

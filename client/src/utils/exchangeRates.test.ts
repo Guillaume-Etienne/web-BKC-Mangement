@@ -27,14 +27,14 @@ describe('rateOn', () => {
 })
 
 describe('bungalowCostPerNight', () => {
-  it('a tariff in meticals gives euros at the rate of the date', () => {
-    const acc = { cost_per_night: 154, cost_per_night_mzn: 10080 }
-    expect(bungalowCostPerNight(acc, '2026-10-02', rates, 65)).toBe(144)
-    expect(bungalowCostPerNight(acc, '2026-12-01', rates, 65)).toBe(140)
+  it('the Palmeiras price in meticals, minus our 15 %, in euros at the rate of the date', () => {
+    const acc = { cost_per_night: 154, palmeiras_price_mzn: 12000 }   // → 10 200 MZN
+    expect(bungalowCostPerNight(acc, '2026-10-02', rates, 65)).toBe(145.71)
+    expect(bungalowCostPerNight(acc, '2026-12-01', rates, 65)).toBe(141.67)
   })
 
-  it('no tariff in meticals: the amount in euros stays, at any rate', () => {
-    expect(bungalowCostPerNight({ cost_per_night: 50, cost_per_night_mzn: null }, '2026-12-01', rates, 65)).toBe(50)
+  it('no price in meticals: the amount in euros stays, at any rate', () => {
+    expect(bungalowCostPerNight({ cost_per_night: 50, palmeiras_price_mzn: null }, '2026-12-01', rates, 65)).toBe(50)
     expect(bungalowCostPerNight({ cost_per_night: null }, '2026-12-01', rates, 65)).toBe(0)
     expect(bungalowCostPerNight(null, '2026-12-01', rates, 65)).toBe(0)
   })

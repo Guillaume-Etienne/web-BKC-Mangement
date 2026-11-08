@@ -7,7 +7,7 @@ import { thisMonthISO, todayISO, addDaysISO, fmtDate } from '../../utils/dates'
 import { supabase } from '../../lib/supabase'
 import { useTable } from '../../hooks/useSupabase'
 import { rateOn } from '../../utils/exchangeRates'
-import { buildStatement, rentPeriod, PALMEIRAS_COMMISSION_PCT } from '../../utils/palmeirasStatement'
+import { buildStatement, rentPeriod, monthEnd, stayAmounts, fmtMznExact, PALMEIRAS_COMMISSION_PCT } from '../../utils/palmeirasStatement'
 import PalmeirasStatementView from '../palmeiras/PalmeirasStatementView'
 import PalmeirasExports from '../palmeiras/PalmeirasExports'
 import MonthInput from '../common/MonthInput'
@@ -79,26 +79,34 @@ function RentForm({ existing, rateFor, onSave, onCancel }: { existing?: Palmeira
   )
 }
 
-function ReversalForm({ existing, directGross, onSave, onCancel }: {
+function ReversalForm({ existing, directGrossMzn, rateFor, onSave, onCancel }: {
   existing?: PalmeirasReversal
-  /** What guests paid the Palmeiras directly, per month — the gross to start from. */
-  directGross: Record<string, number>
+  /** What guests paid the Palmeiras directly, per month, in MZN — the gross to start from. */
+  directGrossMzn: Record<string, number>
+  rateFor: (date: string) => number
   onSave: (r: PalmeirasReversal) => void; onCancel: () => void
 }) {
   const { lang } = useLanguage()
+  // In meticals (2026-11-08); the euros are stored as the equivalent at the
+  // rate of the end of the month, for the totals still counted in euros.
   const startMonth = existing?.month ?? thisMonthISO()
   const [month,   setMonthRaw] = useState(startMonth)
-  const [gross,   setGross]   = useState(String(existing?.gross_amount ?? directGross[startMonth] ?? ''))
+  const [gross,   setGross]   = useState(String(existing ? existing.gross_amount_mzn ?? '' : directGrossMzn[startMonth] ?? ''))
   const [percent, setPercent] = useState(String(existing?.percent      ?? PALMEIRAS_COMMISSION_PCT))
-  const setMonth = (m: string) => { setMonthRaw(m); if (!existing) setGross(String(directGross[m] ?? '')) }
+  const setMonth = (m: string) => { setMonthRaw(m); if (!existing) setGross(String(directGrossMzn[m] ?? '')) }
   const [notes,   setNotes]   = useState(existing?.notes   ?? '')
   const grossNum  = parseFloat(gross)   || 0
   const pctNum    = parseFloat(percent) || 0
-  const netAmount = Math.round(grossNum * pctNum / 100 * 100) / 100
+  const netMzn    = Math.round(grossNum * pctNum / 100)
+  const rate      = rateFor(monthEnd(month)) || 1
+  const toEur     = (mzn: number) => Math.round(mzn / rate * 100) / 100
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!grossNum || !pctNum) return
-    onSave({ id: existing?.id ?? crypto.randomUUID(), month, gross_amount: grossNum, percent: pctNum, net_amount: netAmount, notes: notes || null })
+    onSave({
+      id: existing?.id ?? crypto.randomUUID(), month, percent: pctNum, notes: notes || null,
+      gross_amount: toEur(grossNum), net_amount: toEur(netMzn), gross_amount_mzn: grossNum, net_amount_mzn: netMzn,
+    })
   }
   return (
     <form onSubmit={submit} className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-lg p-3 sm:p-4 space-y-3">
@@ -110,8 +118,8 @@ function ReversalForm({ existing, directGross, onSave, onCancel }: {
           <MonthInput value={month} onChange={setMonth} className="w-full" focusRing="focus:ring-emerald-400" />
         </div>
         <div>
-          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.palm_gross_eur[lang]}</label>
-          <input type="number" min="0" step="0.01" value={gross} onChange={e => setGross(e.target.value)} placeholder="Total they collected"
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{i18n.accounting.palm_gross_mzn[lang]}</label>
+          <input type="number" min="0" step="1" value={gross} onChange={e => setGross(e.target.value)} placeholder="Total they collected"
             className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
         </div>
         <div>
@@ -123,8 +131,8 @@ function ReversalForm({ existing, directGross, onSave, onCancel }: {
       {grossNum > 0 && (
         <div className="bg-white dark:bg-gray-900 rounded-lg px-4 py-2 flex justify-between items-center border border-emerald-200 dark:border-emerald-900">
           <span className="text-sm text-gray-600 dark:text-gray-400">{i18n.accounting.palm_we_receive[lang]}</span>
-          <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{fmtEur(netAmount)}</span>
-          <span className="text-xs text-gray-400 dark:text-gray-400">({pctNum}% of {fmtEur(grossNum)})</span>
+          <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{fmtMznExact(netMzn)}</span>
+          <span className="text-xs text-gray-400 dark:text-gray-400">({pctNum}% of {fmtMznExact(grossNum)} · ≈ {fmtEur(toEur(netMzn))})</span>
         </div>
       )}
       <div>
@@ -142,22 +150,26 @@ function ReversalForm({ existing, directGross, onSave, onCancel }: {
 
 // The free lines: anything between us that is neither a stay, the rent nor a
 // payment. The description is shown as is on the Palmeiras page.
-function EntryForm({ month: initialMonth, type, onSave, onCancel }: {
+function EntryForm({ month: initialMonth, type, rateFor, onSave, onCancel }: {
   month: string; type: 'expense' | 'income'
+  rateFor: (date: string) => number
   onSave: (e: PalmeirasEntry) => void; onCancel: () => void
 }) {
   const { lang } = useLanguage()
   // A free line happens on a given day (gui, 2026-10-30): today, or the 1st
-  // of the month being browsed; `month` is derived from it.
+  // of the month being browsed; `month` is derived from it. Typed in meticals
+  // (2026-11-08); the euros are its equivalent at the rate of that day.
   const [date,        setDate]        = useState(initialMonth === todayISO().slice(0, 7) ? todayISO() : `${initialMonth}-01`)
   const [description, setDescription] = useState('')
   const [amount,      setAmount]      = useState('')
+  const rate = rateFor(date) || 1
   const submit = (ev: React.FormEvent) => {
     ev.preventDefault()
-    const amt = parseFloat(amount)
-    if (!description.trim() || isNaN(amt) || amt <= 0) return
+    const mzn = parseFloat(amount)
+    if (!description.trim() || isNaN(mzn) || mzn <= 0) return
     if (!date) return
-    onSave({ id: crypto.randomUUID(), month: date.slice(0, 7), date, type, description: description.trim(), amount: amt })
+    onSave({ id: crypto.randomUUID(), month: date.slice(0, 7), date, type, description: description.trim(),
+      amount: Math.round(mzn / rate * 100) / 100, amount_mzn: mzn })
   }
   const expense = type === 'expense'
   const input = 'px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400'
@@ -173,8 +185,8 @@ function EntryForm({ month: initialMonth, type, onSave, onCancel }: {
         <input type="date" value={date} onChange={e => setDate(e.target.value)} required className={input} />
         <input type="text" value={description} onChange={e => setDescription(e.target.value)}
           placeholder="Description…" autoFocus className={`flex-1 min-w-[12rem] ${input}`} />
-        <input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
-          placeholder="€" className={`w-28 ${input}`} />
+        <input type="number" min="0" step="1" value={amount} onChange={e => setAmount(e.target.value)}
+          placeholder="MZN" className={`w-32 ${input}`} title={parseFloat(amount) > 0 ? `≈ ${fmtEur(parseFloat(amount) / rate)}` : undefined} />
         <button type="submit" className={`px-3 py-1.5 text-white rounded text-sm font-semibold ${expense ? 'bg-orange-600 hover:bg-orange-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>{i18n.common.btn_add[lang]}</button>
         <button type="button" onClick={onCancel} className="text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none px-1">×</button>
       </div>
@@ -182,27 +194,34 @@ function EntryForm({ month: initialMonth, type, onSave, onCancel }: {
   )
 }
 
-/** A dated payment between us. Pre-filled to settle the current balance in
- *  the right direction, since that is what a monthly point usually ends with. */
-function SettlementForm({ balance, rentMonth, rentAmount, onSave, onCancel }: {
-  balance: number
+/** A dated payment between us, in meticals (2026-11-08: mostly cash MZN).
+ *  Pre-filled to settle the current balance in the right direction, since that
+ *  is what a monthly point usually ends with. The euros stored are the
+ *  equivalent at the rate of the payment's day. */
+function SettlementForm({ balanceMzn, rentMonth, rentAmountMzn, rateFor, onSave, onCancel }: {
+  /** The MZN balance (> 0: the Palmeiras owes BKC); null without a rate. */
+  balanceMzn: number | null
   /** Paying one rent period (« Mark paid » on the timeline): amount and
    *  direction preset, and the payment is linked to the period. */
-  rentMonth?: string; rentAmount?: number
+  rentMonth?: string; rentAmountMzn?: number | null
+  rateFor: (date: string) => number
   onSave: (s: PalmeirasSettlement) => void; onCancel: () => void
 }) {
   const { lang } = useLanguage()
+  const balance = balanceMzn ?? 0
   const [date,      setDate]      = useState(todayISO())
   const [direction, setDirection] = useState<PalmeirasSettlement['direction']>(rentMonth ? 'us_to_palmeiras' : balance >= 0 ? 'palmeiras_to_us' : 'us_to_palmeiras')
-  const [amount,    setAmount]    = useState(rentMonth ? String(rentAmount ?? '') : balance ? String(Math.abs(balance)) : '')
+  const [amount,    setAmount]    = useState(rentMonth ? String(rentAmountMzn ?? '') : Math.round(balance) ? String(Math.abs(Math.round(balance))) : '')
   const [method,    setMethod]    = useState('')
   const [notes,     setNotes]     = useState('')
   const period = rentMonth ? rentPeriod(rentMonth) : null
+  const rate = rateFor(date) || 1
+  const mznNum = parseFloat(amount) || 0
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    const amt = parseFloat(amount)
-    if (!amt || amt <= 0) return
-    onSave({ id: crypto.randomUUID(), date, direction, amount: Math.round(amt * 100) / 100, method: method.trim() || null, notes: notes.trim() || null,
+    if (!mznNum || mznNum <= 0) return
+    onSave({ id: crypto.randomUUID(), date, direction, amount: Math.round(mznNum / rate * 100) / 100, amount_mzn: mznNum,
+      method: method.trim() || null, notes: notes.trim() || null,
       ...(rentMonth ? { rent_month: rentMonth } : {}) })
   }
   const input = 'w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-400'
@@ -217,7 +236,14 @@ function SettlementForm({ balance, rentMonth, rentAmount, onSave, onCancel }: {
           <option value="palmeiras_to_us">{i18n.accounting.palm_settle_them[lang]}</option>
           <option value="us_to_palmeiras">{i18n.accounting.palm_settle_us[lang]}</option>
         </select>
-        <input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="€" className={input} required />
+        <div>
+          <input type="number" min="0" step="1" value={amount} onChange={e => setAmount(e.target.value)} placeholder="MZN" className={input} required />
+          {mznNum > 0 && (
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+              {i18n.accounting.palm_mzn_rate_hint[lang].replace('{eur}', fmtEur(mznNum / rate)).replace('{date}', fmtDate(date)).replace('{rate}', String(rate))}
+            </p>
+          )}
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <input type="text" value={method} onChange={e => setMethod(e.target.value)} placeholder={i18n.accounting.palm_settle_method[lang]} className={input} />
@@ -252,7 +278,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
   const { data: sharedLinks, refresh: refreshLinks } = useTable<SharedLink>('shared_links')
   const [addingSettlement, setAddingSettlement] = useState(false)
   // Set by « Mark paid » on a rent bar: the payment form opens on that period.
-  const [payingRent, setPayingRent] = useState<{ month: string; amount: number } | null>(null)
+  const [payingRent, setPayingRent] = useState<{ month: string; amount: number; amountMzn: number | null } | null>(null)
   const [copied, setCopied] = useState(false)
 
   const statementInput = useMemo(() => statementInputFromData(data, settlements), [data, settlements])
@@ -333,9 +359,17 @@ export default function PalmeirasTab({ data, handlers }: Props) {
           freeIncome: totalFreeInc, freeExpenses: totalFreeExp, net } = totals
   // Our commission per month: 15 % per stay, or the actual figure when entered.
   const commission  = useMemo(() => monthlyCommission(filteredBungalows, filteredReversals), [filteredBungalows, filteredReversals])
-  const directGross = useMemo(() => Object.fromEntries(
-    Object.entries(monthlyCommission(bungalowRows, [])).map(([m, c]) => [m, Math.round(c.gross * 100) / 100]),
-  ), [bungalowRows])
+  // What guests paid the Palmeiras directly, per month of arrival, in MZN: at
+  // their price when known, else the euros at the rate of the arrival.
+  const directGrossMzn = useMemo(() => {
+    const out: Record<string, number> = {}
+    for (const s of statementInput.stays.filter(x => x.paid_direct)) {
+      const a = stayAmounts(s)
+      const m = s.check_in.slice(0, 7)
+      out[m] = Math.round((out[m] ?? 0) + (a.mzn?.gross ?? a.gross * (rateFor(s.check_in) || 0)))
+    }
+    return out
+  }, [statementInput, rateFor])
 
   // ── Month list for table ──────────────────────────────────────────────────
   const allMonths = useMemo(() => [...new Set([
@@ -491,13 +525,14 @@ export default function PalmeirasTab({ data, handlers }: Props) {
       {(anyForm || addingEntry) && (
         <div className="space-y-3">
           {showAddRent      && <RentForm     rateFor={rateFor} onSave={r => { handlers.addPalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
-          {showAddReversal  && <ReversalForm directGross={directGross} onSave={r => { handlers.addPalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
+          {showAddReversal  && <ReversalForm directGrossMzn={directGrossMzn} rateFor={rateFor} onSave={r => { handlers.addPalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
           {editingRent      && <RentForm     rateFor={rateFor} existing={editingRent}     onSave={r => { handlers.updatePalmeirasRent(r);      closeAll() }} onCancel={closeAll} />}
-          {editingReversal  && <ReversalForm directGross={directGross} existing={editingReversal} onSave={r => { handlers.updatePalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
+          {editingReversal  && <ReversalForm directGrossMzn={directGrossMzn} rateFor={rateFor} existing={editingReversal} onSave={r => { handlers.updatePalmeirasReversal(r);  closeAll() }} onCancel={closeAll} />}
           {addingEntry && (
             <EntryForm
               month={view === 'internal' && period === 'single' ? singleMonth : thisMonthISO()}
               type={addingEntry}
+              rateFor={rateFor}
               onSave={e => { handlers.addPalmeirasEntry(e); setAddingEntry(null) }}
               onCancel={() => setAddingEntry(null)}
             />
@@ -518,11 +553,11 @@ export default function PalmeirasTab({ data, handlers }: Props) {
             id: crypto.randomUUID(), month, notes: null, amount_mzn: DEFAULT_RENT_MZN,
             amount: Math.round(DEFAULT_RENT_MZN / (rateFor(rentPeriod(month).start) || 1) * 100) / 100,
           })}
-          onPayRent={(month, amount) => { closeAll(); setPayingRent({ month, amount }); setAddingSettlement(true) }}
+          onPayRent={(month, amount, amountMzn) => { closeAll(); setPayingRent({ month, amount, amountMzn }); setAddingSettlement(true) }}
           settlementControls={addingSettlement && (
             // keyed so « Mark paid » on another period starts a fresh form
-            <SettlementForm key={payingRent?.month ?? 'free'} balance={statement.balance}
-              rentMonth={payingRent?.month} rentAmount={payingRent?.amount}
+            <SettlementForm key={payingRent?.month ?? 'free'} balanceMzn={statement.balanceMzn} rateFor={rateFor}
+              rentMonth={payingRent?.month} rentAmountMzn={payingRent ? payingRent.amountMzn ?? Math.round(payingRent.amount * (rateFor(rentPeriod(payingRent.month).start) || 0)) : null}
               onSave={addSettlement} onCancel={() => { setAddingSettlement(false); setPayingRent(null) }} />
           )}
           settlementAction={id => (

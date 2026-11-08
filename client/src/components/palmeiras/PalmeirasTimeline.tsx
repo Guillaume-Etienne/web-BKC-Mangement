@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { addDaysISO, daysBetween, fmtDate, fromISODate, todayISO } from '../../utils/dates'
 import {
   type Statement, type StatementInput, type StatementStay,
-  stayAmounts, stayRef, fmtEurCents, fmtMonthLong, PALMEIRAS_COMMISSION_PCT,
+  stayAmounts, stayMznAmount, stayRef, fmtEurCents, fmtMzn, fmtMznExact, fmtMonthLong, rowMzn, PALMEIRAS_COMMISSION_PCT,
   PALMEIRAS_RENT_START_MONTH, rentPeriod, rentPayment,
 } from '../../utils/palmeirasStatement'
 
@@ -29,26 +29,37 @@ function daysInMonth(month: string): number {
   return new Date(y, m, 0).getDate()
 }
 
-function stayTitle(s: StatementStay): string {
-  const { nights, gross, toUs, toPalmeiras } = stayAmounts(s)
-  const head = `${stayRef(s)} — ${s.bungalow}, ${nights} night${nights === 1 ? '' : 's'}${s.provisional ? ' (provisional)' : ''}`
+/** What a stay weighs, in meticals (≈ when only its euros are known). */
+function stayMoney(input: StatementInput, s: StatementStay, sign: '' | '+' = ''): string {
+  const a = stayAmounts(s)
+  const w = stayMznAmount(input, s)
+  return w ? fmtMzn(w.mzn, w.exact, sign) : `${sign}${fmtEurCents(a.toUs || a.toPalmeiras)}`
+}
+
+function stayTitle(input: StatementInput, s: StatementStay, showEur: boolean): string {
+  const a = stayAmounts(s)
+  const head = `${stayRef(s)} — ${s.bungalow}, ${a.nights} night${a.nights === 1 ? '' : 's'}${s.provisional ? ' (provisional)' : ''}`
+  const eur = (n: number) => (showEur ? ` (≈ ${fmtEurCents(n)})` : '')
+  const money = stayMoney(input, s)
   return s.paid_direct
-    ? `${head}\nGuest paid the Palmeiras ${fmtEurCents(gross)} → ${PALMEIRAS_COMMISSION_PCT}% owed to BKC: ${fmtEurCents(toUs)}`
-    : `${head}\nGuest paid BKC → owed to the Palmeiras: ${fmtEurCents(toPalmeiras)}`
+    ? `${head}\nGuest paid the Palmeiras ${a.mzn ? fmtMznExact(a.mzn.gross) : fmtEurCents(a.gross)} → ${PALMEIRAS_COMMISSION_PCT}% owed to BKC: ${money}${eur(a.toUs)}`
+    : `${head}\nGuest paid BKC → owed to the Palmeiras: ${money}${eur(a.toPalmeiras)}`
 }
 
 interface Props {
   input: StatementInput
   statement: Statement
+  /** Show the euro equivalents beside the meticals. */
+  showEur?: boolean
   /** Admin only: records the rent of a month that has none yet. */
   onAddRent?: (month: string) => void
   /** Admin only: records the payment of a rent period (opens the payment form). */
-  onPayRent?: (month: string, amount: number) => void
+  onPayRent?: (month: string, amount: number, amountMzn: number | null) => void
   /** The usual monthly rent, shown on the add button. */
   defaultRentMzn?: number
 }
 
-export default function PalmeirasTimeline({ input, statement, onAddRent, onPayRent, defaultRentMzn }: Props) {
+export default function PalmeirasTimeline({ input, statement, showEur = false, onAddRent, onPayRent, defaultRentMzn }: Props) {
   const today = todayISO()
   const scroller = useRef<HTMLDivElement>(null)
 
@@ -82,12 +93,18 @@ export default function PalmeirasTimeline({ input, statement, onAddRent, onPayRe
   // Money per month, from the statement itself (due lines + upcoming ones),
   // so the timeline and the list can never disagree.
   const perMonth = useMemo(() => {
-    const out: Record<string, { toUs: number; toPalmeiras: number; nights: number; rentMzn: number | null }> = {}
-    const get = (m: string) => (out[m] ??= { toUs: 0, toPalmeiras: 0, nights: 0, rentMzn: null })
+    type Totals = { toUs: number; toPalmeiras: number; toUsMzn: number | null; toPalmeirasMzn: number | null; exact: boolean; nights: number; rentMzn: number | null }
+    const out: Record<string, Totals> = {}
+    const get = (m: string) => (out[m] ??= { toUs: 0, toPalmeiras: 0, toUsMzn: 0, toPalmeirasMzn: 0, exact: true, nights: 0, rentMzn: null })
+    const add = (total: number | null, mzn: number | null) => (total === null || mzn === null ? null : total + mzn)
     for (const l of [...statement.months.flatMap(m => m.lines), ...statement.upcoming]) {
       const t = get(l.date.slice(0, 7))
+      const mzn = rowMzn(l)
       t.toUs += l.toUs
       t.toPalmeiras += l.toPalmeiras
+      if (l.toUs) t.toUsMzn = add(t.toUsMzn, mzn)
+      if (l.toPalmeiras) t.toPalmeirasMzn = add(t.toPalmeirasMzn, mzn)
+      if (l.toUs || l.toPalmeiras) t.exact = t.exact && !!l.mzn
     }
     for (const r of input.rents) if (r.amount_mzn) get(r.month).rentMzn = r.amount_mzn
     // Occupied nights counted in the month they fall in.
@@ -101,6 +118,13 @@ export default function PalmeirasTimeline({ input, statement, onAddRent, onPayRe
     const el = scroller.current
     if (el && todayIdx >= 0) el.scrollLeft = Math.max(0, todayIdx * CELL_W - el.clientWidth / 3)
   }, [todayIdx])
+
+  // A month total in meticals (≈ if one of its lines is an equivalent); its
+  // euros only on request, or alone when no rate gives meticals.
+  const monthMoney = (mzn: number | null, eur: number, exact: boolean) => {
+    if (mzn === null) return fmtEurCents(eur)
+    return `${fmtMzn(mzn, exact || !mzn)}${showEur && eur ? ` (≈ ${fmtEurCents(eur)})` : ''}`
+  }
 
   const jumpTo = (month: string) => {
     scroller.current?.scrollTo({ left: idx(`${month}-01`) * CELL_W, behavior: 'smooth' })
@@ -181,22 +205,22 @@ export default function PalmeirasTimeline({ input, statement, onAddRent, onPayRe
                     })}
                   </div>
                   {stays.map((s, i) => {
-                    const { nights, toUs, toPalmeiras } = stayAmounts(s)
+                    const { nights } = stayAmounts(s)
                     const left = idx(s.check_in) * CELL_W + CELL_W / 2
                     const width = Math.max(nights * CELL_W, CELL_W / 2)
-                    const amount = s.paid_direct ? `+${fmtEurCents(toUs)}` : fmtEurCents(toPalmeiras)
+                    const amount = stayMoney(input, s, s.paid_direct ? '+' : '')
                     // A 1–2 night bar is too short for a name: booking number and
                     // amount only (the colour says which side), the rest on hover.
                     const short = nights < 3
                     return (
-                      <div key={i} title={stayTitle(s)} style={{ left, width }}
+                      <div key={i} title={stayTitle(input, s, showEur)} style={{ left, width }}
                         className={`absolute top-1.5 h-10 rounded-md text-white overflow-hidden whitespace-nowrap shadow-sm flex flex-col justify-center leading-tight
                           ${short ? 'px-0.5 items-center text-center' : 'px-1.5'}
                           ${s.paid_direct ? 'bg-purple-500 dark:bg-purple-600' : 'bg-sky-500 dark:bg-sky-600'}
                           ${s.provisional ? 'opacity-70 outline-2 outline-dashed outline-offset-[-2px] outline-white/80' : ''}`}>
                         {short ? (<>
                           <span className="text-[11px] font-semibold">#{s.booking_number}</span>
-                          <span className={`${nights === 1 ? 'text-[9px]' : 'text-[11px]'} tabular-nums`}>{amount.replace(' €', '')}</span>
+                          <span className={`${nights === 1 ? 'text-[9px]' : 'text-[11px]'} tabular-nums`}>{amount.replace(/ (MZN|€)$/, '').replace('≈ ', '≈')}</span>
                         </>) : (<>
                           <span className="text-xs font-semibold truncate">{s.guest || `#${s.booking_number}`}</span>
                           <span className="text-[11px] truncate opacity-95">
@@ -236,18 +260,21 @@ export default function PalmeirasTimeline({ input, statement, onAddRent, onPayRe
                 // what counts in the balance; the bar only says so). A rent
                 // settled within a monthly offset is simply left unmarked.
                 const paid = rent ? rentPayment(input, m) : null
+                // The rent is set in meticals; its euros only on request.
+                const rentText = rent
+                  ? [rent.amount_mzn ? fmtMznExact(rent.amount_mzn) : null, !rent.amount_mzn || showEur ? fmtEurCents(rent.amount) : null].filter(Boolean).join(' · ')
+                  : ''
                 return rent ? (
                   <div key={m} style={style}
-                    title={`House rent ${period}: ${fmtEurCents(rent.amount)}${rent.amount_mzn ? ` (${Math.round(rent.amount_mzn).toLocaleString('en-US')} MZN)` : ''}${paid ? ` — paid on ${fmtDate(paid.date)}${paid.method ? ` (${paid.method})` : ''}` : ' — owed to the Palmeiras'}`}
+                    title={`House rent ${period}: ${rentText}${paid ? ` — paid on ${fmtDate(paid.date)}${paid.method ? ` (${paid.method})` : ''}` : ' — owed to the Palmeiras'}`}
                     className={`absolute top-1.5 h-8 rounded-md text-white text-xs px-2 flex items-center gap-2 whitespace-nowrap overflow-hidden
                       ${paid ? 'bg-emerald-500 dark:bg-emerald-600' : 'bg-rose-400 dark:bg-rose-600'}`}>
                     <span className="truncate">
-                      <span className="font-semibold">Rent {period}</span>
-                      {rent.amount_mzn ? ` · ${Math.round(rent.amount_mzn).toLocaleString('en-US')} MZN` : ''} · {fmtEurCents(rent.amount)}
+                      <span className="font-semibold">Rent {period}</span> · {rentText}
                       {paid && <span className="font-semibold"> · ✓ Paid {fmtDate(paid.date)}</span>}
                     </span>
                     {!paid && onPayRent && (
-                      <button onClick={() => onPayRent(m, rent.amount)}
+                      <button onClick={() => onPayRent(m, rent.amount, rent.amount_mzn ?? null)}
                         className="shrink-0 px-2 py-0.5 rounded bg-white/90 text-rose-700 font-medium hover:bg-white">
                         Mark paid
                       </button>
@@ -279,9 +306,9 @@ export default function PalmeirasTimeline({ input, statement, onAddRent, onPayRe
                   className="shrink-0 px-3 py-2 border-r-2 border-gray-300 dark:border-gray-600 text-xs">
                   <div className="sticky left-28 sm:left-36 inline-flex flex-wrap gap-x-4 gap-y-0.5">
                     <span className="text-gray-600 dark:text-gray-400">🛏 {t?.nights ?? 0} night{t?.nights === 1 ? '' : 's'}</span>
-                    <span className="font-semibold text-emerald-700 dark:text-emerald-400">Owed to BKC {fmtEurCents(t?.toUs ?? 0)}</span>
-                    <span className="font-semibold text-amber-700 dark:text-amber-400">Owed to the Palmeiras {fmtEurCents(t?.toPalmeiras ?? 0)}</span>
-                    {t?.rentMzn != null && <span className="text-gray-600 dark:text-gray-400">incl. rent {Math.round(t.rentMzn).toLocaleString('en-US')} MZN</span>}
+                    <span className="font-semibold text-emerald-700 dark:text-emerald-400">Owed to BKC {monthMoney(t ? t.toUsMzn : 0, t?.toUs ?? 0, t?.exact ?? true)}</span>
+                    <span className="font-semibold text-amber-700 dark:text-amber-400">Owed to the Palmeiras {monthMoney(t ? t.toPalmeirasMzn : 0, t?.toPalmeiras ?? 0, t?.exact ?? true)}</span>
+                    {t?.rentMzn != null && <span className="text-gray-600 dark:text-gray-400">incl. rent {fmtMznExact(t.rentMzn)}</span>}
                     {m > today.slice(0, 7) && <span className="italic text-gray-400">not due yet</span>}
                   </div>
                 </div>

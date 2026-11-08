@@ -20,7 +20,11 @@ export interface Accommodation {
   total_rooms: number
   is_active: boolean
   cost_per_night: number | null  // what we pay the owner (bungalows); null for owned houses
-  cost_per_night_mzn: number | null  // the tariff agreed in meticals; when set, it replaces cost_per_night, converted at the rate of the arrival
+  /** Bungalows: the Palmeiras' own price per night, in meticals (2026-11-08).
+   *  BKC owes them 85 % of it when the guest pays BKC, they owe BKC 15 % of it
+   *  when the guest pays them. When set, it replaces cost_per_night, converted
+   *  at the rate of the arrival. (The older cost_per_night_mzn is no longer read.) */
+  palmeiras_price_mzn: number | null
   // true = carries no room_rate on purpose; the amount lives on the external stay,
   // case by case (San Martinho, the "No accommodation" row). Exempt from the
   // "no sell price" badge — that is the whole point of the flag.
@@ -911,6 +915,10 @@ export interface Payment {
   /** Who actually holds the money: null/absent = the centre, otherwise the
    *  associate the guest paid directly. Absent until the 2026-10-11b migration. */
   received_by_associate_id?: string | null
+  /** card_palmeiras only: what the Palmeiras terminal charged, in meticals —
+   *  the figure their account knows (2026-11-08). `amount` stays the € credited
+   *  to the guest. */
+  amount_mzn?: number | null
 }
 
 /** What an extra line is filed under. `accommodation` means the quantity is
@@ -1019,7 +1027,9 @@ export interface PalmeirasSettlement {
   id: string
   date: string                  // YYYY-MM-DD
   direction: 'us_to_palmeiras' | 'palmeiras_to_us'
-  amount: number                // €
+  amount: number                // € — the equivalent of amount_mzn at the rate of `date`
+  /** What was paid, in meticals (2026-11-08): the Palmeiras account is in MZN. */
+  amount_mzn?: number | null
   method: string | null
   notes: string | null
   /** The rent period this payment settles (month it starts, 15 → 15) — 2026-10-30e. */
@@ -1036,6 +1046,10 @@ export interface PalmeirasReversal {
   percent: number               // % owed to us
   net_amount: number            // calculated: gross × percent / 100
   notes: string | null
+  /** The same figures in meticals (2026-11-08) — what the account counts; the
+   *  € columns are their equivalent at the rate of the end of the month. */
+  gross_amount_mzn?: number | null
+  net_amount_mzn?: number | null
 }
 
 // Free expense or income line for a given month
@@ -1044,8 +1058,10 @@ export interface PalmeirasEntry {
   month: string       // YYYY-MM — follows `date`
   type: 'expense' | 'income'
   description: string
-  amount: number
+  amount: number                // € — the equivalent of amount_mzn at the rate of `date`
   date?: string | null  // YYYY-MM-DD (2026-10-30d); older rows: the 1st of `month`
+  /** What was agreed, in meticals (2026-11-08). */
+  amount_mzn?: number | null
 }
 
 // PalmeirasSubLet — REMOVED (avril 2026)
