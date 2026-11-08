@@ -137,6 +137,12 @@ CREATE TABLE bookings (
   center_access_rate        NUMERIC(10,2) NOT NULL DEFAULT 7,  -- €/day per center-access (own-gear) person
   arrival_time              TEXT,     -- HH:MM
   departure_time            TEXT,     -- HH:MM
+  -- 2026-11-08b: 'flight' | 'car' | 'other' (NULL = not asked); detail = flight number,
+  -- or the guest's words for 'other' (utils/travelMode.ts). Granted to anon (driver page).
+  arrival_by                TEXT CHECK (arrival_by IS NULL OR arrival_by IN ('flight', 'car', 'other')),
+  arrival_detail            TEXT,
+  departure_by              TEXT CHECK (departure_by IS NULL OR departure_by IN ('flight', 'car', 'other')),
+  departure_detail          TEXT,
   luggage_count             INTEGER NOT NULL DEFAULT 0,
   boardbag_count            INTEGER NOT NULL DEFAULT 0,
   taxi_arrival              BOOLEAN NOT NULL DEFAULT false,

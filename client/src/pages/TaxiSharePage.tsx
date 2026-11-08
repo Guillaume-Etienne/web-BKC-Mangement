@@ -8,6 +8,8 @@ import {
 } from '../data/taxiShareI18n'
 import { usePref, Segmented } from './taxiShareUI'
 import { todayISO } from '../utils/dates'
+import { tripTravel, type TravelFields } from '../utils/travelMode'
+import TravelBadge from '../components/common/TravelBadge'
 
 export default function TaxiSharePage() {
   const today = todayISO()
@@ -27,6 +29,12 @@ export default function TaxiSharePage() {
   // Column-restricted for anon (see security-rls.md, Lot C): no email/notes/pricing defaults
   const { data: allDrivers                           } = useTable<TaxiDriver>('taxi_drivers', { select: 'id, name, phone, vehicle, seats', order: 'name' })
   const { data: allBookings                          } = useTable<Booking & { client: Client | null }>('bookings', { select: 'id, client_id, client:clients(first_name, last_name)' })
+  // The flight of each airport trip, so the driver can follow a delay himself
+  // (gui, 2026-11-08; GRANT anon in 2026-11-08b). Its own read: before the
+  // migration only this one fails, and the names above stay.
+  const { data: travelRows } = useTable<TravelFields & { id: string }>('bookings', {
+    select: 'id, arrival_by, arrival_detail, departure_by, departure_detail',
+  })
 
   function guestName(bookingId: string | null): string {
     if (!bookingId) return ''
@@ -143,6 +151,7 @@ export default function TaxiSharePage() {
                   const driver = allDrivers.find(d => d.id === trip.taxi_driver_id)
                   const guest  = guestName(trip.booking_id)
                   const seats  = freeSeatsLabel(trip)
+                  const flight = trip.booking_id ? tripTravel(trip.type, travelRows.find(t => t.id === trip.booking_id), lang) : null
 
                   return (
                     <div key={trip.id}
@@ -162,6 +171,7 @@ export default function TaxiSharePage() {
                             {guest && (
                               <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">👤 {guest}</div>
                             )}
+                            {flight && <div className="text-xs mt-0.5"><TravelBadge t={flight} /></div>}
                           </div>
                         </div>
 

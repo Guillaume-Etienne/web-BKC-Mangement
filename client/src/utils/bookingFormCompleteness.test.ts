@@ -39,10 +39,45 @@ describe('missingOnStep', () => {
   it('accepts "no transfer" as an answer, not as a blank', () => {
     const d = mkForm({
       country_entry_date: '2027-01-10', country_exit_date: '2027-01-20',
+      arrival_detail: 'TM 302', departure_detail: 'TM 301',
       taxi_arrival: false, taxi_departure: false,
     })
     expect(missingOnStep(2, d, [])).toEqual([])
     expect(canLeaveStep(2, d, [])).toBe(true)
+  })
+
+  // 2026-11-08: a hand-typed hour sent drivers at the wrong time; a flight
+  // number can be checked. Required by default — plane is the default answer.
+  describe('flight number', () => {
+    const answered = { country_entry_date: '2027-01-10', country_exit_date: '2027-01-20', taxi_arrival: true, taxi_departure: true }
+
+    it('is required for both flights by default', () => {
+      const keys = missingOnStep(2, mkForm(answered), []).map(m => m.key)
+      expect(keys).toEqual(['f_arrival_flight', 'f_departure_flight'])
+    })
+
+    it('blank spaces are not a flight number', () => {
+      const keys = missingOnStep(2, mkForm({ ...answered, arrival_detail: '   ', departure_detail: 'TM 301' }), []).map(m => m.key)
+      expect(keys).toEqual(['f_arrival_flight'])
+    })
+
+    it('a guest coming by car owes no flight number', () => {
+      const d = mkForm({ ...answered, arrival_by: 'car', departure_by: 'car', taxi_arrival: false, taxi_departure: false })
+      expect(missingOnStep(2, d, [])).toEqual([])
+    })
+
+    it('"other" must say how — otherwise it is a way round the question', () => {
+      const d = mkForm({ ...answered, arrival_by: 'other', departure_by: 'other' })
+      expect(missingOnStep(2, d, []).map(m => m.key)).toEqual(['f_arrival_other', 'f_departure_other'])
+      expect(missingOnStep(2, mkForm({ ...answered, arrival_by: 'other', arrival_detail: 'bus from Tofo', departure_by: 'other', departure_detail: 'drive to Tofo' }), [])).toEqual([])
+    })
+
+    it('names the date in the words of the chosen mode', () => {
+      const keys = missingOnStep(2, mkForm({ arrival_by: 'car', departure_by: 'other' }), []).map(m => m.key)
+      expect(keys).toContain('f_arrival_date')
+      expect(keys).toContain('f_departure_date')
+      expect(keys).not.toContain('f_country_entry')
+    })
   })
 
   it('flags a night count brought down to zero', () => {

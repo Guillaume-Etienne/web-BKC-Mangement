@@ -8,6 +8,8 @@ import { tripSyncProposals, type TripProposal } from '../../utils/taxiBookingSyn
 import { fmtDate } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
+import { isTravelBy, travelLabel, travelToStore } from '../../utils/travelMode'
+import TravelBadge from '../common/TravelBadge'
 
 // The booking behind a taxi trip, opened from the ⓘ of a trip without leaving
 // the Taxis page (gui, 2026-11-08): what the booking sheet says about the
@@ -23,6 +25,9 @@ interface Draft {
   notes: string
   arrival_time: string
   departure_time: string
+  /** Flight number (or the guest's words when they come another way) — 2026-11-08b. */
+  arrival_detail: string
+  departure_detail: string
   luggage_count: number
   boardbag_count: number
 }
@@ -32,6 +37,8 @@ function draftOf(b: TaxiBookingRef): Draft {
     notes:          b.notes ?? '',
     arrival_time:   b.arrival_time ?? '',
     departure_time: b.departure_time ?? '',
+    arrival_detail:   b.arrival_detail ?? '',
+    departure_detail: b.departure_detail ?? '',
     luggage_count:  b.luggage_count,
     boardbag_count: b.boardbag_count,
   }
@@ -39,6 +46,7 @@ function draftOf(b: TaxiBookingRef): Draft {
 
 function sameDraft(a: Draft, b: Draft): boolean {
   return a.notes === b.notes && a.arrival_time === b.arrival_time && a.departure_time === b.departure_time
+    && a.arrival_detail === b.arrival_detail && a.departure_detail === b.departure_detail
     && a.luggage_count === b.luggage_count && a.boardbag_count === b.boardbag_count
 }
 
@@ -49,6 +57,28 @@ function transferFields(d: Draft) {
     luggage_count:  d.luggage_count,
     boardbag_count: d.boardbag_count,
   }
+}
+
+/** A number typed here makes the leg a flight — unless the guest said "other"
+ *  (then it is their words); emptied, the leg keeps the mode it had. */
+function travelEdit(by: string | null | undefined, detail: string) {
+  const next = detail.trim() ? (by === 'other' ? 'other' : 'flight') : (isTravelBy(by) ? by : null)
+  return travelToStore(next, detail)
+}
+
+/** Only what changed: a column the database does not have yet (2026-11-08b not
+ *  passed) must not be named, or PostgREST rejects the whole save. */
+function travelChanges(b: TaxiBookingRef, base: Draft, d: Draft) {
+  const out: Record<string, string | null> = {}
+  if (d.arrival_detail !== base.arrival_detail) {
+    const t = travelEdit(b.arrival_by, d.arrival_detail)
+    out.arrival_by = t.by; out.arrival_detail = t.detail
+  }
+  if (d.departure_detail !== base.departure_detail) {
+    const t = travelEdit(b.departure_by, d.departure_detail)
+    out.departure_by = t.by; out.departure_detail = t.detail
+  }
+  return out
 }
 
 interface BookingPeekPanelProps {
@@ -134,6 +164,7 @@ export default function BookingPeekPanel({
     const { error } = await supabase.from('bookings').update({
       notes: draft.notes.trim() ? draft.notes : null,
       ...transferFields(draft),
+      ...travelChanges(booking, baseline, draft),
     }).eq('id', booking.id)
     setSaving(false)
     if (error) { alert(`${i18n.common.msg_error[lang]}: ${error.message}`); return }
@@ -237,6 +268,18 @@ export default function BookingPeekPanel({
 
             {/* What can be corrected from here */}
             <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>{`✈️ ${tx.peek_label_arr_flight_no[lang]}`}</label>
+                <input value={draft.arrival_detail} placeholder="TM 302" autoComplete="off" spellCheck={false}
+                  onChange={e => update({ arrival_detail: e.target.value })} className={inputCls} />
+                <TravelBadge t={travelLabel(travelEdit(booking.arrival_by, draft.arrival_detail).by, draft.arrival_detail)} className="text-xs mt-1 inline-block" />
+              </div>
+              <div>
+                <label className={labelCls}>{`✈️ ${tx.peek_label_dep_flight_no[lang]}`}</label>
+                <input value={draft.departure_detail} placeholder="TM 301" autoComplete="off" spellCheck={false}
+                  onChange={e => update({ departure_detail: e.target.value })} className={inputCls} />
+                <TravelBadge t={travelLabel(travelEdit(booking.departure_by, draft.departure_detail).by, draft.departure_detail)} className="text-xs mt-1 inline-block" />
+              </div>
               <div>
                 <label className={labelCls}>✈️ {tx.peek_label_arr_flight[lang]}</label>
                 <input type="time" value={draft.arrival_time} onChange={e => update({ arrival_time: e.target.value })} className={inputCls} />

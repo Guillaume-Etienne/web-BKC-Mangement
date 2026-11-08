@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import TaxiKanbanView from '../components/taxi/TaxiKanbanView'
 import TaxiListView from '../components/taxi/TaxiListView'
 import TaxiFinanceTab from '../components/taxi/TaxiFinanceTab'
@@ -21,11 +21,23 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
   const { data: trips, loading: tripsLoading, error: tripsError, refresh: refreshTrips } = useTaxiTrips()
   const { data: drivers, loading: driversLoading, error: driversError, refresh: refreshDrivers } = useTaxiDrivers()
   // notes → children_count: what the booking panel of a trip shows and corrects
-  const { data: bookings, refresh: refreshBookings } = useTable<TaxiBookingRef>('bookings', {
+  const { data: bookingRows, refresh: refreshBookingRows } = useTable<TaxiBookingRef>('bookings', {
     select: 'id, booking_number, check_in, check_out, luggage_count, boardbag_count, status, notes, arrival_time, departure_time, taxi_arrival, taxi_departure, children_count, client:clients(first_name, last_name)',
     order: 'check_in',
     ascending: false,
   })
+  // Flight numbers (2026-11-08b) in their own read: before the migration this one
+  // query fails alone and the page only loses the flights — PostgREST rejects a
+  // whole select that names an unknown column, names and times included.
+  const { data: travelRows, refresh: refreshTravel } = useTable<Pick<TaxiBookingRef, 'id' | 'arrival_by' | 'arrival_detail' | 'departure_by' | 'departure_detail'>>('bookings', {
+    select: 'id, arrival_by, arrival_detail, departure_by, departure_detail',
+  })
+  const bookings = useMemo(() => {
+    if (travelRows.length === 0) return bookingRows
+    const travel = new Map(travelRows.map(t => [t.id, t]))
+    return bookingRows.map(b => ({ ...b, ...travel.get(b.id) }))
+  }, [bookingRows, travelRows])
+  const refreshBookings = useCallback(() => { refreshBookingRows(); refreshTravel() }, [refreshBookingRows, refreshTravel])
   const { data: bookingParticipants } = useBookingParticipants()
 
   const { data: paymentsData } = useTable<TaxiManagerPayment>('taxi_manager_payments', { order: 'date', ascending: false })

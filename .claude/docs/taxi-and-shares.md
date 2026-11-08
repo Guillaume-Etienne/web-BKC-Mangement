@@ -33,7 +33,7 @@ Toutes en **PT par défaut + toggle EN** (chauffeurs/manager mozambicains), via 
 
 | Page | Fichier | Public | Contenu | Montre l'argent ? |
 |------|---------|--------|---------|-------------------|
-| Public Taxi Schedule | `pages/TaxiSharePage.tsx` | staff / affichage | tous les trajets par jour, **places libres** (`seats − nb_persons`, « — » si pas de chauffeur), trajets non assignés en rouge | ❌ aucune |
+| Public Taxi Schedule | `pages/TaxiSharePage.tsx` | staff / affichage | tous les trajets par jour, **places libres** (`seats − nb_persons`, « — » si pas de chauffeur), trajets non assignés en rouge ; **n° de vol** des trajets aéroport avec lien de statut (2026-11-08, lecture `bookings` séparée : avant la migration 08b seule elle échoue) | ❌ aucune |
 | Taxi Driver Schedule | `pages/DriverSharePage.tsx` | 1 chauffeur | ses trajets + son MZN, bloc « O meu dinheiro » (gagné/à venir/total) | seulement `price_driver_mzn` |
 | Taxi Manager GERALDO | `pages/TaxiManagerSharePage.tsx` | Geraldo | tous trajets **managés** + résumé par chauffeur + ses finances (comissão − adiantamentos = saldo) + historique paiements | `margin_manager_mzn` |
 

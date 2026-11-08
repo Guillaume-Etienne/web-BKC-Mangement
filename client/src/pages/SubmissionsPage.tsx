@@ -12,6 +12,8 @@ import { addDaysISO as addDays, fmtDate } from '../utils/dates'
 import { findCandidateEnquiries, fmtArrivalMonth } from '../utils/enquiries'
 import { splitName } from '../utils/names'
 import { FALLBACK_TAXI_PRICING } from '../utils/taxiPricing'
+import { travelLabel, travelToStore } from '../utils/travelMode'
+import TravelBadge from '../components/common/TravelBadge'
 
 // Admin review queue for public booking-form submissions.
 // English UI (admin chrome). Approving turns a submission into a real
@@ -28,6 +30,33 @@ const STATUS_BADGE: Record<FormSubmissionStatus, string> = {
   rejected: 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400',
 }
 
+
+/** The guest's way in and out, as the booking stores it (utils/travelMode.ts).
+ *  A direction the form did not ask (older submissions) is left out, so an
+ *  update never blanks what an admin typed by hand. */
+function travelColumns(p: FormSubmission['payload']) {
+  const cols: Record<string, string | null> = {}
+  if (p.arrival_by) {
+    const a = travelToStore(p.arrival_by, p.arrival_detail)
+    cols.arrival_by = a.by; cols.arrival_detail = a.detail
+  }
+  if (p.departure_by) {
+    const d = travelToStore(p.departure_by, p.departure_detail)
+    cols.departure_by = d.by; cols.departure_detail = d.detail
+  }
+  return cols
+}
+
+function TravelRow({ label, by, detail }: { label: string; by?: string; detail?: string }) {
+  const t = travelLabel(by, detail)
+  if (!t) return null
+  return (
+    <div className="flex justify-between gap-4 py-1.5 border-b border-gray-50 dark:border-gray-800 text-sm">
+      <span className="text-gray-500 dark:text-gray-400">{label}</span>
+      <TravelBadge t={t} className="font-medium" />
+    </div>
+  )
+}
 
 // ─── Detail / review panel (module scope = focus-safe inputs) ─────────────────
 interface DetailProps { s: FormSubmission; onDone: () => void; enquiries: Enquiry[]; bookings: Booking[]; clients: Client[]; taxiTrips: TaxiTrip[] }
@@ -158,6 +187,7 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
       notes: noteBits.join(' ') || null,
       arrival_time: p.arrival_time || null,
       departure_time: p.departure_time || null,
+      ...travelColumns(p),
       luggage_count: p.luggage_count || 0,
       boardbag_count: p.boardbag_count || 0,
       taxi_arrival: !!p.taxi_arrival,
@@ -313,6 +343,7 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
       visa_exit_date: p.country_exit_date || null,
       arrival_time: p.arrival_time || null,
       departure_time: p.departure_time || null,
+      ...travelColumns(p),
       luggage_count: p.luggage_count || 0,
       boardbag_count: p.boardbag_count || 0,
       taxi_arrival: !!p.taxi_arrival,
@@ -419,13 +450,19 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
     }
     if (p.taxi_arrival && !existingTripTypes.has('aero-to-center')) {
       const { error: taxiInErr } = await supabase.from('taxi_trips').insert({
-        ...taxiBase, date: targetBooking.check_in, start_time: p.arrival_time || '00:00', type: 'aero-to-center',
+        ...taxiBase,
+        date: p.transfer_to_bilene_date || targetBooking.check_in,
+        start_time: p.transfer_to_bilene_time || p.arrival_time || '00:00',
+        type: 'aero-to-center',
       })
       if (taxiInErr) setError(`Booking updated, but the arrival transfer was not (${taxiInErr.message}). Add it in Taxis.`)
     }
     if (p.taxi_departure && !existingTripTypes.has('center-to-aero')) {
       const { error: taxiOutErr } = await supabase.from('taxi_trips').insert({
-        ...taxiBase, date: targetBooking.check_out, start_time: p.departure_time || '00:00', type: 'center-to-aero',
+        ...taxiBase,
+        date: p.transfer_to_airport_date || targetBooking.check_out,
+        start_time: p.transfer_to_airport_time || p.departure_time || '00:00',
+        type: 'center-to-aero',
       })
       if (taxiOutErr) setError(`Booking updated, but the departure transfer was not (${taxiOutErr.message}). Add it in Taxis.`)
     }
@@ -493,6 +530,8 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
         <h4 className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-400 mb-2">Trip</h4>
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Country entry (visa)</span><span className="font-medium">{fmtDate(p.country_entry_date)} {p.arrival_time && `· ${p.arrival_time}`}</span></div>
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Country exit (visa)</span><span className="font-medium">{fmtDate(p.country_exit_date)} {p.departure_time && `· ${p.departure_time}`}</span></div>
+        <TravelRow label="Arrives by" by={p.arrival_by} detail={p.arrival_detail} />
+        <TravelRow label="Leaves by" by={p.departure_by} detail={p.departure_detail} />
         <div className={rowCls}><span className="text-gray-500 dark:text-gray-400">Nights in Bilene</span><span className="font-medium">{p.nights_bilene}</span></div>
         <div className={rowCls}>
           <span className="text-gray-500 dark:text-gray-400">Transfer to Bilene</span>

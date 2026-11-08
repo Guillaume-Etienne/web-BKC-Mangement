@@ -8,6 +8,8 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import type { Lang } from '../../types/database'
 import { BookingPeekButton } from './BookingPeekPanel'
+import { tripTravel, type TravelFields } from '../../utils/travelMode'
+import TravelBadge from '../common/TravelBadge'
 
 function statusConfig(lang: Lang): Record<TaxiTripStatus, { label: string; row: string; badge: string }> {
   return {
@@ -15,6 +17,11 @@ function statusConfig(lang: Lang): Record<TaxiTripStatus, { label: string; row: 
     needs_details:{ label: i18n.taxis.status_needs_details[lang],  row: 'bg-red-50 dark:bg-red-950/40',   badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' },
     done:         { label: i18n.taxis.status_done[lang],           row: 'bg-green-50 dark:bg-green-950/40', badge: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' },
   }
+}
+
+/** The flight this trip waits for or leaves for (airport legs only). */
+function tripFlight(trip: TaxiTrip, bookings: (BookingRef & TravelFields)[]) {
+  return trip.booking_id ? tripTravel(trip.type, bookings.find(b => b.id === trip.booking_id)) : null
 }
 
 function guestName(bookingId: string | null, bookings: BookingRef[]): string {
@@ -293,7 +300,7 @@ function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaul
 interface TaxiListViewProps {
   trips: TaxiTrip[]
   drivers: TaxiDriver[]
-  bookings: BookingRef[]
+  bookings: (BookingRef & TravelFields)[]
   bookingParticipants: BookingParticipant[]
   pricingDefaults: TaxiPricingDefaults
   onAddTrip:    (trip: Omit<TaxiTrip, 'id'>) => Promise<TaxiTrip | null>
@@ -448,6 +455,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                 <div className="min-w-0">
                   {guestName(trip.booking_id, bookings)}
                   <span className="text-gray-500 dark:text-gray-400"> · {trip.nb_persons}p · {trip.nb_luggage} bag · {trip.nb_boardbags} bb</span>
+                  <div><TravelBadge t={tripFlight(trip, bookings)} className="text-xs" /></div>
                 </div>
                 {peek && trip.booking_id && <BookingPeekButton withLabel active={peekTripId === trip.id} onClick={() => peek(trip.id)} />}
               </div>
@@ -515,6 +523,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                         {peek && trip.booking_id && <BookingPeekButton active={peekTripId === trip.id} onClick={() => peek(trip.id)} />}
                         <span>{guestName(trip.booking_id, bookings)}</span>
                       </div>
+                      <TravelBadge t={tripFlight(trip, bookings)} className="text-[11px]" />
                     </td>
                     <td className="px-3 py-2 text-center text-gray-800 dark:text-gray-200">{trip.nb_persons}</td>
                     <td className="px-3 py-2 text-center text-gray-800 dark:text-gray-200">{trip.nb_luggage}</td>

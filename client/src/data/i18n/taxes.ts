@@ -130,6 +130,8 @@ export const taxesI18n = {
   peek_label_departure:  { fr: 'Départ', en: 'Departure', es: 'Salida' },
   peek_label_arr_flight: { fr: "Vol d'arrivée", en: 'Arrival flight', es: 'Vuelo de llegada' },
   peek_label_dep_flight: { fr: 'Vol retour', en: 'Return flight', es: 'Vuelo de regreso' },
+  peek_label_arr_flight_no: { fr: "N° du vol d'arrivée", en: 'Arrival flight no.', es: 'N.º del vuelo de llegada' },
+  peek_label_dep_flight_no: { fr: 'N° du vol retour', en: 'Return flight no.', es: 'N.º del vuelo de regreso' },
   peek_label_luggage:    { fr: 'Bagages', en: 'Luggage', es: 'Equipaje' },
   peek_label_boardbags:  { fr: 'Boardbags', en: 'Boardbags', es: 'Boardbags' },
   peek_label_notes:      { fr: 'Notes de la résa', en: 'Booking notes', es: 'Notas de la reserva' },

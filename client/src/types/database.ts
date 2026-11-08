@@ -110,6 +110,11 @@ export interface Booking {
   client?: Client
   arrival_time: string | null
   departure_time: string | null
+  /** 2026-11-08b — 'flight' | 'car' | 'other'; detail = flight number or the guest's words. Read via utils/travelMode.ts. */
+  arrival_by?: string | null
+  arrival_detail?: string | null
+  departure_by?: string | null
+  departure_detail?: string | null
   luggage_count: number
   boardbag_count: number
   taxi_arrival: boolean
@@ -524,6 +529,10 @@ export interface TaxiBookingRef extends BookingRef {
   taxi_arrival: boolean
   taxi_departure: boolean
   children_count: number
+  arrival_by?: string | null
+  arrival_detail?: string | null
+  departure_by?: string | null
+  departure_detail?: string | null
 }
 
 // Activities
@@ -688,6 +697,11 @@ export interface BookingFormPayload {
   nights_bilene: number
   arrival_time: string         // HH:MM — arrival flight time at Maputo
   departure_time: string       // HH:MM — return flight time
+  // How they come / leave (2026-11-08b). Absent on older submissions. See utils/travelMode.ts.
+  arrival_by?: 'flight' | 'car' | 'other'
+  arrival_detail?: string     // flight number, or the guest's words for 'other'
+  departure_by?: 'flight' | 'car' | 'other'
+  departure_detail?: string
   taxi_arrival: boolean        // needs transfer to Bilene
   taxi_departure: boolean      // needs transfer back to airport
   // Transfer pickup/drop-off (only meaningful when the matching taxi flag is true).

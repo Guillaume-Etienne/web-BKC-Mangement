@@ -8,6 +8,8 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import type { Lang } from '../../types/database'
 import { BookingPeekButton } from './BookingPeekPanel'
+import { tripTravel, type TravelFields } from '../../utils/travelMode'
+import TravelBadge from '../common/TravelBadge'
 
 function statusConfig(lang: Lang): Record<TaxiTripStatus, { label: string; card: string; badge: string }> {
   return {
@@ -15,6 +17,11 @@ function statusConfig(lang: Lang): Record<TaxiTripStatus, { label: string; card:
     needs_details:{ label: i18n.taxis.status_needs_details[lang],  card: 'from-red-50 dark:from-red-950/40 to-red-50 dark:to-red-950/40 border-red-300 dark:border-red-800',         badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' },
     done:         { label: i18n.taxis.status_done[lang],           card: 'from-green-50 dark:from-green-950/40 to-emerald-50 dark:to-emerald-950/40 border-green-300 dark:border-green-800',  badge: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' },
   }
+}
+
+/** The flight this trip waits for or leaves for (airport legs only). */
+function tripFlight(trip: TaxiTrip, bookings: (BookingRef & TravelFields)[]) {
+  return trip.booking_id ? tripTravel(trip.type, bookings.find(b => b.id === trip.booking_id)) : null
 }
 
 function guestName(bookingId: string | null, bookings: BookingRef[]): string {
@@ -99,7 +106,7 @@ interface TaxiKanbanViewProps {
   trips: TaxiTrip[]
   drivers: TaxiDriver[]
   pricingDefaults: TaxiPricingDefaults
-  bookings: BookingRef[]
+  bookings: (BookingRef & TravelFields)[]
   bookingParticipants: BookingParticipant[]
   onAddTrip:    (trip: Omit<TaxiTrip, 'id'>) => Promise<TaxiTrip | null>
   onUpdateTrip: (trip: TaxiTrip) => Promise<unknown>
@@ -293,6 +300,9 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                                   onClick={() => onPeekBooking(trip.id, columnTrips.map(t => t.id))} />
                               )}
                             </div>
+                          )}
+                          {tripFlight(trip, bookings) && (
+                            <div className="mt-0.5"><TravelBadge t={tripFlight(trip, bookings)} /></div>
                           )}
                         </div>
 

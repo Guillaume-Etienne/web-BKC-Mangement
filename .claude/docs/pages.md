@@ -101,6 +101,7 @@
      (`enquiryId`) : sa demande porte déjà la réponse. Le payload emporte le **libellé anglais**
      (`referral_source`, via `utils/referral.ts`) **et** l'id (`referral_source_id`).
   2. ✈️ **Trip** — nb nuits Bilene ; bloc **Arrivée** (date+heure vol Maputo + toggle transfert→Bilene + date/heure prise en charge si Oui) ; bloc **Départ** (date+heure vol retour + toggle transfert→aéroport + date/heure dépose si Oui). Le transfert se pré-remplit depuis le vol mais reste éditable.
+     **Mode + n° de vol (2026-11-08, gui)** : en tête de chaque bloc, ✈️ Avion / 🚗 Voiture / Autre (avion par défaut). Avion → **n° de vol obligatoire** (le vol qui atterrit à / décolle de Maputo) ; Autre → « précisez comment » obligatoire (sinon c'est un contournement) ; Voiture → la question du transfert disparaît et vaut Non (revenir sur Avion/Autre la remet sans réponse). Libellés date/heure sans « vol » hors avion. Règles dans `missingOnStep` seulement, comme toujours. Payload : `arrival_by/_detail`, `departure_by/_detail` → colonnes `bookings` à la conversion.
      > ⚠️ **Les deux transferts sont `boolean | undefined`, et `undefined` = aucun bouton allumé**
      > (2026-09-05). `EMPTY_FORM` les mettait à `true` : le visiteur lisait **Oui déjà coché** sur
      > les deux, c'est-à-dire une réponse qu'il n'avait jamais donnée — et un séjour sans transfert

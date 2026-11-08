@@ -6,6 +6,14 @@
 
 ## 🚨 Migrations SQL — registre
 
+⬜ **`2026-11-08b_booking_travel_mode.sql`** (TEST ⬜ / PROD ⬜) — n° de vol sur la résa :
+`bookings.arrival_by / arrival_detail / departure_by / departure_detail` (+ CHECK sur `*_by`) + GRANT
+anon des 4 colonnes (page chauffeur, décision gui). **Strictement additive.** ⚠️ **À passer AVANT le
+push** : sinon la conversion d'une demande du nouveau formulaire échoue (alerte), la page Taxis admin
+affiche un bandeau d'erreur et perd les vols (les noms restent : lecture séparée), la page chauffeur
+perd les vols en silence. Une résa sans vol saisi s'enregistre quand même (colonnes non nommées).
+Vérif : pied du fichier (`select=id,arrival_by,…` → `[]` 200 ; `notes` → 42501).
+
 ✅ **`2026-11-08_palmeiras_mzn_base.sql`** (TEST + PROD ✅ 2026-11-08 par Claude, avec accord de gui : colonnes + tarifs + RPC, curl anon vérifié sur les deux — settlements → 42501, accommodations sans token → [], RPC sans token → null ; RPC avec jeton palmeiras simulé (transaction annulée) → `palmeiras_price_mzn` sur chaque séjour, aucun prix de vente ; md5 de la fonction identique TEST = PROD) — compte Palmeiras en meticals : `accommodations.palmeiras_price_mzn` (prix public du Palmeiras, tarifs gui See View 5 = 12 000, B1 = 4 000, B2 = 8 000, B3 = 8 000, B4 = 4 000), `amount_mzn` sur `palmeiras_settlements` / `palmeiras_entries` / `payments` (CB terminal Palmeiras), `gross_amount_mzn` / `net_amount_mzn` sur `palmeiras_reversals`, RPC qui les rend. Rien n'est supprimé (`cost_per_night_mzn` n'est plus lu, colonne morte à archiver puis supprimer un jour). Vérif : pied du fichier.
 
 ✅ **`2026-11-01b_eur_mzn_rates.sql`** (TEST + PROD ✅ 2026-11-06 par Claude, avec accord de gui — le code `491ee4d` était parti en prod le 06/11 à 15 h 06 sans elle ; base + curl anon vérifiés : 1 taux 70 depuis 2000-01-01, anon → 401/42501, RPC sans token → null ; **gui doit relancer le MCP**) — table `eur_mzn_rates` (admin seul), trigger qui recopie le dernier taux dans `taxi_pricing_defaults.eur_mzn_rate`, `accommodations.cost_per_night_mzn`, RPC `palmeiras_statement()` qui rend les taux et le tarif MZN. Aucun chiffre ne bouge au passage (une ligne au taux actuel depuis 2000-01-01). Rien n'est supprimé. Vérif : pied du fichier (`eur_mzn_rates` anon → 401/42501 ; RPC sans token → null).
@@ -259,6 +267,19 @@ copie des vrais noms de PROD. **PROD vérifié intact** (42501 confirmé partout
 reverifier par curl anon.
 
 ---
+
+## ✅ Livré 2026-11-08 — N° de vol (à pousser APRÈS la migration 08b)
+
+Demande gui : le n° de vol évite les erreurs de taxi (heure tapée à la main = AM/PM, heure du pays
+de départ, atterrissage à 00:30). Formulaire public : ✈️ Avion / 🚗 Voiture / Autre par sens, n° de
+vol **obligatoire** en avion (FR/EN/ES). Recopié sur la résa à la conversion (création ET fusion),
+modifiable dans la fiche résa et dans le panneau ⓘ, affiché « ✈️ TM 302 ↗ » (lien statut Google) sur
+la liste/kanban Taxis et sur la **page chauffeur** (PT/EN). Tout passe par `utils/travelMode.ts`
+(testé). 🐛 **Corrigé au passage** : la fusion d'une demande dans une résa existante datait ses taxis
+au jour d'arrivée/départ du séjour en ignorant la date/heure de transfert du client (`SubmissionsPage`,
+le chemin « création » était déjà juste). Build + 889 tests ✅. **Pas encore vu à l'écran.** Reste :
+- ⬜ migration 08b TEST + PROD, puis curl anon ; test Chrome sur TEST (formulaire public → demande → résa → Taxis → page chauffeur)
+- 💭 plus tard : alerte « date du taxi ≠ date du vol » (même principe que la chaîne safari) ; montrer le vol sur la page client
 
 ## ✅ Livré 2026-11-08 — Safari : voyage complet (à pousser, aucune migration)
 

@@ -1,5 +1,6 @@
 import type { FormTraveler } from '../types/database'
 import type { FormI18nKey } from '../data/formI18n'
+import type { TravelBy } from './travelMode'
 
 // ─── What the public booking form still needs, step by step ───────────────────
 // One list decides two things: whether the step can be left, and what the visitor
@@ -23,6 +24,13 @@ export interface FormData {
   nights_bilene: number
   arrival_time: string
   departure_time: string
+  /** How they come / leave (2026-11-08). Plane by default: the flight number
+   *  is then required — a guest who does not fly says so (car / other). */
+  arrival_by: TravelBy
+  /** Flight number when 'flight', their own words when 'other'. */
+  arrival_detail: string
+  departure_by: TravelBy
+  departure_detail: string
   /** undefined = not answered yet. These two used to default to `true`, so the
    *  form arrived with "Yes" already lit on both transfers: the visitor read an
    *  answer they had never given, and a booking that needed no transfer only
@@ -50,6 +58,7 @@ export const EMPTY_FORM: FormData = {
   reference_name: '', email: '', phone: '', referral_source_id: '', referral_source: '',
   country_entry_date: '', country_exit_date: '', nights_bilene: 7,
   arrival_time: '', departure_time: '',
+  arrival_by: 'flight', arrival_detail: '', departure_by: 'flight', departure_detail: '',
   transfer_to_bilene_date: '', transfer_to_bilene_time: '',
   transfer_to_airport_date: '', transfer_to_airport_time: '',
   luggage_count: 1, boardbag_count: 1, double_beds: 0, single_beds: 1,
@@ -74,8 +83,15 @@ export function missingOnStep(step: number, d: FormData, travelers: FormTraveler
   }
   if (step === 2) {
     if (!(d.nights_bilene > 0)) missing.push({ key: 'f_nights' })
-    if (!d.country_entry_date) missing.push({ key: 'f_country_entry' })
-    if (!d.country_exit_date) missing.push({ key: 'f_country_exit' })
+    if (!d.country_entry_date) missing.push({ key: d.arrival_by === 'flight' ? 'f_country_entry' : 'f_arrival_date' })
+    // The flight number (2026-11-08): a hand-typed hour goes wrong — AM/PM, the
+    // departure city's time, a 00:30 landing — and sends a driver at the wrong
+    // time; a number can be checked. Someone who does not fly says how instead.
+    if (d.arrival_by === 'flight' && !d.arrival_detail.trim()) missing.push({ key: 'f_arrival_flight' })
+    if (d.arrival_by === 'other' && !d.arrival_detail.trim()) missing.push({ key: 'f_arrival_other' })
+    if (!d.country_exit_date) missing.push({ key: d.departure_by === 'flight' ? 'f_country_exit' : 'f_departure_date' })
+    if (d.departure_by === 'flight' && !d.departure_detail.trim()) missing.push({ key: 'f_departure_flight' })
+    if (d.departure_by === 'other' && !d.departure_detail.trim()) missing.push({ key: 'f_departure_other' })
     // Required rather than defaulted: a transfer is a driver, a car and a price.
     // Guessing "yes" for someone who never answered puts a taxi on their trip;
     // guessing "no" leaves them standing at Maputo airport. Neither is ours to

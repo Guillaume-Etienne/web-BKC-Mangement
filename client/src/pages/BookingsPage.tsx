@@ -22,6 +22,7 @@ import { relationshipFlagLabels, relationshipFlagIcons, relationshipFlagColors }
 import { linkedBookingBadge } from '../utils/linkedBooking'
 import { isDayVisitor } from '../utils/dayVisitor'
 import ClientShareLink from '../components/common/ClientShareLink'
+import { isTravelBy, travelToStore, type TravelBy } from '../utils/travelMode'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,13 @@ interface WizardData {
   // Step 4 – Transport
   arrival_time: string
   departure_time: string
+  /** '' = not asked (older bookings). See utils/travelMode.ts. */
+  arrival_by: TravelBy | ''
+  arrival_detail: string
+  departure_by: TravelBy | ''
+  departure_detail: string
+  /** The booking was read with these columns present (after 2026-11-08b). */
+  travel_columns: boolean
   taxi_arrival: boolean
   taxi_departure: boolean
   taxi_driver_id: string | null  // pre-assigned driver for auto-created trips
@@ -98,6 +106,7 @@ const EMPTY_WIZARD: WizardData = {
   external_stays: {}, status: 'provisional',
   participants: [], loaded_participant_ids: [], couples_count: 0, children_count: 0,
   arrival_time: '', departure_time: '',
+  arrival_by: '', arrival_detail: '', departure_by: '', departure_detail: '', travel_columns: false,
   taxi_arrival: false, taxi_departure: false, taxi_driver_id: null,
   luggage_count: 0, boardbag_count: 0,
   // Filled from Options → Pricing when the wizard opens: the rate used to be a 5
@@ -162,6 +171,42 @@ function Field({ label, children, hint }: { label: string; children: React.React
 
 const inputCls = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
 const numCls = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-center'
+
+/** How the guest comes / leaves (2026-11-08): mode + flight number, or their
+ *  words for "other". Typing a number with no mode chosen means a flight. */
+function TravelFields({ label, by, detail, onChange }: {
+  label: string; by: TravelBy | ''; detail: string; onChange: (by: TravelBy | '', detail: string) => void
+}) {
+  return (
+    <Field label={label}>
+      <div className="flex gap-2">
+        <select value={by} aria-label={`${label} — how`} className={`${inputCls} w-auto`}
+          onChange={e => { const v = e.target.value as TravelBy | ''; onChange(v, v === 'car' ? '' : detail) }}>
+          <option value="">—</option>
+          <option value="flight">✈️ Flight</option>
+          <option value="car">🚗 Car</option>
+          <option value="other">📝 Other</option>
+        </select>
+        {by !== 'car' && (
+          <input value={detail} className={inputCls} autoComplete="off" spellCheck={false}
+            placeholder={by === 'other' ? 'How? (bus, already in Mozambique…)' : 'Flight no. (e.g. TM 302)'}
+            onChange={e => onChange(by || 'flight', e.target.value)} />
+        )}
+      </div>
+    </Field>
+  )
+}
+
+/** Travel columns to write. Left out while nothing is said and the booking was
+ *  read without them: naming a column the database does not have yet makes
+ *  PostgREST reject the WHOLE save (2026-11-08b not passed). */
+function travelPatch(d: WizardData) {
+  const said = d.arrival_by || d.arrival_detail.trim() || d.departure_by || d.departure_detail.trim()
+  if (!said && !d.travel_columns) return {}
+  const a = travelToStore(d.arrival_by || null, d.arrival_detail)
+  const r = travelToStore(d.departure_by || null, d.departure_detail)
+  return { arrival_by: a.by, arrival_detail: a.detail, departure_by: r.by, departure_detail: r.detail }
+}
 
 /** Search-as-you-type picker for "Part of another stay": matches on client name or #number. */
 function LinkedBookingPicker({ value, onChange, bookings, clients, excludeId }: {
@@ -1090,6 +1135,8 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">✈️ Arrival</h3>
                 <div className="space-y-3">
+                  <TravelFields label="Arrival flight" by={d.arrival_by} detail={d.arrival_detail}
+                    onChange={(by, detail) => update({ arrival_by: by, arrival_detail: detail })} />
                   <Field label="Arrival time">
                     <input type="time" value={d.arrival_time}
                       onChange={e => update({ arrival_time: e.target.value })} className={inputCls} />
@@ -1113,6 +1160,8 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
               <div className="border-t pt-4">
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">🛫 Departure</h3>
                 <div className="space-y-3">
+                  <TravelFields label="Return flight" by={d.departure_by} detail={d.departure_detail}
+                    onChange={(by, detail) => update({ departure_by: by, departure_detail: detail })} />
                   <Field label="Departure time">
                     <input type="time" value={d.departure_time}
                       onChange={e => update({ departure_time: e.target.value })} className={inputCls} />
@@ -1690,6 +1739,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       center_access_rate: data.center_access_rate,
       arrival_time: data.arrival_time || null,
       departure_time: data.departure_time || null,
+      ...travelPatch(data),
       luggage_count: data.luggage_count,
       boardbag_count: data.boardbag_count,
       taxi_arrival: data.taxi_arrival,
@@ -2039,6 +2089,9 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       loaded_participant_ids: bookingParticipants.filter(p => p.booking_id === b.id).map(p => p.id),
       couples_count: b.couples_count, children_count: b.children_count,
       arrival_time: b.arrival_time ?? '', departure_time: b.departure_time ?? '',
+      arrival_by: isTravelBy(b.arrival_by) ? b.arrival_by : '', arrival_detail: b.arrival_detail ?? '',
+      departure_by: isTravelBy(b.departure_by) ? b.departure_by : '', departure_detail: b.departure_detail ?? '',
+      travel_columns: 'arrival_by' in b,
       taxi_arrival: b.taxi_arrival, taxi_departure: b.taxi_departure, taxi_driver_id: null,
       luggage_count: b.luggage_count, boardbag_count: b.boardbag_count,
       center_access_rate: b.center_access_rate ?? centerAccessRate,

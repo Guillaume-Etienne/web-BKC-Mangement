@@ -9,6 +9,7 @@ import { missingOnStep, EMPTY_FORM } from '../utils/bookingFormCompleteness'
 import type { FormData, MissingAnswer } from '../utils/bookingFormCompleteness'
 import { draftKey, loadDraft, saveDraft, clearDraft, isWorthKeeping } from '../utils/bookingFormDraft'
 import { decideSubmission } from '../utils/bookingFormSpam'
+import { TRAVEL_BY, travelToStore, type TravelBy } from '../utils/travelMode'
 import { reportClientError } from '../utils/reportClientError'
 
 // ─── Public booking intake form (no auth) ─────────────────────────────────────
@@ -80,6 +81,23 @@ function YesNo({ value, onChange, lang }: { value: boolean | undefined; onChange
         className={`${base} ${value === false ? on : off}`}>
         {tr.no[lang]}
       </button>
+    </div>
+  )
+}
+
+/** Plane / car / other — same look as YesNo. */
+function ByChoice({ value, onChange, lang }: { value: TravelBy; onChange: (v: TravelBy) => void; lang: Lang }) {
+  const base = 'flex-1 px-3 py-3 sm:py-2.5 rounded-xl text-sm font-semibold border-2 transition'
+  const off = 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-sky-300 dark:hover:border-sky-800'
+  const on = 'bg-sky-600 text-white border-sky-600 dark:border-sky-500'
+  const label = { flight: tr.by_flight, car: tr.by_car, other: tr.by_other }
+  return (
+    <div className="flex gap-2">
+      {TRAVEL_BY.map(b => (
+        <button key={b} type="button" onClick={() => onChange(b)} className={`${base} ${value === b ? on : off}`}>
+          {label[b][lang]}
+        </button>
+      ))}
     </div>
   )
 }
@@ -313,6 +331,30 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
     }))
   }
 
+  // Coming by car answers the transfer question (no taxi); leaving "car" asks it
+  // again rather than keeping a "no" the guest never chose. Changing mode empties
+  // the detail: a flight number is not a description, nor the other way round.
+  function setArrivalBy(by: TravelBy) {
+    setD(prev => prev.arrival_by === by ? prev : ({
+      ...prev,
+      arrival_by: by,
+      arrival_detail: '',
+      ...(by === 'car'
+        ? { taxi_arrival: false, transfer_to_bilene_date: '', transfer_to_bilene_time: '' }
+        : prev.arrival_by === 'car' ? { taxi_arrival: undefined } : {}),
+    }))
+  }
+  function setDepartureBy(by: TravelBy) {
+    setD(prev => prev.departure_by === by ? prev : ({
+      ...prev,
+      departure_by: by,
+      departure_detail: '',
+      ...(by === 'car'
+        ? { taxi_departure: false, transfer_to_airport_date: '', transfer_to_airport_time: '' }
+        : prev.departure_by === 'car' ? { taxi_departure: undefined } : {}),
+    }))
+  }
+
   // Bring the card that was just added into view and put the cursor in it — see
   // addTraveler. preventScroll because scrollIntoView is already doing the move.
   useEffect(() => {
@@ -415,6 +457,10 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
       nights_bilene: d.nights_bilene,
       arrival_time: d.arrival_time,
       departure_time: d.departure_time,
+      arrival_by: d.arrival_by,
+      arrival_detail: travelToStore(d.arrival_by, d.arrival_detail).detail ?? '',
+      departure_by: d.departure_by,
+      departure_detail: travelToStore(d.departure_by, d.departure_detail).detail ?? '',
       // Booleans by the time we get here: step 2 does not pass unanswered.
       taxi_arrival: !!d.taxi_arrival,
       taxi_departure: !!d.taxi_departure,
@@ -680,18 +726,35 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                 <div className="grid lg:grid-cols-2 gap-4 lg:gap-5 lg:items-stretch">
                 {/* Arrival block */}
                 <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-3 sm:p-4 space-y-3 bg-white dark:bg-gray-900/70">
-                  <h3 className="text-sm font-bold text-sky-700 dark:text-sky-400">{`✈️ ${tr.arrival_heading[lang]}`}</h3>
+                  <h3 className="text-sm font-bold text-sky-700 dark:text-sky-400">{d.arrival_by === 'flight' ? `✈️ ${tr.arrival_heading[lang]}` : tr.arrival_heading_any[lang]}</h3>
+                  <Field label={tr.f_arrival_by[lang]} required>
+                    <ByChoice value={d.arrival_by} onChange={setArrivalBy} lang={lang} />
+                  </Field>
+                  {d.arrival_by === 'flight' && (
+                    <Field label={tr.f_arrival_flight[lang]} hint={tr.arrival_flight_hint[lang]} required>
+                      <input className={inputCls} value={d.arrival_detail} autoCapitalize="characters" autoComplete="off" spellCheck={false}
+                        placeholder="TM 302" onChange={e => update({ arrival_detail: e.target.value })} />
+                    </Field>
+                  )}
+                  {d.arrival_by === 'other' && (
+                    <Field label={tr.f_arrival_other[lang]} required>
+                      <input className={inputCls} value={d.arrival_detail} placeholder={tr.ph_other_travel[lang]}
+                        onChange={e => update({ arrival_detail: e.target.value })} />
+                    </Field>
+                  )}
                   <div className="bkc-row grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Field label={tr.f_country_entry[lang]} required>
+                    <Field label={d.arrival_by === 'flight' ? tr.f_country_entry[lang] : tr.f_arrival_date[lang]} required>
                       <input type="date" className={inputCls} value={d.country_entry_date} onChange={e => update({ country_entry_date: e.target.value })} />
                     </Field>
-                    <Field label={tr.f_arrival_time[lang]}>
+                    <Field label={d.arrival_by === 'flight' ? tr.f_arrival_time[lang] : tr.f_arrival_hour[lang]}>
                       <input type="time" className={inputCls} value={d.arrival_time} onChange={e => update({ arrival_time: e.target.value })} />
                     </Field>
                   </div>
-                  <Field label={tr.f_taxi_arrival[lang]} required>
-                    <YesNo value={d.taxi_arrival} onChange={toggleArrivalTransfer} lang={lang} />
-                  </Field>
+                  {d.arrival_by !== 'car' && (
+                    <Field label={tr.f_taxi_arrival[lang]} required>
+                      <YesNo value={d.taxi_arrival} onChange={toggleArrivalTransfer} lang={lang} />
+                    </Field>
+                  )}
                   {d.taxi_arrival && (
                     <div className="bkc-row grid grid-cols-1 sm:grid-cols-2 gap-3 pl-3 border-l-2 border-sky-200 dark:border-sky-900">
                       <Field label={tr.f_transfer_pickup_date[lang]} hint={tr.transfer_hint[lang]}>
@@ -706,18 +769,35 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
 
                 {/* Departure block */}
                 <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-3 sm:p-4 space-y-3 bg-white dark:bg-gray-900/70">
-                  <h3 className="text-sm font-bold text-sky-700 dark:text-sky-400">{`🛬 ${tr.departure_heading[lang]}`}</h3>
+                  <h3 className="text-sm font-bold text-sky-700 dark:text-sky-400">{d.departure_by === 'flight' ? `🛬 ${tr.departure_heading[lang]}` : tr.departure_heading[lang]}</h3>
+                  <Field label={tr.f_departure_by[lang]} required>
+                    <ByChoice value={d.departure_by} onChange={setDepartureBy} lang={lang} />
+                  </Field>
+                  {d.departure_by === 'flight' && (
+                    <Field label={tr.f_departure_flight[lang]} hint={tr.departure_flight_hint[lang]} required>
+                      <input className={inputCls} value={d.departure_detail} autoCapitalize="characters" autoComplete="off" spellCheck={false}
+                        placeholder="TM 301" onChange={e => update({ departure_detail: e.target.value })} />
+                    </Field>
+                  )}
+                  {d.departure_by === 'other' && (
+                    <Field label={tr.f_departure_other[lang]} required>
+                      <input className={inputCls} value={d.departure_detail} placeholder={tr.ph_other_travel[lang]}
+                        onChange={e => update({ departure_detail: e.target.value })} />
+                    </Field>
+                  )}
                   <div className="bkc-row grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Field label={tr.f_country_exit[lang]} required>
+                    <Field label={d.departure_by === 'flight' ? tr.f_country_exit[lang] : tr.f_departure_date[lang]} required>
                       <input type="date" className={inputCls} value={d.country_exit_date} onChange={e => update({ country_exit_date: e.target.value })} />
                     </Field>
-                    <Field label={tr.f_departure_time[lang]}>
+                    <Field label={d.departure_by === 'flight' ? tr.f_departure_time[lang] : tr.f_departure_hour[lang]}>
                       <input type="time" className={inputCls} value={d.departure_time} onChange={e => update({ departure_time: e.target.value })} />
                     </Field>
                   </div>
-                  <Field label={tr.f_taxi_departure[lang]} required>
-                    <YesNo value={d.taxi_departure} onChange={toggleDepartureTransfer} lang={lang} />
-                  </Field>
+                  {d.departure_by !== 'car' && (
+                    <Field label={tr.f_taxi_departure[lang]} required>
+                      <YesNo value={d.taxi_departure} onChange={toggleDepartureTransfer} lang={lang} />
+                    </Field>
+                  )}
                   {d.taxi_departure && (
                     <div className="bkc-row grid grid-cols-1 sm:grid-cols-2 gap-3 pl-3 border-l-2 border-sky-200 dark:border-sky-900">
                       <Field label={tr.f_transfer_drop_date[lang]} hint={tr.transfer_hint[lang]}>

@@ -32,7 +32,7 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 |-------|-------------|--------------------------|
 | `clients` | 🟢 **identité only** (id, prénom, nom) — email/tél/passeport/naissance/contacts d'urgence **bloqués** | ClientSharePage, ForecastSharePage |
 | `booking_participants` | 🟢 **identité only** (id, prénom, nom) — passeport/notes/client_id **bloqués** | ClientSharePage |
-| `bookings` | 🟢 **planning only** (id, n°, dates, status, client_id, center access) — contacts urgence/notes/amount_paid/visa/waiver **bloqués** | ClientSharePage / RestaurantSharePage / embeds taxi |
+| `bookings` | 🟢 **planning only** (id, n°, dates, status, client_id, center access) — contacts urgence/notes/amount_paid/visa/waiver **bloqués**. + `arrival_by/_detail`, `departure_by/_detail` (n° de vol, **décision gui 2026-11-08** : le chauffeur suit lui-même un retard ; migration 2026-11-08b) | ClientSharePage / RestaurantSharePage / embeds taxi / TaxiSharePage (vol des trajets aéroport) |
 | `booking_rooms` | 🟠 chambres | ClientSharePage / Forecast |
 | `booking_room_prices` | 🟢 **prix rédigé** (`share_price_per_night`) — `price_per_night` brut **bloqué** depuis `2026-08-18c` | ClientSharePage |
 | `payments` | 🔴 **finances** (montants, paiements) | ClientSharePage |
