@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import TaxiKanbanView from '../components/taxi/TaxiKanbanView'
 import TaxiListView from '../components/taxi/TaxiListView'
 import TaxiFinanceTab from '../components/taxi/TaxiFinanceTab'
 import DriverStatementPanel from '../components/taxi/DriverStatementPanel'
+import BookingPeekPanel from '../components/taxi/BookingPeekPanel'
 import TaxiTripFilters, { DEFAULT_TAXI_FILTERS, applyTaxiFilters, type TaxiFilters } from '../components/taxi/TaxiTripFilters'
 import { useLanguage } from '../contexts/LanguageContext'
 import { i18n } from '../data/i18n'
@@ -11,16 +12,17 @@ import { useBookingParticipants } from '../hooks/useBookings'
 import { useTable } from '../hooks/useSupabase'
 import { supabase } from '../lib/supabase'
 
-import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults, TaxiManagerPayment, BookingRef, SharedLink } from '../types/database'
+import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults, TaxiManagerPayment, TaxiBookingRef, SharedLink } from '../types/database'
 import { todayISO, addDaysISO } from '../utils/dates'
 import { FALLBACK_TAXI_PRICING as FALLBACK_PRICING } from '../utils/taxiPricing'
 
-export default function TaxiPage() {
+export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId: string) => void } = {}) {
   const { lang } = useLanguage()
   const { data: trips, loading: tripsLoading, error: tripsError, refresh: refreshTrips } = useTaxiTrips()
   const { data: drivers, loading: driversLoading, error: driversError, refresh: refreshDrivers } = useTaxiDrivers()
-  const { data: bookings } = useTable<BookingRef>('bookings', {
-    select: 'id, booking_number, check_in, check_out, luggage_count, boardbag_count, status, client:clients(first_name, last_name)',
+  // notes → children_count: what the booking panel of a trip shows and corrects
+  const { data: bookings, refresh: refreshBookings } = useTable<TaxiBookingRef>('bookings', {
+    select: 'id, booking_number, check_in, check_out, luggage_count, boardbag_count, status, notes, arrival_time, departure_time, taxi_arrival, taxi_departure, children_count, client:clients(first_name, last_name)',
     order: 'check_in',
     ascending: false,
   })
@@ -60,13 +62,35 @@ export default function TaxiPage() {
     return { ...trip, id: data.id }
   }
 
-  async function updateTrip(trip: TaxiTrip): Promise<void> {
+  async function updateTrip(trip: TaxiTrip): Promise<boolean> {
     // share_price_eur is a GENERATED column (redacted mirror for shared links) —
     // Postgres rejects any write to it, even the same value round-tripped from select('*').
     const { id, share_price_eur: _share_price_eur, ...fields } = trip as TaxiTrip & { share_price_eur?: number | null }
     const { error } = await supabase.from('taxi_trips').update(fields).eq('id', id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { alert('Error: ' + error.message); return false }
     refreshTrips()
+    return true
+  }
+
+  // ── Booking panel (ⓘ on a trip) ───────────────────────────────────────────
+  // `order` = the trips as the view that opened it lists them: the phone arrows
+  // walk through them in that order.
+  const [peek, setPeek] = useState<{ tripId: string; order: string[] } | null>(null)
+  const peekDirty = useRef(false)
+  const setPeekDirty = useCallback((d: boolean) => { peekDirty.current = d }, [])
+
+  function canLeavePeek(): boolean {
+    return !peekDirty.current || confirm(i18n.taxis.peek_msg_discard[lang])
+  }
+
+  function openPeek(tripId: string, order: string[]) {
+    // The ⓘ of the trip already shown closes it again.
+    const closing = peek?.tripId === tripId
+    const current = peek ? trips.find(t => t.id === peek.tripId)?.booking_id : null
+    const next    = trips.find(t => t.id === tripId)?.booking_id
+    // Same booking (its arrival, then its departure): the panel stays, edits too.
+    if ((closing || current !== next) && !canLeavePeek()) return
+    setPeek(closing ? null : { tripId, order })
   }
 
   async function deleteTrip(id: string): Promise<void> {
@@ -162,9 +186,14 @@ export default function TaxiPage() {
   const filteredTrips = applyTaxiFilters(trips, tripFilters, drivers, bookings)
   const error   = tripsError ?? driversError
 
+  const peekTrip = tab === 'planning' && peek ? trips.find(t => t.id === peek.tripId) : undefined
+  const peekNav  = peek ? peek.order.filter(id => trips.some(t => t.id === id && t.booking_id)) : []
+  const peekIdx  = peek ? peekNav.indexOf(peek.tripId) : -1
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-full mx-auto px-4 py-4">
+      {/* Docked panel on the right from md up: keep the list clear of it */}
+      <div className={`max-w-full mx-auto px-4 py-4 ${peekTrip ? 'md:pr-[27rem]' : ''}`}>
         {error && (
           <div className="mt-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 rounded-lg px-4 py-3 text-sm">
             {i18n.common.msg_error[lang]}: {error}
@@ -174,7 +203,7 @@ export default function TaxiPage() {
         {/* Tabs */}
         <div className="sticky top-16 z-40 bg-gray-50 dark:bg-gray-950 flex gap-4 mt-8 mb-8 border-b">
           {(['planning', 'finance', 'drivers'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
+            <button key={t} onClick={() => { if (t !== tab && !canLeavePeek()) return; setTab(t) }}
               className={`px-4 py-2 font-medium transition-colors ${tab === t ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
               {t === 'planning' ? `📅 ${i18n.taxis.section_planning[lang]}` : t === 'finance' ? `💰 ${i18n.taxis.section_finance[lang]}` : `👤 ${i18n.taxis.section_drivers[lang]}`}
             </button>
@@ -206,6 +235,8 @@ export default function TaxiPage() {
                 onAddTrip={addTrip}
                 onUpdateTrip={updateTrip}
                 onDeleteTrip={deleteTrip}
+                peekTripId={peekTrip?.id ?? null}
+                onPeekBooking={openPeek}
               />
             ) : (
               <TaxiKanbanView
@@ -213,9 +244,30 @@ export default function TaxiPage() {
                 onAddTrip={addTrip}
                 onUpdateTrip={updateTrip}
                 onDeleteTrip={deleteTrip}
+                peekTripId={peekTrip?.id ?? null}
+                onPeekBooking={openPeek}
               />
             )}
           </>
+        )}
+
+        {peekTrip && peek && (
+          <BookingPeekPanel
+            // one panel per booking: moving to another booking starts from its own values
+            key={peekTrip.booking_id ?? peekTrip.id}
+            trip={peekTrip}
+            booking={bookings.find(b => b.id === peekTrip.booking_id)}
+            bookingTrips={trips.filter(t => t.booking_id && t.booking_id === peekTrip.booking_id)}
+            participants={bookingParticipants.filter(p => p.booking_id === peekTrip.booking_id)}
+            position={peekIdx >= 0 ? { index: peekIdx, total: peekNav.length } : null}
+            onPrev={peekIdx > 0 ? () => openPeek(peekNav[peekIdx - 1], peek.order) : null}
+            onNext={peekIdx >= 0 && peekIdx < peekNav.length - 1 ? () => openPeek(peekNav[peekIdx + 1], peek.order) : null}
+            onClose={() => setPeek(null)}
+            onOpenBooking={onOpenBooking}
+            onDirtyChange={setPeekDirty}
+            onBookingSaved={refreshBookings}
+            onUpdateTrip={updateTrip}
+          />
         )}
 
         {/* Finance Tab */}

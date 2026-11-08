@@ -379,7 +379,7 @@ function App() {
               {currentPage === 'clients'    && <ClientsPage onNavigate={setCurrentPage} initialClientId={pendingClientId} onClientOpened={() => setPendingClientId(null)} />}
               {currentPage === 'management' && <ManagementPage />}
               {currentPage === 'equipment'  && <EquipmentPage />}
-              {currentPage === 'taxis'      && <TaxiPage />}
+              {currentPage === 'taxis'      && <TaxiPage onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
               {currentPage === 'documents'  && <DocumentsPage />}
               {currentPage === 'accounting' && <AccountingPage onOpenBooking={(id) => { setPendingEditBookingId(id); setCurrentPage('bookings') }} />}
               {currentPage === 'activities' && <ActivitiesPage />}

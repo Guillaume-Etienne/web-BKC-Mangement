@@ -511,6 +511,17 @@ export interface BookingRef {
   client?: { first_name: string; last_name: string } | null
 }
 
+/** What the Taxis page reads of a booking: the ref, plus what its booking
+ *  panel shows and lets you correct (2026-11-08). */
+export interface TaxiBookingRef extends BookingRef {
+  notes: string | null
+  arrival_time: string | null
+  departure_time: string | null
+  taxi_arrival: boolean
+  taxi_departure: boolean
+  children_count: number
+}
+
 // Activities
 export type ActivityProviderType     = 'activity' | 'safari'
 export type ActivityPaymentFlow      = 'we_pay_provider' | 'provider_pays_us'

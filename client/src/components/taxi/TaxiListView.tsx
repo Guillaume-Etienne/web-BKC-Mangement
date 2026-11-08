@@ -7,6 +7,7 @@ import { todayISO, fmtDate } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import type { Lang } from '../../types/database'
+import { BookingPeekButton } from './BookingPeekPanel'
 
 function statusConfig(lang: Lang): Record<TaxiTripStatus, { label: string; row: string; badge: string }> {
   return {
@@ -296,11 +297,15 @@ interface TaxiListViewProps {
   bookingParticipants: BookingParticipant[]
   pricingDefaults: TaxiPricingDefaults
   onAddTrip:    (trip: Omit<TaxiTrip, 'id'>) => Promise<TaxiTrip | null>
-  onUpdateTrip: (trip: TaxiTrip) => Promise<void>
+  onUpdateTrip: (trip: TaxiTrip) => Promise<unknown>
   onDeleteTrip: (id: string) => Promise<void>
+  /** The trip whose booking panel is open (TaxiPage), highlighted here. */
+  peekTripId?: string | null
+  /** ⓘ: open that trip's booking panel; `order` = the trips as listed, for the phone arrows. */
+  onPeekBooking?: (tripId: string, order: string[]) => void
 }
 
-export default function TaxiListView({ trips, drivers, bookings, bookingParticipants, pricingDefaults, onAddTrip, onUpdateTrip, onDeleteTrip }: TaxiListViewProps) {
+export default function TaxiListView({ trips, drivers, bookings, bookingParticipants, pricingDefaults, onAddTrip, onUpdateTrip, onDeleteTrip, peekTripId = null, onPeekBooking }: TaxiListViewProps) {
   const rateFor = useEurMznRateFor(pricingDefaults.eur_mzn_rate)
   const { lang } = useLanguage()
   const STATUS_CONFIG = statusConfig(lang)
@@ -367,6 +372,10 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
     target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
+  const peek = onPeekBooking
+    ? (tripId: string) => onPeekBooking(tripId, sortedTrips.map(t => t.id))
+    : null
+
   async function handleDelete() {
     if (!editTrip) return
     if (confirm(i18n.taxis.msg_confirm_delete_trip[lang])) {
@@ -412,7 +421,8 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
         </div>
       </div>
 
-      {/* Mobile: one card per trip, tap = edit */}
+      {/* Mobile: one card per trip, tap = edit, ⓘ = booking panel. A div and
+          not a <button>: the ⓘ is a button, and a button cannot hold another. */}
       <div className="md:hidden space-y-2" ref={cardsRef}>
         {sortedTrips.length === 0 && (
           <p className="px-4 py-8 text-center text-gray-500 dark:text-gray-400 italic">{i18n.taxis.msg_no_trips[lang]}</p>
@@ -421,8 +431,9 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
           const driver = drivers.find(d => d.id === trip.taxi_driver_id)
           const sc = STATUS_CONFIG[trip.status]
           return (
-            <button key={trip.id} type="button" data-date={trip.date} onClick={() => setEditTrip(trip)}
-              className={`w-full text-left rounded-xl border border-gray-200 dark:border-gray-800 p-3 ${sc.row}`}>
+            <div key={trip.id} role="button" tabIndex={0} data-date={trip.date} onClick={() => setEditTrip(trip)}
+              onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setEditTrip(trip) } }}
+              className={`w-full text-left cursor-pointer rounded-xl border border-gray-200 dark:border-gray-800 p-3 ${sc.row} ${peekTripId === trip.id ? 'ring-2 ring-blue-500' : ''}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="font-semibold text-gray-900 dark:text-gray-100">{fmtDate(trip.date)} · {trip.start_time}</div>
@@ -433,9 +444,12 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                 </div>
                 <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${sc.badge}`}>{sc.label}</span>
               </div>
-              <div className="mt-1.5 text-sm text-gray-800 dark:text-gray-200">
-                {guestName(trip.booking_id, bookings)}
-                <span className="text-gray-500 dark:text-gray-400"> · {trip.nb_persons}p · {trip.nb_luggage} bag · {trip.nb_boardbags} bb</span>
+              <div className="mt-1.5 flex items-start justify-between gap-2 text-sm text-gray-800 dark:text-gray-200">
+                <div className="min-w-0">
+                  {guestName(trip.booking_id, bookings)}
+                  <span className="text-gray-500 dark:text-gray-400"> · {trip.nb_persons}p · {trip.nb_luggage} bag · {trip.nb_boardbags} bb</span>
+                </div>
+                {peek && trip.booking_id && <BookingPeekButton withLabel active={peekTripId === trip.id} onClick={() => peek(trip.id)} />}
               </div>
               <div className="text-xs text-gray-700 dark:text-gray-300">
                 🚕 {driver?.name ?? <span className="text-red-500 dark:text-red-300 italic">{i18n.taxis.label_unassigned[lang]}</span>}
@@ -447,7 +461,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                 <div><div className="text-[10px] text-purple-700 dark:text-purple-400">Mgr</div><div className="font-semibold text-purple-900 dark:text-purple-300">{trip.margin_manager_mzn.toLocaleString()}</div></div>
                 <div><div className="text-[10px] text-emerald-700 dark:text-emerald-400">Centre</div><div className="font-semibold text-emerald-900 dark:text-emerald-300">{computeTaxiMarginEur(trip, rateFor(trip.date))}€</div></div>
               </div>
-            </button>
+            </div>
           )
         })}
       </div>
@@ -485,7 +499,8 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                 const sc = STATUS_CONFIG[trip.status]
                 return (
                   <tr key={trip.id} data-date={trip.date} className={`border-b transition-colors hover:brightness-95 ${sc.row}`}>
-                    <td className="px-3 py-2 whitespace-nowrap text-gray-800 dark:text-gray-200">{fmtDate(trip.date)}</td>
+                    {/* The row whose booking panel is open: a bar on its left (a ring on a <tr> does not render everywhere) */}
+                    <td className={`px-3 py-2 whitespace-nowrap text-gray-800 dark:text-gray-200 ${peekTripId === trip.id ? 'border-l-4 border-l-blue-500' : ''}`}>{fmtDate(trip.date)}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-800 dark:text-gray-200">{trip.start_time}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-xs">
                       {TRIP_TYPE_LABELS[trip.type]}
@@ -495,7 +510,12 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 max-w-[140px] truncate">{trip.notes ?? <span className="italic text-gray-300 dark:text-gray-500">—</span>}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-700 dark:text-gray-300">{driver?.name ?? <span className="text-red-400 dark:text-red-300 italic">{i18n.taxis.label_unassigned[lang]}</span>}</td>
-                    <td className="px-3 py-2 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap">{guestName(trip.booking_id, bookings)}</td>
+                    <td className="px-3 py-2 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        {peek && trip.booking_id && <BookingPeekButton active={peekTripId === trip.id} onClick={() => peek(trip.id)} />}
+                        <span>{guestName(trip.booking_id, bookings)}</span>
+                      </div>
+                    </td>
                     <td className="px-3 py-2 text-center text-gray-800 dark:text-gray-200">{trip.nb_persons}</td>
                     <td className="px-3 py-2 text-center text-gray-800 dark:text-gray-200">{trip.nb_luggage}</td>
                     <td className="px-3 py-2 text-center text-gray-800 dark:text-gray-200">{trip.nb_boardbags}</td>

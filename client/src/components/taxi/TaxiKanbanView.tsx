@@ -7,6 +7,7 @@ import { todayISO, fmtDate } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import type { Lang } from '../../types/database'
+import { BookingPeekButton } from './BookingPeekPanel'
 
 function statusConfig(lang: Lang): Record<TaxiTripStatus, { label: string; card: string; badge: string }> {
   return {
@@ -101,11 +102,15 @@ interface TaxiKanbanViewProps {
   bookings: BookingRef[]
   bookingParticipants: BookingParticipant[]
   onAddTrip:    (trip: Omit<TaxiTrip, 'id'>) => Promise<TaxiTrip | null>
-  onUpdateTrip: (trip: TaxiTrip) => Promise<void>
+  onUpdateTrip: (trip: TaxiTrip) => Promise<unknown>
   onDeleteTrip: (id: string) => Promise<void>
+  /** The trip whose booking panel is open (TaxiPage), highlighted here. */
+  peekTripId?: string | null
+  /** ⓘ: open that trip's booking panel; `order` = its column, for the phone arrows. */
+  onPeekBooking?: (tripId: string, order: string[]) => void
 }
 
-export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookings, bookingParticipants, onAddTrip, onUpdateTrip, onDeleteTrip }: TaxiKanbanViewProps) {
+export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookings, bookingParticipants, onAddTrip, onUpdateTrip, onDeleteTrip, peekTripId = null, onPeekBooking }: TaxiKanbanViewProps) {
   const rateFor = useEurMznRateFor(pricingDefaults.eur_mzn_rate)
   const { lang } = useLanguage()
   const STATUS_CONFIG = statusConfig(lang)
@@ -251,7 +256,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                         onDragEnd={handleDragEnd}
                         className={`group/card relative bg-gradient-to-br ${sc.card} border rounded p-3 text-sm cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-all ${
                           isDragging ? 'opacity-40' : ''
-                        }`}
+                        } ${peekTripId === trip.id ? 'ring-2 ring-blue-500' : ''}`}
                       >
                         {/* Card actions: always visible on touch, revealed on hover from md up */}
                         <div className="absolute top-2 right-2 flex gap-1 bg-white dark:bg-gray-900 rounded shadow-sm md:opacity-0 md:group-hover/card:opacity-100 transition-opacity">
@@ -281,7 +286,13 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                             )}
                           </div>
                           {guestName(trip.booking_id, bookings) && (
-                            <div className="font-semibold text-gray-800 dark:text-gray-200">👤 {guestName(trip.booking_id, bookings)}</div>
+                            <div className="flex items-center gap-1.5 font-semibold text-gray-800 dark:text-gray-200">
+                              <span>👤 {guestName(trip.booking_id, bookings)}</span>
+                              {onPeekBooking && trip.booking_id && (
+                                <BookingPeekButton active={peekTripId === trip.id}
+                                  onClick={() => onPeekBooking(trip.id, columnTrips.map(t => t.id))} />
+                              )}
+                            </div>
                           )}
                         </div>
 

@@ -274,6 +274,15 @@ l'écran.** Reste ouvert :
   `price_provider` calculé à la main. Un `commission_pct` sur le prestataire (comme CasaMoz) le
   pré-remplirait — seulement si le % est fixe (question posée à gui).
 
+## ✅ Livré 2026-11-08 — Taxis : panneau résa ⓘ (à pousser, aucune migration)
+
+Demande gui : voir ce que dit la fiche résa d'un trajet sans changer d'écran, et pouvoir la corriger.
+ⓘ sur chaque trajet lié → panneau (droite sur ordi, bas + flèches ‹ › sur téléphone) ; corrige heures
+de vol, bagages, notes de la résa ; propose ensuite de reporter heure/bagages sur les trajets (choix
+gui : « panneau qui propose »). Détail `pages.md` § TaxiPage. Tests `taxiBookingSync.test.ts` (8 cas).
+- ⬜ **Pas encore vu à l'écran** — à tester sur TEST (navbar ambre) : ouvrir/fermer, flèches mobile,
+  enregistrer une heure puis accepter/refuser la proposition.
+
 ## ✅ Livré 2026-10-25 — à pousser (aucune migration)
 
 - `567de2a` **Forecast mobile** : grille une colonne par moniteur (toggle Grid/List mémorisé, `forecast_mobile_view`) — vue desktop et Daily inchangés. Vu en iframe 390 px sur TEST ; **reste à voir sur le vrai téléphone**.
