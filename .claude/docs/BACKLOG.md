@@ -268,18 +268,35 @@ reverifier par curl anon.
 
 ---
 
-## ✅ Livré 2026-11-08 — Daily : case « In the country » (à pousser, aucune migration)
+## ✅ Livré 2026-11-08 — Daily : case « In the country » (poussé, aucune migration)
 
-Demande gui : Léa #058 est déjà à Bilene et loue du matériel, mais son check-in est le 09/11 →
+Demande gui : une cliente de #058 est déjà à Bilene et loue du matériel, mais son check-in est le 09/11 →
 absente des sélecteurs du Daily, et « Show all guests » donne des kilomètres. Nouvelle case
 **« In the country (n) »** sous chaque sélecteur de voyageurs (Daily : cours, location, activité,
 modales d'édition ; Forecast : cours, locations prévues) : ajoute les voyageurs entre leur entrée
 dans le pays et leur check-in, ou entre leur check-out et leur sortie (`isInCountryOn`,
 `utils/dayVisitor.ts`, 6 cas testés). Build + 906 tests ✅. **Pas encore vu à l'écran.** Reste :
-- ⬜ gui : pousser, puis attribuer la location de Léa (case cochée → Léa avec « ✈️ not lodged · check-in 09/11 »)
-- 🔔 **#058 : sortie du pays le 15/11 mais check-out le 16/11** (note : « du 9 au 15/11 ») → une nuit de
-  trop facturée (490 €) ? Question posée à gui, rien touché
+- ✅ poussé par gui ; les 2 locations du 08/11 de #058 sont saisies (via « Show all guests » ou la nouvelle case)
+- 🔔 **#058 : sortie du pays le 15/11 mais check-out le 16/11** (note : « du 9 au 15/11 ») → la
+  question tient toujours, rien touché
 - 💭 Ne marche que si les dates visa sont saisies (le formulaire public les remplit ; résa faite à la main = à saisir)
+
+**Maison H1 partagée par 3 résas (#056 ch. B 2 pers., #058 ch. F 2 pers., #065 3rd room 1 pers.) —
+réparti en PROD le 2026-11-08 (demande gui « équitablement pour tout le monde »).** Avant : chaque
+chambre à son tarif (50 + 70 + 50 = 170 €/nuit, 1 140 €) au lieu de la maison complète à 100 €/nuit.
+L'app n'a pas de « maison partagée entre plusieurs résas » (le Full house exige UNE résa avec toutes
+les chambres, et le wizard ne le propose qu'aux maisons à 2 chambres — H1 en a 3). Fait à la main :
+- chaque nuit de 100 € partagée entre les présents : prix figés 40 / 40 / 20 €/nuit (`booking_room_prices`,
+  note visible client) + nuit du 15→16 (#065 parti, 4 pers. → 25 €) = extra **`other`** de 2 × 5 € sur
+  #056 et #058 (pas `accommodation` : gonflerait « Nights sold ») → **700 € pile** (290 / 290 / 120) ;
+- taxi partagé du 09/11 (3 pers., 120 €) : le trajet reste lié à #065 à **40 €**, les 2 places de #056
+  en extra `other` 2 × 40 €. ⚠️ La marge de ce trajet paraît négative sur la page Taxis (les 80 € sont en
+  extras) — choisi plutôt qu'une remise, qui gonflerait le CA (les remises ne sont pas déduites du revenu).
+- Totaux PROD vérifiés (MCP) : #056 490 € (dont taxi 22/11 120 €), #058 400 € (dont 2 locations 110 €), #065 160 €.
+- ⚠️ **À refaire si les dates bougent** : #056 check-out 16/11 mais taxi retour le 22/11 et sortie du pays
+  le 22 ; #058 sortie du pays le 15. Questions posées à gui.
+- 💭 Si ça revient souvent (groupes en plusieurs résas dans une même maison, taxi partagé) : une vraie
+  fonction « maison / trajet partagé entre résas » plutôt que ces extras faits main.
 
 ## ✅ Livré 2026-11-08 — N° de vol (à pousser APRÈS la migration 08b)
 

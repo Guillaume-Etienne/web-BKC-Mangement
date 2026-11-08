@@ -83,7 +83,7 @@ en croyant agir sur le planning. À supprimer un jour, décision de gui.
   chaque ouverture (`renderGuestScope`) : **« In the country (n) »** ajoute, *après* les présents,
   les voyageurs dans le pays mais pas logés chez nous ce jour-là (`isInCountryOn` — dates visa,
   `utils/dayVisitor.ts`, testé), avec la mention ambre « ✈️ not lodged · check-in 09/11 » sur leur
-  résa ; **« Show all guests »** liste tout le monde. Ajouté le 2026-11-08 (Léa #058 louait du
+  résa ; **« Show all guests »** liste tout le monde. Ajouté le 2026-11-08 (une cliente de #058 louait du
   matériel la veille de son check-in). Rien d'autre ne change : la location/le cours s'accroche à
   la résa du voyageur comme d'habitude.
 
