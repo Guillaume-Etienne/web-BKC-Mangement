@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { i18n } from '../data/i18n'
-import { useBookings, useBookingRooms, useBookingParticipants, usePayments } from '../hooks/useBookings'
+import { useBookings, useBookingRooms, useBookingParticipants, usePayments, useBookingRoomPrices } from '../hooks/useBookings'
 import { useAccommodations, useRooms } from '../hooks/useAccommodations'
-import { useAgencies } from '../hooks/useAgencies'
+import { useAgencies, useAgencyBillingLines, useAgencyRateItems } from '../hooks/useAgencies'
+import { useActivityBookings, useActivityProviders } from '../hooks/useActivities'
+import { useTaxiTrips } from '../hooks/useTaxis'
+import { buildBookingOrder, zeroPricedLines, type BookingOrder, type BookingOrderData } from '../utils/bookingOrder'
+import { describeLine } from '../utils/bookingOrderHtml'
 import { useDocumentSections } from '../hooks/useDocumentTemplates'
 import { agencyMarker } from '../components/accounting/utils'
 import { useTable } from '../hooks/useSupabase'
-import type { Room, Accommodation, EmailLog, EmailLogType, SharedLink } from '../types/database'
+import type { EmailLog, EmailLogType, SharedLink, RoomRate, ExternalAccommodationBooking, BookingCharge } from '../types/database'
 import { defaultTravelGuideSections } from '../data/travelGuide'
 import { defaultWelcomeGuideSections } from '../data/welcomeGuide'
 import type { TravelGuideSection } from '../data/travelGuide'
@@ -20,7 +24,6 @@ import type { Booking } from '../types/database'
 import { supabase } from '../lib/supabase'
 import { fmtDate, fmtDateShort, todayISO, addDaysISO } from '../utils/dates'
 import { depositState, askedState, stayState } from '../utils/documentsOverview'
-import { dossierMoney } from '../utils/dossier'
 import { stayBookings } from '../utils/dayVisitor'
 import type { AskedState, DepositState, StayState } from '../utils/documentsOverview'
 
@@ -42,15 +45,6 @@ function loadLegacyGuideSections(): TravelGuideSection[] {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function getRoomLabels(bookingId: string, bookingRooms: { booking_id: string; room_id: string }[], rooms: Room[], accommodations: Accommodation[]): string[] {
-  return bookingRooms
-    .filter(br => br.booking_id === bookingId)
-    .map(br => {
-      const room = rooms.find(r => r.id === br.room_id)
-      const acc  = room ? accommodations.find(a => a.id === room.accommodation_id) : null
-      return acc && room ? `${acc.name}/${room.name}` : '?'
-    })
-}
 
 function bookingLabel(b: Booking): string {
   const name = b.client ? `${b.client.first_name} ${b.client.last_name}` : 'Unknown'
@@ -426,6 +420,36 @@ function SaveBar({
   )
 }
 
+// ── Order check (booking confirmation) ─────────────────────────────────────────
+
+/** What the confirmation is about to state, and what deserves a look before it
+ *  goes out: a line billed at 0 € (a price nobody entered, as a rule) and money
+ *  received but not verified — the document does not count it as paid. */
+function OrderCheck({ order }: { order: BookingOrder | null }) {
+  if (!order) return <p className="text-xs text-gray-400 dark:text-gray-400 italic">Loading prices…</p>
+  const eur = (n: number) => `${n.toFixed(2)} €`
+  const zero = zeroPricedLines(order)
+  return (
+    <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 space-y-1">
+      <div>
+        🧾 {order.lines.length} line{order.lines.length !== 1 ? 's' : ''} ordered · total <strong>{eur(order.total)}</strong>
+        {order.discounts > 0 && <> · discount {eur(order.discounts)}</>}
+        {' '}· paid {eur(order.paid)} · remaining <strong>{eur(order.remaining)}</strong>
+      </div>
+      {zero.length > 0 && (
+        <div className="text-amber-700 dark:text-amber-400">
+          ⚠ At 0 € on the confirmation: {zero.map(l => describeLine(l, 'en').title).join(', ')} — price not entered?
+        </div>
+      )}
+      {order.unverified > 0 && (
+        <div className="text-amber-700 dark:text-amber-400">
+          ⚠ {eur(order.unverified)} received but not verified yet — not counted as paid on the confirmation.
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Send email row ─────────────────────────────────────────────────────────────
 
 function SendEmailRow({
@@ -506,12 +530,30 @@ export default function DocumentsPage() {
   const { lang: uiLang } = useLanguage()
   const DOC_TYPES = getDocTypes(uiLang)
   const { data: allBookings, loading, refresh: refreshBookings } = useBookings()
-  const { data: bookingRooms } = useBookingRooms()
-  const { data: bookingParticipants } = useBookingParticipants()
-  const { data: rooms } = useRooms()
-  const { data: accommodations } = useAccommodations()
-  const { data: agencies } = useAgencies()
-  const { data: payments } = usePayments()
+  const { data: bookingRooms, loading: l1 } = useBookingRooms()
+  const { data: bookingParticipants, loading: l2 } = useBookingParticipants()
+  const { data: rooms, loading: l3 } = useRooms()
+  const { data: accommodations, loading: l4 } = useAccommodations()
+  const { data: agencies, loading: l5 } = useAgencies()
+  const { data: payments, loading: l6 } = usePayments()
+  // What the confirmation lists as ordered (utils/bookingOrder.ts). Same reads,
+  // same keys as AccountingPage, so a visit there has them cached already.
+  const { data: bookingRoomPrices, loading: l7 }          = useBookingRoomPrices()
+  const { data: roomRates, loading: l8 }                  = useTable<RoomRate>('room_rates')
+  const { data: externalAccommodationBkgs, loading: l9 }  = useTable<ExternalAccommodationBooking>('external_accommodation_bookings')
+  const { data: taxiTrips, loading: l10 }                 = useTaxiTrips()
+  const { data: activityBookings, loading: l11 }          = useActivityBookings()
+  const { data: activityProviders, loading: l12 }         = useActivityProviders()
+  const { data: bookingCharges, loading: l13 }            = useTable<BookingCharge>('booking_charges', { order: 'date', ascending: true })
+  const { data: agencyBillingLines, loading: l14 }        = useAgencyBillingLines()
+  const { data: agencyRateItems, loading: l15 }           = useAgencyRateItems()
+  // A confirmation built before every list arrived would silently miss lines.
+  const orderLoading = [l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12, l13, l14, l15].some(Boolean)
+  const orderData: BookingOrderData = {
+    accommodations, rooms, bookingRooms, bookingRoomPrices, roomRates, externalAccommodationBkgs, taxiTrips,
+    activityBookings, bookingCharges, agencies, agencyBillingLines, agencyRateItems, bookingParticipants, payments,
+  }
+  const orderFor = (b: Booking): BookingOrder => buildBookingOrder(b, orderData, activityProviders)
   // Overview list only ever marks whole bookings (no invoice lines here), same
   // shortcut BookingsPage uses — agencyMarker falls straight through to agency_id.
   const agencyLookup = { agencies, bookings: allBookings, agencyBillingLines: [] }
@@ -593,7 +635,7 @@ export default function DocumentsPage() {
 
   const visaBooking    = activeBookings.find(b => b.id === effectiveVisaId)
   const summaryBooking = activeBookings.find(b => b.id === effectiveSummaryId)
-  const summaryRooms   = getRoomLabels(effectiveSummaryId, bookingRooms, rooms, accommodations)
+  const summaryOrder   = summaryBooking && !orderLoading ? orderFor(summaryBooking) : null
   const activeSections        = (guideSections   ?? []).filter(s => s.is_active)
   const activeWelcomeSections = (welcomeSections ?? []).filter(s => s.is_active)
 
@@ -768,9 +810,6 @@ export default function DocumentsPage() {
     })
   }
 
-  /** What a booking has really paid: verified `payments`, never the stale `bookings.amount_paid`. */
-  const paidOn = (bookingId: string) => dossierMoney(payments.filter(p => p.booking_id === bookingId)).paid
-
   // null = nothing to send (only reachable for 'client_account' if the row's
   // checkbox got selected right as its link was deleted elsewhere — the cell
   // itself never renders a checkbox for a booking with no link).
@@ -780,10 +819,10 @@ export default function DocumentsPage() {
       case 'visa_letter':
         return { subject: `Visa letter — Booking #${booking.booking_number}`, html: emailVisaLetter(booking, participants) }
       case 'booking_confirmation': {
-        const roomLabels = getRoomLabels(booking.id, bookingRooms, rooms, accommodations)
+        if (orderLoading) return null
         return {
           subject: `Booking confirmation #${booking.booking_number} — ${booking.client?.first_name ?? ''}`,
-          html: emailBookingConfirmation(booking, roomLabels, lang, activeSections, participants, paidOn(booking.id)),
+          html: emailBookingConfirmation(booking, orderFor(booking), lang, activeSections, participants),
         }
       }
       case 'travel_guide':
@@ -886,6 +925,10 @@ export default function DocumentsPage() {
   async function handleSendSelected() {
     const cells = Array.from(selectedCells)
     if (cells.length === 0) return
+    if (orderLoading && cells.some(c => c.endsWith(':booking_confirmation'))) {
+      alert('Prices are still loading — try again in a second.')
+      return
+    }
     setBulkBusy({ kind: 'send', done: 0, total: cells.length })
     let failures = 0
     let skipped = 0
@@ -1338,21 +1381,23 @@ export default function DocumentsPage() {
 
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => summaryBooking && printBookingSummary(summaryBooking, summaryRooms, lang, activeSections, bookingParticipants, paidOn(summaryBooking.id))}
-                disabled={!summaryBooking}
+                onClick={() => summaryBooking && summaryOrder && printBookingSummary(summaryBooking, summaryOrder, lang, activeSections, bookingParticipants)}
+                disabled={!summaryOrder}
                 className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors">
                 🖨️ {i18n.pages.btn_generate_pdf[uiLang]}
               </button>
             </div>
             <p className="text-xs text-gray-400 dark:text-gray-400">Opens in a new tab → use your browser's Print dialog → Save as PDF</p>
 
-            {summaryBooking && (
+            {summaryBooking && <OrderCheck order={summaryOrder} />}
+
+            {summaryBooking && summaryOrder && (
               <SendEmailRow
                 label="Send booking confirmation by email"
                 emailValue={summaryEmail}
                 onEmailChange={setSummaryEmail}
                 onSend={() => {
-                  const html = emailBookingConfirmation(summaryBooking, summaryRooms, lang, activeSections, bookingParticipants, paidOn(summaryBooking.id))
+                  const html = emailBookingConfirmation(summaryBooking, summaryOrder, lang, activeSections, bookingParticipants)
                   sendEmail('booking_confirmation', summaryEmail, `Booking confirmation #${summaryBooking.booking_number} — ${summaryBooking.client?.first_name ?? ''}`, html)
                 }}
                 sending={sending === 'booking_confirmation'}

@@ -297,6 +297,16 @@ l'écran.** Reste ouvert :
   `price_provider` calculé à la main. Un `commission_pct` sur le prestataire (comme CasaMoz) le
   pré-remplirait — seulement si le % est fixe (question posée à gui).
 
+## ✅ Livré 2026-11-08 — Confirmation : bloc « Votre commande » (à pousser, aucune migration)
+
+Demande gui : la confirmation (PDF + email) liste ce qui est commandé avec les prix — chambres, taxis,
+activités, center access, extras — puis total / déjà réglé / reste à payer. Choix gui : agence =
+« Inclus via X » sans prix ; pack vendu d'avance = saisi en extra. Détail `pages.md` § DocumentsPage.
+Tests `bookingOrder.test.ts` (10 cas), build + 899 tests ✅.
+- ⬜ **Jamais vu à l'écran** : générer le PDF d'une résa directe (#045) et d'une résa F&F (#026) sur TEST.
+- 💭 Pas couverts : séjour hôtel partenaire (CasaMoz), cours/locations/repas déjà consommés (renvoyés au
+  compte client).
+
 ## ✅ Livré 2026-11-08 — Taxis : panneau résa ⓘ (à pousser, aucune migration)
 
 Demande gui : voir ce que dit la fiche résa d'un trajet sans changer d'écran, et pouvoir la corriger.

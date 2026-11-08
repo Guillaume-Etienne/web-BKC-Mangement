@@ -8,6 +8,8 @@ import type { Booking, BookingParticipant } from '../types/database'
 import { guideTextHtml, type TravelGuideSection } from '../data/travelGuide'
 import { WELCOME_ACCOUNT_BOX } from '../data/welcomeGuide'
 import type { Lang } from './printBookingSummary'
+import type { BookingOrder } from './bookingOrder'
+import { bookingOrderHtml, bookingOrderTitle } from './bookingOrderHtml'
 
 const LOGO_URL = `${window.location.origin}/docs/LOGO-bkc.png`
 const BLUE     = '#4472C4'
@@ -150,33 +152,27 @@ const T: Record<Lang, Record<string, string>> = {
   fr: {
     title: 'Confirmation de Réservation', bookingRef: 'Réservation n°',
     yourStay: 'Votre séjour', checkIn: 'Arrivée', checkOut: 'Départ',
-    room: 'Hébergement', duration: 'Durée', nights: 'nuits',
+    duration: 'Durée', nights: 'nuits',
     guests: 'Voyageurs', name: 'Nom', passport: 'Passeport',
-    transport: 'Transport', arrivalTransfer: 'Navette arrivée', departureTransfer: 'Navette départ',
-    at: 'à', luggage: 'bagage(s)', boardbag: 'sac(s) de board', noTransport: 'Aucun transfert prévu',
-    payment: 'Paiement', amountPaid: 'Montant réglé',
+    at: 'à',
     travelGuide: 'Guide du voyageur',
     generatedOn: 'Document généré le', contact: 'Contact',
   },
   en: {
     title: 'Booking Confirmation', bookingRef: 'Booking #',
     yourStay: 'Your stay', checkIn: 'Check-in', checkOut: 'Check-out',
-    room: 'Accommodation', duration: 'Duration', nights: 'nights',
+    duration: 'Duration', nights: 'nights',
     guests: 'Guests', name: 'Name', passport: 'Passport',
-    transport: 'Transport', arrivalTransfer: 'Arrival transfer', departureTransfer: 'Departure transfer',
-    at: 'at', luggage: 'luggage', boardbag: 'boardbag(s)', noTransport: 'No transfer planned',
-    payment: 'Payment', amountPaid: 'Amount paid',
+    at: 'at',
     travelGuide: "Traveller's guide",
     generatedOn: 'Generated on', contact: 'Contact',
   },
   es: {
     title: 'Confirmación de Reserva', bookingRef: 'Reserva n°',
     yourStay: 'Su estancia', checkIn: 'Llegada', checkOut: 'Salida',
-    room: 'Alojamiento', duration: 'Duración', nights: 'noches',
+    duration: 'Duración', nights: 'noches',
     guests: 'Viajeros', name: 'Nombre', passport: 'Pasaporte',
-    transport: 'Transporte', arrivalTransfer: 'Traslado llegada', departureTransfer: 'Traslado salida',
-    at: 'a las', luggage: 'maleta(s)', boardbag: 'funda(s) de tabla', noTransport: 'Sin traslado previsto',
-    payment: 'Pago', amountPaid: 'Importe pagado',
+    at: 'a las',
     travelGuide: 'Guía del viajero',
     generatedOn: 'Generado el', contact: 'Contacto',
   },
@@ -202,30 +198,28 @@ function kvRow(key: string, val: string): string {
     </table>`
 }
 
-/** Same document as printBookingSummary, delivered by email — so it states the
- *  same thing: only what has actually been paid, never an estimated total or a
- *  balance. The two must agree; a client who gets both should not find two
- *  different figures. */
+/** Same document as printBookingSummary, delivered by email — the order block
+ *  comes from the same renderer (bookingOrderHtml), so a client who gets both
+ *  never finds two different figures. What it lists and why: utils/bookingOrder.ts. */
 export function emailBookingConfirmation(
   booking: Booking,
-  roomLabels: string[],
+  /** buildBookingOrder(): what is ordered, its prices, paid (verified money
+   *  only — never `booking.amount_paid`) and what remains. */
+  order: BookingOrder,
   lang: Lang,
   activeSections: TravelGuideSection[],
   participants: BookingParticipant[],
-  /** Verified money from `payments` (dossierMoney). Never `booking.amount_paid`:
-   *  that column is a stale cache and told clients they had paid €0. */
-  amountPaid: number
 ): string {
   const t = T[lang]
   const client = booking.client
   const clientName = client ? `${client.first_name} ${client.last_name}` : '—'
   const nights  = nightCount(booking.check_in, booking.check_out)
 
+  // Rooms are listed in the order block, with their type and price.
   const stayContent = [
     kvRow(t.checkIn,  `${fmtDateLang(booking.check_in, lang)}${booking.arrival_time ? ` &nbsp;${t.at} ${booking.arrival_time}` : ''}`),
     kvRow(t.checkOut, `${fmtDateLang(booking.check_out, lang)}${booking.departure_time ? ` &nbsp;${t.at} ${booking.departure_time}` : ''}`),
     kvRow(t.duration, `${nights} ${t.nights}`),
-    roomLabels.length > 0 ? kvRow(t.room, roomLabels.join(' · ')) : '',
   ].join('')
 
   const bParts = participants.filter(p => p.booking_id === booking.id)
@@ -248,34 +242,6 @@ export function emailBookingConfirmation(
             </tr>`).join('')}
         </tbody>
       </table>`)
-
-  function transferBox(label: string, dateStr: string, time: string | null, lug: number, bags: number): string {
-    const details = [
-      time ? `${dateStr} &nbsp;${t.at} ${time}` : dateStr,
-      lug  > 0 ? `${lug} ${t.luggage}` : '',
-      bags > 0 ? `${bags} ${t.boardbag}` : '',
-    ].filter(Boolean).join(' &nbsp;·&nbsp; ')
-    return `
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;margin:0 10px 8px;font-size:12px;">
-        <div style="font-weight:bold;color:${TEAL};margin-bottom:4px;">${label}</div>
-        <div style="color:#374151;">${details}</div>
-      </div>`
-  }
-
-  const transportContent = (!booking.taxi_arrival && !booking.taxi_departure)
-    ? `<p style="padding:0 10px;color:#9ca3af;font-style:italic;font-size:12px;">${t.noTransport}</p>`
-    : [
-        booking.taxi_arrival   ? transferBox(`→ ${t.arrivalTransfer}`,   fmtDateLang(booking.check_in,  lang), booking.arrival_time,   booking.luggage_count, booking.boardbag_count) : '',
-        booking.taxi_departure ? transferBox(`← ${t.departureTransfer}`, fmtDateLang(booking.check_out, lang), booking.departure_time, 0, 0) : '',
-      ].join('')
-
-  const paymentRows = `
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:2px;">
-      <tr>
-        <td style="padding:4px 10px;font-size:12px;color:#6b7280;">${t.amountPaid}</td>
-        <td style="padding:4px 10px;font-size:12px;font-weight:bold;text-align:right;">&euro;${amountPaid.toFixed(2)}</td>
-      </tr>
-    </table>`
 
   const guideContent = activeSections.length === 0 ? '' :
     sectionBlock('🌍', t.travelGuide, activeSections.map(sec => `
@@ -305,8 +271,7 @@ export function emailBookingConfirmation(
     <div style="padding:20px 28px;">
       ${sectionBlock('🏠', t.yourStay, stayContent)}
       ${guestsContent}
-      ${sectionBlock('🚕', t.transport, transportContent)}
-      ${sectionBlock('💰', t.payment, paymentRows)}
+      ${sectionBlock('🧾', bookingOrderTitle(lang), bookingOrderHtml(order, lang, '12px', '11px'))}
       ${guideContent}
 
       <div style="margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;text-align:center;font-style:italic;">
