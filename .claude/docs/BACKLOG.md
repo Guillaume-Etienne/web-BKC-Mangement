@@ -303,7 +303,12 @@ Demande gui : la confirmation (PDF + email) liste ce qui est commandé avec les 
 activités, center access, extras — puis total / déjà réglé / reste à payer. Choix gui : agence =
 « Inclus via X » sans prix ; pack vendu d'avance = saisi en extra. Détail `pages.md` § DocumentsPage.
 Tests `bookingOrder.test.ts` (10 cas), build + 899 tests ✅.
-- ⬜ **Jamais vu à l'écran** : générer le PDF d'une résa directe (#045) et d'une résa F&F (#026) sur TEST.
+- ✅ **Vu sur TEST le 08/11** (PDF #045 EN, #026 FR) : mise en page propre. Bug trouvé et corrigé : une chambre
+  San Martinho sans séjour externe saisi **disparaissait** (#026) → ligne à 0 € signalée (test ajouté, 900 ✅).
+- 🔔 **Questions à gui** : (1) #045 et #026 : prix San Martinho = 0 € en PROD, à saisir avant tout envoi ;
+  (2) center access à 0 € (F&F : gardiennage facturé à l'agence) → masquer la ligne quand le tarif est 0 ? ;
+  (3) après des achats sur place, « Déjà réglé » compte TOUT l'argent (#026 : total 44, remise 175, réglé 434)
+  → remplacer réglé/reste par « solde : voir votre compte client » dès que réglé + remise > total ?
 - 💭 Pas couverts : séjour hôtel partenaire (CasaMoz), cours/locations/repas déjà consommés (renvoyés au
   compte client).
 

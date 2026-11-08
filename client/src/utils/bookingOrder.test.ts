@@ -97,6 +97,18 @@ describe('buildBookingOrder', () => {
     expect(o.lines[0]).toMatchObject({ item: { kind: 'external_stay', accommodationName: 'San Martinho', roomNames: ['SM-2'], nights: 4 }, amount: 600 })
   })
 
+  it('a room there with no stay entered still shows, at 0 € (flagged, never dropped)', () => {
+    const o = buildBookingOrder(mkBooking(), base({
+      accommodations: [mkAccommodation({ id: 'acc1', name: 'San Martinho', type: 'other', external_billing: true })],
+      rooms: [mkRoom({ id: 'room1', accommodation_id: 'acc1', name: 'SM-2' })],
+      bookingRoomPrices: [],
+      externalAccommodationBkgs: [],
+    }), [])
+    expect(o.lines).toHaveLength(1)
+    expect(o.lines[0]).toMatchObject({ item: { kind: 'external_stay', accommodationName: 'San Martinho', roomNames: ['SM-2'], nights: 7 }, amount: 0 })
+    expect(zeroPricedLines(o)).toHaveLength(1)
+  })
+
   it('activities: billed by us, or paid to the provider directly', () => {
     const o = buildBookingOrder(mkBooking(), base({
       activityBookings: [

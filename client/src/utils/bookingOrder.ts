@@ -115,6 +115,24 @@ export function buildBookingOrder(booking: Booking, input: BookingOrderData, pro
       settledBy: { kind: 'us' },
     })
   }
+  // A room booked there with no stay entered yet (#026, seen 2026-11-08): the
+  // client still sleeps somewhere, so the line stays, at 0 € — which the check
+  // under "Generate PDF" reports as a price not entered.
+  const staysAt = new Set(data.externalAccommodationBkgs.filter(x => x.booking_id === booking.id).map(x => x.accommodation_id))
+  const unpricedStays = new Map<string, string[]>()
+  for (const br of bookedRooms) {
+    const room = data.rooms.find(r => r.id === br.room_id)
+    const acc  = room ? data.accommodations.find(a => a.id === room.accommodation_id) : undefined
+    if (!room || !acc?.external_billing || staysAt.has(acc.id)) continue
+    unpricedStays.set(acc.id, [...(unpricedStays.get(acc.id) ?? []), room.name])
+  }
+  for (const [accId, roomNames] of unpricedStays) {
+    stays.push({
+      item: { kind: 'external_stay', accommodationName: data.accommodations.find(a => a.id === accId)?.name ?? '—', roomNames, checkIn: booking.check_in, checkOut: booking.check_out, nights },
+      amount: 0,
+      settledBy: { kind: 'us' },
+    })
+  }
 
   // ── Transfers: the real trips, with their own time and price ──
   const taxis: OrderLine[] = data.taxiTrips
