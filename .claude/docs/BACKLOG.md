@@ -268,6 +268,28 @@ reverifier par curl anon.
 
 ---
 
+## ✅ Livré 2026-11-09 — Page de Geraldo : onglet « Viagens » (à pousser, aucune migration)
+
+`TaxiManagerSharePage` en **2 onglets** (demande gui : « dont l'un garde l'existant tel quel »).
+- **🚕 Viagens** (par défaut, nouveau) : trajets à venir **groupés par jour** (Hoje / Amanhã / date),
+  2 lignes par trajet (heure, trajet, chauffeur ou badge rouge **SEM MOTORISTA**, client, 👥/🧳/🏄,
+  vol ↗, ⏳ « Faltam detalhes », notes). Filtres **7 dias / Tudo** (mémorisé) + bouton
+  « ⚠️ N viagens sem motorista » qui filtre ; « + N viagens depois » si le filtre 7 jours en cache.
+  Terminées **repliées**, par mois. **Aucun montant** dans cet onglet.
+- **📲 WhatsApp** par trajet (message prêt : date, heure, trajet, client, charge, vol, chauffeur,
+  notes — **jamais de montant**, testé) vers le n° du chauffeur, sinon sélecteur de contact ; et
+  par jour (une ligne par trajet, pour le groupe des chauffeurs). Logique : `utils/taxiDispatch.ts`
+  (+ 12 tests). 🔔 seul Ruiz a un n° en PROD, et il semble **incomplet** (9 chiffres avec
+  l'indicatif) → le bouton ouvre le sélecteur de contact ; à corriger dans Taxis → Drivers.
+- **📋 Resumo** = la page d'avant **à l'identique** (finances, solde — bug du futur inclus,
+  décision gui « on verra après » —, par chauffeur, listes, paiements). Ses options cartes/tableau
+  et format de date ne s'affichent plus que sur cet onglet. En-tête plus compact pour les deux.
+- Vols : lecture **séparée** de `bookings` (trajets à venir seulement), faite après l'affichage ;
+  avant la migration 08b elle échoue (42703 vu sur TEST le 09/11) et la page fait sans.
+- Vérifié : build + 920 tests ✅ ; requêtes anon réelles sur TEST avec le jeton manager (17 trajets
+  à venir, 15 sans chauffeur). ⚠️ **Jamais vu à l'écran** (extension Chrome non connectée) →
+  à regarder sur le téléphone de gui / de Geraldo après le push.
+
 ## ✅ Livré 2026-11-08 — Daily : case « In the country » (poussé, aucune migration)
 
 Demande gui : une cliente de #058 est déjà à Bilene et loue du matériel, mais son check-in est le 09/11 →
@@ -390,7 +412,7 @@ gui : « panneau qui propose »). Détail `pages.md` § TaxiPage. Tests `taxiBoo
   d'environ 2 000 MZN** chez nous, à déduire/régulariser (gui). Svetlana doit toujours 120 € (sur sa résa).
   🔔 Reste : #25 (Bouteiller/Fouque) 31/10 à 3 000 MZN au lieu de 6 500 — même voiture que la dépose #26 de 04:00 ?
 - **Revue des taxis passés faite le 07/11 — en attente de gui** : quelles courses de Ruiz sont déjà payées (#21 04/11, #66 05/11, à vide 06/11, #40 07/11 = 22 750 MZN non marqués « Payé ») ; Geraldo : 14 500 MZN gagnés au passé, **rien ne lui a été payé, c'est normal : il doit de l'argent au centre pour d'autres raisons passées** (gui, 07/11) ; Ruiz : question transmise à Teresa par gui (07/11) ; #24 parti le 27/10 : ✅ réglé (gui, 08/11). À confirmer : #25 31/10 chauffeur à 3 000 MZN (combiné avec la dépose #26 ?), #57 24/10 type « aéroport » alors que départ de l'hôtel.
-- 🐛 **Page partagée de Geraldo** (`TaxiManagerSharePage.tsx:146`) : le solde « dû » additionne aussi les commissions des courses FUTURES (33 500 MZN affichés au 07/11, dont ~18 000 pas encore faites) → ne compter que le passé. **Reporté par gui le 07/11 : ne rien changer pour l'instant, le lui rappeler plus tard.**
+- 🐛 **Page partagée de Geraldo** (`TaxiManagerSharePage.tsx:345`, onglet Resumo) : le solde « dû » additionne aussi les commissions des courses FUTURES (33 500 MZN affichés au 07/11, dont ~18 000 pas encore faites) → ne compter que le passé. **Reporté par gui le 07/11 : ne rien changer pour l'instant, le lui rappeler plus tard.**
 - ⚠️ Les notes de `taxi_trips` sont lues par le chauffeur, Geraldo et le planning public (GRANT anon) : n'y mettre que du neutre ; l'argent va dans les notes de résa (non lisibles en anon).
 - Reste de l'audit (taxis ≠ dates du séjour, taxis cochés jamais créés, séjours sans chambre, visas absurdes #33/#54, arrivées matinales à vérifier sur le billet) : liste complète dans la mémoire Claude `project_2026-11-06_season_dates_audit`. Ensuite : **revue des taxis passés** (non marqués payés, dû par chauffeur / Geraldo). Idée à proposer : alerte « taxi ≠ dates du séjour ».
 

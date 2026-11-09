@@ -73,6 +73,18 @@ export const tr = {
   history_title:   { pt: 'Histórico de pagamentos', en: 'Payment history' },
   col_reason:      { pt: 'Motivo', en: 'Reason' },
   no_payments:     { pt: 'Sem pagamentos ainda.', en: 'No payments yet.' },
+  // Manager tabs (2026-11-09): the dispatch view + the original summary, unchanged
+  tab_summary:     { pt: '📋 Resumo', en: '📋 Summary' },
+  mgr_dispatch:    { pt: 'Viagens a organizar', en: 'Trips to organise' },
+  mgr_no_driver_n: { pt: '⚠️ {n} viagens sem motorista', en: '⚠️ {n} trips without a driver' },
+  mgr_no_driver:   { pt: 'Sem motorista', en: 'No driver' },
+  period_7d:       { pt: '7 dias', en: '7 days' },
+  period_all:      { pt: 'Tudo',   en: 'All' },
+  none_7d:         { pt: 'Nenhuma viagem nos próximos 7 dias.', en: 'No trips in the next 7 days.' },
+  more_later:      { pt: '+ {n} viagens depois — ver tudo', en: '+ {n} later trips — show all' },
+  tomorrow:        { pt: 'Amanhã', en: 'Tomorrow' },
+  wa_trip:         { pt: 'Enviar por WhatsApp', en: 'Send on WhatsApp' },
+  wa_day:          { pt: 'Enviar o dia por WhatsApp', en: 'Send the day on WhatsApp' },
 
   // ── Public taxi schedule ────────────────────────────────────────────────
   public_title:     { pt: 'Horário dos táxis', en: 'Taxi schedule' },

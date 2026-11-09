@@ -35,7 +35,7 @@ Toutes en **PT par défaut + toggle EN** (chauffeurs/manager mozambicains), via 
 |------|---------|--------|---------|-------------------|
 | Public Taxi Schedule | `pages/TaxiSharePage.tsx` | staff / affichage | tous les trajets par jour, **places libres** (`seats − nb_persons`, « — » si pas de chauffeur), trajets non assignés en rouge ; **n° de vol** des trajets aéroport avec lien de statut (2026-11-08, lecture `bookings` séparée : avant la migration 08b seule elle échoue) | ❌ aucune |
 | Taxi Driver Schedule | `pages/DriverSharePage.tsx` | 1 chauffeur | ses trajets + son MZN, bloc « O meu dinheiro » (gagné/à venir/total) | seulement `price_driver_mzn` |
-| Taxi Manager GERALDO | `pages/TaxiManagerSharePage.tsx` | Geraldo | tous trajets **managés** + résumé par chauffeur + ses finances (comissão − adiantamentos = saldo) + historique paiements | `margin_manager_mzn` |
+| Taxi Manager GERALDO | `pages/TaxiManagerSharePage.tsx` | Geraldo | **2 onglets (2026-11-09)** : **🚕 Viagens** (défaut) = trajets à venir par jour, badge « sem motorista », vol, bouton 📲 WhatsApp par trajet et par jour (message **sans montant**, `utils/taxiDispatch.ts`, testé) ; **📋 Resumo** = la page d'origine : tous trajets **managés** + résumé par chauffeur + ses finances (comissão − adiantamentos = saldo) + historique paiements | `margin_manager_mzn` (Resumo seulement) |
 
 **Infra i18n/UI partagée :**
 - `data/taxiShareI18n.ts` — dico PT/EN (`tr.key[lang]`) + helpers `tripTypeLabel`, `statusLabel`, `fmt`, `mzn`, `formatTripDate` ; types `TaxiLang`, `DateMode`, `ViewMode`.

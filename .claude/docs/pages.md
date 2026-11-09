@@ -19,7 +19,7 @@
 | `'taxi'` | `TaxiSharePage` | — (Public Taxi Schedule, PT/EN, places libres) |
 | `'client'` | `ClientSharePage` | `bookingNumber` depuis `sharedLink.params.booking_number` |
 | `'driver'` | `DriverSharePage` | `driverId` depuis `sharedLink.params.driver_id` (PT/EN) |
-| `'taxi_manager'` | `TaxiManagerSharePage` | — (Geraldo, PT/EN, finances + tous trajets managés) |
+| `'taxi_manager'` | `TaxiManagerSharePage` | — (Geraldo, PT/EN ; 2 onglets depuis 2026-11-09 : 🚕 Viagens = trajets à venir par jour + WhatsApp, `utils/taxiDispatch.ts` ; 📋 Resumo = la page d'origine, finances + tous trajets managés) |
 | `'activity_provider'` | `ActivityProviderSharePage` | `providerId` depuis `sharedLink.params.provider_id` |
 | `'booking_form'` | `BookingFormPage` | — (lien public unique, le client choisit sa langue) |
 | `'restaurant'` | `RestaurantSharePage` | — (Hotel Restaurant Planning, PT/EN, timeline des séjours) |
