@@ -290,6 +290,12 @@ reverifier par curl anon.
   à venir, 15 sans chauffeur). **Vu à l'écran le 09/11** (Chrome, vraie page PROD en lecture,
   desktop + cadre 400 px : pas de défilement horizontal) ; messages WhatsApp relus ; « 1 viagens »
   corrigé (`8cfbcbe`, **à pousser**). Reste : l'essai réel sur le téléphone de Geraldo.
+- **Listes repliables** (gui, 09/11, à pousser) : composant `Fold` dans la page, état ouvert/fermé
+  **mémorisé sur l'appareil** (`taxi_mgr_fold_<id>`). Resumo : Por motorista / Próximas / Histórico
+  ouverts, **Viagens terminadas repliée** par défaut (la liste qui grossit toute la saison) — seul
+  changement de comportement du Resumo. Viagens : terminées repliées, puis **un pli par mois**, seul
+  le plus récent ouvert. Vu dans Chrome (vraie page, lecture) : défauts, repli, mémorisation après
+  rechargement ; « Novembro de 2026 » (et non « De », piège CSS `capitalize`).
 
 ## ✅ Livré 2026-11-08 — Daily : case « In the country » (poussé, aucune migration)
 

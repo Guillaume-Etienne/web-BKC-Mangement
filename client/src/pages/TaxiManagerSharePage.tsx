@@ -1,5 +1,5 @@
 import { displayFirstName } from '../utils/names'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import type { TaxiDriver, TaxiTrip, TaxiManagerPayment } from '../types/database'
 import {
@@ -127,9 +127,35 @@ function Chips<T extends string>({ value, options, onChange }: {
   )
 }
 
+/** A card whose list folds away behind its header (gui, 2026-11-09: "rendre
+ *  repliable les longues listes"). Open/closed is remembered on the device, so
+ *  Geraldo finds the page as he left it. */
+function Fold({ id, title, defaultOpen, tone = 'gray', scrollX = false, children }: {
+  id: string; title: string; defaultOpen: boolean; tone?: 'gray' | 'blue'; scrollX?: boolean; children: ReactNode
+}) {
+  const [state, setState] = usePref<'open' | 'closed'>(`taxi_mgr_fold_${id}`, defaultOpen ? 'open' : 'closed')
+  const open = state === 'open'
+  const head = tone === 'blue'
+    ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-400'
+    : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+  return (
+    <div className={`bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 ${scrollX ? 'overflow-x-auto' : 'overflow-hidden'}`}>
+      <button type="button" onClick={() => setState(open ? 'closed' : 'open')} aria-expanded={open}
+        className={`w-full flex items-center gap-2 px-4 sm:px-5 py-3 text-left hover:brightness-95 ${head} ${open ? 'border-b border-gray-200 dark:border-gray-800' : ''}`}>
+        <span className="w-3 shrink-0 text-xs">{open ? '▾' : '▸'}</span>
+        <h2 className="text-sm font-bold">{title}</h2>
+      </button>
+      {open && children}
+    </div>
+  )
+}
+
 const WA_BTN = 'shrink-0 inline-flex items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 text-white'
 
 type RowWords = TripWords & { phone: string | null }
+
+/** "novembro de 2026" → "Novembro de 2026" (CSS `capitalize` would also give "De"). */
+const upperFirst = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 function DispatchRow({ t, words, lang, showDate, today }: {
   t: TripWithClient; words: RowWords; lang: TaxiLang; showDate: boolean; today: string
@@ -180,7 +206,7 @@ function DispatchTab({ upcoming, past, drivers, travel, today, lang }: {
 }) {
   const [period,   setPeriod]   = usePref<Period>('taxi_mgr_period', '7d')
   const [noDriver, setNoDriver] = useState(false)
-  const [showDone, setShowDone] = useState(false)
+  const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({})
 
   const words = (t: TripWithClient): RowWords => {
     const d = drivers.find(x => x.id === t.taxi_driver_id)
@@ -257,23 +283,27 @@ function DispatchTab({ upcoming, past, drivers, travel, today, lang }: {
       )}
 
       {past.length > 0 && (
-        <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-          <button onClick={() => setShowDone(!showDone)}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
-            <span>{showDone ? '▾' : '▸'} {tr.completed_trips[lang]} ({past.length})</span>
-          </button>
-          {showDone && [...months.entries()].map(([m, ts]) => (
-            <div key={m}>
-              <div className="flex justify-between px-4 py-1.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60 text-xs font-semibold text-gray-500 dark:text-gray-400">
-                <span className="capitalize">{formatMonth(`${m}-01`, lang)}</span>
-                <span>{tripsCount(ts.length, lang)}</span>
+        <Fold id="trips_done" title={`${tr.completed_trips[lang]} (${past.length})`} defaultOpen={false}>
+          {/* One fold per month: only the latest is open, the season stays short */}
+          {[...months.entries()].map(([m, ts], i) => {
+            const open = openMonths[m] ?? i === 0
+            return (
+              <div key={m} className={i > 0 ? 'border-t border-gray-100 dark:border-gray-800' : ''}>
+                <button type="button" onClick={() => setOpenMonths({ ...openMonths, [m]: !open })} aria-expanded={open}
+                  className="w-full flex items-center gap-2 px-4 py-2 bg-gray-50/60 dark:bg-gray-800/40 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-400">
+                  <span className="w-3 shrink-0">{open ? '▾' : '▸'}</span>
+                  <span>{upperFirst(formatMonth(`${m}-01`, lang))}</span>
+                  <span className="ml-auto font-normal">{tripsCount(ts.length, lang)}</span>
+                </button>
+                {open && (
+                  <div className="divide-y divide-gray-100 dark:divide-gray-800 opacity-80 border-t border-gray-100 dark:border-gray-800">
+                    {ts.map(t => <DispatchRow key={t.id} t={t} words={words(t)} lang={lang} showDate today={today} />)}
+                  </div>
+                )}
               </div>
-              <div className="divide-y divide-gray-100 dark:divide-gray-800 opacity-80">
-                {ts.map(t => <DispatchRow key={t.id} t={t} words={words(t)} lang={lang} showDate today={today} />)}
-              </div>
-            </div>
-          ))}
-        </section>
+            )
+          })}
+        </Fold>
       )}
     </div>
   )
@@ -432,10 +462,7 @@ export default function TaxiManagerSharePage() {
         </div>
 
         {/* Per-driver summary */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
-          <div className="px-5 py-3 border-b bg-gray-50 dark:bg-gray-800">
-            <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.mgr_by_driver[lang]}</h2>
-          </div>
+        <Fold id="by_driver" title={tr.mgr_by_driver[lang]} defaultOpen scrollX>
           {perDriver.length === 0 ? (
             <p className="text-sm text-gray-400 dark:text-gray-400 italic py-4 text-center">{tr.no_trips[lang]}</p>
           ) : (
@@ -451,29 +478,20 @@ export default function TaxiManagerSharePage() {
               </tbody>
             </table>
           )}
-        </div>
+        </Fold>
 
         {/* Upcoming trips */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-          <div className="px-5 py-3 border-b bg-blue-50 dark:bg-blue-950/40">
-            <h2 className="text-sm font-bold text-blue-800 dark:text-blue-400">{tr.upcoming_trips[lang]} ({upcoming.length})</h2>
-          </div>
+        <Fold id="upcoming" title={`${tr.upcoming_trips[lang]} (${upcoming.length})`} defaultOpen tone="blue">
           <TripList trips={upcoming} driverName={driverName} lang={lang} dateMode={dateMode} view={view} />
-        </div>
+        </Fold>
 
-        {/* Completed trips */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-          <div className="px-5 py-3 border-b bg-gray-50 dark:bg-gray-800">
-            <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.completed_trips[lang]} ({past.length})</h2>
-          </div>
+        {/* Completed trips — the list that grows all season: folded by default */}
+        <Fold id="completed" title={`${tr.completed_trips[lang]} (${past.length})`} defaultOpen={false}>
           <TripList trips={past} driverName={driverName} lang={lang} dateMode={dateMode} view={view} />
-        </div>
+        </Fold>
 
         {/* Payment history */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-          <div className="px-5 py-3 border-b bg-gray-50 dark:bg-gray-800">
-            <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.history_title[lang]}</h2>
-          </div>
+        <Fold id="payments" title={`${tr.history_title[lang]} (${payments.length})`} defaultOpen>
           {payments.length === 0 ? (
             <p className="text-sm text-gray-400 dark:text-gray-400 italic py-4 text-center">{tr.no_payments[lang]}</p>
           ) : (
@@ -496,7 +514,7 @@ export default function TaxiManagerSharePage() {
               </tbody>
             </table>
           )}
-        </div>
+        </Fold>
         </>)}
 
         <p className="text-center text-xs text-gray-300 dark:text-gray-500">
