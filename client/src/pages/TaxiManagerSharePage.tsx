@@ -12,7 +12,7 @@ import { usePref, Segmented } from './taxiShareUI'
 import { todayISO } from '../utils/dates'
 import { tripTravel, type TravelFields } from '../utils/travelMode'
 import TravelBadge from '../components/common/TravelBadge'
-import { groupByDay, withinDays, dayLabel, whatsappUrl, tripMessage, dayMessage, type TripWords } from '../utils/taxiDispatch'
+import { groupByDay, withinDays, dayLabel, whatsappUrl, tripMessage, dayMessage, tripsCount, type TripWords } from '../utils/taxiDispatch'
 
 type Tab = 'trips' | 'summary'
 type Period = '7d' | 'all'
@@ -236,7 +236,7 @@ function DispatchTab({ upcoming, past, drivers, travel, today, lang }: {
             }`}>
               {date === today ? '📍 ' : ''}{dayLabel(date, today, lang)}
             </span>
-            <span className="text-xs text-gray-400 dark:text-gray-400">{fmt(tr.trips_all[lang], { count: ts.length })}</span>
+            <span className="text-xs text-gray-400 dark:text-gray-400">{tripsCount(ts.length, lang)}</span>
             <a href={whatsappUrl(dayMessage(date, today, ts, words, lang))} target="_blank" rel="noopener noreferrer"
               title={tr.wa_day[lang]} aria-label={tr.wa_day[lang]}
               className={`${WA_BTN} ml-auto w-8 h-8 text-base`}>
@@ -266,7 +266,7 @@ function DispatchTab({ upcoming, past, drivers, travel, today, lang }: {
             <div key={m}>
               <div className="flex justify-between px-4 py-1.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60 text-xs font-semibold text-gray-500 dark:text-gray-400">
                 <span className="capitalize">{formatMonth(`${m}-01`, lang)}</span>
-                <span>{fmt(tr.trips_all[lang], { count: ts.length })}</span>
+                <span>{tripsCount(ts.length, lang)}</span>
               </div>
               <div className="divide-y divide-gray-100 dark:divide-gray-800 opacity-80">
                 {ts.map(t => <DispatchRow key={t.id} t={t} words={words(t)} lang={lang} showDate today={today} />)}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { groupByDay, withinDays, dayLabel, waPhone, whatsappUrl, tripMessage, dayMessage, type DispatchTrip } from './taxiDispatch'
+import { groupByDay, withinDays, dayLabel, waPhone, whatsappUrl, tripMessage, dayMessage, tripsCount, type DispatchTrip } from './taxiDispatch'
 
 const trip = (over: Partial<DispatchTrip>): DispatchTrip => ({
   id: 'x', date: '2026-11-10', start_time: '08:30', type: 'aero-to-center', taxi_driver_id: null,
@@ -91,7 +91,21 @@ describe('tripMessage', () => {
   })
 })
 
+describe('tripsCount', () => {
+  it('says "1 viagem", not "1 viagens"', () => {
+    expect(tripsCount(1, 'pt')).toBe('1 viagem')
+    expect(tripsCount(3, 'pt')).toBe('3 viagens')
+    expect(tripsCount(1, 'en')).toBe('1 trip')
+  })
+})
+
 describe('dayMessage', () => {
+  it('one trip, one person: singular', () => {
+    const msg = dayMessage('2026-11-11', '2026-11-09', [trip({ date: '2026-11-11', nb_persons: 1 })],
+      () => ({ client: null, driver: null, travel: null }), 'pt')
+    expect(msg).toBe(['🚕 Qua 11/11 — 1 viagem', '08:30 Aeroporto → Bilene · 1 pessoa · 🚗 Não atribuído'].join('\n'))
+  })
+
   it('one line per trip under the day', () => {
     const msg = dayMessage('2026-11-10', '2026-11-09', [
       trip({ id: 'a', start_time: '08:30' }),

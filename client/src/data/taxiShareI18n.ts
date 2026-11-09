@@ -48,6 +48,8 @@ export const tr = {
 
   // Card-only short labels (e.g. "3 pessoas · 2 malas · 1 prancha")
   unit_pax:    { pt: 'pessoas', en: 'pax' },
+  unit_pax_one:{ pt: 'pessoa',  en: 'pax' },
+  trip_one:    { pt: '1 viagem', en: '1 trip' },
   unit_bags:   { pt: 'malas',   en: 'bags' },
   unit_boards: { pt: 'pranchas',en: 'boards' },
 

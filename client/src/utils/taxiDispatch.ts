@@ -71,6 +71,13 @@ export interface TripWords {
   travel: TravelLabel | null
 }
 
+/** "1 viagem" / "3 viagens" — the shared "{count} viagens" reads "1 viagens". */
+export function tripsCount(n: number, lang: TaxiLang): string {
+  return n === 1 ? tr.trip_one[lang] : fmt(tr.trips_all[lang], { count: n })
+}
+
+const pax = (n: number, lang: TaxiLang) => `${n} ${n === 1 ? tr.unit_pax_one[lang] : tr.unit_pax[lang]}`
+
 function loadLine(t: DispatchTrip, lang: TaxiLang): string {
   const bags = t.nb_luggage > 0 || t.nb_boardbags > 0 ? ` · 🧳 ${bagsLabel(t.nb_luggage, t.nb_boardbags, lang)}` : ''
   return `👥 ${t.nb_persons} ${tr.unit_pax[lang]}${bags}`
@@ -95,13 +102,13 @@ export function tripMessage(t: DispatchTrip, w: TripWords, lang: TaxiLang): stri
 
 /** A whole day, one line per trip — for the drivers' group. */
 export function dayMessage<T extends DispatchTrip>(date: string, today: string, trips: T[], words: (t: T) => TripWords, lang: TaxiLang): string {
-  const head = `🚕 ${dayLabel(date, today, lang)} — ${fmt(tr.trips_all[lang], { count: trips.length })}`
+  const head = `🚕 ${dayLabel(date, today, lang)} — ${tripsCount(trips.length, lang)}`
   const lines = trips.map(t => {
     const w = words(t)
     return [
       `${t.start_time} ${tripTypeLabel(t.type, lang)}`,
       w.client,
-      `${t.nb_persons} ${tr.unit_pax[lang]}`,
+      pax(t.nb_persons, lang),
       travelText(w.travel),
       `🚗 ${w.driver ?? tr.unassigned[lang]}`,
     ].filter(Boolean).join(' · ')
