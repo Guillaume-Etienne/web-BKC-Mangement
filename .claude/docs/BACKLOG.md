@@ -268,7 +268,7 @@ reverifier par curl anon.
 
 ---
 
-## ✅ Livré 2026-11-09 — Page de Geraldo : onglet « Viagens » (à pousser, aucune migration)
+## ✅ Livré 2026-11-09 — Page de Geraldo : onglet « Viagens » (poussé `bf33422` ; fix `8cfbcbe` à pousser ; aucune migration)
 
 `TaxiManagerSharePage` en **2 onglets** (demande gui : « dont l'un garde l'existant tel quel »).
 - **🚕 Viagens** (par défaut, nouveau) : trajets à venir **groupés par jour** (Hoje / Amanhã / date),
@@ -287,8 +287,9 @@ reverifier par curl anon.
 - Vols : lecture **séparée** de `bookings` (trajets à venir seulement), faite après l'affichage ;
   avant la migration 08b elle échoue (42703 vu sur TEST le 09/11) et la page fait sans.
 - Vérifié : build + 920 tests ✅ ; requêtes anon réelles sur TEST avec le jeton manager (17 trajets
-  à venir, 15 sans chauffeur). ⚠️ **Jamais vu à l'écran** (extension Chrome non connectée) →
-  à regarder sur le téléphone de gui / de Geraldo après le push.
+  à venir, 15 sans chauffeur). **Vu à l'écran le 09/11** (Chrome, vraie page PROD en lecture,
+  desktop + cadre 400 px : pas de défilement horizontal) ; messages WhatsApp relus ; « 1 viagens »
+  corrigé (`8cfbcbe`, **à pousser**). Reste : l'essai réel sur le téléphone de Geraldo.
 
 ## ✅ Livré 2026-11-08 — Daily : case « In the country » (poussé, aucune migration)
 
