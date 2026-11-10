@@ -6,7 +6,7 @@
 
 ## 🚨 Migrations SQL — registre
 
-⬜ **`2026-11-08b_booking_travel_mode.sql`** (TEST ⬜ / PROD ⬜) — n° de vol sur la résa :
+✅ ~~**`2026-11-08b_booking_travel_mode.sql`**~~ (TEST ✅ / PROD ✅ le 10/11, **curl anon ✅** : 4 colonnes → 200, `notes` → 42501). Passée APRÈS le push : la page Taxis PROD a montré le bandeau « bookings.arrival_by does not exist » jusque-là (signalé par gui). Rappel — n° de vol sur la résa :
 `bookings.arrival_by / arrival_detail / departure_by / departure_detail` (+ CHECK sur `*_by`) + GRANT
 anon des 4 colonnes (page chauffeur, décision gui). **Strictement additive.** ⚠️ **À passer AVANT le
 push** : sinon la conversion d'une demande du nouveau formulaire échoue (alerte), la page Taxis admin
@@ -337,7 +337,7 @@ la liste/kanban Taxis et sur la **page chauffeur** (PT/EN). Tout passe par `util
 (testé). 🐛 **Corrigé au passage** : la fusion d'une demande dans une résa existante datait ses taxis
 au jour d'arrivée/départ du séjour en ignorant la date/heure de transfert du client (`SubmissionsPage`,
 le chemin « création » était déjà juste). Build + 889 tests ✅. **Pas encore vu à l'écran.** Reste :
-- ⬜ migration 08b TEST + PROD, puis curl anon ; test Chrome sur TEST (formulaire public → demande → résa → Taxis → page chauffeur)
+- ✅ migration 08b TEST + PROD + curl anon (10/11) ; ⬜ test Chrome sur TEST (formulaire public → demande → résa → Taxis → page chauffeur)
 - 💭 plus tard : alerte « date du taxi ≠ date du vol » (même principe que la chaîne safari) ; montrer le vol sur la page client
 
 ## ✅ Livré 2026-11-08 — Safari : voyage complet (à pousser, aucune migration)
