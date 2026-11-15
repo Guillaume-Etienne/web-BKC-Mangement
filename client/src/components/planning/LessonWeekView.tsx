@@ -9,6 +9,8 @@ import { toISODate as dateToISO, localeTag, fmtDateShort } from '../../utils/dat
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import { RENTAL_TYPES, boardPickerCategory, rentalGear, rentalKind, rentalLabel, showsKitePicker, type RentalKind } from './rentalTypes'
+import EditRentalModal from './EditRentalModal'
+import { Avatar } from './GuestPicker'
 import WalkInForm from './WalkInForm'
 import type { WalkInRequest } from './walkInSave'
 import { isDayVisitor, isInCountryOn, isOnSiteOn } from '../../utils/dayVisitor'
@@ -49,27 +51,6 @@ function getSlotForTime(time: string): Slot {
   return 'evening'
 }
 
-// Stable per-person color + initials for the little avatar circle, so the same
-// participant looks the same everywhere (picker and card) without needing a
-// color stored anywhere — just hashed from their id.
-const AVATAR_COLORS = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500', 'bg-pink-500', 'bg-cyan-600', 'bg-orange-500', 'bg-teal-500']
-function avatarColor(id: string): string {
-  let hash = 0
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
-}
-function participantInitials(p: { first_name: string; last_name?: string | null }): string {
-  const a = p.first_name?.[0] ?? ''
-  const b = p.last_name?.[0] ?? ''
-  return (a + b).toUpperCase() || '?'
-}
-function Avatar({ id, first_name, last_name }: { id: string; first_name: string; last_name?: string | null }) {
-  return (
-    <span className={`w-5 h-5 rounded-full ${avatarColor(id)} text-white text-[10px] font-bold flex items-center justify-center shrink-0`}>
-      {participantInitials({ first_name, last_name })}
-    </span>
-  )
-}
 
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -203,16 +184,6 @@ export default function LessonWeekView({
 
   // ── Rental edit ────────────────────────────────────────────────────────────
   const [editRental, setEditRental] = useState<EquipmentRental | null>(null)
-  const [showAllGuestsEditRental, setShowAllGuestsEditRental] = useState(false)
-  const [showInCountryEditRental, setShowInCountryEditRental] = useState(false)
-  const [editRentalPrice, setEditRentalPrice] = useState('')
-  const [editRentalSlot, setEditRentalSlot] = useState<'morning' | 'afternoon' | 'full_day'>('morning')
-  const [editRentalParticipantId, setEditRentalParticipantId] = useState('')
-  const [editRentalType, setEditRentalType] = useState<RentalKind>('kite')
-  const [editRentalKiteId, setEditRentalKiteId] = useState<string | null>(null)
-  const [editRentalBoardId, setEditRentalBoardId] = useState<string | null>(null)
-  const [editRentalNotes, setEditRentalNotes] = useState('')
-  const [editRentalClientNote, setEditRentalClientNote] = useState('')
 
   // ── Clipboard ─────────────────────────────────────────────────────────────
   const [clipboard, setClipboard] = useState<Lesson | null>(null)
@@ -537,43 +508,7 @@ export default function LessonWeekView({
   }
 
   function openEditRental(r: EquipmentRental) {
-    const type = rentalKind(r, equipment) ?? 'free'
     setEditRental(r)
-    setEditRentalPrice(String(r.price))
-    setEditRentalSlot(r.slot)
-    setEditRentalParticipantId(r.participant_id ?? '')
-    setEditRentalType(type)
-    // The inverse of rentalGear. Older rows hold one piece of gear and their type
-    // was deduced from its category, so the same rule sorts it into the right slot.
-    setEditRentalKiteId(showsKitePicker(type) ? r.equipment_id : null)
-    setEditRentalBoardId(type === 'full' ? r.board_equipment_id ?? null : boardPickerCategory(type) ? r.equipment_id : null)
-    setEditRentalNotes(r.notes ?? '')
-    setEditRentalClientNote(r.client_note ?? '')
-    setShowAllGuestsEditRental(false)
-    setShowInCountryEditRental(false)
-  }
-
-  function submitEditRental(e: React.FormEvent) {
-    e.preventDefault()
-    if (!editRental) return
-    const price = parseFloat(editRentalPrice)
-    if (isNaN(price) || price < 0) return
-    // The frozen grid price only moves when what is rented changes (or was never
-    // recorded): editing a note or a discount must not re-grid an old rental.
-    const sameProduct = editRental.rental_type === editRentalType && editRental.slot === editRentalSlot
-    onUpdateRental({
-      ...editRental,
-      price,
-      slot: editRentalSlot,
-      participant_id: editRentalParticipantId || null,
-      booking_id: editRentalParticipantId ? bookingForParticipant(editRentalParticipantId) || editRental.booking_id : editRental.booking_id,
-      ...rentalGear(editRentalType, editRentalKiteId, editRentalBoardId),
-      rental_type: editRentalType,
-      list_price: sameProduct && editRental.list_price != null ? editRental.list_price : rentalPrice(editRentalType, editRentalSlot),
-      notes: editRentalNotes || null,
-      client_note: editRentalClientNote || null,
-    })
-    setEditRental(null)
   }
 
   // ── Add handlers ──────────────────────────────────────────────────────────
@@ -1514,117 +1449,13 @@ export default function LessonWeekView({
 
       {/* ── Rental edit modal ── */}
       {editRental && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditRental(null)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
-              <h3 className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_edit_rental[lang]}</h3>
-              <button onClick={() => setEditRental(null)} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">✕</button>
-            </div>
-            <form onSubmit={submitEditRental} className="p-4 space-y-3 overflow-y-auto min-h-0 flex-1">
-              {/* Participant */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Guest (tap again to clear)</label>
-                {renderParticipantChips({
-                  candidates: showAllGuestsEditRental
-                    ? bookingParticipants
-                    : candidatesForEdit(editRental.date, editRentalParticipantId ? [editRentalParticipantId] : [], showInCountryEditRental),
-                  selectedIds: editRentalParticipantId ? [editRentalParticipantId] : [],
-                  onToggle: id => setEditRentalParticipantId(prev => prev === id ? '' : id),
-                  date: editRental.date,
-                })}
-                {renderGuestScope({
-                  date: editRental.date, className: 'mt-1',
-                  inCountry: showInCountryEditRental, onInCountry: setShowInCountryEditRental,
-                  all: showAllGuestsEditRental, onAll: setShowAllGuestsEditRental,
-                })}
-              </div>
-              {/* Type */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Type</label>
-                <div className="grid grid-cols-3 gap-1">
-                  {RENTAL_TYPES.map(rt => (
-                    <button key={rt.key} type="button"
-                      onClick={() => {
-                        // Same rule as the slot: a price that still equals the old rate follows the new type.
-                        if (editRentalPrice === String(rentalPrice(editRentalType, editRentalSlot) ?? 0)) {
-                          setEditRentalPrice(String(rentalPrice(rt.key, editRentalSlot) ?? 0))
-                        }
-                        if (boardPickerCategory(rt.key) !== boardPickerCategory(editRentalType)) setEditRentalBoardId(null)
-                        setEditRentalType(rt.key)
-                      }}
-                      className={`text-xs py-1.5 px-1 rounded border text-center leading-tight transition-colors ${editRentalType === rt.key ? 'bg-amber-500 border-amber-600 dark:border-amber-500 text-white font-semibold' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-amber-300 dark:hover:border-amber-800'}`}>
-                      <div>{rt.icon}</div>
-                      <div>{rt.label}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* Equipment */}
-              {showsKitePicker(editRentalType) && (
-                <select value={editRentalKiteId ?? ''} onChange={e => setEditRentalKiteId(e.target.value || null)}
-                  className="w-full text-sm border rounded px-2 py-1.5">
-                  <option value="">🪂 Kite — not specified</option>
-                  {sortKitesBySize(equipment.filter(e => e.category === 'kite' && e.is_active)).map(e => (
-                    <option key={e.id} value={e.id}>🪂 {e.name}</option>
-                  ))}
-                </select>
-              )}
-              {boardPickerCategory(editRentalType) && (
-                <select value={editRentalBoardId ?? ''} onChange={e => setEditRentalBoardId(e.target.value || null)}
-                  className="w-full text-sm border rounded px-2 py-1.5">
-                  <option value="">🏄 {rentalLabel(editRentalType === 'full' ? 'board' : editRentalType, 'staff')} — not specified</option>
-                  {equipment.filter(e => e.category === boardPickerCategory(editRentalType) && e.is_active).map(e => (
-                    <option key={e.id} value={e.id}>🏄 {e.name}</option>
-                  ))}
-                </select>
-              )}
-              {/* Slot + Price */}
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Slot</label>
-                  <select value={editRentalSlot} onChange={e => {
-                    const slot = e.target.value as RentalSlot
-                    // The price follows the slot's rate unless it was typed by hand.
-                    if (editRentalPrice === String(rentalPrice(editRentalType, editRentalSlot) ?? 0)) {
-                      setEditRentalPrice(String(rentalPrice(editRentalType, slot) ?? 0))
-                    }
-                    setEditRentalSlot(slot)
-                  }}
-                    className="w-full text-sm border rounded px-2 py-1.5">
-                    <option value="morning">{i18n.planning.slot_morning[lang]}</option>
-                    <option value="afternoon">{i18n.planning.slot_afternoon[lang]}</option>
-                    <option value="full_day">{i18n.planning.slot_full_day[lang]}</option>
-                  </select>
-                </div>
-                <div className="w-24">
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Price (€)</label>
-                  <input type="number" min="0" step="0.5"
-                    value={editRentalPrice} onChange={e => setEditRentalPrice(e.target.value)}
-                    className="w-full text-sm border rounded px-2 py-1.5 text-right font-semibold" />
-                </div>
-              </div>
-              {/* Notes */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Note for us (internal)</label>
-                <input type="text" value={editRentalNotes} onChange={e => setEditRentalNotes(e.target.value)}
-                  placeholder="Optional" className="w-full text-sm border rounded px-2 py-1.5" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Note for the guest (visible on their page)</label>
-                <input type="text" value={editRentalClientNote} onChange={e => setEditRentalClientNote(e.target.value)}
-                  placeholder="Optional" className="w-full text-sm border rounded px-2 py-1.5" />
-              </div>
-              <div className="flex gap-2 pt-2 border-t">
-                <button type="button" onClick={() => deleteRental(editRental.id)}
-                  className="px-3 py-2 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded font-medium text-sm">{i18n.common.btn_delete[lang]}</button>
-                <button type="button" onClick={() => setEditRental(null)}
-                  className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm">{i18n.common.btn_cancel[lang]}</button>
-                <button type="submit"
-                  className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm">{i18n.common.btn_save[lang]}</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <EditRentalModal
+          rental={editRental}
+          equipment={equipment} bookings={bookings} bookingParticipants={bookingParticipants} clients={clients} priceItems={priceItems}
+          onSave={r => { onUpdateRental(r); setEditRental(null) }}
+          onClose={() => setEditRental(null)}
+          onDelete={deleteRental}
+        />
       )}
 
       {/* ── Mobile action sheet: labeled Copy/Move/Edit/Delete instead of tiny icons ── */}

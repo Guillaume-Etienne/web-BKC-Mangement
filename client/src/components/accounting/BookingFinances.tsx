@@ -17,6 +17,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import type { Lang } from '../../types/database'
 import ClientShareLink from '../common/ClientShareLink'
+import EditRentalModal from '../planning/EditRentalModal'
 
 interface Props {
   data: SharedAccountingData
@@ -550,6 +551,8 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
   const [editingRoomPriceId, setEditingRoomPriceId] = useState<string | null>(null)
   const [editingRentalId, setEditingRentalId] = useState<string | null>(null)
+  // Full edit form (same modal as the Planning's), opened over this page.
+  const [fullEditRental, setFullEditRental] = useState<EquipmentRental | null>(null)
   const [editingLessonPriceId, setEditingLessonPriceId] = useState<string | null>(null)
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null)
   const [showAddActivity, setShowAddActivity] = useState(false)
@@ -837,6 +840,8 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                           </span>
                           <button onClick={() => setEditingRentalId(isEditing ? null : r.id)}
                             className="p-1 -m-1 text-gray-300 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">✏️</button>
+                          <button onClick={() => setFullEditRental(r)} title="Full edit (guest, gear, slot…)"
+                            className="p-1 -m-1 text-gray-300 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">⚙️</button>
                         </div>
                       </div>
                       {(r.notes || r.client_note) && (
@@ -854,6 +859,15 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                           rental={r}
                           onSave={updated => { handlers.updateRental(updated); setEditingRentalId(null) }}
                           onCancel={() => setEditingRentalId(null)}
+                        />
+                      )}
+                      {fullEditRental?.id === r.id && (
+                        <EditRentalModal
+                          rental={r}
+                          equipment={data.equipment} bookings={data.bookings} bookingParticipants={data.bookingParticipants}
+                          clients={data.clients} priceItems={data.priceItems}
+                          onSave={updated => { handlers.updateRental(updated); setFullEditRental(null) }}
+                          onClose={() => setFullEditRental(null)}
                         />
                       )}
                     </div>
