@@ -9,6 +9,8 @@ import {
 } from '../data/taxiShareI18n'
 import { usePref, Segmented } from './taxiShareUI'
 import { todayISO } from '../utils/dates'
+import { loadCheck, retryOnce } from '../utils/shareLoad'
+import { LoadIssueBanner, LoadFailedScreen } from '../components/common/LoadIssueBanner'
 
 interface Props { driverId: string }
 
@@ -277,8 +279,13 @@ export default function DriverSharePage({ driverId }: Props) {
   const [dateMode, setDateMode] = usePref<DateMode>('taxi_share_datemode', 'readable')
   const [tab,      setTab]      = usePref<Tab>('taxi_share_tab', 'trips')
 
+  // A read failed even after one retry (see utils/shareLoad.ts): said, not hidden.
+  const [loadFailed, setLoadFailed] = useState(false)
+
   useEffect(() => {
-    async function load() {
+    let alive = true
+    async function load(): Promise<boolean> {
+      const chk = loadCheck()
       const [driverRes, tripsRes] = await Promise.all([
         // Column-restricted for anon (see security-rls.md, Lot C)
         supabase.from('taxi_drivers').select('id, name, phone, vehicle, seats').eq('id', driverId).single(),
@@ -291,11 +298,13 @@ export default function DriverSharePage({ driverId }: Props) {
           .eq('taxi_driver_id', driverId)
           .order('date', { ascending: false }),
       ])
-      setDriver((driverRes.data ?? null) as TaxiDriver | null)
-      setTrips((tripsRes.data ?? []) as TripWithClient[])
-      setLoading(false)
+      if (!alive) return true
+      setDriver(chk.take(driverRes, null) as TaxiDriver | null)
+      setTrips(chk.take(tripsRes, []) as TripWithClient[])
+      return !chk.failed
     }
-    load()
+    retryOnce(load).then(ok => { if (alive) { setLoadFailed(!ok); setLoading(false) } })
+    return () => { alive = false }
   }, [driverId])
 
   if (loading) {
@@ -307,6 +316,8 @@ export default function DriverSharePage({ driverId }: Props) {
   }
 
   if (!driver) {
+    // Could not ask ≠ not found: a dead link and a dropped connection say different things.
+    if (loadFailed) return <LoadFailedScreen lang={lang} />
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <p className="text-gray-500 dark:text-gray-400">{tr.not_found[lang]}</p>
@@ -321,6 +332,8 @@ export default function DriverSharePage({ driverId }: Props) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-4xl lg:max-w-6xl mx-auto px-4 py-8 space-y-6">
+
+        {loadFailed && <LoadIssueBanner lang={lang} />}
 
         {/* Header + options */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl text-white px-6 py-5 md:px-8 md:py-6">

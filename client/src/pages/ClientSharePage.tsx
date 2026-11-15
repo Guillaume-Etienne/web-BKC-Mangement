@@ -18,6 +18,8 @@ import { agencyHoursPool } from '../components/accounting/utils'
 import AgencyHoursGauge from '../components/common/AgencyHoursGauge'
 import { PerPersonSplitView } from '../components/common/PerPersonSplitView'
 import { splitPerPerson, type SplitItem } from '../utils/perPersonSplit'
+import { loadCheck, readFailed, retryOnce } from '../utils/shareLoad'
+import { LoadIssueBanner, LoadFailedScreen } from '../components/common/LoadIssueBanner'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -128,7 +130,10 @@ const STATUS_CFG = {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ClientSharePage({ bookingNumber }: Props) {
-  const [booking,        setBooking]        = useState<BookingWithClient | 'not_found' | undefined>(undefined)
+  // 'error' = the booking itself could not be read (not "not found": we could not ask).
+  const [booking,        setBooking]        = useState<BookingWithClient | 'not_found' | 'error' | undefined>(undefined)
+  // Some read failed even after a retry: the page says so, the balance is not trusted.
+  const [loadFailed,     setLoadFailed]     = useState(false)
   const [bkgRooms,       setBkgRooms]       = useState<BookingRoom[]>([])
   const [roomPrices,     setRoomPrices]     = useState<SharedRoomPrice[]>([])
   const [paidToOwnerIds, setPaidToOwnerIds] = useState<Set<string>>(new Set())
@@ -170,147 +175,169 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const fmtEur = (n: number) =>
     n.toLocaleString(localeTag(lang), { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 })
 
-  // Step 1 — fetch booking by number
+  // Step 1 — fetch booking by number. "Not found" only when the database says so
+  // (no row); a read that failed is retried once, then shown as a load failure —
+  // never as "this link is invalid", which a dropped connection is not.
   useEffect(() => {
     if (!bookingNumber) { setBooking('not_found'); setLoading(false); return }
-
-    supabase
-      .from('bookings')
-      // Column-restricted for anon on BOTH tables (no emergency contacts, notes,
-      // amount_paid, visa dates… and no email/phone/passport on clients) — see security-rls.md
-      .select('id, booking_number, check_in, check_out, status, num_center_access, center_access_rate, client:clients(id, first_name, last_name)')
-      .eq('booking_number', bookingNumber)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) { setBooking('not_found'); setLoading(false); return }
-        // supabase types the FK embed as an array; at runtime .single() returns an object
-        setBooking(data as unknown as BookingWithClient)
-      })
+    let alive = true
+    let found: BookingWithClient | 'not_found' = 'not_found'
+    retryOnce(async () => {
+      const res = await supabase
+        .from('bookings')
+        // Column-restricted for anon on BOTH tables (no emergency contacts, notes,
+        // amount_paid, visa dates… and no email/phone/passport on clients) — see security-rls.md
+        .select('id, booking_number, check_in, check_out, status, num_center_access, center_access_rate, client:clients(id, first_name, last_name)')
+        .eq('booking_number', bookingNumber)
+        .single()
+      if (readFailed(res)) return false
+      // supabase types the FK embed as an array; at runtime .single() returns an object
+      found = res.data ? res.data as unknown as BookingWithClient : 'not_found'
+      return true
+    }).then(ok => {
+      if (!alive) return
+      if (!ok) { setBooking('error'); setLoading(false); return }
+      setBooking(found)
+      if (found === 'not_found') setLoading(false)
+    })
+    return () => { alive = false }
   }, [bookingNumber])
 
-  // Step 2 — once booking is loaded, fetch all related data in parallel
+  // Step 2 — once booking is loaded, fetch all related data in parallel. Every
+  // read goes through `chk`: a failed one used to come back as "nothing" and
+  // silently drop a section from the bill (#065, 2026-11-15). Now the whole load
+  // is retried once, and if a read still fails the page says so.
   useEffect(() => {
-    if (!booking || booking === 'not_found') return
+    if (!booking || booking === 'not_found' || booking === 'error') return
     const id = booking.id
+    let alive = true
 
-    Promise.all([
-      supabase.from('booking_rooms').select('*').eq('booking_id', id),
-      // Phase 4: the price comes from the redacted `share_price*` column, aliased
-      // back to its usual name. Asking for the raw one — or for `*` — returns
-      // 42501 and blanks the page, which is the point: the value a guest must not
-      // see is not sent to the browser at all.
-      supabase.from('booking_room_prices')
-        .select('booking_id, room_id, override_note, agency_billing_line_id, price_per_night:share_price_per_night')
-        .eq('booking_id', id),
-      supabase.from('rooms').select('*'),
-      supabase.from('accommodations').select('*'),
-      // Explicit columns: the guest's page has no business asking which associate
-      // received a payment (`received_by_associate_id`).
-      supabase.from('payments')
-        .select('id, booking_id, date, amount, method, is_deposit, is_verified, is_discount, notes')
-        .eq('booking_id', id).order('date'),
-      supabase.from('lessons')
-        .select('id, booking_id, instructor_id, participant_ids, date, start_time, duration_hours, type, notes, agency_billing_line_id, price_per_hour:share_price_per_hour')
-        .eq('booking_id', id).order('date'),
-      // Column-restricted for anon: identity ONLY. The rate_* columns are the
-      // instructor payout scale and are no longer readable from a share link.
-      supabase.from('instructors').select('id, first_name, last_name'),
-      supabase.from('equipment_rentals')
-        .select('id, equipment_id, booking_id, participant_id, date, slot, agency_billing_line_id, rental_type, list_price, client_note, price:share_price')
-        .eq('booking_id', id).order('date'),
-      supabase.from('taxi_trips')
-        .select('id, date, type, nb_persons, agency_billing_line_id, price_eur:share_price_eur')
-        .eq('booking_id', id).order('date'),
-      supabase.from('dining_events').select('*'),
-      supabase.from('booking_participants').select('id, booking_id, first_name, last_name').eq('booking_id', id),
-      // Column-restricted for anon: the guest sees what THEY pay, never what we
-      // pay the hotel (`total_cost`) nor internal `notes`. A `select('*')` here
-      // returns 42501 and blanks the whole page — list the columns explicitly.
-      supabase.from('external_accommodation_bookings')
-        .select('id, booking_id, accommodation_id, check_in, check_out, total_sell_price')
-        .eq('booking_id', id),
-      supabase.from('activity_bookings').select('*').eq('booking_id', id).order('date'),
-      // Base rates, used only when this booking has no price snapshot. Column-restricted
-      // for anon (no `notes`), and RLS only returns the rooms of this very booking.
-      supabase.from('room_rates').select('room_id, price_per_night'),
-      // Bungalows the guest paid Palmeiras for directly — not owed to us. Its own
-      // query on purpose: before the 2026-09-28 migration grants this column to
-      // anon it errors, and folded into the prices query above that error would
-      // blank the whole page. Alone, a failure just means "none".
-      supabase.from('booking_room_prices').select('room_id, paid_to_owner').eq('booking_id', id),
-    ]).then(async ([
-      bkgRoomsRes, pricesRes, roomsRes, acomsRes, paymentsRes,
-      lessonsRes, instrRes, rentalsRes, taxisRes,
-      diningRes, partRes, extBkgRes, actBkgRes, roomRatesRes, paidToOwnerRes,
-    ]) => {
-      // Group lessons booked on ANOTHER reservation where one of our riders sits: we owe
-      // our share of them. Its own query on purpose: before the 2026-10-16b policy lets
-      // anon read them, it simply returns nothing, and the page keeps working.
-      const myPartIds = (partRes.data ?? []).map(p => p.id)
+    const load = async (): Promise<boolean> => {
+      const chk = loadCheck()
+      const [
+        bkgRoomsRes, pricesRes, roomsRes, acomsRes, paymentsRes,
+        lessonsRes, instrRes, rentalsRes, taxisRes,
+        diningRes, partRes, extBkgRes, actBkgRes, roomRatesRes, paidToOwnerRes,
+      ] = await Promise.all([
+        supabase.from('booking_rooms').select('*').eq('booking_id', id),
+        // Phase 4: the price comes from the redacted `share_price*` column, aliased
+        // back to its usual name. Asking for the raw one — or for `*` — returns
+        // 42501, which is the point: the value a guest must not see is not sent
+        // to the browser at all.
+        supabase.from('booking_room_prices')
+          .select('booking_id, room_id, override_note, agency_billing_line_id, price_per_night:share_price_per_night')
+          .eq('booking_id', id),
+        supabase.from('rooms').select('*'),
+        supabase.from('accommodations').select('*'),
+        // Explicit columns: the guest's page has no business asking which associate
+        // received a payment (`received_by_associate_id`).
+        supabase.from('payments')
+          .select('id, booking_id, date, amount, method, is_deposit, is_verified, is_discount, notes')
+          .eq('booking_id', id).order('date'),
+        supabase.from('lessons')
+          .select('id, booking_id, instructor_id, participant_ids, date, start_time, duration_hours, type, notes, agency_billing_line_id, price_per_hour:share_price_per_hour')
+          .eq('booking_id', id).order('date'),
+        // Column-restricted for anon: identity ONLY. The rate_* columns are the
+        // instructor payout scale and are no longer readable from a share link.
+        supabase.from('instructors').select('id, first_name, last_name'),
+        supabase.from('equipment_rentals')
+          .select('id, equipment_id, booking_id, participant_id, date, slot, agency_billing_line_id, rental_type, list_price, client_note, price:share_price')
+          .eq('booking_id', id).order('date'),
+        supabase.from('taxi_trips')
+          .select('id, date, type, nb_persons, agency_billing_line_id, price_eur:share_price_eur')
+          .eq('booking_id', id).order('date'),
+        supabase.from('dining_events').select('*'),
+        supabase.from('booking_participants').select('id, booking_id, first_name, last_name').eq('booking_id', id),
+        // Column-restricted for anon: the guest sees what THEY pay, never what we
+        // pay the hotel (`total_cost`) nor internal `notes` — list the columns explicitly.
+        supabase.from('external_accommodation_bookings')
+          .select('id, booking_id, accommodation_id, check_in, check_out, total_sell_price')
+          .eq('booking_id', id),
+        supabase.from('activity_bookings').select('*').eq('booking_id', id).order('date'),
+        // Base rates, used only when this booking has no price snapshot. Column-restricted
+        // for anon (no `notes`), and RLS only returns the rooms of this very booking.
+        supabase.from('room_rates').select('room_id, price_per_night'),
+        // Bungalows the guest paid Palmeiras for directly — not owed to us. Its own
+        // query (2026-09-28): a column added later, kept apart from the prices read.
+        supabase.from('booking_room_prices').select('room_id, paid_to_owner').eq('booking_id', id),
+      ])
+      // The reads below were each split off when their feature arrived, so that a
+      // migration not yet applied would cost only that feature. All of them are
+      // applied now (checked as anon on PROD, 2026-11-15): a failure is a failure.
+      const parts = chk.take(partRes, [])
+      // Group lessons booked on ANOTHER reservation where one of our riders sits:
+      // we owe our share of them (2026-10-16b).
+      const myPartIds = parts.map(p => p.id)
       const sharedRes = myPartIds.length === 0 ? null : await supabase.from('lessons')
         .select('id, booking_id, instructor_id, participant_ids, date, start_time, duration_hours, type, notes, agency_billing_line_id, price_per_hour:share_price_per_hour')
         .eq('type', 'group').neq('booking_id', id).overlaps('participant_ids', myPartIds).order('date')
-      // Extras (2026-10-18). Its own query for the same reason: before the migration
-      // the table does not exist, and a failure here must only mean "no extras".
-      const extrasRes = await supabase.from('booking_charges')
-        .select('id, date, label, category, quantity, unit_price')
-        .eq('booking_id', id).order('date')
-      setExtras(extrasRes.error ? [] : (extrasRes.data ?? []) as SharedExtra[])
-      // Split per person (2026-11-15b). Own queries for the same reason: before the
-      // migration grants these columns to anon they return 42501, and that must only
-      // mean "unknown" — center access and extras are then shared equally.
-      const [ownGearRes, chargeForRes] = await Promise.all([
+      // Extras (2026-10-18) + split per person (2026-11-15b): who brings their own
+      // gear, who each extra is for.
+      const [extrasRes, ownGearRes, chargeForRes] = await Promise.all([
+        supabase.from('booking_charges')
+          .select('id, date, label, category, quantity, unit_price')
+          .eq('booking_id', id).order('date'),
         supabase.from('booking_participants').select('id, brings_own_gear').eq('booking_id', id),
         supabase.from('booking_charges').select('id, participant_id').eq('booking_id', id),
       ])
-      setOwnGearIds(new Set(ownGearRes.error ? [] : (ownGearRes.data ?? []).filter(p => p.brings_own_gear).map(p => p.id)))
-      setChargeFor(Object.fromEntries(chargeForRes.error ? []
-        : (chargeForRes.data ?? []).filter(c => c.participant_id).map(c => [c.id, c.participant_id as string])))
-      // Gear (2026-10-27): kite/board of each lesson, board of each "Full" rental, then
-      // the models behind those ids. Own queries for the same reason: before the
-      // migration anon cannot read these columns, and that must only mean "no gear".
-      const lessonIds = [...(lessonsRes.data ?? []), ...(sharedRes?.data ?? [])].map(l => l.id)
+      // Gear (2026-10-27): kite/board of each lesson, board of each "Full" rental,
+      // then the models behind those ids.
+      const ownLessons = chk.take(lessonsRes, [])
+      const sharedLessons = chk.take(sharedRes, [])
+      const rentalRows = chk.take(rentalsRes, [])
+      const lessonIds = [...ownLessons, ...sharedLessons].map(l => l.id)
       const [lGearRes, rGearRes] = await Promise.all([
         lessonIds.length === 0 ? null : supabase.from('lessons').select('id, kite_id, board_id').in('id', lessonIds),
         supabase.from('equipment_rentals').select('id, board_equipment_id').eq('booking_id', id),
       ])
-      const lGear = lGearRes?.error ? [] : (lGearRes?.data ?? [])
-      const rBoards = rGearRes.error ? [] : (rGearRes.data ?? [])
+      const lGear = chk.take(lGearRes, [])
+      const rBoards = chk.take(rGearRes, [])
       const gearIds = new Set<string>()
       for (const g of lGear) { if (g.kite_id) gearIds.add(g.kite_id); if (g.board_id) gearIds.add(g.board_id) }
-      for (const r of rentalsRes.data ?? []) if (r.equipment_id) gearIds.add(r.equipment_id)
+      for (const r of rentalRows) if (r.equipment_id) gearIds.add(r.equipment_id)
       for (const r of rBoards) if (r.board_equipment_id) gearIds.add(r.board_equipment_id)
       const eqRes = gearIds.size === 0 ? null
         : await supabase.from('equipment').select('id, name, brand, size').in('id', [...gearIds])
-      setEquipment(eqRes?.error ? [] : (eqRes?.data ?? []) as GearLike[])
+      // Agency package (2026-10-24): the agency's name and the hours its lesson
+      // packages add up to — never a price.
+      const pkgRes = await supabase.rpc('share_agency_package')
+
+      if (!alive) return true
+      setExtras(chk.take(extrasRes, []) as SharedExtra[])
+      setOwnGearIds(new Set(chk.take(ownGearRes, []).filter(p => p.brings_own_gear).map(p => p.id)))
+      setChargeFor(Object.fromEntries(chk.take(chargeForRes, [])
+        .filter(c => c.participant_id).map(c => [c.id, c.participant_id as string])))
+      setEquipment(chk.take(eqRes, []) as GearLike[])
       setLessonGear(Object.fromEntries(lGear.map(g => [g.id, { kite_id: g.kite_id, board_id: g.board_id }])))
       setRentalBoard(Object.fromEntries(rBoards.map(r => [r.id, r.board_equipment_id])))
-      // Agency package (2026-10-24): the agency's name and the hours its lesson
-      // packages add up to — never a price. Own call for the same reason: before
-      // the migration the function does not exist, and that must only mean "none".
-      const pkgRes = await supabase.rpc('share_agency_package')
-      const pkg = pkgRes.error ? null : ((pkgRes.data ?? []) as AgencyPackage[])[0] ?? null
-      setAgencyPkg(pkg)
-      setPaidToOwnerIds(new Set((paidToOwnerRes.data ?? []).filter(p => p.paid_to_owner === true).map(p => p.room_id)))
-      setBkgRooms(bkgRoomsRes.data ?? [])
-      setRoomPrices(pricesRes.data ?? [])
-      setRooms(roomsRes.data ?? [])
-      setAccoms(acomsRes.data ?? [])
-      setPayments(paymentsRes.data ?? [])
-      setLessons([...(lessonsRes.data ?? []), ...(sharedRes?.data ?? [])].sort((a, b) => a.date.localeCompare(b.date)))
+      setAgencyPkg((chk.take(pkgRes, []) as AgencyPackage[])[0] ?? null)
+      setPaidToOwnerIds(new Set(chk.take(paidToOwnerRes, []).filter(p => p.paid_to_owner === true).map(p => p.room_id)))
+      setBkgRooms(chk.take(bkgRoomsRes, []))
+      setRoomPrices(chk.take(pricesRes, []))
+      setRooms(chk.take(roomsRes, []))
+      setAccoms(chk.take(acomsRes, []))
+      setPayments(chk.take(paymentsRes, []))
+      setLessons([...ownLessons, ...sharedLessons].sort((a, b) => a.date.localeCompare(b.date)))
       // anon only receives id/first_name/last_name (column-restricted); the page uses only those
-      setInstructors((instrRes.data ?? []) as unknown as Instructor[])
-      setRentals(rentalsRes.data ?? [])
-      setTaxis(taxisRes.data ?? [])
-      setDiningEvents(diningRes.data ?? [])
+      setInstructors(chk.take(instrRes, []) as unknown as Instructor[])
+      setRentals(rentalRows)
+      setTaxis(chk.take(taxisRes, []))
+      setDiningEvents(chk.take(diningRes, []))
       // anon only receives id/first_name/last_name (column-restricted); the page uses only those
-      setParticipants((partRes.data ?? []) as unknown as BookingParticipant[])
-      setExtAccomBkgs(extBkgRes.data ?? [])
-      setActivityBkgs(actBkgRes.data ?? [])
+      setParticipants(parts as unknown as BookingParticipant[])
+      setExtAccomBkgs(chk.take(extBkgRes, []))
+      setActivityBkgs(chk.take(actBkgRes, []))
       // anon only receives room_id/price_per_night (column-restricted); the page uses only those
-      setRoomRates((roomRatesRes.data ?? []) as unknown as RoomRate[])
+      setRoomRates(chk.take(roomRatesRes, []) as unknown as RoomRate[])
+      return !chk.failed
+    }
+
+    retryOnce(load).then(ok => {
+      if (!alive) return
+      setLoadFailed(!ok)
       setLoading(false)
     })
+    return () => { alive = false }
   }, [booking])
 
   // ── Loading / error states ─────────────────────────────────────────────────
@@ -322,6 +349,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       </div>
     )
   }
+
+  if (booking === 'error') return <LoadFailedScreen lang={lang} />
 
   if (booking === 'not_found') {
     return (
@@ -510,6 +539,8 @@ export default function ClientSharePage({ bookingNumber }: Props) {
       </div>
 
       <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-6 space-y-6">
+
+        {loadFailed && <LoadIssueBanner lang={lang} />}
 
         {/* Booking summary card */}
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -1004,6 +1035,9 @@ export default function ClientSharePage({ bookingNumber }: Props) {
                 <span className="font-bold text-blue-600 dark:text-blue-400 text-lg">{fmtEur(Math.abs(balance))} {t('credit')}</span>
               )}
             </div>
+            {loadFailed && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">⚠️ {t('balance_incomplete')}</p>
+            )}
             {hasAgencyCovered && (
               <p className="text-xs text-gray-400 dark:text-gray-500 pt-2 border-t border-gray-100 dark:border-gray-800">
                 {t('agency_note').replace('{agency}', agencyName)}

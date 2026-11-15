@@ -12,6 +12,8 @@ import { usePref, Segmented } from './taxiShareUI'
 import { todayISO } from '../utils/dates'
 import { tripTravel, type TravelFields } from '../utils/travelMode'
 import TravelBadge from '../components/common/TravelBadge'
+import { loadCheck, retryOnce } from '../utils/shareLoad'
+import { LoadIssueBanner } from '../components/common/LoadIssueBanner'
 import { groupByDay, withinDays, dayLabel, whatsappUrl, tripMessage, dayMessage, tripsCount, type TripWords } from '../utils/taxiDispatch'
 
 type Tab = 'trips' | 'summary'
@@ -321,8 +323,14 @@ export default function TaxiManagerSharePage() {
   const [dateMode, setDateMode] = usePref<DateMode>('taxi_share_datemode', 'readable')
   const [tab,      setTab]      = usePref<Tab>('taxi_mgr_tab', 'trips')
 
+  // A read failed even after one retry (see utils/shareLoad.ts): said, not hidden.
+  const [loadFailed, setLoadFailed] = useState(false)
+
   useEffect(() => {
-    async function load() {
+    let alive = true
+    let tripRows: TripWithClient[] = [] // kept for the flights read below
+    async function load(): Promise<boolean> {
+      const chk = loadCheck()
       const [driversRes, tripsRes, paymentsRes] = await Promise.all([
         // Column-restricted for anon (see security-rls.md, Lot C)
         supabase.from('taxi_drivers').select('id, name, phone, vehicle, seats'),
@@ -335,25 +343,34 @@ export default function TaxiManagerSharePage() {
           .order('date', { ascending: false }),
         supabase.from('taxi_manager_payments').select('*').order('date', { ascending: false }),
       ])
-      const tripRows = (tripsRes.data ?? []) as TripWithClient[]
-      setDrivers((driversRes.data ?? []) as TaxiDriver[])
+      if (!alive) return true
+      tripRows = chk.take(tripsRes, []) as TripWithClient[]
+      setDrivers(chk.take(driversRes, []) as TaxiDriver[])
       setTrips(tripRows)
-      setPayments((paymentsRes.data ?? []) as TaxiManagerPayment[])
-      setLoading(false)
+      setPayments(chk.take(paymentsRes, []) as TaxiManagerPayment[])
+      return !chk.failed
+    }
 
-      // The flight of each upcoming trip, for the Viagens tab — its own read,
-      // after the page is shown: before migration 2026-11-08b these columns
-      // are not granted (42501) and only the flights are missing, nothing else.
+    // The flight of each upcoming trip, for the Viagens tab — its own read, after
+    // the page is shown. A bonus: if it fails, only the flights are missing.
+    async function loadTravel() {
       const today = todayISO()
       const ids = [...new Set(tripRows.filter(t => t.date >= today && t.booking_id).map(t => t.booking_id as string))]
       if (ids.length === 0) return
       const travelRes = await supabase.from('bookings')
         .select('id, arrival_by, arrival_detail, departure_by, departure_detail')
         .in('id', ids)
-      if (travelRes.error) return
+      if (travelRes.error || !alive) return
       setTravel(new Map(((travelRes.data ?? []) as (TravelFields & { id: string })[]).map(r => [r.id, r])))
     }
-    load()
+
+    retryOnce(load).then(ok => {
+      if (!alive) return
+      setLoadFailed(!ok)
+      setLoading(false)
+      void loadTravel()
+    })
+    return () => { alive = false }
   }, [])
 
   const driverName = (id: string | null) => drivers.find(d => d.id === id)?.name ?? '—'
@@ -393,6 +410,8 @@ export default function TaxiManagerSharePage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-6">
+
+        {loadFailed && <LoadIssueBanner lang={lang} />}
 
         {/* Header — compact: the trips are what he opens the page for */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl text-white px-4 py-3 sm:px-6 sm:py-5">

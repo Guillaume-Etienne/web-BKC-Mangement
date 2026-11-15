@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import type { ActivityProvider, ActivityBooking, ActivityPayment } from '../types/database'
 import { todayISO, fmtDate } from '../utils/dates'
+import { loadCheck, retryOnce } from '../utils/shareLoad'
+import { LoadIssueBanner, LoadFailedScreen } from '../components/common/LoadIssueBanner'
 
 interface Props { providerId: string }
 
@@ -302,21 +304,27 @@ export default function ActivityProviderSharePage({ providerId }: Props) {
   const [payments, setPayments] = useState<ActivityPayment[]>([])
   const [loading,  setLoading]  = useState(true)
   const [tab,      setTab]      = useState<'planning' | 'accounting'>('planning')
+  // A read failed even after one retry (see utils/shareLoad.ts): said, not hidden.
+  const [loadFailed, setLoadFailed] = useState(false)
 
   useEffect(() => {
-    async function load() {
+    let alive = true
+    async function load(): Promise<boolean> {
+      const chk = loadCheck()
       const [provRes, bkgRes, payRes] = await Promise.all([
         // Column-restricted for anon: no internal notes (see security-rls.md, Lot C)
         supabase.from('activity_providers').select('id, name, type, phone, email, website, show_prices').eq('id', providerId).single(),
         supabase.from('activity_bookings').select('*').eq('provider_id', providerId).order('date', { ascending: false }),
         supabase.from('activity_payments').select('*').eq('provider_id', providerId).order('date', { ascending: false }),
       ])
-      setProvider((provRes.data ?? null) as ActivityProvider | null)
-      setBookings((bkgRes.data ?? []) as ActivityBooking[])
-      setPayments((payRes.data ?? []) as ActivityPayment[])
-      setLoading(false)
+      if (!alive) return true
+      setProvider(chk.take(provRes, null) as ActivityProvider | null)
+      setBookings(chk.take(bkgRes, []) as ActivityBooking[])
+      setPayments(chk.take(payRes, []) as ActivityPayment[])
+      return !chk.failed
     }
-    load()
+    retryOnce(load).then(ok => { if (alive) { setLoadFailed(!ok); setLoading(false) } })
+    return () => { alive = false }
   }, [providerId])
 
   if (loading) {
@@ -328,6 +336,8 @@ export default function ActivityProviderSharePage({ providerId }: Props) {
   }
 
   if (!provider) {
+    // Could not ask ≠ not found: a dead link and a dropped connection say different things.
+    if (loadFailed) return <LoadFailedScreen lang="en" />
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <p className="text-gray-500 dark:text-gray-400">Provider not found.</p>
@@ -345,6 +355,8 @@ export default function ActivityProviderSharePage({ providerId }: Props) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+
+        {loadFailed && <LoadIssueBanner lang="en" />}
 
         {/* Header */}
         <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-xl text-white px-6 py-5">

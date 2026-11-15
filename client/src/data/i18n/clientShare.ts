@@ -129,6 +129,7 @@ const T = {
   balance:            { fr: 'Solde', en: 'Balance', es: 'Saldo' },
   due:                { fr: 'à payer', en: 'due', es: 'pendiente' },
   credit:             { fr: 'de crédit', en: 'credit', es: 'a favor' },
+  balance_incomplete: { fr: 'Solde peut-être incomplet : une partie des informations n’a pas pu être chargée. Rechargez la page.', en: 'This balance may be incomplete: some information could not be loaded. Please reload the page.', es: 'Saldo quizá incompleto: parte de la información no se pudo cargar. Recargue la página.' },
 } satisfies Record<string, Tr>
 
 export type ShareKey = keyof typeof T

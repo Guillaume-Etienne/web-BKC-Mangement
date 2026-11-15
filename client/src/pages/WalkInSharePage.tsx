@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import type { Client, Lesson, EquipmentRental, Payment, LessonType, RentalSlot } from '../types/database'
 import { usePref, Segmented } from './taxiShareUI'
 import { fromISODate } from '../utils/dates'
+import { loadCheck, retryOnce } from '../utils/shareLoad'
+import { LoadIssueBanner, LoadFailedScreen } from '../components/common/LoadIssueBanner'
 
 interface Props { clientId: string }
 
@@ -71,10 +73,14 @@ export default function WalkInSharePage({ clientId }: Props) {
   const [instrNames, setInstrNames] = useState<Record<string, string>>({})
   const [gearNames,  setGearNames]  = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
+  // A read failed even after one retry (see utils/shareLoad.ts): said, not hidden.
+  const [loadFailed, setLoadFailed] = useState(false)
   const [lang, setLang] = usePref<Lang>('walkin_share_lang', 'en')
 
   useEffect(() => {
-    async function load() {
+    let alive = true
+    async function load(): Promise<boolean> {
+      const chk = loadCheck()
       // RLS already narrows every one of these to the token's client and to
       // his day-visitor visits; the filters are for the reader, not the guard.
       const [cRes, bRes, lRes, rRes, pRes, iRes, eRes] = await Promise.all([
@@ -86,16 +92,18 @@ export default function WalkInSharePage({ clientId }: Props) {
         supabase.from('instructors').select('id, first_name'),
         supabase.from('equipment').select('id, name'),
       ])
-      setClient((cRes.data ?? null) as typeof client)
-      setVisits((bRes.data ?? []) as Visit[])
-      setLessons((lRes.data ?? []) as VisitLesson[])
-      setRentals((rRes.data ?? []) as VisitRental[])
-      setPayments((pRes.data ?? []) as VisitPayment[])
-      setInstrNames(Object.fromEntries(((iRes.data ?? []) as { id: string; first_name: string }[]).map(i => [i.id, i.first_name])))
-      setGearNames(Object.fromEntries(((eRes.data ?? []) as { id: string; name: string }[]).map(e => [e.id, e.name])))
-      setLoading(false)
+      if (!alive) return true
+      setClient(chk.take(cRes, null) as typeof client)
+      setVisits(chk.take(bRes, []) as Visit[])
+      setLessons(chk.take(lRes, []) as VisitLesson[])
+      setRentals(chk.take(rRes, []) as VisitRental[])
+      setPayments(chk.take(pRes, []) as VisitPayment[])
+      setInstrNames(Object.fromEntries((chk.take(iRes, []) as { id: string; first_name: string }[]).map(i => [i.id, i.first_name])))
+      setGearNames(Object.fromEntries((chk.take(eRes, []) as { id: string; name: string }[]).map(e => [e.id, e.name])))
+      return !chk.failed
     }
-    load()
+    retryOnce(load).then(ok => { if (alive) { setLoadFailed(!ok); setLoading(false) } })
+    return () => { alive = false }
   }, [clientId])
 
   // Only what belongs to this client's visits. For an anonymous visitor RLS already
@@ -122,6 +130,8 @@ export default function WalkInSharePage({ clientId }: Props) {
     return <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center text-gray-500 dark:text-gray-400">{tr.loading[lang]}</div>
   }
   if (!client) {
+    // Could not ask ≠ not found: a dead link and a dropped connection say different things.
+    if (loadFailed) return <LoadFailedScreen lang={lang} />
     return <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center text-gray-500 dark:text-gray-400">{tr.not_found[lang]}</div>
   }
 
@@ -130,6 +140,8 @@ export default function WalkInSharePage({ clientId }: Props) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+
+        {loadFailed && <LoadIssueBanner lang={lang} />}
 
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl text-white px-6 py-5">
           <div className="flex items-start justify-between gap-4">

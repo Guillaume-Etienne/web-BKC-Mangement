@@ -5,6 +5,8 @@ import type { Instructor, Lesson, LessonType } from '../types/database'
 import { usePref, Segmented } from './taxiShareUI'
 import { todayISO, fromISODate, addDaysISO } from '../utils/dates'
 import { legacySeasonYear } from '../utils/seasonWindow'
+import { loadCheck, retryOnce } from '../utils/shareLoad'
+import { LoadIssueBanner, LoadFailedScreen } from '../components/common/LoadIssueBanner'
 
 interface Props { instructorId: string }
 
@@ -132,6 +134,8 @@ export default function InstructorSharePage({ instructorId }: Props) {
   const [lessons,    setLessons]    = useState<HourLesson[]>([])
   const [students,   setStudents]   = useState<Map<string, Student>>(new Map())
   const [loading,    setLoading]    = useState(true)
+  // A read of the hours failed even after one retry (see utils/shareLoad.ts): said, not hidden.
+  const [loadFailed, setLoadFailed] = useState(false)
   const [intents,    setIntents]    = useState<Intent[]>([])
   const [stayDates,  setStayDates]  = useState<Map<string, { check_in: string; check_out: string }>>(new Map())
   const [discipline, setDiscipline] = useState<Map<string, string>>(new Map())
@@ -151,7 +155,9 @@ export default function InstructorSharePage({ instructorId }: Props) {
   const [season, setSeason] = useState(legacySeasonYear(new Date()))
 
   useEffect(() => {
-    async function load() {
+    let alive = true
+    async function load(): Promise<boolean> {
+      const chk = loadCheck()
       const [instrRes, lessonsRes] = await Promise.all([
         // Identity only — rate_* is payroll and is not granted to anon.
         supabase.from('instructors').select('id, first_name, last_name').eq('id', instructorId).single(),
@@ -163,14 +169,16 @@ export default function InstructorSharePage({ instructorId }: Props) {
           .eq('instructor_id', instructorId)
           .order('date', { ascending: true }),
       ])
-      setInstructor((instrRes.data ?? null) as typeof instructor)
-      setLessons((lessonsRes.data ?? []) as HourLesson[])
-      // Names are a bonus: if this read fails (policy not applied yet), the hours still show.
+      // Names are a bonus: if this read fails, the hours still show — not counted.
       const { data: guests } = await supabase.from('booking_participants').select('id, first_name, last_name')
+      if (!alive) return true
+      setInstructor(chk.take(instrRes, null) as typeof instructor)
+      setLessons(chk.take(lessonsRes, []) as HourLesson[])
       setStudents(new Map(((guests ?? []) as Student[]).map(g => [g.id, g])))
-      setLoading(false)
+      return !chk.failed
     }
-    load()
+    retryOnce(load).then(ok => { if (alive) { setLoadFailed(!ok); setLoading(false) } })
+    return () => { alive = false }
   }, [instructorId])
 
 
@@ -335,6 +343,8 @@ export default function InstructorSharePage({ instructorId }: Props) {
   }
 
   if (!instructor) {
+    // Could not ask ≠ not found: a dead link and a dropped connection say different things.
+    if (loadFailed) return <LoadFailedScreen lang={lang} />
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <p className="text-gray-500 dark:text-gray-400">{tr.not_found[lang]}</p>
@@ -353,6 +363,8 @@ export default function InstructorSharePage({ instructorId }: Props) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+
+        {loadFailed && <LoadIssueBanner lang={lang} />}
 
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl text-white px-6 py-5">
