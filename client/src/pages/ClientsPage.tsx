@@ -14,6 +14,7 @@ import { fmtDate, todayISO, addDaysISO } from '../utils/dates'
 import { readLocal, writeLocal } from '../utils/safeStorage'
 import { daysSinceLastTouch, dossierMoney } from '../utils/dossier'
 import ClientTimeline from '../components/clients/ClientTimeline'
+import WalkInTabPanel from '../components/clients/WalkInTabPanel'
 import { clientParticipantIds, cumulativeHoursBefore } from '../components/accounting/utils'
 import { isDayVisitor, visitsOf } from '../utils/dayVisitor'
 
@@ -632,6 +633,7 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                           className="mt-1.5 text-xs px-2.5 py-1 rounded-lg border border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40">
                           {linkCopiedFor === selectedClient.id ? '✓ Link copied' : '🔗 Copy "my visits" link'}
                         </button>
+                        <WalkInTabPanel visits={visitsOf(bookings, selectedClient.id)} onPaid={dossier.refresh} />
                       </div>
                     )}
                     <div>

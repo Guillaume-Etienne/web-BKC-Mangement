@@ -104,6 +104,23 @@ Détails qui comptent :
   « signée sur papier » existe.
 - ⬜ Pas de bouton « + Walk-in » ailleurs que dans le Daily (Prévisions, Home) : à voir à l'usage.
 
+## Ardoise walk-in (2026-11-15, cas Nuno)
+
+Un habitué paie **après coup**, en une fois, pour plusieurs venues (gui). Pas de nouveau
+document : le client reçoit le lien **« my visits »** (token `walkin`, `WalkInSharePage`, EN/FR/PT),
+qui additionne déjà toutes ses venues. ⚠️ Ne pas lui envoyer le lien `client` d'une résa : il ne
+montre qu'une venue.
+
+- **Une visite = un jour reste la règle** : seul l'encaissement est commun.
+- Fiche client → bloc 🚶 → « Balance due » + **💶 Record payment** (`WalkInTabPanel.tsx`,
+  `useWalkInTab.ts`, calcul pur `utils/walkInTab.ts` + tests).
+- Un paiement est **réparti de la venue la plus ancienne à la plus récente** ; un paiement partiel
+  entame la suivante ; un trop-perçu reste sur la plus récente (avertissement). Une ligne
+  `payments` par venue, insérées en **une seule requête** (tout ou rien).
+- Soldes = `computeBookingTotal` (même chiffre que la compta), pas une somme cours seule.
+- Terminal Palmeiras exclu (son montant MZN ne se répartit pas).
+- Pas de numéro de facture (gui). Aucune migration.
+
 ## Étape 2 — Packs
 
 Un **pack** appartient à **un client** (pas à une résa).
