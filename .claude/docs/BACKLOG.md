@@ -4,6 +4,17 @@
 > `.claude/archive/memory/backlog_closed_2026.md` (1600 lignes d'historique, décisions et
 > vérifications). Ici : **l'ouvert uniquement.** Une ligne close se raye et se déplace.
 
+## 📋 À faire — « Répartition par personne » (décidé avec gui le 2026-11-15, pas codé)
+
+Aujourd'hui « Per-guest breakdown » existe **deux fois** (`BookingFinances.tsx:1124` admin, FR « Détail par invité » ; `ClientSharePage.tsx:821` client, FR « Détail par voyageur ») et ne répartit que cours / locations / repas / activités → la somme ≠ total de la résa. Bug au passage : la version admin ne retire pas les lignes agence.
+Décisions gui :
+- **Tout** est réparti : logement, séjour externe et taxis **à parts égales** entre les voyageurs de la résa (pas de lien voyageur ↔ chambre ni voyageur ↔ trajet) ; center access aux seuls « own gear » ; centime résiduel attribué pour tomber juste.
+- **Option A** : chaque carte = **sa part du séjour** ; paiements / remises / reste restent au niveau de la résa. Invariant testé : Σ parts = `computeBookingTotal`.
+- **Extras : champ facultatif « pour qui »** → migration `booking_charges.participant_id` (nullable, FK `booking_participants` ON DELETE SET NULL) + **GRANT SELECT (participant_id) TO anon** (la table est en GRANT colonnes). Vide = parts égales. Sélecteur « For » dans le formulaire d'extra (compta). Migration TEST+PROD **avant** le push (colonne nommée dans les selects).
+- **Interrupteur** « Whole stay / Activities only » (la 2e = l'affichage actuel), **« Whole stay » par défaut** partout (admin + client).
+- **Nom** : FR « Répartition par personne », EN « Split per person », ES « Reparto por persona ». Et remplacer « Invité(s) » partout dans l'admin FR (`bookings.ts` step_guests, `planning.ts` msg_no_guests_checked_in / label_show_all_guests / label_guests, `accounting.ts` dash_guest_col).
+- Plan : 1 util pur partagé (`utils/perPersonSplit.ts`) + tests sur cas réels (#056, résa agence, San Martinho, walk-in), puis les 2 écrans branchés dessus ; si Σ ≠ total, l'écran l'affiche au lieu de mentir.
+
 ## 🚨 Migrations SQL — registre
 
 ✅ **`2026-11-15_dining_share_policy_perf.sql`** (TEST ✅ + PROD ✅ 2026-11-15 par Claude, accord gui ; curl anon : TEST #22/#21/#23 → 4/3/1 repas, sans token et token bidon → [] ; PROD lien #065 → ses 3 repas dont le braai 12 €, **20 ms côté serveur** contre 3 291 ms) — la page client partagée perdait la section **Repas** en silence (#065, 15/11 : braai 12 € absent, solde faux ; chez un admin connecté tout allait bien). Cause : la policy anon `anon_read_dining_events` joignait `booking_participants`, dont la propre policy rappelle `share_ctx()` à chaque ligne → 3,29 s > `statement_timeout` anon de 3 s → **57014**, avalé par `diningRes.data ?? []`. Correctif : helper `share_participant_ids()` (SECURITY DEFINER, mêmes droits que `share_booking_id`) appelé une fois via `(SELECT …)::text[]`. Même périmètre. Testé PROD en transaction annulée : **96 ms**, mêmes 3 repas. Vérif : pied du fichier (curl anon token `client` → 200 avec ses repas). 💭 Après : la page devrait signaler une section qui n'a pas pu charger au lieu de la cacher.
