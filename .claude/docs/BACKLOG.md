@@ -4,10 +4,10 @@
 > `.claude/archive/memory/backlog_closed_2026.md` (1600 lignes d'historique, décisions et
 > vérifications). Ici : **l'ouvert uniquement.** Une ligne close se raye et se déplace.
 
-## ✅ Livré 2026-11-15 — Compteur d'usage gui/Teresa (, **gui doit pousser** ; migration 15c passée TEST+PROD ✅, curl anon fermé)
-- Options → Database → **Usage** : pages + onglets ouverts par compte (/ = partie locale de l'email), filtre 7/30/90 j/tout. Ouvertures, pas temps passé ; pages partagées exclues.
-- Coût nul : compteurs en mémoire (), un seul RPC  à la mise en arrière-plan ou toutes les 5 min ; échec avalé. Table  = 1 ligne/compte/clé/jour ; lecture agrégée par .
-- Ajouter un onglet au compteur :  dans la page. Non compté : onglets de la fiche Clients.
+## ✅ Livré 2026-11-15 — Compteur d'usage gui/Teresa (`a6310a7`, **gui doit pousser** ; migration 15c passée TEST+PROD ✅, curl anon fermé)
+- Options → Database → **Usage** : pages + onglets ouverts par compte (`gui` / `teresa` = partie locale de l'email), filtre 7/30/90 j/tout. Ouvertures, pas temps passé ; pages partagées exclues.
+- Coût nul : compteurs en mémoire (`lib/usageTracker.ts`), un seul RPC `track_page_views` à la mise en arrière-plan ou toutes les 5 min ; échec avalé. Table `page_views` = 1 ligne/compte/clé/jour ; lecture agrégée par `get_page_usage`.
+- Ajouter un onglet au compteur : `useTrackTab('<page>', tab)` dans la page. Non compté : onglets de la fiche Clients.
 - Reste : voir le panneau se remplir à l'écran après push.
 
 ## ✅ Livré 2026-11-15 — Pages partagées : une lecture ratée se dit (**gui doit pousser**, aucune migration)
