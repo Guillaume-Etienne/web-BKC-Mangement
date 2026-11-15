@@ -18,6 +18,10 @@ import AgenciesTab from '../components/management/AgenciesTab'
 import TransferReferencePricesTab from '../components/management/TransferReferencePricesTab'
 import { todayISO, addDaysISO, fmtDate } from '../utils/dates'
 import { useTrackTab } from '../hooks/useTrackTab'
+import OptionsMenu, { tabFromUrl, writeTabToUrl } from '../components/management/OptionsMenu'
+import type { OptionsTab } from '../components/management/OptionsMenu'
+import UsagePanel from '../components/management/UsagePanel'
+import ClientErrorsPanel from '../components/management/ClientErrorsPanel'
 
 
 const specialtyOptions = ['Beg-Total', 'Beg-BodyDrag', 'Beg-WaterStart', 'Intermediate', 'Advanced', 'Wave', 'Freestyle']
@@ -124,7 +128,8 @@ function getBaseUrl() {
 }
 
 export default function ManagementPage() {
-  const [tab, setTab] = useState<'instructors' | 'houses' | 'pricing' | 'seasons' | 'sources' | 'agencies' | 'links' | 'language' | 'database'>('instructors')
+  const [tab, setTabState] = useState<OptionsTab>(() => tabFromUrl(window.location.search))
+  const setTab = (t: OptionsTab) => { setTabState(t); writeTabToUrl(t) }
   useTrackTab('management', tab)
   const [pricingSubTab, setPricingSubTab] = useState<'rates' | 'reference' | 'kruger'>('rates')
 
@@ -402,25 +407,9 @@ export default function ManagementPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-7xl mx-auto px-4 py-4">
-        {/* Tabs */}
-        <div className="sticky top-16 z-40 bg-gray-50 dark:bg-gray-950 flex gap-1 md:gap-4 mb-4 border-b overflow-x-auto">
-          {(['instructors', 'houses', 'pricing', 'seasons', 'sources', 'agencies', 'links', 'language', 'database'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`shrink-0 whitespace-nowrap px-2.5 py-1.5 md:px-4 md:py-2 text-sm md:text-base font-medium capitalize transition-colors ${
-                tab === t ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-              }`}>
-              {t === 'instructors' ? '📚 Instructors'
-                : t === 'houses'   ? '🏠 Accommodations'
-                : t === 'pricing'  ? '💰 Pricing'
-                : t === 'seasons'  ? '📆 Seasons'
-                : t === 'sources'  ? '📣 Sources'
-                : t === 'agencies' ? '🤝 Agencies'
-                : t === 'links'    ? <>🔗 <span className="hidden sm:inline">Shared </span>Links</>
-                : t === 'language' ? '🌐 Language'
-                : '🗄️ Database'}
-            </button>
-          ))}
-        </div>
+        <div className="lg:flex lg:gap-8">
+        <OptionsMenu tab={tab} onChange={setTab} />
+        <div className="flex-1 min-w-0">
 
         {/* ── Instructors Tab ────────────────────────────────────────────────── */}
         {tab === 'instructors' && (
@@ -1116,7 +1105,13 @@ export default function ManagementPage() {
           </div>
         )}
 
+        {tab === 'usage' && <UsagePanel />}
+
+        {tab === 'errors' && <ClientErrorsPanel />}
+
         {tab === 'database' && <DatabaseTab />}
+        </div>
+        </div>
       </div>
 
       {/* ── Instructor form modal ─────────────────────────────────────────── */}
