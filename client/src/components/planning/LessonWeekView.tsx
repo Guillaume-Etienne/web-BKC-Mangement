@@ -4,12 +4,14 @@ import type { Lesson, DayActivity, DaySlot, LessonType, LessonDiscipline, Bookin
 import { useTable } from '../../hooks/useSupabase'
 import { eventDailyContribution } from '../../utils/diningEventCosts'
 import { rentalBillable, lessonDiscipline } from '../../types/database'
-import { currentInstructorRate, reFreezeInstructorRate, resolveLessonRate, agencyMarker, getLessonClientRate } from '../accounting/utils'
+import { currentInstructorRate, resolveLessonRate, agencyMarker, getLessonClientRate } from '../accounting/utils'
 import { toISODate as dateToISO, localeTag, fmtDateShort } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import { RENTAL_TYPES, boardPickerCategory, rentalGear, rentalKind, rentalLabel, showsKitePicker, type RentalKind } from './rentalTypes'
 import EditRentalModal from './EditRentalModal'
+import EditLessonModal from './EditLessonModal'
+import { GearSection, WingToggle, lessonTypeCfg, riderGearRows, DURATION_OPTIONS, type GearPick } from './lessonFormParts'
 import { Avatar } from './GuestPicker'
 import WalkInForm from './WalkInForm'
 import type { WalkInRequest } from './walkInSave'
@@ -30,15 +32,6 @@ function slotConfig(lang: Lang): Record<Slot, { label: string; icon: string; def
   }
 }
 
-function lessonTypeCfg(lang: Lang): Record<LessonType, { label: string; icon: string; card: string; badge: string; dot: string }> {
-  return {
-    private:    { label: i18n.planning.lesson_type_private[lang],     icon: '🧑‍🏫', card: 'bg-purple-50 dark:bg-purple-950/40 border-purple-300 dark:border-purple-800 text-purple-900 dark:text-purple-400', badge: 'bg-purple-500 text-white', dot: 'bg-purple-500' },
-    group:      { label: i18n.planning.lesson_type_group[lang],       icon: '👥', card: 'bg-green-50 dark:bg-green-950/40  border-green-300 dark:border-green-800  text-green-900 dark:text-green-400',  badge: 'bg-green-500  text-white', dot: 'bg-green-500'  },
-    supervision:{ label: i18n.planning.lesson_type_supervision[lang], icon: '🎓', card: 'bg-blue-50 dark:bg-blue-950/40   border-blue-300 dark:border-blue-800   text-blue-900 dark:text-blue-400',   badge: 'bg-blue-500   text-white', dot: 'bg-blue-500'   },
-  }
-}
-
-const DURATION_OPTIONS = [0.5, 1, 1.5, 2, 2.5, 3]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -55,8 +48,6 @@ function getSlotForTime(time: string): Slot {
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-/** One rider's kite (or wing sail) and board in a lesson. */
-type GearPick = { kite_id: string | null; board_id: string | null }
 
 interface AddForm {
   date: string
@@ -176,11 +167,6 @@ export default function LessonWeekView({
 
   // ── Edit modal ─────────────────────────────────────────────────────────────
   const [editLesson, setEditLesson] = useState<Lesson | null>(null)
-  const [editData, setEditData] = useState<Partial<Lesson>>({})
-  const [editRiderGear, setEditRiderGear] = useState<Record<string, GearPick>>({})
-  // Same escape hatches as the add-form's, reset on each open — see candidatesForEdit.
-  const [showAllGuestsEditLesson, setShowAllGuestsEditLesson] = useState(false)
-  const [showInCountryEditLesson, setShowInCountryEditLesson] = useState(false)
 
   // ── Rental edit ────────────────────────────────────────────────────────────
   const [editRental, setEditRental] = useState<EquipmentRental | null>(null)
@@ -206,105 +192,13 @@ export default function LessonWeekView({
     return priceItems.find(p => p.billable_type === rentalBillable(type, slot))?.price ?? null
   }
 
-  /** Gear lists follow the lesson's discipline, so there is less to sort through:
-   *  a wing lesson offers only wing-category gear (sails, foilboards, paddles) in
-   *  both slots; every other lesson offers kites and the regular boards. Bars have
-   *  no slot on a lesson. */
-  function gearOptions(discipline: LessonDiscipline) {
-    const active = equipment.filter(e => e.is_active)
-    if (discipline !== 'kite') {
-      const wing = active.filter(e => e.category === 'wing')
-      return { sails: wing, boards: wing }
-    }
-    return {
-      sails: sortKitesBySize(active.filter(e => e.category === 'kite')),
-      boards: active.filter(e => e.category === 'board' || e.category === 'surfboard' || e.category === 'foilboard'),
-    }
+  /** The equipment pickers of the lesson forms (shared with the edit modal). */
+  function renderGearSection(o: Omit<React.ComponentProps<typeof GearSection>, 'equipment' | 'bookingParticipants'>) {
+    return <GearSection {...o} equipment={equipment} bookingParticipants={bookingParticipants} />
   }
 
-  /** The equipment pickers of the lesson forms. One pair for the lesson, or one
-   *  pair PER RIDER when a group lesson has several riders. */
-  function renderGearSection(o: {
-    compact: boolean
-    type: LessonType
-    discipline: LessonDiscipline
-    participantIds: string[]
-    solo: GearPick
-    riders: Record<string, GearPick>
-    onSolo: (g: GearPick) => void
-    onRider: (participantId: string, g: GearPick) => void
-  }) {
-    const { sails, boards } = gearOptions(o.discipline)
-    const wing = o.discipline !== 'kite'
-    const selCls = o.compact
-      ? 'w-full text-sm md:text-xs border rounded px-2 py-2 md:px-1 md:py-1'
-      : 'w-full text-sm border rounded px-2 py-1.5'
-    const pair = (value: GearPick, onChange: (g: GearPick) => void) => (
-      <>
-        <select value={value.kite_id || ''} onChange={e => onChange({ ...value, kite_id: e.target.value || null })} className={selCls}>
-          <option value="">{wing ? 'No wing' : 'No kite'}</option>
-          {sails.map(e => <option key={e.id} value={e.id}>{wing ? '🌬️' : '🪂'} {e.name}</option>)}
-        </select>
-        <select value={value.board_id || ''} onChange={e => onChange({ ...value, board_id: e.target.value || null })} className={selCls}>
-          <option value="">No board</option>
-          {boards.map(e => <option key={e.id} value={e.id}>🏄 {e.name}</option>)}
-        </select>
-      </>
-    )
-    const perRider = o.type === 'group' && o.participantIds.length > 1
-    return (
-      <div className="space-y-1">
-        <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
-          {perRider ? 'Equipment per rider (optional)' : 'Equipment (optional)'}
-        </label>
-        {perRider
-          ? o.participantIds.map(pid => {
-              const person = bookingParticipants.find(bp => bp.id === pid)
-              // A legacy group lesson holds ONE kite/board on the lesson itself: show it
-              // on the first rider until the lesson is saved with per-rider rows.
-              const value = o.riders[pid] ?? (pid === o.participantIds[0] ? o.solo : { kite_id: null, board_id: null })
-              return (
-                <div key={pid} className="rounded border border-gray-200 dark:border-gray-800 p-1.5 space-y-1">
-                  <div className="text-xs font-medium text-gray-700 dark:text-gray-300">{person?.first_name} {person?.last_name}</div>
-                  {pair(value, g => o.onRider(pid, g))}
-                </div>
-              )
-            })
-          : pair(o.solo, o.onSolo)}
-      </div>
-    )
-  }
-
-  /** Per-rider rows to save, from the form's picks. Empty when the lesson is not a
-   *  multi-rider group (then the lesson's own kite_id/board_id are the whole story). */
-  function riderGearRows(type: LessonType, participantIds: string[], riders: Record<string, GearPick>, solo: GearPick) {
-    if (!(type === 'group' && participantIds.length > 1)) return []
-    return participantIds.flatMap(pid => {
-      const g = riders[pid] ?? (pid === participantIds[0] ? solo : undefined)
-      return g && (g.kite_id || g.board_id)
-        ? [{ lesson_id: '', participant_id: pid, kite_id: g.kite_id, board_id: g.board_id }]
-        : []
-    })
-  }
-
-  /** The Wing / Discovery boxes of the lesson forms. Hidden for supervision (no wing rate).
-   *  Discovery = wing without the foil board: a cheaper hourly rate. */
   function renderWingToggle(type: LessonType, discipline: LessonDiscipline, onChange: (d: LessonDiscipline) => void) {
-    if (type === 'supervision') return null
-    return (
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm md:text-xs text-gray-700 dark:text-gray-300">
-        <label className="flex items-center gap-1.5">
-          <input type="checkbox" checked={discipline !== 'kite'} onChange={e => onChange(e.target.checked ? 'wing' : 'kite')} />
-          Wing
-        </label>
-        {discipline !== 'kite' && (
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={discipline === 'wing_discovery'} onChange={e => onChange(e.target.checked ? 'wing_discovery' : 'wing')} />
-            Discovery (no foil board)
-          </label>
-        )}
-      </div>
-    )
+    return <WingToggle type={type} discipline={discipline} onChange={onChange} />
   }
 
   /** What the instructor is paid, frozen onto the lesson at creation. A different
@@ -372,16 +266,6 @@ export default function LessonWeekView({
     return bookingParticipants.filter(p => ids.has(p.booking_id))
   }
 
-  // Edit modals default to this instead of the full guest list (illegible on
-  // a base with many bookings): active-on-that-day, plus whoever is already
-  // picked even if their booking isn't active anymore — so an edit never
-  // silently hides the person it's about. "Show all guests" still escapes to
-  // the full list for the rare case of picking someone else entirely.
-  function candidatesForEdit(date: string, selectedIds: string[], withInCountry = false): BookingParticipant[] {
-    const active = activeParticipantsForDate(date, withInCountry)
-    const missing = bookingParticipants.filter(p => selectedIds.includes(p.id) && !active.some(a => a.id === p.id))
-    return missing.length ? [...active, ...missing] : active
-  }
 
   // ── Fallback name lookup (from booking's client when no participant) ─────────
   function bookingClient(bookingId: string | null): Client | undefined {
@@ -586,44 +470,6 @@ export default function LessonWeekView({
   // ── Edit handlers ─────────────────────────────────────────────────────────
   function openEdit(lesson: Lesson) {
     setEditLesson(lesson)
-    setEditData({ ...lesson })
-    setEditRiderGear(Object.fromEntries((lesson.rider_gear ?? []).map(g => [g.participant_id, { kite_id: g.kite_id, board_id: g.board_id }])))
-    setShowAllGuestsEditLesson(false)
-    setShowInCountryEditLesson(false)
-  }
-
-  function submitEdit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!editLesson) return
-    // Re-freeze the payout if this lesson just changed instructor or type —
-    // see reFreezeInstructorRate. The client price is deliberately NOT touched:
-    // it can be overridden by hand from Accounting, and recomputing it here
-    // would quietly undo that decision.
-    const merged = { ...editLesson, ...editData } as Lesson
-    // A lesson belongs to its guests' booking, exactly as when it is created
-    // (see the add handler). Changing the guests has to move it with them —
-    // otherwise it stays on the old booking: billed and shown in the accounting
-    // under someone else, and absent from the guests' own booking.
-    const firstGuestId = merged.participant_ids?.[0]
-    const bookingId = (firstGuestId && bookingForParticipant(firstGuestId)) || editLesson.booking_id
-    // Switching kite ↔ wing ↔ discovery is a deliberate change of product, so
-    // unlike every other edit it re-freezes the client price at the new rate.
-    const disciplineNow: LessonDiscipline = merged.type === 'supervision' ? 'kite' : lessonDiscipline(merged)
-    const disciplineChanged = disciplineNow !== lessonDiscipline(editLesson)
-    const gearRows = riderGearRows(merged.type, merged.participant_ids, editRiderGear, { kite_id: merged.kite_id, board_id: merged.board_id })
-    const perRider = merged.type === 'group' && merged.participant_ids.length > 1
-    const withDiscipline: Lesson = {
-      ...merged, booking_id: bookingId,
-      kite_id: perRider ? (gearRows[0]?.kite_id ?? null) : merged.kite_id,
-      board_id: perRider ? (gearRows[0]?.board_id ?? null) : merged.board_id,
-      rider_gear: gearRows,
-      ...(disciplineChanged && {
-        discipline: disciplineNow,
-        price_per_hour: lessonPrice(merged.type, merged.participant_ids, disciplineNow),
-      }),
-    }
-    onUpdateLesson(reFreezeInstructorRate(withDiscipline, editLesson, instructors))
-    setEditLesson(null)
   }
 
   function deleteLesson(id: string) {
@@ -1295,156 +1141,15 @@ export default function LessonWeekView({
 
       {/* Edit modal */}
       {editLesson && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
-            <div className="flex justify-between items-center p-4 border-b shrink-0">
-              <h3 className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_edit_lesson[lang]}</h3>
-              <button onClick={() => setEditLesson(null)} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold">✕</button>
-            </div>
-            {/* Participant chips below list every guest in the booking data (no
-                date filter here) — can run long, so this has to scroll inside
-                the modal or the page behind it scrolls instead and Save/Cancel
-                become unreachable. */}
-            <form onSubmit={submitEdit} className="p-4 space-y-3 overflow-y-auto min-h-0 flex-1">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Type</label>
-                <div className="grid grid-cols-3 gap-1">
-                  {(['private', 'group', 'supervision'] as LessonType[]).map(t => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setEditData(d => ({ ...d, type: t }))}
-                      className={`text-sm py-1.5 px-1 rounded border transition-colors text-center leading-tight ${
-                        editData.type === t
-                          ? `${LESSON_TYPE_CFG[t].card} font-semibold ring-1 ring-inset ring-current`
-                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400'
-                      }`}
-                    >
-                      <div>{LESSON_TYPE_CFG[t].icon}</div>
-                      <div>{LESSON_TYPE_CFG[t].label}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {renderWingToggle(editData.type ?? editLesson.type, lessonDiscipline(editData), d => setEditData(prev => ({ ...prev, discipline: d })))}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date</label>
-                <input
-                  type="date"
-                  value={editData.date || ''}
-                  onChange={e => setEditData(d => ({ ...d, date: e.target.value }))}
-                  className="w-full text-sm border rounded px-2 py-1.5"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  {editData.type === 'group' ? 'Participants' : 'Participant'}
-                </label>
-                {renderParticipantChips({
-                  candidates: showAllGuestsEditLesson
-                    ? bookingParticipants
-                    : candidatesForEdit(editData.date ?? editLesson.date, editData.participant_ids ?? [], showInCountryEditLesson),
-                  date: editData.date ?? editLesson.date,
-                  selectedIds: editData.participant_ids ?? [],
-                  onToggle: id => setEditData(d => {
-                    if (d.type !== 'group') return { ...d, participant_ids: [id] }
-                    const ids = d.participant_ids ?? []
-                    const has = ids.includes(id)
-                    if (has) {
-                      if (ids.length <= 1) return d
-                      return { ...d, participant_ids: ids.filter(x => x !== id) }
-                    }
-                    return { ...d, participant_ids: [...ids, id] }
-                  }),
-                })}
-                {renderGuestScope({
-                  date: editData.date ?? editLesson.date, className: 'mt-1',
-                  inCountry: showInCountryEditLesson, onInCountry: setShowInCountryEditLesson,
-                  all: showAllGuestsEditLesson, onAll: setShowAllGuestsEditLesson,
-                })}
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Instructor</label>
-                <select
-                  value={editData.instructor_id || ''}
-                  onChange={e => setEditData(d => ({ ...d, instructor_id: e.target.value }))}
-                  className="w-full text-sm border rounded px-2 py-1.5"
-                >
-                  {instructors.map(i => (
-                    <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Time</label>
-                <input
-                  type="time"
-                  value={editData.start_time || ''}
-                  onChange={e => setEditData(d => ({ ...d, start_time: e.target.value }))}
-                  className="w-full text-sm border rounded px-2 py-1.5"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Duration</label>
-                <div className="grid grid-cols-3 gap-1">
-                  {DURATION_OPTIONS.map(d => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => setEditData(ed => ({ ...ed, duration_hours: d }))}
-                      className={`text-sm py-1.5 rounded border transition-colors ${
-                        (editData.duration_hours || 1) === d
-                          ? 'bg-blue-600 border-blue-600 text-white font-semibold'
-                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400'
-                      }`}
-                    >{d}h</button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
-                <input
-                  type="text"
-                  value={editData.notes ?? ''}
-                  onChange={e => setEditData(d => ({ ...d, notes: e.target.value || null }))}
-                  className="w-full text-sm border rounded px-2 py-1.5"
-                />
-              </div>
-              {renderGearSection({
-                compact: false,
-                type: editData.type ?? editLesson.type,
-                discipline: lessonDiscipline(editData),
-                participantIds: editData.participant_ids ?? editLesson.participant_ids,
-                solo: { kite_id: editData.kite_id ?? null, board_id: editData.board_id ?? null },
-                riders: editRiderGear,
-                onSolo: g => setEditData(d => ({ ...d, ...g })),
-                onRider: (pid, g) => setEditRiderGear(r => ({ ...r, [pid]: g })),
-              })}
-              <div className="flex gap-2 pt-2 border-t">
-                <button
-                  type="button"
-                  onClick={() => deleteLesson(editLesson.id)}
-                  className="px-3 py-2 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded font-medium text-sm"
-                >
-                  {i18n.common.btn_delete[lang]}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditLesson(null)}
-                  className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded font-medium text-sm"
-                >
-                  {i18n.common.btn_cancel[lang]}
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm"
-                >
-                  {i18n.common.btn_save[lang]}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <EditLessonModal
+          lesson={editLesson}
+          lessons={lessons} instructors={instructors} equipment={equipment}
+          bookings={bookings} bookingParticipants={bookingParticipants} clients={clients}
+          priceItems={priceItems} priceTiers={priceTiers}
+          onSave={l => { onUpdateLesson(l); setEditLesson(null) }}
+          onClose={() => setEditLesson(null)}
+          onDelete={deleteLesson}
+        />
       )}
 
       {/* ── Rental edit modal ── */}

@@ -320,6 +320,38 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         () => setLessons(before), 'the lesson price')
     },
 
+    // Same save as the Planning's (PlanningView.onUpdateLesson): the full lesson form
+    // is shared, so a lesson must be written the same way from either page.
+    updateLesson: async (lesson: Lesson) => {
+      const before = lessons
+      setLessons(prev => prev.map(l => l.id === lesson.id ? lesson : l))
+      // share_price_per_hour is a GENERATED column — Postgres rejects any write to it.
+      const { id, instructor: _i, clients: _c, rider_gear, share_price_per_hour: _sp, ...fields } =
+        lesson as Lesson & { share_price_per_hour?: number | null }
+      const { error } = await supabase.from('lessons').update(fields).eq('id', id)
+      if (error) {
+        console.error('Lesson update error:', error.message)
+        setLessons(before)
+        alert('Error updating lesson: ' + error.message)
+        return
+      }
+      // Gear per rider: rewrite only when it changed. Delete then insert, in this one
+      // handler, so the order is guaranteed (see persist's FK note).
+      const norm = (g?: Lesson['rider_gear']) => JSON.stringify((g ?? []).map(x => [x.participant_id, x.kite_id, x.board_id]).sort())
+      const previous = before.find(x => x.id === id)?.rider_gear
+      if (norm(previous) !== norm(rider_gear)) {
+        const { error: delError } = await supabase.from('lesson_participant_gear').delete().eq('lesson_id', id)
+        const rows = (rider_gear ?? []).map(g => ({ lesson_id: id, participant_id: g.participant_id, kite_id: g.kite_id, board_id: g.board_id }))
+        const { error: insError } = delError || rows.length === 0 ? { error: null } : await supabase.from('lesson_participant_gear').insert(rows)
+        if (delError || insError) {
+          const msg = (delError ?? insError)!.message
+          console.error('Rider gear update error:', msg)
+          setLessons(before)
+          alert('Gear per rider not saved: ' + msg)
+        }
+      }
+    },
+
     setLessonOverride: (o: LessonRateOverride) => {
       const before = lessonRateOverrides
       setLessonRateOverrides(prev => {

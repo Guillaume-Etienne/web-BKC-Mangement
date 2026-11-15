@@ -73,6 +73,8 @@ export interface AccountingHandlers {
   deleteInstructorPayment: (id: string)            => void
   /** Client price €/h billed for one lesson; null → back to the price list */
   setLessonPrice:          (lesson_id: string, price_per_hour: number | null) => void
+  /** Whole lesson, from the full edit form (same save as the Planning's) */
+  updateLesson:            (l: Lesson)             => void
   /** Instructor payout exception on one lesson (Instructors tab only) */
   setLessonOverride:       (o: LessonRateOverride) => void
   removeLessonOverride:    (lesson_id: string)     => void

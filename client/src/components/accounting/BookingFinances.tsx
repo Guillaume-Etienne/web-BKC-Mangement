@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
-import type { Payment, PaymentMethod, Booking, EquipmentRental, Associate, BookingCharge, BookingChargeCategory } from '../../types/database'
+import type { Payment, PaymentMethod, Booking, EquipmentRental, Lesson, Associate, BookingCharge, BookingChargeCategory } from '../../types/database'
 import { rentalKind, rentalLabel } from '../planning/rentalTypes'
 import { lessonBillable, lessonDiscipline } from '../../types/database'
 import {
@@ -18,6 +18,7 @@ import { i18n } from '../../data/i18n'
 import type { Lang } from '../../types/database'
 import ClientShareLink from '../common/ClientShareLink'
 import EditRentalModal from '../planning/EditRentalModal'
+import EditLessonModal from '../planning/EditLessonModal'
 
 interface Props {
   data: SharedAccountingData
@@ -553,6 +554,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
   const [editingRentalId, setEditingRentalId] = useState<string | null>(null)
   // Full edit form (same modal as the Planning's), opened over this page.
   const [fullEditRental, setFullEditRental] = useState<EquipmentRental | null>(null)
+  const [fullEditLesson, setFullEditLesson] = useState<Lesson | null>(null)
   const [editingLessonPriceId, setEditingLessonPriceId] = useState<string | null>(null)
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null)
   const [showAddActivity, setShowAddActivity] = useState(false)
@@ -792,6 +794,10 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                             <button onClick={() => setEditingLessonPriceId(isEditing ? null : l.id)}
                               className={`p-1 -m-1 transition-colors ${isCustom ? 'text-amber-400 dark:text-amber-300 hover:text-amber-600 dark:hover:text-amber-400' : 'text-gray-300 dark:text-gray-500 hover:text-amber-500 dark:hover:text-amber-400'}`}>✏️</button>
                           )}
+                          {!isShared && (
+                            <button onClick={() => setFullEditLesson(l)} title="Full edit (guests, instructor, gear, time…)"
+                              className="p-1 -m-1 text-gray-300 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">⚙️</button>
+                          )}
                         </div>
                       </div>
                       {isEditing && (
@@ -802,6 +808,16 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                           onSave={p => { handlers.setLessonPrice(l.id, p); setEditingLessonPriceId(null) }}
                           onReset={() => { handlers.setLessonPrice(l.id, null); setEditingLessonPriceId(null) }}
                           onCancel={() => setEditingLessonPriceId(null)}
+                        />
+                      )}
+                      {fullEditLesson?.id === l.id && (
+                        <EditLessonModal
+                          lesson={l}
+                          lessons={data.lessons} instructors={data.instructors} equipment={data.equipment}
+                          bookings={data.bookings} bookingParticipants={data.bookingParticipants} clients={data.clients}
+                          priceItems={data.priceItems} priceTiers={data.priceTiers}
+                          onSave={updated => { handlers.updateLesson(updated); setFullEditLesson(null) }}
+                          onClose={() => setFullEditLesson(null)}
                         />
                       )}
                     </div>
