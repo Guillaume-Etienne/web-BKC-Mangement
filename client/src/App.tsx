@@ -22,6 +22,7 @@ import { DataErrorsProvider } from './contexts/DataErrorsContext'
 import DataErrorBanner from './components/layout/DataErrorBanner'
 import { useAdminLang } from './hooks/useAdminLang'
 import { startLoading, stopLoading } from './lib/loadingTracker'
+import { startUsageTracking, trackView } from './lib/usageTracker'
 
 // Everything past the first screen is fetched when it is actually opened.
 // Before this, one bundle held the whole app: a guest opening a taxi or client
@@ -154,6 +155,12 @@ function App() {
   // new object, and every load hanging off `session` ran three times in a row —
   // 21 requests instead of 7, slowing each other down (measured 2026-10-18).
   const userId = session?.user.id ?? null
+
+  // Usage counter (Options → Database → Usage): in-memory counts, one grouped
+  // call when the app goes to the background. Declared before the page effect so
+  // that on login `started` is already true when the first page is counted.
+  useEffect(() => (userId ? startUsageTracking() : undefined), [userId])
+  useEffect(() => { if (userId) trackView(currentPage) }, [userId, currentPage])
 
   // Load pending actions — on login, on coming back to Home, and when the app
   // is shown again (phone unlocked, tab back in front). Not on every page

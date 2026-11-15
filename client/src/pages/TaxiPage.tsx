@@ -15,6 +15,7 @@ import { supabase } from '../lib/supabase'
 import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults, TaxiManagerPayment, TaxiBookingRef, SharedLink } from '../types/database'
 import { todayISO, addDaysISO } from '../utils/dates'
 import { FALLBACK_TAXI_PRICING as FALLBACK_PRICING } from '../utils/taxiPricing'
+import { useTrackTab } from '../hooks/useTrackTab'
 
 export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId: string) => void } = {}) {
   const { lang } = useLanguage()
@@ -49,6 +50,7 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
   const driverLinks = sharedLinksData.filter(l => l.type === 'driver')
 
   const [tab, setTab]               = useState<'planning' | 'finance' | 'drivers'>('planning')
+  useTrackTab('taxis', tab)
   const [planningView, setPlanningView] = useState<'kanban' | 'list'>('list')
   const [tripFilters, setTripFilters] = useState<TaxiFilters>(DEFAULT_TAXI_FILTERS)
   const [selectedDriver, setSelectedDriver] = useState<TaxiDriver | null>(null)

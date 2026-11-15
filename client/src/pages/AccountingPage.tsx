@@ -29,6 +29,7 @@ import EventsTab            from '../components/accounting/EventsTab'
 import UnverifiedPayments   from '../components/accounting/UnverifiedPayments'
 import AgencyBillingTab     from '../components/accounting/AgencyBillingTab'
 import AssociatesTab        from '../components/accounting/AssociatesTab'
+import { useTrackTab } from '../hooks/useTrackTab'
 import type {
   ExternalAccommodationBooking, HouseRental, Season,
   Payment, BookingCharge, InstructorDebt, InstructorPayment, LessonRateOverride, EquipmentRental,
@@ -59,6 +60,7 @@ function getTabs(lang: Lang): { id: Tab; label: string; icon: string }[] {
 
 export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id: string) => void }) {
   const [tab, setTab] = useState<Tab>('dashboard')
+  useTrackTab('accounting', tab)
   // Agencies tab → one booking's invoice panel (2026-10-31): handed to
   // BookingFinances once, then dropped so a later visit opens unfiltered.
   const [focusBookingId, setFocusBookingId] = useState<string | null>(null)

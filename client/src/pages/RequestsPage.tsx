@@ -6,6 +6,7 @@ import type { Enquiry, FormSubmission } from '../types/database'
 import EnquiriesPage from './EnquiriesPage'
 import SubmissionsPage from './SubmissionsPage'
 import { isQualified, isSettled } from '../utils/enquiries'
+import { useTrackTab } from '../hooks/useTrackTab'
 
 /** Everything that arrives from outside and waits to be dealt with.
  *
@@ -29,6 +30,7 @@ interface Props {
 
 export default function RequestsPage({ initialEnquiryId, onEnquiryOpened }: Props) {
   const [tab, setTab] = useState<Tab>('enquiries')
+  useTrackTab('requests', tab)
   const { lang } = useLanguage()
 
   // Arriving from ⌘K on the Booking forms tab would render the other screen and

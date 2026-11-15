@@ -17,6 +17,7 @@ import EurMznRatesPanel from '../components/management/EurMznRatesPanel'
 import AgenciesTab from '../components/management/AgenciesTab'
 import TransferReferencePricesTab from '../components/management/TransferReferencePricesTab'
 import { todayISO, addDaysISO, fmtDate } from '../utils/dates'
+import { useTrackTab } from '../hooks/useTrackTab'
 
 
 const specialtyOptions = ['Beg-Total', 'Beg-BodyDrag', 'Beg-WaterStart', 'Intermediate', 'Advanced', 'Wave', 'Freestyle']
@@ -124,6 +125,7 @@ function getBaseUrl() {
 
 export default function ManagementPage() {
   const [tab, setTab] = useState<'instructors' | 'houses' | 'pricing' | 'seasons' | 'sources' | 'agencies' | 'links' | 'language' | 'database'>('instructors')
+  useTrackTab('management', tab)
   const [pricingSubTab, setPricingSubTab] = useState<'rates' | 'reference' | 'kruger'>('rates')
 
   // Only for the shared-link form, which picks a booking by its number.

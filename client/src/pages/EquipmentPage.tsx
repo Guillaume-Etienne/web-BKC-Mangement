@@ -12,6 +12,7 @@ import type {
   Instructor, PriceItem, LessonRateOverride, EquipmentPricingDefaults, Expense, ExpenseCategory, Lang,
 } from '../types/database'
 import { todayISO } from '../utils/dates'
+import { useTrackTab } from '../hooks/useTrackTab'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -208,6 +209,7 @@ export default function EquipmentPage() {
   const { data: expenseCategories } = useTable<ExpenseCategory>('expense_categories', { order: 'sort_order' })
 
   const [activeTab, setActiveTab]           = useState<'inventory' | 'rentals' | 'revenue' | 'assets'>('inventory')
+  useTrackTab('equipment', activeTab)
 
   // ── Equipment pricing model (CA tab) — percent in the UI, fraction in the model ──
   const [equipmentSharePct, setEquipmentSharePct] = useState(DEFAULT_EQUIPMENT_SHARE * 100)

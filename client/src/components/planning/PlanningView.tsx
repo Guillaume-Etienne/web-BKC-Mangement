@@ -26,6 +26,7 @@ import { useEquipment, useEquipmentRentals } from '../../hooks/useEquipment'
 import { supabase } from '../../lib/supabase'
 import { ensureInHouseProvider, buildBilledActivities } from '../../utils/billedActivities'
 import type { BillActivityRequest } from '../../utils/billedActivities'
+import { useTrackTab } from '../../hooks/useTrackTab'
 
 // ── Booking quick view modal ───────────────────────────────────────────────────
 
@@ -418,6 +419,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
 
   // ── Tabs / lesson view ───────────────────────────────────────────
   const [planningTab, setPlanningTab] = useState<'accommodations' | 'lessons' | 'now' | 'forecast' | 'outlook'>('accommodations')
+  useTrackTab('planning', planningTab)
   const [weekStart, setWeekStart] = useState<Date>(() => getMondayOfWeek(new Date()))
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {

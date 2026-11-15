@@ -18,6 +18,7 @@ import type {
   SharedLink, BookingRef, Lang, TaxiPricingDefaults, TaxiTrip,
 } from '../types/database'
 import { todayISO, addDaysISO, fmtDate } from '../utils/dates'
+import { useTrackTab } from '../hooks/useTrackTab'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -666,6 +667,7 @@ export default function ActivitiesPage() {
 
   // 'hotel:<id>' = a partner hotel tab
   const [tab,              setTab]              = useState<string>('providers')
+  useTrackTab('activities', tab)
   const [viewingId,        setViewingId]        = useState<string | null>(null)
   const [showProviderForm, setShowProviderForm] = useState(false)
   const [editingProvider,  setEditingProvider]  = useState<ActivityProvider | null>(null)

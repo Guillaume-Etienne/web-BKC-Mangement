@@ -26,6 +26,7 @@ import { fmtDate, fmtDateShort, todayISO, addDaysISO } from '../utils/dates'
 import { depositState, askedState, stayState } from '../utils/documentsOverview'
 import { stayBookings } from '../utils/dayVisitor'
 import type { AskedState, DepositState, StayState } from '../utils/documentsOverview'
+import { useTrackTab } from '../hooks/useTrackTab'
 
 // ── Guide sections — legacy localStorage fallback ──────────────────────────────
 // Sections now live in the document_templates table. This read-only fallback
@@ -563,6 +564,7 @@ export default function DocumentsPage() {
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null)
 
   const [tab, setTab] = useState<Tab>('overview')
+  useTrackTab('documents', tab)
   const [visaBookingId,    setVisaBookingId]    = useState('')
   const [visaSearch,       setVisaSearch]       = useState('')
   const [summaryBookingId, setSummaryBookingId] = useState('')
