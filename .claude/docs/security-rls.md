@@ -31,12 +31,12 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 | Table | Sensibilité | Exposée pour quelle page |
 |-------|-------------|--------------------------|
 | `clients` | 🟢 **identité only** (id, prénom, nom) — email/tél/passeport/naissance/contacts d'urgence **bloqués** | ClientSharePage, ForecastSharePage |
-| `booking_participants` | 🟢 **identité only** (id, prénom, nom) — passeport/notes/client_id **bloqués** | ClientSharePage |
+| `booking_participants` | 🟢 **identité only** (id, prénom, nom) + `brings_own_gear` (2026-11-15b : le center access va aux « own gear » dans la répartition par personne) — passeport/notes/client_id **bloqués** | ClientSharePage |
 | `bookings` | 🟢 **planning only** (id, n°, dates, status, client_id, center access) — contacts urgence/notes/amount_paid/visa/waiver **bloqués**. + `arrival_by/_detail`, `departure_by/_detail` (n° de vol, **décision gui 2026-11-08** : le chauffeur suit lui-même un retard ; migration 2026-11-08b) | ClientSharePage / RestaurantSharePage / embeds taxi / TaxiSharePage (vol des trajets aéroport) |
 | `booking_rooms` | 🟠 chambres | ClientSharePage / Forecast |
 | `booking_room_prices` | 🟢 **prix rédigé** (`share_price_per_night`) — `price_per_night` brut **bloqué** depuis `2026-08-18c` | ClientSharePage |
 | `payments` | 🔴 **finances** (montants, paiements) | ClientSharePage |
-| `booking_charges` | 🔴 **finances** (extras saisis à la main, 2026-10-18). Token `client` → sa résa ; GRANT colonnes sans `notes` (interne) | ClientSharePage (section Extras) |
+| `booking_charges` | 🔴 **finances** (extras saisis à la main, 2026-10-18). Token `client` → sa résa ; GRANT colonnes sans `notes` (interne) ; `participant_id` lisible depuis 2026-11-15b (répartition par personne) | ClientSharePage (section Extras + répartition) |
 | `taxi_trips` | 🟠 trajets + **paie chauffeur/manager** (`price_driver_mzn`, `margin_manager_mzn` — lisibles par TOUT token, ⚠️ décision en attente) ; prix client rédigé (`share_price_eur`), `price_eur` brut **bloqué** | Taxi / Driver / Manager / Client share |
 | `taxi_drivers` | 🟢 identité + contact + véhicule | Taxi / Driver share |
 | `taxi_manager_payments` | 🔴 **finances** (commissions, avances) | TaxiManagerSharePage |

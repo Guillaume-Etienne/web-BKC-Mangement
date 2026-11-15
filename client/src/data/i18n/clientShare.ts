@@ -43,7 +43,11 @@ const T = {
   sec_activities:     { fr: 'Activités', en: 'Activities', es: 'Actividades' },
   sec_center_access:  { fr: 'Accès au centre', en: 'Center access', es: 'Acceso al centro' },
   sec_extras:         { fr: 'Extras', en: 'Extras', es: 'Extras' },
-  sec_per_guest:      { fr: 'Détail par voyageur', en: 'Per-guest breakdown', es: 'Desglose por viajero' },
+  sec_per_guest:      { fr: 'Répartition par personne', en: 'Split per person', es: 'Reparto por persona' },
+  split_whole_stay:   { fr: 'Tout le séjour', en: 'Whole stay', es: 'Toda la estancia' },
+  split_activities:   { fr: 'Activités seulement', en: 'Activities only', es: 'Solo actividades' },
+  split_sum:          { fr: 'Somme des parts', en: 'Sum of shares', es: 'Suma de las partes' },
+  split_mismatch:     { fr: 'Les parts font {sum}, le total est {total} : merci de nous le signaler.', en: 'The shares add up to {sum}, the total is {total}: please let us know.', es: 'Las partes suman {sum}, el total es {total}: avísenos, por favor.' },
   sec_payments:       { fr: 'Paiements', en: 'Payments', es: 'Pagos' },
   sec_balance:        { fr: 'Solde', en: 'Balance', es: 'Saldo' },
 

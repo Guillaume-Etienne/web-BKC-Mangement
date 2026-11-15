@@ -16,6 +16,8 @@ import type {
 import { getBaseNightlyRate } from '../utils/roomPricing'
 import { agencyHoursPool } from '../components/accounting/utils'
 import AgencyHoursGauge from '../components/common/AgencyHoursGauge'
+import { PerPersonSplitView } from '../components/common/PerPersonSplitView'
+import { splitPerPerson, type SplitItem } from '../utils/perPersonSplit'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -148,6 +150,10 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const [lessonGear,     setLessonGear]     = useState<Record<string, GearIds>>({})
   const [rentalBoard,    setRentalBoard]    = useState<Record<string, string | null>>({})
   const [equipment,      setEquipment]      = useState<GearLike[]>([])
+  // Split per person (2026-11-15b): who brings their own gear (center access is
+  // theirs) and who each extra is for. Empty = unknown → shared equally.
+  const [ownGearIds,     setOwnGearIds]     = useState<Set<string>>(new Set())
+  const [chargeFor,      setChargeFor]      = useState<Record<string, string>>({})
   // The guest's language: what they last picked here, else their browser's.
   const [lang, setLangState] = useState<Lang>(() => {
     try { const s = localStorage.getItem('share_lang'); if (s === 'fr' || s === 'en' || s === 'es') return s } catch { /* private mode */ }
@@ -250,6 +256,16 @@ export default function ClientSharePage({ bookingNumber }: Props) {
         .select('id, date, label, category, quantity, unit_price')
         .eq('booking_id', id).order('date')
       setExtras(extrasRes.error ? [] : (extrasRes.data ?? []) as SharedExtra[])
+      // Split per person (2026-11-15b). Own queries for the same reason: before the
+      // migration grants these columns to anon they return 42501, and that must only
+      // mean "unknown" — center access and extras are then shared equally.
+      const [ownGearRes, chargeForRes] = await Promise.all([
+        supabase.from('booking_participants').select('id, brings_own_gear').eq('booking_id', id),
+        supabase.from('booking_charges').select('id, participant_id').eq('booking_id', id),
+      ])
+      setOwnGearIds(new Set(ownGearRes.error ? [] : (ownGearRes.data ?? []).filter(p => p.brings_own_gear).map(p => p.id)))
+      setChargeFor(Object.fromEntries(chargeForRes.error ? []
+        : (chargeForRes.data ?? []).filter(c => c.participant_id).map(c => [c.id, c.participant_id as string])))
       // Gear (2026-10-27): kite/board of each lesson, board of each "Full" rental, then
       // the models behind those ids. Own queries for the same reason: before the
       // migration anon cannot read these columns, and that must only mean "no gear".
@@ -818,94 +834,85 @@ export default function ClientSharePage({ bookingNumber }: Props) {
           </Section>
         )}
 
-        {/* Per-guest breakdown (collapsible) */}
+        {/* Split per person (2026-11-15) — everything on the bill, shared out so the
+            cards add up to the total above. Built from the very rows the sections
+            price (same filters, same per-head count), so the two cannot drift; the
+            view says so if they ever do. */}
         {(() => {
           if (participants.length === 0) return null
-
-          type Line = { date: string; label: string; gear?: string; amount: number; covered?: boolean }
-          const guestData = participants.map(part => {
-            const lines: Line[] = []
-
-            // Agency-covered services are skipped here, as everywhere else on this
-            // page. They used to slip through: the subtotals excluded them (Phase 5)
-            // while this per-guest breakdown still priced them, so the two did not
-            // add up to the same number on an agency booking. Since Phase 4 the
-            // price would arrive as NULL anyway and the line would read "0 €",
-            // which tells the guest nothing — leaving it out is what the rest of
-            // the page does with a service they are not charged for.
-            for (const l of lessons) {
-              if (!l.participant_ids.includes(part.id)) continue
-              const instr = instructors.find(i => i.id === l.instructor_id)
-              const lessonName = t('lesson_line').replace('{type}', t(`lesson_${l.type}` as ShareKey).toLowerCase()).replace('{h}', String(l.duration_hours))
-              // Covered by the agency: listed, so the guest sees the hours they took,
-              // but at no charge — it adds nothing to their total.
-              if (coveredByAgency(l)) {
-                lines.push({ date: l.date, label: `${lessonName}${instr ? ` (${instr.first_name})` : ''} ${t('agency_package_line').replace('{agency}', agencyName)}`, gear: lessonGear_(l.id), amount: 0, covered: true })
-                continue
+          const items: SplitItem[] = []
+          for (const r of billedAccomRows) {
+            items.push({ category: 'accommodation', date: null, label: `${r.label} · ${r.nights} ${t(r.nights === 1 ? 'night' : 'nights')}`, amount: r.total, beneficiaries: [] })
+          }
+          for (const r of extAccomRows) {
+            items.push({ category: 'accommodation', date: null, label: r.label, amount: r.total, beneficiaries: [] })
+          }
+          for (const l of lessons) {
+            const instr = instructors.find(i => i.id === l.instructor_id)
+            const label = `${t('lesson_line').replace('{type}', t(`lesson_${l.type}` as ShareKey).toLowerCase()).replace('{h}', String(l.duration_hours))}${instr ? ` (${instr.first_name})` : ''}`
+            const ours = l.participant_ids.filter(pid => partIdSet.has(pid))
+            if (coveredByAgency(l)) {
+              // Listed, so they see the hours they took — at no charge.
+              for (const pid of ours) {
+                items.push({ category: 'lessons', date: l.date, label: `${label} ${t('agency_package_line').replace('{agency}', agencyName)}`, gear: lessonGear_(l.id), amount: 0, beneficiaries: [pid], covered: true })
               }
-              const rate = getLessonRate(l)
-              lines.push({
-                date: l.date,
-                label: `${lessonName}${instr ? ` (${instr.first_name})` : ''}`,
-                gear: lessonGear_(l.id),
-                amount: rate * l.duration_hours,
-              })
+              continue
             }
-
-            for (const r of rentals) {
-              if (r.participant_id !== part.id) continue
-              if (coveredByAgency(r)) continue
-              lines.push({ date: r.date, label: `${t(rentalKey(r))} · ${t(`slot_${r.slot}` as ShareKey)}`, gear: rentalGear(r), amount: r.price ?? 0 })
+            const unit = getLessonRate(l) * l.duration_hours
+            // Same count as lessonRows: a group lesson is billed per head on THIS booking.
+            if (l.type === 'group') {
+              for (const pid of ours) items.push({ category: 'lessons', date: l.date, label, gear: lessonGear_(l.id), amount: unit, beneficiaries: [pid] })
+            } else {
+              items.push({ category: 'lessons', date: l.date, label, gear: lessonGear_(l.id), amount: unit, beneficiaries: l.participant_ids })
             }
-
-            for (const ev of diningEvents) {
-              const att = (ev.attendees ?? []).find(a => a.is_attending && a.person_type === 'participant' && a.person_id === part.id)
-              if (!att) continue
-              const amount = att.price_override ?? ev.price_per_person
+          }
+          for (const r of rentals) {
+            if (coveredByAgency(r)) continue
+            items.push({ category: 'rentals', date: r.date, label: `${t(rentalKey(r))} · ${t(`slot_${r.slot}` as ShareKey)}`, gear: rentalGear(r), amount: r.price ?? 0, beneficiaries: r.participant_id ? [r.participant_id] : [] })
+          }
+          for (const tr of taxis) {
+            if (coveredByAgency(tr) || !tr.price_eur) continue
+            items.push({ category: 'taxis', date: tr.date, label: taxiLabel(tr.type), amount: tr.price_eur, beneficiaries: [] })
+          }
+          for (const ev of diningEvents) {
+            for (const a of ev.attendees ?? []) {
+              if (!a.is_attending || a.person_type !== 'participant' || !partIdSet.has(a.person_id)) continue
+              const amount = a.price_override ?? ev.price_per_person
               if (amount === 0) continue
-              lines.push({ date: ev.date, label: ev.name || t('dining_default'), amount })
+              items.push({ category: 'dining', date: ev.date, label: ev.name || t('dining_default'), amount, beneficiaries: [a.person_id] })
             }
+          }
+          for (const a of activityBkgs.filter(x => x.payment_flow === 'we_pay_provider')) {
+            items.push({ category: 'activities', date: a.date, label: a.label, amount: a.price_client, beneficiaries: a.participant_ids })
+          }
+          if (centerAccessTotal !== 0) {
+            // Carried by whoever brings their own gear; nobody known → shared equally.
+            items.push({ category: 'center_access', date: null, label: `${t('sec_center_access')} · ${nights} ${t(nights === 1 ? 'night' : 'nights')}`, amount: centerAccessTotal, beneficiaries: [...ownGearIds] })
+          }
+          for (const r of extraRows) {
+            items.push({ category: 'extras', date: r.date, label: r.label, amount: r.total, beneficiaries: chargeFor[r.id] ? [chargeFor[r.id]] : [] })
+          }
 
-            for (const a of activityBkgs.filter(a => a.payment_flow === 'we_pay_provider')) {
-              if (!a.participant_ids.includes(part.id)) continue
-              lines.push({ date: a.date, label: a.label, amount: a.price_client / a.nb_persons })
-            }
-
-            lines.sort((a, b) => a.date.localeCompare(b.date))
-            const total = lines.reduce((s, l) => s + l.amount, 0)
-            return { participant: part, lines, total }
-          }).filter(g => g.lines.length > 0)
-
-          if (guestData.length === 0) return null
-
+          const names = Object.fromEntries(participants.map(p => [p.id, `${displayFirstName(p.first_name)} ${p.last_name ?? ''}`.trim()]))
           return (
-            <section className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
-              <details className="group">
-                <summary className="cursor-pointer select-none px-5 py-4 flex items-center gap-2 font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
-                  <span className="transition-transform group-open:rotate-90">▶</span>
-                  {t('sec_per_guest')}
-                  {(lessonsHaveGear || rentalsHaveGear) && <span className="ml-auto">{gearToggle}</span>}
-                </summary>
-                <div className="px-5 pb-4 space-y-3">
-                  {guestData.map(({ participant: p, lines, total }) => (
-                    <div key={p.id} className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
-                      <div className="flex justify-between items-center px-4 py-2 bg-blue-50 dark:bg-blue-950/40">
-                        <span className="text-sm font-medium text-blue-800 dark:text-blue-400">{displayFirstName(p.first_name)} {p.last_name ?? ''}</span>
-                        <span className="text-sm font-semibold text-blue-800 dark:text-blue-400">{fmtEur(total)}</span>
-                      </div>
-                      <div className="px-4 py-2 space-y-1">
-                        {lines.map((l, i) => (
-                          <div key={i} className="flex justify-between gap-4 text-xs text-gray-500 dark:text-gray-400">
-                            <span>{formatDate(l.date)} · {l.label}<GearTag text={l.gear} /></span>
-                            <span className="whitespace-nowrap">{l.covered ? t('included') : fmtEur(l.amount)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </details>
-            </section>
+            <PerPersonSplitView
+              variant="card"
+              splits={splitPerPerson(participants.map(p => p.id), items)}
+              names={names}
+              expectedTotal={totalCharges}
+              fmtEur={fmtEur}
+              fmtDate={formatDate}
+              headerExtra={(lessonsHaveGear || rentalsHaveGear) ? gearToggle : undefined}
+              labels={{
+                title: t('sec_per_guest'), wholeStay: t('split_whole_stay'), activitiesOnly: t('split_activities'),
+                included: t('included'), sum: t('split_sum'), mismatch: t('split_mismatch'),
+                categories: {
+                  accommodation: t('sec_accommodation'), lessons: t('sec_lessons'), rentals: t('sec_rentals'),
+                  taxis: t('sec_taxis'), dining: t('sec_dining'), activities: t('sec_activities'),
+                  center_access: t('sec_center_access'), extras: t('sec_extras'),
+                },
+              }}
+            />
           )
         })()}
 

@@ -13,8 +13,8 @@ export const planningI18n = {
   lesson_type_supervision:{ fr: 'Superv.',     en: 'Superv.',   es: 'Superv.' },
 
   // LessonWeekView
-  msg_no_guests_checked_in: { fr: 'Aucun invité enregistré ce jour-là.', en: 'No guests checked in that day.', es: 'Ningún huésped registrado ese día.' },
-  label_show_all_guests: { fr: 'Montrer tous les invités', en: 'Show all guests', es: 'Mostrar todos los huéspedes' },
+  msg_no_guests_checked_in: { fr: 'Aucun voyageur sur place ce jour-là.', en: 'No guests checked in that day.', es: 'Ningún huésped registrado ese día.' },
+  label_show_all_guests: { fr: 'Montrer tous les voyageurs', en: 'Show all guests', es: 'Mostrar todos los huéspedes' },
   label_show_in_country: { fr: 'Sur le territoire', en: 'In the country', es: 'En el país' },
   tag_not_lodged_until: { fr: 'pas logé · arrive le', en: 'not lodged · check-in', es: 'no alojado · llega el' },
   tag_not_lodged_since: { fr: 'pas logé · parti le', en: 'not lodged · left', es: 'no alojado · salió el' },
@@ -59,7 +59,7 @@ export const planningI18n = {
   label_of_total: { fr: '/ {count} au total', en: '/ {count} total', es: '/ {count} en total' },
   label_history_events: { fr: 'Historique ({count} événements)', en: 'History ({count} events)', es: 'Historial ({count} eventos)' },
   label_instructors: { fr: 'Moniteurs', en: 'Instructors', es: 'Instructores' },
-  label_guests:      { fr: 'Invités',   en: 'Guests',      es: 'Invitados' },
+  label_guests:      { fr: 'Voyageurs', en: 'Guests',      es: 'Huéspedes' },
   // Walk-ins (WalkInForm) — people who come for a lesson or a rental only
   btn_add_walkin:        { fr: '🚶 Walk-in', en: '🚶 Walk-in', es: '🚶 Walk-in' },
   walkin_title:          { fr: 'Walk-in — client de passage', en: 'Walk-in — drop-in client', es: 'Walk-in — cliente de paso' },

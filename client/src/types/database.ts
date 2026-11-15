@@ -951,6 +951,10 @@ export interface BookingCharge {
   quantity: number
   unit_price: number            // EUR
   notes: string | null          // internal — not readable from a share link
+  /** "For whom" (2026-11-15b): one traveller of the booking, or null = shared
+   *  equally by everyone in the per-person split. Optional: rows read before the
+   *  migration, and fixtures, simply don't have it. */
+  participant_id?: string | null
 }
 
 // Instructor payroll — debt (advance on dinner, outing, etc.)

@@ -664,6 +664,7 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 | quantity | number (> 0) | pour `accommodation` = des **nuits** |
 | unit_price | number (EUR, ≥ 0) | saisi à la main, € uniquement |
 | notes | string \| null | **interne** (pas de GRANT anon) |
+| participant_id | string \| null (FK `booking_participants`, ON DELETE SET NULL) | *(2026-11-15b)* « pour qui » : la ligne va à ce voyageur dans la **répartition par personne** ; NULL = parts égales. GRANT anon |
 > Montant = `chargeAmount()` (quantité × prix, arrondi au centime). Toujours dû par le **client**, même sur une résa
 > agence (jamais de ligne agence). Inclus dans `computeBookingTotal`. Dans `computeSeasonTotals` : accommodation →
 > `accomRev`, food → `eventsRev`, equipment → `rentalsRev`, other → `extrasRev`. `accommodation` compte dans

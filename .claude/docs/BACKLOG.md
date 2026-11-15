@@ -4,7 +4,9 @@
 > `.claude/archive/memory/backlog_closed_2026.md` (1600 lignes d'historique, décisions et
 > vérifications). Ici : **l'ouvert uniquement.** Une ligne close se raye et se déplace.
 
-## 📋 À faire — « Répartition par personne » (décidé avec gui le 2026-11-15, pas codé)
+## ✅ Livré 2026-11-15 — « Répartition par personne » (**gui doit pousser** ; migration 15b déjà passée TEST+PROD)
+
+Code : `utils/perPersonSplit.ts` (qui porte chaque euro, centimes résiduels en rotation) + `components/accounting/bookingSplit.ts` (lignes de la compta, mêmes filtres que `computeBookingTotal`) + `components/common/PerPersonSplitView.tsx` (affichage commun) ; branché dans `BookingFinances` et `ClientSharePage` (qui bâtit ses lignes depuis ses propres sections). Sélecteur « For » dans le formulaire d'extra (≥ 2 voyageurs) + « → prénom » dans la liste. « Invité » remplacé par « Voyageur(s) » partout dans l'admin FR. Tests : 14 + 9 + 4 (dont #056 → 677 + 812 = 1 489, résa agence, Palmeiras payé en direct, San Martinho à 0, walk-in, groupe d'une autre résa). Build ✅, tests ✅ sauf `PalmeirasTimeline` (date du jour, pré-existant). Planche Crazy Fly #056 rattachée en PROD au voyageur désigné par gui. **Jamais vu à l'écran** → vérif sur TEST (compta + page client mobile). Spec d'origine :
 
 Aujourd'hui « Per-guest breakdown » existe **deux fois** (`BookingFinances.tsx:1124` admin, FR « Détail par invité » ; `ClientSharePage.tsx:821` client, FR « Détail par voyageur ») et ne répartit que cours / locations / repas / activités → la somme ≠ total de la résa. Bug au passage : la version admin ne retire pas les lignes agence.
 Décisions gui :
@@ -16,6 +18,8 @@ Décisions gui :
 - Plan : 1 util pur partagé (`utils/perPersonSplit.ts`) + tests sur cas réels (#056, résa agence, San Martinho, walk-in), puis les 2 écrans branchés dessus ; si Σ ≠ total, l'écran l'affiche au lieu de mentir.
 
 ## 🚨 Migrations SQL — registre
+
+✅ **`2026-11-15b_split_per_person.sql`** (TEST ✅ + PROD ✅ 2026-11-15 par Claude, accord gui ; curl anon sur les deux : `booking_charges.participant_id` et `booking_participants.brings_own_gear` → 200 ([] sans token, sa résa avec un token client) ; `booking_charges.notes` et `booking_participants.passport_number` → toujours 42501) — « pour qui » sur un extra (FK ON DELETE SET NULL) + `brings_own_gear` lisible par la page client. Strictement additive. Passée AVANT le push (l'admin écrit `participant_id` à chaque extra).
 
 ✅ **`2026-11-15_dining_share_policy_perf.sql`** (TEST ✅ + PROD ✅ 2026-11-15 par Claude, accord gui ; curl anon : TEST #22/#21/#23 → 4/3/1 repas, sans token et token bidon → [] ; PROD lien #065 → ses 3 repas dont le braai 12 €, **20 ms côté serveur** contre 3 291 ms) — la page client partagée perdait la section **Repas** en silence (#065, 15/11 : braai 12 € absent, solde faux ; chez un admin connecté tout allait bien). Cause : la policy anon `anon_read_dining_events` joignait `booking_participants`, dont la propre policy rappelle `share_ctx()` à chaque ligne → 3,29 s > `statement_timeout` anon de 3 s → **57014**, avalé par `diningRes.data ?? []`. Correctif : helper `share_participant_ids()` (SECURITY DEFINER, mêmes droits que `share_booking_id`) appelé une fois via `(SELECT …)::text[]`. Même périmètre. Testé PROD en transaction annulée : **96 ms**, mêmes 3 repas. Vérif : pied du fichier (curl anon token `client` → 200 avec ses repas). 💭 Après : la page devrait signaler une section qui n'a pas pu charger au lieu de la cacher.
 

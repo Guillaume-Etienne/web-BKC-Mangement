@@ -44,7 +44,7 @@ export const bookingsI18n = {
   // Wizard steps
   step_client:     { fr: 'Client',      en: 'Client',     es: 'Cliente' },
   step_stay:       { fr: 'Séjour',      en: 'Stay',       es: 'Estancia' },
-  step_guests:     { fr: 'Invités',     en: 'Guests',     es: 'Huéspedes' },
+  step_guests:     { fr: 'Voyageurs',   en: 'Guests',     es: 'Huéspedes' },
   step_transport:  { fr: 'Transport',   en: 'Transport',  es: 'Transporte' },
   step_kitecenter: { fr: 'Kite Center', en: 'KiteCenter', es: 'Kite Center' },
   step_payment:    { fr: 'Paiement',    en: 'Payment',    es: 'Pago' },

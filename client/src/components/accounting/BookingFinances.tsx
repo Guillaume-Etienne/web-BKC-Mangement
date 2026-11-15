@@ -17,6 +17,9 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import type { Lang } from '../../types/database'
 import ClientShareLink from '../common/ClientShareLink'
+import { PerPersonSplitView } from '../common/PerPersonSplitView'
+import { splitPerPerson } from '../../utils/perPersonSplit'
+import { bookingSplitItems } from './bookingSplit'
 import EditRentalModal from '../planning/EditRentalModal'
 import EditLessonModal from '../planning/EditLessonModal'
 
@@ -473,10 +476,12 @@ interface ExtraLineFormProps {
   bookingId: string
   initial?: BookingCharge
   defaultDate: string
+  /** The booking's travellers, for "For" (who the extra is for). */
+  participants: { id: string; first_name: string; last_name: string | null }[]
   onSave: (c: BookingCharge) => void
   onCancel: () => void
 }
-function ExtraLineForm({ bookingId, initial, defaultDate, onSave, onCancel }: ExtraLineFormProps) {
+function ExtraLineForm({ bookingId, initial, defaultDate, participants, onSave, onCancel }: ExtraLineFormProps) {
   const { lang } = useLanguage()
   const [label, setLabel]       = useState(initial?.label ?? '')
   const [date, setDate]         = useState(initial?.date ?? defaultDate)
@@ -484,6 +489,9 @@ function ExtraLineForm({ bookingId, initial, defaultDate, onSave, onCancel }: Ex
   const [quantity, setQuantity] = useState(initial ? String(initial.quantity) : '1')
   const [unitPrice, setUnitPrice] = useState(initial ? String(initial.unit_price) : '')
   const [notes, setNotes]       = useState(initial?.notes ?? '')
+  // '' = everyone (equal shares in the split per person). One traveller only:
+  // nothing to choose, the extra is theirs either way.
+  const [forWhom, setForWhom]   = useState(initial?.participant_id ?? '')
 
   const q = parseFloat(quantity)
   const p = parseFloat(unitPrice)
@@ -498,6 +506,7 @@ function ExtraLineForm({ bookingId, initial, defaultDate, onSave, onCancel }: Ex
       date, label: label.trim(), category,
       quantity: q, unit_price: p,
       notes: notes.trim() || null,
+      participant_id: forWhom || null,
     })
   }
 
@@ -521,6 +530,15 @@ function ExtraLineForm({ bookingId, initial, defaultDate, onSave, onCancel }: Ex
           <input type="number" min="0" step="0.01" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} className={input} required />
         </label>
       </div>
+      {participants.length > 1 && (
+        <label className="block text-xs text-gray-500 dark:text-gray-400">
+          {i18n.accounting.bf_extra_for[lang]}
+          <select value={forWhom} onChange={e => setForWhom(e.target.value)} className={input}>
+            <option value="">{i18n.accounting.bf_extra_for_everyone[lang]}</option>
+            {participants.map(p => <option key={p.id} value={p.id}>{`${p.first_name} ${p.last_name ?? ''}`.trim()}</option>)}
+          </select>
+        </label>
+      )}
       <input value={notes} onChange={e => setNotes(e.target.value)} placeholder={i18n.accounting.bf_extra_notes_ph[lang]} className={input} />
       <div className="flex gap-2">
         <button type="button" onClick={onCancel}
@@ -1065,6 +1083,9 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                         <span className="ml-1 text-gray-400 dark:text-gray-500">
                           ({extraCategoryLabel(c.category, lang)} · {c.quantity} × {fmtEur(c.unit_price)})
                         </span>
+                        {c.participant_id && partName(c.participant_id) && (
+                          <span className="ml-1 text-blue-600 dark:text-blue-400">→ {partName(c.participant_id)}</span>
+                        )}
                         {c.notes && <span className="ml-1 italic text-gray-400 dark:text-gray-500">— {c.notes}</span>}
                       </span>
                       <div className="flex items-center gap-2 shrink-0">
@@ -1080,6 +1101,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                         bookingId={b.id}
                         initial={c}
                         defaultDate={defaultDate}
+                        participants={bkParts}
                         onSave={v => { handlers.updateBookingCharge(v); setEditingExtraId(null) }}
                         onCancel={() => setEditingExtraId(null)}
                       />
@@ -1093,6 +1115,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                   <ExtraLineForm
                     bookingId={b.id}
                     defaultDate={defaultDate}
+                    participants={bkParts}
                     onSave={v => { handlers.addBookingCharge(v); setShowAddExtra(false) }}
                     onCancel={() => setShowAddExtra(false)}
                   />
@@ -1121,83 +1144,44 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           right there is what the GUEST owes, never the whole stay's value. */}
       <AgencyBillingPanel booking={b} data={data} handlers={handlers} />
 
-      {/* Per-guest breakdown (collapsible) */}
+      {/* Split per person (2026-11-15) — the whole bill shared out between the
+          travellers, adding up to the total above (see bookingSplit.ts). */}
       {(() => {
-        const bkParts = data.bookingParticipants.filter(p => p.booking_id === b.id)
-        if (bkParts.length === 0) return null
-
-        type Line = { date: string; label: string; amount: number }
-        const guestData = bkParts.map(part => {
-          const lines: Line[] = []
-
-          // Lessons where this participant is listed
-          for (const l of bkLessons) {
-            if (!l.participant_ids.includes(part.id)) continue
-            const instr = data.instructors.find(i => i.id === l.instructor_id)
-            // Group lessons are billed per head, so each participant carries one share
-            const rate = getLessonClientRate(l, data.priceItems, { tiers: data.priceTiers, allLessons: data.lessons, bookingParticipants: data.bookingParticipants })
-            lines.push({
-              date: l.date,
-              label: `${l.type} ${i18n.accounting.bf_word_lesson[lang]} ${l.duration_hours}h${instr ? ` (${instr.first_name})` : ''}${inParens(lessonGearText(l, part.id, data.equipment))}`,
-              amount: rate * l.duration_hours,
-            })
-          }
-
-          // Rentals assigned to this participant
-          for (const r of bkRentals) {
-            if (r.participant_id !== part.id) continue
-            // Per-guest breakdown: the guest's wording ("Kite + bar + board"), not our "Full".
-            const kind = rentalKind(r, data.equipment)
-            lines.push({ date: r.date, label: `${kind ? rentalLabel(kind, 'client') : i18n.accounting.bf_word_rental[lang]}${inParens(rentalGearText(r, data.equipment))} · ${r.slot}`, amount: r.price })
-          }
-
-          // Dining events where this participant attended
-          for (const ev of data.diningEvents) {
-            const att = (ev.attendees ?? []).find(a => a.is_attending && a.person_type === 'participant' && a.person_id === part.id)
-            if (!att) continue
-            const amount = att.price_override ?? ev.price_per_person
-            if (amount === 0) continue
-            lines.push({ date: ev.date, label: ev.name || i18n.accounting.bf_word_dining[lang], amount })
-          }
-
-          // Activities where this participant is listed
-          for (const a of bkActivities) {
-            if (!a.participant_ids.includes(part.id)) continue
-            lines.push({ date: a.date, label: a.label, amount: a.price_client / a.nb_persons })
-          }
-
-          lines.sort((a, b) => a.date.localeCompare(b.date))
-          const total = lines.reduce((s, l) => s + l.amount, 0)
-          return { participant: part, lines, total }
-        }).filter(g => g.lines.length > 0)
-
-        if (guestData.length === 0) return null
-
+        const parts = data.bookingParticipants.filter(p => p.booking_id === b.id)
+        if (parts.length === 0) return null
+        const items = bookingSplitItems(b, data, {
+          lesson: i18n.accounting.bf_word_lesson[lang],
+          rental: i18n.accounting.bf_word_rental[lang],
+          dining: i18n.accounting.bf_word_dining[lang],
+          centerAccess: i18n.accounting.rev_center_access[lang],
+        })
         return (
-          <details className="group">
-            <summary className="cursor-pointer select-none flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors py-2">
-              <span className="transition-transform group-open:rotate-90">▶</span>
-              {i18n.accounting.bf_per_guest_breakdown[lang]}
-            </summary>
-            <div className="mt-2 space-y-3">
-              {guestData.map(({ participant: p, lines, total }) => (
-                <div key={p.id} className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
-                  <div className="flex justify-between items-center px-4 py-2 bg-blue-50 dark:bg-blue-950/40">
-                    <span className="text-sm font-medium text-blue-800 dark:text-blue-400">{p.first_name} {p.last_name ?? ''}</span>
-                    <span className="text-sm font-semibold text-blue-800 dark:text-blue-400">{fmtEur(total)}</span>
-                  </div>
-                  <div className="px-4 py-2 space-y-1">
-                    {lines.map((l, i) => (
-                      <div key={i} className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                        <span>{fmtDate(l.date)} · {l.label}</span>
-                        <span>{fmtEur(l.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </details>
+          <PerPersonSplitView
+            variant="plain"
+            splits={splitPerPerson(parts.map(p => p.id), items)}
+            names={Object.fromEntries(parts.map(p => [p.id, `${p.first_name} ${p.last_name ?? ''}`.trim()]))}
+            expectedTotal={total}
+            fmtEur={fmtEur}
+            fmtDate={fmtDate}
+            labels={{
+              title: i18n.accounting.bf_split_title[lang],
+              wholeStay: i18n.accounting.bf_split_whole_stay[lang],
+              activitiesOnly: i18n.accounting.bf_split_activities[lang],
+              included: i18n.accounting.bf_split_included[lang],
+              sum: i18n.accounting.bf_split_sum[lang],
+              mismatch: i18n.accounting.bf_split_mismatch[lang],
+              categories: {
+                accommodation: i18n.accounting.rev_accommodation[lang],
+                lessons: i18n.accounting.rev_lessons[lang],
+                rentals: i18n.accounting.bf_equipment_rentals[lang],
+                taxis: i18n.accounting.bf_taxis[lang],
+                dining: i18n.accounting.bf_split_cat_dining[lang],
+                activities: i18n.accounting.rev_activities[lang],
+                center_access: i18n.accounting.rev_center_access[lang],
+                extras: i18n.accounting.bf_extras[lang],
+              },
+            }}
+          />
         )
       })()}
 
