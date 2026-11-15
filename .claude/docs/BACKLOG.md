@@ -6,6 +6,8 @@
 
 ## 🚨 Migrations SQL — registre
 
+⏳ **`2026-11-15_dining_share_policy_perf.sql`** (**à passer TEST puis PROD**, aucun code à pousser) — la page client partagée perdait la section **Repas** en silence (#065, 15/11 : braai 12 € absent, solde faux ; chez un admin connecté tout allait bien). Cause : la policy anon `anon_read_dining_events` joignait `booking_participants`, dont la propre policy rappelle `share_ctx()` à chaque ligne → 3,29 s > `statement_timeout` anon de 3 s → **57014**, avalé par `diningRes.data ?? []`. Correctif : helper `share_participant_ids()` (SECURITY DEFINER, mêmes droits que `share_booking_id`) appelé une fois via `(SELECT …)::text[]`. Même périmètre. Testé PROD en transaction annulée : **96 ms**, mêmes 3 repas. Vérif : pied du fichier (curl anon token `client` → 200 avec ses repas). 💭 Après : la page devrait signaler une section qui n'a pas pu charger au lieu de la cacher.
+
 ✅ ~~**`2026-11-08b_booking_travel_mode.sql`**~~ (TEST ✅ / PROD ✅ le 10/11, **curl anon ✅** : 4 colonnes → 200, `notes` → 42501). Passée APRÈS le push : la page Taxis PROD a montré le bandeau « bookings.arrival_by does not exist » jusque-là (signalé par gui). Rappel — n° de vol sur la résa :
 `bookings.arrival_by / arrival_detail / departure_by / departure_detail` (+ CHECK sur `*_by`) + GRANT
 anon des 4 colonnes (page chauffeur, décision gui). **Strictement additive.** ⚠️ **À passer AVANT le
