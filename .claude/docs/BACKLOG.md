@@ -4,6 +4,12 @@
 > `.claude/archive/memory/backlog_closed_2026.md` (1600 lignes d'historique, décisions et
 > vérifications). Ici : **l'ouvert uniquement.** Une ligne close se raye et se déplace.
 
+## ✅ Livré 2026-11-15 — Compteur d'usage gui/Teresa (, **gui doit pousser** ; migration 15c passée TEST+PROD ✅, curl anon fermé)
+- Options → Database → **Usage** : pages + onglets ouverts par compte (/ = partie locale de l'email), filtre 7/30/90 j/tout. Ouvertures, pas temps passé ; pages partagées exclues.
+- Coût nul : compteurs en mémoire (), un seul RPC  à la mise en arrière-plan ou toutes les 5 min ; échec avalé. Table  = 1 ligne/compte/clé/jour ; lecture agrégée par .
+- Ajouter un onglet au compteur :  dans la page. Non compté : onglets de la fiche Clients.
+- Reste : voir le panneau se remplir à l'écran après push.
+
 ## ✅ Livré 2026-11-15 — Pages partagées : une lecture ratée se dit (**gui doit pousser**, aucune migration)
 
 Suite du cas #065 (section Repas disparue en silence). `utils/shareLoad.ts` (`loadCheck` compte les lectures ratées — « 0 ligne » d'un `.single()` n'en est pas une —, `retryOnce` relance le chargement une fois après 1,5 s) + `components/common/LoadIssueBanner.tsx` (bandeau « informations incomplètes — Recharger » et écran « impossible de charger, vérifiez la connexion », FR/EN/ES/PT). Branché sur les lectures **essentielles** de 6 pages : client (24 lectures + la résa elle-même : un réseau coupé n'affiche plus « Réservation introuvable », et le solde porte « peut-être incomplet »), walk-in, gestionnaire taxis, chauffeur, prestataire d'activités, moniteur. Restent tolérantes, exprès : noms d'élèves et onglet prévisionnel (moniteur), vols (gestionnaire), noms (Forecast). Hôtel partenaire avait déjà son écran d'erreur. **Avant d'activer** : chaque lecture vérifiée en anon sur PROD (vrais liens client/chauffeur/gestionnaire/moniteur ; walk-in et prestataire sans lien actif → colonnes vérifiées sans token) → toutes 200, donc pas de bandeau à tort. Tests : `shareLoad.test.ts` (10) + `LoadIssueBanner.test.tsx` (4) ; build ✅ ; 971 tests ✅ sauf `PalmeirasTimeline` (pré-existant). Jamais vu à l'écran en échec réel (difficile à provoquer ; rendu testé). 💭 Reste possible : pages partagées toujours en anonyme même chez gui (`lib/supabase.ts`), et remonter ces échecs dans `client_errors`.
