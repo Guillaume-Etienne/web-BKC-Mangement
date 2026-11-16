@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterAll } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import PalmeirasTimeline from './PalmeirasTimeline'
 import { buildStatement, buildLedger, type StatementInput } from '../../utils/palmeirasStatement'
@@ -22,7 +22,15 @@ const input: StatementInput = {
 }
 
 describe('PalmeirasTimeline', () => {
-  const html = renderToStaticMarkup(<PalmeirasTimeline input={input} statement={buildStatement(input, '2026-10-30')} />)
+  // The statement is built "as of" 2026-10-30, but the component decides which
+  // months are past from the real clock (todayISO). Without this, the test went
+  // red as soon as November started: its rent became "not recorded yet" too.
+  // Set before the first render, which happens right here while collecting.
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-10-30T12:00:00'))
+  afterAll(() => { vi.useRealTimers() })
+
+  const html =renderToStaticMarkup(<PalmeirasTimeline input={input} statement={buildStatement(input, '2026-10-30')} />)
 
   it('draws every bungalow, even an empty one', () => {
     for (const b of ['B1', 'B2', 'B3', 'B4', 'See View 5']) expect(html).toContain(`>${b}<`)
