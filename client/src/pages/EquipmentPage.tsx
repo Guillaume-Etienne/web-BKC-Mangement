@@ -14,6 +14,7 @@ import type {
 import { todayISO } from '../utils/dates'
 import { useTrackTab } from '../hooks/useTrackTab'
 import Modal from '../components/common/Modal'
+import { notifyError, notifyInfo } from '../lib/notify'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -246,7 +247,7 @@ export default function EquipmentPage() {
       ? await supabase.from('equipment_pricing_defaults').update(payload).eq('id', pricingDefaults.id)
       : await supabase.from('equipment_pricing_defaults').insert([payload])
     setPricingSaving(false)
-    if (error) { alert('Erreur : ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshPricingDefaults()
   }
 
@@ -363,7 +364,7 @@ export default function EquipmentPage() {
   }
 
   async function saveEquipment() {
-    if (!editModal.formData.name) { alert('Le nom est requis'); return }
+    if (!editModal.formData.name) { notifyInfo('Name is required.'); return }
     setSaving(true)
     // A piece with a resale date is no longer part of the active fleet — one
     // action instead of a separate "now also archive it" step.
@@ -373,11 +374,11 @@ export default function EquipmentPage() {
     if (editModal.equipment) {
       const { id, ...fields } = { ...editModal.equipment, ...formData }
       const { error } = await supabase.from('equipment').update(fields).eq('id', id)
-      if (error) { alert('Erreur : ' + error.message); setSaving(false); return }
+      if (error) { notifyError('Error: ' + error.message); setSaving(false); return }
       if (selectedEquipment?.id === id) setSelectedEquipment({ ...selectedEquipment, ...formData } as Equipment)
     } else {
       const { error } = await supabase.from('equipment').insert([formData])
-      if (error) { alert('Erreur : ' + error.message); setSaving(false); return }
+      if (error) { notifyError('Error: ' + error.message); setSaving(false); return }
     }
     setSaving(false)
     refreshEquipment()
@@ -386,7 +387,7 @@ export default function EquipmentPage() {
 
   async function archiveEquipment(eq: Equipment) {
     const { error } = await supabase.from('equipment').update({ is_active: false }).eq('id', eq.id)
-    if (error) { alert('Erreur : ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshEquipment()
     setSelectedEquipment(null)
   }
@@ -410,9 +411,9 @@ export default function EquipmentPage() {
       amount: eq.purchase_price + (eq.shipping_cost ?? 0),
       description: `Achat — ${eq.name}`,
     }]).select().single()
-    if (error) { alert('Erreur : ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     const { error: linkError } = await supabase.from('equipment').update({ purchase_expense_id: data.id }).eq('id', eq.id)
-    if (linkError) { alert('Erreur : ' + linkError.message); return }
+    if (linkError) { notifyError('Error: ' + linkError.message); return }
     refreshEquipment()
     refreshExpenses()
   }
@@ -424,7 +425,7 @@ export default function EquipmentPage() {
       amount: eq.purchase_price + (eq.shipping_cost ?? 0),
       description: `Achat — ${eq.name}`,
     }).eq('id', eq.purchase_expense_id)
-    if (error) { alert('Erreur : ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshExpenses()
   }
 
@@ -436,9 +437,9 @@ export default function EquipmentPage() {
       amount: -eq.sold_price,
       description: `Revente — ${eq.name}`,
     }]).select().single()
-    if (error) { alert('Erreur : ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     const { error: linkError } = await supabase.from('equipment').update({ sale_expense_id: data.id }).eq('id', eq.id)
-    if (linkError) { alert('Erreur : ' + linkError.message); return }
+    if (linkError) { notifyError('Error: ' + linkError.message); return }
     refreshEquipment()
     refreshExpenses()
   }
@@ -450,7 +451,7 @@ export default function EquipmentPage() {
       amount: -eq.sold_price,
       description: `Revente — ${eq.name}`,
     }).eq('id', eq.sale_expense_id)
-    if (error) { alert('Erreur : ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshExpenses()
   }
 
@@ -478,19 +479,19 @@ export default function EquipmentPage() {
       price:        25,
       notes:        null,
     }])
-    if (error) { alert('Erreur : ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshRentals()
   }
 
   async function updateRentalField(id: string, field: string, value: unknown) {
     const { error } = await supabase.from('equipment_rentals').update({ [field]: value }).eq('id', id)
-    if (error) alert('Erreur : ' + error.message)
+    if (error) notifyError('Error: ' + error.message)
     // No refresh — defaultValue inputs retain user-entered value; selects update via onChange
   }
 
   async function deleteRental(id: string) {
     const { error } = await supabase.from('equipment_rentals').delete().eq('id', id)
-    if (error) { alert('Erreur : ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshRentals()
   }
 

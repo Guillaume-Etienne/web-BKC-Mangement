@@ -13,6 +13,7 @@ import PalmeirasExports from '../palmeiras/PalmeirasExports'
 import MonthInput from '../common/MonthInput'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
+import { notifyError } from '../../lib/notify'
 
 interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
 
@@ -260,7 +261,7 @@ function SettlementForm({ balanceMzn, rentMonth, rentAmountMzn, rateFor, onSave,
 function reportDb(action: string, error: { message: string } | null): boolean {
   if (!error) return true
   console.error(`${action} failed:`, error.message)
-  alert(`Could not ${action}.\n\n${error.message}`)
+  notifyError(`Could not ${action}.\n\n${error.message}`)
   return false
 }
 

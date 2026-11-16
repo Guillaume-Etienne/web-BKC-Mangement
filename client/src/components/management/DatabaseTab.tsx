@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase, currentEnv, testConfigured, switchEnv } from '../../lib/supabase'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
+import { notifyInfo } from '../../lib/notify'
 
 interface TableStat {
   table_name:  string
@@ -69,7 +70,7 @@ export default function DatabaseTab() {
           <button
             onClick={() => {
               if (!testConfigured) {
-                alert('Test database credentials are not configured yet.\nAdd VITE_SUPABASE_TEST_URL and VITE_SUPABASE_TEST_KEY to client/.env.local')
+                notifyInfo('Test database credentials are not configured yet.\nAdd VITE_SUPABASE_TEST_URL and VITE_SUPABASE_TEST_KEY to client/.env.local')
                 return
               }
               if (currentEnv !== 'test') switchEnv('test')

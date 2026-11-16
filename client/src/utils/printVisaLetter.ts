@@ -1,4 +1,5 @@
 import type { Booking, BookingParticipant } from '../types/database'
+import { notifyInfo } from '../lib/notify'
 
 const LOGO_URL  = `${window.location.origin}/docs/logo-mas.png`
 const SIGN_URL  = `${window.location.origin}/docs/signature-mas.png`
@@ -161,7 +162,7 @@ export function printVisaLetter(booking: Booking, participants: BookingParticipa
 </html>`
 
   const win = window.open('', '_blank', 'width=820,height=1060')
-  if (!win) { alert('Please allow pop-ups to generate the PDF.'); return }
+  if (!win) { notifyInfo('Please allow pop-ups to generate the PDF.'); return }
   win.document.write(html)
   win.document.close()
 }

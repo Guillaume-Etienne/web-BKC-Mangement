@@ -27,6 +27,7 @@ import { depositState, askedState, stayState } from '../utils/documentsOverview'
 import { stayBookings } from '../utils/dayVisitor'
 import type { AskedState, DepositState, StayState } from '../utils/documentsOverview'
 import { useTrackTab } from '../hooks/useTrackTab'
+import { notifyError, notifyInfo } from '../lib/notify'
 
 // ── Guide sections — legacy localStorage fallback ──────────────────────────────
 // Sections now live in the document_templates table. This read-only fallback
@@ -596,12 +597,12 @@ export default function DocumentsPage() {
   async function saveGuide() {
     if (!guideSections) return
     const err = await guideDb.save(guideSections)
-    if (err) alert(`Failed to save templates: ${err}`)
+    if (err) notifyError(`Failed to save templates: ${err}`)
   }
   async function saveWelcome() {
     if (!welcomeSections) return
     const err = await welcomeDb.save(welcomeSections)
-    if (err) alert(`Failed to save templates: ${err}`)
+    if (err) notifyError(`Failed to save templates: ${err}`)
   }
   function cancelGuide()   { setGuideSections(guideDb.saved ?? loadLegacyGuideSections()) }
   function cancelWelcome() { setWelcomeSections(welcomeDb.saved ?? defaultWelcomeGuideSections) }
@@ -688,7 +689,7 @@ export default function DocumentsPage() {
       expires_at: addDaysISO(todayISO(), 365),
       is_active: true,
     }])
-    if (error) { alert(`Failed to create link: ${error.message}`); return null }
+    if (error) { notifyError(`Failed to create link: ${error.message}`); return null }
     refreshSharedLinks()
     return token
   }
@@ -734,13 +735,13 @@ export default function DocumentsPage() {
       expires_at: addDaysISO(todayISO(), 365),
       is_active: true,
     }])
-    if (error) { alert(`Failed to create link: ${error.message}`); return }
+    if (error) { notifyError(`Failed to create link: ${error.message}`); return }
     refreshSharedLinks()
   }
 
   async function reactivateLink(link: SharedLink) {
     const { error } = await supabase.from('shared_links').update({ is_active: true }).eq('id', link.id)
-    if (error) { alert(`Failed to reactivate link: ${error.message}`); return }
+    if (error) { notifyError(`Failed to reactivate link: ${error.message}`); return }
     refreshSharedLinks()
   }
 
@@ -768,7 +769,7 @@ export default function DocumentsPage() {
     const { error } = await supabase.from('bookings').update({ deposit_requested_at: next }).eq('id', b.id)
     if (error) {
       // The column may simply not be there: the page is built to work without it.
-      alert(`Could not save: ${error.message}${
+      notifyError(`Could not save: ${error.message}${
         /deposit_requested_at/.test(error.message)
           ? '\n\nThis needs migration 2026-09-05b_deposit_requested.sql.'
           : ''}`)
@@ -907,7 +908,7 @@ export default function DocumentsPage() {
     setSending(type)
     try {
       const err = await invokeSendEmail(bookingId, type, to.trim(), subject, html)
-      if (err) alert(`Failed to send email: ${err}`)
+      if (err) notifyError(`Failed to send email: ${err}`)
       else setLogsRefresh(r => r + 1)
     } finally {
       setSending(null)
@@ -928,7 +929,7 @@ export default function DocumentsPage() {
     const cells = Array.from(selectedCells)
     if (cells.length === 0) return
     if (orderLoading && cells.some(c => c.endsWith(':booking_confirmation'))) {
-      alert('Prices are still loading — try again in a second.')
+      notifyInfo('Prices are still loading — try again in a second.')
       return
     }
     setBulkBusy({ kind: 'send', done: 0, total: cells.length })
@@ -954,7 +955,7 @@ export default function DocumentsPage() {
     setOverviewRefresh(r => r + 1)
     const okCount = cells.length - failures - skipped
     if (failures > 0 || skipped > 0) {
-      alert(`Sent ${okCount}/${cells.length}.${failures ? ` ${failures} failed.` : ''}${skipped ? ` ${skipped} skipped (no client email on file).` : ''}`)
+      notifyError(`Sent ${okCount}/${cells.length}.${failures ? ` ${failures} failed.` : ''}${skipped ? ` ${skipped} skipped (no client email on file).` : ''}`)
     }
   }
 
@@ -975,7 +976,7 @@ export default function DocumentsPage() {
     })
     const { error } = await supabase.from('email_logs').insert(rows)
     setBulkBusy(null)
-    if (error) alert(`Failed to record: ${error.message}`)
+    if (error) notifyError(`Failed to record: ${error.message}`)
     setSelectedCells(new Set())
     setOverviewRefresh(r => r + 1)
   }

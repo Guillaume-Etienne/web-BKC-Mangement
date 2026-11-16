@@ -3,6 +3,7 @@ import { useTable } from '../../hooks/useSupabase'
 import { supabase } from '../../lib/supabase'
 import { todayISO, addDaysISO } from '../../utils/dates'
 import type { SharedLink } from '../../types/database'
+import { notifyError } from '../../lib/notify'
 
 interface Props {
   bookingNumber: number
@@ -34,7 +35,7 @@ export default function ClientShareLink({ bookingNumber, clientName }: Props) {
       is_active: true,
     }])
     setBusy(false)
-    if (error) { alert(`Failed to create link: ${error.message}`); return }
+    if (error) { notifyError(`Failed to create link: ${error.message}`); return }
     refresh()
   }
 
@@ -43,7 +44,7 @@ export default function ClientShareLink({ bookingNumber, clientName }: Props) {
     setBusy(true)
     const { error } = await supabase.from('shared_links').update({ is_active: true }).eq('id', link.id)
     setBusy(false)
-    if (error) { alert(`Failed to reactivate link: ${error.message}`); return }
+    if (error) { notifyError(`Failed to reactivate link: ${error.message}`); return }
     refresh()
   }
 

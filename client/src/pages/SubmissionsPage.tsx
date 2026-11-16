@@ -14,6 +14,7 @@ import { splitName } from '../utils/names'
 import { FALLBACK_TAXI_PRICING } from '../utils/taxiPricing'
 import { travelLabel, travelToStore } from '../utils/travelMode'
 import TravelBadge from '../components/common/TravelBadge'
+import { notifyInfo } from '../lib/notify'
 
 // Admin review queue for public booking-form submissions.
 // English UI (admin chrome). Approving turns a submission into a real
@@ -419,7 +420,7 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
           if (delErr) { setError('Participants: ' + delErr.message); setBusy(false); return }
         }
         if (kept.length > 0) {
-          alert(`Kept on the booking although not on the form, because lessons or rentals point to them: ${kept.map(e => `${e.first_name} ${e.last_name ?? ''}`.trim()).join(', ')}. Remove them from the booking by hand if they are really not coming.`)
+          notifyInfo(`Kept on the booking although not on the form, because lessons or rentals point to them: ${kept.map(e => `${e.first_name} ${e.last_name ?? ''}`.trim()).join(', ')}. Remove them from the booking by hand if they are really not coming.`)
         }
       }
     }

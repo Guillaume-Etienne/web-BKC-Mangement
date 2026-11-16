@@ -28,6 +28,7 @@ import { ensureInHouseProvider, buildBilledActivities } from '../../utils/billed
 import type { BillActivityRequest } from '../../utils/billedActivities'
 import { useTrackTab } from '../../hooks/useTrackTab'
 import Modal from '../common/Modal'
+import { notifyError, notifyInfo } from '../../lib/notify'
 
 // ── Booking quick view modal ───────────────────────────────────────────────────
 
@@ -584,7 +585,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     const failed = results.filter(r => r.error)
     if (failed.length > 0) {
       console.error('Validate moves failed:', failed.map(r => r.error?.message))
-      alert(
+      notifyError(
         `${failed.length} of these ${results.length} changes did not save:\n\n` +
         `${[...new Set(failed.map(r => r.error?.message))].join('\n')}\n\n` +
         `Your pending moves have been kept — check the planning and validate again.`
@@ -726,7 +727,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     if (error) {
       console.error('Lesson save error:', error.message)
       setLessons(prev => prev.filter(x => x.id !== id))
-      alert('Error saving lesson: ' + error.message)
+      notifyError('Error saving lesson: ' + error.message)
       return false
     }
     // After the lesson row (FK), in the same handler so the order is guaranteed.
@@ -734,7 +735,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       const { error: gearError } = await supabase.from('lesson_participant_gear').insert(rider_gear)
       if (gearError) {
         console.error('Rider gear save error:', gearError.message)
-        alert('Lesson saved, but the gear per rider was not: ' + gearError.message)
+        notifyError('Lesson saved, but the gear per rider was not: ' + gearError.message)
       }
     }
     return true
@@ -752,7 +753,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     if (error) {
       console.error('Lesson update error:', error.message)
       setLessons(before)
-      alert('Error updating lesson: ' + error.message)
+      notifyError('Error updating lesson: ' + error.message)
       return
     }
     // Gear per rider: rewrite only when it actually changed (a move or a price
@@ -767,7 +768,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
         const msg = (delError ?? insError)!.message
         console.error('Rider gear update error:', msg)
         setLessons(before)
-        alert('Gear per rider not saved: ' + msg)
+        notifyError('Gear per rider not saved: ' + msg)
       }
     }
   }, [lessons])
@@ -779,7 +780,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     if (error) {
       console.error('Lesson delete error:', error.message)
       if (removed) setLessons(prev => [...prev, removed as Lesson])
-      alert('Error deleting lesson: ' + error.message)
+      notifyError('Error deleting lesson: ' + error.message)
     }
   }, [])
 
@@ -791,7 +792,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     if (error) {
       console.error('Activity save error:', error.message)
       setDayActivities(prev => prev.filter(x => x.id !== id))
-      alert('Error saving activity: ' + error.message)
+      notifyError('Error saving activity: ' + error.message)
     }
   }, [])
 
@@ -805,7 +806,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       const { error } = await supabase.from('activity_bookings').insert(rows)
       if (error) throw new Error(error.message)
     } catch (err) {
-      alert('The activity is on the planning, but it was NOT added to the guests’ bills.\n\n'
+      notifyError('The activity is on the planning, but it was NOT added to the guests’ bills.\n\n'
         + (err as Error).message + '\n\nAdd it from Accounting → the booking → Activities.')
     }
   }, [])
@@ -817,7 +818,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     if (error) {
       console.error('Activity delete error:', error.message)
       if (removed) setDayActivities(prev => [...prev, removed as DayActivity])
-      alert('Error deleting activity: ' + error.message)
+      notifyError('Error deleting activity: ' + error.message)
     }
   }, [])
 
@@ -829,7 +830,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     if (error) {
       console.error('Rental save error:', error.message)
       setRentals(prev => prev.filter(x => x.id !== id))
-      alert('Error saving rental: ' + error.message)
+      notifyError('Error saving rental: ' + error.message)
       return false
     }
     return true
@@ -845,7 +846,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     if (error) {
       console.error('Rental update error:', error.message)
       setRentals(before)
-      alert('Error updating rental: ' + error.message)
+      notifyError('Error updating rental: ' + error.message)
     }
   }, [rentals])
 
@@ -856,7 +857,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     if (error) {
       console.error('Rental delete error:', error.message)
       if (removed) setRentals(prev => [...prev, removed as EquipmentRental])
-      alert('Error deleting rental: ' + error.message)
+      notifyError('Error deleting rental: ' + error.message)
     }
   }, [])
 
@@ -876,10 +877,10 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     if (res.error) {
       console.error('Walk-in save error:', res.error)
       const where = res.booking ? `\n\nThe visit exists (booking #${res.booking.booking_number}): finish it from Bookings.` : ''
-      alert(`Walk-in not fully saved — ${res.error}${where}`)
+      notifyError(`Walk-in not fully saved — ${res.error}${where}`)
       return false
     }
-    if (res.warnings.length) alert(`Walk-in saved, with warnings:\n- ${res.warnings.join('\n- ')}`)
+    if (res.warnings.length) notifyInfo(`Walk-in saved, with warnings:\n- ${res.warnings.join('\n- ')}`)
     return true
   }, [clients, bookingParticipants, refreshClients, refreshParticipants])
 

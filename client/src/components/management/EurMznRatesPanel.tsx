@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import { useEurMznRates } from '../../hooks/useEurMznRates'
 import { fmtDate, todayISO } from '../../utils/dates'
 import type { EurMznRateRow } from '../../types/database'
+import { notifyError } from '../../lib/notify'
 
 interface Draft { id: string | null; valid_from: string; rate: string; note: string }
 
@@ -32,14 +33,14 @@ export default function EurMznRatesPanel({ onChanged }: { onChanged: () => void 
       ? await supabase.from('eur_mzn_rates').update(fields).eq('id', draft.id)
       : await supabase.from('eur_mzn_rates').insert([fields])
     setSaving(false)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     done()
   }
 
   const remove = async (r: EurMznRateRow) => {
     if (!confirm(`Delete the rate of ${fmtDate(r.valid_from)}? The figures of that period will use the previous rate.`)) return
     const { error } = await supabase.from('eur_mzn_rates').delete().eq('id', r.id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     done()
   }
 

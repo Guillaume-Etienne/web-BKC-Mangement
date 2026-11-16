@@ -18,6 +18,7 @@ import WalkInTabPanel from '../components/clients/WalkInTabPanel'
 import { clientParticipantIds, cumulativeHoursBefore } from '../components/accounting/utils'
 import { isDayVisitor, visitsOf } from '../utils/dayVisitor'
 import Modal from '../components/common/Modal'
+import { notifyError, notifyInfo } from '../lib/notify'
 
 interface ClientsPageProps {
   onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients') => void
@@ -93,7 +94,7 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
         is_active: true,
       }
       const { error } = await supabase.from('shared_links').insert([row])
-      if (error) { alert('Could not create the link: ' + error.message); return }
+      if (error) { notifyError('Could not create the link: ' + error.message); return }
       refreshSharedLinks()
       link = row as unknown as SharedLink
     }
@@ -247,10 +248,10 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
 
   const handleDelete = async (id: string) => {
     const blocked = await whatBlocksDelete('clients', id)
-    if (blocked) { alert(`This client can't be deleted: ${blocked}. Their bookings and lessons are kept on purpose.`); return }
+    if (blocked) { notifyInfo(`This client can't be deleted: ${blocked}. Their bookings and lessons are kept on purpose.`); return }
     if (!confirm('Delete this client?')) return
     const { error: err } = await supabase.from('clients').delete().eq('id', id)
-    if (err) { alert('Delete error: ' + deleteErrorMessage(err)); return }
+    if (err) { notifyError('Delete error: ' + deleteErrorMessage(err)); return }
     setSelectedClient(null)
     refreshClients()
   }

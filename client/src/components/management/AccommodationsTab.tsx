@@ -9,6 +9,7 @@ import { PALMEIRAS_COMMISSION_PCT, palmeirasCostMzn, palmeirasCommissionMzn } fr
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import Modal from '../common/Modal'
+import { notifyError, notifyInfo } from '../../lib/notify'
 
 function typeMeta(lang: Lang): Record<AccommodationType, { icon: string; label: string; plural: string }> {
   return {
@@ -216,7 +217,7 @@ function RentalForm({ accommodationId, onAdd }: RentalFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (endDate <= startDate) { alert('End date must be after start date.'); return }
+    if (endDate <= startDate) { notifyInfo('End date must be after start date.'); return }
     setSaving(true)
     await onAdd({
       accommodation_id: accommodationId,
@@ -327,7 +328,7 @@ async function saveRates(values: Record<string, string>, rates: RoomRate[]): Pro
 /** A rate that looks saved but isn't is worse than one that was never set: the
  *  booking wizard finds nothing and quietly starts the stay at 0 €. */
 function alertRatesFailed(failures: string[]) {
-  alert(`The rates were NOT saved.\n\n${failures.join('\n')}\n\nStays booked here would be priced at 0 € — please try again.`)
+  notifyError(`The rates were NOT saved.\n\n${failures.join('\n')}\n\nStays booked here would be priced at 0 € — please try again.`)
 }
 
 // ── Rooms: the structure rates and the planning grid both hang off ───────────
@@ -376,7 +377,7 @@ function RoomsEditor({ accommodation, rooms, onChanged }: RoomsEditorProps) {
     setBusy(true)
     const err = await op
     setBusy(false)
-    if (err) { alert(err); return }
+    if (err) { notifyError(err); return }
     onChanged()
   }
 
@@ -526,7 +527,7 @@ export default function AccommodationsTab() {
       }])
       .select('id')
       .single()
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
 
     // Auto-create rooms
     const roomRows = data.type === 'house'
@@ -537,7 +538,7 @@ export default function AccommodationsTab() {
       : [{ accommodation_id: inserted.id, name: 'Room', capacity: 2 }]
 
     const { error: roomErr } = await supabase.from('rooms').insert(roomRows)
-    if (roomErr) alert('Rooms creation error: ' + roomErr.message)
+    if (roomErr) notifyError('Rooms creation error: ' + roomErr.message)
     refreshAccommodations()
     refreshRooms()
     setShowForm(false)
@@ -555,17 +556,17 @@ export default function AccommodationsTab() {
         external_billing: data.external_billing,
       })
       .eq('id', editing.id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshAccommodations()
     setEditing(null)
   }
 
   async function handleDelete(acc: Accommodation) {
     const blocked = await whatBlocksDelete('accommodations', acc.id)
-    if (blocked) { alert(`${acc.name} can't be deleted: ${blocked}. Move those bookings elsewhere first, or mark it inactive.`); return }
+    if (blocked) { notifyInfo(`${acc.name} can't be deleted: ${blocked}. Move those bookings elsewhere first, or mark it inactive.`); return }
     if (!confirm(`Delete ${acc.name} and its rooms? No booking uses it.`)) return
     const { error } = await supabase.from('accommodations').delete().eq('id', acc.id)
-    if (error) { alert('Error: ' + deleteErrorMessage(error)); return }
+    if (error) { notifyError('Error: ' + deleteErrorMessage(error)); return }
     if (selected?.id === acc.id) setSelected(null)
     refreshAccommodations()
     refreshRooms()
@@ -573,14 +574,14 @@ export default function AccommodationsTab() {
 
   async function handleAddRental(r: Omit<HouseRental, 'id'>) {
     const { error } = await supabase.from('house_rentals').insert([r])
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshRentals()
   }
 
   async function handleDeleteRental(id: string) {
     if (!confirm('Delete this rental period?')) return
     const { error } = await supabase.from('house_rentals').delete().eq('id', id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshRentals()
   }
 

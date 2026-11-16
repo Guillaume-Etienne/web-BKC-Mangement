@@ -7,6 +7,7 @@ import { AGENCY_RATE_CATEGORIES, compareRateItems } from '../../types/database'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import Modal from '../common/Modal'
+import { notifyError, notifyInfo } from '../../lib/notify'
 
 /** The icon of one category — AGENCY_RATE_CATEGORIES is the single source, in
  *  display order, shared with the booking's billing panel. */
@@ -352,7 +353,7 @@ export default function AgenciesTab() {
 
   async function handleCreate(data: AgencyFormData) {
     const { error } = await supabase.from('agencies').insert([data])
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshAgencies()
     setShowForm(false)
   }
@@ -360,17 +361,17 @@ export default function AgenciesTab() {
   async function handleEdit(data: AgencyFormData) {
     if (!editing) return
     const { error } = await supabase.from('agencies').update(data).eq('id', editing.id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshAgencies()
     setEditing(null)
   }
 
   async function handleDelete(agency: Agency) {
     const blocked = await whatBlocksDelete('agencies', agency.id)
-    if (blocked) { alert(`${agency.name} can't be deleted: ${blocked}. Those bookings would silently become billed to the client.`); return }
+    if (blocked) { notifyInfo(`${agency.name} can't be deleted: ${blocked}. Those bookings would silently become billed to the client.`); return }
     if (!confirm(`Delete ${agency.name} and its rate card?`)) return
     const { error } = await supabase.from('agencies').delete().eq('id', agency.id)
-    if (error) { alert('Error: ' + deleteErrorMessage(error)); return }
+    if (error) { notifyError('Error: ' + deleteErrorMessage(error)); return }
     if (selected?.id === agency.id) setSelected(null)
     refreshAgencies()
     refreshRateItems()
@@ -378,14 +379,14 @@ export default function AgenciesTab() {
 
   async function handleAddRateItem(item: Omit<AgencyRateItem, 'id'>) {
     const { error } = await supabase.from('agency_rate_items').insert([item])
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshRateItems()
   }
 
   async function handleToggleActive(item: AgencyRateItem) {
     const { error } = await supabase.from('agency_rate_items')
       .update({ is_active: !item.is_active }).eq('id', item.id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshRateItems()
   }
 
@@ -394,7 +395,7 @@ export default function AgenciesTab() {
     patch: Pick<AgencyRateItem, 'label' | 'unit_hours' | 'price'>,
   ) {
     const { error } = await supabase.from('agency_rate_items').update(patch).eq('id', item.id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshRateItems()
   }
 

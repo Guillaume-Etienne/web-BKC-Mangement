@@ -23,6 +23,7 @@ import type { OptionsTab } from '../components/management/OptionsMenu'
 import UsagePanel from '../components/management/UsagePanel'
 import ClientErrorsPanel from '../components/management/ClientErrorsPanel'
 import Modal from '../components/common/Modal'
+import { notifyError, notifyInfo } from '../lib/notify'
 
 
 const specialtyOptions = ['Beg-Total', 'Beg-BodyDrag', 'Beg-WaterStart', 'Intermediate', 'Advanced', 'Wave', 'Freestyle']
@@ -174,7 +175,7 @@ export default function ManagementPage() {
     if (!Number.isFinite(hours) || hours <= 0 || !Number.isFinite(price) || price < 0) return
     const { error } = await supabase.from('price_tiers')
       .insert([{ billable_type: billableType, min_hours: hours, price_per_hour: price }])
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     setNewTierHours(h => ({ ...h, [billableType]: '' }))
     setNewTierHoursPrice(p => ({ ...p, [billableType]: '' }))
     refreshPriceTiers()
@@ -260,7 +261,7 @@ export default function ManagementPage() {
     if (selectedInstructor) {
       const { id, ...fields } = { ...selectedInstructor, ...instructorFormData }
       const { error } = await supabase.from('instructors').update(fields).eq('id', id)
-      if (error) { alert('Error: ' + error.message); return }
+      if (error) { notifyError('Error: ' + error.message); return }
       setSelectedInstructor(prev => prev ? { ...prev, ...instructorFormData } : null)
     } else {
       const { error } = await supabase.from('instructors').insert([{
@@ -274,7 +275,7 @@ export default function ManagementPage() {
         rate_supervision:instructorFormData.rate_supervision|| 25,
         notes:      instructorFormData.notes      || null,
       }])
-      if (error) { alert('Error: ' + error.message); return }
+      if (error) { notifyError('Error: ' + error.message); return }
     }
     refreshInstructors()
     closeInstructorForm()
@@ -282,10 +283,10 @@ export default function ManagementPage() {
 
   const handleDeleteInstructor = async (id: string) => {
     const blocked = await whatBlocksDelete('instructors', id)
-    if (blocked) { alert(`This instructor can't be deleted: ${blocked}. Their lessons and pay history are kept on purpose.`); return }
+    if (blocked) { notifyInfo(`This instructor can't be deleted: ${blocked}. Their lessons and pay history are kept on purpose.`); return }
     if (confirm('Delete this instructor?')) {
       const { error } = await supabase.from('instructors').delete().eq('id', id)
-      if (error) { alert('Error: ' + deleteErrorMessage(error)); return }
+      if (error) { notifyError('Error: ' + deleteErrorMessage(error)); return }
       setSelectedInstructor(null)
       refreshInstructors()
     }
@@ -322,7 +323,7 @@ export default function ManagementPage() {
     if (priceFormData.id) {
       const { id, ...fields } = priceFormData as PriceItem
       const { error } = await supabase.from('price_items').update(fields).eq('id', id)
-      if (error) { alert('Error: ' + error.message); return }
+      if (error) { notifyError('Error: ' + error.message); return }
     } else {
       const { error } = await supabase.from('price_items').insert([{
         category:    priceFormData.category    || selectedPriceCategory,
@@ -332,7 +333,7 @@ export default function ManagementPage() {
         unit:        priceFormData.unit        || null,
         billable_type: priceFormData.billable_type ?? null,
       }])
-      if (error) { alert('Error: ' + error.message); return }
+      if (error) { notifyError('Error: ' + error.message); return }
     }
     refreshPriceItems()
     closePriceForm()
@@ -341,7 +342,7 @@ export default function ManagementPage() {
   const handleDeletePrice = async (id: string) => {
     if (confirm('Delete this price entry?')) {
       const { error } = await supabase.from('price_items').delete().eq('id', id)
-      if (error) { alert('Error: ' + error.message); return }
+      if (error) { notifyError('Error: ' + error.message); return }
       refreshPriceItems()
     }
   }
@@ -376,7 +377,7 @@ export default function ManagementPage() {
       expires_at: linkFormData.expires_at || null,
       is_active:  true,
     }])
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshSharedLinks()
     setShowLinkForm(false)
     setLinkFormData({ label: '', type: 'forecast', expires_at: addDaysISO(todayISO(), 365), booking_number: '', driver_id: '', instructor_id: '' })
@@ -386,14 +387,14 @@ export default function ManagementPage() {
     const link = sharedLinks.find(l => l.id === id)
     if (!link) return
     const { error } = await supabase.from('shared_links').update({ is_active: !link.is_active }).eq('id', id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshSharedLinks()
   }
 
   const deleteLink = async (id: string) => {
     if (confirm('Delete this link? Anyone using it will lose access.')) {
       const { error } = await supabase.from('shared_links').delete().eq('id', id)
-      if (error) { alert('Error: ' + error.message); return }
+      if (error) { notifyError('Error: ' + error.message); return }
       refreshSharedLinks()
     }
   }
@@ -795,7 +796,7 @@ export default function ManagementPage() {
                     <button onClick={async () => {
                       const defaults = { default_price_eur: 120, default_driver_mzn: 6500, default_manager_mzn: 1000, eur_mzn_rate: 65.0, updated_at: new Date().toISOString() }
                       const { data, error } = await supabase.from('taxi_pricing_defaults').insert([defaults]).select().single()
-                      if (error) { alert('Error: ' + error.message); return }
+                      if (error) { notifyError('Error: ' + error.message); return }
                       setTaxiPricingDefaults(data)
                       setTaxiPricingForm(data)
                     }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm">
@@ -847,7 +848,7 @@ export default function ManagementPage() {
                           default_manager_mzn:updated.default_manager_mzn,
                           updated_at:         updated.updated_at,
                         }).eq('id', updated.id)
-                        if (error) { alert('Error: ' + error.message); return }
+                        if (error) { notifyError('Error: ' + error.message); return }
                         setTaxiPricingDefaults(updated)
                         setTaxiPricingEditing(false)
                       }}

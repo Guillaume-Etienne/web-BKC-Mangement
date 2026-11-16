@@ -2,6 +2,7 @@ import type { Booking, BookingParticipant } from '../types/database'
 import { guideTextHtml, type TravelGuideSection } from '../data/travelGuide'
 import type { BookingOrder } from './bookingOrder'
 import { bookingOrderHtml, bookingOrderTitle } from './bookingOrderHtml'
+import { notifyInfo } from '../lib/notify'
 
 const LOGO_URL = `${window.location.origin}/docs/LOGO-bkc.png`
 const BLUE = '#4472C4'
@@ -184,7 +185,7 @@ export function printBookingSummary(
 </html>`
 
   const win = window.open('', '_blank', 'width=820,height=1060')
-  if (!win) { alert('Please allow pop-ups to generate the PDF.'); return }
+  if (!win) { notifyInfo('Please allow pop-ups to generate the PDF.'); return }
   win.document.write(html)
   win.document.close()
 }

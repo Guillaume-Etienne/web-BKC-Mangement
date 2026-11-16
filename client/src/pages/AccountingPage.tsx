@@ -39,6 +39,7 @@ import type {
   AgencyBillingLine, AgencyInvoice, TaxiTrip, Lang, ActivityBooking,
   Associate, AssociateTransfer,
 } from '../types/database'
+import { notifyError } from '../lib/notify'
 
 type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'agencies' | 'associates' | 'cashflow' | 'expenses' | 'events' | 'unverified'
 
@@ -334,7 +335,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       if (error) {
         console.error('Lesson update error:', error.message)
         setLessons(before)
-        alert('Error updating lesson: ' + error.message)
+        notifyError('Error updating lesson: ' + error.message)
         return
       }
       // Gear per rider: rewrite only when it changed. Delete then insert, in this one
@@ -349,7 +350,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
           const msg = (delError ?? insError)!.message
           console.error('Rider gear update error:', msg)
           setLessons(before)
-          alert('Gear per rider not saved: ' + msg)
+          notifyError('Gear per rider not saved: ' + msg)
         }
       }
     },
@@ -415,7 +416,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         setActivityBookings(prev => [{ ...row, created_at: new Date().toISOString() }, ...prev])
         persist(supabase.from('activity_bookings').insert([row]),
           () => setActivityBookings(before), 'the activity')
-      }).catch((err: Error) => alert('Could not save the activity.\n\n' + err.message))
+      }).catch((err: Error) => notifyError('Could not save the activity.\n\n' + err.message))
     },
     updateActivityBooking: (a: ActivityBooking) => {
       const before = activityBookings

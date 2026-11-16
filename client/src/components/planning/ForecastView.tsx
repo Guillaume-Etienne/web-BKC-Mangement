@@ -16,6 +16,7 @@ import { supabase } from '../../lib/supabase'
 import { i18n } from '../../data/i18n'
 import { RENTAL_TYPES, type RentalKind } from './rentalTypes'
 import Modal from '../common/Modal'
+import { notifyError, notifyInfo } from '../../lib/notify'
 
 // Forecast = the ORGANISING sandbox. What is placed here is a plan: it lives in
 // `planned_lessons` / `planned_rentals`, which nothing in accounting, payroll or
@@ -744,26 +745,26 @@ function ForecastDay({
     const { error } = id
       ? await supabase.from('planned_lessons').update(row).eq('id', id)
       : await supabase.from('planned_lessons').insert([row])
-    if (error) { alert('Error saving plan: ' + error.message); return }
+    if (error) { notifyError('Error saving plan: ' + error.message); return }
     refreshPlanLessons()
   }
 
   async function deletePlanLesson(id: string) {
     const { error } = await supabase.from('planned_lessons').delete().eq('id', id)
-    if (error) { alert('Error removing from plan: ' + error.message); return }
+    if (error) { notifyError('Error removing from plan: ' + error.message); return }
     refreshPlanLessons()
   }
 
   async function addPlanRental(draft: Omit<PlannedRental, 'id' | 'exported_at' | 'booking_id'>) {
     const booking_id = bookingParticipants.find(p => p.id === draft.participant_id)?.booking_id ?? null
     const { error } = await supabase.from('planned_rentals').insert([{ ...draft, booking_id }])
-    if (error) { alert('Error saving plan: ' + error.message); return }
+    if (error) { notifyError('Error saving plan: ' + error.message); return }
     refreshPlanRentals()
   }
 
   async function deletePlanRental(id: string) {
     const { error } = await supabase.from('planned_rentals').delete().eq('id', id)
-    if (error) { alert('Error removing from plan: ' + error.message); return }
+    if (error) { notifyError('Error removing from plan: ' + error.message); return }
     refreshPlanRentals()
   }
 
@@ -888,7 +889,7 @@ function ForecastDay({
   function reportSkips(done: number, skips: string[]) {
     refreshPlanLessons(); refreshPlanRentals()
     if (skips.length === 0) return
-    alert(`${done} exported to Daily.\n\nNot exported:\n• ${skips.join('\n• ')}`)
+    notifyInfo(`${done} exported to Daily.\n\nNot exported:\n• ${skips.join('\n• ')}`)
   }
 
   async function exportOneLesson(p: PlannedLesson) {
@@ -911,7 +912,7 @@ function ForecastDay({
   async function exportDay() {
     const ls = dayPlan.filter(l => !l.exported_at)
     const rs = dayPlanRent.filter(r => !r.exported_at)
-    if (ls.length + rs.length === 0) { alert('Nothing left to export for this day.'); return }
+    if (ls.length + rs.length === 0) { notifyInfo('Nothing left to export for this day.'); return }
     if (!confirm(
       `Export ${ls.length} lesson(s) and ${rs.length} rental(s) of ${formatDate(selectedDate, lang)} to Daily?\n\n` +
       'They will be counted from now on: the client price and the instructor pay are frozen today. ' +
@@ -975,7 +976,7 @@ function ForecastDay({
     ])
     setBusy(false)
     const err = a.error ?? b.error
-    if (err) alert('Error pasting: ' + err.message)
+    if (err) notifyError('Error pasting: ' + err.message)
     refreshPlanLessons(); refreshPlanRentals()
   }
 
@@ -1088,7 +1089,7 @@ function ForecastDay({
       duration_hours: pv.durationSlots * 0.5,
       instructor_id: pv.instructorId,
     }).eq('id', moved.id)
-    if (error) alert('Error moving: ' + error.message)
+    if (error) notifyError('Error moving: ' + error.message)
     refreshPlanLessons()
   }
 

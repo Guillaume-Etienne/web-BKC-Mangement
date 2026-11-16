@@ -7,6 +7,7 @@ import { eventCost, eventDailyContribution, eventExpenseDescription, eventHeadco
 import { todayISO, fmtDate } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
+import { notifyError } from '../../lib/notify'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -325,7 +326,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
     if (error) {
       console.error('Delete event error:', error.message)
       if (snapshot) setEvents(prev => [...prev, snapshot].sort((a, b) => b.date.localeCompare(a.date)))
-      alert('Error deleting event: ' + error.message)
+      notifyError('Error deleting event: ' + error.message)
     }
   }
 
@@ -391,7 +392,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
     }).eq('id', id)
     if (error) {
       console.error('Save event error:', error.message)
-      alert('Error saving event: ' + error.message)
+      notifyError('Error saving event: ' + error.message)
       return
     }
     // Only an event that was given a cost / the Daily box has a row: a plain dinner
@@ -405,7 +406,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
       }, { onConflict: 'dining_event_id' })
       if (costError) {
         console.error('Save event cost error:', costError.message)
-        alert('Error saving event cost: ' + costError.message)
+        notifyError('Error saving event cost: ' + costError.message)
         return
       }
       refreshCosts()
@@ -423,10 +424,10 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
       date: ev.date, category_id: expenseCategoryId,
       amount: eventCost(ev, cost), description: eventExpenseDescription(ev),
     }]).select().single()
-    if (error) { alert('Error creating expense: ' + error.message); return }
+    if (error) { notifyError('Error creating expense: ' + error.message); return }
     const { error: linkError } = await supabase.from('dining_event_costs')
       .update({ expense_id: data.id }).eq('dining_event_id', ev.id)
-    if (linkError) { alert('Expense created, but not linked to the event: ' + linkError.message); return }
+    if (linkError) { notifyError('Expense created, but not linked to the event: ' + linkError.message); return }
     refreshCosts()
     refreshExpenses()
   }
@@ -436,7 +437,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
     const { error } = await supabase.from('expenses').update({
       date: ev.date, amount: eventCost(ev, cost), description: eventExpenseDescription(ev),
     }).eq('id', cost.expense_id)
-    if (error) { alert('Error updating expense: ' + error.message); return }
+    if (error) { notifyError('Error updating expense: ' + error.message); return }
     refreshExpenses()
   }
 

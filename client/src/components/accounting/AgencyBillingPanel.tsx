@@ -12,6 +12,7 @@ import { rentalKind, rentalLabel } from '../planning/rentalTypes'
 import { fmtDateShort, todayISO } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
+import { notifyInfo } from '../../lib/notify'
 
 /** One thing the centre delivered, which is billed either to the guest or to the
  *  agency that sent them. The four sources (lessons, rentals, transfers, rooms)
@@ -220,7 +221,7 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
   function printInvoice() {
     if (!invoice) return
     const doc = buildAgencyInvoiceDoc(invoice.id, data)
-    if (!doc) { alert('This invoice carries no line yet — nothing to print.'); return }
+    if (!doc) { notifyInfo('This invoice carries no line yet — nothing to print.'); return }
     printAgencyInvoice(doc, agencyShortCode)
   }
 

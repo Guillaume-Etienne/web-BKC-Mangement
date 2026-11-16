@@ -57,8 +57,10 @@ const WalkInSharePage           = lazy(() => import('./pages/WalkInSharePage'))
 // Not lazy: ⌘K must answer instantly, and a chunk fetched on first keystroke
 // would make the palette feel broken on a bad connection.
 import GlobalSearch from './components/common/GlobalSearch'
+import Notifications from './components/common/Notifications'
 import SharedFooter from './components/common/SharedFooter'
 import type { SharedLink } from './types/database'
+import { notifyError } from './lib/notify'
 
 /** Shown while a page's chunk is on its way. Same look as the session check,
  *  so a slow connection reads as "still loading" rather than "broken". */
@@ -264,13 +266,13 @@ function App() {
     }, { onConflict: 'dismiss_key' })
     // On remet la ligne en haut plutôt que de laisser croire qu'elle est rangée :
     // une alerte masquée par erreur est pire que pas de bouton du tout.
-    if (error) { loadDismissals(); alert('Could not file this one — ' + error.message) }
+    if (error) { loadDismissals(); notifyError('Could not file this one — ' + error.message) }
   }, [loadDismissals])
 
   const reopenAction = useCallback(async (a: PendingAction) => {
     setDismissals(ds => ds.filter(d => d.dismiss_key !== a.dismissKey))
     const { error } = await supabase.from('dismissed_actions').delete().eq('dismiss_key', a.dismissKey)
-    if (error) { loadDismissals(); alert('Could not reopen this one — ' + error.message) }
+    if (error) { loadDismissals(); notifyError('Could not reopen this one — ' + error.message) }
   }, [loadDismissals])
 
   useEffect(() => {
@@ -395,6 +397,7 @@ function App() {
           </RecoveryBoundary>
         </main>
         </DataErrorsProvider>
+        <Notifications />
 
         <GlobalSearch
           open={searchOpen}

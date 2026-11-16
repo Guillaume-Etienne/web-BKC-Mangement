@@ -24,6 +24,7 @@ import { isDayVisitor } from '../utils/dayVisitor'
 import ClientShareLink from '../components/common/ClientShareLink'
 import { isTravelBy, travelToStore, type TravelBy } from '../utils/travelMode'
 import Modal from '../components/common/Modal'
+import { notifyError, notifyInfo } from '../lib/notify'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1647,7 +1648,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       })
     })
     if (hasConflict) {
-      alert('⚠️ This room is already booked during this period. Please choose different dates or rooms.')
+      notifyError('⚠️ This room is already booked during this period. Please choose different dates or rooms.')
       setSaving(false)
       return
     }
@@ -1664,7 +1665,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
           lessonCount > 0 && `${lessonCount} lesson${lessonCount > 1 ? 's' : ''}`,
           rentalCount > 0 && `${rentalCount} rental${rentalCount > 1 ? 's' : ''}`,
         ].filter(Boolean).join(' and ')
-        alert(
+        notifyError(
           `⛔ This booking cannot be cancelled — it already has ${what} recorded.\n\n` +
           `Those are billed to the client and paid to the instructor. Remove them from ` +
           `the Planning first if they really did not happen, then cancel the booking.`
@@ -1710,7 +1711,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
         .single()
       if (clientErr) {
         console.error('Client insert error:', clientErr)
-        alert('Error creating client: ' + clientErr.message)
+        notifyError('Error creating client: ' + clientErr.message)
         setSaving(false)
         return
       }
@@ -1719,7 +1720,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     }
 
     if (!clientId) {
-      alert('Please select or create a client.')
+      notifyInfo('Please select or create a client.')
       setSaving(false)
       return
     }
@@ -1767,7 +1768,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
         .single()
       if (bookingErr) {
         console.error('Booking insert error:', bookingErr)
-        alert('Error saving booking: ' + bookingErr.message)
+        notifyError('Error saving booking: ' + bookingErr.message)
         setSaving(false)
         return
       }
@@ -1781,7 +1782,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
         .single()
       if (bookingErr) {
         console.error('Booking update error:', bookingErr)
-        alert('Error saving booking: ' + bookingErr.message)
+        notifyError('Error saving booking: ' + bookingErr.message)
         setSaving(false)
         return
       }
@@ -2026,7 +2027,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       // The booking row itself saved (steps 1–3 return early on failure); it is
       // the rows hanging off it that are missing. Keep the wizard open so the
       // booking is right there to fix.
-      alert(`The booking was saved, but not everything went with it:\n\n${problems.map(p => `• ${p}`).join('\n\n')}`)
+      notifyError(`The booking was saved, but not everything went with it:\n\n${problems.map(p => `• ${p}`).join('\n\n')}`)
       return
     }
     closeWizard()
@@ -2034,10 +2035,10 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
 
   async function handleDelete(id: string) {
     const blocked = await whatBlocksDelete('bookings', id)
-    if (blocked) { alert(`This booking can't be deleted: ${blocked}. Set its status to Cancelled instead.`); return }
+    if (blocked) { notifyInfo(`This booking can't be deleted: ${blocked}. Set its status to Cancelled instead.`); return }
     if (!confirm('Delete this booking? Its guests, rooms and frozen prices go with it.')) return
     const { error: err } = await supabase.from('bookings').delete().eq('id', id)
-    if (err) { alert('Delete error: ' + deleteErrorMessage(err)); return }
+    if (err) { notifyError('Delete error: ' + deleteErrorMessage(err)); return }
     refreshBookings()
     refreshBookingRooms()
   }

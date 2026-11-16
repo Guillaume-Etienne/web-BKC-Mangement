@@ -17,6 +17,7 @@ import {
   hotelBalanceMzn, commissionEur, fmtMzn, groupStays, stayGroupKey, nightsAroundSafari,
 } from '../../utils/partnerHotel'
 import { safariEnd, bileneSide } from '../../utils/safariChain'
+import { notifyError, notifyInfo } from '../../lib/notify'
 
 /** A booking as this tab needs it: enough to prefill a reservation. */
 export interface HotelBookingRef {
@@ -74,7 +75,7 @@ function nightLabel(i: number, count: number): string {
 function report(action: string, error: { message: string } | null): boolean {
   if (!error) return true
   console.error(`${action} failed:`, error.message)
-  alert(`Could not ${action}.\n\n${error.message}`)
+  notifyError(`Could not ${action}.\n\n${error.message}`)
   return false
 }
 
@@ -156,10 +157,10 @@ function ReservationForm({ hotel, initial, bookings, participantCounts, safaris,
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (nights.length === 0) { alert('Add at least one night.'); return }
+    if (nights.length === 0) { notifyInfo('Add at least one night.'); return }
     for (const n of nights) {
       if (!n.check_in || !n.check_out || n.check_out <= n.check_in) {
-        alert('Each night needs a check-in and a later check-out.'); return
+        notifyInfo('Each night needs a check-in and a later check-out.'); return
       }
     }
     await onSave({
@@ -346,7 +347,7 @@ function PaymentForm({ hotelId, suggested, onSave, onCancel }: {
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     const n = Number(amount)
-    if (!(n > 0)) { alert('Enter an amount above 0.'); return }
+    if (!(n > 0)) { notifyInfo('Enter an amount above 0.'); return }
     await onSave({ hotel_id: hotelId, date, amount_mzn: n, direction, notes: notes.trim() || null })
   }
 

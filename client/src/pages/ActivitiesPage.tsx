@@ -19,6 +19,7 @@ import type {
 } from '../types/database'
 import { todayISO, addDaysISO, fmtDate } from '../utils/dates'
 import { useTrackTab } from '../hooks/useTrackTab'
+import { notifyError, notifyInfo } from '../lib/notify'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -167,7 +168,7 @@ function BookingForm({ initial, providers, bookingRefs, allParticipants, onSave,
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (endDate && endDate < date) { alert('The end date is before the start date.'); return }
+    if (endDate && endDate < date) { notifyInfo('The end date is before the start date.'); return }
     onSave({
       provider_id:     providerId,
       booking_id:      bookingId || null,
@@ -684,7 +685,7 @@ export default function ActivitiesPage() {
   function report(action: string, error: { message: string } | null): boolean {
     if (!error) return true
     console.error(`${action} failed:`, error.message)
-    alert(`Could not ${action}.\n\n${error.message}`)
+    notifyError(`Could not ${action}.\n\n${error.message}`)
     return false
   }
 
@@ -701,7 +702,7 @@ export default function ActivitiesPage() {
 
   async function deleteProvider(id: string) {
     const blocked = await whatBlocksDelete('activity_providers', id)
-    if (blocked) { alert(`This provider can't be deleted: ${blocked}. Their bookings and payments are kept on purpose.`); return }
+    if (blocked) { notifyInfo(`This provider can't be deleted: ${blocked}. Their bookings and payments are kept on purpose.`); return }
     if (!confirm('Delete this provider?')) return
     const { error } = await supabase.from('activity_providers').delete().eq('id', id)
     if (!report('delete the provider', error && { message: deleteErrorMessage(error) })) return

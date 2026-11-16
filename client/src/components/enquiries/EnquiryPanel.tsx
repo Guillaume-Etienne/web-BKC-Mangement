@@ -7,6 +7,7 @@ import { todayISO, addDaysISO } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import type { Lang } from '../../types/database'
+import { notifyError } from '../../lib/notify'
 
 /** Read the message, fill four fields, close. Twenty seconds.
  *
@@ -95,7 +96,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
         if (cancelled) return
         // A silent failure here would show an empty history and make gui think
         // he never wrote anything down.
-        if (error) { alert(`Could not load the notes.\n\n${error.message}`); return }
+        if (error) { notifyError(`Could not load the notes.\n\n${error.message}`); return }
         setNotes(data ?? [])
       })
     return () => { cancelled = true }
@@ -124,7 +125,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
       ? await supabase.from('enquiries').insert([{ ...row, channel: 'manual' }])
       : await supabase.from('enquiries').update(row).eq('id', enquiry.id)
     setSaving(false)
-    if (error) { alert(`The enquiry was NOT saved.\n\n${error.message}`); return }
+    if (error) { notifyError(`The enquiry was NOT saved.\n\n${error.message}`); return }
     onSaved()
   }
 
@@ -133,14 +134,14 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
     setSaving(true)
     const { data, error } = await supabase.from('enquiry_notes')
       .insert({ enquiry_id: enquiry.id, body: newNote.trim() }).select().single()
-    if (error) { setSaving(false); alert(`The note was NOT saved.\n\n${error.message}`); return }
+    if (error) { setSaving(false); notifyError(`The note was NOT saved.\n\n${error.message}`); return }
     // Writing a note IS the exchange, so it resets the silence counter. Done
     // here rather than by a database trigger: this project keeps its rules
     // visible in the code.
     const { error: touchErr } = await supabase.from('enquiries')
       .update({ last_contact_at: new Date().toISOString() }).eq('id', enquiry.id)
     setSaving(false)
-    if (touchErr) alert(`Note saved, but the silence counter was not reset.\n\n${touchErr.message}`)
+    if (touchErr) notifyError(`Note saved, but the silence counter was not reset.\n\n${touchErr.message}`)
     setNotes(n => [data as EnquiryNote, ...n])
     setNewNote('')
     onSaved()
@@ -190,7 +191,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
       is_active: true,
     })
     setSaving(false)
-    if (error) { alert(`The link was NOT created.\n\n${error.message}`); return }
+    if (error) { notifyError(`The link was NOT created.\n\n${error.message}`); return }
     setFormLink({ token })
   }
 
@@ -205,7 +206,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
       params: formLinkParams(enquiry),
     }).eq('token', formLink.token)
     setSaving(false)
-    if (error) { alert(`The link was NOT refreshed.\n\n${error.message}`); return }
+    if (error) { notifyError(`The link was NOT refreshed.\n\n${error.message}`); return }
     setRefreshed(true)
     setTimeout(() => setRefreshed(false), 2500)
   }
@@ -214,7 +215,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
     if (!enquiry) return
     if (!confirm(`Delete the enquiry from ${enquiry.name}?\n\nIts notes go with it. Nothing else is touched.`)) return
     const { error } = await supabase.from('enquiries').delete().eq('id', enquiry.id)
-    if (error) { alert(`Could not delete it.\n\n${error.message}`); return }
+    if (error) { notifyError(`Could not delete it.\n\n${error.message}`); return }
     onDeleted?.()
   }
 

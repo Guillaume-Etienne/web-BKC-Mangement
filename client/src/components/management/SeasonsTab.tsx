@@ -5,6 +5,7 @@ import type { Season } from '../../types/database'
 import { daysBetween, todayISO, fmtDate } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
+import { notifyError } from '../../lib/notify'
 
 /** Seasons drive the accounting period filter, and until now nothing could
  *  create one — the table had only ever been seeded by a migration, so the
@@ -110,7 +111,7 @@ export default function SeasonsTab() {
     if (error) {
       // A season that looks saved but isn't would quietly send the accounting
       // filter back to the previous period.
-      alert(`${i18n.management.msg_season_save_failed[lang]}\n\n${error.message}`)
+      notifyError(`${i18n.management.msg_season_save_failed[lang]}\n\n${error.message}`)
       return
     }
     setEditing(null); setAdding(false)
@@ -120,7 +121,7 @@ export default function SeasonsTab() {
   async function remove(s: Season) {
     if (!confirm(i18n.management.msg_confirm_delete_season[lang].replace('{label}', s.label))) return
     const { error } = await supabase.from('seasons').delete().eq('id', s.id)
-    if (error) { alert(`${i18n.management.msg_season_delete_failed[lang]}\n\n${error.message}`); return }
+    if (error) { notifyError(`${i18n.management.msg_season_delete_failed[lang]}\n\n${error.message}`); return }
     refresh()
   }
 

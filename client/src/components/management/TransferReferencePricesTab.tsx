@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTable } from '../../hooks/useSupabase'
 import type { TransferReferencePrice } from '../../types/database'
+import { notifyError } from '../../lib/notify'
 
 /** Purely informational reference prices (transfers, taxis, boat/air connections,
  *  Kruger/Eswatini tours...), for answering client questions. Nothing here feeds
@@ -169,13 +170,13 @@ export default function TransferReferencePricesTab({ page }: { page: TransferRef
     const { error } = await supabase.from('transfer_reference_prices')
       .update({ ...patch, updated_at: new Date().toISOString() }).eq('id', row.id)
     setEditingRowId(null)
-    if (error) alert(`Not saved.\n\n${error.message}`)
+    if (error) notifyError(`Not saved.\n\n${error.message}`)
   }
 
   async function deleteRow(row: TransferReferencePrice) {
     if (!confirm('Delete this row?')) return
     const { error } = await supabase.from('transfer_reference_prices').delete().eq('id', row.id)
-    if (error) { alert(`Could not delete the row.\n\n${error.message}`); return }
+    if (error) { notifyError(`Could not delete the row.\n\n${error.message}`); return }
     refresh()
   }
 
@@ -186,7 +187,7 @@ export default function TransferReferencePricesTab({ page }: { page: TransferRef
       row_order: maxRowOrder + 1,
       from_label: '', to_label: '', price_mzn: null, price_eur: null, price_usd: null, detail: '', notes: '',
     }])
-    if (error) { alert(`Could not add the row.\n\n${error.message}`); return }
+    if (error) { notifyError(`Could not add the row.\n\n${error.message}`); return }
     refresh()
   }
 
@@ -195,14 +196,14 @@ export default function TransferReferencePricesTab({ page }: { page: TransferRef
     if (!trimmed || trimmed === oldName) return
     const { error } = await supabase.from('transfer_reference_prices')
       .update({ section: trimmed }).eq('page', page).eq('section', oldName)
-    if (error) { alert(`Could not rename the section.\n\n${error.message}`); return }
+    if (error) { notifyError(`Could not rename the section.\n\n${error.message}`); return }
     refresh()
   }
 
   async function deleteSection(name: string) {
     if (!confirm(`Delete the whole "${name}" section and all its rows?`)) return
     const { error } = await supabase.from('transfer_reference_prices').delete().eq('page', page).eq('section', name)
-    if (error) { alert(`Could not delete the section.\n\n${error.message}`); return }
+    if (error) { notifyError(`Could not delete the section.\n\n${error.message}`); return }
     refresh()
   }
 
@@ -214,7 +215,7 @@ export default function TransferReferencePricesTab({ page }: { page: TransferRef
       page, section: name, section_order: maxSectionOrder + 1, collapsible: true, row_order: 0,
       from_label: '', to_label: '', price_mzn: null, price_eur: null, price_usd: null, detail: '', notes: '',
     }])
-    if (error) { alert(`Could not add the section.\n\n${error.message}`); return }
+    if (error) { notifyError(`Could not add the section.\n\n${error.message}`); return }
     setNewSectionName('')
     refresh()
   }

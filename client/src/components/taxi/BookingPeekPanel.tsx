@@ -10,6 +10,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import { isTravelBy, travelLabel, travelToStore } from '../../utils/travelMode'
 import TravelBadge from '../common/TravelBadge'
+import { notifyError } from '../../lib/notify'
 
 // The booking behind a taxi trip, opened from the ⓘ of a trip without leaving
 // the Taxis page (gui, 2026-11-08): what the booking sheet says about the
@@ -167,7 +168,7 @@ export default function BookingPeekPanel({
       ...travelChanges(booking, baseline, draft),
     }).eq('id', booking.id)
     setSaving(false)
-    if (error) { alert(`${i18n.common.msg_error[lang]}: ${error.message}`); return }
+    if (error) { notifyError(`${i18n.common.msg_error[lang]}: ${error.message}`); return }
     setProposals(tripSyncProposals(bookingTrips, transferFields(baseline), transferFields(draft)))
     setBaseline(draft)
     setJustSaved(true)

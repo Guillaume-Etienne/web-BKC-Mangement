@@ -1,3 +1,4 @@
+import { notifyError } from '../../lib/notify'
 /** Optimistic writes that undo themselves when the database refuses.
  *
  *  Every accounting screen updates local state before the Supabase round-trip,
@@ -58,13 +59,13 @@ export function persistWith(
   )
 }
 
-/** Production binding: tells the user with a blocking alert.
- *  Blocking is deliberate here — a lost payment deserves to stop the user
- *  rather than scroll past as a toast. */
+/** Production binding: tells the user with an error notification that stays on
+ *  screen until dismissed — a lost payment must not scroll past like a toast
+ *  that fades (it used to be a blocking alert(), for the same reason). */
 export function persist(
   query: PromiseLike<WriteResult>,
   rollback: () => void,
   what: string,
 ): Promise<void> {
-  return persistWith(msg => alert(msg), query, rollback, what)
+  return persistWith(msg => notifyError(msg), query, rollback, what)
 }

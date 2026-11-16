@@ -2,6 +2,7 @@ import type { Booking } from '../types/database'
 import { guideTextHtml, type TravelGuideSection } from '../data/travelGuide'
 import { WELCOME_ACCOUNT_BOX } from '../data/welcomeGuide'
 import type { Lang } from './printBookingSummary'
+import { notifyInfo } from '../lib/notify'
 
 const LOGO_URL = `${window.location.origin}/docs/LOGO-bkc.png`
 const BLUE     = '#4472C4'
@@ -152,7 +153,7 @@ function printGuideDoc(
 </html>`
 
   const win = window.open('', '_blank', 'width=820,height=1060')
-  if (!win) { alert('Please allow pop-ups to generate the PDF.'); return }
+  if (!win) { notifyInfo('Please allow pop-ups to generate the PDF.'); return }
   win.document.write(html)
   win.document.close()
 }

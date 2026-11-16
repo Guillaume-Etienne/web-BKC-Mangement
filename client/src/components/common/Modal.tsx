@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
+import { pushModal, removeModal } from '../../lib/modalStack'
 
 interface Props {
   /** Called whenever the browser closes the dialog (Esc, mobile back gesture) or,
@@ -57,7 +58,10 @@ export default function Modal({
     unmounted.current = false
     if (!dialog.open) dialog.showModal()
     dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus()
+    // Lets <Notifications /> render inside the innermost modal (lib/modalStack).
+    pushModal(dialog)
     return () => {
+      removeModal(dialog)
       // Most modals close by the parent unmounting them (Save, Cancel, ✕) — and a
       // dialog merely removed from the page does NOT hand focus back to the button
       // that opened it; only close() does. The `close` event this queues is ignored

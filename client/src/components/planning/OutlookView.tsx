@@ -12,6 +12,7 @@ import { useTable } from '../../hooks/useSupabase'
 import { supabase } from '../../lib/supabase'
 import { i18n } from '../../data/i18n'
 import { RENTAL_TYPES } from './rentalTypes'
+import { notifyError } from '../../lib/notify'
 
 // Outlook = long-term INTENTIONS per traveller, read from the upcoming bookings, and above all a
 // way to ANTICIPATE the load: hours, students and lessons per instructor per day. Not accounting:
@@ -269,14 +270,14 @@ export default function OutlookView({
           booking_id: row.booking_id, participant_id: row.participant_id, kind: row.kind,
           rental_type: row.rental_type, ...patch,
         }])
-    if (error) { alert(t.outlook_err_save[lang] + error.message); return }
+    if (error) { notifyError(t.outlook_err_save[lang] + error.message); return }
     refresh()
   }
   async function remove(row: IntentRowData) {
     if (!row.id) return
     if (!confirm(t.outlook_remove_confirm[lang])) return
     const { error } = await supabase.from('lesson_intents').delete().eq('id', row.id)
-    if (error) { alert(t.outlook_err_save[lang] + error.message); return }
+    if (error) { notifyError(t.outlook_err_save[lang] + error.message); return }
     setSel(null)
     refresh()
   }

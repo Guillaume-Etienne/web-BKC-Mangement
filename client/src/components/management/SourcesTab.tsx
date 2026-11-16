@@ -4,6 +4,7 @@ import { useTable } from '../../hooks/useSupabase'
 import type { EnquirySource } from '../../types/database'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
+import { notifyError } from '../../lib/notify'
 
 /** The "how did you hear about us?" choices on the public enquiry form.
  *
@@ -114,7 +115,7 @@ export default function SourcesTab() {
     if (error) {
       // A source that looks saved but isn't would silently go missing from the
       // public form — and nobody looks at a dropdown they didn't change.
-      alert(`The source was NOT saved.\n\n${error.message}`)
+      notifyError(`The source was NOT saved.\n\n${error.message}`)
       return
     }
     setAdding(false); setEditing(null)
@@ -124,7 +125,7 @@ export default function SourcesTab() {
   async function toggleActive(s: EnquirySource) {
     const { error } = await supabase
       .from('enquiry_sources').update({ is_active: !s.is_active }).eq('id', s.id)
-    if (error) { alert(`Could not change the source.\n\n${error.message}`); return }
+    if (error) { notifyError(`Could not change the source.\n\n${error.message}`); return }
     refresh()
   }
 

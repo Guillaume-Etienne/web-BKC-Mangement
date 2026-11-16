@@ -17,6 +17,7 @@ import { todayISO, addDaysISO } from '../utils/dates'
 import { FALLBACK_TAXI_PRICING as FALLBACK_PRICING } from '../utils/taxiPricing'
 import { useTrackTab } from '../hooks/useTrackTab'
 import Modal from '../components/common/Modal'
+import { notifyError } from '../lib/notify'
 
 export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId: string) => void } = {}) {
   const { lang } = useLanguage()
@@ -71,7 +72,7 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
 
   async function addTrip(trip: Omit<TaxiTrip, 'id'>): Promise<TaxiTrip | null> {
     const { data, error } = await supabase.from('taxi_trips').insert([trip]).select('id').single()
-    if (error) { alert('Error: ' + error.message); return null }
+    if (error) { notifyError('Error: ' + error.message); return null }
     if (!data?.id) return null
     refreshTrips()
     return { ...trip, id: data.id }
@@ -82,7 +83,7 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
     // Postgres rejects any write to it, even the same value round-tripped from select('*').
     const { id, share_price_eur: _share_price_eur, ...fields } = trip as TaxiTrip & { share_price_eur?: number | null }
     const { error } = await supabase.from('taxi_trips').update(fields).eq('id', id)
-    if (error) { alert('Error: ' + error.message); return false }
+    if (error) { notifyError('Error: ' + error.message); return false }
     refreshTrips()
     return true
   }
@@ -110,7 +111,7 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
 
   async function deleteTrip(id: string): Promise<void> {
     const { error } = await supabase.from('taxi_trips').delete().eq('id', id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshTrips()
   }
 
@@ -118,14 +119,14 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
 
   async function addManagerPayment(p: Omit<TaxiManagerPayment, 'id'>): Promise<void> {
     const { data, error } = await supabase.from('taxi_manager_payments').insert([p]).select('id').single()
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     if (!data?.id) return
     setPayments(prev => [{ ...p, id: data.id }, ...prev])
   }
 
   async function deleteManagerPayment(id: string): Promise<void> {
     const { error } = await supabase.from('taxi_manager_payments').delete().eq('id', id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     setPayments(prev => prev.filter(p => p.id !== id))
   }
 
@@ -148,7 +149,7 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
     if (selectedDriver) {
       const { id, ...fields } = { ...selectedDriver, ...driverFormData }
       const { error } = await supabase.from('taxi_drivers').update(fields).eq('id', id)
-      if (error) alert('Error: ' + error.message)
+      if (error) notifyError('Error: ' + error.message)
     } else {
       const { error } = await supabase.from('taxi_drivers').insert([{
         name:           driverFormData.name ?? '',
@@ -162,7 +163,7 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
         default_driver_mzn:  driverFormData.default_driver_mzn ?? 6500,
         default_manager_mzn: driverFormData.default_manager_mzn ?? 1000,
       }])
-      if (error) alert('Error: ' + error.message)
+      if (error) notifyError('Error: ' + error.message)
     }
     setSaving(false)
     refreshDrivers()
@@ -172,7 +173,7 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
   async function deleteDriver(id: string) {
     if (!confirm('Delete this driver?')) return
     const { error } = await supabase.from('taxi_drivers').delete().eq('id', id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     setSelectedDriver(null)
     setViewingDriverId(null)
     refreshDrivers()
@@ -191,7 +192,7 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
       expires_at: addDaysISO(todayISO(), 365),
       is_active:  true,
     }])
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { notifyError('Error: ' + error.message); return }
     refreshSharedLinks()
   }
 

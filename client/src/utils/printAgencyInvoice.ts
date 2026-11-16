@@ -1,4 +1,5 @@
 import type { AgencyInvoiceDoc } from '../components/accounting/utils'
+import { notifyInfo } from '../lib/notify'
 
 /** The invoice Fun & Fly expects, reproduced from the template gui has been
  *  filling by hand (`temp/Factu BKC 2025 FFLY ….xlsx`, chez gui —
@@ -202,7 +203,7 @@ export function printAgencyInvoice(doc: AgencyInvoiceDoc, shortCode: string | nu
 </html>`
 
   const win = window.open('', '_blank', 'width=820,height=1060')
-  if (!win) { alert('Autorisez les pop-ups pour générer la facture.'); return }
+  if (!win) { notifyInfo('Please allow pop-ups to generate the invoice.'); return }
   win.document.write(html)
   win.document.close()
 }
