@@ -18,6 +18,7 @@ import { FALLBACK_TAXI_PRICING as FALLBACK_PRICING } from '../utils/taxiPricing'
 import { useTrackTab } from '../hooks/useTrackTab'
 import Modal from '../components/common/Modal'
 import { notifyError } from '../lib/notify'
+import { askConfirm } from '../lib/confirm'
 
 export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId: string) => void } = {}) {
   const { lang } = useLanguage()
@@ -95,17 +96,17 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
   const peekDirty = useRef(false)
   const setPeekDirty = useCallback((d: boolean) => { peekDirty.current = d }, [])
 
-  function canLeavePeek(): boolean {
-    return !peekDirty.current || confirm(i18n.taxis.peek_msg_discard[lang])
+  async function canLeavePeek(): Promise<boolean> {
+    return !peekDirty.current || await askConfirm(i18n.taxis.peek_msg_discard[lang], { confirmLabel: i18n.common.btn_discard[lang], tone: 'neutral' })
   }
 
-  function openPeek(tripId: string, order: string[]) {
+  async function openPeek(tripId: string, order: string[]) {
     // The ⓘ of the trip already shown closes it again.
     const closing = peek?.tripId === tripId
     const current = peek ? trips.find(t => t.id === peek.tripId)?.booking_id : null
     const next    = trips.find(t => t.id === tripId)?.booking_id
     // Same booking (its arrival, then its departure): the panel stays, edits too.
-    if ((closing || current !== next) && !canLeavePeek()) return
+    if ((closing || current !== next) && !await canLeavePeek()) return
     setPeek(closing ? null : { tripId, order })
   }
 
@@ -171,7 +172,7 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
   }
 
   async function deleteDriver(id: string) {
-    if (!confirm('Delete this driver?')) return
+    if (!await askConfirm('Delete this driver?')) return
     const { error } = await supabase.from('taxi_drivers').delete().eq('id', id)
     if (error) { notifyError('Error: ' + error.message); return }
     setSelectedDriver(null)
@@ -219,7 +220,7 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
         {/* Tabs */}
         <div className="sticky top-16 z-40 bg-gray-50 dark:bg-gray-950 flex gap-4 mt-8 mb-8 border-b">
           {(['planning', 'finance', 'drivers'] as const).map(t => (
-            <button key={t} onClick={() => { if (t !== tab && !canLeavePeek()) return; setTab(t) }}
+            <button key={t} onClick={async () => { if (t !== tab && !await canLeavePeek()) return; setTab(t) }}
               className={`px-4 py-2 font-medium transition-colors ${tab === t ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}>
               {t === 'planning' ? `📅 ${i18n.taxis.section_planning[lang]}` : t === 'finance' ? `💰 ${i18n.taxis.section_finance[lang]}` : `👤 ${i18n.taxis.section_drivers[lang]}`}
             </button>

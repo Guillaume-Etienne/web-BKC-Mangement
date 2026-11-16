@@ -14,6 +14,7 @@ import MonthInput from '../common/MonthInput'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import { notifyError } from '../../lib/notify'
+import { askConfirm } from '../../lib/confirm'
 
 interface Props { data: SharedAccountingData; handlers: AccountingHandlers }
 
@@ -308,7 +309,7 @@ export default function PalmeirasTab({ data, handlers }: Props) {
     if (reportDb('record the payment', error)) { setAddingSettlement(false); setPayingRent(null); refreshSettlements() }
   }
   async function deleteSettlement(id: string) {
-    if (!confirm(i18n.accounting.confirm_delete_line[lang])) return
+    if (!await askConfirm(i18n.accounting.confirm_delete_line[lang])) return
     const { error } = await supabase.from('palmeiras_settlements').delete().eq('id', id)
     if (reportDb('delete the payment', error)) refreshSettlements()
   }

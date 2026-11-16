@@ -8,6 +8,7 @@ import { todayISO, fmtDate } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import { notifyError } from '../../lib/notify'
+import { askConfirm } from '../../lib/confirm'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -318,7 +319,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
   }
 
   const deleteEvent = async (id: string) => {
-    if (!confirm(i18n.planning.msg_confirm_delete_event[lang])) return
+    if (!await askConfirm(i18n.planning.msg_confirm_delete_event[lang])) return
     const snapshot = events.find(e => e.id === id)
     setEvents(prev => prev.filter(e => e.id !== id))
     if (activeId === id) setActiveId(null)

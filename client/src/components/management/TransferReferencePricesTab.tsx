@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useTable } from '../../hooks/useSupabase'
 import type { TransferReferencePrice } from '../../types/database'
 import { notifyError } from '../../lib/notify'
+import { askConfirm } from '../../lib/confirm'
 
 /** Purely informational reference prices (transfers, taxis, boat/air connections,
  *  Kruger/Eswatini tours...), for answering client questions. Nothing here feeds
@@ -174,7 +175,7 @@ export default function TransferReferencePricesTab({ page }: { page: TransferRef
   }
 
   async function deleteRow(row: TransferReferencePrice) {
-    if (!confirm('Delete this row?')) return
+    if (!await askConfirm('Delete this row?')) return
     const { error } = await supabase.from('transfer_reference_prices').delete().eq('id', row.id)
     if (error) { notifyError(`Could not delete the row.\n\n${error.message}`); return }
     refresh()
@@ -201,7 +202,7 @@ export default function TransferReferencePricesTab({ page }: { page: TransferRef
   }
 
   async function deleteSection(name: string) {
-    if (!confirm(`Delete the whole "${name}" section and all its rows?`)) return
+    if (!await askConfirm(`Delete the whole "${name}" section and all its rows?`)) return
     const { error } = await supabase.from('transfer_reference_prices').delete().eq('page', page).eq('section', name)
     if (error) { notifyError(`Could not delete the section.\n\n${error.message}`); return }
     refresh()

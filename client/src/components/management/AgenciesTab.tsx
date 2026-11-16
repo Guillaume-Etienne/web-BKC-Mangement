@@ -8,6 +8,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import Modal from '../common/Modal'
 import { notifyError, notifyInfo } from '../../lib/notify'
+import { askConfirm } from '../../lib/confirm'
 
 /** The icon of one category — AGENCY_RATE_CATEGORIES is the single source, in
  *  display order, shared with the booking's billing panel. */
@@ -369,7 +370,7 @@ export default function AgenciesTab() {
   async function handleDelete(agency: Agency) {
     const blocked = await whatBlocksDelete('agencies', agency.id)
     if (blocked) { notifyInfo(`${agency.name} can't be deleted: ${blocked}. Those bookings would silently become billed to the client.`); return }
-    if (!confirm(`Delete ${agency.name} and its rate card?`)) return
+    if (!await askConfirm(`Delete ${agency.name} and its rate card?`)) return
     const { error } = await supabase.from('agencies').delete().eq('id', agency.id)
     if (error) { notifyError('Error: ' + deleteErrorMessage(error)); return }
     if (selected?.id === agency.id) setSelected(null)

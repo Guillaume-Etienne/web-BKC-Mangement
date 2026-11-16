@@ -7,6 +7,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import { RENTAL_TYPES, boardPickerCategory, rentalGear, rentalKind, rentalLabel, showsKitePicker, type RentalKind } from './rentalTypes'
 import GuestPicker from './GuestPicker'
+import { askConfirm } from '../../lib/confirm'
 
 interface Props {
   rental: EquipmentRental
@@ -71,9 +72,9 @@ export default function EditRentalModal({
     })
   }
 
-  function remove() {
+  async function remove() {
     if (!onDelete) return
-    if (confirm(i18n.planning.msg_confirm_delete_rental[lang])) onDelete(rental.id)
+    if (await askConfirm(i18n.planning.msg_confirm_delete_rental[lang])) onDelete(rental.id)
   }
 
   return (

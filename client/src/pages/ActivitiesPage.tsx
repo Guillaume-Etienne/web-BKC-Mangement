@@ -20,6 +20,7 @@ import type {
 import { todayISO, addDaysISO, fmtDate } from '../utils/dates'
 import { useTrackTab } from '../hooks/useTrackTab'
 import { notifyError, notifyInfo } from '../lib/notify'
+import { askConfirm } from '../lib/confirm'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -703,7 +704,7 @@ export default function ActivitiesPage() {
   async function deleteProvider(id: string) {
     const blocked = await whatBlocksDelete('activity_providers', id)
     if (blocked) { notifyInfo(`This provider can't be deleted: ${blocked}. Their bookings and payments are kept on purpose.`); return }
-    if (!confirm('Delete this provider?')) return
+    if (!await askConfirm('Delete this provider?')) return
     const { error } = await supabase.from('activity_providers').delete().eq('id', id)
     if (!report('delete the provider', error && { message: deleteErrorMessage(error) })) return
     refreshProviders(); setViewingId(null)
@@ -725,7 +726,7 @@ export default function ActivitiesPage() {
   }
 
   async function deleteBooking(id: string) {
-    if (!confirm('Delete this booking?')) return
+    if (!await askConfirm('Delete this booking?')) return
     const { error } = await supabase.from('activity_bookings').delete().eq('id', id)
     report('delete the booking', error)
     refreshBookings()
@@ -740,7 +741,7 @@ export default function ActivitiesPage() {
   }
 
   async function deletePayment(id: string) {
-    if (!confirm('Delete this payment?')) return
+    if (!await askConfirm('Delete this payment?')) return
     const { error } = await supabase.from('activity_payments').delete().eq('id', id)
     report('delete the payment', error)
     refreshPayments()

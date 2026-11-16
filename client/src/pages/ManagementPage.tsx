@@ -24,6 +24,7 @@ import UsagePanel from '../components/management/UsagePanel'
 import ClientErrorsPanel from '../components/management/ClientErrorsPanel'
 import Modal from '../components/common/Modal'
 import { notifyError, notifyInfo } from '../lib/notify'
+import { askConfirm } from '../lib/confirm'
 
 
 const specialtyOptions = ['Beg-Total', 'Beg-BodyDrag', 'Beg-WaterStart', 'Intermediate', 'Advanced', 'Wave', 'Freestyle']
@@ -284,7 +285,7 @@ export default function ManagementPage() {
   const handleDeleteInstructor = async (id: string) => {
     const blocked = await whatBlocksDelete('instructors', id)
     if (blocked) { notifyInfo(`This instructor can't be deleted: ${blocked}. Their lessons and pay history are kept on purpose.`); return }
-    if (confirm('Delete this instructor?')) {
+    if (await askConfirm('Delete this instructor?')) {
       const { error } = await supabase.from('instructors').delete().eq('id', id)
       if (error) { notifyError('Error: ' + deleteErrorMessage(error)); return }
       setSelectedInstructor(null)
@@ -340,7 +341,7 @@ export default function ManagementPage() {
   }
 
   const handleDeletePrice = async (id: string) => {
-    if (confirm('Delete this price entry?')) {
+    if (await askConfirm('Delete this price entry?')) {
       const { error } = await supabase.from('price_items').delete().eq('id', id)
       if (error) { notifyError('Error: ' + error.message); return }
       refreshPriceItems()
@@ -392,7 +393,7 @@ export default function ManagementPage() {
   }
 
   const deleteLink = async (id: string) => {
-    if (confirm('Delete this link? Anyone using it will lose access.')) {
+    if (await askConfirm('Delete this link? Anyone using it will lose access.')) {
       const { error } = await supabase.from('shared_links').delete().eq('id', id)
       if (error) { notifyError('Error: ' + error.message); return }
       refreshSharedLinks()

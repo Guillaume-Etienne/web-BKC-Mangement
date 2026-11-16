@@ -25,6 +25,7 @@ import ClientShareLink from '../components/common/ClientShareLink'
 import { isTravelBy, travelToStore, type TravelBy } from '../utils/travelMode'
 import Modal from '../components/common/Modal'
 import { notifyError, notifyInfo } from '../lib/notify'
+import { askConfirm } from '../lib/confirm'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -596,7 +597,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
   }
 
   return (
-    <Modal onClose={onCancel} confirmDismiss={i18n.bookings.msg_confirm_close_wizard[lang]} className="items-end sm:items-center justify-center p-0 sm:p-4">
+    <Modal onClose={onCancel} confirmDismiss={i18n.bookings.msg_confirm_close_wizard[lang]} confirmDismissLabel={i18n.common.btn_discard[lang]} className="items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="bg-white dark:bg-gray-900 w-full sm:max-w-xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[95dvh] sm:max-h-[90vh]">
 
         {/* Header */}
@@ -1684,10 +1685,11 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
       const upcoming = taxiTrips.filter(t => t.booking_id === editingId && t.date >= today && t.status !== 'done')
       if (upcoming.length > 0) {
         const list = upcoming.map(t => `• ${t.date.split('-').reverse().join('/')} — ${t.type}`).join('\n')
-        if (confirm(
+        if (await askConfirm(
           `This booking still has ${upcoming.length} taxi transfer${upcoming.length > 1 ? 's' : ''} planned:\n${list}\n\n` +
-          `OK = delete ${upcoming.length > 1 ? 'them' : 'it'} with the cancellation.\n` +
-          `Cancel = keep ${upcoming.length > 1 ? 'them' : 'it'} (flagged "booking cancelled" in Taxis).`
+          `Delete = remove ${upcoming.length > 1 ? 'them' : 'it'} with the cancellation.\n` +
+          `Keep = leave ${upcoming.length > 1 ? 'them' : 'it'} in Taxis, flagged "booking cancelled".`,
+          { confirmLabel: 'Delete', cancelLabel: 'Keep' },
         )) tripsToDelete = upcoming.map(t => t.id)
       }
     }
@@ -2036,7 +2038,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   async function handleDelete(id: string) {
     const blocked = await whatBlocksDelete('bookings', id)
     if (blocked) { notifyInfo(`This booking can't be deleted: ${blocked}. Set its status to Cancelled instead.`); return }
-    if (!confirm('Delete this booking? Its guests, rooms and frozen prices go with it.')) return
+    if (!await askConfirm('Delete this booking? Its guests, rooms and frozen prices go with it.')) return
     const { error: err } = await supabase.from('bookings').delete().eq('id', id)
     if (err) { notifyError('Delete error: ' + deleteErrorMessage(err)); return }
     refreshBookings()

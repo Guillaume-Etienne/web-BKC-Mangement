@@ -22,6 +22,7 @@ import { splitPerPerson } from '../../utils/perPersonSplit'
 import { bookingSplitItems } from './bookingSplit'
 import EditRentalModal from '../planning/EditRentalModal'
 import EditLessonModal from '../planning/EditLessonModal'
+import { askConfirm } from '../../lib/confirm'
 
 interface Props {
   data: SharedAccountingData
@@ -1278,10 +1279,10 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
                       <button onClick={() => setEditingPaymentId(p.id)}
                         className="p-1 -m-1 text-gray-300 dark:text-gray-500 hover:text-amber-500 dark:hover:text-amber-400 transition-colors text-xs">✏️</button>
                       {/* One click used to erase money received, with nothing to undo it. */}
-                      <button onClick={() => {
+                      <button onClick={async () => {
                         const msg = (p.is_discount ? i18n.accounting.bf_confirm_delete_discount : i18n.accounting.bf_confirm_delete_payment)[lang]
                           .replace('{amount}', fmtEur(p.amount)).replace('{date}', fmtDate(p.date))
-                        if (confirm(msg)) handlers.deletePayment(p.id)
+                        if (await askConfirm(msg)) handlers.deletePayment(p.id)
                       }}
                         className="p-1 -m-1 text-gray-300 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors text-xs">✕</button>
                     </div>

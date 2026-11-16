@@ -40,6 +40,7 @@ import type {
   Associate, AssociateTransfer,
 } from '../types/database'
 import { notifyError } from '../lib/notify'
+import { askConfirm } from '../lib/confirm'
 
 type Tab = 'dashboard' | 'bookings' | 'instructors' | 'houses' | 'palmeiras' | 'agencies' | 'associates' | 'cashflow' | 'expenses' | 'events' | 'unverified'
 
@@ -210,7 +211,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   //
   // Every ✕ below erases an amount for good — there is no trash to restore it
   // from. Booking payments ask in BookingFinances, with the amount and date.
-  const sureToDelete = () => confirm(i18n.accounting.confirm_delete_line[lang])
+  const sureToDelete = () => askConfirm(i18n.accounting.confirm_delete_line[lang])
 
   const handlers = {
     upsertBookingRoomPrice: (p: BookingRoomPrice) => {
@@ -274,8 +275,8 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       persist(supabase.from('booking_charges').update(fields).eq('id', id),
         () => setBookingCharges(before), 'the extra')
     },
-    deleteBookingCharge: (id: string) => {
-      if (!sureToDelete()) return
+    deleteBookingCharge: async (id: string) => {
+      if (!await sureToDelete()) return
       const before = bookingCharges
       setBookingCharges(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('booking_charges').delete().eq('id', id),
@@ -294,8 +295,8 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       persist(supabase.from('instructor_debts').insert([d]),
         () => setInstructorDebts(before), 'the debt')
     },
-    deleteInstructorDebt: (id: string) => {
-      if (!sureToDelete()) return
+    deleteInstructorDebt: async (id: string) => {
+      if (!await sureToDelete()) return
       const before = instructorDebts
       setInstructorDebts(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('instructor_debts').delete().eq('id', id),
@@ -308,8 +309,8 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       persist(supabase.from('instructor_payments').insert([p]),
         () => setInstructorPayments(before), 'the instructor payment')
     },
-    deleteInstructorPayment: (id: string) => {
-      if (!sureToDelete()) return
+    deleteInstructorPayment: async (id: string) => {
+      if (!await sureToDelete()) return
       const before = instructorPayments
       setInstructorPayments(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('instructor_payments').delete().eq('id', id),
@@ -385,8 +386,8 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       persist(supabase.from('expenses').update(e).eq('id', e.id),
         () => setExpenses(before), 'the expense')
     },
-    deleteExpense: (id: string) => {
-      if (!sureToDelete()) return
+    deleteExpense: async (id: string) => {
+      if (!await sureToDelete()) return
       const before = expenses
       setExpenses(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('expenses').delete().eq('id', id),
@@ -399,8 +400,8 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       persist(supabase.from('associate_transfers').insert([t]),
         () => setAssociateTransfers(before), 'the transfer')
     },
-    deleteAssociateTransfer: (id: string) => {
-      if (!sureToDelete()) return
+    deleteAssociateTransfer: async (id: string) => {
+      if (!await sureToDelete()) return
       const before = associateTransfers
       setAssociateTransfers(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('associate_transfers').delete().eq('id', id),
@@ -427,8 +428,8 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
         .update({ date, label, nb_persons, participant_ids, price_client, price_provider, notes }).eq('id', a.id),
         () => setActivityBookings(before), 'the activity')
     },
-    deleteActivityBooking: (id: string) => {
-      if (!sureToDelete()) return
+    deleteActivityBooking: async (id: string) => {
+      if (!await sureToDelete()) return
       const before = activityBookings
       setActivityBookings(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('activity_bookings').delete().eq('id', id),
@@ -489,8 +490,8 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       persist(supabase.from('palmeiras_entries').insert([e]),
         () => setPalmeirasEntries(before), 'the entry')
     },
-    deletePalmeirasEntry: (id: string) => {
-      if (!sureToDelete()) return
+    deletePalmeirasEntry: async (id: string) => {
+      if (!await sureToDelete()) return
       const before = palmeirasEntries
       setPalmeirasEntries(prev => prev.filter(x => x.id !== id))
       persist(supabase.from('palmeiras_entries').delete().eq('id', id),

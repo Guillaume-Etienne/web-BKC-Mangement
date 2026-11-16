@@ -11,6 +11,7 @@ import { BookingPeekButton } from './BookingPeekPanel'
 import { tripTravel, type TravelFields } from '../../utils/travelMode'
 import TravelBadge from '../common/TravelBadge'
 import Modal from '../common/Modal'
+import { askConfirm } from '../../lib/confirm'
 
 function statusConfig(lang: Lang): Record<TaxiTripStatus, { label: string; row: string; badge: string }> {
   return {
@@ -386,7 +387,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
 
   async function handleDelete() {
     if (!editTrip) return
-    if (confirm(i18n.taxis.msg_confirm_delete_trip[lang])) {
+    if (await askConfirm(i18n.taxis.msg_confirm_delete_trip[lang])) {
       await onDeleteTrip(editTrip.id)
       setEditTrip(null)
     }

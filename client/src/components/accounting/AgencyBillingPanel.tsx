@@ -13,6 +13,7 @@ import { fmtDateShort, todayISO } from '../../utils/dates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import { notifyInfo } from '../../lib/notify'
+import { askConfirm } from '../../lib/confirm'
 
 /** One thing the centre delivered, which is billed either to the guest or to the
  *  agency that sent them. The four sources (lessons, rentals, transfers, rooms)
@@ -207,9 +208,9 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
     }, lines.filter(l => !l.agency_invoice_id).map(l => l.id))
   }
 
-  function removeInvoice() {
+  async function removeInvoice() {
     if (!invoice) return
-    if (confirm(
+    if (await askConfirm(
       `Delete invoice ${invoice.invoice_number}?\n\n` +
       `Its ${invoicedLines.length} line${invoicedLines.length > 1 ? 's' : ''} stay — they go back to ` +
       `"not invoiced". What the agency owes is not cancelled.`
@@ -225,12 +226,12 @@ export default function AgencyBillingPanel({ booking: b, data, handlers }: Props
     printAgencyInvoice(doc, agencyShortCode)
   }
 
-  function removeLine(l: AgencyBillingLine) {
+  async function removeLine(l: AgencyBillingLine) {
     const attached = services.filter(s => s.lineId === l.id).length
     const warning = attached > 0
       ? `\n\n${attached} service${attached > 1 ? 's' : ''} attached to it will go back to being billed to the client.`
       : ''
-    if (confirm(`Delete "${lineLabel(l)}" (${fmtEur(l.price)})?${warning}`)) handlers.deleteAgencyBillingLine(l.id)
+    if (await askConfirm(`Delete "${lineLabel(l)}" (${fmtEur(l.price)})?${warning}`)) handlers.deleteAgencyBillingLine(l.id)
   }
 
   return (

@@ -10,6 +10,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import Modal from '../common/Modal'
 import { notifyError, notifyInfo } from '../../lib/notify'
+import { askConfirm } from '../../lib/confirm'
 
 function typeMeta(lang: Lang): Record<AccommodationType, { icon: string; label: string; plural: string }> {
   return {
@@ -564,7 +565,7 @@ export default function AccommodationsTab() {
   async function handleDelete(acc: Accommodation) {
     const blocked = await whatBlocksDelete('accommodations', acc.id)
     if (blocked) { notifyInfo(`${acc.name} can't be deleted: ${blocked}. Move those bookings elsewhere first, or mark it inactive.`); return }
-    if (!confirm(`Delete ${acc.name} and its rooms? No booking uses it.`)) return
+    if (!await askConfirm(`Delete ${acc.name} and its rooms? No booking uses it.`)) return
     const { error } = await supabase.from('accommodations').delete().eq('id', acc.id)
     if (error) { notifyError('Error: ' + deleteErrorMessage(error)); return }
     if (selected?.id === acc.id) setSelected(null)
@@ -579,7 +580,7 @@ export default function AccommodationsTab() {
   }
 
   async function handleDeleteRental(id: string) {
-    if (!confirm('Delete this rental period?')) return
+    if (!await askConfirm('Delete this rental period?')) return
     const { error } = await supabase.from('house_rentals').delete().eq('id', id)
     if (error) { notifyError('Error: ' + error.message); return }
     refreshRentals()

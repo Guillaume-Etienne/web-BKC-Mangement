@@ -6,6 +6,7 @@ export const commonI18n = {
   btn_edit:       { fr: 'Modifier',     en: 'Edit',        es: 'Editar' },
   btn_delete:     { fr: 'Supprimer',    en: 'Delete',      es: 'Eliminar' },
   btn_cancel:     { fr: 'Annuler',      en: 'Cancel',      es: 'Cancelar' },
+  btn_discard:    { fr: 'Abandonner',   en: 'Discard',     es: 'Descartar' },
   btn_save:       { fr: 'Enregistrer',  en: 'Save',        es: 'Guardar' },
   btn_close:      { fr: 'Fermer',       en: 'Close',       es: 'Cerrar' },
   btn_back:       { fr: 'Retour',       en: 'Back',        es: 'Atrás' },

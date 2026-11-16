@@ -7,6 +7,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import GuestPicker from './GuestPicker'
 import { DURATION_OPTIONS, GearSection, WingToggle, lessonTypeCfg, riderGearRows, type GearPick } from './lessonFormParts'
+import { askConfirm } from '../../lib/confirm'
 
 interface Props {
   lesson: Lesson
@@ -82,9 +83,9 @@ export default function EditLessonModal({
     onSave(reFreezeInstructorRate(withDiscipline, lesson, instructors))
   }
 
-  function remove() {
+  async function remove() {
     if (!onDelete) return
-    if (confirm(i18n.planning.msg_confirm_delete_lesson[lang])) onDelete(lesson.id)
+    if (await askConfirm(i18n.planning.msg_confirm_delete_lesson[lang])) onDelete(lesson.id)
   }
 
   return (

@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { pushModal, removeModal } from '../../lib/modalStack'
+import { askConfirm } from '../../lib/confirm'
 
 interface Props {
   /** Called whenever the browser closes the dialog (Esc, mobile back gesture) or,
@@ -19,6 +20,8 @@ interface Props {
    *  (meant for a date picker, say) does not wipe it. The form's own Cancel button
    *  is a deliberate click and is not affected. */
   confirmDismiss?: string
+  /** The "yes" button of that question (defaults to the localised "Delete"). */
+  confirmDismissLabel?: string
   /** Where the card sits in the screen, like the old overlay's flex classes
    *  (`items-center justify-center p-4`, `items-end sm:items-center`, …). */
   className?: string
@@ -43,13 +46,18 @@ interface Props {
  *  Initial focus: React's `autoFocus` fires while the dialog is still closed (hidden)
  *  and is lost, so mark the field with `data-autofocus` instead. */
 export default function Modal({
-  onClose, lightDismiss = false, labelledBy, label, dismissible = true, confirmDismiss,
+  onClose, lightDismiss = false, labelledBy, label, dismissible = true, confirmDismiss, confirmDismissLabel,
   className = 'items-center justify-center p-4',
   backdropClassName = 'backdrop:bg-black/50', children,
 }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
   const pressedOutside = useRef(false)
   const unmounted = useRef(false)
+
+  function askDismiss() {
+    askConfirm(confirmDismiss!, { confirmLabel: confirmDismissLabel, tone: 'neutral' })
+      .then(ok => { if (ok && !unmounted.current) onClose() })
+  }
 
   // Layout effect: the cleanup must run while the element is still in the document.
   useLayoutEffect(() => {
@@ -76,14 +84,33 @@ export default function Modal({
       ref={ref}
       aria-labelledby={labelledBy}
       aria-label={label}
-      // `cancel` precedes an Esc / back-gesture close and can veto it.
+      // `cancel` precedes an Esc / back-gesture close and can veto it. The
+      // question is asynchronous, so the close is vetoed first and only performed
+      // (through the parent, like Cancel) on a "yes".
+      // The veto is not guaranteed: Chrome makes `cancel` non-cancelable when the
+      // user has not interacted with the page since the last one (a second Esc in
+      // a row, a dialog opened by script). The dialog then closes anyway — and
+      // onClose below reopens it before asking.
       onCancel={e => {
-        if (!dismissible || (confirmDismiss && !window.confirm(confirmDismiss))) e.preventDefault()
+        if (dismissible && !confirmDismiss) return
+        if (!e.cancelable) return
+        e.preventDefault()
+        if (confirmDismiss) askDismiss()
       }}
-      // Ignore a stale close: after an unmount (see the cleanup above), and in
-      // StrictMode, where the dev-only remount reopens the dialog before the close
-      // event of the first cleanup arrives.
-      onClose={() => { if (!unmounted.current && !ref.current?.open) onClose() }}
+      onClose={() => {
+        // Ignore a stale close: after an unmount (see the cleanup above), and in
+        // StrictMode, where the dev-only remount reopens the dialog before the close
+        // event of the first cleanup arrives.
+        const dialog = ref.current
+        if (unmounted.current || !dialog || dialog.open) return
+        // A close we could not veto (see onCancel): undo it, then ask.
+        if (!dismissible || confirmDismiss) {
+          dialog.showModal()
+          if (confirmDismiss) askDismiss()
+          return
+        }
+        onClose()
+      }}
       // Light dismiss needs the press AND the release outside the card, so a text
       // selection dragged out of a field onto the backdrop does not close the form.
       onPointerDown={e => { pressedOutside.current = e.target === e.currentTarget }}

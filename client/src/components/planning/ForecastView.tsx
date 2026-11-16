@@ -17,6 +17,7 @@ import { i18n } from '../../data/i18n'
 import { RENTAL_TYPES, type RentalKind } from './rentalTypes'
 import Modal from '../common/Modal'
 import { notifyError, notifyInfo } from '../../lib/notify'
+import { askConfirm } from '../../lib/confirm'
 
 // Forecast = the ORGANISING sandbox. What is placed here is a plan: it lives in
 // `planned_lessons` / `planned_rentals`, which nothing in accounting, payroll or
@@ -913,10 +914,11 @@ function ForecastDay({
     const ls = dayPlan.filter(l => !l.exported_at)
     const rs = dayPlanRent.filter(r => !r.exported_at)
     if (ls.length + rs.length === 0) { notifyInfo('Nothing left to export for this day.'); return }
-    if (!confirm(
+    if (!await askConfirm(
       `Export ${ls.length} lesson(s) and ${rs.length} rental(s) of ${formatDate(selectedDate, lang)} to Daily?\n\n` +
       'They will be counted from now on: the client price and the instructor pay are frozen today. ' +
       'Items without a guest, or already in Daily, are skipped.',
+    { confirmLabel: i18n.common.btn_export[lang], tone: 'neutral' },
     )) return
     setBusy(true)
     let done = 0

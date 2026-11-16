@@ -18,6 +18,7 @@ import {
 } from '../../utils/partnerHotel'
 import { safariEnd, bileneSide } from '../../utils/safariChain'
 import { notifyError, notifyInfo } from '../../lib/notify'
+import { askConfirm } from '../../lib/confirm'
 
 /** A booking as this tab needs it: enough to prefill a reservation. */
 export interface HotelBookingRef {
@@ -490,7 +491,7 @@ export default function PartnerHotelTab({
   }
 
   async function deleteStays(ids: string[], what: string) {
-    if (!confirm(`Delete ${what}?`)) return
+    if (!await askConfirm(`Delete ${what}?`)) return
     const { error } = await supabase.from('partner_hotel_stays').delete().in('id', ids)
     report(`delete ${what}`, error)
     onStaysChanged()
@@ -504,7 +505,7 @@ export default function PartnerHotelTab({
   }
 
   async function deletePayment(id: string) {
-    if (!confirm('Delete this payment?')) return
+    if (!await askConfirm('Delete this payment?')) return
     const { error } = await supabase.from('partner_hotel_payments').delete().eq('id', id)
     report('delete the payment', error)
     onPaymentsChanged()

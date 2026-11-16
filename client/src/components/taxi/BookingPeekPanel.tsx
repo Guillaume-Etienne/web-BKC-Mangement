@@ -11,6 +11,7 @@ import { i18n } from '../../data/i18n'
 import { isTravelBy, travelLabel, travelToStore } from '../../utils/travelMode'
 import TravelBadge from '../common/TravelBadge'
 import { notifyError } from '../../lib/notify'
+import { askConfirm } from '../../lib/confirm'
 
 // The booking behind a taxi trip, opened from the ⓘ of a trip without leaving
 // the Taxis page (gui, 2026-11-08): what the booking sheet says about the
@@ -189,8 +190,8 @@ export default function BookingPeekPanel({
     if (ok) setProposals(ps => ps.filter(x => x.tripId !== p.tripId))
   }
 
-  function confirmLeave(): boolean {
-    return !dirty || confirm(tx.peek_msg_discard[lang])
+  async function confirmLeave(): Promise<boolean> {
+    return !dirty || await askConfirm(tx.peek_msg_discard[lang], { confirmLabel: i18n.common.btn_discard[lang], tone: 'neutral' })
   }
 
   const clientName = booking?.client ? `${booking.client.first_name} ${booking.client.last_name}` : '—'
@@ -230,7 +231,7 @@ export default function BookingPeekPanel({
                 className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg text-gray-700 dark:text-gray-300 disabled:opacity-30">›</button>
             </div>
           )}
-          <button type="button" onClick={() => { if (confirmLeave()) onClose() }} title={i18n.common.btn_close[lang]}
+          <button type="button" onClick={async () => { if (await confirmLeave()) onClose() }} title={i18n.common.btn_close[lang]}
             className="w-9 h-9 rounded-lg text-xl font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">✕</button>
         </div>
       </div>
@@ -362,7 +363,7 @@ export default function BookingPeekPanel({
 
           {onOpenBooking && (
             <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800">
-              <button type="button" onClick={() => { if (confirmLeave()) onOpenBooking(booking.id) }}
+              <button type="button" onClick={async () => { if (await confirmLeave()) onOpenBooking(booking.id) }}
                 className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline">
                 {tx.peek_btn_open_booking[lang]} →
               </button>

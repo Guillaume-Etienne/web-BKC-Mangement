@@ -19,6 +19,7 @@ import { clientParticipantIds, cumulativeHoursBefore } from '../components/accou
 import { isDayVisitor, visitsOf } from '../utils/dayVisitor'
 import Modal from '../components/common/Modal'
 import { notifyError, notifyInfo } from '../lib/notify'
+import { askConfirm } from '../lib/confirm'
 
 interface ClientsPageProps {
   onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients') => void
@@ -249,7 +250,7 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
   const handleDelete = async (id: string) => {
     const blocked = await whatBlocksDelete('clients', id)
     if (blocked) { notifyInfo(`This client can't be deleted: ${blocked}. Their bookings and lessons are kept on purpose.`); return }
-    if (!confirm('Delete this client?')) return
+    if (!await askConfirm('Delete this client?')) return
     const { error: err } = await supabase.from('clients').delete().eq('id', id)
     if (err) { notifyError('Delete error: ' + deleteErrorMessage(err)); return }
     setSelectedClient(null)

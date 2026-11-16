@@ -29,6 +29,7 @@ import type { BillActivityRequest } from '../../utils/billedActivities'
 import { useTrackTab } from '../../hooks/useTrackTab'
 import Modal from '../common/Modal'
 import { notifyError, notifyInfo } from '../../lib/notify'
+import { askConfirm } from '../../lib/confirm'
 
 // ── Booking quick view modal ───────────────────────────────────────────────────
 
@@ -616,10 +617,10 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     setShowValidateModal(false)
   }
 
-  function handleTabChange(newTab: typeof planningTab) {
+  async function handleTabChange(newTab: typeof planningTab) {
     if (draftMoves.size > 0 && newTab !== planningTab) {
       const msg = (draftMoves.size > 1 ? i18n.pages.confirm_unsaved_moves[lang] : i18n.pages.confirm_unsaved_move[lang]).replace('{count}', String(draftMoves.size))
-      if (!confirm(msg)) return
+      if (!await askConfirm(msg, { confirmLabel: i18n.common.btn_discard[lang], tone: 'neutral' })) return
       setDraftMoves(new Map())
     }
     setPlanningTab(newTab)

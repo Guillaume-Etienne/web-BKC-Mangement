@@ -8,6 +8,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import type { Lang } from '../../types/database'
 import { notifyError } from '../../lib/notify'
+import { askConfirm } from '../../lib/confirm'
 
 /** Read the message, fill four fields, close. Twenty seconds.
  *
@@ -213,7 +214,7 @@ export default function EnquiryPanel({ enquiry, sources, onSaved, onClose, onDel
 
   async function remove() {
     if (!enquiry) return
-    if (!confirm(`Delete the enquiry from ${enquiry.name}?\n\nIts notes go with it. Nothing else is touched.`)) return
+    if (!await askConfirm(`Delete the enquiry from ${enquiry.name}?\n\nIts notes go with it. Nothing else is touched.`)) return
     const { error } = await supabase.from('enquiries').delete().eq('id', enquiry.id)
     if (error) { notifyError(`Could not delete it.\n\n${error.message}`); return }
     onDeleted?.()

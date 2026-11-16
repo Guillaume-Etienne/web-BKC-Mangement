@@ -4,6 +4,7 @@ import { todayISO, fmtDate } from '../../utils/dates'
 import { useEurMznRateFor } from '../../hooks/useEurMznRates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
+import { askConfirm } from '../../lib/confirm'
 
 // ── Dual-currency helpers (MZN first, € translation beside) ──────────────────
 const mznToEur = (mzn: number, rate: number) => Math.round(mzn / (rate || 1))
@@ -201,7 +202,7 @@ export default function TaxiFinanceTab({ trips, drivers, bookings, payments, eur
                   i18n.taxis.label_balanced[lang]
 
   async function handleDelete(id: string) {
-    if (!confirm(i18n.taxis.msg_confirm_delete_payment[lang])) return
+    if (!await askConfirm(i18n.taxis.msg_confirm_delete_payment[lang])) return
     await onDeletePayment(id)
   }
 

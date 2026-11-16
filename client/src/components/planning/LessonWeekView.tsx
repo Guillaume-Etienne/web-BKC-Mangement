@@ -18,6 +18,7 @@ import type { WalkInRequest } from './walkInSave'
 import { isDayVisitor, isInCountryOn, isOnSiteOn } from '../../utils/dayVisitor'
 import type { BillActivityRequest } from '../../utils/billedActivities'
 import Modal from '../common/Modal'
+import { askConfirm } from '../../lib/confirm'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -385,8 +386,8 @@ export default function LessonWeekView({
     return rentals.filter(r => r.date === date && (r.slot === slot || r.slot === 'full_day'))
   }
 
-  function deleteRental(id: string) {
-    if (confirm(i18n.planning.msg_confirm_delete_rental[lang])) {
+  async function deleteRental(id: string) {
+    if (await askConfirm(i18n.planning.msg_confirm_delete_rental[lang])) {
       if (editRental?.id === id) setEditRental(null)
       onDeleteRental(id)
     }
@@ -473,8 +474,8 @@ export default function LessonWeekView({
     setEditLesson(lesson)
   }
 
-  function deleteLesson(id: string) {
-    if (confirm(i18n.planning.msg_confirm_delete_lesson[lang])) {
+  async function deleteLesson(id: string) {
+    if (await askConfirm(i18n.planning.msg_confirm_delete_lesson[lang])) {
       onDeleteLesson(id)
       if (editLesson?.id === id) setEditLesson(null)
     }

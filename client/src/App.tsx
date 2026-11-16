@@ -58,6 +58,7 @@ const WalkInSharePage           = lazy(() => import('./pages/WalkInSharePage'))
 // would make the palette feel broken on a bad connection.
 import GlobalSearch from './components/common/GlobalSearch'
 import Notifications from './components/common/Notifications'
+import ConfirmHost from './components/common/ConfirmHost'
 import SharedFooter from './components/common/SharedFooter'
 import type { SharedLink } from './types/database'
 import { notifyError } from './lib/notify'
@@ -398,6 +399,7 @@ function App() {
         </main>
         </DataErrorsProvider>
         <Notifications />
+        <ConfirmHost />
 
         <GlobalSearch
           open={searchOpen}
