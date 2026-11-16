@@ -11,6 +11,7 @@ import { i18n } from '../../data/i18n'
 import { RENTAL_TYPES, boardPickerCategory, rentalGear, rentalKind, rentalLabel, showsKitePicker, type RentalKind } from './rentalTypes'
 import EditRentalModal from './EditRentalModal'
 import EditLessonModal from './EditLessonModal'
+import EditActivityModal from './EditActivityModal'
 import { GearSection, WingToggle, lessonTypeCfg, riderGearRows, DURATION_OPTIONS, type GearPick } from './lessonFormParts'
 import { Avatar } from './GuestPicker'
 import WalkInForm from './WalkInForm'
@@ -108,6 +109,7 @@ interface LessonWeekViewProps {
   onAddActivity: (a: Omit<DayActivity, 'id'>) => void
   /** "Bill to guests" on an activity: adds it to each involved booking's bill */
   onBillActivity: (req: BillActivityRequest) => void
+  onUpdateActivity: (a: DayActivity) => void
   onDeleteActivity: (id: string) => void
   onAddRental: (r: Omit<EquipmentRental, 'id'>) => void
   onUpdateRental: (r: EquipmentRental) => void
@@ -124,7 +126,7 @@ export default function LessonWeekView({
   bookings, instructors, clients, bookingParticipants, equipment, rentals, priceItems, priceTiers,
   agencies, agencyBillingLines,
   onAddLesson, onUpdateLesson, onDeleteLesson,
-  onAddActivity, onBillActivity, onDeleteActivity,
+  onAddActivity, onBillActivity, onUpdateActivity, onDeleteActivity,
   onAddRental, onUpdateRental, onDeleteRental,
   onAddWalkIn,
 }: LessonWeekViewProps) {
@@ -172,6 +174,7 @@ export default function LessonWeekView({
 
   // ── Rental edit ────────────────────────────────────────────────────────────
   const [editRental, setEditRental] = useState<EquipmentRental | null>(null)
+  const [editActivity, setEditActivity] = useState<DayActivity | null>(null)
 
   // ── Clipboard ─────────────────────────────────────────────────────────────
   const [clipboard, setClipboard] = useState<Lesson | null>(null)
@@ -680,14 +683,19 @@ export default function LessonWeekView({
                           key={act.id}
                           className="group/act relative rounded border border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-950/40 text-orange-900 dark:text-orange-400 p-2.5 md:p-1.5 text-sm md:text-xs mb-1"
                         >
-                          <div className="absolute top-1 right-1 flex md:hidden md:group-hover/act:flex">
+                          <div className="absolute top-1 right-1 flex md:hidden md:group-hover/act:flex items-center">
+                            <button
+                              onClick={() => setEditActivity(act)}
+                              className="text-gray-400 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 text-sm md:text-xs p-1.5 md:px-1 md:py-0"
+                              title="Edit"
+                            >✏️</button>
                             <button
                               onClick={() => deleteActivity(act.id)}
                               className="text-gray-400 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 text-sm md:text-xs p-1.5 md:px-1 md:py-0"
                               title="Delete"
                             >✕</button>
                           </div>
-                          <span className="font-medium pr-4">🎯 {act.name}</span>
+                          <span className="font-medium pr-10">🎯 {act.name}</span>
                           {act.notes && <div className="opacity-60 text-xs">{act.notes}</div>}
                         </div>
                       ))}
@@ -1162,6 +1170,15 @@ export default function LessonWeekView({
           onSave={r => { onUpdateRental(r); setEditRental(null) }}
           onClose={() => setEditRental(null)}
           onDelete={deleteRental}
+        />
+      )}
+
+      {/* ── Activity edit modal ── */}
+      {editActivity && (
+        <EditActivityModal
+          activity={editActivity}
+          onSave={a => { onUpdateActivity(a); setEditActivity(null) }}
+          onClose={() => setEditActivity(null)}
         />
       )}
 

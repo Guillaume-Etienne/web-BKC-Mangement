@@ -812,6 +812,18 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     }
   }, [])
 
+  const onUpdateActivity = useCallback(async (activity: DayActivity) => {
+    let before: DayActivity | undefined
+    setDayActivities(prev => { before = prev.find(a => a.id === activity.id); return prev.map(a => a.id === activity.id ? activity : a) })
+    const { error } = await supabase.from('day_activities')
+      .update({ name: activity.name, notes: activity.notes, slot: activity.slot }).eq('id', activity.id)
+    if (error) {
+      console.error('Activity update error:', error.message)
+      if (before) setDayActivities(prev => prev.map(a => a.id === activity.id ? before as DayActivity : a))
+      notifyError('Error saving activity: ' + error.message)
+    }
+  }, [])
+
   const onDeleteActivity = useCallback(async (id: string) => {
     let removed: DayActivity | undefined
     setDayActivities(prev => { removed = prev.find(a => a.id === id); return prev.filter(a => a.id !== id) })
@@ -1251,6 +1263,7 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
               onDeleteLesson={onDeleteLesson}
               onAddActivity={onAddActivity}
               onBillActivity={onBillActivity}
+              onUpdateActivity={onUpdateActivity}
               onDeleteActivity={onDeleteActivity}
               onAddRental={onAddRental}
               onUpdateRental={onUpdateRental}
