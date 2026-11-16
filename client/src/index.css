@@ -27,6 +27,18 @@ body {
   color-scheme: dark;
 }
 
+/* Native modal dialogs (components/common/Modal.tsx): a scroll gesture inside the
+   dialog or on its backdrop must not scroll the page behind it. Progressive
+   enhancement — never lock the body with overflow:hidden instead, which removes
+   the scrollbar and shifts the whole layout. */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
 /* Stacked "card" tables for small screens (opt-in with class `stack-mobile`).
    Below md, each row becomes a block with its cells as label/value lines; the
    header row is hidden and each cell reads its column name from data-label.

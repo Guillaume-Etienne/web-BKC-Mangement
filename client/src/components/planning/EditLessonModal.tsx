@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import Modal from '../common/Modal'
 import type { Booking, BookingParticipant, Client, Equipment, Instructor, Lesson, LessonDiscipline, LessonType, PriceItem, PriceTier } from '../../types/database'
 import { lessonDiscipline } from '../../types/database'
 import { reFreezeInstructorRate, resolveLessonRate } from '../accounting/utils'
@@ -31,6 +32,7 @@ export default function EditLessonModal({
 }: Props) {
   const { lang } = useLanguage()
   const LESSON_TYPE_CFG = lessonTypeCfg(lang)
+  const titleId = useId()
   const [editData, setEditData] = useState<Partial<Lesson>>({ ...lesson })
   const [riderGear, setRiderGear] = useState<Record<string, GearPick>>(
     Object.fromEntries((lesson.rider_gear ?? []).map(g => [g.participant_id, { kite_id: g.kite_id, board_id: g.board_id }])),
@@ -86,11 +88,10 @@ export default function EditLessonModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={e => e.stopPropagation()}>
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
+    <Modal onClose={onClose} labelledBy={titleId} className="max-w-md max-h-[90vh]">
         <div className="flex justify-between items-center p-4 border-b shrink-0">
-          <h3 className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_edit_lesson[lang]}</h3>
-          <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold">✕</button>
+          <h3 id={titleId} className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_edit_lesson[lang]}</h3>
+          <button type="button" onClick={onClose} aria-label={i18n.common.btn_close[lang]} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold">✕</button>
         </div>
         {/* The guest chips can run long, so the form scrolls inside the modal or the
             page behind it scrolls instead and Save/Cancel become unreachable. */}
@@ -227,7 +228,6 @@ export default function EditLessonModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
