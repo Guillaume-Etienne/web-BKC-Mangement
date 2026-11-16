@@ -17,6 +17,7 @@ import WalkInForm from './WalkInForm'
 import type { WalkInRequest } from './walkInSave'
 import { isDayVisitor, isInCountryOn, isOnSiteOn } from '../../utils/dayVisitor'
 import type { BillActivityRequest } from '../../utils/billedActivities'
+import Modal from '../common/Modal'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -1165,10 +1166,7 @@ export default function LessonWeekView({
 
       {/* ── Mobile action sheet: labeled Copy/Move/Edit/Delete instead of tiny icons ── */}
       {actionSheetItem && (
-        <div
-          className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center md:hidden"
-          onClick={() => setActionSheetItem(null)}
-        >
+        <Modal onClose={() => setActionSheetItem(null)} lightDismiss className="items-end justify-center" backdropClassName="backdrop:bg-black/40">
           <div className="bg-white dark:bg-gray-900 rounded-t-xl shadow-xl w-full p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]" onClick={e => e.stopPropagation()}>
             {actionSheetItem.kind === 'lesson' && (
               <button
@@ -1205,12 +1203,12 @@ export default function LessonWeekView({
               className="w-full text-center px-4 py-3 mt-1 border-t text-gray-500 dark:text-gray-400 font-medium"
             >{i18n.common.btn_cancel[lang]}</button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── Move modal (lesson or rental → new date/slot) ── */}
       {moveItem && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setMoveItem(null)}>
+        <Modal onClose={() => setMoveItem(null)} lightDismiss backdropClassName="backdrop:bg-black/40">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <h3 className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_move[lang]} {moveItem.kind}</h3>
@@ -1272,7 +1270,7 @@ export default function LessonWeekView({
               </div>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   )

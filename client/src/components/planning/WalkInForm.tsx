@@ -8,6 +8,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import { RENTAL_TYPES, boardPickerCategory, rentalGear, rentalLabel, showsKitePicker, type RentalKind } from './rentalTypes'
 import type { WalkInRequest } from './walkInSave'
+import Modal from '../common/Modal'
 
 /** The walk-in form (Daily tab → "🚶 Walk-in"): one screen to go from "a local
  *  just showed up" to a saved lesson or rental, in about 30 seconds.
@@ -152,7 +153,7 @@ export default function WalkInForm(props: WalkInFormProps) {
       : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center sm:p-4 z-50" onClick={onClose}>
+    <Modal onClose={onClose} lightDismiss className="items-end sm:items-center justify-center sm:p-4">
       <form
         onSubmit={submit}
         onClick={e => e.stopPropagation()}
@@ -185,7 +186,7 @@ export default function WalkInForm(props: WalkInFormProps) {
             ) : creating ? (
               <div className="space-y-2 rounded-lg border border-gray-200 dark:border-gray-800 p-2.5">
                 <div className="grid grid-cols-2 gap-2">
-                  <input autoFocus className={inputCls} placeholder={t.walkin_first_name[lang]} value={newClient.first_name} onChange={e => setNewClient(n => ({ ...n, first_name: e.target.value }))} />
+                  <input autoFocus data-autofocus className={inputCls} placeholder={t.walkin_first_name[lang]} value={newClient.first_name} onChange={e => setNewClient(n => ({ ...n, first_name: e.target.value }))} />
                   <input className={inputCls} placeholder={t.walkin_last_name[lang]} value={newClient.last_name} onChange={e => setNewClient(n => ({ ...n, last_name: e.target.value }))} />
                 </div>
                 <input className={inputCls} type="tel" placeholder={t.walkin_phone[lang]} value={newClient.phone} onChange={e => setNewClient(n => ({ ...n, phone: e.target.value }))} />
@@ -195,7 +196,7 @@ export default function WalkInForm(props: WalkInFormProps) {
               </div>
             ) : (
               <div className="space-y-1.5">
-                <input autoFocus className={inputCls} placeholder={t.walkin_search_ph[lang]} value={query} onChange={e => setQuery(e.target.value)} />
+                <input autoFocus data-autofocus className={inputCls} placeholder={t.walkin_search_ph[lang]} value={query} onChange={e => setQuery(e.target.value)} />
                 {matches.length > 0 && (
                   <ul className="border border-gray-200 dark:border-gray-800 rounded divide-y divide-gray-100 dark:divide-gray-800">
                     {matches.map(c => (
@@ -357,6 +358,6 @@ export default function WalkInForm(props: WalkInFormProps) {
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   )
 }

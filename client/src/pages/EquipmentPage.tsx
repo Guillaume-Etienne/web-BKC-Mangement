@@ -13,6 +13,7 @@ import type {
 } from '../types/database'
 import { todayISO } from '../utils/dates'
 import { useTrackTab } from '../hooks/useTrackTab'
+import Modal from '../components/common/Modal'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1599,7 +1600,7 @@ export default function EquipmentPage() {
 
       {/* ─── EDIT MODAL ───────────────────────────────────────────────────────── */}
       {editModal.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <Modal onClose={() => setEditModal({ open: false, equipment: null, formData: {} })}>
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-800">
               <h3 className="font-bold text-gray-800 dark:text-gray-100">
@@ -1618,7 +1619,7 @@ export default function EquipmentPage() {
                   value={editModal.formData.name || ''}
                   onChange={e => setEditModal(prev => ({ ...prev, formData: { ...prev.formData, name: e.target.value } }))}
                   className="w-full text-sm border dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1.5"
-                  autoFocus
+                  data-autofocus
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -1812,7 +1813,7 @@ export default function EquipmentPage() {
               </div>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

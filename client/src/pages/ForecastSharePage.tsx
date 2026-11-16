@@ -5,6 +5,7 @@ import type { PlannedLesson, PlannedRental, LessonType, Instructor, BookingParti
 import { useTable } from '../hooks/useSupabase'
 import { toISODate as dateToISO, addDays } from '../utils/dates'
 import { readLocal, writeLocal } from '../utils/safeStorage'
+import Modal from '../components/common/Modal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -476,8 +477,8 @@ export default function ForecastSharePage() {
           const l = picked.lesson
           const cfg = LESSON_CFG[l.type]
           return (
-            <div className="md:hidden fixed inset-0 z-50 flex items-end bg-black/40" onClick={() => setPicked(null)}>
-              <div role="dialog" aria-label="Lesson details" onClick={e => e.stopPropagation()}
+            <Modal onClose={() => setPicked(null)} lightDismiss label="Lesson details" className="items-end" backdropClassName="backdrop:bg-black/40">
+              <div onClick={e => e.stopPropagation()}
                 className={`w-full max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 border-t-4 ${cfg.border} p-4 flex flex-col gap-2 shadow-xl`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -493,7 +494,7 @@ export default function ForecastSharePage() {
                 <button onClick={() => setPicked(null)}
                   className="mt-2 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-800 dark:text-gray-200">Close</button>
               </div>
-            </div>
+            </Modal>
           )
         })()}
 

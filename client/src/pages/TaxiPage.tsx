@@ -16,6 +16,7 @@ import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults, TaxiManagerPayment, Tax
 import { todayISO, addDaysISO } from '../utils/dates'
 import { FALLBACK_TAXI_PRICING as FALLBACK_PRICING } from '../utils/taxiPricing'
 import { useTrackTab } from '../hooks/useTrackTab'
+import Modal from '../components/common/Modal'
 
 export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId: string) => void } = {}) {
   const { lang } = useLanguage()
@@ -368,7 +369,7 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
 
       {/* Driver Form Modal */}
       {showDriverForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <Modal onClose={closeDriverForm}>
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-md w-full max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center p-6 border-b">
               <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">
@@ -453,7 +454,7 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

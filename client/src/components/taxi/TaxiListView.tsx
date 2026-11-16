@@ -10,6 +10,7 @@ import type { Lang } from '../../types/database'
 import { BookingPeekButton } from './BookingPeekPanel'
 import { tripTravel, type TravelFields } from '../../utils/travelMode'
 import TravelBadge from '../common/TravelBadge'
+import Modal from '../common/Modal'
 
 function statusConfig(lang: Lang): Record<TaxiTripStatus, { label: string; row: string; badge: string }> {
   return {
@@ -125,7 +126,7 @@ function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaul
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <Modal onClose={onClose}>
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex justify-between items-center p-4 border-b">
           <h3 className="font-bold text-lg text-gray-800 dark:text-gray-200">{i18n.taxis.title_edit_taxi_trip[lang]}</h3>
@@ -291,7 +292,7 @@ function EditModal({ trip, drivers, bookings, bookingParticipants, pricingDefaul
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 

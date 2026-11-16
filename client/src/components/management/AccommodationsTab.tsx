@@ -8,6 +8,7 @@ import { todayISO, fmtDate } from '../../utils/dates'
 import { PALMEIRAS_COMMISSION_PCT, palmeirasCostMzn, palmeirasCommissionMzn } from '../../utils/palmeirasTerms'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
+import Modal from '../common/Modal'
 
 function typeMeta(lang: Lang): Record<AccommodationType, { icon: string; label: string; plural: string }> {
   return {
@@ -82,7 +83,7 @@ function AccForm({ initial, title, lockType, editContext, onSave, onClose }: Acc
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <Modal onClose={onClose}>
       <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-h-[90vh] overflow-y-auto ${editContext ? 'max-w-lg' : 'max-w-sm'}`}>
         <div className="flex justify-between items-center p-4 border-b">
           <h3 className="font-bold text-gray-800 dark:text-gray-200">{title}</h3>
@@ -195,7 +196,7 @@ function AccForm({ initial, title, lockType, editContext, onSave, onClose }: Acc
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   )
 }
 

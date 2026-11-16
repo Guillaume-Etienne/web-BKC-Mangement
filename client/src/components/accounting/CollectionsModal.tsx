@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Modal from '../common/Modal'
 import type { BookingStatus, Client } from '../../types/database'
 import { fmtEur } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
@@ -62,7 +63,7 @@ export default function CollectionsModal({ rows, clients, onClose, onOpenBooking
   const contact = (clientId: string | null) => clients.find(c => c.id === clientId)
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={onClose}>
+    <Modal onClose={onClose} lightDismiss>
       <div
         className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-2xl max-h-[85vh] flex flex-col"
         onClick={e => e.stopPropagation()}
@@ -136,6 +137,6 @@ export default function CollectionsModal({ rows, clients, onClose, onOpenBooking
           })}
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }

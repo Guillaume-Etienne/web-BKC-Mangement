@@ -88,7 +88,8 @@ export default function EditLessonModal({
   }
 
   return (
-    <Modal onClose={onClose} labelledBy={titleId} className="max-w-md max-h-[90vh]">
+    <Modal onClose={onClose} labelledBy={titleId}>
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-center p-4 border-b shrink-0">
           <h3 id={titleId} className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_edit_lesson[lang]}</h3>
           <button type="button" onClick={onClose} aria-label={i18n.common.btn_close[lang]} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold">✕</button>
@@ -228,6 +229,7 @@ export default function EditLessonModal({
             </button>
           </div>
         </form>
+      </div>
     </Modal>
   )
 }

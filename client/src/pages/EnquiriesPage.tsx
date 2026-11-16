@@ -14,6 +14,7 @@ import {
   submissionsByEnquiry, SILENCE_WARN_DAYS,
 } from '../utils/enquiries'
 import { thisMonthISO } from '../utils/dates'
+import Modal from '../components/common/Modal'
 
 /** Just enough of a booking to say "somebody came, and from where". */
 type AttributionBooking = Pick<Booking, 'id' | 'status' | 'check_in' | 'referral_source' | 'source_id'>
@@ -371,8 +372,7 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
 
       {/* ── Qualification, as an overlay: it is a focused act ───────────────── */}
       {(creating || current) && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto"
-          onClick={() => { setSelected(null); setCreating(false) }}>
+        <Modal onClose={() => { setSelected(null); setCreating(false) }} lightDismiss className="items-start justify-center p-4" backdropClassName="backdrop:bg-black/40">
           <div className="w-full max-w-5xl my-8" onClick={ev => ev.stopPropagation()}>
             <EnquiryPanel
               key={current?.id ?? 'new'}
@@ -383,7 +383,7 @@ export default function EnquiriesPage({ initialEnquiryId, onEnquiryOpened }: Pro
               onDeleted={() => { setSelected(null); setCreating(false); refresh() }}
             />
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

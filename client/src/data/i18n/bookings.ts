@@ -53,6 +53,7 @@ export const bookingsI18n = {
   title_new_booking:  { fr: 'Nouvelle réservation',    en: 'New booking',    es: 'Nueva reserva' },
   title_edit_booking: { fr: 'Modifier la réservation', en: 'Edit booking',   es: 'Editar reserva' },
   btn_save_booking:   { fr: 'Enregistrer la réservation', en: 'Save booking', es: 'Guardar reserva' },
+  msg_confirm_close_wizard: { fr: 'Fermer sans enregistrer ?', en: 'Close without saving?', es: '¿Cerrar sin guardar?' },
 
   // List filters
   filter_all:        { fr: 'Toutes',       en: 'All',        es: 'Todas' },

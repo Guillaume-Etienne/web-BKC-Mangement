@@ -27,6 +27,7 @@ import { supabase } from '../../lib/supabase'
 import { ensureInHouseProvider, buildBilledActivities } from '../../utils/billedActivities'
 import type { BillActivityRequest } from '../../utils/billedActivities'
 import { useTrackTab } from '../../hooks/useTrackTab'
+import Modal from '../common/Modal'
 
 // ── Booking quick view modal ───────────────────────────────────────────────────
 
@@ -74,7 +75,7 @@ function BookingQuickView({ booking, rooms, accommodations, bookingRooms, partic
   if (booking.notes) rows.push([i18n.common.label_notes[lang], booking.notes])
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={onClose}>
+    <Modal onClose={onClose} lightDismiss backdropClassName="backdrop:bg-black/40">
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="flex items-center gap-2">
@@ -104,7 +105,7 @@ function BookingQuickView({ booking, rooms, accommodations, bookingRooms, partic
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -159,7 +160,7 @@ function ValidateModal({ draftMoves, bookings, rooms, accommodations, onConfirm,
   })
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <Modal onClose={onCancel}>
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-xl max-h-[80vh] flex flex-col">
         <div className="flex justify-between items-center p-4 border-b">
           <h3 className="font-bold text-gray-800 dark:text-gray-200">
@@ -202,7 +203,7 @@ function ValidateModal({ draftMoves, bookings, rooms, accommodations, onConfirm,
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 

@@ -5,6 +5,7 @@ import {
   type SearchHit, type SearchIndex, type SearchKind,
 } from '../../utils/globalSearch'
 import { isMissingTable } from '../../utils/supabaseErrors'
+import Modal from './Modal'
 
 /** ⌘K / Ctrl-K: find a person anywhere, without knowing which screen they are on.
  *
@@ -103,15 +104,14 @@ export default function GlobalSearch({ open, onClose, onGo }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black/40 flex items-start justify-center pt-[12vh] px-4"
-      onClick={onClose}>
+    <Modal onClose={onClose} lightDismiss className="items-start justify-center pt-[12vh] px-4" backdropClassName="backdrop:bg-black/40">
       <div className="w-full max-w-xl bg-white dark:bg-gray-900 rounded-xl shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
           <span className="text-gray-400 dark:text-gray-500">🔍</span>
           <input
             ref={inputRef}
-            autoFocus
+            data-autofocus
             value={query}
             onChange={e => { setQuery(e.target.value); setCursor(0) }}
             onKeyDown={onKeyDown}
@@ -171,6 +171,6 @@ export default function GlobalSearch({ open, onClose, onGo }: Props) {
           ))}
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }

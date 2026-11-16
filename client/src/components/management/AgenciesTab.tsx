@@ -6,6 +6,7 @@ import type { Agency, AgencyRateItem, AgencyRateCategory } from '../../types/dat
 import { AGENCY_RATE_CATEGORIES, compareRateItems } from '../../types/database'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
+import Modal from '../common/Modal'
 
 /** The icon of one category — AGENCY_RATE_CATEGORIES is the single source, in
  *  display order, shared with the booking's billing panel. */
@@ -51,7 +52,7 @@ function AgencyForm({ initial, title, onSave, onClose }: AgencyFormProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <Modal onClose={onClose}>
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-sm max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-4 border-b">
           <h3 className="font-bold text-gray-800 dark:text-gray-200">{title}</h3>
@@ -105,7 +106,7 @@ function AgencyForm({ initial, title, onSave, onClose }: AgencyFormProps) {
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   )
 }
 

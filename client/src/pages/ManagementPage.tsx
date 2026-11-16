@@ -22,6 +22,7 @@ import OptionsMenu, { tabFromUrl, writeTabToUrl } from '../components/management
 import type { OptionsTab } from '../components/management/OptionsMenu'
 import UsagePanel from '../components/management/UsagePanel'
 import ClientErrorsPanel from '../components/management/ClientErrorsPanel'
+import Modal from '../components/common/Modal'
 
 
 const specialtyOptions = ['Beg-Total', 'Beg-BodyDrag', 'Beg-WaterStart', 'Intermediate', 'Advanced', 'Wave', 'Freestyle']
@@ -1116,7 +1117,7 @@ export default function ManagementPage() {
 
       {/* ── Instructor form modal ─────────────────────────────────────────── */}
       {showInstructorForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <Modal onClose={closeInstructorForm}>
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex justify-between items-center p-4 sm:p-6 border-b sticky top-0 bg-white dark:bg-gray-900">
               <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">{selectedInstructor ? 'Edit instructor' : 'New instructor'}</h2>
@@ -1208,12 +1209,12 @@ export default function ManagementPage() {
               </form>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── Price form modal ──────────────────────────────────────────────── */}
       {showPriceForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <Modal onClose={closePriceForm}>
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex justify-between items-center p-4 sm:p-6 border-b sticky top-0 bg-white dark:bg-gray-900">
               <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">{priceFormData.id ? 'Edit price' : 'New price'}</h2>
@@ -1285,7 +1286,7 @@ export default function ManagementPage() {
               </form>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

@@ -15,6 +15,7 @@ import { useTable } from '../../hooks/useSupabase'
 import { supabase } from '../../lib/supabase'
 import { i18n } from '../../data/i18n'
 import { RENTAL_TYPES, type RentalKind } from './rentalTypes'
+import Modal from '../common/Modal'
 
 // Forecast = the ORGANISING sandbox. What is placed here is a plan: it lives in
 // `planned_lessons` / `planned_rentals`, which nothing in accounting, payroll or
@@ -316,7 +317,7 @@ function LessonModal({
   const label = 'block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1'
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <Modal onClose={onClose}>
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md max-h-[92vh] overflow-y-auto">
         <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-800">
           <h3 className="font-bold text-gray-800 dark:text-gray-200">
@@ -422,7 +423,7 @@ function LessonModal({
           </form>
         )}
       </div>
-    </div>
+    </Modal>
   )
 }
 

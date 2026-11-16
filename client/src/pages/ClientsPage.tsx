@@ -17,6 +17,7 @@ import ClientTimeline from '../components/clients/ClientTimeline'
 import WalkInTabPanel from '../components/clients/WalkInTabPanel'
 import { clientParticipantIds, cumulativeHoursBefore } from '../components/accounting/utils'
 import { isDayVisitor, visitsOf } from '../utils/dayVisitor'
+import Modal from '../components/common/Modal'
 
 interface ClientsPageProps {
   onNavigate: (page: 'home' | 'planning' | 'bookings' | 'clients') => void
@@ -738,7 +739,7 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
 
         {/* Form Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Modal onClose={closeForm}>
             <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
               <div className="flex justify-between items-center p-6 border-b">
                 <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">
@@ -848,7 +849,7 @@ export default function ClientsPage({ onNavigate, initialClientId, onClientOpene
                 </form>
               </div>
             </div>
-          </div>
+          </Modal>
         )}
       </div>
     </div>

@@ -23,6 +23,7 @@ import { linkedBookingBadge } from '../utils/linkedBooking'
 import { isDayVisitor } from '../utils/dayVisitor'
 import ClientShareLink from '../components/common/ClientShareLink'
 import { isTravelBy, travelToStore, type TravelBy } from '../utils/travelMode'
+import Modal from '../components/common/Modal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -594,7 +595,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+    <Modal onClose={onCancel} confirmDismiss={i18n.bookings.msg_confirm_close_wizard[lang]} className="items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="bg-white dark:bg-gray-900 w-full sm:max-w-xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[95dvh] sm:max-h-[90vh]">
 
         {/* Header */}
@@ -1430,7 +1431,7 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -2435,7 +2436,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
 
       {/* Wizard */}
       {wizard.open && wizard.editing && !editShown && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <Modal onClose={closeWizard} backdropClassName="backdrop:bg-black/40">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg p-6 max-w-sm w-full text-center">
             {editDataError ? (
               <>
@@ -2447,7 +2448,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
             )}
             <button onClick={closeWizard} className="mt-4 px-4 py-2 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700">Close</button>
           </div>
-        </div>
+        </Modal>
       )}
       {wizard.open && (!wizard.editing || editShown) && (
         <BookingWizard
@@ -2476,11 +2477,11 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
 
       {/* Saving overlay */}
       {saving && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[60]">
+        <Modal onClose={() => {}} dismissible={false} label="Saving" backdropClassName="backdrop:bg-black/30">
           <div className="bg-white dark:bg-gray-900 rounded-lg px-8 py-5 shadow-xl">
             <p className="text-gray-700 dark:text-gray-300 font-medium">Saving...</p>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Modal from '../common/Modal'
 import { sortKitesBySize } from '../../utils/kiteSort'
 import type { Booking, BookingParticipant, Client, Equipment, EquipmentRental, PriceItem, RentalSlot } from '../../types/database'
 import { rentalBillable } from '../../types/database'
@@ -76,7 +77,7 @@ export default function EditRentalModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={e => { e.stopPropagation(); onClose() }}>
+    <Modal onClose={onClose} lightDismiss backdropClassName="backdrop:bg-black/40">
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
           <h3 className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_edit_rental[lang]}</h3>
@@ -181,6 +182,6 @@ export default function EditRentalModal({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   )
 }
