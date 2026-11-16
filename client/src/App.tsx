@@ -41,26 +41,43 @@ const DocumentsPage             = lazy(() => import('./pages/DocumentsPage'))
 const AccountingPage            = lazy(() => import('./pages/AccountingPage'))
 const ActivitiesPage            = lazy(() => import('./pages/ActivitiesPage'))
 const RequestsPage              = lazy(() => import('./pages/RequestsPage'))
-const ForecastSharePage         = lazy(() => import('./pages/ForecastSharePage'))
-const TaxiSharePage             = lazy(() => import('./pages/TaxiSharePage'))
-const ClientSharePage           = lazy(() => import('./pages/ClientSharePage'))
-const DriverSharePage           = lazy(() => import('./pages/DriverSharePage'))
-const TaxiManagerSharePage      = lazy(() => import('./pages/TaxiManagerSharePage'))
-const ActivityProviderSharePage = lazy(() => import('./pages/ActivityProviderSharePage'))
-const BookingFormPage           = lazy(() => import('./pages/BookingFormPage'))
-const EnquiryFormPage           = lazy(() => import('./pages/EnquiryFormPage'))
-const RestaurantSharePage       = lazy(() => import('./pages/RestaurantSharePage'))
-const PartnerHotelSharePage     = lazy(() => import('./pages/PartnerHotelSharePage'))
-const PalmeirasSharePage        = lazy(() => import('./pages/PalmeirasSharePage'))
-const InstructorSharePage       = lazy(() => import('./pages/InstructorSharePage'))
-const WalkInSharePage           = lazy(() => import('./pages/WalkInSharePage'))
+// One loader per share link type: used by lazy() below AND by the prefetch at
+// the share token, so both resolve to the very same module.
+const SHARE_PAGES = {
+  forecast:          () => import('./pages/ForecastSharePage'),
+  taxi:              () => import('./pages/TaxiSharePage'),
+  client:            () => import('./pages/ClientSharePage'),
+  driver:            () => import('./pages/DriverSharePage'),
+  taxi_manager:      () => import('./pages/TaxiManagerSharePage'),
+  activity_provider: () => import('./pages/ActivityProviderSharePage'),
+  booking_form:      () => import('./pages/BookingFormPage'),
+  enquiry_form:      () => import('./pages/EnquiryFormPage'),
+  restaurant:        () => import('./pages/RestaurantSharePage'),
+  partner_hotel:     () => import('./pages/PartnerHotelSharePage'),
+  palmeiras:         () => import('./pages/PalmeirasSharePage'),
+  instructor:        () => import('./pages/InstructorSharePage'),
+  walkin:            () => import('./pages/WalkInSharePage'),
+} satisfies Record<SharedLinkType, () => Promise<unknown>>
+const ForecastSharePage         = lazy(SHARE_PAGES.forecast)
+const TaxiSharePage             = lazy(SHARE_PAGES.taxi)
+const ClientSharePage           = lazy(SHARE_PAGES.client)
+const DriverSharePage           = lazy(SHARE_PAGES.driver)
+const TaxiManagerSharePage      = lazy(SHARE_PAGES.taxi_manager)
+const ActivityProviderSharePage = lazy(SHARE_PAGES.activity_provider)
+const BookingFormPage           = lazy(SHARE_PAGES.booking_form)
+const EnquiryFormPage           = lazy(SHARE_PAGES.enquiry_form)
+const RestaurantSharePage       = lazy(SHARE_PAGES.restaurant)
+const PartnerHotelSharePage     = lazy(SHARE_PAGES.partner_hotel)
+const PalmeirasSharePage        = lazy(SHARE_PAGES.palmeiras)
+const InstructorSharePage       = lazy(SHARE_PAGES.instructor)
+const WalkInSharePage           = lazy(SHARE_PAGES.walkin)
 // Not lazy: ⌘K must answer instantly, and a chunk fetched on first keystroke
 // would make the palette feel broken on a bad connection.
 import GlobalSearch from './components/common/GlobalSearch'
 import Notifications from './components/common/Notifications'
 import ConfirmHost from './components/common/ConfirmHost'
 import SharedFooter from './components/common/SharedFooter'
-import type { SharedLink } from './types/database'
+import type { SharedLink, SharedLinkType } from './types/database'
 import { notifyError } from './lib/notify'
 
 /** Shown while a page's chunk is on its way. Same look as the session check,
@@ -79,6 +96,17 @@ function PageLoading() {
 
 // ── Public share token from URL (sync, module scope) ──────────────────────
 const shareToken = new URLSearchParams(window.location.search).get('share')
+
+// Which page to show is only known once resolve_share_token answers — but the
+// token already says it: `<type>_<uuid>` (ManagementPage.generateToken and
+// friends). Start downloading that page's code now, in parallel with the RPC,
+// instead of after it: measured on PROD, the page chunk waited ~0.4 s for the
+// RPC. A wrong guess costs one unused download; an unknown prefix, nothing.
+if (shareToken) {
+  const prefix = shareToken.replace(/_[0-9a-f]{8}-[0-9a-f-]{27}$/i, '')
+  const type = prefix === 'activity' ? 'activity_provider' : prefix   // the one alias
+  if (Object.hasOwn(SHARE_PAGES, type)) SHARE_PAGES[type as SharedLinkType]().catch(() => {})
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -157,7 +185,11 @@ function App() {
   // the session three times (storage read, INITIAL_SESSION, SIGNED_IN), each a
   // new object, and every load hanging off `session` ran three times in a row —
   // 21 requests instead of 7, slowing each other down (measured 2026-10-18).
-  const userId = session?.user.id ?? null
+  // The admin data below (pending actions, dismissals, usage counter) keys on
+  // this. On a share link it stays null even when an admin is logged in on the
+  // same browser: otherwise opening a client's link fired the Home page's seven
+  // reads alongside the share page, and counted a Home view in the usage stats.
+  const userId = shareToken ? null : (session?.user.id ?? null)
 
   // Usage counter (Options → Database → Usage): in-memory counts, one grouped
   // call when the app goes to the background. Declared before the page effect so
