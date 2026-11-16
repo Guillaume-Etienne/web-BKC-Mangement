@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { supabase } from '../../lib/supabase'
 import { sortKitesBySize } from '../../utils/kiteSort'
-import type { Booking, BookingParticipant, Client, Equipment, Instructor, Lesson, LessonType, PaymentMethod, PriceItem, PriceTier, RentalSlot } from '../../types/database'
+import type { Associate, Booking, BookingParticipant, Client, Equipment, Instructor, Lesson, LessonType, PaymentMethod, PriceItem, PriceTier, RentalSlot } from '../../types/database'
 import { rentalBillable } from '../../types/database'
 import { currentInstructorRate, resolveLessonRate } from '../accounting/utils'
 import { searchClients, suggestedLessonRate, visitsOf, findVisitOn } from '../../utils/dayVisitor'
@@ -86,6 +87,19 @@ export default function WalkInForm(props: WalkInFormProps) {
   const [method, setMethod] = useState<PaymentMethod>('cash_eur')
   const [saving, setSaving] = useState(false)
 
+  // Who holds the money: the centre (empty), or an associate who was paid
+  // directly (e.g. a bank transfer to their own account). The list stays empty
+  // — and the selector hidden — until the associates migration is in.
+  const [associates, setAssociates] = useState<Associate[]>([])
+  const [receivedBy, setReceivedBy] = useState('')
+  useEffect(() => {
+    let cancelled = false
+    supabase.from('associates').select('*').order('sort_order').then(({ data, error }) => {
+      if (!cancelled && !error && data) setAssociates(data as Associate[])
+    })
+    return () => { cancelled = true }
+  }, [])
+
   /** Official €/h, tier included: a regular's past visits count toward the
    *  thresholds exactly like a guest's earlier lessons do. */
   function officialRate(lessonType: LessonType): number | null {
@@ -141,7 +155,9 @@ export default function WalkInForm(props: WalkInFormProps) {
         rental_type: rentalType, slot: rentalSlot, price: rentalPrice ?? 0, list_price: rentalGrid,
         notes: notes.trim() || null,
       } : undefined,
-      payment: paidNow && total > 0 ? { amount: total, method } : undefined,
+      payment: paidNow && total > 0
+        ? { amount: total, method, receivedByAssociateId: receivedBy || null }
+        : undefined,
     })
     setSaving(false)
     if (ok) onClose()
@@ -348,6 +364,15 @@ export default function WalkInForm(props: WalkInFormProps) {
                 </select>
               )}
             </div>
+            {paidNow && associates.length > 0 && (
+              <div>
+                <label className={labelCls}>{i18n.accounting.as_received_by[lang]}</label>
+                <select className={inputCls} value={receivedBy} onChange={e => setReceivedBy(e.target.value)}>
+                  <option value="">{t.walkin_received_centre[lang]}</option>
+                  {associates.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </div>
+            )}
           </section>
         </div>
 

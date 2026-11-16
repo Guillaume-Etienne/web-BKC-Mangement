@@ -50,7 +50,8 @@ export interface WalkInRequest {
   waiverSigned: boolean
   lesson?: WalkInLesson
   rental?: WalkInRental
-  payment?: { amount: number; method: PaymentMethod }
+  /** `receivedByAssociateId`: the guest paid this associate directly (NULL = the centre). */
+  payment?: { amount: number; method: PaymentMethod; receivedByAssociateId?: string | null }
 }
 
 export interface WalkInResult {
@@ -178,6 +179,9 @@ export async function saveWalkIn(
       is_verified: true,
       is_discount: false,
       notes: 'Walk-in',
+      // Named only when an associate is chosen: that column exists only once the
+      // associates migration is in, and an insert naming it would be refused whole.
+      ...(req.payment.receivedByAssociateId ? { received_by_associate_id: req.payment.receivedByAssociateId } : {}),
     }
     const { error } = await supabase.from('payments').insert([payment])
     if (error) return { ...result, error: `Payment: ${error.message}` }

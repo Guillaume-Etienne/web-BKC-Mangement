@@ -84,6 +84,7 @@ export const planningI18n = {
   walkin_no_rate:        { fr: 'Aucun tarif configuré — tapez le prix.', en: 'No rate set — type the price.', es: 'Sin tarifa — escriba el precio.' },
   walkin_total:          { fr: 'Total', en: 'Total', es: 'Total' },
   walkin_paid_now:       { fr: 'Payé maintenant', en: 'Paid now', es: 'Pagado ahora' },
+  walkin_received_centre: { fr: 'Le centre', en: 'The centre', es: 'El centro' },
   walkin_save:           { fr: 'Enregistrer', en: 'Save', es: 'Guardar' },
   walkin_saving:         { fr: 'Enregistrement…', en: 'Saving…', es: 'Guardando…' },
   walkin_same_visit:     { fr: 'Déjà venu aujourd’hui : ajouté à la même venue.', en: 'Already here today: added to the same visit.', es: 'Ya vino hoy: se añade a la misma visita.' },
