@@ -567,6 +567,8 @@ export interface ActivityBooking {
   payment_flow:    ActivityPaymentFlow
   notes:           string | null
   created_at:      string
+  /** The Daily card it was billed from (2026-11-19); null when entered elsewhere. */
+  day_activity_id?: string | null
 }
 
 export interface ActivityPayment {

@@ -683,7 +683,8 @@ CREATE TABLE activity_bookings (
   price_provider   NUMERIC(8,2) NOT NULL DEFAULT 0,   -- ce que paie/reçoit le prestataire
   payment_flow     activity_payment_flow NOT NULL DEFAULT 'we_pay_provider',
   notes            TEXT,
-  created_at       TIMESTAMPTZ DEFAULT now()
+  created_at       TIMESTAMPTZ DEFAULT now(),
+  day_activity_id  UUID REFERENCES day_activities(id) ON DELETE SET NULL  -- carte du Daily d'origine, 2026-11-19
 );
 
 CREATE TABLE activity_payments (

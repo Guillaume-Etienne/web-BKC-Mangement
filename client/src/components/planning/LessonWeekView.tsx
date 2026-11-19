@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { sortKitesBySize } from '../../utils/kiteSort'
-import type { Lesson, DayActivity, DaySlot, LessonType, LessonDiscipline, Booking, BookingParticipant, EquipmentRental, RentalSlot, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine, DiningEvent, DiningEventCost, Lang } from '../../types/database'
+import type { Lesson, DayActivity, DaySlot, LessonType, LessonDiscipline, Booking, BookingParticipant, EquipmentRental, RentalSlot, Instructor, Client, Equipment, PriceItem, PriceTier, Agency, AgencyBillingLine, DiningEvent, DiningEventCost, ActivityBooking, Lang } from '../../types/database'
 import { useTable } from '../../hooks/useSupabase'
 import { eventDailyContribution } from '../../utils/diningEventCosts'
 import { rentalBillable, lessonDiscipline } from '../../types/database'
@@ -106,10 +106,10 @@ interface LessonWeekViewProps {
   onAddLesson: (l: Omit<Lesson, 'id'>) => void
   onUpdateLesson: (l: Lesson) => void
   onDeleteLesson: (id: string) => void
-  onAddActivity: (a: Omit<DayActivity, 'id'>) => void
-  /** "Bill to guests" on an activity: adds it to each involved booking's bill */
-  onBillActivity: (req: BillActivityRequest) => void
-  onUpdateActivity: (a: DayActivity) => void
+  /** `bill`: "Bill to guests" ticked — adds it to each involved booking's bill */
+  onAddActivity: (a: Omit<DayActivity, 'id'>, bill: BillActivityRequest | null) => void
+  /** Card + its bills: `bill.request` null = no longer billed */
+  onUpdateActivity: (a: DayActivity, bill: { request: BillActivityRequest | null; existing: ActivityBooking[] }) => void
   onDeleteActivity: (id: string) => void
   onAddRental: (r: Omit<EquipmentRental, 'id'>) => void
   onUpdateRental: (r: EquipmentRental) => void
@@ -126,7 +126,7 @@ export default function LessonWeekView({
   bookings, instructors, clients, bookingParticipants, equipment, rentals, priceItems, priceTiers,
   agencies, agencyBillingLines,
   onAddLesson, onUpdateLesson, onDeleteLesson,
-  onAddActivity, onBillActivity, onUpdateActivity, onDeleteActivity,
+  onAddActivity, onUpdateActivity, onDeleteActivity,
   onAddRental, onUpdateRental, onDeleteRental,
   onAddWalkIn,
 }: LessonWeekViewProps) {
@@ -442,18 +442,15 @@ export default function LessonWeekView({
         slot: addForm.slot,
         name: addForm.name,
         notes: addForm.actNotes || null,
-      })
-      if (activityBillReady(addForm)) {
-        onBillActivity({
-          date: addForm.date,
-          label: addForm.name,
-          pricePerPerson: parseFloat(addForm.act_price_pp),
-          totalCost: parseFloat(addForm.act_cost) || 0,
-          notes: addForm.actNotes || null,
-          guests: addForm.act_participant_ids.map(id => ({ participantId: id, bookingId: bookingForParticipant(id) }))
-            .filter(g => g.bookingId),
-        })
-      }
+      }, activityBillReady(addForm) ? {
+        date: addForm.date,
+        label: addForm.name,
+        pricePerPerson: parseFloat(addForm.act_price_pp),
+        totalCost: parseFloat(addForm.act_cost) || 0,
+        notes: addForm.actNotes || null,
+        guests: addForm.act_participant_ids.map(id => ({ participantId: id, bookingId: bookingForParticipant(id) }))
+          .filter(g => g.bookingId),
+      } : null)
     } else {
       onAddRental({
         ...rentalGear(addForm.rental_type, addForm.rental_kite_id, addForm.rental_board_id),
@@ -685,7 +682,7 @@ export default function LessonWeekView({
                         >
                           <div className="absolute top-1 right-1 flex md:hidden md:group-hover/act:flex items-center">
                             <button
-                              onClick={() => setEditActivity(act)}
+                              onClick={() => { setShowAllGuests(false); setShowInCountry(false); setEditActivity(act) }}
                               className="text-gray-400 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 text-sm md:text-xs p-1.5 md:px-1 md:py-0"
                               title="Edit"
                             >✏️</button>
@@ -1177,7 +1174,21 @@ export default function LessonWeekView({
       {editActivity && (
         <EditActivityModal
           activity={editActivity}
-          onSave={a => { onUpdateActivity(a); setEditActivity(null) }}
+          bookingOf={bookingForParticipant}
+          renderGuests={(selectedIds, onToggle) => {
+            const scope = showAllGuests ? bookingParticipants : activeParticipantsForDate(editActivity.date, showInCountry)
+            // Guests already billed stay pickable (to untick them) even when
+            // they are no longer on site that day.
+            const shown = new Set(scope.map(p => p.id))
+            const billedElsewhere = bookingParticipants.filter(p => selectedIds.includes(p.id) && !shown.has(p.id))
+            return (
+              <>
+                {renderParticipantChips({ candidates: [...scope, ...billedElsewhere], selectedIds, onToggle, date: editActivity.date })}
+                {renderGuestScope({ date: editActivity.date, inCountry: showInCountry, onInCountry: setShowInCountry, all: showAllGuests, onAll: setShowAllGuests })}
+              </>
+            )
+          }}
+          onSave={(a, bill) => { onUpdateActivity(a, bill); setEditActivity(null) }}
           onClose={() => setEditActivity(null)}
         />
       )}

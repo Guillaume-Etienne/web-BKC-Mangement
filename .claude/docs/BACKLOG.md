@@ -4,6 +4,12 @@
 > `.claude/archive/memory/backlog_closed_2026.md` (1600 lignes d'historique, décisions et
 > vérifications). Ici : **l'ouvert uniquement.** Une ligne close se raye et se déplace.
 
+## ✅ Livré 2026-11-19 — Activité du Daily modifiable en entier (**gui doit pousser** ; migration `2026-11-19_activity_day_link.sql` TEST+PROD ✅, curl anon 200 sur les 2)
+- ✏️ d'une carte activité = même formulaire qu'à la création : nom, créneau, notes + « Bill to guests » (voyageurs, prix/pers., notre coût). Avant : nom/créneau/notes seulement.
+- Lien carte → factures : `activity_bookings.day_activity_id`. Enregistrer réécrit les lignes résa par résa (même id, prestataire gardé), en crée pour une nouvelle résa, supprime celles des résas retirées ; décocher retire l'activité des factures (avertissement affiché). Prix/pers. différents entre résas (ligne retouchée en compta) → avertissement, un seul prix appliqué.
+- Création : carte puis factures dans **un seul handler** (FK) — avant, 2 écritures parallèles.
+- Reste : essai à l'écran (✏️ sur « North Wind Spot » du 20/11). Non fait : supprimer la carte ne supprime toujours pas ses factures (inchangé).
+
 ## ✅ Livré 2026-11-15 — Compteur d'usage gui/Teresa (`a6310a7`, **gui doit pousser** ; migration 15c passée TEST+PROD ✅, curl anon fermé)
 - Options → Database → **Usage** : pages + onglets ouverts par compte (`gui` / `teresa` = partie locale de l'email), filtre 7/30/90 j/tout. Ouvertures, pas temps passé ; pages partagées exclues.
 - Coût nul : compteurs en mémoire (`lib/usageTracker.ts`), un seul RPC `track_page_views` à la mise en arrière-plan ou toutes les 5 min ; échec avalé. Table `page_views` = 1 ligne/compte/clé/jour ; lecture agrégée par `get_page_usage`.

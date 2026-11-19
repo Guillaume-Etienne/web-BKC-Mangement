@@ -59,9 +59,11 @@ export function buildBilledActivities(input: {
   totalCost: number
   notes: string | null
   guests: GuestPick[]
+  /** The Daily card these rows belong to (activity_bookings.day_activity_id). */
+  dayActivityId?: string
   newId?: () => string
 }): NewActivityBooking[] {
-  const { providerId, date, label, pricePerPerson, totalCost, notes, guests } = input
+  const { providerId, date, label, pricePerPerson, totalCost, notes, guests, dayActivityId } = input
   const newId = input.newId ?? (() => crypto.randomUUID())
   const byBooking = new Map<string, string[]>()
   for (const g of guests) {
@@ -90,7 +92,61 @@ export function buildBilledActivities(input: {
       price_provider: cost,
       payment_flow: 'we_pay_provider',
       notes,
+      ...(dayActivityId && { day_activity_id: dayActivityId }),
     })
   }
   return rows
+}
+
+/** What the edit form opens with, read back from a card's billed rows.
+ *  `mixedPrices`: the bookings were not all billed the same per guest (a row
+ *  edited in Accounting) — saving applies one price to everyone, the form says so. */
+export function billedActivityFormValues(rows: ActivityBooking[]): {
+  participantIds: string[]
+  pricePerPerson: number | null
+  totalCost: number
+  mixedPrices: boolean
+} {
+  const participantIds = [...new Set(rows.flatMap(r => r.participant_ids ?? []))]
+  const perGuest = rows.filter(r => r.nb_persons > 0).map(r => cents(Number(r.price_client) / r.nb_persons))
+  const pricePerPerson = perGuest.length > 0 ? perGuest[0] : null
+  return {
+    participantIds,
+    pricePerPerson,
+    totalCost: cents(rows.reduce((s, r) => s + Number(r.price_provider), 0)),
+    mixedPrices: perGuest.some(p => p !== pricePerPerson),
+  }
+}
+
+/** Saving an edited card: from its billed rows as they are to the rows they
+ *  should be (built by buildBilledActivities), booking by booking:
+ *  - a booking still involved keeps its row (same id, same provider), rewritten;
+ *  - a booking newly involved gets a new row;
+ *  - a booking no longer involved loses its row (so does a duplicate row of a booking).
+ *  Rows without a booking (booking since deleted) are left alone.
+ *  Pure, so it can be tested. */
+export function planBilledActivityChanges(existing: ActivityBooking[], next: NewActivityBooking[]): {
+  updates: NewActivityBooking[]
+  inserts: NewActivityBooking[]
+  deleteIds: string[]
+} {
+  const keptByBooking = new Map<string, ActivityBooking>()
+  const deleteIds: string[] = []
+  for (const r of existing) {
+    if (!r.booking_id) continue
+    if (keptByBooking.has(r.booking_id)) deleteIds.push(r.id)
+    else keptByBooking.set(r.booking_id, r)
+  }
+  const updates: NewActivityBooking[] = []
+  const inserts: NewActivityBooking[] = []
+  const stillInvolved = new Set<string>()
+  for (const row of next) {
+    const bookingId = row.booking_id ?? ''
+    stillInvolved.add(bookingId)
+    const old = keptByBooking.get(bookingId)
+    if (old) updates.push({ ...row, id: old.id, provider_id: old.provider_id })
+    else inserts.push(row)
+  }
+  for (const [bookingId, r] of keptByBooking) if (!stillInvolved.has(bookingId)) deleteIds.push(r.id)
+  return { updates, inserts, deleteIds }
 }

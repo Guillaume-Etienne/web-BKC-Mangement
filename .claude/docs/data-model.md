@@ -379,6 +379,7 @@
 | price_client | number (EUR) | Ce que paie le client au centre |
 | price_provider | number (EUR) | Ce que paie/reçoit le prestataire |
 | payment_flow | ActivityPaymentFlow | |
+| day_activity_id | string \| null (optionnel en TS, FK → day_activities, ON DELETE SET NULL) | Carte du Daily d'où la ligne a été facturée (« Bill to guests »). NULL = saisie ailleurs (Activities, compta). Le ✏️ de la carte relit ces lignes et les réécrit résa par résa (`utils/billedActivities.ts` → `planBilledActivityChanges`). Migration `2026-11-19_activity_day_link.sql` (rattrapage date + nom, 6/6 en PROD) |
 | notes | string \| null | |
 | created_at | string | |
 

@@ -24,8 +24,9 @@ import { useInstructors } from '../../hooks/useInstructors'
 import { useClients } from '../../hooks/useClients'
 import { useEquipment, useEquipmentRentals } from '../../hooks/useEquipment'
 import { supabase } from '../../lib/supabase'
-import { ensureInHouseProvider, buildBilledActivities } from '../../utils/billedActivities'
+import { ensureInHouseProvider, buildBilledActivities, planBilledActivityChanges } from '../../utils/billedActivities'
 import type { BillActivityRequest } from '../../utils/billedActivities'
+import type { ActivityBooking } from '../../types/database'
 import { useTrackTab } from '../../hooks/useTrackTab'
 import Modal from '../common/Modal'
 import { notifyError, notifyInfo } from '../../lib/notify'
@@ -785,7 +786,12 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
     }
   }, [])
 
-  const onAddActivity = useCallback(async (activity: Omit<DayActivity, 'id'>) => {
+  // A Daily activity = its card (day_activities) + optionally, with "Bill to
+  // guests", one activity_bookings row per booking involved, under the in-house
+  // provider, linked to the card by day_activity_id (utils/billedActivities.ts).
+  // The rows point at the card (FK): card first, rows after, in ONE handler.
+  // The planning holds no copy of the rows, so there is nothing local to update.
+  const onAddActivity = useCallback(async (activity: Omit<DayActivity, 'id'>, bill: BillActivityRequest | null) => {
     const id = crypto.randomUUID()
     const a = { ...activity, id }
     setDayActivities(prev => [...prev, a])
@@ -794,25 +800,26 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       console.error('Activity save error:', error.message)
       setDayActivities(prev => prev.filter(x => x.id !== id))
       notifyError('Error saving activity: ' + error.message)
+      return
     }
-  }, [])
-
-  // "Bill to guests" on a Daily activity: one activity_bookings row per booking
-  // involved, under the in-house provider — see utils/billedActivities.ts. The
-  // planning holds no copy of those rows, so there is nothing local to update.
-  const onBillActivity = useCallback(async (req: BillActivityRequest) => {
+    if (!bill) return
     try {
       const providerId = await ensureInHouseProvider()
-      const rows = buildBilledActivities({ ...req, providerId })
-      const { error } = await supabase.from('activity_bookings').insert(rows)
-      if (error) throw new Error(error.message)
+      const rows = buildBilledActivities({ ...bill, providerId, dayActivityId: id })
+      const { error: billError } = await supabase.from('activity_bookings').insert(rows)
+      if (billError) throw new Error(billError.message)
     } catch (err) {
       notifyError('The activity is on the planning, but it was NOT added to the guests’ bills.\n\n'
-        + (err as Error).message + '\n\nAdd it from Accounting → the booking → Activities.')
+        + (err as Error).message + '\n\nOpen it with ✏️ and save again.')
     }
   }, [])
 
-  const onUpdateActivity = useCallback(async (activity: DayActivity) => {
+  /** Edit a card and its bills together. `bill.request` null = no longer billed:
+   *  its rows are removed. `bill.existing` = the rows as the form read them. */
+  const onUpdateActivity = useCallback(async (
+    activity: DayActivity,
+    bill: { request: BillActivityRequest | null; existing: ActivityBooking[] },
+  ) => {
     let before: DayActivity | undefined
     setDayActivities(prev => { before = prev.find(a => a.id === activity.id); return prev.map(a => a.id === activity.id ? activity : a) })
     const { error } = await supabase.from('day_activities')
@@ -821,6 +828,28 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
       console.error('Activity update error:', error.message)
       if (before) setDayActivities(prev => prev.map(a => a.id === activity.id ? before as DayActivity : a))
       notifyError('Error saving activity: ' + error.message)
+      return
+    }
+    try {
+      const next = bill.request
+        ? buildBilledActivities({ ...bill.request, providerId: await ensureInHouseProvider(), dayActivityId: activity.id })
+        : []
+      const { updates, inserts, deleteIds } = planBilledActivityChanges(bill.existing, next)
+      if (deleteIds.length > 0) {
+        const { error: e } = await supabase.from('activity_bookings').delete().in('id', deleteIds)
+        if (e) throw new Error(e.message)
+      }
+      for (const { id, ...fields } of updates) {
+        const { error: e } = await supabase.from('activity_bookings').update(fields).eq('id', id)
+        if (e) throw new Error(e.message)
+      }
+      if (inserts.length > 0) {
+        const { error: e } = await supabase.from('activity_bookings').insert(inserts)
+        if (e) throw new Error(e.message)
+      }
+    } catch (err) {
+      notifyError('The activity is saved on the planning, but the guests’ bills were NOT all updated.\n\n'
+        + (err as Error).message + '\n\nOpen it with ✏️ to see where they stand, and save again.')
     }
   }, [])
 
@@ -1262,7 +1291,6 @@ export default function PlanningView({ onOpenBooking }: { onOpenBooking?: (id: s
               onUpdateLesson={onUpdateLesson}
               onDeleteLesson={onDeleteLesson}
               onAddActivity={onAddActivity}
-              onBillActivity={onBillActivity}
               onUpdateActivity={onUpdateActivity}
               onDeleteActivity={onDeleteActivity}
               onAddRental={onAddRental}
