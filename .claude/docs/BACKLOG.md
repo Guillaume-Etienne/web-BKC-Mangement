@@ -4,6 +4,14 @@
 > `.claude/archive/memory/backlog_closed_2026.md` (1600 lignes d'historique, décisions et
 > vérifications). Ici : **l'ouvert uniquement.** Une ligne close se raye et se déplace.
 
+## ✅ Livré 2026-11-21 — Page client : vue « Day by day » (**gui doit pousser**, aucune migration)
+- Interrupteur « By type / Day by day » au-dessus des sections (défaut : By type, mémorisé sur l'appareil `share_view`). Jour par jour = une carte par jour de l'arrivée à **aujourd'hui** (jours vides gardés : « Nothing that day »), dedans qui a fait quoi ; carte « Whole stay » (logement, center access) ; ce qui est réservé après aujourd'hui = une ligne « N more items… (X €) ».
+- Interrupteur « Prices » (vue jour seulement, `share_prices`). Compteur « So far » : h de cours + jours de location par personne.
+- Location/taxi sans voyageur → « Whole group » (même lecture que la répartition, qui le partage) ; résa d'une personne → son nom.
+- Source unique : la liste `splitItems` (remontée hors de la répartition) → `utils/dayJournal.ts` (testé). Changement de bord : locations et taxis **couverts par l'agence** apparaissent maintenant à 0 € « included » (comme les cours) — aussi dans la répartition par personne.
+- Pas dans la vue : activités payées directement au prestataire (pas sur la facture), repas à 0 €. Idées non retenues : mémoire `project_2026-11-21_client_share_day_view_ideas`.
+- Reste : voir à l'écran (téléphone surtout).
+
 ## ✅ Livré 2026-11-19 — Activité du Daily modifiable en entier (**gui doit pousser** ; migration `2026-11-19_activity_day_link.sql` TEST+PROD ✅, curl anon 200 sur les 2)
 - ✏️ d'une carte activité = même formulaire qu'à la création : nom, créneau, notes + « Bill to guests » (voyageurs, prix/pers., notre coût). Avant : nom/créneau/notes seulement.
 - Lien carte → factures : `activity_bookings.day_activity_id`. Enregistrer réécrit les lignes résa par résa (même id, prestataire gardé), en crée pour une nouvelle résa, supprime celles des résas retirées ; décocher retire l'activité des factures (avertissement affiché). Prix/pers. différents entre résas (ligne retouchée en compta) → avertissement, un seul prix appliqué.

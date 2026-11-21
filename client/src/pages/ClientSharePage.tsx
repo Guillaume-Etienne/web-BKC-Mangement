@@ -1,6 +1,9 @@
 import { shareT, type ShareKey } from '../data/i18n/clientShare'
 import { detectAdminLang } from '../data/i18n'
-import { localeTag } from '../utils/dates'
+import { localeTag, todayISO, fromISODate } from '../utils/dates'
+import { readLocal, writeLocal } from '../utils/safeStorage'
+import { buildDayJournal, countPerPerson } from '../utils/dayJournal'
+import { DayByDayView } from '../components/common/DayByDayView'
 import { lessonGearText, rentalGearText, type GearLike } from '../utils/gearLabel'
 import { displayFirstName } from '../utils/names'
 import { useState, useEffect } from 'react'
@@ -169,6 +172,12 @@ export default function ClientSharePage({ bookingNumber }: Props) {
   const [showGear, setShowGear] = useState(() => {
     try { return window.matchMedia('(min-width: 768px)').matches } catch { return true }
   })
+  // Day by day (2026-11-21): "By type" stays the default; both switches are
+  // remembered on the guest's device.
+  const [view, setViewState] = useState<'type' | 'day'>(() => readLocal('share_view') === 'day' ? 'day' : 'type')
+  const setView = (v: 'type' | 'day') => { setViewState(v); writeLocal('share_view', v) }
+  const [showPrices, setShowPricesState] = useState(() => readLocal('share_prices') !== 'off')
+  const setShowPrices = (on: boolean) => { setShowPricesState(on); writeLocal('share_prices', on ? 'on' : 'off') }
   const t = (k: ShareKey) => shareT(lang, k)
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString(localeTag(lang), { day: 'numeric', month: 'short', year: 'numeric' })
@@ -509,6 +518,83 @@ export default function ClientSharePage({ bookingNumber }: Props) {
     + extrasTotal
   const balance = totalCharges - totalDiscounts - totalPaid
 
+  // Every line of the bill as one list (2026-11-15, lifted 2026-11-21): the
+  // per-person split AND the day-by-day view are built from it, so neither can
+  // say anything the sections above do not.
+  const splitItems: SplitItem[] = []
+  for (const r of billedAccomRows) {
+    splitItems.push({ category: 'accommodation', date: null, label: `${r.label} · ${r.nights} ${t(r.nights === 1 ? 'night' : 'nights')}`, amount: r.total, beneficiaries: [] })
+  }
+  for (const r of extAccomRows) {
+    splitItems.push({ category: 'accommodation', date: null, label: r.label, amount: r.total, beneficiaries: [] })
+  }
+  for (const l of lessons) {
+    const instr = instructors.find(i => i.id === l.instructor_id)
+    const label = `${t('lesson_line').replace('{type}', t(`lesson_${l.type}` as ShareKey).toLowerCase()).replace('{h}', String(l.duration_hours))}${instr ? ` (${instr.first_name})` : ''}`
+    const ours = l.participant_ids.filter(pid => partIdSet.has(pid))
+    if (coveredByAgency(l)) {
+      // Listed, so they see the hours they took — at no charge.
+      for (const pid of ours) {
+        splitItems.push({ category: 'lessons', date: l.date, label: `${label} ${t('agency_package_line').replace('{agency}', agencyName)}`, gear: lessonGear_(l.id), amount: 0, beneficiaries: [pid], covered: true, hours: l.duration_hours })
+      }
+      continue
+    }
+    const unit = getLessonRate(l) * l.duration_hours
+    // Same count as lessonRows: a group lesson is billed per head on THIS booking.
+    if (l.type === 'group') {
+      for (const pid of ours) splitItems.push({ category: 'lessons', date: l.date, label, gear: lessonGear_(l.id), amount: unit, beneficiaries: [pid], hours: l.duration_hours })
+    } else {
+      splitItems.push({ category: 'lessons', date: l.date, label, gear: lessonGear_(l.id), amount: unit, beneficiaries: l.participant_ids, hours: l.duration_hours })
+    }
+  }
+  // Agency-covered rentals and taxis are listed at no charge (2026-11-21), like
+  // covered lessons: the guest still rode that kite, still took that car.
+  for (const r of rentals) {
+    const covered = coveredByAgency(r)
+    splitItems.push({
+      category: 'rentals', date: r.date, label: `${t(rentalKey(r))} · ${t(`slot_${r.slot}` as ShareKey)}`, gear: rentalGear(r),
+      amount: covered ? 0 : r.price ?? 0, beneficiaries: r.participant_id ? [r.participant_id] : [],
+      days: r.slot === 'full_day' ? 1 : 0.5, ...(covered ? { covered: true } : {}),
+    })
+  }
+  for (const tr of taxis) {
+    const covered = coveredByAgency(tr)
+    if (!covered && !tr.price_eur) continue
+    splitItems.push({ category: 'taxis', date: tr.date, label: taxiLabel(tr.type), amount: covered ? 0 : tr.price_eur ?? 0, beneficiaries: [], ...(covered ? { covered: true } : {}) })
+  }
+  for (const ev of diningEvents) {
+    for (const a of ev.attendees ?? []) {
+      if (!a.is_attending || a.person_type !== 'participant' || !partIdSet.has(a.person_id)) continue
+      const amount = a.price_override ?? ev.price_per_person
+      if (amount === 0) continue
+      splitItems.push({ category: 'dining', date: ev.date, label: ev.name || t('dining_default'), amount, beneficiaries: [a.person_id] })
+    }
+  }
+  for (const a of activityBkgs.filter(x => x.payment_flow === 'we_pay_provider')) {
+    splitItems.push({ category: 'activities', date: a.date, label: a.label, amount: a.price_client, beneficiaries: a.participant_ids })
+  }
+  if (centerAccessTotal !== 0) {
+    // Carried by whoever brings their own gear; nobody known → shared equally.
+    splitItems.push({ category: 'center_access', date: null, label: `${t('sec_center_access')} · ${nights} ${t(nights === 1 ? 'night' : 'nights')}`, amount: centerAccessTotal, beneficiaries: [...ownGearIds] })
+  }
+  for (const r of extraRows) {
+    splitItems.push({ category: 'extras', date: r.date, label: r.label, amount: r.total, beneficiaries: chargeFor[r.id] ? [chargeFor[r.id]] : [] })
+  }
+  const participantIds = participants.map(p => p.id)
+  const firstNames = Object.fromEntries(participants.map(p => [p.id, displayFirstName(p.first_name)]))
+  const today = todayISO()
+  const fmtDay = (iso: string) =>
+    fromISODate(iso).toLocaleDateString(localeTag(lang), { weekday: 'long', day: 'numeric', month: 'long' })
+  const fmtNum = (n: number) => n.toLocaleString(localeTag(lang), { maximumFractionDigits: 1 })
+  const viewButton = (value: 'type' | 'day', label: string) => (
+    <button type="button" aria-pressed={view === value} onClick={() => setView(value)}
+      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${view === value
+        ? 'bg-blue-600 text-white'
+        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+      {label}
+    </button>
+  )
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
 
@@ -577,6 +663,38 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             {pool && <AgencyHoursGauge pool={pool} agencyName={agencyPkg.agency_name} />}
           </section>
         )}
+
+        {/* View switch (2026-11-21): the bill by type, or as a diary up to today */}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <span role="group" aria-label={t('view_label')} className="inline-flex rounded-full bg-gray-100 dark:bg-gray-800 p-0.5">
+            {viewButton('type', t('view_by_type'))}
+            {viewButton('day', t('view_by_day'))}
+          </span>
+          {view === 'day' && (
+            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+              <input type="checkbox" checked={showPrices} onChange={e => setShowPrices(e.target.checked)} className="rounded" />
+              {t('show_prices')}
+            </label>
+          )}
+        </div>
+
+        {view === 'day' ? (
+          <DayByDayView
+            journal={buildDayJournal(splitItems, participantIds, booking.check_in, booking.check_out, today)}
+            counts={countPerPerson(splitItems, participantIds, today)}
+            names={firstNames}
+            showPrices={showPrices}
+            fmtEur={fmtEur}
+            fmtDay={fmtDay}
+            fmtNum={fmtNum}
+            labels={{
+              wholeStay: t('split_whole_stay'), nothing: t('day_nothing'), everyone: t('day_everyone'),
+              notStarted: t('day_not_started'), laterOne: t('day_later_one'), laterMany: t('day_later_many'),
+              countTitle: t('count_title'), countHours: t('count_hours'), countDay: t('count_day'), countDays: t('count_days'),
+              included: t('included'),
+            }}
+          />
+        ) : (<>
 
         {/* Accommodation */}
         {(billedAccomRows.length > 0 || extAccomRows.length > 0) && (
@@ -864,6 +982,7 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             </table></div>
           </Section>
         )}
+        </>)}
 
         {/* Split per person (2026-11-15) — everything on the bill, shared out so the
             cards add up to the total above. Built from the very rows the sections
@@ -871,64 +990,11 @@ export default function ClientSharePage({ bookingNumber }: Props) {
             view says so if they ever do. */}
         {(() => {
           if (participants.length === 0) return null
-          const items: SplitItem[] = []
-          for (const r of billedAccomRows) {
-            items.push({ category: 'accommodation', date: null, label: `${r.label} · ${r.nights} ${t(r.nights === 1 ? 'night' : 'nights')}`, amount: r.total, beneficiaries: [] })
-          }
-          for (const r of extAccomRows) {
-            items.push({ category: 'accommodation', date: null, label: r.label, amount: r.total, beneficiaries: [] })
-          }
-          for (const l of lessons) {
-            const instr = instructors.find(i => i.id === l.instructor_id)
-            const label = `${t('lesson_line').replace('{type}', t(`lesson_${l.type}` as ShareKey).toLowerCase()).replace('{h}', String(l.duration_hours))}${instr ? ` (${instr.first_name})` : ''}`
-            const ours = l.participant_ids.filter(pid => partIdSet.has(pid))
-            if (coveredByAgency(l)) {
-              // Listed, so they see the hours they took — at no charge.
-              for (const pid of ours) {
-                items.push({ category: 'lessons', date: l.date, label: `${label} ${t('agency_package_line').replace('{agency}', agencyName)}`, gear: lessonGear_(l.id), amount: 0, beneficiaries: [pid], covered: true })
-              }
-              continue
-            }
-            const unit = getLessonRate(l) * l.duration_hours
-            // Same count as lessonRows: a group lesson is billed per head on THIS booking.
-            if (l.type === 'group') {
-              for (const pid of ours) items.push({ category: 'lessons', date: l.date, label, gear: lessonGear_(l.id), amount: unit, beneficiaries: [pid] })
-            } else {
-              items.push({ category: 'lessons', date: l.date, label, gear: lessonGear_(l.id), amount: unit, beneficiaries: l.participant_ids })
-            }
-          }
-          for (const r of rentals) {
-            if (coveredByAgency(r)) continue
-            items.push({ category: 'rentals', date: r.date, label: `${t(rentalKey(r))} · ${t(`slot_${r.slot}` as ShareKey)}`, gear: rentalGear(r), amount: r.price ?? 0, beneficiaries: r.participant_id ? [r.participant_id] : [] })
-          }
-          for (const tr of taxis) {
-            if (coveredByAgency(tr) || !tr.price_eur) continue
-            items.push({ category: 'taxis', date: tr.date, label: taxiLabel(tr.type), amount: tr.price_eur, beneficiaries: [] })
-          }
-          for (const ev of diningEvents) {
-            for (const a of ev.attendees ?? []) {
-              if (!a.is_attending || a.person_type !== 'participant' || !partIdSet.has(a.person_id)) continue
-              const amount = a.price_override ?? ev.price_per_person
-              if (amount === 0) continue
-              items.push({ category: 'dining', date: ev.date, label: ev.name || t('dining_default'), amount, beneficiaries: [a.person_id] })
-            }
-          }
-          for (const a of activityBkgs.filter(x => x.payment_flow === 'we_pay_provider')) {
-            items.push({ category: 'activities', date: a.date, label: a.label, amount: a.price_client, beneficiaries: a.participant_ids })
-          }
-          if (centerAccessTotal !== 0) {
-            // Carried by whoever brings their own gear; nobody known → shared equally.
-            items.push({ category: 'center_access', date: null, label: `${t('sec_center_access')} · ${nights} ${t(nights === 1 ? 'night' : 'nights')}`, amount: centerAccessTotal, beneficiaries: [...ownGearIds] })
-          }
-          for (const r of extraRows) {
-            items.push({ category: 'extras', date: r.date, label: r.label, amount: r.total, beneficiaries: chargeFor[r.id] ? [chargeFor[r.id]] : [] })
-          }
-
           const names = Object.fromEntries(participants.map(p => [p.id, `${displayFirstName(p.first_name)} ${p.last_name ?? ''}`.trim()]))
           return (
             <PerPersonSplitView
               variant="card"
-              splits={splitPerPerson(participants.map(p => p.id), items)}
+              splits={splitPerPerson(participantIds, splitItems)}
               names={names}
               expectedTotal={totalCharges}
               fmtEur={fmtEur}

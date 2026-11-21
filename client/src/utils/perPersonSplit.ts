@@ -40,6 +40,10 @@ export interface SplitItem {
   gear?: string
   /** Covered by a partner agency: listed, at no charge. */
   covered?: boolean
+  /** Lesson hours, for each named traveller — read by the day-by-day counter only. */
+  hours?: number
+  /** Rental days (half day = 0.5), for each named traveller — same. */
+  days?: number
 }
 
 export interface SplitLine {
