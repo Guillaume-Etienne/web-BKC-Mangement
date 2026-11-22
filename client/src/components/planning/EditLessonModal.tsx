@@ -88,12 +88,15 @@ export default function EditLessonModal({
       // Created, not edited: freeze BOTH of today's scales, as the Daily does —
       // a later price-list or pay change must not reprice this lesson.
       const instr = instructors.find(i => i.id === withDiscipline.instructor_id)
+      // A kite lesson carries no `discipline` key AT ALL (the column defaults to
+      // kite): `discipline: undefined` is still a key, supabase-js then names the
+      // column in the insert and Postgres gets NULL → not-null violation.
+      const { discipline: _d, ...rest } = withDiscipline
       onSave({
-        ...withDiscipline,
+        ...rest,
+        ...(disciplineNow !== 'kite' && { discipline: disciplineNow }),
         price_per_hour: lessonPrice(withDiscipline.type, withDiscipline.participant_ids, disciplineNow),
         instructor_rate: instr ? currentInstructorRate(withDiscipline, instr) : null,
-        // Only sent for wing, like the Daily: a kite row omits the column.
-        ...(disciplineNow !== 'kite' ? { discipline: disciplineNow } : { discipline: undefined }),
       })
       return
     }
