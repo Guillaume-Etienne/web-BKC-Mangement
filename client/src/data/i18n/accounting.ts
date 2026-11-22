@@ -296,6 +296,8 @@ export const accountingI18n = {
   dash_vol_nights:        { fr: 'Nuits vendues', en: 'Nights sold', es: 'Noches vendidas' },
   dash_vol_nights_detail: { fr: 'chambres × nuits, à Bilene (extras inclus)', en: 'rooms × nights, in Bilene (extras included)', es: 'habitaciones × noches, en Bilene (extras incluidos)' },
   dash_vol_nights_missing: { fr: '⚠ {count} séjour(s) sans chambre', en: '⚠ {count} stay{s} with no room', es: '⚠ {count} estancia(s) sin habitación' },
+  dash_vol_own_accom:     { fr: 'Nuits en logement perso', en: 'Nights in own accommodation', es: 'Noches en alojamiento propio' },
+  dash_vol_own_accom_detail: { fr: 'logés par leurs propres moyens · hors nuits vendues', en: 'guests who sleep elsewhere · not in nights sold', es: 'alojados por su cuenta · fuera de noches vendidas' },
   dash_vol_maputo:        { fr: 'Nuits à Maputo', en: 'Nights in Maputo', es: 'Noches en Maputo' },
   dash_vol_maputo_detail: { fr: 'hôtels partenaires · chambres × nuits', en: 'partner hotels · rooms × nights', es: 'hoteles asociados · habitaciones × noches' },
   dash_vol_transfers:     { fr: 'Transferts taxi', en: 'Taxi transfers', es: 'Traslados en taxi' },

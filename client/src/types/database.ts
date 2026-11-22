@@ -36,6 +36,12 @@ export interface Accommodation {
    *  and keep a fixed position. Optional: rows read before the column existed
    *  come back undefined, which reads as false. */
   hide_empty_rooms?: boolean
+  /** The guest sleeps somewhere of their own — own house, Airbnb, another lodge
+   *  ("Own accommodation", gui 2026-11-22). Not a night we sold: out of the
+   *  nights-sold counter (counted apart), and the confirmation says "own
+   *  accommodation" instead of "handled by <place>". Optional for the same
+   *  reason as hide_empty_rooms. */
+  guest_arranged?: boolean
 }
 
 export interface Room {

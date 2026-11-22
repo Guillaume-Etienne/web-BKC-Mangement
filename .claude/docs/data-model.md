@@ -45,6 +45,9 @@
 | type | AccommodationType | |
 | total_rooms | number | |
 | is_active | boolean | |
+| external_billing | boolean | pas de prix à la nuit, montant sur `external_accommodation_bookings` (San Martinho, Own accommodation) |
+| hide_empty_rooms | boolean | planning : seuls les emplacements occupés + 1 libre |
+| guest_arranged | boolean | **2026-11-22** — « Own accommodation » : le client loge par ses propres moyens. Hors « Nights sold » (compteur à part `guestArrangedNights`), confirmation « Logement personnel · Organisé par vos soins », wizard sans champs coût/prix. ≠ San Martinho (vrai lieu, « Géré par San Martinho ») |
 
 ### `rooms` → `Room`
 | Field | Type | Notes |

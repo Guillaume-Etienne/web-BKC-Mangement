@@ -881,6 +881,10 @@ export function computeSeasonTotals(data: SharedAccountingData): SeasonTotals {
  *  external stay weighs 0 and lands in `bookingsWithoutRoom`, so the screen can
  *  say so instead of quietly under-reporting.
  *
+ *  `guestArrangedNights` = nights of guests who sleep somewhere of their own
+ *  ("Own accommodation", gui 2026-11-22): they came, but we sold no night, so
+ *  they stay out of `roomNights` and are shown apart.
+ *
  *  `maputoNights` = the partner-hotel stop-overs, counted apart with the same
  *  rule (rooms x nights) — they are nights we sold, not nights at the centre.
  *
@@ -891,6 +895,7 @@ export interface VolumeTotals {
   bookings: number                  // active stays (cancelled and walk-ins excluded)
   guests: number                    // named participants of those stays
   roomNights: number                // rooms x nights at Bilene (own rooms + external stays + `accommodation` extras)
+  guestArrangedNights: number       // nights in "Own accommodation" (accommodations.guest_arranged): NOT sold, counted apart
   maputoNights: number              // rooms x nights in the partner hotels
   taxiTransfers: number             // active trips, standalone ones included
   bookingsWithoutGuestList: number  // active stays with nobody listed on them
@@ -910,18 +915,59 @@ export function computeVolumeTotals(data: SharedAccountingData): VolumeTotals {
   )
   const withGuests = new Set(named.map(p => p.booking_id))
 
-  const roomsOf = new Map<string, number>()
-  for (const br of data.bookingRooms) {
-    if (stayIds.has(br.booking_id)) roomsOf.set(br.booking_id, (roomsOf.get(br.booking_id) ?? 0) + 1)
+  const accById = new Map(data.accommodations.map(a => [a.id, a]))
+  const accOfRoom = (roomId: string) => {
+    const room = data.rooms.find(r => r.id === roomId)
+    return room ? accById.get(room.accommodation_id) : undefined
   }
   const externals = data.externalAccommodationBkgs.filter(e => stayIds.has(e.booking_id))
   const withExternal = new Set(externals.map(e => e.booking_id))
+  const stayKey = (bookingId: string, accId: string) => `${bookingId}|${accId}`
+  const externalAt = new Set(externals.map(e => stayKey(e.booking_id, e.accommodation_id)))
+
+  // Rooms, sorted three ways:
+  //  - an own room (house, bungalow) counts 1 per night of the booking;
+  //  - a spot in an externally-billed place (San Martinho) is only a planning
+  //    row: when a stay is entered there, the STAY carries the nights — counting
+  //    the spot too counted every San Martinho night twice (until 2026-11-22).
+  //    With no stay entered (#026), the place counts once per night of the
+  //    booking, however many spots were taken — as a stay would;
+  //  - a guest-arranged place ("Own accommodation") is not a night we sold: it
+  //    goes to its own counter, on the same rules.
+  const roomsOf = new Map<string, number>()      // any room at all: "has somewhere to sleep"
+  const ownRoomsOf = new Map<string, number>()
+  const unpricedPlaces = new Set<string>()       // booking|acc, externally billed, no stay entered
+  for (const br of data.bookingRooms) {
+    if (!stayIds.has(br.booking_id)) continue
+    roomsOf.set(br.booking_id, (roomsOf.get(br.booking_id) ?? 0) + 1)
+    const acc = accOfRoom(br.room_id)
+    if (acc && (acc.external_billing || acc.guest_arranged)) {
+      const key = stayKey(br.booking_id, acc.id)
+      if (!externalAt.has(key)) unpricedPlaces.add(key)
+    } else {
+      ownRoomsOf.set(br.booking_id, (ownRoomsOf.get(br.booking_id) ?? 0) + 1)
+    }
+  }
+  const stayById = new Map(stays.map(b => [b.id, b]))
+  let externalNights = 0
+  let guestArrangedNights = 0
+  for (const e of externals) {
+    const n = countNights(e.check_in, e.check_out)
+    if (accById.get(e.accommodation_id)?.guest_arranged) guestArrangedNights += n
+    else externalNights += n
+  }
+  for (const key of unpricedPlaces) {
+    const [bookingId, accId] = key.split('|')
+    const b = stayById.get(bookingId)
+    const n = b ? countNights(b.check_in, b.check_out) : 0
+    if (accById.get(accId)?.guest_arranged) guestArrangedNights += n
+    else externalNights += n
+  }
 
   // Own rooms follow the booking's dates (as the accommodation revenue does);
   // an external stay follows its own.
   const ownNights = stays.reduce(
-    (s, b) => s + (roomsOf.get(b.id) ?? 0) * countNights(b.check_in, b.check_out), 0)
-  const externalNights = externals.reduce((s, e) => s + countNights(e.check_in, e.check_out), 0)
+    (s, b) => s + (ownRoomsOf.get(b.id) ?? 0) * countNights(b.check_in, b.check_out), 0)
 
   // An `accommodation` extra is nights typed by hand ("1 night – House 4"): its
   // quantity counts as is. Walk-ins included — unlike their placeholder dates,
@@ -941,6 +987,7 @@ export function computeVolumeTotals(data: SharedAccountingData): VolumeTotals {
     bookings: stays.length,
     guests: named.length,
     roomNights: ownNights + externalNights + extraNights,
+    guestArrangedNights,
     maputoNights,
     taxiTransfers: data.taxiTrips.filter(
       t => t.booking_id === null || activeIds.has(t.booking_id)).length,

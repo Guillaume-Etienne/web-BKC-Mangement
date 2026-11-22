@@ -1007,6 +1007,16 @@ function BookingWizard({ initial, clients, clientsLoading, rooms, accommodations
                       const spots = d.room_ids.filter(id => rooms.find(r => r.id === id)?.accommodation_id === accId).length
                       const setAmt = (patch: Partial<ExternalStayAmounts>) =>
                         update({ external_stays: { ...d.external_stays, [accId]: { ...amt, ...patch } } })
+                      // The guest's own place: nothing to pay, nothing to charge —
+                      // no amount fields to fill by mistake (gui, 2026-11-22).
+                      if (acc?.guest_arranged && amt.cost === 0 && amt.sell === 0) return (
+                        <div key={accId} className="border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg p-2">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{acc.name}</span>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            The guest sleeps elsewhere — nothing billed, not counted in nights sold.
+                          </p>
+                        </div>
+                      )
                       return (
                         <div key={accId} className="border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg p-2 space-y-1.5">
                           <div className="flex items-center justify-between">

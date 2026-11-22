@@ -21,6 +21,7 @@ interface Words {
   paidToOwner: string
   paidToProvider: (provider: string) => string
   handledBy: (place: string) => string
+  ownAccommodation: string; arrangedByGuest: string
   total: string; discount: string; paid: string; remaining: string
   footnote: string
 }
@@ -41,6 +42,7 @@ const W: Record<Lang, Words> = {
     paidToOwner: 'Réglé directement au propriétaire',
     paidToProvider: p => `À régler directement à ${p}`,
     handledBy: p => `Géré par ${p}`,
+    ownAccommodation: 'Logement personnel', arrangedByGuest: 'Organisé par vos soins',
     total: 'Total commandé', discount: 'Remise', paid: 'Déjà réglé', remaining: 'Reste à payer',
     footnote: 'Les cours, locations et repas pris sur place s’ajoutent à votre compte client.',
   },
@@ -59,6 +61,7 @@ const W: Record<Lang, Words> = {
     paidToOwner: 'Paid directly to the owner',
     paidToProvider: p => `Paid directly to ${p}`,
     handledBy: p => `Handled by ${p}`,
+    ownAccommodation: 'Own accommodation', arrangedByGuest: 'Arranged by yourself',
     total: 'Total ordered', discount: 'Discount', paid: 'Already paid', remaining: 'Remaining to pay',
     footnote: 'Lessons, rentals and meals taken on site are added to your client account.',
   },
@@ -77,6 +80,7 @@ const W: Record<Lang, Words> = {
     paidToOwner: 'Pagado directamente al propietario',
     paidToProvider: p => `A pagar directamente a ${p}`,
     handledBy: p => `Gestionado por ${p}`,
+    ownAccommodation: 'Alojamiento propio', arrangedByGuest: 'Organizado por usted',
     total: 'Total pedido', discount: 'Descuento', paid: 'Ya pagado', remaining: 'Pendiente de pago',
     footnote: 'Las clases, alquileres y comidas en el centro se añaden a su cuenta de cliente.',
   },
@@ -110,7 +114,7 @@ export function describeLine(line: OrderLine, lang: Lang): { icon: string; title
     case 'external_stay':
       return {
         icon: '🏠',
-        title: [it.accommodationName, ...it.roomNames].join(' · '),
+        title: it.guestArranged ? w.ownAccommodation : [it.accommodationName, ...it.roomNames].join(' · '),
         detail: `${day(it.checkIn, lang)} → ${day(it.checkOut, lang)} · ${it.nights} ${it.nights === 1 ? w.night : w.nights}`,
       }
     case 'taxi':
@@ -150,6 +154,7 @@ function settledText(line: OrderLine, lang: Lang): string {
   const note = s.kind === 'agency' ? w.includedVia(s.name)
     : s.kind === 'owner' ? w.paidToOwner
     : s.kind === 'place' ? w.handledBy(s.name)
+    : s.kind === 'guest' ? w.arrangedByGuest
     : w.paidToProvider(s.name)
   return `<span style="font-weight:normal;font-style:italic;color:#0f766e;">${esc(note)}</span>`
 }

@@ -1948,9 +1948,64 @@ describe('computeVolumeTotals', () => {
     expect(v.roomNights).toBe(0)   // never mixed with the nights at the centre
   })
 
+  // San Martinho: a spot is a planning row, the stay carries the nights.
+  const sm = mkAccommodation({ id: 'accSM', name: 'San Martinho', type: 'other', external_billing: true })
+  const own = mkAccommodation({ id: 'accOwn', name: 'Own accommodation', type: 'other', external_billing: true, guest_arranged: true })
+  const spots = [
+    mkRoom({ id: 'sm1', accommodation_id: 'accSM', name: 'SM-1' }),
+    mkRoom({ id: 'sm2', accommodation_id: 'accSM', name: 'SM-2' }),
+    mkRoom({ id: 'own1', accommodation_id: 'accOwn', name: 'OWN-1' }),
+  ]
+
+  it('counts a San Martinho stay once — not its spot AND its stay (double count until 2026-11-22)', () => {
+    const data = mkData({
+      accommodations: [sm], rooms: spots,
+      bookings: [mkBooking({ id: 'bk1', check_in: '2026-11-01', check_out: '2026-11-08' })],
+      bookingRooms: [mkBookingRoom({ booking_id: 'bk1', room_id: 'sm1' })],
+      externalAccommodationBkgs: [mkExternalBooking({ booking_id: 'bk1', accommodation_id: 'accSM', check_in: '2026-11-01', check_out: '2026-11-08' })],
+    })
+    expect(computeVolumeTotals(data).roomNights).toBe(7)
+  })
+
+  it('counts a San Martinho spot with no stay entered once per night of the booking, however many spots', () => {
+    const data = mkData({
+      accommodations: [sm], rooms: spots,
+      bookings: [mkBooking({ id: 'bk1', check_in: '2026-11-01', check_out: '2026-11-08' })],
+      bookingRooms: [mkBookingRoom({ booking_id: 'bk1', room_id: 'sm1' }), mkBookingRoom({ booking_id: 'bk1', room_id: 'sm2' })],
+    })
+    const v = computeVolumeTotals(data)
+    expect(v.roomNights).toBe(7)
+    expect(v.bookingsWithoutRoom).toBe(0)
+  })
+
+  it('keeps the guests\' own accommodation out of nights sold and counts it apart', () => {
+    const data = mkData({
+      accommodations: [sm, own], rooms: spots,
+      bookings: [
+        mkBooking({ id: 'bk1', check_in: '2026-09-22', check_out: '2026-12-15' }),   // 84 nights, stay entered
+        mkBooking({ id: 'bk2', check_in: '2026-11-16', check_out: '2026-12-05' }),   // 19 nights, spot only
+        mkBooking({ id: 'bk3', check_in: '2026-11-01', check_out: '2026-11-04' }),   // 3 nights at San Martinho
+      ],
+      bookingRooms: [
+        mkBookingRoom({ booking_id: 'bk1', room_id: 'own1' }),
+        mkBookingRoom({ booking_id: 'bk2', room_id: 'own1' }),
+        mkBookingRoom({ booking_id: 'bk3', room_id: 'sm1' }),
+      ],
+      externalAccommodationBkgs: [
+        mkExternalBooking({ id: 'e1', booking_id: 'bk1', accommodation_id: 'accOwn', check_in: '2026-09-22', check_out: '2026-12-15' }),
+        mkExternalBooking({ id: 'e3', booking_id: 'bk3', accommodation_id: 'accSM', check_in: '2026-11-01', check_out: '2026-11-04' }),
+      ],
+    })
+    const v = computeVolumeTotals(data)
+    expect(v.roomNights).toBe(3)
+    expect(v.guestArrangedNights).toBe(84 + 19)
+    expect(v.bookingsWithoutRoom).toBe(0)   // they do sleep somewhere
+    expect(v.bookings).toBe(3)              // still bookings: they came
+  })
+
   it('returns zeros on an empty dataset', () => {
     expect(computeVolumeTotals(mkData())).toEqual({
-      bookings: 0, guests: 0, roomNights: 0, maputoNights: 0, taxiTransfers: 0,
+      bookings: 0, guests: 0, roomNights: 0, guestArrangedNights: 0, maputoNights: 0, taxiTransfers: 0,
       bookingsWithoutGuestList: 0, bookingsWithoutRoom: 0,
     })
   })

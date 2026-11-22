@@ -192,7 +192,7 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
           The money below is meaningless without it: 4 700 € over 3 stays and
           over 30 is not the same season. Same perimeter as every euro figure
           (cancelled excluded), so the two rows can be divided into each other. */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.dash_vol_bookings[lang]}</p>
           <p className="text-3xl font-bold text-gray-800 dark:text-gray-200">{volume.bookings}</p>
@@ -229,6 +229,13 @@ export default function AccountingDashboard({ data, onOpenBooking }: Props) {
           ) : (
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{i18n.accounting.dash_vol_nights_detail[lang]}</p>
           )}
+        </div>
+        {/* Guests who sleep somewhere of their own (gui, 2026-11-22): they came,
+            but no night was sold — kept out of the figure above, shown apart. */}
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.dash_vol_own_accom[lang]}</p>
+          <p className="text-3xl font-bold text-gray-800 dark:text-gray-200">{volume.guestArrangedNights.toLocaleString('fr-FR')}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{i18n.accounting.dash_vol_own_accom_detail[lang]}</p>
         </div>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.dash_vol_maputo[lang]}</p>

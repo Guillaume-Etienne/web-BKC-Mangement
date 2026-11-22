@@ -29,9 +29,10 @@ interface AccFormData {
   palmeiras_price_mzn: number | null
   external_billing: boolean
   hide_empty_rooms: boolean
+  guest_arranged: boolean
 }
 interface AccFormProps {
-  initial: { name: string; is_active: boolean; type: AccommodationType; cost_per_night: string; palmeiras_price_mzn: string; external_billing: boolean; hide_empty_rooms: boolean }
+  initial: { name: string; is_active: boolean; type: AccommodationType; cost_per_night: string; palmeiras_price_mzn: string; external_billing: boolean; hide_empty_rooms: boolean; guest_arranged: boolean }
   title: string
   lockType?: boolean
   /** Present when editing an existing accommodation: lets the same modal set
@@ -57,6 +58,7 @@ function AccForm({ initial, title, lockType, editContext, onSave, onClose }: Acc
   const [priceMzn, setPriceMzn] = useState(initial.palmeiras_price_mzn)
   const [external, setExternal] = useState(initial.external_billing)
   const [hideEmpty, setHideEmpty] = useState(initial.hide_empty_rooms)
+  const [guestArranged, setGuestArranged] = useState(initial.guest_arranged)
   const [saving,  setSaving]  = useState(false)
   const [rateValues, setRateValues] = useState<Record<string, string>>(() =>
     editContext ? initialRateValues(editContext.accommodation, editContext.rooms, editContext.rates) : {})
@@ -80,6 +82,7 @@ function AccForm({ initial, title, lockType, editContext, onSave, onClose }: Acc
       palmeiras_price_mzn: type === 'bungalow' && parseFloat(priceMzn) > 0 ? parseFloat(priceMzn) : null,
       external_billing: external,
       hide_empty_rooms: hideEmpty,
+      guest_arranged: guestArranged,
     })
     setSaving(false)
   }
@@ -155,6 +158,17 @@ function AccForm({ initial, title, lockType, editContext, onSave, onClose }: Acc
                 so you can add as many as you need without filling the board with empty
                 lines. Leave off for houses and bungalows — their rooms are real and keep
                 a fixed position.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+            <input type="checkbox" checked={guestArranged} onChange={e => setGuestArranged(e.target.checked)} className="rounded mt-0.5" />
+            <span>
+              Guests' own accommodation
+              <span className="block text-xs text-gray-500 dark:text-gray-400">
+                For guests who sleep somewhere of their own (their house, an Airbnb,
+                another lodge). Their nights are left out of "Nights sold" and counted
+                apart, and the confirmation says "Own accommodation".
               </span>
             </span>
           </label>
@@ -525,6 +539,8 @@ export default function AccommodationsTab() {
         cost_per_night: data.cost_per_night,
         palmeiras_price_mzn: data.palmeiras_price_mzn,
         external_billing: data.external_billing,
+        hide_empty_rooms: data.hide_empty_rooms,
+        guest_arranged: data.guest_arranged,
       }])
       .select('id')
       .single()
@@ -555,6 +571,8 @@ export default function AccommodationsTab() {
         cost_per_night: data.cost_per_night,
         palmeiras_price_mzn: data.palmeiras_price_mzn,
         external_billing: data.external_billing,
+        hide_empty_rooms: data.hide_empty_rooms,
+        guest_arranged: data.guest_arranged,
       })
       .eq('id', editing.id)
     if (error) { notifyError('Error: ' + error.message); return }
@@ -658,7 +676,7 @@ export default function AccommodationsTab() {
                               <div className="mt-1 flex gap-3 text-xs text-gray-500 dark:text-gray-400">
                                 {acc.external_billing ? (
                                   <span className="text-blue-600 dark:text-blue-400">
-                                    per-stay pricing · {rms.length} spot{rms.length === 1 ? '' : 's'}
+                                    {acc.guest_arranged ? "guests' own · " : ''}per-stay pricing · {rms.length} spot{rms.length === 1 ? '' : 's'}
                                   </span>
                                 ) : (
                                   rateKeys(acc, rms).map(({ key, short }) => (
@@ -786,7 +804,7 @@ export default function AccommodationsTab() {
       {/* ── Modals ───────────────────────────────────────────────────────── */}
       {showForm && (
         <AccForm
-          initial={{ name: '', is_active: true, type: 'house', cost_per_night: '', palmeiras_price_mzn: '', external_billing: false, hide_empty_rooms: false }}
+          initial={{ name: '', is_active: true, type: 'house', cost_per_night: '', palmeiras_price_mzn: '', external_billing: false, hide_empty_rooms: false, guest_arranged: false }}
           title={i18n.management.title_new_accommodation[lang]}
           onSave={handleCreate}
           onClose={() => setShowForm(false)}
@@ -805,6 +823,7 @@ export default function AccommodationsTab() {
             // Without it the checkbox starts uncontrolled and React complains.
             external_billing: editing.external_billing ?? false,
             hide_empty_rooms: editing.hide_empty_rooms ?? false,
+            guest_arranged: editing.guest_arranged ?? false,
           }}
           title={`${i18n.common.btn_edit[lang]} ${editing.name}`}
           lockType

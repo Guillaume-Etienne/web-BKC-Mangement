@@ -1,4 +1,4 @@
-import type { AccommodationType, ActivityProvider, Booking, TaxiTripType } from '../types/database'
+import type { Accommodation, AccommodationType, ActivityProvider, Booking, TaxiTripType } from '../types/database'
 import type { SharedAccountingData } from '../components/accounting/types'
 import {
   chargeAmount, countNights, emptyAccountingData, getRoomNightlyRate,
@@ -31,10 +31,11 @@ export type OrderSettledBy =
   | { kind: 'owner' }
   | { kind: 'provider'; name: string }
   | { kind: 'place'; name: string }
+  | { kind: 'guest' }
 
 export type OrderItem =
   | { kind: 'room'; accommodationType: AccommodationType; accommodationName: string; roomName: string; nights: number; nightlyRate: number }
-  | { kind: 'external_stay'; accommodationName: string; roomNames: string[]; checkIn: string; checkOut: string; nights: number }
+  | { kind: 'external_stay'; accommodationName: string; roomNames: string[]; checkIn: string; checkOut: string; nights: number; guestArranged?: boolean }
   | { kind: 'taxi'; tripType: TaxiTripType; date: string; time: string; persons: number; luggage: number; boardbags: number }
   | { kind: 'activity'; label: string; date: string; endDate: string | null; persons: number }
   | { kind: 'center_access'; persons: number; days: number; rate: number }
@@ -91,7 +92,7 @@ export function buildBookingOrder(booking: Booking, input: BookingOrderData, pro
   for (const br of bookedRooms) {
     const room = data.rooms.find(r => r.id === br.room_id)
     const acc  = room ? data.accommodations.find(a => a.id === room.accommodation_id) : undefined
-    if (!room || !acc || acc.external_billing) continue
+    if (!room || !acc || acc.external_billing || acc.guest_arranged) continue
     const nightlyRate = getRoomNightlyRate(booking.id, br.room_id, data)
     const item: OrderItem = { kind: 'room', accommodationType: acc.type, accommodationName: acc.name, roomName: room.name, nights, nightlyRate }
     if (isRoomAgencyBilled(booking.id, br.room_id, data)) {
@@ -109,18 +110,26 @@ export function buildBookingOrder(booking: Booking, input: BookingOrderData, pro
   // says where the guest sleeps, and that is all — unless we did put a sell
   // price on the stay (0 = self-managed, database.ts), which the client account
   // then bills and this total must too.
-  const stayAt = (accName: string, sell: number): Pick<OrderLine, 'amount' | 'settledBy'> =>
-    sell > 0 ? { amount: cents(sell), settledBy: { kind: 'us' } } : { amount: null, settledBy: { kind: 'place', name: accName } }
+  // A guest who sleeps somewhere of their own ("Own accommodation", gui
+  // 2026-11-22) is told just that: no place "handles" it, and its spot names are
+  // our planning rows, nothing the guest should read.
+  const stayAt = (acc: Accommodation | undefined, sell: number): Pick<OrderLine, 'amount' | 'settledBy'> =>
+    sell > 0 ? { amount: cents(sell), settledBy: { kind: 'us' } }
+      : acc?.guest_arranged ? { amount: null, settledBy: { kind: 'guest' } }
+      : { amount: null, settledBy: { kind: 'place', name: acc?.name ?? '—' } }
+  const stayItem = (acc: Accommodation | undefined, roomNames: string[], checkIn: string, checkOut: string): OrderItem => ({
+    kind: 'external_stay', accommodationName: acc?.name ?? '—',
+    roomNames: acc?.guest_arranged ? [] : roomNames,
+    checkIn, checkOut, nights: countNights(checkIn, checkOut),
+    ...(acc?.guest_arranged ? { guestArranged: true } : {}),
+  })
   for (const e of data.externalAccommodationBkgs.filter(x => x.booking_id === booking.id)) {
     const acc = data.accommodations.find(a => a.id === e.accommodation_id)
     const roomNames = bookedRooms
       .map(br => data.rooms.find(r => r.id === br.room_id))
       .filter(r => r?.accommodation_id === e.accommodation_id)
       .map(r => r!.name)
-    stays.push({
-      item: { kind: 'external_stay', accommodationName: acc?.name ?? '—', roomNames, checkIn: e.check_in, checkOut: e.check_out, nights: countNights(e.check_in, e.check_out) },
-      ...stayAt(acc?.name ?? '—', e.total_sell_price),
-    })
+    stays.push({ item: stayItem(acc, roomNames, e.check_in, e.check_out), ...stayAt(acc, e.total_sell_price) })
   }
   // A room booked there with no stay entered (#026, seen 2026-11-08): the
   // guest still sleeps there, so the line stays — the booking's dates, no price.
@@ -129,15 +138,12 @@ export function buildBookingOrder(booking: Booking, input: BookingOrderData, pro
   for (const br of bookedRooms) {
     const room = data.rooms.find(r => r.id === br.room_id)
     const acc  = room ? data.accommodations.find(a => a.id === room.accommodation_id) : undefined
-    if (!room || !acc?.external_billing || staysAt.has(acc.id)) continue
+    if (!room || !(acc?.external_billing || acc?.guest_arranged) || staysAt.has(acc.id)) continue
     unpricedStays.set(acc.id, [...(unpricedStays.get(acc.id) ?? []), room.name])
   }
   for (const [accId, roomNames] of unpricedStays) {
-    const accName = data.accommodations.find(a => a.id === accId)?.name ?? '—'
-    stays.push({
-      item: { kind: 'external_stay', accommodationName: accName, roomNames, checkIn: booking.check_in, checkOut: booking.check_out, nights },
-      ...stayAt(accName, 0),
-    })
+    const acc = data.accommodations.find(a => a.id === accId)
+    stays.push({ item: stayItem(acc, roomNames, booking.check_in, booking.check_out), ...stayAt(acc, 0) })
   }
 
   // ── Transfers: the real trips, with their own time and price ──

@@ -4,6 +4,15 @@
 > `.claude/archive/memory/backlog_closed_2026.md` (1600 lignes d'historique, décisions et
 > vérifications). Ici : **l'ouvert uniquement.** Une ligne close se raye et se déplace.
 
+## ✅ Livré 2026-11-22 — « Own accommodation » ≠ San Martinho (**gui doit pousser** ; migration `2026-11-22_guest_arranged_accommodation.sql` TEST+PROD ✅, curl anon 200 sur les 2)
+- Problème (gui) : les clients logés par leurs propres moyens étaient rangés dans San Martinho → nuits vendues gonflées, planning SM faux, confirmation « Géré par San Martinho ».
+- Drapeau `accommodations.guest_arranged` + hébergement « Own accommodation » (other, per-stay, 4 emplacements OWN-1..4, lignes vides masquées). Effets : hors « Nights sold », **compteur à part** « Nights in own accommodation » (décision gui) ; confirmation « Logement personnel · Organisé par vos soins » (sans nom d'emplacement ni prix) ; wizard sans champs coût/prix ; case dans Options → Accommodations.
+- **Bug corrigé au passage** : un séjour SM était compté 2× dans les nuits vendues (emplacement SM-x + séjour externe). Désormais le séjour porte les nuits ; emplacement sans séjour saisi = 1 × nuits de la résa. → le chiffre « Nights sold » **baisse** à l'écran, c'est normal.
+- Aussi corrigé : la case « hide the rooms nobody is in » n'était jamais enregistrée (absente de l'insert/update).
+- PROD : Lama (#086) SM-6 → OWN-1, Patrick & Marie (#083) SM-4 → OWN-2 (séjours externes rattachés, prix 0). Les autres SM confirmés par gui.
+- 🔔 Patrick & Marie : séjour externe 16→23/11 mais résa 16/11→05/12 — dates à confirmer avec gui.
+- Tests : +4 (`utils.test.ts`, `bookingOrder.test.ts`), 1020 ✅, build ✅. Pas vu à l'écran.
+
 ## 🚧 2026-11-22 — Compta : grille « Day by day » + saisie directe (demande Teresa)
 **Étape 1 livrée (gui doit pousser, aucune migration)** — fiche résa (compta), section « Day by day » au-dessus du détail, **desktop seulement** (`hidden md:block`).
 - Grille voyageurs × jours (arrivée → départ inclus, élargie aux lignes hors séjour), ligne « Whole group » pour ce qui ne nomme personne (résa d'une personne → son nom), colonne Total (h de cours, jours de location par type, jours C, €).

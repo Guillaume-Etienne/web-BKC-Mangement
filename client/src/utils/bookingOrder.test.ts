@@ -126,6 +126,27 @@ describe('buildBookingOrder', () => {
     expect(zeroPricedLines(o)).toHaveLength(0)
   })
 
+  it('the guest\'s own accommodation says just that: no "handled by", no spot name, no price', () => {
+    const ownAcc = mkAccommodation({ id: 'acc1', name: 'Own accommodation', type: 'other', external_billing: true, guest_arranged: true })
+    const rooms = [mkRoom({ id: 'room1', accommodation_id: 'acc1', name: 'OWN-1' })]
+    for (const externalAccommodationBkgs of [[mkExternalBooking({ total_sell_price: 0, total_cost: 0 })], []]) {
+      const o = buildBookingOrder(mkBooking(), base({ accommodations: [ownAcc], rooms, bookingRoomPrices: [], externalAccommodationBkgs }), [])
+      expect(o.lines).toHaveLength(1)
+      expect(o.lines[0]).toMatchObject({
+        item: { kind: 'external_stay', roomNames: [], guestArranged: true },
+        amount: null, settledBy: { kind: 'guest' },
+      })
+      expect(o.total).toBe(0)
+      expect(zeroPricedLines(o)).toHaveLength(0)
+      const html = bookingOrderHtml(o, 'fr', '10pt', '9pt')
+      expect(html).toContain('Logement personnel')
+      expect(html).toContain('Organisé par vos soins')
+      expect(html).not.toContain('Géré par')
+      expect(html).not.toContain('OWN-1')
+      expect(bookingOrderHtml(o, 'en', '10pt', '9pt')).toContain('Arranged by yourself')
+    }
+  })
+
   it('activities: billed by us, or paid to the provider directly', () => {
     const o = buildBookingOrder(mkBooking(), base({
       activityBookings: [

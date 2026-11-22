@@ -585,6 +585,8 @@ ALTER TABLE accommodations ADD COLUMN cost_per_night_mzn NUMERIC(12,2) CHECK (co
 -- 2026-11-08 : cost_per_night_mzn n'est plus lu (jamais rempli) — remplacé par le prix public du Palmeiras.
 -- BKC leur doit 85 % quand le client paie BKC ; ils doivent 15 % à BKC quand le client les paie.
 ALTER TABLE accommodations ADD COLUMN palmeiras_price_mzn NUMERIC(12,2) CHECK (palmeiras_price_mzn > 0);
+-- 2026-11-22 : le client loge par ses propres moyens (« Own accommodation ») — hors nuits vendues.
+ALTER TABLE accommodations ADD COLUMN guest_arranged BOOLEAN NOT NULL DEFAULT false;
 
 CREATE TABLE taxi_pricing_defaults (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
