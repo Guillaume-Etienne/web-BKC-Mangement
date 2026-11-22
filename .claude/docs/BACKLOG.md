@@ -11,7 +11,7 @@
 - Aussi corrigé : la case « hide the rooms nobody is in » n'était jamais enregistrée (absente de l'insert/update).
 - PROD : Lama (#086) SM-6 → OWN-1, Patrick & Marie (#083) SM-4 → OWN-2 (séjours externes rattachés, prix 0). Les autres SM confirmés par gui.
 - 🔔 Patrick & Marie : séjour externe 16→23/11 mais résa 16/11→05/12 — dates à confirmer avec gui.
-- Tests : +4 (`utils.test.ts`, `bookingOrder.test.ts`), 1020 ✅, build ✅. Pas vu à l'écran.
+- Tests : +4 (`utils.test.ts`, `bookingOrder.test.ts`), 1020 ✅, build ✅. **Vu sur PROD (localhost, lecture seule) ✅** : planning OWN-1 Lama / OWN-2 P&M / OWN-3 libre, SM-6 masqué ; compta Nuits vendues 305 + « Nuits en logement perso » 103 (84+19) ; confirmation #086/#083 « Logement personnel · Organisé par vos soins », sans prix.
 
 ## 🚧 2026-11-22 — Compta : grille « Day by day » + saisie directe (demande Teresa)
 **Étape 1 livrée (gui doit pousser, aucune migration)** — fiche résa (compta), section « Day by day » au-dessus du détail, **desktop seulement** (`hidden md:block`).
