@@ -10,7 +10,7 @@
 - Cases : L/W/S cours (h), K/B/F/Surf/Foil location (½ = demi-journée), C center access, C+ extra nommé « center access », + extra ; interrupteur « Meals & activities » (🍽 🎯, mémorisé `bf_day_grid_meals`). Agence = pointillé, 0 €. Survol = détail + prix. Jour passé d'un kiteur sans cours/location/C → « – ».
 - Alertes : location kite/full + C même jour (case rouge) ; cours/locations sans voyageur ; `num_center_access` ≠ nb de cases « own gear ».
 - Décisions gui : center access **reste la formule** (C sur chaque nuit des « own gear ») ; ajouter un jour = extra « Center access » pour le voyageur (lu « C+ ») ; retirer un jour = Discount (au niveau résa, pas visible dans une case — les extras ne peuvent pas être négatifs).
-- Code : `components/accounting/dayGrid.ts` (pur, 15 tests `dayGrid.test.ts`) + `BookingDayGrid.tsx`. Pas encore vu à l'écran.
+- Code : `components/accounting/dayGrid.ts` (pur, 14 tests `dayGrid.test.ts`) + `BookingDayGrid.tsx`. Pas encore vu à l'écran.
 - 🔔 Choix à valider : seule une location **kite ou full** déclenche l'alerte « facturé deux fois » (une board seule avec son propre kite = plausible).
 
 **Étape 2 à faire** — saisie directe depuis la grille : clic case → menu Lesson / Rental / Extra (voyageur + jour pré-remplis) ; glisser sur une ligne → location sur la plage (une ligne/jour) ; clic chip → formulaire d'édition existant (`EditRentalModal` / `EditLessonModal`). Sortir la logique d'enregistrement du Planning (`PlanningView.tsx`) dans un module commun (cf. `walkInSave.ts`) pour figer les prix au même endroit.
