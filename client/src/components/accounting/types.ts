@@ -60,6 +60,12 @@ export interface AccountingHandlers {
   upsertBookingRoomPrice:  (p: BookingRoomPrice)   => void
   deleteBookingRoomPrice:  (bookingId: string, roomId: string) => void
   updateRental:            (r: EquipmentRental)    => void
+  /** New rentals, one insert (the day-by-day grid writes a range in one go) */
+  addRentals:              (rs: EquipmentRental[]) => void
+  /** New lesson, then its gear per rider (same save as the Planning's) */
+  addLesson:               (l: Lesson)             => void
+  /** Several extras in one insert (a range picked in the day-by-day grid) */
+  addBookingCharges:       (cs: BookingCharge[])   => void
   addPayment:              (p: Payment)            => void
   updatePayment:           (p: Payment)            => void
   deletePayment:           (id: string)            => void

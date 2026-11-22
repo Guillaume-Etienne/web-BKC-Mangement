@@ -1,12 +1,22 @@
 // Day by day grid of a booking — travellers × days (see dayGrid.ts).
 // Desktop only for now (gui, 2026-11-22): past four guests a phone cannot hold it.
+//
+// Step 2 (same day): things are added and edited from the grid itself — click a
+// day (or drag across several) for a menu, click an item to edit it. Every form
+// is the one the Planning and the bill already use, so a lesson or a rental is
+// priced and frozen exactly the same way wherever it is entered.
 
-import { useMemo, useState } from 'react'
-import type { Booking } from '../../types/database'
-import type { SharedAccountingData } from './types'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { Booking, BookingCharge, EquipmentRental, Lesson } from '../../types/database'
+import type { AccountingHandlers, SharedAccountingData } from './types'
 import { buildDayGrid, GROUP_ROW, type GridChip, type GridKind, type GridRow } from './dayGrid'
+import { daysBetweenInclusive, newLessonDraft, newRentalDraft, rentalsForDates, chargesForDates } from './gridDrafts'
 import { fmtEur } from './utils'
 import { rentalLabel, type RentalKind } from '../planning/rentalTypes'
+import EditLessonModal from '../planning/EditLessonModal'
+import EditRentalModal from '../planning/EditRentalModal'
+import ExtraLineForm from './ExtraLineForm'
+import Modal from '../common/Modal'
 import { todayISO, fromISODate, fmtDate, localeTag } from '../../utils/dates'
 import { readLocal, writeLocal } from '../../utils/safeStorage'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -28,11 +38,26 @@ const RIDING: ReadonlySet<GridKind> = new Set(['lesson', 'rental', 'center_acces
 
 const fmtDays = (n: number) => String(Math.round(n * 10) / 10)
 
-function Chip({ chip, agencyWord }: { chip: GridChip; agencyWord: string }) {
+/** Cells picked with the mouse: one row, from `anchor` to `end` (either order). */
+interface CellPick { rowId: string; anchor: string; end: string }
+/** The menu, opened where the mouse was released. Fixed-positioned: the grid
+ *  scrolls sideways, and an absolute menu would be clipped by it. */
+interface CellMenu extends CellPick { x: number; y: number }
+
+type ExtraPreset = Partial<Pick<BookingCharge, 'label' | 'unit_price' | 'participant_id' | 'category'>>
+type Dialog =
+  | { kind: 'lesson'; lesson: Lesson; isNew: boolean }
+  | { kind: 'rental'; rental: EquipmentRental; dates: string[]; isNew: boolean }
+  | { kind: 'extra'; initial?: BookingCharge; preset?: ExtraPreset; dates: string[] }
+
+function Chip({ chip, agencyWord, onOpen }: { chip: GridChip; agencyWord: string; onOpen: (() => void) | null }) {
   const title = `${chip.label} · ${fmtEur(chip.amount)}${chip.covered ? ` · ${agencyWord}` : ''}`
   return (
     <span title={title}
-      className={`block whitespace-nowrap rounded px-1 leading-5 text-[11px] font-medium ${CHIP_CLASS[chip.kind]} ${chip.covered ? 'border border-dashed border-indigo-400 dark:border-indigo-500 opacity-80' : ''}`}>
+      // Clicking an item edits it — it must not start a pick in the cell under it.
+      onMouseDown={e => { if (onOpen) e.stopPropagation() }}
+      onClick={onOpen ?? undefined}
+      className={`block whitespace-nowrap rounded px-1 leading-5 text-[11px] font-medium ${CHIP_CLASS[chip.kind]} ${chip.covered ? 'border border-dashed border-indigo-400 dark:border-indigo-500 opacity-80' : ''} ${onOpen ? 'cursor-pointer hover:ring-1 hover:ring-blue-400' : ''}`}>
       {chip.short}
     </span>
   )
@@ -53,23 +78,110 @@ function RowTotals({ row, dayUnit }: { row: GridRow; dayUnit: string }) {
   )
 }
 
-export default function BookingDayGrid({ booking, data }: { booking: Booking; data: SharedAccountingData }) {
+interface Props {
+  booking: Booking
+  data: SharedAccountingData
+  handlers: AccountingHandlers
+}
+
+export default function BookingDayGrid({ booking, data, handlers }: Props) {
   const { lang } = useLanguage()
   const tr = i18n.accounting
   const [meals, setMeals] = useState(() => readLocal(MEALS_KEY) === '1')
   const toggleMeals = () => { setMeals(m => { writeLocal(MEALS_KEY, m ? '0' : '1'); return !m }) }
+  const [drag, setDrag] = useState<CellPick | null>(null)
+  const [menu, setMenu] = useState<CellMenu | null>(null)
+  const [dialog, setDialog] = useState<Dialog | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const grid = useMemo(
     () => buildDayGrid(booking, data, { mealsAndActivities: meals, groupName: tr.bf_grid_group[lang] }),
     [booking, data, meals, lang, tr],
   )
+
+  // Releasing the mouse anywhere ends the pick and opens the menu there.
+  useEffect(() => {
+    if (!drag) return
+    const up = (e: MouseEvent) => { setMenu({ ...drag, x: e.clientX, y: e.clientY }); setDrag(null) }
+    window.addEventListener('mouseup', up)
+    return () => window.removeEventListener('mouseup', up)
+  }, [drag])
+  // A click elsewhere, Esc, or scrolling the page closes the menu.
+  useEffect(() => {
+    if (!menu) return
+    const down = (e: MouseEvent) => { if (!menuRef.current?.contains(e.target as Node)) setMenu(null) }
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(null) }
+    const close = () => setMenu(null)
+    window.addEventListener('mousedown', down)
+    window.addEventListener('keydown', key)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      window.removeEventListener('mousedown', down)
+      window.removeEventListener('keydown', key)
+      window.removeEventListener('scroll', close, true)
+    }
+  }, [menu])
+
   const today = todayISO()
   const doubles = new Set(grid.warnings.flatMap(w => w.kind === 'rental_and_center_access' ? [`${w.rowId}|${w.date}`] : []))
   const nameOf = (id: string) => grid.rows.find(r => r.id === id)?.name ?? id
   const dayUnit = tr.bf_grid_day_unit[lang]
   const weekday = (d: string) => fromISODate(d).toLocaleDateString(localeTag(lang), { weekday: 'short' })
+  const parts = data.bookingParticipants.filter(p => p.booking_id === booking.id)
+
+  const picked = drag ?? menu
+  const inPick = (rowId: string, d: string) => {
+    if (!picked || picked.rowId !== rowId) return false
+    const [a, z] = picked.anchor <= picked.end ? [picked.anchor, picked.end] : [picked.end, picked.anchor]
+    return d >= a && d <= z
+  }
+  const menuDays = menu ? daysBetweenInclusive(menu.anchor, menu.end) : []
+
+  /** What clicking an item opens, or null when it is not edited from here. */
+  function opener(chip: GridChip): (() => void) | null {
+    if (chip.kind === 'lesson') {
+      const l = data.lessons.find(x => x.id === chip.sourceId)
+      // A group lesson owned by another booking is edited there (as on the bill).
+      if (!l || l.booking_id !== booking.id) return null
+      return () => setDialog({ kind: 'lesson', lesson: l, isNew: false })
+    }
+    if (chip.kind === 'rental') {
+      const r = data.equipmentRentals.find(x => x.id === chip.sourceId)
+      return r ? () => setDialog({ kind: 'rental', rental: r, dates: [r.date], isNew: false }) : null
+    }
+    if (chip.kind === 'extra') {
+      const c = (data.bookingCharges ?? []).find(x => x.id === chip.sourceId)
+      return c ? () => setDialog({ kind: 'extra', initial: c, dates: [c.date] }) : null
+    }
+    return null
+  }
+
+  function add(kind: 'lesson' | 'rental' | 'center_access' | 'extra') {
+    if (!menu) return
+    const dates = menuDays
+    const pid = menu.rowId === GROUP_ROW ? null : menu.rowId
+    setMenu(null)
+    if (kind === 'lesson') {
+      setDialog({ kind: 'lesson', isNew: true, lesson: newLessonDraft(booking, menu.rowId, dates[0], data.instructors, data.lessons) })
+    } else if (kind === 'rental') {
+      setDialog({ kind: 'rental', isNew: true, dates, rental: newRentalDraft(booking, menu.rowId, dates[0], data.priceItems) })
+    } else if (kind === 'center_access') {
+      // The agreed way to add a day of it (gui): an extra, read "C+" by the grid.
+      setDialog({ kind: 'extra', dates, preset: { label: 'Center access', unit_price: booking.center_access_rate ?? 0, participant_id: pid, category: 'other' } })
+    } else {
+      setDialog({ kind: 'extra', dates, preset: { participant_id: pid } })
+    }
+  }
+
+  const rangeTitle = (base: string, dates: string[]) =>
+    dates.length > 1
+      ? `${base} · ${tr.bf_grid_days_range[lang].replace('{count}', String(dates.length)).replace('{from}', fmtDate(dates[0])).replace('{to}', fmtDate(dates[dates.length - 1]))}`
+      : `${base} · ${fmtDate(dates[0])}`
 
   if (grid.dates.length === 0 || grid.rows.length === 0) return null
+
+  const menuItem = 'block w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-800'
+  const times = menuDays.length > 1 ? ` × ${menuDays.length}` : ''
 
   return (
     <div className="hidden md:block">
@@ -101,7 +213,7 @@ export default function BookingDayGrid({ booking, data }: { booking: Booking; da
           (+ Payment, + Discount, + Extra) out of sight. Zero width = no pull on the
           cell; min-w-full = as wide as the panel; the days scroll inside. */}
       <div className="w-0 min-w-full overflow-x-auto rounded-lg border border-gray-100 dark:border-gray-800">
-        <table className="text-xs border-collapse">
+        <table className="text-xs border-collapse select-none">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
               <th className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 py-1 text-left font-medium">{tr.bf_grid_guest[lang]}</th>
@@ -133,9 +245,16 @@ export default function BookingDayGrid({ booking, data }: { booking: Booking; da
                     && !cell.some(c => RIDING.has(c.kind))
                   return (
                     <td key={d}
-                      className={`px-0.5 py-0.5 ${d === today ? 'bg-blue-50/60 dark:bg-blue-950/30' : ''} ${isDouble ? 'bg-red-100 dark:bg-red-900/40 ring-1 ring-inset ring-red-400' : ''}`}>
-                      <div className="flex flex-col gap-0.5 items-stretch">
-                        {cell.map((c, i) => <Chip key={`${c.sourceId}-${i}`} chip={c} agencyWord={tr.bf_grid_agency[lang]} />)}
+                      onMouseDown={e => {
+                        if (e.button !== 0) return
+                        e.preventDefault()
+                        setMenu(null)
+                        setDrag({ rowId: row.id, anchor: d, end: d })
+                      }}
+                      onMouseEnter={() => { if (drag && drag.rowId === row.id) setDrag({ ...drag, end: d }) }}
+                      className={`px-0.5 py-0.5 cursor-cell hover:bg-gray-50 dark:hover:bg-gray-800/60 ${d === today ? 'bg-blue-50/60 dark:bg-blue-950/30' : ''} ${isDouble ? 'bg-red-100 dark:bg-red-900/40 ring-1 ring-inset ring-red-400' : ''} ${inPick(row.id, d) ? '!bg-blue-200/70 dark:!bg-blue-800/50' : ''}`}>
+                      <div className="flex flex-col gap-0.5 items-stretch min-h-[1.25rem]">
+                        {cell.map((c, i) => <Chip key={`${c.sourceId}-${i}`} chip={c} agencyWord={tr.bf_grid_agency[lang]} onOpen={opener(c)} />)}
                         {quiet && cell.length === 0 && (
                           <span title={tr.bf_grid_nothing[lang]} className="block text-center text-gray-300 dark:text-gray-600">–</span>
                         )}
@@ -149,7 +268,74 @@ export default function BookingDayGrid({ booking, data }: { booking: Booking; da
           </tbody>
         </table>
       </div>
-      <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">{tr.bf_grid_legend[lang]}</p>
+      <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">{tr.bf_grid_hint[lang]}</p>
+      <p className="text-[11px] text-gray-400 dark:text-gray-500">{tr.bf_grid_legend[lang]}</p>
+
+      {menu && (
+        <div ref={menuRef} style={{ left: menu.x + 4, top: menu.y + 4 }}
+          className="fixed z-50 w-44 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1 text-xs text-gray-700 dark:text-gray-300">
+          <p className="px-3 pt-1 pb-1.5 text-[11px] text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-800">
+            {nameOf(menu.rowId)} · {menuDays.length > 1 ? `${fmtDate(menuDays[0])} → ${fmtDate(menuDays[menuDays.length - 1])}` : fmtDate(menuDays[0])}
+          </p>
+          {menuDays.length === 1 && (
+            <button type="button" onClick={() => add('lesson')} className={menuItem}>🏄 {tr.bf_grid_add_lesson[lang]}</button>
+          )}
+          <button type="button" onClick={() => add('rental')} className={menuItem}>🎿 {tr.bf_grid_add_rental[lang]}{times}</button>
+          <button type="button" onClick={() => add('center_access')} className={menuItem}>🏖️ {tr.bf_grid_add_ca[lang]}{times}</button>
+          <button type="button" onClick={() => add('extra')} className={menuItem}>➕ {tr.bf_grid_add_extra[lang]}{times}</button>
+        </div>
+      )}
+
+      {dialog?.kind === 'lesson' && (
+        <EditLessonModal
+          lesson={dialog.lesson}
+          isNew={dialog.isNew}
+          title={dialog.isNew ? rangeTitle(tr.bf_grid_new_lesson[lang], [dialog.lesson.date]) : undefined}
+          lessons={data.lessons} instructors={data.instructors} equipment={data.equipment}
+          bookings={data.bookings} bookingParticipants={data.bookingParticipants} clients={data.clients}
+          priceItems={data.priceItems} priceTiers={data.priceTiers}
+          onSave={l => { if (dialog.isNew) handlers.addLesson(l); else handlers.updateLesson(l); setDialog(null) }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog?.kind === 'rental' && (
+        <EditRentalModal
+          rental={dialog.rental}
+          title={dialog.isNew ? rangeTitle(tr.bf_grid_new_rental[lang], dialog.dates) : undefined}
+          equipment={data.equipment} bookings={data.bookings} bookingParticipants={data.bookingParticipants}
+          clients={data.clients} priceItems={data.priceItems}
+          onSave={r => {
+            if (dialog.isNew) handlers.addRentals(rentalsForDates(r, dialog.dates))
+            else handlers.updateRental(r)
+            setDialog(null)
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog?.kind === 'extra' && (
+        <Modal onClose={() => setDialog(null)} label={dialog.initial ? tr.bf_grid_edit_extra[lang] : tr.bf_grid_new_extra[lang]}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md p-4">
+            <h3 className="font-bold text-gray-800 dark:text-gray-200">
+              {dialog.initial ? tr.bf_grid_edit_extra[lang] : rangeTitle(tr.bf_grid_new_extra[lang], dialog.dates)}
+            </h3>
+            <ExtraLineForm
+              bookingId={booking.id}
+              initial={dialog.initial}
+              preset={dialog.preset}
+              dates={dialog.dates}
+              defaultDate={dialog.dates[0]}
+              participants={parts}
+              onSave={c => {
+                if (dialog.initial) handlers.updateBookingCharge(c)
+                // One day: the form's own date (it may have been changed there).
+                else handlers.addBookingCharges(dialog.dates.length > 1 ? chargesForDates(c, dialog.dates) : [c])
+                setDialog(null)
+              }}
+              onCancel={() => setDialog(null)}
+            />
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

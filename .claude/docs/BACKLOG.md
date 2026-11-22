@@ -10,10 +10,14 @@
 - Cases : L/W/S cours (h), K/B/F/Surf/Foil location (½ = demi-journée), C center access, C+ extra nommé « center access », + extra ; interrupteur « Meals & activities » (🍽 🎯, mémorisé `bf_day_grid_meals`). Agence = pointillé, 0 €. Survol = détail + prix. Jour passé d'un kiteur sans cours/location/C → « – ».
 - Alertes : location kite/full + C même jour (case rouge) ; cours/locations sans voyageur ; `num_center_access` ≠ nb de cases « own gear ».
 - Décisions gui : center access **reste la formule** (C sur chaque nuit des « own gear ») ; ajouter un jour = extra « Center access » pour le voyageur (lu « C+ ») ; retirer un jour = Discount (au niveau résa, pas visible dans une case — les extras ne peuvent pas être négatifs).
-- Code : `components/accounting/dayGrid.ts` (pur, 14 tests `dayGrid.test.ts`) + `BookingDayGrid.tsx`. Pas encore vu à l'écran.
+- Code : `components/accounting/dayGrid.ts` (pur, 14 tests `dayGrid.test.ts`) + `BookingDayGrid.tsx`. Vue sur PROD le 22/11 (#056, #077 : chiffres = détail du prix). Largeur bornée (`w-0 min-w-full`, `54f6d6d`, autre session) : un séjour de 84 j poussait les boutons hors écran.
 - 🔔 Choix à valider : seule une location **kite ou full** déclenche l'alerte « facturé deux fois » (une board seule avec son propre kite = plausible).
 
-**Étape 2 à faire** — saisie directe depuis la grille : clic case → menu Lesson / Rental / Extra (voyageur + jour pré-remplis) ; glisser sur une ligne → location sur la plage (une ligne/jour) ; clic chip → formulaire d'édition existant (`EditRentalModal` / `EditLessonModal`). Sortir la logique d'enregistrement du Planning (`PlanningView.tsx`) dans un module commun (cf. `walkInSave.ts`) pour figer les prix au même endroit.
+**Étape 2 livrée (gui doit pousser, aucune migration)** — saisie directe depuis la grille :
+- Clic sur un jour → menu (titre = voyageur + date) : Lesson · Rental · Center access · Extra. Glisser sur plusieurs jours d'une ligne → même menu sans Lesson, « × N » : **une ligne par jour**, écrites en un seul insert. Clic sur un élément → son formulaire (cours de groupe d'une autre résa : non cliquable, il se modifie là-bas). Échap / clic ailleurs / défilement ferme le menu.
+- Aucun formulaire neuf : `EditLessonModal` / `EditRentalModal` (props `title`, + `isNew` pour le cours : fige `price_per_hour` + `instructor_rate` au tarif du jour, comme le Daily) et `ExtraLineForm` (sorti de `BookingFinances.tsx` dans son fichier ; props `preset`, `dates`). Pré-remplissage pur dans `gridDrafts.ts` (4 tests) : board journée au prix de grille, cours privé 2h 9:00 avec le dernier moniteur de la résa ; « Center access » = extra au `center_access_rate` de la résa.
+- Handlers compta ajoutés : `addRentals`, `addLesson` (puis matériel par voyageur, séquencé), `addBookingCharges`.
+- Pas encore essayé à l'écran (écrit en base → à faire sur TEST).
 
 ## ✅ Livré 2026-11-21 — Page client : vue « Day by day » (**gui doit pousser**, aucune migration)
 - Interrupteur « By type / Day by day » au-dessus des sections (défaut : By type, mémorisé sur l'appareil `share_view`). Jour par jour = une carte par jour de l'arrivée à **aujourd'hui** (jours vides gardés : « Nothing that day »), dedans qui a fait quoi ; carte « Whole stay » (logement, center access) ; ce qui est réservé après aujourd'hui = une ligne « N more items… (X €) ».

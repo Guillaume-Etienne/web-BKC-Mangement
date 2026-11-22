@@ -242,6 +242,42 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       persist(supabase.from('equipment_rentals').update(fields).eq('id', id),
         () => setEquipmentRentals(before), 'the rental')
     },
+    addRentals: (rs: EquipmentRental[]) => {
+      if (rs.length === 0) return
+      const before = equipmentRentals
+      setEquipmentRentals(prev => [...prev, ...rs])
+      persist(supabase.from('equipment_rentals').insert(rs),
+        () => setEquipmentRentals(before), rs.length > 1 ? `the ${rs.length} rentals` : 'the rental')
+    },
+    // Same save as the Planning's (PlanningView.onAddLesson): the lesson row first,
+    // then its gear per rider (FK), in this one handler so the order is guaranteed.
+    addLesson: async (lesson: Lesson) => {
+      const before = lessons
+      setLessons(prev => [...prev, lesson])
+      const { instructor: _i, clients: _c, rider_gear, ...row } = lesson
+      const { error } = await supabase.from('lessons').insert([row])
+      if (error) {
+        console.error('Lesson save error:', error.message)
+        setLessons(before)
+        notifyError('Error saving lesson: ' + error.message)
+        return
+      }
+      if (rider_gear?.length) {
+        const rows = rider_gear.map(g => ({ lesson_id: lesson.id, participant_id: g.participant_id, kite_id: g.kite_id, board_id: g.board_id }))
+        const { error: gearError } = await supabase.from('lesson_participant_gear').insert(rows)
+        if (gearError) {
+          console.error('Rider gear save error:', gearError.message)
+          notifyError('Lesson saved, but the gear per rider was not: ' + gearError.message)
+        }
+      }
+    },
+    addBookingCharges: (cs: BookingCharge[]) => {
+      if (cs.length === 0) return
+      const before = bookingCharges
+      setBookingCharges(prev => [...prev, ...cs])
+      persist(supabase.from('booking_charges').insert(cs),
+        () => setBookingCharges(before), cs.length > 1 ? `the ${cs.length} extras` : 'the extra')
+    },
     addPayment: (p: Payment) => {
       const before = payments
       setPayments(prev => [...prev, p])

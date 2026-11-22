@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
-import type { Payment, PaymentMethod, Booking, EquipmentRental, Lesson, Associate, BookingCharge, BookingChargeCategory } from '../../types/database'
+import type { Payment, PaymentMethod, Booking, EquipmentRental, Lesson, Associate } from '../../types/database'
 import { rentalKind, rentalLabel } from '../planning/rentalTypes'
 import { lessonBillable, lessonDiscipline } from '../../types/database'
 import {
@@ -14,6 +14,7 @@ import { todayISO, addDaysISO, fmtDate } from '../../utils/dates'
 import { lessonGearText, rentalGearText, inParens } from '../../utils/gearLabel'
 import AgencyBillingPanel from './AgencyBillingPanel'
 import BookingDayGrid from './BookingDayGrid'
+import ExtraLineForm, { extraCategoryLabel } from './ExtraLineForm'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import type { Lang } from '../../types/database'
@@ -461,102 +462,6 @@ function ActivityLineForm({ initial, defaultDate, participants, onSave, onCancel
   )
 }
 
-// ── Extra line form (module-scope) — a hand-typed amount the guest owes ────
-
-const EXTRA_CATEGORIES: BookingChargeCategory[] = ['accommodation', 'food', 'equipment', 'other']
-
-function extraCategoryLabel(c: BookingChargeCategory, lang: Lang): string {
-  return {
-    accommodation: i18n.accounting.extra_cat_accommodation[lang],
-    food:          i18n.accounting.extra_cat_food[lang],
-    equipment:     i18n.accounting.extra_cat_equipment[lang],
-    other:         i18n.accounting.extra_cat_other[lang],
-  }[c]
-}
-
-interface ExtraLineFormProps {
-  bookingId: string
-  initial?: BookingCharge
-  defaultDate: string
-  /** The booking's travellers, for "For" (who the extra is for). */
-  participants: { id: string; first_name: string; last_name: string | null }[]
-  onSave: (c: BookingCharge) => void
-  onCancel: () => void
-}
-function ExtraLineForm({ bookingId, initial, defaultDate, participants, onSave, onCancel }: ExtraLineFormProps) {
-  const { lang } = useLanguage()
-  const [label, setLabel]       = useState(initial?.label ?? '')
-  const [date, setDate]         = useState(initial?.date ?? defaultDate)
-  const [category, setCategory] = useState<BookingChargeCategory>(initial?.category ?? 'other')
-  const [quantity, setQuantity] = useState(initial ? String(initial.quantity) : '1')
-  const [unitPrice, setUnitPrice] = useState(initial ? String(initial.unit_price) : '')
-  const [notes, setNotes]       = useState(initial?.notes ?? '')
-  // '' = everyone (equal shares in the split per person). One traveller only:
-  // nothing to choose, the extra is theirs either way.
-  const [forWhom, setForWhom]   = useState(initial?.participant_id ?? '')
-
-  const q = parseFloat(quantity)
-  const p = parseFloat(unitPrice)
-  const valid = label.trim() !== '' && q > 0 && !isNaN(p) && p >= 0
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!valid) return
-    onSave({
-      id: initial?.id ?? crypto.randomUUID(),
-      booking_id: bookingId,
-      date, label: label.trim(), category,
-      quantity: q, unit_price: p,
-      notes: notes.trim() || null,
-      participant_id: forWhom || null,
-    })
-  }
-
-  const input = 'w-full px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400'
-  return (
-    <form onSubmit={handleSubmit} className="mt-2 mb-1 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg space-y-2">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <input value={label} onChange={e => setLabel(e.target.value)} placeholder={i18n.accounting.bf_extra_label_ph[lang]} className={input} required autoFocus />
-        <input type="date" value={date} onChange={e => setDate(e.target.value)} className={input} required />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        <select value={category} onChange={e => setCategory(e.target.value as BookingChargeCategory)} className={input}>
-          {EXTRA_CATEGORIES.map(c => <option key={c} value={c}>{extraCategoryLabel(c, lang)}</option>)}
-        </select>
-        <label className="text-xs text-gray-500 dark:text-gray-400">
-          {category === 'accommodation' ? i18n.accounting.bf_extra_nights[lang] : i18n.accounting.bf_extra_qty[lang]}
-          <input type="number" min="0.01" step="any" value={quantity} onChange={e => setQuantity(e.target.value)} className={input} required />
-        </label>
-        <label className="text-xs text-gray-500 dark:text-gray-400">
-          {i18n.accounting.bf_extra_unit_price[lang]}
-          <input type="number" min="0" step="0.01" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} className={input} required />
-        </label>
-      </div>
-      {participants.length > 1 && (
-        <label className="block text-xs text-gray-500 dark:text-gray-400">
-          {i18n.accounting.bf_extra_for[lang]}
-          <select value={forWhom} onChange={e => setForWhom(e.target.value)} className={input}>
-            <option value="">{i18n.accounting.bf_extra_for_everyone[lang]}</option>
-            {participants.map(p => <option key={p.id} value={p.id}>{`${p.first_name} ${p.last_name ?? ''}`.trim()}</option>)}
-          </select>
-        </label>
-      )}
-      <input value={notes} onChange={e => setNotes(e.target.value)} placeholder={i18n.accounting.bf_extra_notes_ph[lang]} className={input} />
-      <div className="flex gap-2">
-        <button type="button" onClick={onCancel}
-          className="flex-1 px-3 py-1.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
-          {i18n.common.btn_cancel[lang]}
-        </button>
-        <button type="submit" disabled={!valid}
-          className="flex-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-sm font-semibold">
-          {initial ? i18n.accounting.bf_update[lang] : i18n.accounting.bf_extra_add[lang]}
-          {valid ? ` · ${fmtEur(chargeAmount({ quantity: q, unit_price: p }))}` : ''}
-        </button>
-      </div>
-    </form>
-  )
-}
-
 // ── Booking detail panel ───────────────────────────────────────────────────
 
 interface DetailPanelProps {
@@ -654,7 +559,7 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
       </div>
 
       {/* Day by day (2026-11-22) — who had what on which day, desktop only */}
-      <BookingDayGrid booking={b} data={data} />
+      <BookingDayGrid booking={b} data={data} handlers={handlers} />
 
       {/* Price breakdown */}
       <div>

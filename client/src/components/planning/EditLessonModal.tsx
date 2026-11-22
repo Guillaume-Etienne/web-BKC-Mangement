@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 import Modal from '../common/Modal'
 import type { Booking, BookingParticipant, Client, Equipment, Instructor, Lesson, LessonDiscipline, LessonType, PriceItem, PriceTier } from '../../types/database'
 import { lessonDiscipline } from '../../types/database'
-import { reFreezeInstructorRate, resolveLessonRate } from '../accounting/utils'
+import { reFreezeInstructorRate, resolveLessonRate, currentInstructorRate } from '../accounting/utils'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import GuestPicker from './GuestPicker'
@@ -24,12 +24,16 @@ interface Props {
   onClose: () => void
   /** Left out where deleting is not offered (the accounting page). */
   onDelete?: (id: string) => void
+  /** A lesson being CREATED (the accounting grid): both prices are frozen at
+   *  today's rates on save, whatever was edited — exactly as the Daily does. */
+  isNew?: boolean
+  title?: string
 }
 
 /** Full edit form of one lesson (type, guests, instructor, time, duration, notes, gear).
  *  Shared by the Planning and the Accounting pages: both open the very same form. */
 export default function EditLessonModal({
-  lesson, lessons, instructors, equipment, bookings, bookingParticipants, clients, priceItems, priceTiers, onSave, onClose, onDelete,
+  lesson, lessons, instructors, equipment, bookings, bookingParticipants, clients, priceItems, priceTiers, onSave, onClose, onDelete, isNew, title,
 }: Props) {
   const { lang } = useLanguage()
   const LESSON_TYPE_CFG = lessonTypeCfg(lang)
@@ -80,6 +84,19 @@ export default function EditLessonModal({
         price_per_hour: lessonPrice(merged.type, merged.participant_ids, disciplineNow),
       }),
     }
+    if (isNew) {
+      // Created, not edited: freeze BOTH of today's scales, as the Daily does —
+      // a later price-list or pay change must not reprice this lesson.
+      const instr = instructors.find(i => i.id === withDiscipline.instructor_id)
+      onSave({
+        ...withDiscipline,
+        price_per_hour: lessonPrice(withDiscipline.type, withDiscipline.participant_ids, disciplineNow),
+        instructor_rate: instr ? currentInstructorRate(withDiscipline, instr) : null,
+        // Only sent for wing, like the Daily: a kite row omits the column.
+        ...(disciplineNow !== 'kite' ? { discipline: disciplineNow } : { discipline: undefined }),
+      })
+      return
+    }
     onSave(reFreezeInstructorRate(withDiscipline, lesson, instructors))
   }
 
@@ -92,7 +109,7 @@ export default function EditLessonModal({
     <Modal onClose={onClose} labelledBy={titleId}>
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-center p-4 border-b shrink-0">
-          <h3 id={titleId} className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_edit_lesson[lang]}</h3>
+          <h3 id={titleId} className="font-bold text-gray-800 dark:text-gray-200">{title ?? i18n.planning.title_edit_lesson[lang]}</h3>
           <button type="button" onClick={onClose} aria-label={i18n.common.btn_close[lang]} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-bold">✕</button>
         </div>
         {/* The guest chips can run long, so the form scrolls inside the modal or the

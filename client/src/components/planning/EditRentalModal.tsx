@@ -20,12 +20,14 @@ interface Props {
   onClose: () => void
   /** Left out where deleting is not offered (the accounting page). */
   onDelete?: (id: string) => void
+  /** Heading of the dialog — "New rental · 3 days" when the grid creates one. Default: "Edit rental". */
+  title?: string
 }
 
 /** Full edit form of one equipment rental (guest, type, gear, slot, price, notes).
  *  Shared by the Planning and the Accounting pages: both open the very same form. */
 export default function EditRentalModal({
-  rental, equipment, bookings, bookingParticipants, clients, priceItems, onSave, onClose, onDelete,
+  rental, equipment, bookings, bookingParticipants, clients, priceItems, onSave, onClose, onDelete, title,
 }: Props) {
   const { lang } = useLanguage()
 
@@ -81,7 +83,7 @@ export default function EditRentalModal({
     <Modal onClose={onClose} lightDismiss backdropClassName="backdrop:bg-black/40">
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
-          <h3 className="font-bold text-gray-800 dark:text-gray-200">{i18n.planning.title_edit_rental[lang]}</h3>
+          <h3 className="font-bold text-gray-800 dark:text-gray-200">{title ?? i18n.planning.title_edit_rental[lang]}</h3>
           <button onClick={onClose} className="text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">✕</button>
         </div>
         <form onSubmit={submit} className="p-4 space-y-3 overflow-y-auto min-h-0 flex-1">
