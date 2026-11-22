@@ -95,7 +95,12 @@ export default function BookingDayGrid({ booking, data }: { booking: Booking; da
         </ul>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-gray-100 dark:border-gray-800">
+      {/* w-0 min-w-full: the panel sits in a <td>, and a table cell grows to its
+          content's width whatever overflow says. A long stay (84 days = ~4,000 px)
+          then stretched the whole panel and pushed every right-aligned button
+          (+ Payment, + Discount, + Extra) out of sight. Zero width = no pull on the
+          cell; min-w-full = as wide as the panel; the days scroll inside. */}
+      <div className="w-0 min-w-full overflow-x-auto rounded-lg border border-gray-100 dark:border-gray-800">
         <table className="text-xs border-collapse">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
