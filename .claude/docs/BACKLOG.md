@@ -4,6 +4,17 @@
 > `.claude/archive/memory/backlog_closed_2026.md` (1600 lignes d'historique, décisions et
 > vérifications). Ici : **l'ouvert uniquement.** Une ligne close se raye et se déplace.
 
+## 🚧 2026-11-22 — Compta : grille « Day by day » + saisie directe (demande Teresa)
+**Étape 1 livrée (gui doit pousser, aucune migration)** — fiche résa (compta), section « Day by day » au-dessus du détail, **desktop seulement** (`hidden md:block`).
+- Grille voyageurs × jours (arrivée → départ inclus, élargie aux lignes hors séjour), ligne « Whole group » pour ce qui ne nomme personne (résa d'une personne → son nom), colonne Total (h de cours, jours de location par type, jours C, €).
+- Cases : L/W/S cours (h), K/B/F/Surf/Foil location (½ = demi-journée), C center access, C+ extra nommé « center access », + extra ; interrupteur « Meals & activities » (🍽 🎯, mémorisé `bf_day_grid_meals`). Agence = pointillé, 0 €. Survol = détail + prix. Jour passé d'un kiteur sans cours/location/C → « – ».
+- Alertes : location kite/full + C même jour (case rouge) ; cours/locations sans voyageur ; `num_center_access` ≠ nb de cases « own gear ».
+- Décisions gui : center access **reste la formule** (C sur chaque nuit des « own gear ») ; ajouter un jour = extra « Center access » pour le voyageur (lu « C+ ») ; retirer un jour = Discount (au niveau résa, pas visible dans une case — les extras ne peuvent pas être négatifs).
+- Code : `components/accounting/dayGrid.ts` (pur, 15 tests `dayGrid.test.ts`) + `BookingDayGrid.tsx`. Pas encore vu à l'écran.
+- 🔔 Choix à valider : seule une location **kite ou full** déclenche l'alerte « facturé deux fois » (une board seule avec son propre kite = plausible).
+
+**Étape 2 à faire** — saisie directe depuis la grille : clic case → menu Lesson / Rental / Extra (voyageur + jour pré-remplis) ; glisser sur une ligne → location sur la plage (une ligne/jour) ; clic chip → formulaire d'édition existant (`EditRentalModal` / `EditLessonModal`). Sortir la logique d'enregistrement du Planning (`PlanningView.tsx`) dans un module commun (cf. `walkInSave.ts`) pour figer les prix au même endroit.
+
 ## ✅ Livré 2026-11-21 — Page client : vue « Day by day » (**gui doit pousser**, aucune migration)
 - Interrupteur « By type / Day by day » au-dessus des sections (défaut : By type, mémorisé sur l'appareil `share_view`). Jour par jour = une carte par jour de l'arrivée à **aujourd'hui** (jours vides gardés : « Nothing that day »), dedans qui a fait quoi ; carte « Whole stay » (logement, center access) ; ce qui est réservé après aujourd'hui = une ligne « N more items… (X €) ».
 - Interrupteur « Prices » (vue jour seulement, `share_prices`). Compteur « So far » : h de cours + jours de location par personne.

@@ -13,6 +13,7 @@ import {
 import { todayISO, addDaysISO, fmtDate } from '../../utils/dates'
 import { lessonGearText, rentalGearText, inParens } from '../../utils/gearLabel'
 import AgencyBillingPanel from './AgencyBillingPanel'
+import BookingDayGrid from './BookingDayGrid'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import type { Lang } from '../../types/database'
@@ -651,6 +652,9 @@ function BookingDetailPanel({ booking: b, data, handlers }: DetailPanelProps) {
           <p className={`text-base sm:text-xl font-bold ${due > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>{fmtEur(due)}</p>
         </div>
       </div>
+
+      {/* Day by day (2026-11-22) — who had what on which day, desktop only */}
+      <BookingDayGrid booking={b} data={data} />
 
       {/* Price breakdown */}
       <div>
