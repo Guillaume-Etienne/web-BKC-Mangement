@@ -72,6 +72,19 @@ describe('buildAssociateLedger', () => {
 })
 
 describe('computeAssociateSummaries', () => {
+  it('lowers the balance when the associate refunds a guest from their own account', () => {
+    const refund = mkData({
+      associates: [teresa],
+      payments: [
+        mkPayment({ id: 'p1', amount: 500, received_by_associate_id: teresa.id }),
+        mkPayment({ id: 'r1', amount: -280, received_by_associate_id: teresa.id }),
+      ],
+    })
+    const [s] = computeAssociateSummaries(refund)
+    expect(s.received).toBe(220)
+    expect(s.balance).toBe(220)
+  })
+
   const data = mkData({
     associates: [teresa, gui],   // out of order on purpose
     payments: [

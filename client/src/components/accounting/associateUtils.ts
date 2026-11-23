@@ -87,7 +87,9 @@ export function computeAssociateSummaries(data: SharedAccountingData): Associate
       const entries = buildAssociateLedger(data, associate.id)
       const sum = (kind: AssociateEntryKind) =>
         entries.filter(e => e.kind === kind).reduce((s, e) => s + Math.abs(e.amount), 0)
-      const received = sum('client_payment')
+      // Signed, not sum(): a refund the associate paid back to a guest out of
+      // their own account is a negative client payment, and must lower it.
+      const received = round2(entries.filter(e => e.kind === 'client_payment').reduce((s, e) => s + e.amount, 0))
       const transfersOut = sum('transfer_out')
       const transfersBack = sum('transfer_back')
       const expensesAdvanced = sum('expense')
