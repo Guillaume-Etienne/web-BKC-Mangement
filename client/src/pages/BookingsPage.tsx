@@ -10,11 +10,12 @@ import { useTaxiDrivers, useTaxiTrips } from '../hooks/useTaxis'
 import { useAgencies } from '../hooks/useAgencies'
 import { useTable } from '../hooks/useSupabase'
 import { referralLabel } from '../utils/referral'
-import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, TaxiTrip, Lesson, EquipmentRental, Payment, ExternalAccommodationBooking, Agency, Enquiry, EnquirySource, Lang } from '../types/database'
+import type { Booking, BookingParticipant, BookingRoom, BookingStatus, Client, Room, Accommodation, HouseRental, KiteLevel, RoomRate, PriceItem, TaxiDriver, TaxiTrip, TaxiPricingDefaults, Lesson, EquipmentRental, Payment, ExternalAccommodationBooking, Agency, Enquiry, EnquirySource, Lang } from '../types/database'
 import { deriveActivityCounts, activityCountColumns } from '../utils/bookingActivity'
 import { getFullHouseRate, getBaseNightlyRate } from '../utils/roomPricing'
 import { getConfiguredRate, agencyMarker } from '../components/accounting/utils'
 import { todayISO, fmtDate } from '../utils/dates'
+import { FALLBACK_TAXI_PRICING } from '../utils/taxiPricing'
 import { getMissingFields, MISSING_LABELS, visaDatesProblem, taxiOffStay } from '../utils/bookingCompleteness'
 import EnquiryOriginPanel from '../components/enquiries/EnquiryOriginPanel'
 import { intentGaps } from '../utils/intentGap'
@@ -1573,6 +1574,8 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
   const { data: lessonsData } = useTable<Lesson>('lessons')
   const { data: rentalsData } = useTable<EquipmentRental>('equipment_rentals')
   const { data: paymentsData } = useTable<Payment>('payments')
+  const { data: taxiPricingData } = useTable<TaxiPricingDefaults>('taxi_pricing_defaults', { order: 'updated_at', ascending: false })
+  const taxiPricing = taxiPricingData[0] ?? FALLBACK_TAXI_PRICING
   // What the accounting holds for a booking. `bookings.amount_paid` is stale
   // (left at 0 on bookings paid through Accounting), so the wizard's "already
   // paid" field is filled from, and compared against, this — never the column.
@@ -1997,6 +2000,15 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
     if (wantsNewArrival || wantsNewDeparture) {
       const nbPersons = data.participants.filter(p => p.first_name.trim()).length || 1
       const driver = data.taxi_driver_id ? taxiDrivers.find(dr => dr.id === data.taxi_driver_id) : null
+      // No driver chosen yet: the standard tariff, as when a request is converted
+      // (SubmissionsPage) — a car for up to 3, a bigger group is priced by hand.
+      // It used to fall back to 0 € / 0 MZN: the client was never billed (#035).
+      const smallTaxi = nbPersons <= 3
+      const tariff = driver
+        ? { price_eur: driver.default_price_eur, price_driver_mzn: driver.default_driver_mzn, margin_manager_mzn: driver.default_manager_mzn }
+        : { price_eur:          smallTaxi ? taxiPricing.default_price_eur   : 0,
+            price_driver_mzn:   smallTaxi ? taxiPricing.default_driver_mzn  : 0,
+            margin_manager_mzn: smallTaxi ? taxiPricing.default_manager_mzn : 0 }
       const taxiBase = {
         booking_id:         bookingId,
         taxi_driver_id:     driver?.id ?? null,
@@ -2005,9 +2017,7 @@ export default function BookingsPage({ initialEditBookingId, onEditOpened }: Boo
         nb_luggage:         data.luggage_count,
         nb_boardbags:       data.boardbag_count,
         notes:              null,
-        price_eur:          driver?.default_price_eur ?? 0,
-        price_driver_mzn:   driver?.default_driver_mzn ?? 0,
-        margin_manager_mzn: driver?.default_manager_mzn ?? 0,
+        ...tariff,
       }
       if (wantsNewArrival) {
         const { error: taxiInErr } = await supabase.from('taxi_trips').insert({
