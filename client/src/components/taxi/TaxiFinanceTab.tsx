@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { TaxiTrip, TaxiManagerPayment, TaxiDriver, BookingRef } from '../../types/database'
 import { todayISO, fmtDate } from '../../utils/dates'
+import { managerBalance } from '../../utils/taxiManagerBalance'
 import { useEurMznRateFor } from '../../hooks/useEurMznRates'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
@@ -187,9 +188,12 @@ export default function TaxiFinanceTab({ trips, drivers, bookings, payments, eur
       }
     })
     .sort((a, b) => b.num - a.num)
-  const totalEarned = trips.reduce((s, t) => s + t.margin_manager_mzn, 0)
-  const totalPaid   = payments.reduce((s, p) => s + p.amount_mzn, 0)
-  const balance     = totalEarned - totalPaid  // >0 = we owe manager, <0 = manager overpaid
+  // Only completed trips are due (same rule as the manager's own page).
+  // balance > 0 = we owe the manager, < 0 = manager overpaid.
+  const {
+    earnedMzn: totalEarned, earnedCount, upcomingMzn, upcomingCount,
+    paidMzn: totalPaid, balance,
+  } = managerBalance(trips, payments, todayISO())
 
   const balanceColor =
     balance > 0 ? 'text-orange-700 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-900' :
@@ -299,7 +303,7 @@ export default function TaxiFinanceTab({ trips, drivers, bookings, payments, eur
           <h3 className="font-semibold text-gray-800 dark:text-gray-200">{i18n.taxis.section_manager_balance[lang]}</h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between items-center py-1 border-b">
-              <span className="text-gray-600 dark:text-gray-400">{i18n.taxis.label_total_earned[lang]} ({trips.length} trip{trips.length !== 1 ? 's' : ''})</span>
+              <span className="text-gray-600 dark:text-gray-400">{i18n.taxis.label_total_earned[lang]} ({earnedCount} completed trip{earnedCount !== 1 ? 's' : ''})</span>
               <MznWithEur mzn={totalEarned} rate={eurMznRate} className="font-bold text-purple-900 dark:text-purple-400 text-right" />
             </div>
             <div className="flex justify-between items-center py-1 border-b">
@@ -313,9 +317,15 @@ export default function TaxiFinanceTab({ trips, drivers, bookings, payments, eur
                 <span className="block text-xs font-normal opacity-60">≈ {mznToEur(Math.abs(balance), eurMznRate)}€</span>
               </span>
             </div>
+            {upcomingCount > 0 && (
+              <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+                <span>{i18n.taxis.label_mgr_upcoming[lang]} ({upcomingCount} planned trip{upcomingCount !== 1 ? 's' : ''})</span>
+                <span>{fmtMzn(upcomingMzn)}</span>
+              </div>
+            )}
           </div>
           <p className="text-xs text-gray-400 dark:text-gray-400">
-            Balance = total earned − total advances paid
+            Balance = earned on completed trips − advances paid
           </p>
         </div>
 

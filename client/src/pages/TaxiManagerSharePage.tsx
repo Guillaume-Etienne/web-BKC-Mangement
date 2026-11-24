@@ -10,6 +10,7 @@ import {
 import { taxiTripLabel } from '../data/taxiTripTypes'
 import { usePref, Segmented } from './taxiShareUI'
 import { todayISO } from '../utils/dates'
+import { managerBalance } from '../utils/taxiManagerBalance'
 import { tripTravel, type TravelFields } from '../utils/travelMode'
 import TravelBadge from '../components/common/TravelBadge'
 import { loadCheck, retryOnce } from '../utils/shareLoad'
@@ -396,9 +397,8 @@ export default function TaxiManagerSharePage() {
   const upcoming = managed.filter(t => t.date >= today).sort((a, b) => a.date.localeCompare(b.date))
   const past     = managed.filter(t => t.date <  today).sort((a, b) => b.date.localeCompare(a.date))
 
-  const earnedMzn = managed.reduce((s, t) => s + t.margin_manager_mzn, 0)
-  const paidMzn   = payments.reduce((s, p) => s + p.amount_mzn, 0)
-  const balance   = earnedMzn - paidMzn
+  // Only completed trips are due — see utils/taxiManagerBalance.ts.
+  const { earnedMzn, earnedCount, upcomingMzn, upcomingCount, paidMzn, balance } = managerBalance(managed, payments, today)
 
   const balanceLabel = balance > 0 ? tr.fin_balance_due[lang] : balance < 0 ? tr.fin_overpaid[lang] : tr.fin_balanced[lang]
   const balanceColor = balance > 0 ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-900 text-orange-800 dark:text-orange-400'
@@ -473,7 +473,7 @@ export default function TaxiManagerSharePage() {
           </div>
           <div className="p-5 space-y-2 text-sm">
             <div className="flex justify-between items-center py-1 border-b">
-              <span className="text-gray-600 dark:text-gray-400">{tr.fin_earned[lang]} ({fmt(tr.trips_all[lang], { count: managed.length })})</span>
+              <span className="text-gray-600 dark:text-gray-400">{tr.fin_earned[lang]} ({earnedCount === 1 ? tr.trip_one[lang] : fmt(tr.trips_done[lang], { count: earnedCount })})</span>
               <span className="font-bold text-purple-900 dark:text-purple-400">{mzn(earnedMzn)}</span>
             </div>
             <div className="flex justify-between items-center py-1 border-b">
@@ -484,6 +484,12 @@ export default function TaxiManagerSharePage() {
               <span>{balanceLabel}</span>
               <span className="text-lg">{mzn(Math.abs(balance))}</span>
             </div>
+            {upcomingCount > 0 && (
+              <div className="flex justify-between items-center pt-1 text-xs text-gray-500 dark:text-gray-400">
+                <span>{tr.fin_upcoming[lang]} ({upcomingCount === 1 ? tr.trip_one[lang] : fmt(tr.trips_upcoming[lang], { count: upcomingCount })})</span>
+                <span>{mzn(upcomingMzn)}</span>
+              </div>
+            )}
             <p className="text-xs text-gray-400 dark:text-gray-400 pt-1">{tr.fin_explain[lang]}</p>
           </div>
         </div>

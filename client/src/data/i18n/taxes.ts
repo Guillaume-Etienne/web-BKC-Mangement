@@ -107,6 +107,7 @@ export const taxesI18n = {
   msg_adv_hint:             { fr: 'Ce que le client doit encore sur sa résa : Compta → Réservations (reste à payer) ou le tableau de bord (recouvrement).', en: 'What the client still owes on the booking: Accounting → Bookings (remaining to pay) or the dashboard (collections).', es: 'Lo que el cliente aún debe: Contabilidad → Reservas (resto por pagar) o el panel (cobros).' },
   msg_adv_empty:            { fr: 'Aucun taxi payé rattaché à une résa pour le moment.', en: 'No paid taxi linked to a booking yet.', es: 'Aún no hay taxis pagados vinculados a una reserva.' },
   label_total_earned:       { fr: 'Total gagné',       en: 'Total earned',    es: 'Total ganado' },
+  label_mgr_upcoming:       { fr: 'À venir (pas encore dû)', en: 'To come (not due yet)', es: 'Por venir (aún no debido)' },
   label_total_paid:         { fr: 'Total payé (avances)', en: 'Total paid (advances)', es: 'Total pagado (anticipos)' },
   label_balance_owe:        { fr: '🟠 On doit au manager',      en: '🟠 We owe the manager',          es: '🟠 Debemos al gerente' },
   label_balance_credit:     { fr: '🟢 Manager trop payé (crédit)', en: '🟢 Manager overpaid (credit)', es: '🟢 Gerente pagado de más (crédito)' },
