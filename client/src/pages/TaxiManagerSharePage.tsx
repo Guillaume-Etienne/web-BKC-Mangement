@@ -17,7 +17,9 @@ import { LoadIssueBanner } from '../components/common/LoadIssueBanner'
 import WhatsAppIcon from '../components/common/WhatsAppIcon'
 import { groupByDay, withinDays, dayLabel, whatsappUrl, tripMessage, dayMessage, tripsCount, type TripWords } from '../utils/taxiDispatch'
 
-type Tab = 'trips' | 'summary'
+// 'dispatch' = the "trips" view plus the WhatsApp buttons, kept apart while it
+// is being tried (2026-11-24: the buttons confused the manager in the main tab).
+type Tab = 'trips' | 'summary' | 'dispatch'
 type Period = '7d' | 'all'
 
 // The shape anon is actually served (column-level GRANT — see security-rls.md).
@@ -160,8 +162,8 @@ type RowWords = TripWords & { phone: string | null }
 /** "novembro de 2026" → "Novembro de 2026" (CSS `capitalize` would also give "De"). */
 const upperFirst = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-function DispatchRow({ t, words, lang, showDate, today }: {
-  t: TripWithClient; words: RowWords; lang: TaxiLang; showDate: boolean; today: string
+function DispatchRow({ t, words, lang, showDate, today, whatsapp }: {
+  t: TripWithClient; words: RowWords; lang: TaxiLang; showDate: boolean; today: string; whatsapp: boolean
 }) {
   return (
     <div className="flex gap-3 px-3 sm:px-4 py-2.5">
@@ -192,7 +194,7 @@ function DispatchRow({ t, words, lang, showDate, today }: {
         </div>
         {t.notes && <div className="mt-0.5 text-xs italic text-gray-500 dark:text-gray-400">💬 {t.notes}</div>}
       </div>
-      {!showDate && (
+      {whatsapp && !showDate && (
         <a href={whatsappUrl(tripMessage(t, words, lang), words.phone)} target="_blank" rel="noopener noreferrer"
           title={tr.wa_trip[lang]} aria-label={tr.wa_trip[lang]}
           className={`${WA_BTN} self-center w-9 h-9`}>
@@ -203,9 +205,11 @@ function DispatchRow({ t, words, lang, showDate, today }: {
   )
 }
 
-function DispatchTab({ upcoming, past, drivers, travel, today, lang }: {
+function DispatchTab({ upcoming, past, drivers, travel, today, lang, whatsapp }: {
   upcoming: TripWithClient[]; past: TripWithClient[]; drivers: TaxiDriver[]
   travel: Map<string, TravelFields>; today: string; lang: TaxiLang
+  /** Show the "send on WhatsApp" buttons (the Dispatcher tab only). */
+  whatsapp: boolean
 }) {
   const [period,   setPeriod]   = usePref<Period>('taxi_mgr_period', '7d')
   const [noDriver, setNoDriver] = useState(false)
@@ -266,14 +270,16 @@ function DispatchTab({ upcoming, past, drivers, travel, today, lang }: {
               {date === today ? '📍 ' : ''}{dayLabel(date, today, lang)}
             </span>
             <span className="text-xs text-gray-400 dark:text-gray-400">{tripsCount(ts.length, lang)}</span>
-            <a href={whatsappUrl(dayMessage(date, today, ts, words, lang))} target="_blank" rel="noopener noreferrer"
-              title={tr.wa_day[lang]} aria-label={tr.wa_day[lang]}
-              className={`${WA_BTN} ml-auto w-8 h-8`}>
-              <WhatsAppIcon className="w-4 h-4" />
-            </a>
+            {whatsapp && (
+              <a href={whatsappUrl(dayMessage(date, today, ts, words, lang))} target="_blank" rel="noopener noreferrer"
+                title={tr.wa_day[lang]} aria-label={tr.wa_day[lang]}
+                className={`${WA_BTN} ml-auto w-8 h-8`}>
+                <WhatsAppIcon className="w-4 h-4" />
+              </a>
+            )}
           </div>
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {ts.map(t => <DispatchRow key={t.id} t={t} words={words(t)} lang={lang} showDate={false} today={today} />)}
+            {ts.map(t => <DispatchRow key={t.id} t={t} words={words(t)} lang={lang} showDate={false} today={today} whatsapp={whatsapp} />)}
           </div>
         </section>
       ))}
@@ -300,7 +306,7 @@ function DispatchTab({ upcoming, past, drivers, travel, today, lang }: {
                 </button>
                 {open && (
                   <div className="divide-y divide-gray-100 dark:divide-gray-800 opacity-80 border-t border-gray-100 dark:border-gray-800">
-                    {ts.map(t => <DispatchRow key={t.id} t={t} words={words(t)} lang={lang} showDate today={today} />)}
+                    {ts.map(t => <DispatchRow key={t.id} t={t} words={words(t)} lang={lang} showDate today={today} whatsapp={whatsapp} />)}
                   </div>
                 )}
               </div>
@@ -441,10 +447,10 @@ export default function TaxiManagerSharePage() {
         </div>
 
         {/* Tabs */}
-        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-gray-200/70 dark:bg-gray-800">
-          {([['trips', tr.tab_trips[lang]], ['summary', tr.tab_summary[lang]]] as [Tab, string][]).map(([k, label]) => (
+        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-gray-200/70 dark:bg-gray-800">
+          {([['trips', tr.tab_trips[lang]], ['summary', tr.tab_summary[lang]], ['dispatch', tr.tab_dispatch[lang]]] as [Tab, string][]).map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)}
-              className={`py-2 sm:py-2.5 rounded-lg text-sm sm:text-base font-semibold transition-colors ${
+              className={`px-1 py-2 sm:py-2.5 rounded-lg text-xs sm:text-base font-semibold leading-tight transition-colors ${
                 tab === k
                   ? 'bg-white dark:bg-gray-900 text-blue-700 dark:text-blue-400 shadow-sm'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
@@ -454,8 +460,9 @@ export default function TaxiManagerSharePage() {
           ))}
         </div>
 
-        {tab === 'trips' ? (
-          <DispatchTab upcoming={upcoming} past={past} drivers={drivers} travel={travel} today={today} lang={lang} />
+        {tab !== 'summary' ? (
+          <DispatchTab upcoming={upcoming} past={past} drivers={drivers} travel={travel} today={today} lang={lang}
+            whatsapp={tab === 'dispatch'} />
         ) : (<>
         {/* ── Summary tab: the page as it was, unchanged (balance included) ── */}
 

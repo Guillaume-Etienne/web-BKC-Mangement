@@ -77,6 +77,7 @@ export const tr = {
   no_payments:     { pt: 'Sem pagamentos ainda.', en: 'No payments yet.' },
   // Manager tabs (2026-11-09): the dispatch view + the original summary, unchanged
   tab_summary:     { pt: '📋 Resumo', en: '📋 Summary' },
+  tab_dispatch:    { pt: '💬 Despachante (em teste)', en: '💬 Dispatcher (testing)' },
   mgr_dispatch:    { pt: 'Viagens a organizar', en: 'Trips to organise' },
   mgr_no_driver_n: { pt: '⚠️ {n} viagens sem motorista', en: '⚠️ {n} trips without a driver' },
   mgr_no_driver:   { pt: 'Sem motorista', en: 'No driver' },
