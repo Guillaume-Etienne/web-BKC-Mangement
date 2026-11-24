@@ -14,6 +14,7 @@ import { tripTravel, type TravelFields } from '../utils/travelMode'
 import TravelBadge from '../components/common/TravelBadge'
 import { loadCheck, retryOnce } from '../utils/shareLoad'
 import { LoadIssueBanner } from '../components/common/LoadIssueBanner'
+import WhatsAppIcon from '../components/common/WhatsAppIcon'
 import { groupByDay, withinDays, dayLabel, whatsappUrl, tripMessage, dayMessage, tripsCount, type TripWords } from '../utils/taxiDispatch'
 
 type Tab = 'trips' | 'summary'
@@ -194,8 +195,8 @@ function DispatchRow({ t, words, lang, showDate, today }: {
       {!showDate && (
         <a href={whatsappUrl(tripMessage(t, words, lang), words.phone)} target="_blank" rel="noopener noreferrer"
           title={tr.wa_trip[lang]} aria-label={tr.wa_trip[lang]}
-          className={`${WA_BTN} self-center w-9 h-9 text-lg`}>
-          📲
+          className={`${WA_BTN} self-center w-9 h-9`}>
+          <WhatsAppIcon className="w-5 h-5" />
         </a>
       )}
     </div>
@@ -267,8 +268,8 @@ function DispatchTab({ upcoming, past, drivers, travel, today, lang }: {
             <span className="text-xs text-gray-400 dark:text-gray-400">{tripsCount(ts.length, lang)}</span>
             <a href={whatsappUrl(dayMessage(date, today, ts, words, lang))} target="_blank" rel="noopener noreferrer"
               title={tr.wa_day[lang]} aria-label={tr.wa_day[lang]}
-              className={`${WA_BTN} ml-auto w-8 h-8 text-base`}>
-              📲
+              className={`${WA_BTN} ml-auto w-8 h-8`}>
+              <WhatsAppIcon className="w-4 h-4" />
             </a>
           </div>
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
