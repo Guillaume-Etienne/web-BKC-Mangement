@@ -7,10 +7,11 @@
 ## 🚕 2026-11-24 — Point taxis (PROD, lecture seule) + 2 bugs corrigés (**gui doit pousser**, aucune migration)
 - ✅ `b0cadbd` **Solde Geraldo = courses passées seulement** (page partagée Resumo + onglet Finance admin) : comptait aussi le futur, y compris des trajets sans chauffeur → 34 500 MZN affichés au lieu de ~19 500. Helper `utils/taxiManagerBalance.ts` (4 tests, `date < today`), ligne « à venir (pas encore dû) » à part. Jamais vu à l'écran.
 - ✅ `f36673e` **Taxi créé depuis une résa sans chauffeur** → tarif par défaut (≤ 3 pax) au lieu de 0 €/0 MZN (`BookingsPage`). Les trajets existants ne bougent pas.
-- ⬜ **#035** (02/2027) : 2 trajets à 0 € / 0 MZN / 00:00 → à repasser au tarif (SQL, accord gui).
-- ⬜ **Dates taxi ≠ séjour** : **#029** retour 06/02/2027 vs check-out 21/01 (16 j !) ; #053 12/12 vs 11/12 ; #084 24/02 vs 25/02.
-- ⬜ **Ruiz, courses passées non « Payé »** : #054 14/11, #038 15/11, #040 21/11 (19 500 MZN) + #070 24/11.
-- ⬜ **F&F à facturer** : transferts #040 (×2) et #070 (×2) = 640 € (lignes sans facture). #022 : pas de doublon (2 lignes = 2 trajets, rattachement seul de travers).
+- ✅ **#035** : 2 trajets passés à 120 € / 6 500 / 1 000 en PROD (24/11, accord gui). Heure 00:00 toujours à renseigner.
+- ✅ **Ruiz** : #054 14/11, #038 15/11, #040 21/11 → « Payé » en PROD (24/11, gui : payés). #070 24/11 reste à marquer.
+- ⬜ **#029** : formulaire du 04/09 = entrée 14/01, sortie du pays 06/02, transfert aéroport 06/02 13:20, mais **« nights_bilene » = 7** → check-out 21/01. Demande du 03/09 : « 2 people autonomous 14 Jan to 6th of Feb ». Chambre H3/B **libre du 21/01 au 06/02** (#033 y entre le 06/02) → prolonger est possible sans conflit. À demander au client (WhatsApp, FR).
+- ⬜ Autres dates taxi ≠ séjour : #053 12/12 vs 11/12 ; #084 24/02 vs 25/02.
+- ⬜ **F&F — point facturation** : #022 et #026 facturées + payées (06/11). **À facturer : #040** (2 transferts 320 + gardiennage 104 + chambre H3/F 14 n. à 0 € « prix à définir ») **et #070** (2 transferts 320 + gardiennage 96 + chambre H3/B 13 n. à 0 €) → **bloqué par le prix de la chambre F&F**. **#053** (27/11→11/12) : aucune ligne encore (transfert A/R privatisé, logement seul, stage wing privé 4×2h, aile garantie l'après-midi à 40 €/½ j — qui paie ?). Cours 13/11 + 2 locations 19-20/11 de #040 hors agence = au client ? #022 : pas de doublon (2 lignes = 2 trajets, rattachement seul de travers).
 - ℹ️ #060 retour 24/11 : conduit par gui (100 €, seulement l'essence) — normal. #060 arrivée Big Taxi : −11 € (160 € pour 12 000 MZN).
 
 ## ✅ Livré 2026-11-22 — « Own accommodation » ≠ San Martinho (**gui doit pousser** ; migration `2026-11-22_guest_arranged_accommodation.sql` TEST+PROD ✅, curl anon 200 sur les 2)
