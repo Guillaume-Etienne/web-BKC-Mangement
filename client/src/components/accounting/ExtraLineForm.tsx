@@ -4,6 +4,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { i18n } from '../../data/i18n'
 import { fmtEur, chargeAmount } from './utils'
 import { fmtDate } from '../../utils/dates'
+import { extraNights, extraNightsLabel } from './extraNights'
 
 // ── Extra line form — a hand-typed amount the guest owes ────────────────────
 // Used by the bill (BookingFinances) and the day-by-day grid (BookingDayGrid).
@@ -45,8 +46,13 @@ export default function ExtraLineForm({ bookingId, initial, defaultDate, partici
   // nothing to choose, the extra is theirs either way.
   const [forWhom, setForWhom]   = useState(initial?.participant_id ?? preset?.participant_id ?? '')
   const range = dates && dates.length > 1 ? dates : null
+  // "From → until": one line, nights = the difference (new single-day lines only;
+  // a grid range already writes one line per day, an edit keeps its label as is).
+  const [until, setUntil] = useState('')
+  const canUntil = !initial && !range
+  const nights = canUntil ? extraNights(date, until) : 0
 
-  const q = parseFloat(quantity)
+  const q = nights > 0 ? nights : parseFloat(quantity)
   const p = parseFloat(unitPrice)
   const valid = label.trim() !== '' && q > 0 && !isNaN(p) && p >= 0
 
@@ -56,7 +62,8 @@ export default function ExtraLineForm({ bookingId, initial, defaultDate, partici
     onSave({
       id: initial?.id ?? crypto.randomUUID(),
       booking_id: bookingId,
-      date, label: label.trim(), category,
+      date, category,
+      label: nights > 0 ? extraNightsLabel(label.trim(), date, until, lang) : label.trim(),
       quantity: q, unit_price: p,
       notes: notes.trim() || null,
       participant_id: forWhom || null,
@@ -79,13 +86,26 @@ export default function ExtraLineForm({ bookingId, initial, defaultDate, partici
           <input type="date" value={date} onChange={e => setDate(e.target.value)} className={input} required />
         )}
       </div>
+      {canUntil && (
+        <label className="block text-xs text-gray-500 dark:text-gray-400">
+          {i18n.accounting.bf_extra_until[lang]}
+          <input type="date" value={until} min={date} onChange={e => setUntil(e.target.value)} className={input} />
+          {nights > 0 && (
+            <span className="block mt-1 text-gray-600 dark:text-gray-300">
+              {extraNightsLabel(label.trim() || '…', date, until, lang)}
+            </span>
+          )}
+        </label>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <select value={category} onChange={e => setCategory(e.target.value as BookingChargeCategory)} className={input}>
           {EXTRA_CATEGORIES.map(c => <option key={c} value={c}>{extraCategoryLabel(c, lang)}</option>)}
         </select>
         <label className="text-xs text-gray-500 dark:text-gray-400">
           {category === 'accommodation' ? i18n.accounting.bf_extra_nights[lang] : i18n.accounting.bf_extra_qty[lang]}
-          <input type="number" min="0.01" step="any" value={quantity} onChange={e => setQuantity(e.target.value)} className={input} required />
+          <input type="number" min="0.01" step="any" className={input} required
+            value={nights > 0 ? String(nights) : quantity} readOnly={nights > 0}
+            onChange={e => setQuantity(e.target.value)} />
         </label>
         <label className="text-xs text-gray-500 dark:text-gray-400">
           {i18n.accounting.bf_extra_unit_price[lang]}
