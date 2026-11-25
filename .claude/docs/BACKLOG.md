@@ -10,7 +10,8 @@
 - Revue (Submissions) : check-in/out proposés = **dates de transfert** quand il y en a, sinon arrivée + nuits ; badges orange (check-in/out ≠ transferts, nuits tapées ≠ dates, sortie pays avant check-out) ; sortie pays plus tardive = info grise. Badges aussi sur le chemin « Apply to booking » (dates de chambre jamais touchées là).
 - Logique : `utils/bileneStay.ts` (+ 9 tests) ; 1042 tests ✅, build ✅. Requête de contrôle : `supabase/diagnostics_form_booking_dates.sql` (lecture seule).
 - ⚠️ Brouillons déjà enregistrés sur les téléphones des clients : gardent leur ancien 7 (l'avertissement le signale si un transfert aéroport est saisi).
-- Jamais vu à l'écran → proposer Claude in Chrome sur TEST.
+- ✅ Vu à l'écran sur TEST (25/11, Claude in Chrome) : formulaire FR/EN (vide → 23 nuits auto → « Vous quittez Bilene le samedi 6 février », avertissement sous le champ et à l'étape finale, recalcul quand la dépose change) ; revue d'une demande type #029 insérée en SQL puis supprimée (14/01 → 06/02 proposés, badges orange/gris).
+- ⚠️ **Trigger `notify_form_submission` de TEST = URL de PROD** (copie de base) → un formulaire envoyé depuis TEST part en vrais mails. À corriger sur TEST si gui le souhaite.
 
 ## 🚕 2026-11-24 — Point taxis (PROD, lecture seule) + 2 bugs corrigés (**gui doit pousser**, aucune migration)
 - ✅ `b0cadbd` **Solde Geraldo = courses passées seulement** (page partagée Resumo + onglet Finance admin) : comptait aussi le futur, y compris des trajets sans chauffeur → 34 500 MZN affichés au lieu de ~19 500. Helper `utils/taxiManagerBalance.ts` (4 tests, `date < today`), ligne « à venir (pas encore dû) » à part. Jamais vu à l'écran.
