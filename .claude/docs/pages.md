@@ -402,7 +402,7 @@
 - **Hooks :** `useTable<FormSubmission>('form_submissions', { order: 'submitted_at', ascending: false })`
 - **But :** File de validation des soumissions du `BookingFormPage`.
 - **State :** `tab: 'pending'|'approved'|'rejected'` (défaut pending), `openId` (ligne dépliée).
-- **Détail (`SubmissionDetail`, module-scope) :** affiche tout le `payload` (trip + transferts taxi avec date/heure, logistics, crew, contact urgence, waiver). Champs date `check_in`/`check_out` Bilene **pré-remplis** (`country_entry_date` + `nights_bilene`) et **éditables** avant création.
+- **Détail (`SubmissionDetail`, module-scope) :** affiche tout le `payload` (trip + transferts taxi avec date/heure, logistics, crew, contact urgence, waiver). Champs date `check_in`/`check_out` Bilene **pré-remplis** (`utils/bileneStay.ts` `proposedStay` : dates de transfert d'abord, sinon arrivée + `nights_bilene`) et **éditables** avant création ; badges orange `StayIssues` si check-in/out ≠ transferts, nuits tapées ≠ dates, sortie pays avant check-out (sortie plus tardive = info grise). Mêmes badges sur « Apply to booking » (2026-11-25, cas #029).
 - **`bookings.notes` (2026-09-03) :** ne reçoit plus que « Single beds requested: N » — le seul
   élément sans colonne. Le reste (origine du formulaire, transferts, attribution, message
   d'origine) a un vrai foyer : voir `BACKLOG.md` § Parcours, D.2.

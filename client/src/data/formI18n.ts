@@ -57,6 +57,17 @@ export const tr = {
     es: 'Tus vuelos (para la carta de alojamiento / visado) y, si los necesitas, tus traslados en taxi.',
   },
   f_nights:        { fr: 'Nombre de nuits à Bilene', en: 'Nights in Bilene', es: 'Noches en Bilene' },
+  nights_from_transfers: {
+    fr: "Calculé d'après vos dates de transfert — modifiez si besoin.",
+    en: 'Worked out from your transfer dates — change it if needed.',
+    es: 'Calculado a partir de tus fechas de traslado — cámbialo si hace falta.',
+  },
+  nights_leave_on: { fr: 'Vous quittez Bilene le', en: 'You leave Bilene on', es: 'Sales de Bilene el' },
+  nights_mismatch: {
+    fr: "{n} nuits à partir du {start}, c'est un départ de Bilene le {leave} — mais votre transfert vers l'aéroport est le {transfer}. Merci de vérifier l'un ou l'autre.",
+    en: '{n} nights from {start} means leaving Bilene on {leave} — but your airport transfer is on {transfer}. Please check one or the other.',
+    es: '{n} noches desde el {start} significa salir de Bilene el {leave}, pero tu traslado al aeropuerto es el {transfer}. Revisa uno u otro.',
+  },
   arrival_heading:   { fr: 'Arrivée (Maputo)', en: 'Arrival (Maputo)', es: 'Llegada (Maputo)' },
   departure_heading: { fr: 'Départ', en: 'Departure', es: 'Salida' },
   f_country_entry: { fr: "Vol d'arrivée — date", en: 'Arrival flight — date', es: 'Vuelo de llegada — fecha' },

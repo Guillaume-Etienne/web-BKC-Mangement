@@ -594,7 +594,7 @@ File d'attente des soumissions du formulaire public (`BookingFormPage`). Anon **
 > pour qu'une future colonne `bookings.source_id` se remplisse exactement.
 
 **`BookingFormPayload`** (dans `payload`, type dans `types/database.ts`) — champs : `language`, `reference_name`, `email`, `phone`, `referral_source`, `referral_source_id?`, `country_entry_date`/`country_exit_date` (= dates pays → visa), `nights_bilene`, `arrival_time`/`departure_time` (heures de **vol**), `arrival_by`/`arrival_detail` + `departure_by`/`departure_detail` (mode + n° de vol, 2026-11-08 — absents des demandes plus anciennes), `taxi_arrival`/`taxi_departure`, `transfer_to_bilene_date`/`_time` + `transfer_to_airport_date`/`_time` (date/heure de **transfert** distinctes du vol), `luggage_count`, `boardbag_count`, `double_beds`, `single_beds`, `has_travel_insurance`, `travelers: FormTraveler[]` (`{first_name,last_name,passport_number}`), `emergency_contact_*`, `waiver_accepted`, `waiver_version`.
-> Mapping form → booking : dates pays → `visa_entry/exit_date` ; `nights_bilene` → `check_in/out` Bilene (confirmés par l'admin) ; `double_beds` → `couples_count` ; transferts + `single_beds` → notes du booking. i18n des libellés : `data/formI18n.ts`. Waiver : `data/waiver.ts` (`WAIVER_VERSION`).
+> Mapping form → booking : dates pays → `visa_entry/exit_date` ; transferts (sinon arrivée + `nights_bilene`) → `check_in/out` Bilene (confirmés par l'admin ; `nights_bilene` sans défaut depuis 2026-11-25, voir `utils/bileneStay.ts`) ; `double_beds` → `couples_count` ; transferts + `single_beds` → notes du booking. i18n des libellés : `data/formI18n.ts`. Waiver : `data/waiver.ts` (`WAIVER_VERSION`).
 
 ---
 

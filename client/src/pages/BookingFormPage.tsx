@@ -11,6 +11,8 @@ import { draftKey, loadDraft, saveDraft, clearDraft, isWorthKeeping } from '../u
 import { decideSubmission } from '../utils/bookingFormSpam'
 import { TRAVEL_BY, travelToStore, type TravelBy } from '../utils/travelMode'
 import { reportClientError } from '../utils/reportClientError'
+import { bileneStart, leaveDateFromNights, nightsFromDates, nightsMismatch, withAutoNights } from '../utils/bileneStay'
+import { fromISODate, localeTag } from '../utils/dates'
 
 // ─── Public booking intake form (no auth) ─────────────────────────────────────
 // Reached via ?share=<token> on a shared_link of type 'booking_form'.
@@ -54,12 +56,57 @@ function Field({ label, children, hint, required }: { label: string; children: R
 function Counter({ value, onChange, min = 0 }: { value: number; onChange: (v: number) => void; min?: number }) {
   return (
     <div className="flex items-center gap-3">
-      <button type="button" onClick={() => onChange(Math.max(min, value - 1))}
+      <button type="button" onClick={() => { if (value > min) onChange(value - 1) }}
         className="w-9 h-9 rounded-full bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 hover:bg-sky-200 dark:hover:bg-sky-800 font-bold text-xl leading-none flex items-center justify-center transition">−</button>
-      <span className="w-10 text-center text-lg font-semibold text-gray-800 dark:text-gray-200">{value}</span>
-      <button type="button" onClick={() => onChange(value + 1)}
+      {/* Below the minimum = not answered yet: a dash, not a number nobody chose. */}
+      <span className="w-10 text-center text-lg font-semibold text-gray-800 dark:text-gray-200">{value < min ? '—' : value}</span>
+      <button type="button" onClick={() => onChange(Math.max(min, value + 1))}
         className="w-9 h-9 rounded-full bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 hover:bg-sky-200 dark:hover:bg-sky-800 font-bold text-xl leading-none flex items-center justify-center transition">+</button>
     </div>
+  )
+}
+
+/** "Thursday 14 January", in the form's language. */
+function fmtStayDay(iso: string, lang: Lang): string {
+  return fromISODate(iso).toLocaleDateString(localeTag(lang), { weekday: 'long', day: 'numeric', month: 'long' })
+}
+
+/** The nights / airport transfer disagreement, in the guest's words. '' when none. */
+function nightsMismatchText(d: FormData, lang: Lang): string {
+  const m = nightsMismatch(d)
+  if (!m) return ''
+  return tr.nights_mismatch[lang]
+    .replace('{n}', String(d.nights_bilene))
+    .replace('{start}', fmtStayDay(bileneStart(d), lang))
+    .replace('{leave}', fmtStayDay(m.byNights, lang))
+    .replace('{transfer}', fmtStayDay(m.byTransfer, lang))
+}
+
+/** Nights in Bilene, with what they mean in plain dates. Empty until answered
+ *  (or worked out from the transfer dates); the resulting departure day is
+ *  spelled out so the guest checks a date rather than a count, and a count that
+ *  contradicts the airport transfer is said before the form is sent. */
+function NightsInBilene({ d, lang, onChange }: { d: FormData; lang: Lang; onChange: (v: number) => void }) {
+  const leave = leaveDateFromNights(d)
+  const mismatch = nightsMismatch(d)
+  const fromDates = nightsFromDates(d)
+  return (
+    <Field label={tr.f_nights[lang]} required>
+      <Counter value={d.nights_bilene} onChange={onChange} min={1} />
+      {fromDates !== null && fromDates === d.nights_bilene && (
+        <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">{tr.nights_from_transfers[lang]}</p>
+      )}
+      {leave && !mismatch && (
+        <p className="text-sm text-sky-700 dark:text-sky-400 mt-2">
+          {`🏁 ${tr.nights_leave_on[lang]} ${fmtStayDay(leave, lang)}`}
+        </p>
+      )}
+      {mismatch && (
+        <div role="alert" className="mt-2 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-900 dark:text-amber-300">
+          {`⚠️ ${nightsMismatchText(d, lang)}`}
+        </div>
+      )}
+    </Field>
   )
 }
 
@@ -310,12 +357,15 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
     return () => clearTimeout(t)
   }, [DKEY, done, step, lang, d, travelers])
 
-  function update(patch: Partial<FormData>) { setD(prev => ({ ...prev, ...patch })) }
+  // Every edit goes through the stay rule: when the dates imply a new number of
+  // nights in Bilene, the counter follows (utils/bileneStay.ts).
+  function setForm(fn: (prev: FormData) => FormData) { setD(prev => withAutoNights(prev, fn(prev))) }
+  function update(patch: Partial<FormData>) { setForm(prev => ({ ...prev, ...patch })) }
 
   // Toggling a transfer ON pre-fills its pickup date/time from the matching flight
   // (only if still empty); turning it off clears the pickup fields.
   function toggleArrivalTransfer(v: boolean) {
-    setD(prev => ({
+    setForm(prev => ({
       ...prev,
       taxi_arrival: v,
       transfer_to_bilene_date: v ? (prev.transfer_to_bilene_date || prev.country_entry_date) : '',
@@ -323,7 +373,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
     }))
   }
   function toggleDepartureTransfer(v: boolean) {
-    setD(prev => ({
+    setForm(prev => ({
       ...prev,
       taxi_departure: v,
       transfer_to_airport_date: v ? (prev.transfer_to_airport_date || prev.country_exit_date) : '',
@@ -335,7 +385,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
   // again rather than keeping a "no" the guest never chose. Changing mode empties
   // the detail: a flight number is not a description, nor the other way round.
   function setArrivalBy(by: TravelBy) {
-    setD(prev => prev.arrival_by === by ? prev : ({
+    setForm(prev => prev.arrival_by === by ? prev : ({
       ...prev,
       arrival_by: by,
       arrival_detail: '',
@@ -345,7 +395,7 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
     }))
   }
   function setDepartureBy(by: TravelBy) {
-    setD(prev => prev.departure_by === by ? prev : ({
+    setForm(prev => prev.departure_by === by ? prev : ({
       ...prev,
       departure_by: by,
       departure_detail: '',
@@ -719,10 +769,6 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{tr.s2_intro[lang]}</p>
                 </div>
 
-                <Field label={tr.f_nights[lang]} required>
-                  <Counter value={d.nights_bilene} onChange={v => update({ nights_bilene: v })} min={1} />
-                </Field>
-
                 <div className="grid lg:grid-cols-2 gap-4 lg:gap-5 lg:items-stretch">
                 {/* Arrival block */}
                 <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-3 sm:p-4 space-y-3 bg-white dark:bg-gray-900/70">
@@ -810,6 +856,11 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                   )}
                 </div>
                 </div>
+
+                {/* Nights in Bilene — after the dates, because it now follows from
+                    them (utils/bileneStay.ts). It used to sit first, pre-set to 7,
+                    and was often never touched: booking #029 got 7 nights of 23. */}
+                <NightsInBilene d={d} lang={lang} onChange={v => update({ nights_bilene: v })} />
               </>
             )}
 
@@ -872,6 +923,18 @@ export default function BookingFormPage({ enquiryId, targetBookingId, prefillNam
                 <div>
                   <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">{tr.s5_title[lang]}</h2>
                 </div>
+                {/* Said once more before sending: the nights and the airport
+                    transfer disagree. A warning, not a block — the guest may
+                    know better (an early pickup, a night elsewhere). */}
+                {nightsMismatch(d) && (
+                  <div role="alert" className="rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-900 dark:text-amber-300 space-y-2">
+                    <p>{`⚠️ ${nightsMismatchText(d, lang)}`}</p>
+                    <button type="button" onClick={() => setStep(2)}
+                      className="text-sm font-semibold underline underline-offset-2">
+                      {`← ${tr.step_trip[lang]}`}
+                    </button>
+                  </div>
+                )}
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">{tr.emergency_heading[lang]}</h3>

@@ -38,7 +38,7 @@ describe('missingOnStep', () => {
 
   it('accepts "no transfer" as an answer, not as a blank', () => {
     const d = mkForm({
-      country_entry_date: '2027-01-10', country_exit_date: '2027-01-20',
+      country_entry_date: '2027-01-10', country_exit_date: '2027-01-20', nights_bilene: 10,
       arrival_detail: 'TM 302', departure_detail: 'TM 301',
       taxi_arrival: false, taxi_departure: false,
     })
@@ -49,7 +49,7 @@ describe('missingOnStep', () => {
   // 2026-11-08: a hand-typed hour sent drivers at the wrong time; a flight
   // number can be checked. Required by default — plane is the default answer.
   describe('flight number', () => {
-    const answered = { country_entry_date: '2027-01-10', country_exit_date: '2027-01-20', taxi_arrival: true, taxi_departure: true }
+    const answered = { country_entry_date: '2027-01-10', country_exit_date: '2027-01-20', taxi_arrival: true, taxi_departure: true, nights_bilene: 10 }
 
     it('is required for both flights by default', () => {
       const keys = missingOnStep(2, mkForm(answered), []).map(m => m.key)
@@ -83,6 +83,12 @@ describe('missingOnStep', () => {
   it('flags a night count brought down to zero', () => {
     const keys = missingOnStep(2, mkForm({ nights_bilene: 0 }), []).map(m => m.key)
     expect(keys).toContain('f_nights')
+  })
+
+  // #029: the counter started at 7 and the guest never touched it.
+  it('starts with no nights — the guest has to answer', () => {
+    expect(EMPTY_FORM.nights_bilene).toBe(0)
+    expect(missingOnStep(2, mkForm(), []).map(m => m.key)).toContain('f_nights')
   })
 
   it('never blocks step 3 — it asks nothing mandatory', () => {

@@ -8,7 +8,8 @@ import type { Booking, Client, Enquiry, FormSubmission, FormSubmissionStatus, La
 import { getConfiguredRate } from '../components/accounting/utils'
 import { activityCountColumns } from '../utils/bookingActivity'
 import { blanksToFill, findExistingClient, normEmail } from '../utils/clientIdentity'
-import { addDaysISO as addDays, fmtDate } from '../utils/dates'
+import { fmtDate } from '../utils/dates'
+import { proposedStay, stayIssues } from '../utils/bileneStay'
 import { findCandidateEnquiries, fmtArrivalMonth } from '../utils/enquiries'
 import { splitName } from '../utils/names'
 import { FALLBACK_TAXI_PRICING } from '../utils/taxiPricing'
@@ -48,6 +49,34 @@ function travelColumns(p: FormSubmission['payload']) {
   return cols
 }
 
+/** Where the Bilene dates about to be booked disagree with what the form said
+ *  (utils/bileneStay.ts). Orange = look before clicking; the one benign case —
+ *  leaving Mozambique later than Bilene — is shown in grey, for the record. */
+function StayIssues({ p, checkIn, checkOut }: { p: FormSubmission['payload']; checkIn: string; checkOut: string }) {
+  const issues = stayIssues(p, checkIn, checkOut)
+  if (issues.length === 0) return null
+  const warn = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800'
+  const info = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {issues.map(i => {
+        switch (i.kind) {
+          case 'checkin_vs_transfer':
+            return <span key={i.kind} className={warn}>⚠️ Check-in {fmtDate(checkIn)} ≠ transfer to Bilene {fmtDate(i.transfer)}</span>
+          case 'checkout_vs_transfer':
+            return <span key={i.kind} className={warn}>⚠️ Check-out {fmtDate(checkOut)} ≠ transfer to airport {fmtDate(i.transfer)}</span>
+          case 'nights_vs_dates':
+            return <span key={i.kind} className={warn}>⚠️ Guest typed {i.typed} night{i.typed > 1 ? 's' : ''} — these dates make {i.dates}{i.typed === 7 ? ' (7 was the old default)' : ''}</span>
+          case 'exit_before_checkout':
+            return <span key={i.kind} className={warn}>⚠️ Leaves Mozambique {fmtDate(i.exit)}, before check-out — typo?</span>
+          case 'exit_after_checkout':
+            return <span key={i.kind} className={info}>ℹ️ Leaves Mozambique later ({fmtDate(i.exit)}) — travelling on after Bilene?</span>
+        }
+      })}
+    </div>
+  )
+}
+
 function TravelRow({ label, by, detail }: { label: string; by?: string; detail?: string }) {
   const t = travelLabel(by, detail)
   if (!t) return null
@@ -84,10 +113,10 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
   const clientMatch = useMemo(
     () => findExistingClient(clients, { linkedClientId: linkedEnquiry?.client_id, email: p.email }),
     [clients, linkedEnquiry?.client_id, p.email])
-  const [checkIn, setCheckIn] = useState(p.country_entry_date || '')
-  const [checkOut, setCheckOut] = useState(
-    p.country_entry_date ? addDays(p.country_entry_date, p.nights_bilene || 0) : ''
-  )
+  // The transfer dates win over the typed nights: #029 was booked 14/01 → 21/01
+  // from "entry + 7 nights" while its airport transfer was on 06/02.
+  const [checkIn, setCheckIn] = useState(() => proposedStay(p).checkIn)
+  const [checkOut, setCheckOut] = useState(() => proposedStay(p).checkOut)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmAction, setConfirmAction] = useState<'reject' | 'reopen' | null>(null)
@@ -628,6 +657,9 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
             Sent from an existing booking — applying updates <strong>#{String(targetBooking.booking_number).padStart(3, '0')}</strong> in
             place (visa dates, transfer times, passport numbers, emergency contact). Room dates and price are never touched.
           </p>
+          {/* Room dates are not touched here — so a disagreement with the
+              transfers the guest just gave is said, to be fixed on the booking. */}
+          <StayIssues p={p} checkIn={targetBooking.check_in} checkOut={targetBooking.check_out} />
           {fromOtherPerson && targetClient && (
             <p className="text-xs text-amber-700 dark:text-amber-400">
               ⚠️ This form's email ({p.email}) is not the booker's ({targetClient.first_name} {targetClient.last_name}, {targetClient.email}).
@@ -687,7 +719,10 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
       {/* Bilene dates + actions — a fresh public submission, not tied to an existing booking */}
       {s.status === 'pending' && !p.target_booking_id && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Confirm the Bilene check-in / check-out before creating the booking (defaulted from country entry + nights).</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Confirm the Bilene check-in / check-out before creating the booking — proposed from the transfer dates when there are some,
+            otherwise from arrival + the nights typed ({p.nights_bilene || '—'}).
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Check-in (Bilene)</label>
@@ -701,6 +736,7 @@ function SubmissionDetail({ s, onDone, enquiries, bookings, clients, taxiTrips }
             </div>
           </div>
           {!datesValid && <p className="text-xs text-rose-500 dark:text-rose-400">Check-out must be after check-in.</p>}
+          <StayIssues p={p} checkIn={checkIn} checkOut={checkOut} />
           {/* Said before the click, not after: which file this booking lands in
               is the one thing that cannot be undone from this screen. */}
           <p className="text-xs text-gray-500 dark:text-gray-400">

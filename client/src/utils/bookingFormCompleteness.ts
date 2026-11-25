@@ -56,7 +56,9 @@ export interface FormData {
 
 export const EMPTY_FORM: FormData = {
   reference_name: '', email: '', phone: '', referral_source_id: '', referral_source: '',
-  country_entry_date: '', country_exit_date: '', nights_bilene: 7,
+  // 0 = not answered. It used to start at 7 and many guests never touched it:
+  // booking #029 was created for 7 nights instead of 23 (see utils/bileneStay.ts).
+  country_entry_date: '', country_exit_date: '', nights_bilene: 0,
   arrival_time: '', departure_time: '',
   arrival_by: 'flight', arrival_detail: '', departure_by: 'flight', departure_detail: '',
   transfer_to_bilene_date: '', transfer_to_bilene_time: '',
@@ -82,7 +84,6 @@ export function missingOnStep(step: number, d: FormData, travelers: FormTraveler
     if (!d.email.trim()) missing.push({ key: 'f_email' })
   }
   if (step === 2) {
-    if (!(d.nights_bilene > 0)) missing.push({ key: 'f_nights' })
     if (!d.country_entry_date) missing.push({ key: d.arrival_by === 'flight' ? 'f_country_entry' : 'f_arrival_date' })
     // The flight number (2026-11-08): a hand-typed hour goes wrong — AM/PM, the
     // departure city's time, a 00:30 landing — and sends a driver at the wrong
@@ -98,6 +99,8 @@ export function missingOnStep(step: number, d: FormData, travelers: FormTraveler
     // guess, so the step does not pass until they have said.
     if (d.taxi_arrival === undefined) missing.push({ key: 'f_taxi_arrival' })
     if (d.taxi_departure === undefined) missing.push({ key: 'f_taxi_departure' })
+    // Last, like on screen: it sits under the dates it is worked out from.
+    if (!(d.nights_bilene > 0)) missing.push({ key: 'f_nights' })
   }
   if (step === 4) {
     // A crew with nobody in it cannot be described field by field.
