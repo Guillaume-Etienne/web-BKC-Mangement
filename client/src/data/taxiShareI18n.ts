@@ -92,6 +92,18 @@ export const tr = {
   call_driver:     { pt: 'Ligar ao motorista', en: 'Call the driver' },
   fold_close:      { pt: 'Fechar', en: 'Close' },
 
+  // Manager assigns a driver to a trip that has none (2026-11-26)
+  assign_driver:   { pt: 'Atribuir motorista', en: 'Assign a driver' },
+  assign_pick:     { pt: 'Escolhe o motorista', en: 'Pick the driver' },
+  assign_note:     { pt: 'Depois de confirmar, só o centro pode mudar o motorista.', en: 'Once confirmed, only the center can change the driver.' },
+  assign_confirm:  { pt: 'Confirmar', en: 'Confirm' },
+  assign_cancel:   { pt: 'Cancelar', en: 'Cancel' },
+  assign_saving:   { pt: 'A guardar…', en: 'Saving…' },
+  assign_seats:    { pt: '{n} lugares', en: '{n} seats' },
+  assign_too_many: { pt: '⚠️ {p} pessoas, o carro tem {n} lugares', en: '⚠️ {p} people, the car has {n} seats' },
+  assign_error:    { pt: 'Não foi possível atribuir: a viagem mudou entretanto. A lista foi atualizada.', en: 'Could not assign: the trip has changed meanwhile. The list was refreshed.' },
+  assign_limit:    { pt: 'Demasiadas atribuições hoje. Fala com o centro.', en: 'Too many assignments today. Please contact the center.' },
+
   // ── Public taxi schedule ────────────────────────────────────────────────
   public_title:     { pt: 'Horário dos táxis', en: 'Taxi schedule' },
   public_sub:       { pt: 'Atualizado em tempo real · Sem dados financeiros', en: 'Updated live · No financial data' },

@@ -148,4 +148,8 @@ export const taxesI18n = {
   peek_msg_discard:      { fr: 'Abandonner les modifications non enregistrées de cette résa ?', en: 'Discard the unsaved changes to this booking?', es: '¿Descartar los cambios no guardados de esta reserva?' },
   peek_prev:             { fr: 'Trajet précédent', en: 'Previous trip', es: 'Viaje anterior' },
   peek_next:             { fr: 'Trajet suivant', en: 'Next trip', es: 'Viaje siguiente' },
+  // Trips the taxi manager staffed from his shared page (2026-11-26)
+  mgr_assigned_title:    { fr: 'Attribués par le manager — vérifie le prix chauffeur', en: 'Assigned by the manager — check the driver price', es: 'Asignados por el manager — revisa el precio del conductor' },
+  mgr_assigned_price:    { fr: 'prix chauffeur {price} MZN (tarif habituel : {usual})', en: 'driver price {price} MZN (usual rate: {usual})', es: 'precio del conductor {price} MZN (tarifa habitual: {usual})' },
+  mgr_assigned_ok:       { fr: '✓ Vérifié', en: '✓ Checked', es: '✓ Revisado' },
 } satisfies Record<string, Tr>

@@ -38,6 +38,7 @@ Conséquence : quelqu'un qui extrait la clé `anon` du bundle peut taper `GET /r
 | `payments` | 🔴 **finances** (montants, paiements) | ClientSharePage |
 | `booking_charges` | 🔴 **finances** (extras saisis à la main, 2026-10-18). Token `client` → sa résa ; GRANT colonnes sans `notes` (interne) ; `participant_id` lisible depuis 2026-11-15b (répartition par personne) | ClientSharePage (section Extras + répartition) |
 | `taxi_trips` | 🟠 trajets + **paie chauffeur/manager** (`price_driver_mzn`, `margin_manager_mzn` — lisibles par TOUT token, ⚠️ décision en attente) ; prix client rédigé (`share_price_eur`), `price_eur` brut **bloqué** | Taxi / Driver / Manager / Client share |
+| `taxi_trip_driver_log` | 🔴 **admin seulement** (RLS + `REVOKE ALL FROM anon`, 2026-11-26) : journal des chauffeurs attribués par le manager. Écrit uniquement par `manager_assign_driver()` | — (bandeau admin Taxis) |
 | `taxi_drivers` | 🟢 identité + contact + véhicule | Taxi / Driver share |
 | `taxi_manager_payments` | 🔴 **finances** (commissions, avances) | TaxiManagerSharePage |
 | `lessons` | 🟢 cours + **prix rédigé** (`share_price_per_hour`). Bloqués depuis `2026-08-18c` : `price_per_hour` brut et **`instructor_rate` (PAIE moniteur)** | ClientSharePage / Forecast |
@@ -143,6 +144,15 @@ y compris un token client — un hôte peut donc voir ce qu'on paie son chauffeu
 notre marge. Un privilège de colonne étant par **rôle** et non par type de token, et les pages
 driver/manager en ayant réellement besoin, fermer ça demande une surface par type de token
 (vue ou fonction), pas un GRANT.
+
+## ✍️ Seule écriture ouverte à un token : `manager_assign_driver` (2026-11-26)
+- `anon` a les **droits de table** (DML) sur `taxi_trips` ; seule la RLS (aucune policy d'écriture anon) l'empêche d'écrire. Ne jamais ajouter de policy d'écriture anon : passer par une fonction.
+- `manager_assign_driver(p_trip_id, p_driver_id)` : `SECURITY DEFINER`, plpgsql **VOLATILE**, `REVOKE … FROM PUBLIC`, `GRANT anon, authenticated`. Premier test : `share_ctx().type IS DISTINCT FROM 'taxi_manager'` → `42501` (jamais `<>` : `share_ctx()` rend NULL pour un lien faux/expiré/désactivé).
+- Ne touche que `taxi_driver_id` (+ `needs_details → confirmed`). Refuse (P0001 `trip_not_assignable`, **un seul message**, pour ne pas révéler les trajets privés) : trajet déjà attribué, privé (`margin_manager_mzn = 0`), « Payé », passé (jour en `Africa/Maputo`, la base est en UTC), chauffeur inconnu. Plafond 30 attributions / lien / 24 h (`too_many_changes`).
+- Le prix chauffeur ne change pas : le journal `taxi_trip_driver_log.reviewed_at IS NULL` alimente un bandeau admin jusqu'à « Vérifié ».
+- **Le lien `taxi_manager` expire** (fin mars 2027) puisqu'il peut écrire. ⚠️ **À renouveler chaque saison** : Options → Shared Links → nouvelle `expires_at`.
+- Admin : `TaxiPage.updateTrip` n'envoie que les champs modifiés (`utils/changedFields.ts`) : un écran ouvert avant l'attribution n'écrase pas le choix du manager.
+- Tests faits sur TEST (curl anon) : sans token, tokens `client` / `driver` / faux, lien désactivé, lien expiré → 42501 ; trajet privé, inconnu, chauffeur inconnu, déjà attribué → P0001 ; GET → 405 ; lecture du journal et PATCH direct de `taxi_trips` → 42501.
 
 ## Autres surfaces (rappel)
 - **Clé `anon`** publique = normal (Supabase), la sécurité repose sur RLS.

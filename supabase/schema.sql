@@ -572,6 +572,20 @@ CREATE TABLE taxi_trips (
   created_at          TIMESTAMPTZ DEFAULT now()
 );
 
+-- 2026-11-26 : le manager taxi (lien partagé, sans compte) remplit le chauffeur d'un trajet qui n'en a pas.
+-- Seule écriture ouverte à un token : fonction SECURITY DEFINER (voir 2026-11-26_manager_assign_driver.sql
+-- pour les refus). Journal admin seulement (RLS + REVOKE anon).
+CREATE TABLE taxi_trip_driver_log (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  trip_id        UUID NOT NULL REFERENCES taxi_trips(id) ON DELETE CASCADE,
+  driver_id      UUID REFERENCES taxi_drivers(id) ON DELETE SET NULL,
+  shared_link_id UUID REFERENCES shared_links(id) ON DELETE SET NULL,
+  status_before  taxi_trip_status NOT NULL,
+  changed_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  reviewed_at    TIMESTAMPTZ            -- NULL = prix chauffeur pas encore vérifié par gui
+);
+-- manager_assign_driver(p_trip_id uuid, p_driver_id uuid) : voir la migration (corps complet).
+
 -- The EUR/MZN rate over time, and bungalow tariffs in meticals: 2026-11-01b_eur_mzn_rates.sql
 -- (admin only; a trigger copies the latest rate to taxi_pricing_defaults.eur_mzn_rate).
 CREATE TABLE eur_mzn_rates (

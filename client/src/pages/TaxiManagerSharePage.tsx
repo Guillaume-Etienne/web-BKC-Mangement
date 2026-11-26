@@ -9,6 +9,7 @@ import {
 } from '../data/taxiShareI18n'
 import { taxiTripLabel } from '../data/taxiTripTypes'
 import { usePref, Segmented, Fold, MonthFolds } from './taxiShareUI'
+import Modal from '../components/common/Modal'
 import { todayISO } from '../utils/dates'
 import { managerBalance } from '../utils/taxiManagerBalance'
 import { tripTravel, type TravelFields } from '../utils/travelMode'
@@ -23,9 +24,12 @@ import { groupByDay, withinDays, dayLabel, whatsappUrl, tripMessage, dayMessage,
 type Tab = 'trips' | 'summary' | 'dispatch'
 type Period = '7d' | 'all'
 
-// The shape anon is actually served (column-level GRANT — see security-rls.md).
-// The manager is paid on `margin_manager_mzn`; the client price and the driver's
-// fee are not granted to a manager token any more.
+// The shape this page asks for. The manager is paid on `margin_manager_mzn`, so
+// that is what he gets — not the client price (blocked for anon since
+// 2026-08-18c: `*` → 42501) and not the driver's fee either: the column GRANT is
+// the same for every share token, this page simply never requests it.
+const TRIP_SELECT = 'id, date, start_time, type, status, taxi_driver_id, booking_id, nb_persons, nb_luggage, nb_boardbags, notes, margin_manager_mzn, booking:bookings(client:clients(first_name, last_name))'
+
 type TripWithClient = Pick<TaxiTrip,
   'id' | 'date' | 'start_time' | 'type' | 'status' | 'taxi_driver_id' | 'booking_id' |
   'nb_persons' | 'nb_luggage' | 'nb_boardbags' | 'notes' | 'margin_manager_mzn'> & {
@@ -133,12 +137,105 @@ function Chips<T extends string>({ value, options, onChange }: {
   )
 }
 
+/** The manager picks a driver for a trip that has none. One write is open to him,
+ *  through the manager_assign_driver() function (see the 2026-11-26 migration):
+ *  it fills an empty driver and refuses anything else, so a trip that gui has
+ *  already staffed — or that changed meanwhile — comes back as an error here.
+ *  Not askConfirm(): its host is not mounted on share pages (App.tsx), the
+ *  promise would never resolve — the confirmation is this modal's own button. */
+function AssignModal({ trip, drivers, lang, onClose, onDone }: {
+  trip: TripWithClient; drivers: TaxiDriver[]; lang: TaxiLang
+  /** `driverId` = assigned; null = refused (the parent only refreshes the list) */
+  onClose: () => void; onDone: (driverId: string | null) => void
+}) {
+  const [pick,  setPick]  = useState<string | null>(null)
+  const [busy,  setBusy]  = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function confirm() {
+    if (!pick || busy) return
+    setBusy(true); setError(null)
+    const { error: err } = await supabase.rpc('manager_assign_driver', { p_trip_id: trip.id, p_driver_id: pick })
+    if (!err) { onDone(pick); return }
+    setBusy(false)
+    setError(err.message === 'too_many_changes' ? tr.assign_limit[lang] : tr.assign_error[lang])
+    onDone(null) // refresh the list: the trip probably changed
+  }
+
+  const sorted = [...drivers].sort((a, b) => a.name.localeCompare(b.name))
+  return (
+    <Modal onClose={onClose} dismissible={!busy} labelledBy="assign-title" className="items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="w-full sm:max-w-md bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[88vh] overflow-y-auto">
+        <div className="px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800">
+          <h2 id="assign-title" className="text-base font-bold text-gray-900 dark:text-gray-100">{tr.assign_driver[lang]}</h2>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            {formatTripDate(trip.date, lang, 'readable')} · {trip.start_time} · {taxiTripLabel(trip.type, { icon: true, lang })}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {clientName(trip)} · 👥 {trip.nb_persons}
+            {trip.nb_luggage > 0 && ` · 🧳 ${trip.nb_luggage}`}{trip.nb_boardbags > 0 && ` · 🏄 ${trip.nb_boardbags}`}
+          </p>
+        </div>
+
+        <div className="p-3 space-y-2">
+          <p className="px-1 text-xs font-semibold text-gray-500 dark:text-gray-400">{tr.assign_pick[lang]}</p>
+          {sorted.map(d => {
+            const selected = pick === d.id
+            const tooMany = trip.nb_persons > d.seats
+            return (
+              <button key={d.id} type="button" onClick={() => setPick(d.id)} disabled={busy} aria-pressed={selected}
+                className={`w-full text-left rounded-xl border-2 px-3 py-2.5 transition-colors ${
+                  selected
+                    ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/50'
+                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">🚗 {d.name}</span>
+                  <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">{fmt(tr.assign_seats[lang], { n: d.seats })}</span>
+                  <span aria-hidden className="w-5 text-blue-600 text-base">{selected ? '✓' : ''}</span>
+                </div>
+                {d.vehicle && <div className="text-xs text-gray-500 dark:text-gray-400">{d.vehicle}</div>}
+                {tooMany && (
+                  <div className="mt-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                    {fmt(tr.assign_too_many[lang], { p: trip.nb_persons, n: d.seats })}
+                  </div>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="px-4 pb-4 space-y-2">
+          <p className="text-xs text-gray-500 dark:text-gray-400">{tr.assign_note[lang]}</p>
+          {error && (
+            <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 px-3 py-2 text-sm text-red-700 dark:text-red-400">
+              {error}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} disabled={busy}
+              className="flex-1 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50">
+              {tr.assign_cancel[lang]}
+            </button>
+            <button type="button" onClick={confirm} disabled={!pick || busy}
+              className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold disabled:opacity-40">
+              {busy ? tr.assign_saving[lang] : tr.assign_confirm[lang]}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 const WA_BTN = 'shrink-0 inline-flex items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 text-white'
 
 type RowWords = TripWords & { phone: string | null }
 
-function DispatchRow({ t, words, lang, showDate, today, whatsapp }: {
+function DispatchRow({ t, words, lang, showDate, today, whatsapp, onAssign }: {
   t: TripWithClient; words: RowWords; lang: TaxiLang; showDate: boolean; today: string; whatsapp: boolean
+  /** Only given for a trip without a driver that can still be staffed */
+  onAssign?: () => void
 }) {
   return (
     <div className="flex gap-3 px-3 sm:px-4 py-2.5">
@@ -168,6 +265,12 @@ function DispatchRow({ t, words, lang, showDate, today, whatsapp }: {
           )}
         </div>
         {t.notes && <div className="mt-0.5 text-xs italic text-gray-500 dark:text-gray-400">💬 {t.notes}</div>}
+        {onAssign && (
+          <button type="button" onClick={onAssign}
+            className="mt-1.5 inline-flex items-center gap-1 rounded-lg border-2 border-blue-600 bg-white dark:bg-gray-100 px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50">
+            ＋ {tr.assign_driver[lang]}
+          </button>
+        )}
       </div>
       {whatsapp && !showDate && (
         <div className="flex items-center gap-2 self-center">
@@ -189,9 +292,10 @@ function DispatchRow({ t, words, lang, showDate, today, whatsapp }: {
   )
 }
 
-function DispatchTab({ upcoming, past, drivers, travel, today, lang, whatsapp }: {
+function DispatchTab({ upcoming, past, drivers, travel, today, lang, whatsapp, onAssign }: {
   upcoming: TripWithClient[]; past: TripWithClient[]; drivers: TaxiDriver[]
   travel: Map<string, TravelFields>; today: string; lang: TaxiLang
+  onAssign: (t: TripWithClient) => void
   /** Show the "send on WhatsApp" buttons (the Dispatcher tab only). */
   whatsapp: boolean
 }) {
@@ -258,7 +362,10 @@ function DispatchTab({ upcoming, past, drivers, travel, today, lang, whatsapp }:
             )}
           </div>
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {ts.map(t => <DispatchRow key={t.id} t={t} words={words(t)} lang={lang} showDate={false} today={today} whatsapp={whatsapp} />)}
+            {ts.map(t => (
+              <DispatchRow key={t.id} t={t} words={words(t)} lang={lang} showDate={false} today={today} whatsapp={whatsapp}
+                onAssign={!t.taxi_driver_id && t.status !== 'done' ? () => onAssign(t) : undefined} />
+            ))}
           </div>
         </section>
       ))}
@@ -307,13 +414,8 @@ export default function TaxiManagerSharePage() {
       const [driversRes, tripsRes, paymentsRes] = await Promise.all([
         // Column-restricted for anon (see security-rls.md, Lot C)
         supabase.from('taxi_drivers').select('id, name, phone, vehicle, seats'),
-        // Column-restricted for anon since 2026-08-18c (`*` → 42501). The manager
-        // is paid on his commission, so that is what he gets — not the client
-        // price, and not the driver's fee either (he never had a use for it).
-        supabase
-          .from('taxi_trips')
-          .select('id, date, start_time, type, status, taxi_driver_id, booking_id, nb_persons, nb_luggage, nb_boardbags, notes, margin_manager_mzn, booking:bookings(client:clients(first_name, last_name))')
-          .order('date', { ascending: false }),
+        // Column-restricted for anon (`*` → 42501): see TRIP_SELECT
+        supabase.from('taxi_trips').select(TRIP_SELECT).order('date', { ascending: false }),
         supabase.from('taxi_manager_payments').select('*').order('date', { ascending: false }),
       ])
       if (!alive) return true
@@ -347,6 +449,21 @@ export default function TaxiManagerSharePage() {
   }, [])
 
   const driverName = (id: string | null) => drivers.find(d => d.id === id)?.name ?? '—'
+
+  // Driver assignment: the list is read again afterwards, so what is on screen is
+  // what the database says (gui may have staffed the same trip in the meantime).
+  const [assigning, setAssigning] = useState<TripWithClient | null>(null)
+  async function onAssignDone(tripId: string, driverId: string | null) {
+    if (driverId) {
+      // Shown at once; the function turns "details needed" into "confirmed".
+      setTrips(ts => ts.map(t => t.id !== tripId ? t : {
+        ...t, taxi_driver_id: driverId, status: t.status === 'needs_details' ? 'confirmed' : t.status,
+      }))
+      setAssigning(null)
+    }
+    const res = await supabase.from('taxi_trips').select(TRIP_SELECT).order('date', { ascending: false })
+    if (!res.error && res.data) setTrips(res.data as unknown as TripWithClient[])
+  }
 
   if (loading) {
     return (
@@ -427,7 +544,7 @@ export default function TaxiManagerSharePage() {
 
         {tab !== 'summary' ? (
           <DispatchTab upcoming={upcoming} past={past} drivers={drivers} travel={travel} today={today} lang={lang}
-            whatsapp={tab === 'dispatch'} />
+            whatsapp={tab === 'dispatch'} onAssign={setAssigning} />
         ) : (<>
         {/* ── Summary tab: the page as it was, unchanged (balance included) ── */}
 
@@ -518,6 +635,11 @@ export default function TaxiManagerSharePage() {
         <p className="text-center text-xs text-gray-300 dark:text-gray-500">
           Bilene Kite Center · {tr.footer_updated[lang]} {new Date().toLocaleDateString(lang === 'pt' ? 'pt-PT' : 'en-GB')}
         </p>
+
+        {assigning && (
+          <AssignModal trip={assigning} drivers={drivers} lang={lang}
+            onClose={() => setAssigning(null)} onDone={id => onAssignDone(assigning.id, id)} />
+        )}
 
       </div>
     </div>

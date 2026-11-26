@@ -3,6 +3,7 @@ import TaxiKanbanView from '../components/taxi/TaxiKanbanView'
 import TaxiListView from '../components/taxi/TaxiListView'
 import TaxiFinanceTab from '../components/taxi/TaxiFinanceTab'
 import DriverStatementPanel from '../components/taxi/DriverStatementPanel'
+import ManagerAssignedBanner from '../components/taxi/ManagerAssignedBanner'
 import BookingPeekPanel from '../components/taxi/BookingPeekPanel'
 import TaxiTripFilters, { DEFAULT_TAXI_FILTERS, applyTaxiFilters, type TaxiFilters } from '../components/taxi/TaxiTripFilters'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -14,6 +15,7 @@ import { supabase } from '../lib/supabase'
 
 import type { TaxiDriver, TaxiTrip, TaxiPricingDefaults, TaxiManagerPayment, TaxiBookingRef, SharedLink } from '../types/database'
 import { todayISO, addDaysISO } from '../utils/dates'
+import { changedFields } from '../utils/changedFields'
 import { FALLBACK_TAXI_PRICING as FALLBACK_PRICING } from '../utils/taxiPricing'
 import { useTrackTab } from '../hooks/useTrackTab'
 import Modal from '../components/common/Modal'
@@ -82,7 +84,13 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
   async function updateTrip(trip: TaxiTrip): Promise<boolean> {
     // share_price_eur is a GENERATED column (redacted mirror for shared links) —
     // Postgres rejects any write to it, even the same value round-tripped from select('*').
-    const { id, share_price_eur: _share_price_eur, ...fields } = trip as TaxiTrip & { share_price_eur?: number | null }
+    const { id, share_price_eur: _share_price_eur, ...all } = trip as TaxiTrip & { share_price_eur?: number | null }
+    // Only what changed. The edit forms hand over the WHOLE row, so saving a note on a
+    // screen opened before the taxi manager staffed the trip would put his driver (and
+    // "confirmed") back to what the screen had. Sending only the edited fields leaves
+    // his attribution alone — and still overwrites it when gui changes the driver himself.
+    const fields = changedFields(trips.find(t => t.id === id), all)
+    if (Object.keys(fields).length === 0) return true
     const { error } = await supabase.from('taxi_trips').update(fields).eq('id', id)
     if (error) { notifyError('Error: ' + error.message); return false }
     refreshTrips()
@@ -216,6 +224,8 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
             {i18n.common.msg_error[lang]}: {error}
           </div>
         )}
+
+        <ManagerAssignedBanner trips={trips} drivers={drivers} />
 
         {/* Tabs */}
         <div className="sticky top-16 z-40 bg-gray-50 dark:bg-gray-950 flex gap-4 mt-8 mb-8 border-b">
