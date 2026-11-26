@@ -7,8 +7,11 @@ import {
   fmt, mzn, formatTripDate, formatMonth, bagsLabel,
   type TaxiLang, type DateMode, type ViewMode,
 } from '../data/taxiShareI18n'
-import { usePref, Segmented } from './taxiShareUI'
+import { usePref, Segmented, Fold, MonthFolds } from './taxiShareUI'
 import { todayISO } from '../utils/dates'
+import { groupByDay, dayLabel, tripsCount } from '../utils/taxiDispatch'
+import { tripTravel, type TravelFields } from '../utils/travelMode'
+import TravelBadge from '../components/common/TravelBadge'
 import { loadCheck, retryOnce } from '../utils/shareLoad'
 import { LoadIssueBanner, LoadFailedScreen } from '../components/common/LoadIssueBanner'
 
@@ -38,38 +41,82 @@ function clientLine(t: TripWithClient, lang: TaxiLang): string | null {
 }
 
 // ── Trip list — cards (mobile-first) or table ─────────────────────────────────
-function TripList({ trips, lang, dateMode, view }: {
+function TripList({ trips, lang, dateMode, view, travel, byDay }: {
   trips: TripWithClient[]; lang: TaxiLang; dateMode: DateMode; view: ViewMode
+  /** Flight of each booking (upcoming trips only; empty when the read failed). */
+  travel: Map<string, TravelFields>
+  /** Cards only: group by day under a header, "today" highlighted. */
+  byDay?: { today: string }
 }) {
   if (trips.length === 0) {
     return <p className="text-sm md:text-base text-gray-400 dark:text-gray-400 italic py-4 text-center">{tr.no_trips[lang]}</p>
   }
   const total = trips.reduce((s, t) => s + t.price_driver_mzn, 0)
+  const flightOf = (t: TripWithClient) => t.booking_id ? tripTravel(t.type, travel.get(t.booking_id), lang) : null
+
+  const card = (t: TripWithClient, showDate: boolean) => (
+    <div key={t.id} className="px-4 md:px-6 py-3 md:py-4">
+      {showDate ? (<>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="font-bold text-gray-900 dark:text-gray-100 md:text-xl">{formatTripDate(t.date, lang, dateMode)}</span>
+          <span className="text-gray-500 dark:text-gray-400 text-sm md:text-lg">{t.start_time}</span>
+        </div>
+        <div className="mt-0.5 text-sm md:text-lg font-medium text-gray-800 dark:text-gray-200">{tripTypeLabel(t.type, lang)}</div>
+      </>) : (
+        // Under a day header the date is already said: the time leads the card.
+        <div className="flex items-baseline gap-3">
+          <span className="font-bold text-gray-900 dark:text-gray-100 text-lg md:text-xl tabular-nums">{t.start_time}</span>
+          <span className="text-sm md:text-lg font-medium text-gray-800 dark:text-gray-200">{tripTypeLabel(t.type, lang)}</span>
+        </div>
+      )}
+      {clientLine(t, lang) && (
+        <div className="text-sm md:text-base text-gray-600 dark:text-gray-400">👤 {clientLine(t, lang)}</div>
+      )}
+      {flightOf(t) && <div className="text-sm md:text-base"><TravelBadge t={flightOf(t)} /></div>}
+      <div className="mt-1 text-xs md:text-base text-gray-500 dark:text-gray-400">
+        👥 {t.nb_persons} {tr.unit_pax[lang]} · 🧳 {bagsLabel(t.nb_luggage, t.nb_boardbags, lang)}
+      </div>
+      {t.notes && <div className="mt-1 text-xs md:text-sm text-gray-400 dark:text-gray-400 italic">💬 {t.notes}</div>}
+      <div className="mt-1.5 text-right font-bold md:text-xl text-amber-800 dark:text-amber-400">{mzn(t.price_driver_mzn)}</div>
+    </div>
+  )
+  const totalRow = (
+    <div className="px-4 md:px-6 py-3 md:py-4 bg-gray-100 dark:bg-gray-800 flex justify-between font-bold md:text-lg">
+      <span className="text-gray-700 dark:text-gray-300">{tr.total[lang]}</span>
+      <span className="text-amber-900 dark:text-amber-400">{mzn(total)}</span>
+    </div>
+  )
+
+  if (view === 'cards' && byDay) {
+    return (
+      <div>
+        {groupByDay(trips).map(([date, ts]) => (
+          <div key={date}>
+            <div className="sticky top-0 z-10 flex items-center gap-2 px-4 md:px-6 py-2 border-y border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
+              <span className={`px-2.5 py-0.5 rounded-full text-sm md:text-base font-semibold ${
+                date === byDay.today
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400'
+              }`}>
+                {date === byDay.today ? '📍 ' : ''}{dayLabel(date, byDay.today, lang)}
+              </span>
+              <span className="text-xs md:text-sm text-gray-400 dark:text-gray-400">{tripsCount(ts.length, lang)}</span>
+            </div>
+            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+              {ts.map(t => card(t, false))}
+            </div>
+          </div>
+        ))}
+        {totalRow}
+      </div>
+    )
+  }
 
   if (view === 'cards') {
     return (
       <div className="divide-y divide-gray-100 dark:divide-gray-800">
-        {trips.map(t => (
-          <div key={t.id} className="px-4 md:px-6 py-3 md:py-4">
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="font-bold text-gray-900 dark:text-gray-100 md:text-xl">{formatTripDate(t.date, lang, dateMode)}</span>
-              <span className="text-gray-500 dark:text-gray-400 text-sm md:text-lg">{t.start_time}</span>
-            </div>
-            <div className="mt-0.5 text-sm md:text-lg font-medium text-gray-800 dark:text-gray-200">{tripTypeLabel(t.type, lang)}</div>
-            {clientLine(t, lang) && (
-              <div className="text-sm md:text-base text-gray-600 dark:text-gray-400">👤 {clientLine(t, lang)}</div>
-            )}
-            <div className="mt-1 text-xs md:text-base text-gray-500 dark:text-gray-400">
-              👥 {t.nb_persons} {tr.unit_pax[lang]} · 🧳 {bagsLabel(t.nb_luggage, t.nb_boardbags, lang)}
-            </div>
-            {t.notes && <div className="mt-1 text-xs md:text-sm text-gray-400 dark:text-gray-400 italic">💬 {t.notes}</div>}
-            <div className="mt-1.5 text-right font-bold md:text-xl text-amber-800 dark:text-amber-400">{mzn(t.price_driver_mzn)}</div>
-          </div>
-        ))}
-        <div className="px-4 md:px-6 py-3 md:py-4 bg-gray-100 dark:bg-gray-800 flex justify-between font-bold md:text-lg">
-          <span className="text-gray-700 dark:text-gray-300">{tr.total[lang]}</span>
-          <span className="text-amber-900 dark:text-amber-400">{mzn(total)}</span>
-        </div>
+        {trips.map(t => card(t, true))}
+        {totalRow}
       </div>
     )
   }
@@ -104,6 +151,7 @@ function TripList({ trips, lang, dateMode, view }: {
               <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap hidden md:table-cell">{t.start_time}</td>
               <td className="px-3 md:px-4 py-2 md:py-3 text-gray-700 dark:text-gray-300">
                 <div className="md:whitespace-nowrap">{tripTypeLabel(t.type, lang)}</div>
+                {flightOf(t) && <div className="text-xs md:text-sm mt-0.5"><TravelBadge t={flightOf(t)} /></div>}
                 <div className="md:hidden mt-0.5 space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
                   {clientLine(t, lang) && <div>👤 {clientLine(t, lang)}</div>}
                   <div>👥 {t.nb_persons} · 🧳 {bagsLabel(t.nb_luggage, t.nb_boardbags, lang)}</div>
@@ -273,8 +321,9 @@ export default function DriverSharePage({ driverId }: Props) {
   const [driver,  setDriver]  = useState<TaxiDriver | null>(null)
   const [trips,   setTrips]   = useState<TripWithClient[]>([])
   const [loading, setLoading] = useState(true)
+  const [travel,  setTravel]  = useState<Map<string, TravelFields>>(new Map())
 
-  const [lang,     setLang]     = usePref<TaxiLang>('taxi_share_lang', 'pt')
+  const [lang,    setLang]     = usePref<TaxiLang>('taxi_share_lang', 'pt')
   const [view,     setView]     = usePref<ViewMode>('taxi_share_view', 'cards')
   const [dateMode, setDateMode] = usePref<DateMode>('taxi_share_datemode', 'readable')
   const [tab,      setTab]      = usePref<Tab>('taxi_share_tab', 'trips')
@@ -284,6 +333,7 @@ export default function DriverSharePage({ driverId }: Props) {
 
   useEffect(() => {
     let alive = true
+    let tripRows: TripWithClient[] = [] // kept for the flights read below
     async function load(): Promise<boolean> {
       const chk = loadCheck()
       const [driverRes, tripsRes] = await Promise.all([
@@ -300,10 +350,31 @@ export default function DriverSharePage({ driverId }: Props) {
       ])
       if (!alive) return true
       setDriver(chk.take(driverRes, null) as TaxiDriver | null)
-      setTrips(chk.take(tripsRes, []) as TripWithClient[])
+      tripRows = chk.take(tripsRes, []) as TripWithClient[]
+      setTrips(tripRows)
       return !chk.failed
     }
-    retryOnce(load).then(ok => { if (alive) { setLoadFailed(!ok); setLoading(false) } })
+
+    // The flight of each upcoming trip (gui, 2026-11-08: the driver follows a
+    // delay himself) — its own read, after the page is shown, same as the
+    // manager page. A bonus: if it fails, only the flights are missing.
+    async function loadTravel() {
+      const today = todayISO()
+      const ids = [...new Set(tripRows.filter(t => t.date >= today && t.booking_id).map(t => t.booking_id as string))]
+      if (ids.length === 0) return
+      const travelRes = await supabase.from('bookings')
+        .select('id, arrival_by, arrival_detail, departure_by, departure_detail')
+        .in('id', ids)
+      if (travelRes.error || !alive) return
+      setTravel(new Map(((travelRes.data ?? []) as (TravelFields & { id: string })[]).map(r => [r.id, r])))
+    }
+
+    retryOnce(load).then(ok => {
+      if (!alive) return
+      setLoadFailed(!ok)
+      setLoading(false)
+      void loadTravel()
+    })
     return () => { alive = false }
   }, [driverId])
 
@@ -331,23 +402,25 @@ export default function DriverSharePage({ driverId }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-4xl lg:max-w-6xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-4xl lg:max-w-6xl mx-auto px-3 sm:px-4 py-4 md:py-8 space-y-4 md:space-y-6">
 
         {loadFailed && <LoadIssueBanner lang={lang} />}
 
-        {/* Header + options */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl text-white px-6 py-5 md:px-8 md:py-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-blue-200 dark:text-blue-300 text-sm md:text-base font-medium uppercase tracking-wide mb-1">{tr.driver_statement[lang]}</p>
-              <h1 className="text-2xl md:text-4xl font-bold">{driver.name}</h1>
-              {driver.vehicle && <p className="text-blue-200 dark:text-blue-300 text-sm md:text-lg mt-1">{driver.vehicle}</p>}
-              {driver.phone   && <p className="text-blue-200 dark:text-blue-300 text-sm md:text-lg">{driver.phone}</p>}
+        {/* Header + options — tighter on a phone, the trips are what he opens the page for */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl text-white px-4 py-3 md:px-8 md:py-6">
+          <div className="flex items-start justify-between gap-3 md:gap-4">
+            <div className="min-w-0">
+              <p className="text-blue-200 dark:text-blue-300 text-xs md:text-base font-medium uppercase tracking-wide md:mb-1">{tr.driver_statement[lang]}</p>
+              <h1 className="text-xl md:text-4xl font-bold truncate">{driver.name}</h1>
+              <div className="mt-0.5 md:mt-1 flex flex-wrap gap-x-3 md:block text-blue-200 dark:text-blue-300 text-sm md:text-lg">
+                {driver.vehicle && <p>{driver.vehicle}</p>}
+                {driver.phone   && <p>{driver.phone}</p>}
+              </div>
             </div>
             <Segmented value={lang} onChange={setLang}
               options={TAXI_LANGS.map(l => ({ v: l.code, label: `${l.flag} ${l.code.toUpperCase()}` }))} />
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-3 md:mt-4 flex flex-wrap gap-2">
             {tab === 'trips' && (
               <Segmented value={view} onChange={setView}
                 options={[{ v: 'cards', label: `🗂️ ${tr.opt_view_cards[lang]}` }, { v: 'table', label: `📋 ${tr.opt_view_table[lang]}` }]} />
@@ -375,21 +448,21 @@ export default function DriverSharePage({ driverId }: Props) {
           <MoneyTab past={past} upcoming={upcoming} lang={lang} dateMode={dateMode} />
         ) : (
           <>
-            {/* Upcoming trips */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+            {/* Upcoming trips — overflow-clip, not -hidden: the day headers stick while their day scrolls */}
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-clip">
               <div className="px-5 py-3 border-b bg-blue-50 dark:bg-blue-950/40">
                 <h2 className="text-sm md:text-lg font-bold text-blue-800 dark:text-blue-400">{tr.upcoming_trips[lang]} ({upcoming.length})</h2>
               </div>
-              <TripList trips={upcoming} lang={lang} dateMode={dateMode} view={view} />
+              <TripList trips={upcoming} lang={lang} dateMode={dateMode} view={view} travel={travel} byDay={{ today }} />
             </div>
 
-            {/* Past trips */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-              <div className="px-5 py-3 border-b bg-gray-50 dark:bg-gray-800">
-                <h2 className="text-sm md:text-lg font-bold text-gray-700 dark:text-gray-300">{tr.completed_trips[lang]} ({past.length})</h2>
-              </div>
-              <TripList trips={past} lang={lang} dateMode={dateMode} view={view} />
-            </div>
+            {/* Past trips — the list that grows all season: folded, by month, open at will */}
+            <Fold prefKey="taxi_driver_fold_past" lang={lang} title={`${tr.completed_trips[lang]} (${past.length})`} defaultOpen={false}>
+              {past.length === 0
+                ? <p className="text-sm md:text-base text-gray-400 italic py-4 text-center">{tr.no_trips[lang]}</p>
+                : <MonthFolds trips={past} lang={lang}
+                    render={ts => <TripList trips={ts} lang={lang} dateMode={dateMode} view={view} travel={travel} />} />}
+            </Fold>
           </>
         )}
 

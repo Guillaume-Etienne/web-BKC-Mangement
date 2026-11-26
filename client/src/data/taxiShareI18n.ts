@@ -89,6 +89,8 @@ export const tr = {
   tomorrow:        { pt: 'Amanhã', en: 'Tomorrow' },
   wa_trip:         { pt: 'Enviar por WhatsApp', en: 'Send on WhatsApp' },
   wa_day:          { pt: 'Enviar o dia por WhatsApp', en: 'Send the day on WhatsApp' },
+  call_driver:     { pt: 'Ligar ao motorista', en: 'Call the driver' },
+  fold_close:      { pt: 'Fechar', en: 'Close' },
 
   // ── Public taxi schedule ────────────────────────────────────────────────
   public_title:     { pt: 'Horário dos táxis', en: 'Taxi schedule' },

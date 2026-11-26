@@ -4,6 +4,14 @@
 > `.claude/archive/memory/backlog_closed_2026.md` (1600 lignes d'historique, décisions et
 > vérifications). Ici : **l'ouvert uniquement.** Une ligne close se raye et se déplace.
 
+## ✅ Livré 2026-11-26 — Pages taxi partagées sur mobile (**gui doit pousser**, aucune migration) — jamais vu à l'écran
+- Cause : « Próximas viagens » (Resumo) ouvert = longue liste, en-tête hors écran, flèche 12 px, rien pour refermer.
+- `Fold` (déplacé dans `taxiShareUI.tsx`, partagé manager + chauffeur) : en-tête **collant** tant qu'ouvert, pastille ▴/▾ à droite, barre « ▴ Fechar » en bas. `overflow-clip` (pas `-hidden`, casse `sticky`). Clé de préférence = `prefKey` (manager garde `taxi_mgr_fold_*`).
+- `MonthFolds` (partagé) : terminés repliés par mois, dernier mois ouvert, chacun ouvrable/refermable.
+- Manager (onglets Viagens + Despachante, qui reste « em teste ») : titres de jour collants ; 📞 par trajet (onglet Despachante seulement, `tel:`). Resumo inchangé (hors Fold). « Hoje » écarté : la liste démarre déjà à aujourd'hui.
+- Chauffeur : terminés = bloc replié (par mois) ; à venir groupés par jour (« Hoje » en bleu, jours collants, heure en tête) ; **n° de vol** (lecture `bookings` à part, comme le manager — ⚠️ à vérifier avec un vrai lien chauffeur : si le token chauffeur ne lit pas `bookings`, seuls les vols manquent) ; en-tête plus compact. **Places libres volontairement absentes** (gui). Bascule cartes/tableau gardée.
+- À faire après : #2 du point initial (Resumo « à venir » : replier/limiter 7 j) laissé de côté par gui, « à voir après ».
+
 ## ✅ Livré 2026-11-25 — Formulaire : nuits à Bilene ≠ dates (cas #029) (**gui doit pousser**, aucune migration)
 - Cause : compteur « Nights in Bilene » à **7 par défaut**, souvent jamais touché (4 résas formulaire à venir sur 8 l'avaient) ; check-out proposé = entrée pays + nuits.
 - Formulaire public (lien générique + liens perso + `target_booking_id`, même composant) : nuits **vides et obligatoires** (`EMPTY_FORM` = 0, compteur affiche « — ») ; champ déplacé **sous** les dates ; **calcul auto** depuis arrivée Bilene (transfert, sinon entrée pays) → transfert aéroport, seulement quand ces dates changent (une correction à la main tient) ; « You leave Bilene on … » ; avertissement orange si nuits ≠ transfert aéroport, répété à l'étape 5 (non bloquant). Textes FR/EN/ES.

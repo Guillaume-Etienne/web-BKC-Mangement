@@ -1,14 +1,14 @@
 import { displayFirstName } from '../utils/names'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { TaxiDriver, TaxiTrip, TaxiManagerPayment } from '../types/database'
 import {
   tr, TAXI_LANGS, tripTypeLabel, statusLabel,
-  fmt, mzn, formatTripDate, formatMonth,
+  fmt, mzn, formatTripDate,
   type TaxiLang, type DateMode, type ViewMode,
 } from '../data/taxiShareI18n'
 import { taxiTripLabel } from '../data/taxiTripTypes'
-import { usePref, Segmented } from './taxiShareUI'
+import { usePref, Segmented, Fold, MonthFolds } from './taxiShareUI'
 import { todayISO } from '../utils/dates'
 import { managerBalance } from '../utils/taxiManagerBalance'
 import { tripTravel, type TravelFields } from '../utils/travelMode'
@@ -133,35 +133,9 @@ function Chips<T extends string>({ value, options, onChange }: {
   )
 }
 
-/** A card whose list folds away behind its header (gui, 2026-11-09: "rendre
- *  repliable les longues listes"). Open/closed is remembered on the device, so
- *  Geraldo finds the page as he left it. */
-function Fold({ id, title, defaultOpen, tone = 'gray', scrollX = false, children }: {
-  id: string; title: string; defaultOpen: boolean; tone?: 'gray' | 'blue'; scrollX?: boolean; children: ReactNode
-}) {
-  const [state, setState] = usePref<'open' | 'closed'>(`taxi_mgr_fold_${id}`, defaultOpen ? 'open' : 'closed')
-  const open = state === 'open'
-  const head = tone === 'blue'
-    ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-400'
-    : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-  return (
-    <div className={`bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 ${scrollX ? 'overflow-x-auto' : 'overflow-hidden'}`}>
-      <button type="button" onClick={() => setState(open ? 'closed' : 'open')} aria-expanded={open}
-        className={`w-full flex items-center gap-2 px-4 sm:px-5 py-3 text-left hover:brightness-95 ${head} ${open ? 'border-b border-gray-200 dark:border-gray-800' : ''}`}>
-        <span className="w-3 shrink-0 text-xs">{open ? '▾' : '▸'}</span>
-        <h2 className="text-sm font-bold">{title}</h2>
-      </button>
-      {open && children}
-    </div>
-  )
-}
-
 const WA_BTN = 'shrink-0 inline-flex items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 text-white'
 
 type RowWords = TripWords & { phone: string | null }
-
-/** "novembro de 2026" → "Novembro de 2026" (CSS `capitalize` would also give "De"). */
-const upperFirst = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 function DispatchRow({ t, words, lang, showDate, today, whatsapp }: {
   t: TripWithClient; words: RowWords; lang: TaxiLang; showDate: boolean; today: string; whatsapp: boolean
@@ -196,11 +170,20 @@ function DispatchRow({ t, words, lang, showDate, today, whatsapp }: {
         {t.notes && <div className="mt-0.5 text-xs italic text-gray-500 dark:text-gray-400">💬 {t.notes}</div>}
       </div>
       {whatsapp && !showDate && (
-        <a href={whatsappUrl(tripMessage(t, words, lang), words.phone)} target="_blank" rel="noopener noreferrer"
-          title={tr.wa_trip[lang]} aria-label={tr.wa_trip[lang]}
-          className={`${WA_BTN} self-center w-9 h-9`}>
-          <WhatsAppIcon className="w-5 h-5" />
-        </a>
+        <div className="flex items-center gap-2 self-center">
+          {words.phone && (
+            <a href={`tel:${words.phone.replace(/[^\d+]/g, '')}`}
+              title={`${tr.call_driver[lang]} — ${words.driver ?? ''}`} aria-label={tr.call_driver[lang]}
+              className="shrink-0 inline-flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white w-9 h-9 text-base">
+              📞
+            </a>
+          )}
+          <a href={whatsappUrl(tripMessage(t, words, lang), words.phone)} target="_blank" rel="noopener noreferrer"
+            title={tr.wa_trip[lang]} aria-label={tr.wa_trip[lang]}
+            className={`${WA_BTN} w-9 h-9`}>
+            <WhatsAppIcon className="w-5 h-5" />
+          </a>
+        </div>
       )}
     </div>
   )
@@ -214,7 +197,6 @@ function DispatchTab({ upcoming, past, drivers, travel, today, lang, whatsapp }:
 }) {
   const [period,   setPeriod]   = usePref<Period>('taxi_mgr_period', '7d')
   const [noDriver, setNoDriver] = useState(false)
-  const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({})
 
   const words = (t: TripWithClient): RowWords => {
     const d = drivers.find(x => x.id === t.taxi_driver_id)
@@ -231,11 +213,6 @@ function DispatchTab({ upcoming, past, drivers, travel, today, lang, whatsapp }:
   const shown      = period === '7d' ? base.filter(t => withinDays(t.date, today, 7)) : base
   const later      = base.length - shown.length
   const days       = groupByDay(shown)
-
-  // Completed trips, folded by month — newest first.
-  const months = new Map<string, TripWithClient[]>()
-  const pastSorted = [...past].sort((a, b) => `${b.date}${b.start_time}`.localeCompare(`${a.date}${a.start_time}`))
-  for (const t of pastSorted) months.set(t.date.slice(0, 7), [...(months.get(t.date.slice(0, 7)) ?? []), t])
 
   return (
     <div className="space-y-4">
@@ -261,8 +238,9 @@ function DispatchTab({ upcoming, past, drivers, travel, today, lang, whatsapp }:
       )}
 
       {days.map(([date, ts]) => (
-        <section key={date} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-          <div className="flex items-center gap-2 px-3 sm:px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
+        // overflow-clip, not -hidden: the day header sticks to the top while its day scrolls
+        <section key={date} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-clip">
+          <div className="sticky top-0 z-10 flex items-center gap-2 px-3 sm:px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
             <span className={`px-2.5 py-0.5 rounded-full text-sm font-semibold ${
               date === today
                 ? 'bg-blue-600 text-white'
@@ -293,26 +271,13 @@ function DispatchTab({ upcoming, past, drivers, travel, today, lang, whatsapp }:
       )}
 
       {past.length > 0 && (
-        <Fold id="trips_done" title={`${tr.completed_trips[lang]} (${past.length})`} defaultOpen={false}>
+        <Fold prefKey="taxi_mgr_fold_trips_done" lang={lang} title={`${tr.completed_trips[lang]} (${past.length})`} defaultOpen={false}>
           {/* One fold per month: only the latest is open, the season stays short */}
-          {[...months.entries()].map(([m, ts], i) => {
-            const open = openMonths[m] ?? i === 0
-            return (
-              <div key={m} className={i > 0 ? 'border-t border-gray-100 dark:border-gray-800' : ''}>
-                <button type="button" onClick={() => setOpenMonths({ ...openMonths, [m]: !open })} aria-expanded={open}
-                  className="w-full flex items-center gap-2 px-4 py-2 bg-gray-50/60 dark:bg-gray-800/40 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-400">
-                  <span className="w-3 shrink-0">{open ? '▾' : '▸'}</span>
-                  <span>{upperFirst(formatMonth(`${m}-01`, lang))}</span>
-                  <span className="ml-auto font-normal">{tripsCount(ts.length, lang)}</span>
-                </button>
-                {open && (
-                  <div className="divide-y divide-gray-100 dark:divide-gray-800 opacity-80 border-t border-gray-100 dark:border-gray-800">
-                    {ts.map(t => <DispatchRow key={t.id} t={t} words={words(t)} lang={lang} showDate today={today} whatsapp={whatsapp} />)}
-                  </div>
-                )}
-              </div>
-            )
-          })}
+          <MonthFolds trips={past} lang={lang} render={ts => (
+            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+              {ts.map(t => <DispatchRow key={t.id} t={t} words={words(t)} lang={lang} showDate today={today} whatsapp={whatsapp} />)}
+            </div>
+          )} />
         </Fold>
       )}
     </div>
@@ -495,7 +460,7 @@ export default function TaxiManagerSharePage() {
         </div>
 
         {/* Per-driver summary */}
-        <Fold id="by_driver" title={tr.mgr_by_driver[lang]} defaultOpen scrollX>
+        <Fold prefKey="taxi_mgr_fold_by_driver" lang={lang} title={tr.mgr_by_driver[lang]} defaultOpen scrollX>
           {perDriver.length === 0 ? (
             <p className="text-sm text-gray-400 dark:text-gray-400 italic py-4 text-center">{tr.no_trips[lang]}</p>
           ) : (
@@ -514,17 +479,17 @@ export default function TaxiManagerSharePage() {
         </Fold>
 
         {/* Upcoming trips */}
-        <Fold id="upcoming" title={`${tr.upcoming_trips[lang]} (${upcoming.length})`} defaultOpen tone="blue">
+        <Fold prefKey="taxi_mgr_fold_upcoming" lang={lang} title={`${tr.upcoming_trips[lang]} (${upcoming.length})`} defaultOpen tone="blue">
           <TripList trips={upcoming} driverName={driverName} lang={lang} dateMode={dateMode} view={view} />
         </Fold>
 
         {/* Completed trips — the list that grows all season: folded by default */}
-        <Fold id="completed" title={`${tr.completed_trips[lang]} (${past.length})`} defaultOpen={false}>
+        <Fold prefKey="taxi_mgr_fold_completed" lang={lang} title={`${tr.completed_trips[lang]} (${past.length})`} defaultOpen={false}>
           <TripList trips={past} driverName={driverName} lang={lang} dateMode={dateMode} view={view} />
         </Fold>
 
         {/* Payment history */}
-        <Fold id="payments" title={`${tr.history_title[lang]} (${payments.length})`} defaultOpen>
+        <Fold prefKey="taxi_mgr_fold_payments" lang={lang} title={`${tr.history_title[lang]} (${payments.length})`} defaultOpen>
           {payments.length === 0 ? (
             <p className="text-sm text-gray-400 dark:text-gray-400 italic py-4 text-center">{tr.no_payments[lang]}</p>
           ) : (
