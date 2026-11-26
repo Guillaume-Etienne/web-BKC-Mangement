@@ -174,7 +174,7 @@ function DispatchRow({ t, words, lang, showDate, today, whatsapp }: {
           {words.phone && (
             <a href={`tel:${words.phone.replace(/[^\d+]/g, '')}`}
               title={`${tr.call_driver[lang]} — ${words.driver ?? ''}`} aria-label={tr.call_driver[lang]}
-              className="shrink-0 inline-flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white w-9 h-9 text-base">
+              className="shrink-0 inline-flex items-center justify-center rounded-full bg-white dark:bg-gray-100 hover:bg-blue-50 border-2 border-blue-600 w-9 h-9 text-base">
               📞
             </a>
           )}
