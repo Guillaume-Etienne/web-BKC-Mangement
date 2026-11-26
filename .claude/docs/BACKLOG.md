@@ -4,11 +4,11 @@
 > `.claude/archive/memory/backlog_closed_2026.md` (1600 lignes d'historique, décisions et
 > vérifications). Ici : **l'ouvert uniquement.** Une ligne close se raye et se déplace.
 
-## ✅ Livré 2026-11-26 — Le manager taxi attribue un chauffeur (**migration PROD à passer AVANT de pousser**)
+## ✅ Livré 2026-11-26 — Le manager taxi attribue un chauffeur (migration TEST + PROD ✅, **gui doit pousser**)
 - Décisions gui : seulement les trajets **sans chauffeur** ; prix chauffeur inchangé + marqueur « à revoir » ; `needs_details → confirmed` ; lien manager expirant **fin mars 2027**.
 - `supabase/migrations/2026-11-26_manager_assign_driver.sql` : fonction `manager_assign_driver` (détail + refus : security-rls.md), table `taxi_trip_driver_log` (admin only), `expires_at = 2027-03-31` sur le lien manager. Revue par un agent Opus avant codage (9 corrections intégrées).
 - ✅ **TEST** : migration passée ; curl anon 11 cas ✅ ; vu à l'écran (Chrome, iframe 400 px) : bouton → modale → ✓ → « Ruiz » affiché, ⏳ disparu ; bandeau admin Taxis + « Vérifié » ✅ ; TEST remis à l'état d'avant. 1048 tests ✅, build ✅.
-- ⬜ **PROD : migration non passée** (gui). Après : curl anon sur PROD (sans token → 42501), vérifier `expires_at` du lien manager de Geraldo.
+- ✅ **PROD : migration passée** (26/11) ; curl anon PROD : sans token et token faux → 42501, token manager + trajet inconnu → P0001, journal → 42501, lecture trajets 200 ; `expires_at` du lien de Geraldo = 2027-03-31. Aucune attribution réelle testée en PROD.
 - 🔔 **Fin mars 2027 / chaque saison : renouveler `expires_at` du lien `taxi_manager`** (sinon Geraldo ne voit plus rien : « Não encontrado »).
 - Admin : `updateTrip` n'envoie que les champs modifiés (`changedFields`, +6 tests) ; bandeau « Attribués par le manager » sur la page Taxis.
 - Non fait (volontairement) : remplacer/retirer un chauffeur côté manager ; bouton dans l'onglet Resumo ; marquage « modifié par le manager » dans la liste/Kanban.
