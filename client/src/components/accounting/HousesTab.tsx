@@ -18,6 +18,14 @@ export default function HousesTab({ data }: Props) {
   const currentSeason = seasons[seasons.length - 1]
   const [period, setPeriod] = useState<'all' | 'season'>('season')
 
+  // Cards are collapsed by default: the "who rented when" lines take a lot of space.
+  const [open, setOpen] = useState<Set<string>>(new Set())
+  const toggle = (id: string) => setOpen(prev => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
   // ── Per-house stats ────────────────────────────────────────────────────────
   const houseStats = useMemo(() => {
     return houses.map(house => {
@@ -107,22 +115,37 @@ export default function HousesTab({ data }: Props) {
   const grandCost         = grandHouseRent + grandBungCost
   const grandBalance      = grandRevenue - grandCost
 
+  const allIds = useMemo(() => [...houses, ...bungalows].map(a => a.id), [houses, bungalows])
+  const allOpen = allIds.length > 0 && allIds.every(id => open.has(id))
+
+  const chevron = (isOpen: boolean) => (
+    <span aria-hidden className={`inline-block text-gray-400 dark:text-gray-500 text-xs transition-transform ${isOpen ? 'rotate-90' : ''}`}>▶</span>
+  )
+
   return (
     <div className="space-y-6">
 
-      {/* Period selector */}
-      <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1 w-fit">
-        {([
-          { id: 'season', label: i18n.accounting.palm_season_label[lang].replace('{label}', currentSeason?.label ?? '') },
-          { id: 'all',    label: i18n.common.period_all_time[lang] },
-        ] as { id: 'all' | 'season'; label: string }[]).map(opt => (
-          <button key={opt.id} onClick={() => setPeriod(opt.id)}
-            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-              period === opt.id ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}>
-            {opt.label}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Period selector */}
+        <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1 w-fit">
+          {([
+            { id: 'season', label: i18n.accounting.palm_season_label[lang].replace('{label}', currentSeason?.label ?? '') },
+            { id: 'all',    label: i18n.common.period_all_time[lang] },
+          ] as { id: 'all' | 'season'; label: string }[]).map(opt => (
+            <button key={opt.id} onClick={() => setPeriod(opt.id)}
+              className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                period === opt.id ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {allIds.length > 0 && (
+          <button type="button" onClick={() => setOpen(allOpen ? new Set() : new Set(allIds))}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+            {allOpen ? i18n.accounting.ht_collapse_all[lang] : i18n.accounting.ht_expand_all[lang]}
           </button>
-        ))}
+        )}
       </div>
 
       {/* Summary cards */}
@@ -150,12 +173,19 @@ export default function HousesTab({ data }: Props) {
         <div>
           <h2 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">{i18n.accounting.ht_houses_header[lang]}</h2>
           <div className="space-y-4">
-            {houseStats.map(({ house, rentals, totalRentalCost, bookingLines, totalRevenue, balance }) => (
+            {houseStats.map(({ house, rentals, totalRentalCost, bookingLines, totalRevenue, balance }) => {
+              const isOpen = open.has(house.id)
+              return (
               <div key={house.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <div className="px-5 py-4 border-b bg-gray-50 dark:bg-gray-800 flex items-center justify-between">
-                  <div>
+                <button type="button" onClick={() => toggle(house.id)} aria-expanded={isOpen}
+                  className={`w-full text-left px-5 py-4 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700/60 flex flex-wrap items-center justify-between gap-2 ${isOpen ? 'border-b' : ''}`}>
+                  <div className="flex items-center gap-3">
+                    {chevron(isOpen)}
                     <h3 className="font-semibold text-gray-800 dark:text-gray-200">{house.name}</h3>
-                    {!house.is_active && <span className="text-xs text-gray-400 dark:text-gray-400 ml-2">{i18n.accounting.ht_inactive[lang]}</span>}
+                    {!house.is_active && <span className="text-xs text-gray-400 dark:text-gray-400">{i18n.accounting.ht_inactive[lang]}</span>}
+                    <span className="text-xs text-gray-400 dark:text-gray-400">
+                      {i18n.accounting.ht_rentals_count[lang].replace('{n}', String(rentals.length))} · {i18n.accounting.ht_stays_count[lang].replace('{n}', String(bookingLines.length))}
+                    </span>
                   </div>
                   <div className="flex gap-6 text-sm">
                     <span className="text-red-600 dark:text-red-400 font-medium">{i18n.accounting.ht_rent_label[lang]}: − {fmtEur(totalRentalCost)}</span>
@@ -164,8 +194,8 @@ export default function HousesTab({ data }: Props) {
                       {balance >= 0 ? '+' : ''}{fmtEur(balance)}
                     </span>
                   </div>
-                </div>
-                <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100 dark:divide-gray-800">
+                </button>
+                {isOpen && <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100 dark:divide-gray-800">
                   {/* Rental periods */}
                   <div>
                     <div className="px-4 py-3 border-b">
@@ -228,9 +258,10 @@ export default function HousesTab({ data }: Props) {
                       </table></div>
                     )}
                   </div>
-                </div>
+                </div>}
               </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -240,13 +271,20 @@ export default function HousesTab({ data }: Props) {
         <div>
           <h2 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">{i18n.accounting.ht_bungalows_header[lang]}</h2>
           <div className="space-y-4">
-            {bungStats.map(({ bung, costRate, bookingLines, totalRevenue, totalCost, totalMargin }) => (
+            {bungStats.map(({ bung, costRate, bookingLines, totalRevenue, totalCost, totalMargin }) => {
+              const isOpen = open.has(bung.id)
+              return (
               <div key={bung.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <div className="px-5 py-4 border-b bg-gray-50 dark:bg-gray-800 flex items-center justify-between">
-                  <div>
+                <button type="button" onClick={() => toggle(bung.id)} aria-expanded={isOpen}
+                  className={`w-full text-left px-5 py-4 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700/60 flex flex-wrap items-center justify-between gap-2 ${isOpen ? 'border-b' : ''}`}>
+                  <div className="flex items-center gap-3">
+                    {chevron(isOpen)}
                     <h3 className="font-semibold text-gray-800 dark:text-gray-200">{bung.name}</h3>
                     <span className="text-xs text-gray-400 dark:text-gray-400">{i18n.accounting.ht_cost_per_night[lang].replace('{rate}', fmtEur(costRate))}</span>
-                    {!bung.is_active && <span className="text-xs text-gray-400 dark:text-gray-400 ml-2">{i18n.accounting.ht_inactive[lang]}</span>}
+                    {!bung.is_active && <span className="text-xs text-gray-400 dark:text-gray-400">{i18n.accounting.ht_inactive[lang]}</span>}
+                    <span className="text-xs text-gray-400 dark:text-gray-400">
+                      {i18n.accounting.ht_stays_count[lang].replace('{n}', String(bookingLines.length))}
+                    </span>
                   </div>
                   <div className="flex gap-6 text-sm">
                     <span className="text-red-600 dark:text-red-400 font-medium">{i18n.accounting.ht_cost_label[lang]}: − {fmtEur(totalCost)}</span>
@@ -255,8 +293,8 @@ export default function HousesTab({ data }: Props) {
                       {i18n.accounting.ht_margin_label[lang]}: {totalMargin >= 0 ? '+' : ''}{fmtEur(totalMargin)}
                     </span>
                   </div>
-                </div>
-                {bookingLines.length === 0 ? (
+                </button>
+                {isOpen && (bookingLines.length === 0 ? (
                   <p className="px-4 py-6 text-gray-400 dark:text-gray-400 text-sm text-center">{i18n.accounting.ht_no_bookings[lang].replace('{season}', period === 'season' ? i18n.accounting.ht_this_season[lang] : '')}</p>
                 ) : (
                   <div className="overflow-x-auto"><table className="w-full text-sm">
@@ -285,9 +323,10 @@ export default function HousesTab({ data }: Props) {
                       ))}
                     </tbody>
                   </table></div>
-                )}
+                ))}
               </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

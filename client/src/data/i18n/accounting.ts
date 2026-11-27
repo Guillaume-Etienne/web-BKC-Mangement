@@ -445,6 +445,10 @@ export const accountingI18n = {
   ht_cost_label:          { fr: 'Coût', en: 'Cost', es: 'Costo' },
   ht_margin_label:        { fr: 'Marge', en: 'Margin', es: 'Margen' },
   ht_cost_per_night:      { fr: 'Coût : {rate}/nuit', en: 'Cost: {rate}/night', es: 'Costo: {rate}/noche' },
+  ht_expand_all:          { fr: 'Tout déplier', en: 'Expand all', es: 'Expandir todo' },
+  ht_collapse_all:        { fr: 'Tout replier', en: 'Collapse all', es: 'Contraer todo' },
+  ht_rentals_count:       { fr: '{n} loyer(s)', en: '{n} rental(s)', es: '{n} alquiler(es)' },
+  ht_stays_count:         { fr: '{n} séjour(s)', en: '{n} stay(s)', es: '{n} estancia(s)' },
   ht_no_accommodations:   { fr: 'Aucun hébergement configuré. Ajoutez-les dans Management → Accommodations.', en: 'No accommodations configured. Add them in Management → Accommodations.', es: 'No hay alojamientos configurados. Añádelos en Gestión → Alojamientos.' },
 
   // ── EventsTab ─────────────────────────────────────────────────────────────
