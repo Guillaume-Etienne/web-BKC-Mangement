@@ -151,5 +151,6 @@ export const taxesI18n = {
   // Trips the taxi manager staffed from his shared page (2026-11-26)
   mgr_assigned_title:    { fr: 'Attribués par le manager — vérifie le prix chauffeur', en: 'Assigned by the manager — check the driver price', es: 'Asignados por el manager — revisa el precio del conductor' },
   mgr_assigned_price:    { fr: 'prix chauffeur {price} MZN (tarif habituel : {usual})', en: 'driver price {price} MZN (usual rate: {usual})', es: 'precio del conductor {price} MZN (tarifa habitual: {usual})' },
-  mgr_assigned_ok:       { fr: '✓ Vérifié', en: '✓ Checked', es: '✓ Revisado' },
+  mgr_assigned_goto:     { fr: 'Aller à ce trajet dans le tableau', en: 'Go to this trip in the table', es: 'Ir a este viaje en la tabla' },
+  mgr_assigned_ok:      { fr: '✓ Vérifié', en: '✓ Checked', es: '✓ Revisado' },
 } satisfies Record<string, Tr>

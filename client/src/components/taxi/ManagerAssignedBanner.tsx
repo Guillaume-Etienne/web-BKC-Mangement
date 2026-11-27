@@ -13,7 +13,11 @@ interface LogRow { id: string; trip_id: string; driver_id: string | null; change
  *  driver's price as it was (rates differ from one driver to the next, and some
  *  are typed by hand), so each one waits here until gui has looked at the price
  *  and says "checked". Journal: taxi_trip_driver_log (admin only). */
-export default function ManagerAssignedBanner({ trips, drivers }: { trips: TaxiTrip[]; drivers: TaxiDriver[] }) {
+export default function ManagerAssignedBanner({ trips, drivers, onGoToTrip }: {
+  trips: TaxiTrip[]; drivers: TaxiDriver[]
+  /** Scroll the planning to that trip (and open it up if a filter hides it) */
+  onGoToTrip: (tripId: string) => void
+}) {
   const { lang } = useLanguage()
   const { data: log, refresh } = useTable<LogRow>('taxi_trip_driver_log', { order: 'changed_at', ascending: false })
   const [busy, setBusy] = useState<string | null>(null)
@@ -40,9 +44,10 @@ export default function ManagerAssignedBanner({ trips, drivers }: { trips: TaxiT
           if (!trip) return null
           return (
             <li key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="text-amber-950 dark:text-amber-100">
-                <b>{trip.date} {trip.start_time}</b> · {taxiTripLabel(trip.type, { icon: true })} · 🚗 {driver?.name ?? '—'}
-              </span>
+              <button type="button" onClick={() => onGoToTrip(trip.id)} title={t.mgr_assigned_goto[lang]}
+                className="text-left text-amber-950 dark:text-amber-100 underline decoration-dotted underline-offset-2 hover:decoration-solid">
+                <b>{trip.date} {trip.start_time}</b> · {taxiTripLabel(trip.type, { icon: true })} · 🚗 {driver?.name ?? '—'} ↓
+              </button>
               <span className="text-xs text-amber-800 dark:text-amber-400">
                 {t.mgr_assigned_price[lang]
                   .replace('{price}', String(trip.price_driver_mzn))

@@ -440,7 +440,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
           const driver = drivers.find(d => d.id === trip.taxi_driver_id)
           const sc = STATUS_CONFIG[trip.status]
           return (
-            <div key={trip.id} role="button" tabIndex={0} data-date={trip.date} onClick={() => setEditTrip(trip)}
+            <div key={trip.id} role="button" tabIndex={0} data-date={trip.date} data-trip-id={trip.id} onClick={() => setEditTrip(trip)}
               onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setEditTrip(trip) } }}
               className={`w-full text-left cursor-pointer rounded-xl border border-gray-200 dark:border-gray-800 p-3 ${sc.row} ${peekTripId === trip.id ? 'ring-2 ring-blue-500' : ''}`}>
               <div className="flex items-start justify-between gap-2">
@@ -508,7 +508,7 @@ export default function TaxiListView({ trips, drivers, bookings, bookingParticip
                 const driver = drivers.find(d => d.id === trip.taxi_driver_id)
                 const sc = STATUS_CONFIG[trip.status]
                 return (
-                  <tr key={trip.id} data-date={trip.date} className={`border-b transition-colors hover:brightness-95 ${sc.row}`}>
+                  <tr key={trip.id} data-date={trip.date} data-trip-id={trip.id} className={`border-b transition-colors hover:brightness-95 ${sc.row}`}>
                     {/* The row whose booking panel is open: a bar on its left (a ring on a <tr> does not render everywhere) */}
                     <td className={`px-3 py-2 whitespace-nowrap text-gray-800 dark:text-gray-200 ${peekTripId === trip.id ? 'border-l-4 border-l-blue-500' : ''}`}>{fmtDate(trip.date)}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-800 dark:text-gray-200">{trip.start_time}</td>

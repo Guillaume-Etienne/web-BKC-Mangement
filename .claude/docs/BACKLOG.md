@@ -11,6 +11,7 @@
 - ✅ **PROD : migration passée** (26/11) ; curl anon PROD : sans token et token faux → 42501, token manager + trajet inconnu → P0001, journal → 42501, lecture trajets 200 ; `expires_at` du lien de Geraldo = 2027-03-31. Aucune attribution réelle testée en PROD.
 - 🔔 **Fin mars 2027 / chaque saison : renouveler `expires_at` du lien `taxi_manager`** (sinon Geraldo ne voit plus rien : « Não encontrado »).
 - Admin : `updateTrip` n'envoie que les champs modifiés (`changedFields`, +6 tests) ; bandeau « Attribués par le manager » sur la page Taxis.
+- ✅ 27/11 : chaque ligne du bandeau est un **lien vers le trajet** (change d onglet si besoin, réinitialise le filtre sur le jour du trajet s il est caché, défile, clignote 2,5 s ; `data-trip-id` sur liste, cartes et Kanban) — vu à l écran sur TEST.
 - Non fait (volontairement) : remplacer/retirer un chauffeur côté manager ; bouton dans l'onglet Resumo ; marquage « modifié par le manager » dans la liste/Kanban.
 
 ## ✅ Livré 2026-11-26 — Pages taxi partagées sur mobile (**gui doit pousser**, aucune migration) — vu à l'écran sur TEST + PROD (lecture seule)

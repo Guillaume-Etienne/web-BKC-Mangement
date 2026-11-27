@@ -260,6 +260,7 @@ export default function TaxiKanbanView({ trips, drivers, pricingDefaults, bookin
                     return (
                       <div
                         key={trip.id}
+                        data-trip-id={trip.id}
                         draggable
                         onDragStart={() => handleDragStart(trip)}
                         onDragEnd={handleDragEnd}

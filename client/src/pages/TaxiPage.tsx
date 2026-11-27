@@ -209,6 +209,28 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
 
   const loading = tripsLoading || driversLoading
   const filteredTrips = applyTaxiFilters(trips, tripFilters, drivers, bookings)
+
+  // "Go to this trip" (banner of the trips the taxi manager staffed): open the planning,
+  // show that day if a filter hides the trip, then scroll to it and flash it.
+  const [goToId, setGoToId] = useState<string | null>(null)
+  function goToTrip(id: string) {
+    const trip = trips.find(t => t.id === id)
+    if (!trip) return
+    setTab('planning')
+    if (!filteredTrips.some(t => t.id === id)) setTripFilters({ ...DEFAULT_TAXI_FILTERS, period: 'day', day: trip.date })
+    setGoToId(id)
+  }
+  useEffect(() => {
+    if (!goToId || tab !== 'planning') return
+    // Table on desktop, cards on a phone: whichever one is on screen.
+    const el = Array.from(document.querySelectorAll<HTMLElement>(`[data-trip-id="${goToId}"]`)).find(e => e.offsetParent !== null)
+    if (!el) return
+    setGoToId(null)
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const flash = ['outline', 'outline-4', 'outline-amber-400', '-outline-offset-2']
+    el.classList.add(...flash)
+    setTimeout(() => el.classList.remove(...flash), 2500)
+  }, [goToId, tab, filteredTrips, planningView])
   const error   = tripsError ?? driversError
 
   const peekTrip = tab === 'planning' && peek ? trips.find(t => t.id === peek.tripId) : undefined
@@ -225,7 +247,7 @@ export default function TaxiPage({ onOpenBooking }: { onOpenBooking?: (bookingId
           </div>
         )}
 
-        <ManagerAssignedBanner trips={trips} drivers={drivers} />
+        <ManagerAssignedBanner trips={trips} drivers={drivers} onGoToTrip={goToTrip} />
 
         {/* Tabs */}
         <div className="sticky top-16 z-40 bg-gray-50 dark:bg-gray-950 flex gap-4 mt-8 mb-8 border-b">
