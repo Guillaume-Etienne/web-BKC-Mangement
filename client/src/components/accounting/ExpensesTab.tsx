@@ -177,27 +177,32 @@ function plusOneMonthISO(iso: string): string {
   d.setUTCMonth(d.getUTCMonth() + 1)
   return d.toISOString().slice(0, 10)
 }
-interface AddRentalFormProps {
+interface RentalFormProps {
   houses:  Accommodation[]
   rentals: HouseRental[]
-  onAdd: (r: HouseRental) => void
+  /** Présent = modification de cette période (rien n'est pré-calculé) */
+  initial?: HouseRental
+  onSave: (r: HouseRental) => void
   onCancel: () => void
 }
-function AddHouseRentalForm({ houses, rentals, onAdd, onCancel }: AddRentalFormProps) {
+function HouseRentalForm({ houses, rentals, initial, onSave, onCancel }: RentalFormProps) {
   const { lang } = useLanguage()
+  // La période en cours de modification ne se chevauche pas elle-même.
+  const others = initial ? rentals.filter(r => r.id !== initial.id) : rentals
   const nextStart = (accId: string) =>
-    rentals.filter(r => r.accommodation_id === accId)
+    others.filter(r => r.accommodation_id === accId)
       .reduce<string | null>((max, r) => (!max || r.end_date > max ? r.end_date : max), null)
     ?? todayISO()
-  const firstId = houses[0]?.id ?? ''
+  const firstId = initial?.accommodation_id ?? houses[0]?.id ?? ''
   const [houseId,   setHouseId]   = useState(firstId)
-  const [startDate, setStartDate] = useState(() => nextStart(firstId))
-  const [endDate,   setEndDate]   = useState(() => plusOneMonthISO(nextStart(firstId)))
-  const [cost,      setCost]      = useState('')
-  const [notes,     setNotes]     = useState('')
+  const [startDate, setStartDate] = useState(() => initial?.start_date ?? nextStart(firstId))
+  const [endDate,   setEndDate]   = useState(() => initial?.end_date ?? plusOneMonthISO(nextStart(firstId)))
+  const [cost,      setCost]      = useState(initial ? String(initial.total_cost) : '')
+  const [notes,     setNotes]     = useState(initial?.notes ?? '')
 
   const pickHouse = (id: string) => {
     setHouseId(id)
+    if (initial) return          // en modification, on garde les dates saisies
     const s = nextStart(id)
     setStartDate(s)
     setEndDate(plusOneMonthISO(s))
@@ -205,7 +210,7 @@ function AddHouseRentalForm({ houses, rentals, onAdd, onCancel }: AddRentalFormP
 
   // Deux périodes qui se chevauchent sur une même maison = loyer compté deux
   // fois. Bornes en « check-out » : 23/10→23/11 puis 23/11→23/12 se suivent.
-  const overlap = rentals.find(r =>
+  const overlap = others.find(r =>
     r.accommodation_id === houseId && startDate < r.end_date && endDate > r.start_date)
   const datesBad = !!startDate && !!endDate && endDate <= startDate
   const amt = parseFloat(cost)
@@ -213,8 +218,8 @@ function AddHouseRentalForm({ houses, rentals, onAdd, onCancel }: AddRentalFormP
 
   const submit = () => {
     if (!canSubmit) return
-    onAdd({
-      id: crypto.randomUUID(),
+    onSave({
+      id: initial?.id ?? crypto.randomUUID(),
       accommodation_id: houseId,
       start_date: startDate,
       end_date:   endDate,
@@ -226,7 +231,9 @@ function AddHouseRentalForm({ houses, rentals, onAdd, onCancel }: AddRentalFormP
   const input = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-gray-200'
   return (
     <div className="space-y-4">
-      <p className="font-semibold text-blue-800 dark:text-blue-400">{i18n.accounting.ex_new_house_rental[lang]}</p>
+      <p className="font-semibold text-blue-800 dark:text-blue-400">
+        {initial ? i18n.accounting.ex_edit_house_rental[lang] : i18n.accounting.ex_new_house_rental[lang]}
+      </p>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div>
           <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.ex_house[lang]}</label>
@@ -258,7 +265,9 @@ function AddHouseRentalForm({ houses, rentals, onAdd, onCancel }: AddRentalFormP
           {i18n.accounting.ex_rental_overlap[lang].replace('{range}', `${fmtDate(overlap.start_date)} → ${fmtDate(overlap.end_date)} (${fmtEur(overlap.total_cost)})`)}
         </p>
       )}
-      <p className="text-xs text-gray-500 dark:text-gray-400">{i18n.accounting.ex_rental_hint[lang]}</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        {initial ? i18n.accounting.ex_rental_edit_hint[lang] : i18n.accounting.ex_rental_hint[lang]}
+      </p>
       <div className="flex gap-2 justify-end">
         <button onClick={onCancel}
           className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
@@ -266,7 +275,7 @@ function AddHouseRentalForm({ houses, rentals, onAdd, onCancel }: AddRentalFormP
         </button>
         <button onClick={submit} disabled={!canSubmit}
           className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed">
-          {i18n.accounting.ex_add_house_rental[lang]}
+          {initial ? i18n.common.btn_save[lang] : i18n.accounting.ex_add_house_rental[lang]}
         </button>
       </div>
     </div>
@@ -282,6 +291,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
   const [view,        setView]        = useState<View>('list')
   const [showAddForm, setShowAddForm] = useState(false)
   const [addKind,     setAddKind]     = useState<'expense' | 'house_rental'>('expense')
+  const [editingRentalId, setEditingRentalId] = useState<string | null>(null)
   // Maisons proposées au loyer : actives d'abord, puis par nom (« H 2 » avant « H 10 »).
   const houses = useMemo(() => data.accommodations
     .filter(a => a.type === 'house')
@@ -741,8 +751,8 @@ export default function ExpensesTab({ data, handlers }: Props) {
                     {i18n.accounting.ex_no_houses[lang]}
                   </p>
                 : <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-xl p-5">
-                    <AddHouseRentalForm houses={houses} rentals={data.houseRentals}
-                      onAdd={r => { handlers.addHouseRental(r); setShowAddForm(false) }}
+                    <HouseRentalForm houses={houses} rentals={data.houseRentals}
+                      onSave={r => { handlers.addHouseRental(r); setShowAddForm(false) }}
                       onCancel={() => setShowAddForm(false)} />
                   </div>
             )}
@@ -861,12 +871,30 @@ export default function ExpensesTab({ data, handlers }: Props) {
             </div>
             <table className="w-full text-sm min-w-[540px]">
               <tbody>
-                {houseRentalRows.map(r => (
+                {houseRentalRows.map(r => editingRentalId === r.id ? (
+                  <tr key={r.id} className="border-t border-gray-100 dark:border-gray-800">
+                    <td colSpan={5} className="p-3">
+                      <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-xl p-4">
+                        <HouseRentalForm houses={houses} rentals={data.houseRentals} initial={r}
+                          onSave={u => { handlers.updateHouseRental(u); setEditingRentalId(null) }}
+                          onCancel={() => setEditingRentalId(null)} />
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
                   <tr key={r.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800">
                     <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtDate(r.start_date)} → {fmtDate(r.end_date)}</td>
                     <td className="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">{r.house}</td>
                     <td className="px-4 py-3 text-gray-800 dark:text-gray-200">{r.notes}</td>
                     <td className="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-400">− {fmtEur(r.total_cost)}</td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <button onClick={() => setEditingRentalId(r.id)} title={i18n.accounting.ex_edit_house_rental[lang]}
+                        className="text-xs px-2 py-1 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                        {i18n.accounting.ex_edit[lang]}
+                      </button>
+                      <button onClick={() => handlers.deleteHouseRental(r.id)} title={i18n.accounting.ex_delete_house_rental[lang]}
+                        className="ml-1 text-gray-300 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors text-lg leading-none">×</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -877,6 +905,7 @@ export default function ExpensesTab({ data, handlers }: Props) {
                     <span className="ml-2 font-normal text-xs text-gray-400">· {periodLabel}</span>
                   </td>
                   <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">− {fmtEur(houseRentalTotal)}</td>
+                  <td />
                 </tr>
               </tfoot>
             </table>

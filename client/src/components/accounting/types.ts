@@ -87,6 +87,8 @@ export interface AccountingHandlers {
   addExpense:              (e: Expense)            => void
   /** House rental period (`house_rentals`) — also opens the house for bookings */
   addHouseRental:          (r: HouseRental)        => void
+  updateHouseRental:       (r: HouseRental)        => void
+  deleteHouseRental:       (id: string)            => void
   updateExpense:           (e: Expense)            => void
   deleteExpense:           (id: string)            => void
   addAssociateTransfer:    (t: AssociateTransfer)  => void

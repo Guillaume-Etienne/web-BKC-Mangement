@@ -427,6 +427,20 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       persist(supabase.from('house_rentals').insert([r]),
         () => setHouseRentals(before), 'the house rental')
     },
+    updateHouseRental: (r: HouseRental) => {
+      const before = houseRentals
+      setHouseRentals(prev => prev.map(x => x.id === r.id ? r : x))
+      const { id, ...fields } = r
+      persist(supabase.from('house_rentals').update(fields).eq('id', id),
+        () => setHouseRentals(before), 'the house rental')
+    },
+    deleteHouseRental: async (id: string) => {
+      if (!await sureToDelete()) return
+      const before = houseRentals
+      setHouseRentals(prev => prev.filter(x => x.id !== id))
+      persist(supabase.from('house_rentals').delete().eq('id', id),
+        () => setHouseRentals(before), 'the house rental deletion')
+    },
     updateExpense: (e: Expense) => {
       const before = expenses
       setExpenses(prev => prev.map(x => x.id === e.id ? e : x))

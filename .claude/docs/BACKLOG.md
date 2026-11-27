@@ -6,8 +6,9 @@
 
 ## ✅ Livré 2026-11-27 — Compta → Dépenses : ajouter un loyer de maison (**gui doit pousser**, aucune migration)
 - « Add expense » propose 🧾 Expense / 🏠 House rental → écrit dans `house_rentals` (jamais `expenses` : pas de double comptage au dashboard). Ouvre aussi la maison aux résas, comme depuis Management.
-- Pré-rempli : début = fin de la dernière période de la maison, fin = +1 mois ; chevauchement bloqué. Build ✅, 1048 tests ✅ ; **jamais vu à l'écran** (proposer Chrome sur TEST).
-- Reste possible : modifier/supprimer un loyer depuis le bloc 🏠 de Dépenses (aujourd'hui Management seulement).
+- Pré-rempli : début = fin de la dernière période de la maison, fin = +1 mois ; chevauchement bloqué.
+- Bloc 🏠 de Dépenses : **Modifier** (même formulaire en ligne, la période ne se chevauche pas elle-même) + **×** (confirmation).
+- Build ✅, 1048 tests ✅ ; **vu à l'écran sur TEST ✅** (ajout H3 23/10→23/11, garde-fous chevauchement + dates, modif 500→520 relue après rechargement, suppression) — TEST remis comme avant.
 
 ## ✅ Livré 2026-11-26 — Le manager taxi attribue un chauffeur (migration TEST + PROD ✅, **gui doit pousser**)
 - Décisions gui : seulement les trajets **sans chauffeur** ; prix chauffeur inchangé + marqueur « à revoir » ; `needs_details → confirmed` ; lien manager expirant **fin mars 2027**.
