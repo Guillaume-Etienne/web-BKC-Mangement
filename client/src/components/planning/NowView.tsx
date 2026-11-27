@@ -213,7 +213,7 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
   // ── Dining events from Supabase ───────────────────────────────────
   const { data: diningEventsData } = useTable<DiningEvent>('dining_events', { order: 'date', ascending: false })
   const { data: priceItems } = useTable<PriceItem>('price_items')
-  const defaultMealPrice = getConfiguredRate(priceItems, 'meal') ?? 0
+  const braaiPrice = getConfiguredRate(priceItems, 'meal') ?? 0
 
   // Provider cost + "count in the Daily figure" live in an admin-only side table, not on
   // dining_events (the shared client page reads that one with select('*')).
@@ -285,13 +285,18 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
   }, [instructors, presence, bookings, bookingParticipants, bookingRooms, today])
 
   // ── Event mutations ───────────────────────────────────────────────
-  const createEvent = async () => {
+  // A plain dinner opens FREE (eaten at the restaurant, nothing to bill: the 25/11
+  // one billed 30 € that nobody meant to charge). A Braai is the one sold dinner:
+  // it opens at the configured meal rate (Options → Pricing, 12 €), and the
+  // instructors (gui, Teresa, Rémi) eat for free — price_override 0, so nothing
+  // comes off their pay either.
+  const createEvent = async (kind: 'dinner' | 'braai' = 'dinner') => {
+    const isBraai = kind === 'braai'
+    const attendees = buildAttendees().map(a =>
+      isBraai && a.person_type === 'instructor' ? { ...a, price_override: 0 } : a)
     const ev: DiningEvent = {
-      // Opens at the configured meal rate (Options → Pricing) instead of 0, which
-      // had to be retyped every single time. Still editable per event — a free
-      // dinner is just this one set back to 0.
-      id: crypto.randomUUID(), name: '', date: today, time: '20:00',
-      type: 'count', price_per_person: defaultMealPrice, notes: '', attendees: buildAttendees(),
+      id: crypto.randomUUID(), name: isBraai ? 'Braai' : '', date: today, time: '20:00',
+      type: 'count', price_per_person: isBraai ? braaiPrice : 0, notes: '', attendees,
     }
     setEvents(prev => [ev, ...prev])
     setActiveId(ev.id)
@@ -498,9 +503,14 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
       {!activeEvent ? (
         <div className="bg-white dark:bg-gray-900 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-800 p-12 text-center">
           <p className="text-gray-400 dark:text-gray-400 mb-4">{i18n.planning.msg_no_event_selected[lang]}</p>
-          <button onClick={createEvent} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
-            {i18n.planning.btn_new_event[lang]}
-          </button>
+          <div className="flex justify-center gap-2">
+            <button onClick={() => createEvent()} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+              {i18n.planning.btn_new_event[lang]}
+            </button>
+            <button onClick={() => createEvent('braai')} className="px-6 py-2 border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 font-medium">
+              {i18n.planning.btn_new_braai[lang]}
+            </button>
+          </div>
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -740,9 +750,14 @@ export default function NowView({ bookings, bookingParticipants, bookingRooms, r
 
       {/* New event button (when one is already open) */}
       {activeEvent && (
-        <button onClick={createEvent} className="w-full py-2 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg text-gray-400 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-800 hover:text-blue-500 dark:hover:text-blue-400 text-sm transition-colors">
-          {i18n.planning.btn_new_event[lang]}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => createEvent()} className="flex-1 py-2 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg text-gray-400 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-800 hover:text-blue-500 dark:hover:text-blue-400 text-sm transition-colors">
+            {i18n.planning.btn_new_event[lang]}
+          </button>
+          <button onClick={() => createEvent('braai')} className="flex-1 py-2 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg text-gray-400 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-800 hover:text-blue-500 dark:hover:text-blue-400 text-sm transition-colors">
+            {i18n.planning.btn_new_braai[lang]}
+          </button>
+        </div>
       )}
 
       {/* ── History ── */}

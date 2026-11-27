@@ -4,6 +4,11 @@
 > `.claude/archive/memory/backlog_closed_2026.md` (1600 lignes d'historique, décisions et
 > vérifications). Ici : **l'ouvert uniquement.** Une ligne close se raye et se déplace.
 
+## ✅ Livré 2026-11-27 — Dîners : ouverture à 0 €, bouton « + Braai » (**gui doit pousser**, donnée PROD changée)
+- Cause #085 : un dîner neuf s'ouvrait à 15 € (tarif `meal`) → 2×15 = 30 € facturés sans que personne le veuille.
+- Désormais : **« + Nouvel événement » = 0 €** ; **« + Braai » = nom « Braai », tarif `meal` (12 €), moniteurs (gui, Teresa, Rémi) à `price_override` 0** (rien sur leur paie). Build ✅, jamais vu à l'écran.
+- Donnée : `price_items` `meal` 15 → **12**, renommé « Braai » (PROD ✅ ; 🔔 **TEST pas touché** — à faire si on teste là-bas). Le dîner du 25/11 de #085 (2×15) est **inchangé**.
+
 ## ✅ Livré 2026-11-27 — Compta → Dépenses : ajouter un loyer de maison (**gui doit pousser**, aucune migration)
 - « Add expense » propose 🧾 Expense / 🏠 House rental → écrit dans `house_rentals` (jamais `expenses` : pas de double comptage au dashboard). Ouvre aussi la maison aux résas, comme depuis Management.
 - Pré-rempli : début = fin de la dernière période de la maison, fin = +1 mois ; chevauchement bloqué.
