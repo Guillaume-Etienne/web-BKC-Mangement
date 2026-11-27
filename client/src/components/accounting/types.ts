@@ -85,6 +85,8 @@ export interface AccountingHandlers {
   setLessonOverride:       (o: LessonRateOverride) => void
   removeLessonOverride:    (lesson_id: string)     => void
   addExpense:              (e: Expense)            => void
+  /** House rental period (`house_rentals`) — also opens the house for bookings */
+  addHouseRental:          (r: HouseRental)        => void
   updateExpense:           (e: Expense)            => void
   deleteExpense:           (id: string)            => void
   addAssociateTransfer:    (t: AssociateTransfer)  => void

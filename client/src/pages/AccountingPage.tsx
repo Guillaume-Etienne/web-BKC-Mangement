@@ -71,7 +71,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
 
   // ── Read-only data (Supabase hooks) ───────────────────────────────────────
   const { data: accommodations }           = useAccommodations()
-  const { data: houseRentals }             = useTable<HouseRental>('house_rentals', { order: 'start_date', ascending: true })
+  const { data: houseRentalsData }         = useTable<HouseRental>('house_rentals', { order: 'start_date', ascending: true })
   const { data: bookings }                 = useBookings()
   const { data: bookingParticipants }      = useBookingParticipants()
   const { data: clients }                  = useClients()
@@ -130,6 +130,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   const [instructorPayments, setInstructorPayments] = useState<InstructorPayment[]>([])
   const [lessonRateOverrides,setLessonRateOverrides]= useState<LessonRateOverride[]>([])
   const [expenses,           setExpenses]           = useState<Expense[]>([])
+  const [houseRentals,       setHouseRentals]       = useState<HouseRental[]>([])
   const [expenseCategories,  setExpenseCategories]  = useState<ExpenseCategory[]>([])
   const [palmeirasRents,     setPalmeirasRents]     = useState<PalmeirasRent[]>([])
   const [palmeirasReversals, setPalmeirasReversals] = useState<PalmeirasReversal[]>([])
@@ -150,6 +151,7 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
   useEffect(() => setInstructorPayments(instructorPaymentsData),[instructorPaymentsData])
   useEffect(() => setLessonRateOverrides(lessonOverridesData), [lessonOverridesData])
   useEffect(() => setExpenses(expensesData),                   [expensesData])
+  useEffect(() => setHouseRentals(houseRentalsData),           [houseRentalsData])
   useEffect(() => setExpenseCategories(expenseCategoriesData), [expenseCategoriesData])
   useEffect(() => setPalmeirasRents(palmeirasRentsData),       [palmeirasRentsData])
   useEffect(() => setPalmeirasReversals(palmeirasReversalsData),[palmeirasReversalsData])
@@ -415,6 +417,15 @@ export default function AccountingPage({ onOpenBooking }: { onOpenBooking?: (id:
       setExpenses(prev => [...prev, e])
       persist(supabase.from('expenses').insert([e]),
         () => setExpenses(before), 'the expense')
+    },
+    // Un loyer saisi depuis Dépenses → Ajouter : il vit dans `house_rentals`
+    // (comme depuis Management → Accommodations), jamais dans `expenses` —
+    // le tableau de bord le compte déjà à part.
+    addHouseRental: (r: HouseRental) => {
+      const before = houseRentals
+      setHouseRentals(prev => [...prev, r])
+      persist(supabase.from('house_rentals').insert([r]),
+        () => setHouseRentals(before), 'the house rental')
     },
     updateExpense: (e: Expense) => {
       const before = expenses

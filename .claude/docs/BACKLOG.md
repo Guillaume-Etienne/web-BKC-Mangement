@@ -4,6 +4,11 @@
 > `.claude/archive/memory/backlog_closed_2026.md` (1600 lignes d'historique, décisions et
 > vérifications). Ici : **l'ouvert uniquement.** Une ligne close se raye et se déplace.
 
+## ✅ Livré 2026-11-27 — Compta → Dépenses : ajouter un loyer de maison (**gui doit pousser**, aucune migration)
+- « Add expense » propose 🧾 Expense / 🏠 House rental → écrit dans `house_rentals` (jamais `expenses` : pas de double comptage au dashboard). Ouvre aussi la maison aux résas, comme depuis Management.
+- Pré-rempli : début = fin de la dernière période de la maison, fin = +1 mois ; chevauchement bloqué. Build ✅, 1048 tests ✅ ; **jamais vu à l'écran** (proposer Chrome sur TEST).
+- Reste possible : modifier/supprimer un loyer depuis le bloc 🏠 de Dépenses (aujourd'hui Management seulement).
+
 ## ✅ Livré 2026-11-26 — Le manager taxi attribue un chauffeur (migration TEST + PROD ✅, **gui doit pousser**)
 - Décisions gui : seulement les trajets **sans chauffeur** ; prix chauffeur inchangé + marqueur « à revoir » ; `needs_details → confirmed` ; lien manager expirant **fin mars 2027**.
 - `supabase/migrations/2026-11-26_manager_assign_driver.sql` : fonction `manager_assign_driver` (détail + refus : security-rls.md), table `taxi_trip_driver_log` (admin only), `expires_at = 2027-03-31` sur le lien manager. Revue par un agent Opus avant codage (9 corrections intégrées).

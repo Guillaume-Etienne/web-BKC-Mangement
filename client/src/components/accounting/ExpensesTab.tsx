@@ -1,6 +1,6 @@
 import { useState, useMemo, Fragment } from 'react'
 import type { SharedAccountingData, AccountingHandlers } from './types'
-import type { Associate, Expense, ExpenseCategory } from '../../types/database'
+import type { Accommodation, Associate, Expense, ExpenseCategory, HouseRental } from '../../types/database'
 import { fmtEur, fmtMonth } from './utils'
 import { todayISO, fmtDate } from '../../utils/dates'
 import { rateOn } from '../../utils/exchangeRates'
@@ -168,6 +168,111 @@ function AddExpenseForm({ categories, associates, onAdd, onCancel }: AddFormProp
   )
 }
 
+// ── Add house rental form (module-scope) ─────────────────────────────────────
+// Même table que Management → Accommodations (`house_rentals`) : une période de
+// location y ouvre AUSSI la maison aux réservations. Pré-rempli dans la
+// continuité de la dernière période de la maison choisie (loyer du mois suivant).
+function plusOneMonthISO(iso: string): string {
+  const d = new Date(iso + 'T00:00:00Z')
+  d.setUTCMonth(d.getUTCMonth() + 1)
+  return d.toISOString().slice(0, 10)
+}
+interface AddRentalFormProps {
+  houses:  Accommodation[]
+  rentals: HouseRental[]
+  onAdd: (r: HouseRental) => void
+  onCancel: () => void
+}
+function AddHouseRentalForm({ houses, rentals, onAdd, onCancel }: AddRentalFormProps) {
+  const { lang } = useLanguage()
+  const nextStart = (accId: string) =>
+    rentals.filter(r => r.accommodation_id === accId)
+      .reduce<string | null>((max, r) => (!max || r.end_date > max ? r.end_date : max), null)
+    ?? todayISO()
+  const firstId = houses[0]?.id ?? ''
+  const [houseId,   setHouseId]   = useState(firstId)
+  const [startDate, setStartDate] = useState(() => nextStart(firstId))
+  const [endDate,   setEndDate]   = useState(() => plusOneMonthISO(nextStart(firstId)))
+  const [cost,      setCost]      = useState('')
+  const [notes,     setNotes]     = useState('')
+
+  const pickHouse = (id: string) => {
+    setHouseId(id)
+    const s = nextStart(id)
+    setStartDate(s)
+    setEndDate(plusOneMonthISO(s))
+  }
+
+  // Deux périodes qui se chevauchent sur une même maison = loyer compté deux
+  // fois. Bornes en « check-out » : 23/10→23/11 puis 23/11→23/12 se suivent.
+  const overlap = rentals.find(r =>
+    r.accommodation_id === houseId && startDate < r.end_date && endDate > r.start_date)
+  const datesBad = !!startDate && !!endDate && endDate <= startDate
+  const amt = parseFloat(cost)
+  const canSubmit = !!houseId && !!startDate && !!endDate && !datesBad && !overlap && !isNaN(amt) && amt >= 0
+
+  const submit = () => {
+    if (!canSubmit) return
+    onAdd({
+      id: crypto.randomUUID(),
+      accommodation_id: houseId,
+      start_date: startDate,
+      end_date:   endDate,
+      total_cost: Math.round(amt * 100) / 100,
+      notes:      notes.trim() || null,
+    })
+  }
+
+  const input = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-gray-200'
+  return (
+    <div className="space-y-4">
+      <p className="font-semibold text-blue-800 dark:text-blue-400">{i18n.accounting.ex_new_house_rental[lang]}</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.ex_house[lang]}</label>
+          <select value={houseId} onChange={e => pickHouse(e.target.value)} className={input}>
+            {houses.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.ex_rental_from[lang]}</label>
+          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={input} />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.ex_rental_to[lang]}</label>
+          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className={input} />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.ex_rental_total_cost[lang]}</label>
+          <input type="number" min="0" step="0.01" value={cost} onChange={e => setCost(e.target.value)}
+            placeholder="0.00" className={input} />
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{i18n.accounting.ex_rental_notes[lang]}</label>
+        <input type="text" value={notes} onChange={e => setNotes(e.target.value)} className={input} />
+      </div>
+      {datesBad && <p className="text-xs text-red-600 dark:text-red-400">{i18n.accounting.ex_rental_end_after[lang]}</p>}
+      {overlap && (
+        <p className="text-xs text-red-600 dark:text-red-400">
+          {i18n.accounting.ex_rental_overlap[lang].replace('{range}', `${fmtDate(overlap.start_date)} → ${fmtDate(overlap.end_date)} (${fmtEur(overlap.total_cost)})`)}
+        </p>
+      )}
+      <p className="text-xs text-gray-500 dark:text-gray-400">{i18n.accounting.ex_rental_hint[lang]}</p>
+      <div className="flex gap-2 justify-end">
+        <button onClick={onCancel}
+          className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+          {i18n.common.btn_cancel[lang]}
+        </button>
+        <button onClick={submit} disabled={!canSubmit}
+          className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+          {i18n.accounting.ex_add_house_rental[lang]}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ExpensesTab({ data, handlers }: Props) {
   const { lang } = useLanguage()
@@ -176,6 +281,13 @@ export default function ExpensesTab({ data, handlers }: Props) {
 
   const [view,        setView]        = useState<View>('list')
   const [showAddForm, setShowAddForm] = useState(false)
+  const [addKind,     setAddKind]     = useState<'expense' | 'house_rental'>('expense')
+  // Maisons proposées au loyer : actives d'abord, puis par nom (« H 2 » avant « H 10 »).
+  const houses = useMemo(() => data.accommodations
+    .filter(a => a.type === 'house')
+    .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1)
+      || a.name.localeCompare(b.name, undefined, { numeric: true })),
+  [data.accommodations])
   // Édition en place d'une dépense : un brouillon local, écrit seulement au Save.
   // ⚠️ Le montant est tenu en CHAÎNE, comme dans le formulaire d'ajout. Sur un
   // <input type="number"> contrôlé, `valueAsNumber` vaut NaN à chaque frappe
@@ -601,14 +713,40 @@ export default function ExpensesTab({ data, handlers }: Props) {
         </div>
 
         {showAddForm && (
-          activeCategories.length === 0
-            ? <p className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg px-3 py-2">
-                {i18n.accounting.ex_no_categories[lang]}
-              </p>
-            : <AddExpenseForm categories={activeCategories}
-                associates={associates}
-                onAdd={e => { handlers.addExpense(e); setShowAddForm(false) }}
-                onCancel={() => setShowAddForm(false)} />
+          <div className="space-y-2">
+            {/* Une dépense ou un loyer de maison : deux tables, un seul bouton
+                « Ajouter » (demande gui, 2026-11-27). */}
+            <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-sm">
+              {(['expense', 'house_rental'] as const).map(k => (
+                <button key={k} onClick={() => setAddKind(k)}
+                  className={`px-3 py-1.5 font-medium transition-colors ${addKind === k
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                  {k === 'expense' ? i18n.accounting.ex_kind_expense[lang] : i18n.accounting.ex_kind_house_rental[lang]}
+                </button>
+              ))}
+            </div>
+            {addKind === 'expense' ? (
+              activeCategories.length === 0
+                ? <p className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg px-3 py-2">
+                    {i18n.accounting.ex_no_categories[lang]}
+                  </p>
+                : <AddExpenseForm categories={activeCategories}
+                    associates={associates}
+                    onAdd={e => { handlers.addExpense(e); setShowAddForm(false) }}
+                    onCancel={() => setShowAddForm(false)} />
+            ) : (
+              houses.length === 0
+                ? <p className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg px-3 py-2">
+                    {i18n.accounting.ex_no_houses[lang]}
+                  </p>
+                : <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-xl p-5">
+                    <AddHouseRentalForm houses={houses} rentals={data.houseRentals}
+                      onAdd={r => { handlers.addHouseRental(r); setShowAddForm(false) }}
+                      onCancel={() => setShowAddForm(false)} />
+                  </div>
+            )}
+          </div>
         )}
 
         {/* Table */}

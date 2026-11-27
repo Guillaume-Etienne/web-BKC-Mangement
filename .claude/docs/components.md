@@ -360,6 +360,7 @@ visa) : **rien n'est envoyé**, gui relit avant d'expédier.
 - 2 vues : List (tableau + filtres) / Summary (matrice mois × catégorie)
 - Catégories free-form, liste par défaut `DEFAULT_CATEGORIES`
 - Form `AddExpenseForm` au scope module
+- Panneau « Add expense » à 2 choix (2026-11-27) : 🧾 Expense (`expenses`) / 🏠 House rental (`AddHouseRentalForm` → `handlers.addHouseRental` → **`house_rentals`**, même table que Management → Accommodations, donc ouvre aussi la maison aux résas). Pré-rempli dans la continuité de la dernière période de la maison (+1 mois) ; chevauchement sur la même maison = bouton bloqué (bornes type check-out : 23/10→23/11 puis 23/11→… OK). Modif/suppression : toujours dans Management.
 - Bloc **House rentals** en lecture seule sous la liste (2026-10-07) : house_rentals filtrés par la même période (au start_date), total séparé, JAMAIS ajouté au total des dépenses (le dashboard les compte déjà à part). Masqué si filtre catégorie. Summary : carte + colonne 🏠 APRÈS le Total, hors Total (mois de loyer sans dépense inclus).
 
 ### `EventsTab` — `accounting/EventsTab.tsx`
